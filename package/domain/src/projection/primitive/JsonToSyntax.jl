@@ -9,7 +9,7 @@ comma separators.
 module JsonToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..TextModule: TextString, hinted_text

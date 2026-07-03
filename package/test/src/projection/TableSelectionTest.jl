@@ -37,7 +37,7 @@ end
 function _print_with(doc, proj, path)
     clear_selection!(doc)
     path === nothing || set_selection!(doc, path)
-    projection_print(proj, doc)
+    print_document(proj, doc)
 end
 
 function test_table_selection()
@@ -110,7 +110,7 @@ end
     gr = 1 + geom.row_offset
     cx = geom.col_x[gc] + geom.bw + geom.pad + 1
     cy = geom.row_y[gr] + geom.bw + geom.pad + 1
-    op = projection_read(proj, io, MousePress(:left, cx, cy, Modifiers()))
+    op = read_intent(proj, io, MousePress(:left, cx, cy, Modifiers()))
     @test op isa ReplaceSelectionOperation
     @test startswith(string(op.path), ".rows[1][1]")
 end

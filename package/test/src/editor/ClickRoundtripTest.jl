@@ -102,7 +102,7 @@ ambiguity at segment boundaries.
 function test_click_roundtrip(label, document, projection)
     @testset "$label" begin
         clear_selection!(document)
-        iomap = projection_print(projection, document)
+        iomap = print_document(projection, document)
         t2g = _find_text_iomap(iomap)
         if t2g === nothing
             @warn "[$label] no TextToGraphicsIoMap in pipeline; skipping"
@@ -139,7 +139,7 @@ function test_click_roundtrip(label, document, projection)
             for k in sc.char_start:sc.char_end
                 cx = _seg_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
-                op = projection_read(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
+                op = read_intent(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
                 # A click on an inline expand/collapse marker (or a collapsed
                 # ellipsis) is a fold gesture, not a cursor move: it yields a
                 # ToggleCollapseOperation. That is a legitimate outcome — skip
@@ -156,7 +156,7 @@ function test_click_roundtrip(label, document, projection)
                     push!(errors, "set_selection! at ($cx,$cy): $e")
                     continue
                 end
-                new_iomap = projection_print(projection, document)
+                new_iomap = print_document(projection, document)
                 new_t2g = _find_text_iomap(new_iomap)
                 cursor = new_t2g === nothing ? nothing : _find_cursor_rect(new_t2g)
                 if cursor === nothing
@@ -211,7 +211,7 @@ function test_click_roundtrips()
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               # pre-existing: CollectionToSyntax lacks
-                              # projection_read; tracked in
+                              # read_intent; tracked in
                               # plan/pending/fix-selection-tests.md
                               "collection", "reversing", "filtering",
                               "sorting") && continue
@@ -234,8 +234,8 @@ state where `right` is a fixed point (end of document).
 function test_text_nav_invariants(label, document, projection)
     @testset "$label" begin
         clear_selection!(document)
-        iomap = projection_print(projection, document)
-        op = projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
+        iomap = print_document(projection, document)
+        op = read_intent(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
         if !(op isa ReplaceSelectionOperation)
             @warn "[$label] Ctrl+Home produced no selection; skipping"
             @test true
@@ -250,8 +250,8 @@ function test_text_nav_invariants(label, document, projection)
         max_steps = 10_000
         terminated = false
         while steps < max_steps
-            iomap = projection_print(projection, document)
-            op = projection_read(projection, iomap, KeyDown(:right, Modifiers()))
+            iomap = print_document(projection, document)
+            op = read_intent(projection, iomap, KeyDown(:right, Modifiers()))
             if !(op isa ReplaceSelectionOperation)
                 terminated = true
                 break
@@ -296,7 +296,7 @@ function test_text_nav_invariants_all()
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               # pre-existing: CollectionToSyntax lacks
-                              # projection_read; tracked in
+                              # read_intent; tracked in
                               # plan/pending/fix-selection-tests.md
                               "collection", "reversing", "filtering",
                               "sorting") && continue
@@ -328,7 +328,7 @@ click and assert the resulting path contains no `ProjectionReference`.
 function test_json_content_clicks_clean(label, document, projection)
     @testset "$label" begin
         clear_selection!(document)
-        iomap = projection_print(projection, document)
+        iomap = print_document(projection, document)
         t2g = _find_text_iomap(iomap)
         if t2g === nothing
             @test true
@@ -344,7 +344,7 @@ function test_json_content_clicks_clean(label, document, projection)
             # Click in the middle of the segment, well inside content.
             cx = sc.x + max(1, (_seg_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
             cy = sc.y + max(1, line_h ÷ 2)
-            op = projection_read(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
+            op = read_intent(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
             op isa ReplaceSelectionOperation || continue
             if _path_contains_projection_ref(op.path)
                 push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReference: $(op.path)")

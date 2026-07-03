@@ -15,14 +15,14 @@
 # Typing goes through the standard `PrimitiveString → Syntax → Text →
 # Graphics` chain (PrimitiveStringToSyntaxLeaf catches `KeyPress`).
 # Enter goes through `WorkbenchToWidget` so the
-# `WorkbenchAssistantToWidgetSplitPane.projection_read` handler fires.
+# `WorkbenchAssistantToWidgetSplitPane.read_intent` handler fires.
 # The test deliberately does not wire the full assistant → graphics
 # chain — that path is exercised by the standalone assistant example
 # (see [`make_assistant_only_example`](../example/src/Examples.jl)).
 #
 # Plus the load-bearing reactivity check: pushing a message to
-# `conversation.messages` after `projection_print` updates the widget
-# composite's `elements` *without* re-running `projection_print`.
+# `conversation.messages` after `print_document` updates the widget
+# composite's `elements` *without* re-running `print_document`.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using Projectured: KeyPress, KeyDown, Modifiers
@@ -68,7 +68,7 @@ end
 
 # Chain that exercises the Enter keybinding. WorkbenchToWidget dispatches
 # WorkbenchAssistant to WorkbenchAssistantToWidgetSplitPane, whose
-# projection_read for KeyDown :return returns SubmitProseOperation.
+# read_intent for KeyDown :return returns SubmitProseOperation.
 function _workbench_chain()
     RecursiveProjection(WorkbenchToWidget())
 end
@@ -112,8 +112,8 @@ _mvp_draft_text(a::WorkbenchAssistant) =
 # Press Enter on the assistant panel and apply the resulting operation.
 function _mvp_enter!(a::WorkbenchAssistant)
     chain = _workbench_chain()
-    iomap = projection_print(chain, a)
-    op = projection_read(chain, iomap, KeyDown(:return, Modifiers()))
+    iomap = print_document(chain, a)
+    op = read_intent(chain, iomap, KeyDown(:return, Modifiers()))
     op === nothing && return nothing
     evaluate_operation((document=a,), op)
     op
@@ -126,11 +126,11 @@ function _mvp_test_reactive_thunk()
         c = ConversationConversation()
         push!(c.turns, ConversationTurn(:user, [ConversationPart("first")]))
         proj = RecursiveProjection(ConversationToWidget())
-        io = projection_print(proj, proj, c, PrinterContext())
+        io = print_document(proj, proj, c, PrinterContext())
         @test io.output isa VerticalLayout
         n0 = length(io.output.children)
         # Load-bearing: pushing a new turn must show up in the
-        # layout's children without re-running projection_print.
+        # layout's children without re-running print_document.
         push!(c.turns, ConversationTurn(:user, [ConversationPart("second")]))
         @test length(io.output.children) == n0 + 1
 
@@ -139,7 +139,7 @@ function _mvp_test_reactive_thunk()
         # widgets (the turn is not collapsed, so content is the layout itself).
         reply = ConversationTurn(:assistant; stop_reason = :end_turn)
         push!(c.turns, reply)
-        io2 = projection_print(proj, proj, c, PrinterContext())
+        io2 = print_document(proj, proj, c, PrinterContext())
         reply_card = io2.output.children[end]
         @test reply_card isa WidgetCard
         body = reply_card.content
@@ -277,7 +277,7 @@ end
 function _render_conversation_widget(doc, ctx)
     proj = ProjecturedExample.make_conversation_widget_projection_example(
         measure = (t, _f) -> (length(t) * 10, 20))
-    projection_print(proj, proj, doc, ctx).output
+    print_document(proj, proj, doc, ctx).output
 end
 
 function _all_expanded_conversation()
@@ -353,7 +353,7 @@ end
 function _find_toggle(proj, io, pred)
     for y in 2:3:820, x in 16:4:200
         op = try
-            projection_read(proj, io, MousePress(:left, x, y))
+            read_intent(proj, io, MousePress(:left, x, y))
         catch
             nothing
         end
@@ -369,7 +369,7 @@ function _mvp_test_collapse_click()
         fake_measure(_text, _font) = (length(_text) * 10, 20)
         doc  = ProjecturedExample.make_conversation_document_example()
         proj = ProjecturedExample.make_conversation_widget_projection_example(measure = fake_measure)
-        io   = projection_print(proj, proj, doc, PrinterContext())
+        io   = print_document(proj, proj, doc, PrinterContext())
 
         # Resolve both header clicks from the *same* fresh projection (a toggle
         # mutates `collapsed`, which re-projects and shifts later positions).

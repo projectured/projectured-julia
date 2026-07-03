@@ -4,7 +4,7 @@
 
 using Projectured: WorkbenchAssistant, FakeLlm, PrimitiveString, TextText,
                    ComposerInputOperation, SubmitDraftTurnOperation, evaluate_operation,
-                   projection_print, projection_read, KeyPress, KeyDown, Modifiers
+                   print_document, read_intent, KeyPress, KeyDown, Modifiers
 
 function _panel_wait_idle!(a; timeout_seconds = 3.0)
     deadline = time() + timeout_seconds
@@ -19,10 +19,10 @@ function test_assistant_composer_panel()
         @testset "panel renders + routes keys to the draft" begin
             a = WorkbenchAssistant(; llm = FakeLlm("ok"))
             proj = make_assistant_projection_example()
-            iom = projection_print(proj, a)
+            iom = print_document(proj, a)
             @test iom.output isa Projectured.GraphicsCanvas
-            @test projection_read(proj, iom, KeyPress('h')) isa ComposerInputOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyPress('h')) isa ComposerInputOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin
@@ -59,7 +59,7 @@ function test_assistant_composer_panel()
             ex   = workbench_example
             doc  = ex.make_document()
             proj = ex.make_projection()
-            iom  = projection_print(proj, doc)
+            iom  = print_document(proj, doc)
             a = nothing
             for p in (:navigation_page, :editing_page, :information_page, :control_page)
                 for e in getfield(doc, p)[].elements
@@ -67,8 +67,8 @@ function test_assistant_composer_panel()
                 end
             end
             @test a !== nothing
-            @test projection_read(proj, iom, KeyPress('h')) isa ComposerInputOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyPress('h')) isa ComposerInputOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
         end
     end
 end

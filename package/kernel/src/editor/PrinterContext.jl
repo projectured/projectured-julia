@@ -2,7 +2,7 @@
     PrinterContextModule
 
 The downward-flowing per-invocation context threaded through
-`projection_print`. Replaces the bare `ReferencePath` 4th argument with a
+`print_document`. Replaces the bare `ReferencePath` 4th argument with a
 lightweight, extensible struct that carries the reference path **plus**
 optional fields projections can use to pass information through the tree.
 
@@ -24,7 +24,7 @@ export PrinterContext, child_context, with_available_size,
 """
     PrinterContext(reference, available_width, available_height, properties)
 
-Downward-flowing per-invocation context for `projection_print`.
+Downward-flowing per-invocation context for `print_document`.
 
 - `reference` — `ReferencePath` describing where the current input sits
   relative to the document root (replaces the old 4th argument). Tree

@@ -32,18 +32,18 @@ function test_collapse_roundtrip()
 
         # ── Mouse: click the marker to collapse the root ───────────────────
         clear_selection!(doc)
-        iomap  = projection_print(proj, doc)
+        iomap  = print_document(proj, doc)
         coords = _find_text_iomap(iomap).char_to_coord[]
         click  = _glyph_click(coords, "▾")               # root's expanded marker
         @test click !== nothing
-        op = projection_read(proj, iomap, MousePress(:left, click[1], click[2], Modifiers()))
+        op = read_intent(proj, iomap, MousePress(:left, click[1], click[2], Modifiers()))
         @test op isa ToggleCollapseOperation
         @test op.target === doc
         evaluate_operation(nothing, op)
         @test doc.collapsed == true
 
         # Collapsed render shows the ellipsis and hides the inner content.
-        iomap2  = projection_print(proj, doc)
+        iomap2  = print_document(proj, doc)
         coords2 = _find_text_iomap(iomap2).char_to_coord[]
         line2   = join(sc.text for sc in coords2)
         @test occursin("…", line2)
@@ -52,7 +52,7 @@ function test_collapse_roundtrip()
         # ── Mouse: click the ellipsis to expand ────────────────────────────
         eclick = _glyph_click(coords2, "…")
         @test eclick !== nothing
-        op2 = projection_read(proj, iomap2, MousePress(:left, eclick[1], eclick[2], Modifiers()))
+        op2 = read_intent(proj, iomap2, MousePress(:left, eclick[1], eclick[2], Modifiers()))
         @test op2 isa ToggleCollapseOperation
         @test op2.target === doc
         evaluate_operation(nothing, op2)
@@ -62,7 +62,7 @@ function test_collapse_roundtrip()
         inner = doc.children[4].children[2]   # the (<= n 1) sub-expression
         clear_selection!(doc)
         set_selection!(doc, @reference children[4].children[2].children[1].value{1})
-        op3 = projection_read(proj, projection_print(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))
+        op3 = read_intent(proj, print_document(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))
         @test op3 isa ToggleCollapseOperation
         @test op3.target === inner
         evaluate_operation(nothing, op3)
@@ -70,14 +70,14 @@ function test_collapse_roundtrip()
         @test doc.collapsed == false      # only the inner node folded
 
         # A second Ctrl+. expands the same node.
-        op4 = projection_read(proj, projection_print(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))
+        op4 = read_intent(proj, print_document(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))
         @test op4 isa ToggleCollapseOperation
         @test op4.target === inner
         evaluate_operation(nothing, op4)
         @test inner.collapsed == false
 
         # ── Keyboard navigation onto the marker must not toggle ─────────────
-        op5 = projection_read(proj, projection_print(proj, doc), KeyDown(:home, Modifiers(ctrl=true)))
+        op5 = read_intent(proj, print_document(proj, doc), KeyDown(:home, Modifiers(ctrl=true)))
         @test op5 isa ReplaceSelectionOperation
     end
 end

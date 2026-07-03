@@ -21,16 +21,16 @@ proj = make_widget_projection_example()
 
     # Menu item bound to the command.
     item = WidgetMenuItem("Save"; command = save)
-    iio  = projection_print(proj, item)
-    iop  = projection_read(proj, iio, MousePress(:left, 2, 2, Modifiers()))
+    iio  = print_document(proj, item)
+    iop  = read_intent(proj, iio, MousePress(:left, 2, 2, Modifiers()))
     @test iop isa CompoundOperation
     @test iop.operations[1] isa InvokeActionOperation
     @test iop.operations[1].action === save
 
     # Button bound to the same command.
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
-    bio = projection_print(proj, btn)
-    bop = projection_read(proj, bio, MousePress(:left, 2, 2, Modifiers()))
+    bio = print_document(proj, btn)
+    bop = read_intent(proj, bio, MousePress(:left, 2, 2, Modifiers()))
     @test bop isa InvokeActionOperation
     @test bop.action === save
 
@@ -38,8 +38,8 @@ proj = make_widget_projection_example()
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
                         menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
                         size = Point2D(300, 200))
-    sio = projection_print(proj, shell)
-    sop = projection_read(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sio = print_document(proj, shell)
+    sop = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
     @test sop isa InvokeActionOperation
     @test sop.action === save
 
@@ -55,24 +55,24 @@ end
                   shortcut = Shortcut(:s; ctrl = true), callback = (_e) -> error("must not fire"))
 
     item = WidgetMenuItem("Save"; command = save)
-    iio  = projection_print(proj, item)
-    @test projection_read(proj, iio, MousePress(:left, 2, 2, Modifiers())) === nothing
+    iio  = print_document(proj, item)
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, Modifiers())) === nothing
 
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
-    bio = projection_print(proj, btn)
-    @test projection_read(proj, bio, MousePress(:left, 2, 2, Modifiers())) === nothing
+    bio = print_document(proj, btn)
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, Modifiers())) === nothing
 
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
                         menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
                         size = Point2D(300, 200))
-    sio = projection_print(proj, shell)
+    sio = print_document(proj, shell)
     # The disabled action's shortcut does not fire; the key falls through instead.
-    sop = projection_read(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sop = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
     @test !(sop isa InvokeActionOperation)
 
     # Re-enabling makes the shortcut fire again (reactive `enabled` cell).
     save.enabled = true
-    sop2 = projection_read(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sop2 = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
     @test sop2 isa InvokeActionOperation
 end
 
@@ -82,14 +82,14 @@ end
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
                         menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
                         size = Point2D(300, 200))
-    sio = projection_print(proj, shell)
+    sio = print_document(proj, shell)
 
     # The matching chord is consumed (returns the action op).
-    @test projection_read(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false)) isa InvokeActionOperation
+    @test read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false)) isa InvokeActionOperation
     # A non-matching chord is not claimed as a shortcut (it falls through).
-    @test !(projection_read(proj, sio, KeyDown(:x, Modifiers(ctrl = true), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:x, Modifiers(ctrl = true), false)) isa InvokeActionOperation)
     # Exact-modifier matching: bare `s` (no Ctrl) is not the Ctrl+S shortcut.
-    @test !(projection_read(proj, sio, KeyDown(:s, Modifiers(), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:s, Modifiers(), false)) isa InvokeActionOperation)
 end
 
 @testset "InvokeActionOperation respects enabled at evaluate time" begin
@@ -104,14 +104,14 @@ end
 
 @testset "WidgetStatusBar renders its segments as a bottom band" begin
     sb = WidgetStatusBar(["Ready", "Ln 1, Col 1"])
-    iomap = projection_print(proj, sb)
+    iomap = print_document(proj, sb)
     @test iomap.output isa GraphicsCanvas
     @test Int(iomap.output.w[]) > 0
     # Both segments are drawn as text (helper defined in WidgetDialogTest).
     @test _dialog_text_xy(iomap.output, "Ready") !== nothing
     @test _dialog_text_xy(iomap.output, "Ln 1, Col 1") !== nothing
     # A status bar is inert.
-    @test projection_read(proj, iomap, MousePress(:left, 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 2, 2, Modifiers())) === nothing
 end
 
 end # @testset

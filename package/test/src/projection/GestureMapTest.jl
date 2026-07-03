@@ -12,7 +12,7 @@ function test_gesture_map()
         obj = JsonObject("a" => JsonNumber(1))
         set_selection!(obj, EmptyReferencePath())
         gmap = gesture_map(document_gestures(JsonObject), obj)
-        text = render(projection_print(g2s, gmap).output)
+        text = render(print_document(g2s, gmap).output)
         # Domain headings.
         @test occursin("JsonObject", text)
         @test occursin("JsonDocument", text)
@@ -27,7 +27,7 @@ function test_gesture_map()
     @testset "greys rows whose precondition fails for the selection" begin
         obj = JsonObject("a" => JsonNumber(1))         # selection === nothing → type-replace n/a
         gmap = gesture_map(document_gestures(JsonObject), obj)
-        text = render(projection_print(g2s, gmap).output)
+        text = render(print_document(g2s, gmap).output)
         @test occursin("n — Replace with null  (n/a)", text)   # greyed
         @test occursin(", — Insert a new entry", text)          # still applicable
         @test !occursin("Insert a new entry  (n/a)", text)
@@ -37,10 +37,10 @@ function test_gesture_map()
         j2s = RecursiveProjection(JsonToSyntax())
         arr = JsonArray([JsonNumber(1)])
         set_selection!(arr, EmptyReferencePath())
-        iomap = projection_print(j2s, arr)
+        iomap = print_document(j2s, arr)
         gmap = gesture_map(collect_gestures(j2s, nothing, iomap), arr)
         @test length(gmap.rows) == 9                            # array's full set
-        text = render(projection_print(g2s, gmap).output)
+        text = render(print_document(g2s, gmap).output)
         @test occursin(", — Insert a new element", text)
     end
 

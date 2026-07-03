@@ -6,7 +6,7 @@ navigating into the input using a configurable reference path.
 """
 module FocusingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
@@ -27,7 +27,7 @@ type is a subtype of `part_type` may be targeted.
 # Example
 
     fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
-    iomap = projection_print(fp, nothing, [[1, 2], [3, 4]], nothing)
+    iomap = print_document(fp, nothing, [[1, 2], [3, 4]], nothing)
     iomap.output  # [1, 2]
 """
 mutable struct FocusingProjection <: Projection
@@ -39,7 +39,7 @@ end
 FocusingProjection(; part_type=Any, part::ReferencePath=EmptyReferencePath()) =
     FocusingProjection(part_type, part, document -> evaluate_reference(document, part))
 
-function projection_print(p::FocusingProjection, recursion, input, ctx)
+function print_document(p::FocusingProjection, recursion, input, ctx)
     output = p.part_evaluator(input)
     iomap = SimpleIoMap(p, input, output)
     # Forward-project the input selection onto the output sub-document so that
@@ -69,7 +69,7 @@ end
 
 Operation that replaces the focus `part` of a `FocusingProjection`.
 When evaluated, updates both `projection.part` and `projection.part_evaluator`
-so that subsequent `projection_print` calls navigate to the new `part`.
+so that subsequent `print_document` calls navigate to the new `part`.
 """
 struct ReplaceFocusPartOperation <: Operation
     projection::FocusingProjection
@@ -81,7 +81,7 @@ function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part_evaluator = document -> evaluate_reference(document, op.part)
 end
 
-function projection_read(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSelectionOperation)
+function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSelectionOperation)
     input_selection = map_reference_backward(p, iomap, event.path)
     input_selection === nothing && return nothing
     return ReplaceSelectionOperation(input_selection)
@@ -113,7 +113,7 @@ function _focus_in(p::FocusingProjection, iomap)
     new_part === nothing ? nothing : ReplaceFocusPartOperation(p, new_part)
 end
 
-projection_read(p::FocusingProjection, iomap::SimpleIoMap, event) =
+read_intent(p::FocusingProjection, iomap::SimpleIoMap, event) =
     read_projection_gesture(p, iomap, event)
 
 function _concat_path(prefix::EmptyReferencePath, suffix::ReferencePath)

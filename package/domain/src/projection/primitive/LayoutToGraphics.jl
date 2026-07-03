@@ -18,7 +18,7 @@ downstream position/extent cells, no re-projection of the layout.
 module LayoutToGraphicsModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
@@ -163,7 +163,7 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         cw, ch = Int(canvas.w[]), Int(canvas.h[])
         (0 <= lx < cw && 0 <= ly < ch) || continue
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result = read_intent(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -197,7 +197,7 @@ function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
     entry = entries[slot]
     entry === nothing && return nothing
     (_, _, cim) = entry::Tuple{Cell,Cell,Any}
-    result = projection_read(cim.projection, cim, evt)
+    result = read_intent(cim.projection, cim, evt)
     result isa Operation ? (result, slot) : nothing
 end
 
@@ -279,7 +279,7 @@ Recurse into a child document via the dispatcher.
 """
 function _recurse_child(recursion, child, ref)
     recursion === nothing && return SimpleIoMap(nothing, child, child)
-    return projection_printer_recurse(recursion, child, ref)
+    return print_child(recursion, child, ref)
 end
 
 """
@@ -346,12 +346,12 @@ and forward the child's canvas as this projection's output. The constraint
 values are not consumed here — they are read by the *parent* layout when
 it allocates space across its children.
 """
-function projection_print(p::LayoutConstraintToGraphicsCanvas,
+function print_document(p::LayoutConstraintToGraphicsCanvas,
                           recursion, doc::LayoutConstraint, ctx)
     child = doc.child
     inner = recursion === nothing ?
             SimpleIoMap(nothing, child, child) :
-            projection_printer_recurse(recursion, child,
+            print_child(recursion, child,
                              child_context(ctx, @reference ^(ctx.reference).child))
     output = inner.output isa GraphicsDocument ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)
@@ -369,10 +369,10 @@ function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap, refer
     return nothing
 end
 
-function projection_read(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
+function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
-    projection_read(inner.projection, inner, evt)
+    read_intent(inner.projection, inner, evt)
 end
 
 _off(v) = Int(v isa Cell ? v[] : v)
@@ -550,7 +550,7 @@ function _hl_build(recursion, doc, ctx)
     (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
 end
 
-function projection_print(p::HorizontalLayoutToGraphicsCanvas,
+function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
     build = Cell(() -> _hl_build(recursion, doc, ctx))
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
@@ -569,7 +569,7 @@ function map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, refer
     return nothing
 end
 
-function projection_read(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 
@@ -641,7 +641,7 @@ function _vl_build(recursion, doc, ctx)
     (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
 end
 
-function projection_print(p::VerticalLayoutToGraphicsCanvas,
+function print_document(p::VerticalLayoutToGraphicsCanvas,
                           recursion, doc::VerticalLayout, ctx)
     # A single cell holding the laid-out stack, recomputed when `doc.children`
     # changes. The output canvas, its element list, and the child-routing
@@ -664,7 +664,7 @@ function map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, referen
     return nothing
 end
 
-function projection_read(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 
@@ -787,7 +787,7 @@ function _gl_child_y(i::Int, child_iomaps::Vector,
     end)
 end
 
-function projection_print(p::GridLayoutToGraphicsCanvas,
+function print_document(p::GridLayoutToGraphicsCanvas,
                           recursion, doc::GridLayout, ctx)
     n = length(doc.children)
     if n == 0
@@ -898,7 +898,7 @@ function map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
+function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 
@@ -995,7 +995,7 @@ function _fl_child_y(i::Int, child_iomaps::Vector, line_plan::Cell,
     end)
 end
 
-function projection_print(p::FlowLayoutToGraphicsCanvas,
+function print_document(p::FlowLayoutToGraphicsCanvas,
                           recursion, doc::FlowLayout, ctx)
     n = length(doc.children)
     if n == 0
@@ -1081,7 +1081,7 @@ function map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
 end
 
@@ -1123,7 +1123,7 @@ function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_
         oy = Int(oy_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result = read_intent(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -1161,7 +1161,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     reroot_operation(op, (FieldReference("children"), RangeReference(i - 1, i)))
 end
 
-function projection_print(p::StackLayoutToGraphicsCanvas,
+function print_document(p::StackLayoutToGraphicsCanvas,
                           recursion, doc::StackLayout, ctx)
     n = length(doc.children)
     if n == 0
@@ -1242,7 +1242,7 @@ function map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_stack_event(iomap, evt)
 end
 
@@ -1403,7 +1403,7 @@ function _cl_build(solver, recursion, doc, ctx)
     (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
 end
 
-function projection_print(p::ConstraintLayoutToGraphicsCanvas,
+function print_document(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
     solver = p.solver
     build = Cell(() -> _cl_build(solver, recursion, doc, ctx))
@@ -1425,7 +1425,7 @@ end
 
 # Children can overlap (the solver places them freely), so route like a stack:
 # scan topmost-first so the last-drawn child wins a click.
-function projection_read(::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_stack_event(iomap, evt)
 end
 

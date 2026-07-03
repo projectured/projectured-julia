@@ -2,7 +2,7 @@
 # test/src/editor/PrinterTest.jl
 #
 # Generic printer walk test.  For each (document, projection) pair:
-#   1. Call projection_print to obtain an iomap.
+#   1. Call print_document to obtain an iomap.
 #   2. Reflexively walk every field of iomap (and its .output) using
 #      fieldnames / getfield so that new document types are covered
 #      automatically.
@@ -116,9 +116,9 @@ function walk_printer_output(document, projection)
     errors = String[]
     status = WalkStatus()
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        push!(errors, "projection_print threw: $e")
+        push!(errors, "print_document threw: $e")
         return (errors, status)
     end
     _walk!(iomap, Set{UInt64}(), errors, status)
@@ -132,9 +132,9 @@ end
 function test_printer(label, document, projection)
     @testset "$label" begin
         iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
-            @warn "[$label] projection_print threw: $e"
+            @warn "[$label] print_document threw: $e"
             @test false
             return
         end

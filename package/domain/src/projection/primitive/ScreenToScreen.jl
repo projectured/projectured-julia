@@ -20,9 +20,9 @@ separate concerns: structural projection here, operation interception there.
 """
 module ScreenToScreenModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector
@@ -55,10 +55,10 @@ end
 
 # ── Printer ─────────────────────────────────────────────────────────────────
 
-function projection_print(p::ScreenToScreen, recursion, input::ScreenDocument, ctx)
+function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx)
     iomap_cell = Cell(nothing)
     window_iomaps = Cell(() -> [
-        projection_print(p, recursion, input.windows[i],
+        print_document(p, recursion, input.windows[i],
                          child_context(ctx, FieldReference("windows"), ElementReference(i)))
         for i in 1:length(input.windows)
     ])
@@ -74,13 +74,13 @@ function projection_print(p::ScreenToScreen, recursion, input::ScreenDocument, c
     iomap
 end
 
-function projection_print(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
+function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
     content_ctx = with_available_size(child_context(ctx, FieldReference("content"));
                                       width=getfield(input, :width),
                                       height=getfield(input, :height))
-    content_iomap = projection_printer_recurse(recursion, input.content, content_ctx)
+    content_iomap = print_child(recursion, input.content, content_ctx)
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
         im = iomap_cell[]
@@ -158,7 +158,7 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
 # steps that lead from the screen root to that content so the operation's path
 # is rooted at the ScreenDocument.
 
-function projection_read(p::ScreenToScreen, recursion, change::Change, iomap::ScreenToScreenIoMap)
+function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
     env = change.gesture
     if env isa EventEnvelope
         ims = iomap.window_iomaps[]
@@ -166,28 +166,28 @@ function projection_read(p::ScreenToScreen, recursion, change::Change, iomap::Sc
             win_in = wim.input
             win_in isa WindowDocument || continue
             win_in.id === env.window_id || continue
-            inner = projection_read(wim.projection, recursion, change, wim)
+            inner = read_intent(wim.projection, recursion, change, wim)
             op = _prefix_op(inner.operation, (FieldReference("windows"), ElementReference(i)))
-            return Change(change.gesture, op)
+            return Intent(change.gesture, op)
         end
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     end
     # Non-envelope change (operation threaded up, or coordless gesture):
     # fall back to the generic per-reference mapping (selection/edit retarget).
     payload = change.operation === nothing ? change.gesture : change.operation
-    return Change(change.gesture, projection_read(p, iomap, payload))
+    return Intent(change.gesture, read_intent(p, iomap, payload))
 end
 
-function projection_read(p::ScreenToScreen, recursion, change::Change, iomap::ScreenWindowIoMap)
+function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
     env = change.gesture
     if env isa EventEnvelope
         cim = iomap.content_iomap
-        inner = projection_read(cim.projection, recursion, Change(env.event, nothing), cim)
+        inner = read_intent(cim.projection, recursion, Intent(env.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReference("content"),))
-        return Change(change.gesture, op)
+        return Intent(change.gesture, op)
     end
     payload = change.operation === nothing ? change.gesture : change.operation
-    return Change(change.gesture, projection_read(p, iomap, payload))
+    return Intent(change.gesture, read_intent(p, iomap, payload))
 end
 
 # Prepend `steps` to the reference path inside `op` (if it carries one), rooting a

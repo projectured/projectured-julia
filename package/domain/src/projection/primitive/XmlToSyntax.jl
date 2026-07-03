@@ -8,7 +8,7 @@ need special wiring; the template engine (`ProjectionTemplate.jl`) records the
 wiring, strips the markers, and supplies reference mapping and the recursive reader
 generically. The authoring command set lives on the XML document types as
 `@gestures` (see `document/Xml.jl`); the template's reader delegates a raw gesture
-to `document_read`.
+to `read_gesture`.
 
 The output node shape is unchanged:
 
@@ -32,7 +32,7 @@ between the tag name and the first attribute is a reactive `close` on the tag le
 module XmlToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, ProjectionReference, PositionReference
 import ..OperationModule: ReplaceSelectionOperation
@@ -128,7 +128,7 @@ end
 # through) — a bounded set, so navigation terminates. This is the SyntaxToText-specific
 # piece the engine deliberately leaves to the domain; the printer, reference mapping,
 # and every other reader still come from `@projection_template`.
-function projection_read(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)

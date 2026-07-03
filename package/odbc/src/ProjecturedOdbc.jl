@@ -427,7 +427,7 @@ import ProjecturedDomain.DatabaseDocumentModule: DatabaseTable,
 import ProjecturedDomain.TabularModule: TabularGrid, TabularRow, TabularCell
 import ProjecturedDomain.CollectionModule: CellVector
 import ProjecturedDomain.ReactiveModule: Cell
-import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
+import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.IoMapApiModule: IoMap
 import ProjecturedDomain.ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
@@ -559,9 +559,9 @@ function _compute_new_value(grid::TabularGrid, r::Int, c::Int,
     _apply_range_replacement(current, range_step, replacement)
 end
 
-# ── projection_print ──────────────────────────────────────────────────────────
+# ── print_document ──────────────────────────────────────────────────────────
 
-function projection_print(p::DatabaseTableToTabularGrid,
+function print_document(p::DatabaseTableToTabularGrid,
                            recursion,
                            doc::DatabaseTable, ctx)
     raw = Cell(() -> _query_with_ctid(doc.adapter, doc.table,
@@ -590,9 +590,9 @@ function map_reference_backward(p::DatabaseTableToTabularGrid, iomap, reference)
     @reference proj(p, ^(reference))
 end
 
-# ── projection_read ───────────────────────────────────────────────────────────
+# ── read_intent ───────────────────────────────────────────────────────────
 
-function projection_read(p::DatabaseTableToTabularGrid,
+function read_intent(p::DatabaseTableToTabularGrid,
                           iomap::DatabaseTableIoMap,
                           op)
     if op isa ReplaceSelectionOperation
@@ -651,7 +651,7 @@ module SqlToCellTableModule
 
 import ProjecturedDomain.ReactiveModule: Cell
 import ProjecturedDomain.CollectionModule: CellVector, CellTable
-import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
+import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.SqlDocumentModule: SqlSelectStatement
 import ProjecturedDomain.SqlToSyntaxModule: SqlToSyntax
@@ -671,13 +671,13 @@ struct SqlToCellTable <: Projection
     instance::DatabaseInstance
 end
 
-function projection_print(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
+function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
     raw = Cell(() -> begin
         pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql = projection_print(pipe, stmt).output[]
+        sql = print_document(pipe, stmt).output[]
         with_connection(p.pool, p.instance) do adapter
             db_execute_raw(adapter, sql, RawDatabaseResult)
         end
@@ -693,7 +693,7 @@ end
 
 map_reference_forward(::SqlToCellTable, iomap, ref) = nothing
 map_reference_backward(::SqlToCellTable, iomap, ref) = nothing
-projection_read(::SqlToCellTable, iomap, op) = nothing
+read_intent(::SqlToCellTable, iomap, op) = nothing
 
 end # module SqlToCellTableModule
 
@@ -707,7 +707,7 @@ import ProjecturedDomain.DatabaseModule: db_catalog_databases, db_catalog_schema
                          db_catalog_tables, db_catalog_columns
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedDomain.IoMapModule: SimpleIoMap
-import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read,
+import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.ReactiveModule: set_function!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
@@ -765,7 +765,7 @@ struct DatabaseInstanceToDbCatalog <: Projection
     pool::OdbcConnectionPool
 end
 
-function projection_print(p::DatabaseInstanceToDbCatalog,
+function print_document(p::DatabaseInstanceToDbCatalog,
                           recursion, inst::DatabaseInstance, ctx)
     rdbms = DbCatalogRdbms(inst.host, inst.port, _build_databases(p.pool, inst))
     iomap = SimpleIoMap(p, inst, rdbms)
@@ -799,7 +799,7 @@ function map_reference_backward(p::DatabaseInstanceToDbCatalog, iomap, reference
     reference isa EmptyReferencePath && return @reference()
     @reference proj(p, ^(reference))
 end
-# No projection_read override — the generic default in Projection.jl handles
+# No read_intent override — the generic default in Projection.jl handles
 # ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (which now
 # re-targets via the non-nothing map_reference_backward above).
 

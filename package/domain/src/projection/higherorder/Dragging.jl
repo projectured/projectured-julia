@@ -28,9 +28,9 @@ document.
 """
 module DraggingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector, cell_at
@@ -89,8 +89,8 @@ end
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::DraggingProjection, recursion, input::DraggingState, ctx)
-    inner = projection_printer_recurse(recursion, input.content, ctx)
+function print_document(p::DraggingProjection, recursion, input::DraggingState, ctx)
+    inner = print_child(recursion, input.content, ctx)
     DraggingProjectionIoMap(p, input, inner.output, inner)
 end
 
@@ -147,7 +147,7 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::DraggingProjection, recursion, change::Change, iomap::DraggingProjectionIoMap)
+function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::DraggingProjectionIoMap)
     gesture = change.gesture
     state = iomap.input::DraggingState
     content = state.content
@@ -162,20 +162,20 @@ function projection_read(p::DraggingProjection, recursion, change::Change, iomap
         st.phase = :pending
         st.x0 = gesture.x
         st.y0 = gesture.y
-        return Change(change.gesture, nothing)            # absorb the press
+        return Intent(change.gesture, nothing)            # absorb the press
 
     elseif gesture isa MouseMove && st.phase === :pending
         if hypot(gesture.x - st.x0, gesture.y - st.y0) >= threshold
             st.phase = :dragging
         end
-        return Change(change.gesture, nothing)            # absorb motion
+        return Intent(change.gesture, nothing)            # absorb motion
 
     elseif gesture isa MouseMove && st.phase === :dragging
-        return Change(change.gesture, nothing)            # absorb motion
+        return Intent(change.gesture, nothing)            # absorb motion
 
     elseif gesture isa MouseUp && st.phase === :pending
         st.phase = :idle                                  # sub-threshold: a click —
-        return Change(change.gesture, nothing)            # let the synthesised MousePress select
+        return Intent(change.gesture, nothing)            # let the synthesised MousePress select
 
     elseif gesture isa MouseUp && st.phase === :dragging
         st.phase = :idle
@@ -184,7 +184,7 @@ function projection_read(p::DraggingProjection, recursion, change::Change, iomap
         # Resolve the drop target by hit-testing the release point through the
         # inner chain (the same path a real click would take).
         target = _locate_point(p, recursion, iomap, gesture.x, gesture.y, gesture.modifiers)
-        return Change(change.gesture, _make_move(content, source, target))
+        return Intent(change.gesture, _make_move(content, source, target))
 
     else
         # Delegate everything else (real clicks, key events, …) to the inner
@@ -194,15 +194,15 @@ function projection_read(p::DraggingProjection, recursion, change::Change, iomap
         # `set_selection!` can't descend into `content` and the cursor never
         # re-renders (and walk-right / repl round-trips stall). nothing /
         # ToggleCollapseOperation pass through `reroot_operation` unchanged.
-        inner = projection_read(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
-        inner_op = inner isa Change ? inner.operation : inner
-        return Change(change.gesture, reroot_operation(inner_op, (FieldReference("content"),)))
+        inner = read_intent(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
+        inner_op = inner isa Intent ? inner.operation : inner
+        return Intent(change.gesture, reroot_operation(inner_op, (FieldReference("content"),)))
     end
 end
 
 # 3-arg compatibility shim (legacy reader entry point).
-projection_read(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Hit-test a window pixel `(x, y)` by synthesising a left `MousePress` there and
 # delegating it to the inner chain — exactly the path a real click takes through
@@ -212,9 +212,9 @@ projection_read(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) 
 # when the point resolves to no selectable element (or to a non-selection op,
 # e.g. a collapse-marker toggle).
 function _locate_point(p::DraggingProjection, recursion, iomap::DraggingProjectionIoMap, x::Int, y::Int, mods)
-    probe = Change(MousePress(:left, x, y, mods), nothing)
-    inner = projection_read(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
-    op = inner isa Change ? inner.operation : inner
+    probe = Intent(MousePress(:left, x, y, mods), nothing)
+    inner = read_intent(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
+    op = inner isa Intent ? inner.operation : inner
     op isa ReplaceSelectionOperation ? op.path : nothing
 end
 

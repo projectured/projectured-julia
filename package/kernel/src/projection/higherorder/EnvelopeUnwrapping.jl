@@ -5,7 +5,7 @@ A higher-order projection that strips the `EventEnvelope` off an input gesture
 before handing it to its inner projection's reader.
 
 The editor wraps every backend event in an `EventEnvelope` (window id + inner
-event) and threads it as the `Change.gesture`. In the SDL pipeline the
+event) and threads it as the `Intent.gesture`. In the SDL pipeline the
 `ScreenToScreen` projection is the seam that unwraps `env.event` and re-roots
 the resulting operation under the window's `content`. A pipeline that has **no**
 screen/window layer — e.g. the `ConsoleBackend`'s `JsonToSyntax → SyntaxToText`
@@ -21,8 +21,8 @@ nesting above the document.
 """
 module EnvelopeUnwrappingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: EventEnvelope
 export EnvelopeUnwrappingProjection, EnvelopeUnwrappingProjectionIoMap
@@ -48,22 +48,22 @@ end
 
 EnvelopeUnwrappingProjection(; inner) = EnvelopeUnwrappingProjection(inner)
 
-function projection_print(p::EnvelopeUnwrappingProjection, recursion, input, ctx)
-    inner = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::EnvelopeUnwrappingProjection, recursion, input, ctx)
+    inner = print_document(p.inner, recursion, input, ctx)
     EnvelopeUnwrappingProjectionIoMap(p, input, inner.output, inner)
 end
 
-function projection_read(p::EnvelopeUnwrappingProjection, recursion, change::Change, iomap::EnvelopeUnwrappingProjectionIoMap)
+function read_intent(p::EnvelopeUnwrappingProjection, recursion, change::Intent, iomap::EnvelopeUnwrappingProjectionIoMap)
     env = change.gesture
-    inner_change = env isa EventEnvelope ? Change(env.event, change.operation) : change
-    out = projection_read(p.inner, recursion, inner_change, iomap.inner_iomap)
+    inner_change = env isa EventEnvelope ? Intent(env.event, change.operation) : change
+    out = read_intent(p.inner, recursion, inner_change, iomap.inner_iomap)
     # Preserve the original (still-wrapped) gesture in the returned change so any
     # outer layer continues to see the envelope it sent.
-    return Change(change.gesture, out.operation)
+    return Intent(change.gesture, out.operation)
 end
 
-projection_read(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 map_reference_forward(p::EnvelopeUnwrappingProjection, iomap::EnvelopeUnwrappingProjectionIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)

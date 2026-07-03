@@ -24,7 +24,7 @@ module MarkdownToSyntaxModule
 
 import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: Projection, projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward
 import ..ProjectionModule: var"@projection"
 import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,
@@ -302,7 +302,7 @@ function map_reference_backward(::MarkdownStyledTextToSyntaxLeaf, iomap, referen
     end
 end
 
-function projection_print(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
+function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
     style = get_property(ctx, :md_style, p.style)
     sel = Cell(() -> begin
         s = t.selection
@@ -312,13 +312,13 @@ function projection_print(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::Markd
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
 end
 
-function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
+function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-function projection_read(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
@@ -348,11 +348,11 @@ _mode(::MarkdownEmphasisToStyledNode) = :italic
 _mode(::MarkdownHeadingToStyledNode)  = :heading
 _mode(::MarkdownLinkToStyledNode)     = :link
 
-function projection_print(p::MarkdownStyledInline, recursion, doc, ctx)
+function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, _BODY)
     style = _mode_style(_mode(p), ambient, doc)
     child_iomaps = Cell(() -> [
-        projection_printer_recurse(recursion, child,
+        print_child(recursion, child,
             with_property(child_context(ctx, FieldReference("content"), ElementReference(i)), :md_style, style))
         for (i, child) in enumerate(doc.content)])
     items = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
@@ -410,12 +410,12 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
     end
 end
 
-function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     r = map_reference_backward(p, iomap, op.path)
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
 
-function projection_read(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
@@ -448,7 +448,7 @@ function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::I
     TextString(isempty(String(url)) ? "image" : String(url), placeholder)
 end
 
-function projection_print(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
+function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
     alt_sel = Cell(() -> begin
         @reference_case doc.selection begin
             alt.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
@@ -484,11 +484,11 @@ function map_reference_backward(::MarkdownImageToStyledNode, iomap::SimpleIoMap,
     end
 end
 
-function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     r = map_reference_backward(p, iomap, op.path)
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
-function projection_read(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
@@ -506,8 +506,8 @@ end
 
 _md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
 
-function projection_print(p::MarkdownListToStyledNode, recursion, lst::MarkdownList, ctx)
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, item,
+function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownList, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, item,
                                    child_context(ctx, FieldReference("items"), ElementReference(i)))
                                for (i, item) in enumerate(lst.items)])
     items = CellVector(() -> begin
@@ -562,11 +562,11 @@ function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMa
     end
 end
 
-function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     r = map_reference_backward(p, iomap, op.path)
     r === nothing ? nothing : ReplaceSelectionOperation(r)
 end
-function projection_read(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end

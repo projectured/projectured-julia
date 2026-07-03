@@ -16,7 +16,7 @@ module SqlToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
                             SqlWhereFilterCondition,
@@ -89,7 +89,7 @@ end
 
 # Opaque display leaf (no marker): the rendered text is a pure multi-field
 # display with no editable interior. The engine derives the ∅↔∅ selection
-# mapping; the shared `projection_read = nothing` (below) keeps it non-editable.
+# mapping; the shared `read_intent = nothing` (below) keeps it non-editable.
 @projection_template SqlAllColumnsToSyntaxLeaf SqlAllColumns (p, doc) ->
     SyntaxLeaf(TextString(() -> begin
                    q = doc.qualifier
@@ -151,8 +151,8 @@ end
     identifier_font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
-function projection_print(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
-    subq_im = Cell(() -> projection_print(recursion, recursion, doc.subquery,
+function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
+    subq_im = Cell(() -> print_document(recursion, recursion, doc.subquery,
                                           child_context(ctx, FieldReference("subquery"))))
     child_iomaps_cell = Cell(() -> Any[subq_im[]])
 
@@ -211,7 +211,7 @@ function map_reference_backward(p::SqlSubqueryFromItemToSyntaxNode, iomap::Child
     end
 end
 
-function projection_read(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -219,7 +219,7 @@ function projection_read(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMa
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 _join_type_display(::SqlInnerJoin)      = "INNER JOIN"
 _join_type_display(::SqlLeftOuterJoin)  = "LEFT OUTER JOIN"
@@ -244,8 +244,8 @@ end
     alias_font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
-function projection_print(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
-    expr_im = Cell(() -> projection_print(recursion, recursion, doc.expression,
+function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
+    expr_im = Cell(() -> print_document(recursion, recursion, doc.expression,
                                           child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
@@ -302,7 +302,7 @@ function map_reference_backward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function projection_read(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -310,7 +310,7 @@ function projection_read(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op:
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectClauseToSyntaxNode ───────────────────────────────────────────────
 
@@ -318,9 +318,9 @@ projection_read(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
+function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
     item_ims = Cell(() -> [
-        projection_print(recursion, recursion, item, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, item, child_context(ctx, ElementReference(i)))
         for (i, item) in enumerate(doc.items)])
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
@@ -384,7 +384,7 @@ function map_reference_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenI
     end
 end
 
-function projection_read(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -392,7 +392,7 @@ function projection_read(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, o
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
@@ -400,14 +400,14 @@ projection_read(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
+function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
     projected = Cell(() -> begin
-        jt = projection_print(recursion, recursion, doc.join_type,
+        jt = print_document(recursion, recursion, doc.join_type,
                               child_context(ctx, FieldReference("join_type")))
-        fi = projection_print(recursion, recursion, doc.from_item,
+        fi = print_document(recursion, recursion, doc.from_item,
                               child_context(ctx, FieldReference("from_item")))
         cond_im = doc.condition === nothing ? nothing :
-            projection_print(recursion, recursion, doc.condition,
+            print_document(recursion, recursion, doc.condition,
                              child_context(ctx, FieldReference("condition")))
         (jt, fi, cond_im)
     end)
@@ -492,7 +492,7 @@ function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::Childre
     end
 end
 
-function projection_read(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -500,7 +500,7 @@ function projection_read(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap,
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
 
@@ -508,9 +508,9 @@ projection_read(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = not
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
+function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
     expr_im = Cell(() ->
-        projection_print(recursion, recursion, doc.expression,
+        print_document(recursion, recursion, doc.expression,
                          child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
@@ -558,7 +558,7 @@ function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::Childr
     end
 end
 
-function projection_read(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -566,7 +566,7 @@ function projection_read(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
@@ -574,11 +574,11 @@ projection_read(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = no
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
+function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
     projected = Cell(() -> begin
-        base = projection_print(recursion, recursion, doc.base_item,
+        base = print_document(recursion, recursion, doc.base_item,
                                 child_context(ctx, FieldReference("base_item")))
-        joins = [projection_print(recursion, recursion, seg,
+        joins = [print_document(recursion, recursion, seg,
                                   child_context(ctx, ElementReference(i)))
                  for (i, seg) in enumerate(doc.joins)]
         (base, joins)
@@ -659,7 +659,7 @@ function map_reference_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap
     end
 end
 
-function projection_read(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -667,7 +667,7 @@ function projection_read(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::R
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlFromClauseToSyntaxNode ─────────────────────────────────────────────────
 
@@ -675,9 +675,9 @@ projection_read(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
+function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
     item_ims = Cell(() -> [
-        projection_print(recursion, recursion, item, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, item, child_context(ctx, ElementReference(i)))
         for (i, item) in enumerate(doc.items)])
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
@@ -733,7 +733,7 @@ function map_reference_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function projection_read(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -741,7 +741,7 @@ function projection_read(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op:
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
 
@@ -749,9 +749,9 @@ projection_read(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
+function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
     expr_im = Cell(() ->
-        projection_print(recursion, recursion, doc.expression,
+        print_document(recursion, recursion, doc.expression,
                          child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
@@ -798,7 +798,7 @@ function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::C
     end
 end
 
-function projection_read(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -806,7 +806,7 @@ function projection_read(p::SqlWhereFilterConditionToSyntaxNode, iomap::Children
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
@@ -814,9 +814,9 @@ projection_read(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op)
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
+function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
     cond_im = Cell(() -> doc.condition === nothing ? nothing :
-        projection_print(recursion, recursion, doc.condition,
+        print_document(recursion, recursion, doc.condition,
                          child_context(ctx, FieldReference("condition"))))
     cond_body = _newline_body(() -> begin
         ci = cond_im[]
@@ -872,7 +872,7 @@ function map_reference_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIo
     end
 end
 
-function projection_read(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -880,7 +880,7 @@ function projection_read(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
@@ -898,9 +898,9 @@ end
 
 # All seven SQL leaf projections are opaque display leaves: their content is a
 # computed multi-field display with no editable interior, so editing operations
-# are declined (matching the original per-leaf `projection_read = nothing`). The
+# are declined (matching the original per-leaf `read_intent = nothing`). The
 # engine's generic RuleIoMap readers would otherwise try to map an edit back.
-projection_read(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+read_intent(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
                         SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
                         SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
                         SqlScalarValueToSyntaxLeaf}, iomap::RuleIoMap, op) = nothing
@@ -911,11 +911,11 @@ projection_read(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLea
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
+function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
     projected = Cell(() -> begin
-        left  = projection_print(recursion, recursion, doc.left,
+        left  = print_document(recursion, recursion, doc.left,
                                  child_context(ctx, FieldReference("left")))
-        right = projection_print(recursion, recursion, doc.right,
+        right = print_document(recursion, recursion, doc.right,
                                  child_context(ctx, FieldReference("right")))
         (left, right)
     end)
@@ -980,7 +980,7 @@ function map_reference_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function projection_read(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -988,7 +988,7 @@ function projection_read(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op:
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlBooleanBinaryToSyntaxNode (AND / OR) ──────────────────────────────────
 
@@ -999,11 +999,11 @@ end
 SqlBooleanBinaryToSyntaxNode(keyword; keyword_style=StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)) =
     SqlBooleanBinaryToSyntaxNode(keyword, keyword_style)
 
-function projection_print(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
+function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     projected = Cell(() -> begin
-        left  = projection_print(recursion, recursion, doc.left,
+        left  = print_document(recursion, recursion, doc.left,
                                  child_context(ctx, FieldReference("left")))
-        right = projection_print(recursion, recursion, doc.right,
+        right = print_document(recursion, recursion, doc.right,
                                  child_context(ctx, FieldReference("right")))
         (left, right)
     end)
@@ -1070,7 +1070,7 @@ function map_reference_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::Children
     end
 end
 
-function projection_read(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1078,7 +1078,7 @@ function projection_read(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, 
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlNotToSyntaxNode ────────────────────────────────────────────────────────
 
@@ -1086,8 +1086,8 @@ projection_read(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = noth
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
-    expr_im = Cell(() -> projection_print(recursion, recursion, doc.expression,
+function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
+    expr_im = Cell(() -> print_document(recursion, recursion, doc.expression,
                                           child_context(ctx, FieldReference("expression"))))
     child_iomaps_cell = Cell(() -> Any[expr_im[]])
 
@@ -1138,7 +1138,7 @@ function map_reference_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, ref
     end
 end
 
-function projection_read(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1146,7 +1146,7 @@ function projection_read(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::Replac
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectStatementToSyntaxNode ────────────────────────────────────────────
 #
@@ -1161,14 +1161,14 @@ projection_read(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
+function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
     projected = Cell(() -> begin
-        sc = projection_print(recursion, recursion, stmt.select_clause,
+        sc = print_document(recursion, recursion, stmt.select_clause,
                               child_context(ctx, FieldReference("select_clause")))
-        fc = projection_print(recursion, recursion, stmt.from_clause,
+        fc = print_document(recursion, recursion, stmt.from_clause,
                               child_context(ctx, FieldReference("from_clause")))
         wc = stmt.where_clause.condition === nothing ? nothing :
-             projection_print(recursion, recursion, stmt.where_clause,
+             print_document(recursion, recursion, stmt.where_clause,
                               child_context(ctx, FieldReference("where_clause")))
         (sc, fc, wc)
     end)
@@ -1251,7 +1251,7 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function projection_read(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1271,14 +1271,14 @@ end
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
+function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
     projected = Cell(() -> begin
-        table_im = projection_print(recursion, recursion, stmt.table,
+        table_im = print_document(recursion, recursion, stmt.table,
                                     child_context(ctx, FieldReference("table")))
-        col_ims = [projection_print(recursion, recursion, c,
+        col_ims = [print_document(recursion, recursion, c,
                                     child_context(ctx, FieldReference("columns"), ElementReference(i)))
                    for (i, c) in enumerate(stmt.columns)]
-        val_ims = [projection_print(recursion, recursion, v,
+        val_ims = [print_document(recursion, recursion, v,
                                     child_context(ctx, FieldReference("values"), ElementReference(i)))
                    for (i, v) in enumerate(stmt.values)]
         (table_im, col_ims, val_ims)
@@ -1397,7 +1397,7 @@ function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function projection_read(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1405,7 +1405,7 @@ function projection_read(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlUpdateAssignmentToSyntaxNode ───────────────────────────────────────────
 # Renders `<col> = <value>`. children[1]=column, children[3]=value (the `=`
@@ -1415,11 +1415,11 @@ projection_read(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
+function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
     projected = Cell(() -> begin
-        col_im = projection_print(recursion, recursion, doc.column_name,
+        col_im = print_document(recursion, recursion, doc.column_name,
                                   child_context(ctx, FieldReference("column_name")))
-        val_im = projection_print(recursion, recursion, doc.value,
+        val_im = print_document(recursion, recursion, doc.value,
                                   child_context(ctx, FieldReference("value")))
         (col_im, val_im)
     end)
@@ -1484,7 +1484,7 @@ function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::Child
     end
 end
 
-function projection_read(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1492,7 +1492,7 @@ function projection_read(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMa
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlUpdateStatementToSyntaxNode ────────────────────────────────────────────
 #
@@ -1508,15 +1508,15 @@ projection_read(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = n
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
+function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
     projected = Cell(() -> begin
-        table_im = projection_print(recursion, recursion, stmt.table,
+        table_im = print_document(recursion, recursion, stmt.table,
                                     child_context(ctx, FieldReference("table")))
-        assign_ims = [projection_print(recursion, recursion, a,
+        assign_ims = [print_document(recursion, recursion, a,
                                        child_context(ctx, FieldReference("assignments"), ElementReference(i)))
                       for (i, a) in enumerate(stmt.assignments)]
         where_im = stmt.where_clause.condition === nothing ? nothing :
-            projection_print(recursion, recursion, stmt.where_clause.condition,
+            print_document(recursion, recursion, stmt.where_clause.condition,
                              child_context(ctx, FieldReference("where_clause"), FieldReference("condition")))
         (table_im, assign_ims, where_im)
     end)
@@ -1625,7 +1625,7 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function projection_read(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1633,7 +1633,7 @@ function projection_read(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlColumnDefinitionToSyntaxNode ───────────────────────────────────────────
 # Renders `<column-name> <data-type>` inside a CREATE TABLE column list.
@@ -1644,8 +1644,8 @@ projection_read(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = no
     type::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
 end
 
-function projection_print(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
-    col_im = Cell(() -> projection_print(recursion, recursion, doc.column_name,
+function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
+    col_im = Cell(() -> print_document(recursion, recursion, doc.column_name,
                                          child_context(ctx, FieldReference("column_name"))))
     child_iomaps_cell = Cell(() -> Any[col_im[]])
 
@@ -1695,7 +1695,7 @@ function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::Child
     end
 end
 
-function projection_read(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1703,7 +1703,7 @@ function projection_read(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMa
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlCreateTableStatementToSyntaxNode ───────────────────────────────────────
 #
@@ -1720,11 +1720,11 @@ projection_read(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = n
     keyword::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
+function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
     projected = Cell(() -> begin
-        table_im = projection_print(recursion, recursion, stmt.table_name,
+        table_im = print_document(recursion, recursion, stmt.table_name,
                                     child_context(ctx, FieldReference("table_name")))
-        col_ims = [projection_print(recursion, recursion, c,
+        col_ims = [print_document(recursion, recursion, c,
                                     child_context(ctx, FieldReference("columns"), ElementReference(i)))
                    for (i, c) in enumerate(stmt.columns)]
         (table_im, col_ims)
@@ -1812,7 +1812,7 @@ function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::C
     end
 end
 
-function projection_read(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1820,7 +1820,7 @@ function projection_read(p::SqlCreateTableStatementToSyntaxNode, iomap::Children
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlCreateSchemaStatementToSyntaxNode ──────────────────────────────────────
 #
@@ -1833,7 +1833,7 @@ projection_read(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op)
     identifier_font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
-function projection_print(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
+function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
         im = iomap_cell[]
@@ -1870,7 +1870,7 @@ function map_reference_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::
     end
 end
 
-function projection_read(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1878,7 +1878,7 @@ function projection_read(p::SqlCreateSchemaStatementToSyntaxNode, iomap::Childre
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlStatementListToSyntaxNode ──────────────────────────────────────────────
 #
@@ -1889,9 +1889,9 @@ projection_read(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op
     font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
-function projection_print(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStatementList, ctx)
+function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStatementList, ctx)
     stmt_ims = Cell(() -> [
-        projection_print(recursion, recursion, s, child_context(ctx, ElementReference(i)))
+        print_document(recursion, recursion, s, child_context(ctx, ElementReference(i)))
         for (i, s) in enumerate(doc.statements)])
     child_iomaps_cell = Cell(() -> Any[im for im in stmt_ims[]])
 
@@ -1945,7 +1945,7 @@ function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::Children
     end
 end
 
-function projection_read(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -1953,7 +1953,7 @@ function projection_read(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, 
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-projection_read(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 

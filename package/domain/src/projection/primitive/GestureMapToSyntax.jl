@@ -14,7 +14,7 @@ but dimmed.
 module GestureMapToSyntaxModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..GestureMapModule: GestureMap, GestureRow
@@ -37,7 +37,7 @@ end
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading
 # whenever the domain changes; joined by newlines so the Syntax→Text layer lays it
 # out as a vertical list.
-function projection_print(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::PrinterContext)
+function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::PrinterContext)
     children = SyntaxDocument[]
     last_domain = nothing
     for row in doc.rows

@@ -31,7 +31,7 @@ include("reactive/Reactive.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The
-# concrete protocol data types (Change, NoOperation) live in common/, not here.
+# concrete protocol data types (Intent, NoOperation) live in common/, not here.
 include("api/Backend.jl")
 include("api/Device.jl")
 include("api/Projection.jl")
@@ -46,9 +46,9 @@ include("api/Agent.jl")
 # on. Collection precedes Operation so the latter can dispatch on `CellVector`
 # directly (a pre-order walk needs it); Operation precedes Primitive, which
 # imports its splice helpers; OperationRerooting needs Operation + Primitive, so
-# it closes the section. Change (the reader's backward-flowing protocol type) is
+# it closes the section. Intent (the reader's backward-flowing protocol type) is
 # a dependency-free leaf.
-include("common/Change.jl")
+include("common/Intent.jl")
 include("common/Document.jl")
 include("common/IoMap.jl")
 include("reference/Reference.jl")

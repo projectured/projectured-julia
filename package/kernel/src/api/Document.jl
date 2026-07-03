@@ -8,7 +8,7 @@ the declaration from the implementation and avoids circular dependencies.
 """
 module DocumentApiModule
 
-export Document, selection, clear_selection!, set_selection!, with_selection, document_read
+export Document, selection, clear_selection!, set_selection!, with_selection, read_gesture
 
 """
     Document
@@ -74,7 +74,7 @@ the gesture→replace builders).
 function with_selection end
 
 """
-    document_read(document, gesture) -> Union{Operation, Nothing}
+    read_gesture(document, gesture) -> Union{Operation, Nothing}
 
 Map a backend-agnostic input gesture to an Operation expressed against
 `document` itself (i.e. against `document`'s own reference vocabulary, reading
@@ -87,13 +87,13 @@ whose output (or input) is `document` can obtain navigation/editing operations
 without re-implementing them, and a backend that renders the domain directly
 (without a projection pipeline) gets them for free.
 
-The catch-all `document_read(::Document, gesture)` is supplied by
+The catch-all `read_gesture(::Document, gesture)` is supplied by
 `GestureBindingModule` (`common/GestureBinding.jl`): it interprets the reified
 `document_gestures` table for the document's type, so a domain authored with
-`@gestures` needs no hand-written reader. A concrete `document_read(::SomeDoc, …)`
+`@gestures` needs no hand-written reader. A concrete `read_gesture(::SomeDoc, …)`
 method is more specific and still takes precedence; a document type with neither a
 method nor any registered gestures yields `nothing`.
 """
-function document_read end
+function read_gesture end
 
 end # module

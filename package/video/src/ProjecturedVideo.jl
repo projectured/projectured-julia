@@ -20,7 +20,7 @@ import FFMPEG
 
 import ProjecturedDomain.BackendApiModule: record_video
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas
-import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read
+import ProjecturedDomain.ProjectionApiModule: print_document, read_intent
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
@@ -56,7 +56,7 @@ offscreen software renderer as `ProjecturedSdl.write_image` and assembled with `
 an `operation`, plus a `hold`:
 - `(event = …, hold = …)` — `event` is any backend-agnostic device event
   (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`, `MousePress`,
-  `MouseMove`, `MouseScroll`), translated to an operation via `projection_read`.
+  `MouseMove`, `MouseScroll`), translated to an operation via `read_intent`.
 - `(operation = …, hold = …)` — a domain `Operation` injected straight into
   `evaluate_operation`, skipping the reader (for actions with no single-event
   trigger: seed a selection, scroll, swap focus/document). `operation` may be an
@@ -69,8 +69,8 @@ The initial state (before any gesture) is held for `initial_hold` seconds and th
 final state (after the last gesture) for `final_hold` seconds, giving a still
 margin at each end of the clip; both default to `0.5`.
 
-For each gesture the standard editor cycle runs: `projection_read` →
-`evaluate_operation` → `projection_print`, mirroring the live editor loop. Each
+For each gesture the standard editor cycle runs: `read_intent` →
+`evaluate_operation` → `print_document`, mirroring the live editor loop. Each
 frame is laid out at the fixed `width × height` video resolution so mouse-gesture
 coordinates line up with what is rendered. Errors from the pipeline propagate
 (callers want loud failures, not a partial video).
@@ -115,7 +115,7 @@ function record_video(document, projection, gestures::AbstractVector,
         error("record_video: only .mp4 output is supported (got \"$filename\")")
 
     # Lay out every frame at the fixed video resolution.
-    print_iomap = doc -> projection_print(projection, nothing, doc,
+    print_iomap = doc -> print_document(projection, nothing, doc,
         PrinterContext(EmptyReferencePath(), Cell(Int(width)), Cell(Int(height)),
                        Dict{Symbol,Any}()))
     canvas_of = iomap -> begin
@@ -183,7 +183,7 @@ function record_video(document, projection, gestures::AbstractVector,
             if haskey(entry, :operation)
                 op = entry.operation isa Function ? entry.operation(document) : entry.operation
             else
-                op = projection_read(projection, iomap, entry.event)
+                op = read_intent(projection, iomap, entry.event)
             end
             if op !== nothing
                 ed = _VideoEditor(document, iomap)

@@ -61,7 +61,7 @@ function _highlighted(doc)
     proj = make_json_console_projection_example()
     io = IOBuffer()
     backend = ConsoleBackend(; io=io, ansi=true, clear=false)
-    out = Projectured.projection_print(proj, doc).output
+    out = Projectured.print_document(proj, doc).output
     write_to_devices(backend, Device[], out)
     s = String(take!(io))
     rev = ""
@@ -123,7 +123,7 @@ function test_console_backend()
     @testset "ansi vs plain" begin
         doc = make_json_document_example()
         proj = make_json_console_projection_example()
-        out = Projectured.projection_print(proj, doc).output
+        out = Projectured.print_document(proj, doc).output
         plain = IOBuffer(); console_render(ConsoleBackend(; io=plain, ansi=false), out)
         colored = IOBuffer(); console_render(ConsoleBackend(; io=colored, ansi=true, clear=false), out)
         cs = String(take!(colored))
@@ -134,7 +134,7 @@ function test_console_backend()
     # ── frame diffing skips an unchanged repaint ──────────────────────────
     @testset "frame diff" begin
         doc = make_json_document_example()
-        out = Projectured.projection_print(make_json_console_projection_example(), doc).output
+        out = Projectured.print_document(make_json_console_projection_example(), doc).output
         io = IOBuffer()
         backend = ConsoleBackend(; io=io, ansi=true, clear=true)
         console_render(backend, out)
@@ -157,9 +157,9 @@ function test_console_backend()
 
     # ── character-level text editing through the console pipeline ──────────
     # This is the payoff of moving the geometry-free Text-domain gesture mapping
-    # onto the document (`document_read(::TextText, …)`): the console pipeline,
+    # onto the document (`read_gesture(::TextText, …)`): the console pipeline,
     # which omits `TextToGraphics`, now gets character cursor movement and
-    # insert/delete via `SyntaxToText`'s fallback to `document_read(iomap.output,
+    # insert/delete via `SyntaxToText`'s fallback to `read_gesture(iomap.output,
     # gesture)`. None of these gestures need pixel geometry.
     @testset "character editing" begin
         ESC = 0x1b; LB = 0x5b
@@ -175,7 +175,7 @@ function test_console_backend()
         nav = vcat(HOME, DOWN, DOWN, RIGHT, CTRL_SPACE)
 
         # Cross-span / character cursor movement (Right then Left) drives the
-        # text-domain `document_read` left/right arms through the fallback.
+        # text-domain `read_gesture` left/right arms through the fallback.
         _, sels = _drive_console_doc(vcat(nav, RIGHT, LEFT), 7)
         @test sels[4] == ".entries[1].value"              # on the value
         @test sels[5] == ".entries[1].value.value{0}"     # Ctrl+Space → text cursor

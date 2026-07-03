@@ -10,7 +10,7 @@ It is built entirely from existing, already-bidirectional projections
 (`TypeDispatchingProjection`, `RecursiveProjection`, `ChainingProjection`, and
 the per-domain `*ToSyntax` / `*ToGraphics` projections), so it inherits the
 printer, the reader, and both reference maps for free — there are no new
-`projection_print` / `projection_read` / `map_reference_*` methods here.
+`print_document` / `read_intent` / `map_reference_*` methods here.
 
 ## How "render anything, including nestings" works
 

@@ -42,7 +42,7 @@ const _ALL_READER_EVENTS = vcat(_ALL_KEY_EVENTS, _ALL_MOUSE_EVENTS)
 """
     walk_reader_events(document, projection; onevent=nothing) -> Vector{String}
 
-Print `document` with `projection`, then call `projection_read` for every
+Print `document` with `projection`, then call `read_intent` for every
 event in `_ALL_READER_EVENTS`.  Collects and returns error strings for any
 call that throws; a clean run returns an empty vector.  If `onevent` is
 supplied it is called once per event with `(event, ok::Bool, message::String)`,
@@ -52,19 +52,19 @@ function walk_reader_events(document, projection; onevent=nothing)
     errors = String[]
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        msg = "projection_print threw: $e"
+        msg = "print_document threw: $e"
         push!(errors, msg)
         onevent === nothing || onevent(nothing, false, msg)
         return errors
     end
     for event in _ALL_READER_EVENTS
         try
-            projection_read(projection, iomap, event)
+            read_intent(projection, iomap, event)
             onevent === nothing || onevent(event, true, "")
         catch e
-            msg = "projection_read threw for $event: $e"
+            msg = "read_intent threw for $event: $e"
             push!(errors, msg)
             onevent === nothing || onevent(event, false, msg)
         end

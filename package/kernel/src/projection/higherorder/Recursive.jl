@@ -8,8 +8,8 @@ step, enabling self-referential tree traversal.
 """
 module RecursiveProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..GestureBindingModule: collect_gestures
 export RecursiveProjection
 
@@ -17,9 +17,9 @@ export RecursiveProjection
     RecursiveProjection(child)
 
 A compound projection that wraps a child projection and passes itself
-as the `recursion` argument when calling `projection_print` on the child.
+as the `recursion` argument when calling `print_document` on the child.
 This enables the child projection (and any projections it delegates to)
-to call `projection_printer_recurse(recursion, sub_input)` to recurse
+to call `print_child(recursion, sub_input)` to recurse
 back through this same wrapper.
 
 # Example
@@ -31,14 +31,14 @@ back through this same wrapper.
             ...
         )
     )
-    result = projection_print(rp, json_doc)
+    result = print_document(rp, json_doc)
 """
 struct RecursiveProjection <: Projection
     child::Any
 end
 
-function projection_print(rp::RecursiveProjection, recursion, input, ctx)
-    projection_print(rp.child, rp, input, ctx)
+function print_document(rp::RecursiveProjection, recursion, input, ctx)
+    print_document(rp.child, rp, input, ctx)
 end
 
 # RecursiveProjection is a transparent wrapper — it returns the inner
@@ -46,11 +46,11 @@ end
 
 # Pass self as the recursion so a node reader inside the child re-enters this
 # wrapper (symmetric with the printer, which passes `rp` as recursion too).
-projection_read(rp::RecursiveProjection, recursion, change::Change, iomap) =
-    projection_read(rp.child, rp, change, iomap)
+read_intent(rp::RecursiveProjection, recursion, change::Intent, iomap) =
+    read_intent(rp.child, rp, change, iomap)
 
-projection_read(rp::RecursiveProjection, iomap, payload) =
-    projection_read(rp, nothing, Change(payload), iomap).operation
+read_intent(rp::RecursiveProjection, iomap, payload) =
+    read_intent(rp, nothing, Intent(payload), iomap).operation
 
 # Gather like the reader recurses: pass self as the recursion so the child's
 # gathering re-enters this wrapper.

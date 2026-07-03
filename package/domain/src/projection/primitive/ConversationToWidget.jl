@@ -16,12 +16,12 @@ graphics-viewport clip). The richer first-line collapse (`TextFirstLine`) is a
 later refinement.
 
 The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
-part updates the layout without re-running `projection_print` (streaming). The
+part updates the layout without re-running `print_document` (streaming). The
 `collapsed` state is read at print time.
 """
 module ConversationToWidgetModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
@@ -112,16 +112,16 @@ _maybe_clip(body, collapsed::Bool, width::Integer) =
                                  size = Point2D(width - 2 * _CARD_PADDING, _COLLAPSED_H),
                                  padding = inset_default) : body
 
-# ── projection_print: conversation → vertical list of turn cards ──────────────
+# ── print_document: conversation → vertical list of turn cards ──────────────
 
-function projection_print(::ConversationConversationToWidgetComposite,
+function print_document(::ConversationConversationToWidgetComposite,
                           recursion, c::ConversationConversation, ctx)
     rec, ref = recursion, ctx.reference
     # Cache the child turn iomaps (recomputed only when the turn list changes),
     # so the produced cards keep a stable identity that the toggle reader can
     # match against. The layout reads each iomap's `.output`.
     ioms = Cell(() -> Any[
-        projection_print(rec, rec, c.turns[i], child_context(ctx, ref))
+        print_document(rec, rec, c.turns[i], child_context(ctx, ref))
         for i in eachindex(c.turns)
     ])
     layout = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
@@ -129,13 +129,13 @@ function projection_print(::ConversationConversationToWidgetComposite,
     ChildrenIoMap(nothing, c, layout, ioms)
 end
 
-# ── projection_print: turn → card with avatar header + part stack ─────────────
+# ── print_document: turn → card with avatar header + part stack ─────────────
 
-function projection_print(::ConversationTurnToWidgetComposite,
+function print_document(::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec, ref = recursion, ctx.reference
     ioms = Cell(() -> Any[
-        projection_print(rec, rec, t.parts[i], child_context(ctx, ref))
+        print_document(rec, rec, t.parts[i], child_context(ctx, ref))
         for i in eachindex(t.parts)
     ])
     body = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
@@ -147,9 +147,9 @@ function projection_print(::ConversationTurnToWidgetComposite,
     ChildrenIoMap(nothing, t, card, ioms)
 end
 
-# ── projection_print: part → card with kind header + recursed content ─────────
+# ── print_document: part → card with kind header + recursed content ─────────
 
-function projection_print(::ConversationPartToWidget,
+function print_document(::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     rec, ref = recursion, ctx.reference
     content = part.content
@@ -199,7 +199,7 @@ for P in (ConversationConversationToWidgetComposite,
           ConversationPartToWidget)
     @eval map_reference_forward(::$P, iomap, ref)  = nothing
     @eval map_reference_backward(::$P, iomap, ref) = nothing
-    @eval projection_read(::$P, iomap, op) = op
+    @eval read_intent(::$P, iomap, op) = op
 end
 
 # The WidgetCard header-click reader emits `ToggleCollapseOperation(card)` where
@@ -217,7 +217,7 @@ function _find_collapse_target(iomap, target)
     nothing
 end
 
-function projection_read(::ConversationConversationToWidgetComposite,
+function read_intent(::ConversationConversationToWidgetComposite,
                          iomap, op::ToggleCollapseOperation)
     op.target === nothing && return op
     node = _find_collapse_target(iomap, op.target)

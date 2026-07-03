@@ -288,10 +288,10 @@ function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, rep
     text
 end
 
-# ── document_read via reified @gestures: geometry-free text editing ───────
+# ── read_gesture via reified @gestures: geometry-free text editing ───────
 #
 # The projection-independent half of the Text domain's reader, now a reified
-# `@gestures` table on `TextText` (was a `document_read(::TextText)` method); the
+# `@gestures` table on `TextText` (was a `read_gesture(::TextText)` method); the
 # generic `read_document_gesture` interpreter fires it, so the table that fires is
 # the one gesture-help enumerates. It reads only the span structure
 # (`text.elements`) and the flat-character `text.selection` — never pixel geometry.
@@ -326,7 +326,7 @@ end
 # clamped at a document end, including the boundary-duplicate skip (so each
 # visual caret has one canonical path). Word motion iterates them so every
 # intermediate/final caret is one the per-char path already produces. These are
-# geometry-free, so they live on the Text domain alongside `document_read`.
+# geometry-free, so they live on the Text domain alongside `read_gesture`.
 
 function _step_left(span_infos, span_idx, char_idx)
     if char_idx > 0

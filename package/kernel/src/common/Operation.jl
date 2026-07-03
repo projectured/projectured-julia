@@ -180,7 +180,7 @@ side of the projection pipeline and applied by `evaluate_operation`.
 Click-versus-keyboard disambiguation does **not** ride on this operation. A
 projection that wants a glyph to behave differently on click than under keyboard
 navigation keys that off the originating gesture (`change.gesture isa MousePress`),
-which travels the reader chain in the `Change`, rather than off a flag on this
+which travels the reader chain in the `Intent`, rather than off a flag on this
 operation.
 """
 struct ReplaceSelectionOperation <: Operation
@@ -250,7 +250,7 @@ root selected by the `document` field:
 - **`document === nothing`** — the root is `editor.document` and `reference` is
   rooted there, so container/generic projections reroot the reference as the
   operation flows up (see `OperationRerooting.reroot_operation` and the default
-  `projection_read`). An empty `reference` then means a **whole-root swap** (rebind
+  `read_intent`). An empty `reference` then means a **whole-root swap** (rebind
   `editor.document`, drop the cached iomap), mirroring `ReplaceDocumentOperation`'s
   empty-path branch.
 
@@ -361,7 +361,7 @@ delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=noth
 # insertion placeholder) that comes *after* the currently-selected node, placing
 # the cursor at `<hole> ⧺ cursor` (the hole's own char cursor, e.g. `value{0}`).
 # It carries no reference of its own, so it bubbles up the reader chain unchanged
-# (the pass-through arms in the default `projection_read` and the else-branch of
+# (the pass-through arms in the default `read_intent` and the else-branch of
 # `reroot_operation`). A domain gesture supplies the predicate/cursor, so the
 # kernel stays domain-agnostic — e.g. a "jump to next hole" key builds
 # `SelectNextInsertionOperation(d -> d isa SomeInsertion, @reference value{0})`.

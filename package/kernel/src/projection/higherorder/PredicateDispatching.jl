@@ -9,8 +9,8 @@ sufficient discriminator.
 """
 module PredicateDispatchingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 export PredicateDispatchingProjection
 
 """
@@ -18,7 +18,7 @@ export PredicateDispatchingProjection
 
 A compound projection that dispatches to different projections based on
 predicate functions applied to the input.  Given a list of
-`(predicate, projection)` pairs, calling `projection_print` applies the
+`(predicate, projection)` pairs, calling `print_document` applies the
 projection associated with the first predicate that returns `true`.
 
 # Example
@@ -27,7 +27,7 @@ projection associated with the first predicate that returns `true`.
         (x -> x.kind == :inline) => InlineProjection(),
         (x -> x.kind == :block)  => BlockProjection(),
     )
-    result = projection_print(pdp, node)  # dispatches on node.kind
+    result = print_document(pdp, node)  # dispatches on node.kind
 """
 struct PredicateDispatchingProjection <: Projection
     dispatch::Vector{Pair{Any, Any}}
@@ -37,15 +37,15 @@ PredicateDispatchingProjection(pairs::Pair...) =
     PredicateDispatchingProjection(collect(Pair{Any, Any}, pairs))
 
 """
-    projection_print(pdp::PredicateDispatchingProjection, recursion, input, ctx) -> output
+    print_document(pdp::PredicateDispatchingProjection, recursion, input, ctx) -> output
 
 Apply the projection whose predicate matches `input` first.
 Throws an error if no predicate matches.
 """
-function projection_print(pdp::PredicateDispatchingProjection, recursion, input, ctx)
+function print_document(pdp::PredicateDispatchingProjection, recursion, input, ctx)
     for (pred, proj) in pdp.dispatch
         if pred(input)
-            return projection_print(proj, recursion, input, ctx)
+            return print_document(proj, recursion, input, ctx)
         end
     end
     error("PredicateDispatchingProjection: no predicate matched for input $(typeof(input))")
@@ -54,17 +54,17 @@ end
 # PredicateDispatchingProjection is a transparent wrapper — it returns the
 # inner projection's IoMap directly, so input/output fields are already correct.
 
-function projection_read(pdp::PredicateDispatchingProjection, recursion, change::Change, iomap)
+function read_intent(pdp::PredicateDispatchingProjection, recursion, change::Intent, iomap)
     for (pred, proj) in pdp.dispatch
         if pred(iomap.input)
-            return projection_read(proj, recursion, change, iomap)
+            return read_intent(proj, recursion, change, iomap)
         end
     end
-    return Change(change.gesture, nothing)
+    return Intent(change.gesture, nothing)
 end
 
-projection_read(pdp::PredicateDispatchingProjection, iomap, payload) =
-    projection_read(pdp, nothing, Change(payload), iomap).operation
+read_intent(pdp::PredicateDispatchingProjection, iomap, payload) =
+    read_intent(pdp, nothing, Intent(payload), iomap).operation
 
 function map_reference_forward(::PredicateDispatchingProjection, iomap, reference)
     return nothing

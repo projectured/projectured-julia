@@ -66,11 +66,11 @@ node.indentation = 2     # override indentation depth
 - Supports indentation for pretty-printing
 - Selection mechanism works on delimiters and content
 
-## Gesture mapping (`document_read`)
+## Gesture mapping (`read_gesture`)
 
 The syntax tree's keyboard navigation is entirely geometry-free — it walks the
 `SyntaxNode` tree and its selection paths — so it lives on the document:
-`document_read(::SyntaxNode, gesture)` ([document/Syntax.jl](../../package/domain/src/document/Syntax.jl))
+`read_gesture(::SyntaxNode, gesture)` ([document/Syntax.jl](../../package/domain/src/document/Syntax.jl))
 maps an input gesture to a `ReplaceSelectionOperation` on the tree:
 
 - `Ctrl+Alt+Home` → select the root node (`∅`)

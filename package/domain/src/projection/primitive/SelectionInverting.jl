@@ -23,7 +23,7 @@ Text-domain backends (console), opt-in elsewhere.
 """
 module SelectionInvertingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, text_flat_length, text_selection_flat
 import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..ReactiveModule: Cell
@@ -95,7 +95,7 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::SelectionInverting, recursion, text::TextText, ctx)
+function print_document(p::SelectionInverting, recursion, text::TextText, ctx)
     both = Cell(() -> _invert(p, text))   # (elements, segs)
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
@@ -248,7 +248,7 @@ function map_reference_backward(p::SelectionInverting, iomap::SelectionInverting
     nothing
 end
 
-function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -256,7 +256,7 @@ end
 
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to
 # the un-split input domain, shifting the char range by the sub-span's start.
-function projection_read(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -277,8 +277,8 @@ end
 # Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
 # unchanged. Raw gestures (KeyDown, KeyPress, …) return nothing so the
 # ChainingProjection tries earlier steps (e.g. SyntaxToText's console fallback).
-projection_read(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
-projection_read(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
+read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
+read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

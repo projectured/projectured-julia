@@ -42,7 +42,7 @@ import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedDomain.ImageModule: ImageFile
-import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read, Projection
+import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
 import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
@@ -1984,7 +1984,7 @@ end
                 max_width::Integer = 1200, max_height::Integer = 800,
                 background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
 
-Run `projection_print(projection, document)` to obtain a `GraphicsCanvas`,
+Run `print_document(projection, document)` to obtain a `GraphicsCanvas`,
 render it offscreen and save to `filename` (BMP or PNG). Returns an `ImageFile`.
 
 Image sizing, per axis:
@@ -2027,7 +2027,7 @@ function write_image(document, projection, filename::AbstractString;
 
     print_canvas = (aw, ah) -> begin
         ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
-        iomap = projection_print(projection, nothing, document, ctx)
+        iomap = print_document(projection, nothing, document, ctx)
         canvas = iomap.output
         canvas isa GraphicsCanvas ||
             error("write_image: projection output is $(typeof(canvas)), expected GraphicsCanvas")
@@ -2063,7 +2063,7 @@ end
     GraphicsCanvasToImageFile(filename; width=800, height=600,
                                background=(0xfd,0xf6,0xe3,0xff))
 
-Printer-only projection. On `projection_print` it renders the input
+Printer-only projection. On `print_document` it renders the input
 `GraphicsCanvas` offscreen and saves to `filename` (BMP). The `output` field
 of the returned `SimpleIoMap` is an `ImageFile` document. Has no reader.
 
@@ -2074,7 +2074,7 @@ proj = ChainingProjection(
     TextToGraphics(measure=sdl_measure_text),
     GraphicsCanvasToImageFile("output.bmp"; width=1200, height=800),
 )
-iomap = projection_print(proj, doc)   # writes output.bmp
+iomap = print_document(proj, doc)   # writes output.bmp
 # iomap.output isa ImageFile
 ```
 """
@@ -2093,7 +2093,7 @@ function GraphicsCanvasToImageFile(filename::AbstractString;
                                NTuple{4,UInt8}(background))
 end
 
-function projection_print(p::GraphicsCanvasToImageFile,
+function print_document(p::GraphicsCanvasToImageFile,
                            recursion, canvas::GraphicsCanvas, ctx)
     output = write_image(canvas, p.filename;
                          width=p.width, height=p.height, background=p.background)
@@ -2394,10 +2394,10 @@ end
 # display factor (everything magnifies) and reflows the logical viewport — no
 # re-projection. `AdjustFontZoomOperation` writes the `_FONT_ZOOM` cell, which
 # relayouts text-derived geometry that is held in cells (TextToGraphics), but the
-# widget layer measures content *eagerly* during `projection_print` and bakes
+# widget layer measures content *eagerly* during `print_document` and bakes
 # constant sizes (WidgetToGraphics' `_make_canvas`), so those boxes only re-fit
 # the larger text when the tree is re-projected. Dropping `editor.iomap` forces
-# `print!` to re-run `projection_print` with the new zoom; this is safe because
+# `print!` to re-run `print_document` with the new zoom; this is safe because
 # window resources reconcile by `WindowDocument.id`, transient widget state
 # (scroll/hover/selection) lives on the document, and the SDL caches are
 # content-keyed and bounded (so nothing leaks). Both ops force a full repaint

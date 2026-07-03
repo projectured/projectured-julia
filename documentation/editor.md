@@ -14,8 +14,8 @@ mutable struct Editor
     document::Document
     projection::Projection
     devices::Vector{Device}
-    iomap::Union{IoMap, Nothing}        # latest output of projection_print
-    operation::Union{Operation, Nothing}# latest output of projection_read
+    iomap::Union{IoMap, Nothing}        # latest output of print_document
+    operation::Union{Operation, Nothing}# latest output of read_intent
 end
 ```
 
@@ -24,8 +24,8 @@ end
 - `projection` — the projection pipeline; typically a `ChainingProjection`
   that ends in a `GraphicsCanvas`-producing step
 - `devices` — `Vector{Device}` with the screen, keyboard, and mouse
-- `iomap` — the most recent IoMap from `projection_print`; needed by
-  `projection_read` to translate the next event back to a domain operation
+- `iomap` — the most recent IoMap from `print_document`; needed by
+  `read_intent` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
 
@@ -36,9 +36,9 @@ end
 ```julia
 while true
     perf_reset!()
-    read!(editor)      # poll devices → projection_read → editor.operation
+    read!(editor)      # poll devices → read_intent → editor.operation
     evaluate!(editor)  # evaluate_operation(editor, editor.operation)
-    print!(editor)     # projection_print → editor.iomap; render to devices
+    print!(editor)     # print_document → editor.iomap; render to devices
     perf!(editor)      # log reactive counters
     sleep(0.01)
 end
@@ -54,8 +54,8 @@ cleanly. The MCP server is started before the loop and stopped in the
 the SDL case, `SDL_PollEvent`) and returns the next `EventEnvelope` wrapping a
 backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
 `MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The envelope is then
-wrapped in a `Change` and passed through
-`projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)`
+wrapped in a `Intent` and passed through
+`read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)`
 — the entire pipeline walks backward, each projection contributing a translation
 step until an `Operation` falls out at the document end.
 
@@ -71,7 +71,7 @@ the document or projection state directly. See [the operations guide](operations
 
 ### Print
 
-If `editor.iomap` is `nothing`, `projection_print(editor.projection,
+If `editor.iomap` is `nothing`, `print_document(editor.projection,
 editor.document)` runs the whole pipeline and stores the result. The IoMap
 is then written to each output device with `write_to_devices(backend,
 devices, iomap.output)`. Because every intermediate value is a reactive
@@ -131,7 +131,7 @@ A *timeline* is a vector of timed entries; the present key selects the kind
 recording and live playback):
 
 - `(event = <device event>, hold = <seconds>)` — wrapped in
-  `EventEnvelope(window_id, event)` and run through `projection_read`, exactly
+  `EventEnvelope(window_id, event)` and run through `read_intent`, exactly
   like live input.
 - `(operation = <Operation | doc -> op>, hold = <seconds>)` — a domain
   `Operation` (or a thunk evaluated at fire time) injected **straight into
@@ -154,7 +154,7 @@ the content. `:event` entries are rerooted automatically — the
 `:operation` **bypasses the reader**, so its bare-content path would be applied
 to the screen root and fail. `op_prefix` (a `ReferencePath`) closes the gap:
 `play_live!` reroots each `:operation` entry through
-`prepend_steps_to_op(op, steps(op_prefix))`. Pass
+`reroot_operation(op, steps(op_prefix))`. Pass
 `op_prefix = @reference windows[1].content` when the example sits in window 1;
 leave it empty (the default) for an unwrapped, single-document pipeline.
 
@@ -225,7 +225,7 @@ If you introduce a new editing operation, you need to:
 1. Define a struct subtyping `Operation`.
 2. Add an `evaluate_operation(editor, op::YourOp)` method (reach for the
    document via `editor.document`).
-3. Update the relevant projection's `projection_read` to produce the
+3. Update the relevant projection's `read_intent` to produce the
    operation from the appropriate event.
 
 See [the operations guide](operations.md) for examples.

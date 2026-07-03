@@ -55,16 +55,16 @@ dominated by the rendering work and is not a bottleneck.
 ## 4. Multiple dispatch for projections
 
 Julia's multiple dispatch is a natural fit for ProjecturEd's
-**type-dispatch projection** pattern. `projection_print` dispatches on the
+**type-dispatch projection** pattern. `print_document` dispatches on the
 concrete projection struct *and* the input document type — no visitor pattern,
 no explicit type-case, no abstract method table.
 
 ```julia
-function projection_print(p::JsonStringToSyntaxLeaf, rec, s::JsonString, ctx)
+function print_document(p::JsonStringToSyntaxLeaf, rec, s::JsonString, ctx)
     ...
 end
 
-function projection_print(p::JsonArrayToSyntaxNode, rec, a::JsonArray, ctx)
+function print_document(p::JsonArrayToSyntaxNode, rec, a::JsonArray, ctx)
     ...
 end
 ```
@@ -85,9 +85,9 @@ The trade-off is verbosity in `Projectured.jl` (the root module that assembles
 them all), but it prevents accidental coupling and makes the dependency graph
 auditable.
 
-## 6. `projection_print` returns an IO map
+## 6. `print_document` returns an IO map
 
-Rather than returning just the output document, every `projection_print` method
+Rather than returning just the output document, every `print_document` method
 returns an `IoMap` that carries both the input and the output (and any
 additional mapping data the reader needs). This ensures the reader always has
 access to both contexts without any additional bookkeeping.
@@ -97,11 +97,11 @@ access to both contexts without any additional bookkeeping.
 through each step:
 
 ```julia
-function projection_read(seq, recursion, change::Change, iomap)
-    change = projection_read(seq.projections[end], recursion, change, iomap.step_iomaps[end])
+function read_intent(seq, recursion, change::Intent, iomap)
+    change = read_intent(seq.projections[end], recursion, change, iomap.step_iomaps[end])
     for i in (n-1):-1:1
         change.operation === nothing && return change
-        change = projection_read(seq.projections[i], recursion, change, iomap.step_iomaps[i])
+        change = read_intent(seq.projections[i], recursion, change, iomap.step_iomaps[i])
     end
     return change
 end
@@ -153,7 +153,7 @@ and stored in the `JsonString.selection`.
 ## 9. `KeyPress` abstraction
 
 SDL keysyms are converted to a `KeyDown(key::Symbol, modifiers::Modifiers)`
-struct in the backend before being passed to `projection_read`. This decouples
+struct in the backend before being passed to `read_intent`. This decouples
 projections from the SDL backend — a future terminal or web backend produces
 the same events, and projection reader code stays unchanged.
 
@@ -184,7 +184,7 @@ frame pays to recompute the whole subtree that reads it. See
 | Language | Common Lisp, CLOS | Julia, multiple dispatch |
 | Reactivity | `computed-class` MOP slots | Explicit `Cell` with manual thunks |
 | Struct magic | Computed slots via metaclass | `@document` macro + `Cell` wrapping |
-| Projections | CLOS generic functions | Lightweight structs + `projection_print` dispatch |
+| Projections | CLOS generic functions | Lightweight structs + `print_document` dispatch |
 | Selection cells | Shared by reference | Shared by reference (same approach) |
 | `ProjectionReference` | Different mechanism | `ProjectionReference` step in path |
 | Scope | Dozens of domains | Complete vertical slice + expanding |

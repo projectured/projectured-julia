@@ -33,11 +33,11 @@ end
 @testset "button click invokes its action via InvokeWidgetActionOperation" begin
     button, count = _button_doc()
     proj = _proj()
-    iomap = projection_print(proj, nothing, button, PrinterContext())
+    iomap = print_document(proj, nothing, button, PrinterContext())
     @test iomap.output isa GraphicsCanvas
 
     # Click inside the button (its canvas is at 0,0 sized 120×40).
-    op = projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
     @test op isa InvokeWidgetActionOperation
     @test op.widget === button
 
@@ -50,22 +50,22 @@ end
 @testset "a non-left click does nothing" begin
     button, _ = _button_doc()
     proj = _proj()
-    iomap = projection_print(proj, nothing, button, PrinterContext())
-    @test projection_read(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
+    iomap = print_document(proj, nothing, button, PrinterContext())
+    @test read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
 end
 
 @testset "press / release drive the transient pressed flag" begin
     button, _ = _button_doc()
     proj = _proj()
-    iomap = projection_print(proj, nothing, button, PrinterContext())
+    iomap = print_document(proj, nothing, button, PrinterContext())
 
-    down = projection_read(proj, iomap, MouseDown(:left, 10, 10, Modifiers()))
+    down = read_intent(proj, iomap, MouseDown(:left, 10, 10, Modifiers()))
     @test down isa ReplaceReferencedValueOperation
     @test down.value == true
     evaluate_operation(_WidgetButtonMockEditor(button), down)
     @test button.pressed == true
 
-    up = projection_read(proj, iomap, MouseUp(:left, 10, 10, Modifiers()))
+    up = read_intent(proj, iomap, MouseUp(:left, 10, 10, Modifiers()))
     @test up isa ReplaceReferencedValueOperation
     @test up.value == false
     evaluate_operation(_WidgetButtonMockEditor(button), up)
@@ -75,8 +75,8 @@ end
 @testset "a move over the button sets its hovered flag" begin
     button, _ = _button_doc()
     proj = _proj()
-    iomap = projection_print(proj, nothing, button, PrinterContext())
-    op = projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
+    iomap = print_document(proj, nothing, button, PrinterContext())
+    op = read_intent(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === button && op.value == true
     evaluate_operation(_WidgetButtonMockEditor(button), op)
@@ -91,23 +91,23 @@ end
     proj = _proj()                          # one tracker instance, reused across reads
     ed = _WidgetButtonMockEditor(composite)
 
-    iomap = projection_print(proj, nothing, composite, PrinterContext())
-    op_a = projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
+    iomap = print_document(proj, nothing, composite, PrinterContext())
+    op_a = read_intent(proj, iomap, MouseMove(10, 10, :none, Modifiers()))
     @test op_a isa ReplaceReferencedValueOperation && op_a.document === a
     evaluate_operation(ed, op_a)
     @test a.hovered == true
 
     # Move onto B: the tracker clears A (hover + press) and sets B.
-    iomap2 = projection_print(proj, nothing, composite, PrinterContext())
-    op_b = projection_read(proj, iomap2, MouseMove(130, 10, :none, Modifiers()))
+    iomap2 = print_document(proj, nothing, composite, PrinterContext())
+    op_b = read_intent(proj, iomap2, MouseMove(130, 10, :none, Modifiers()))
     @test op_b isa CompoundOperation
     evaluate_operation(ed, op_b)
     @test a.hovered == false
     @test b.hovered == true
 
     # Move into dead space: B clears, nothing new hovered.
-    iomap3 = projection_print(proj, nothing, composite, PrinterContext())
-    op_void = projection_read(proj, iomap3, MouseMove(300, 300, :none, Modifiers()))
+    iomap3 = print_document(proj, nothing, composite, PrinterContext())
+    op_void = read_intent(proj, iomap3, MouseMove(300, 300, :none, Modifiers()))
     evaluate_operation(ed, op_void)
     @test b.hovered == false
 end
@@ -118,8 +118,8 @@ end
                           action = (_e) -> (count[] += 1))
     composite = WidgetComposite(Point2D(0, 0), Any[button])
     proj = _proj()
-    iomap = projection_print(proj, nothing, composite, PrinterContext())
-    op = projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    iomap = print_document(proj, nothing, composite, PrinterContext())
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
     @test op isa InvokeWidgetActionOperation && op.widget === button
     evaluate_operation(_WidgetButtonMockEditor(composite), op)
     @test count[] == 1
@@ -131,7 +131,7 @@ end
                    0x00,0x00,0xff,0xff, 0xff,0xff,0xff,0xff]
     image = ImageMemory((pixels, 2, 2))
     button = WidgetButton(Point2D(0, 0), Point2D(40, 40), image; action = (_e) -> nothing)
-    iomap = projection_print(_proj(), nothing, button, PrinterContext())
+    iomap = print_document(_proj(), nothing, button, PrinterContext())
     canvas = iomap.output
     @test canvas isa GraphicsCanvas
     @test _canvas_has_image(canvas)
@@ -141,7 +141,7 @@ end
     pixels = UInt8[0xff,0x00,0x00,0xff, 0x00,0xff,0x00,0xff,
                    0x00,0x00,0xff,0xff, 0xff,0xff,0xff,0xff]
     label = WidgetLabel(Point2D(0, 0), ImageMemory((pixels, 2, 2)))
-    iomap = projection_print(_proj(), nothing, label, PrinterContext())
+    iomap = print_document(_proj(), nothing, label, PrinterContext())
     @test _canvas_has_image(iomap.output)
 end
 
@@ -156,7 +156,7 @@ end
     @test btn_off.enabled === false
     @test btn_off.visible === true
     # A disabled button is still a normal document: it prints to a canvas.
-    @test projection_print(_proj(), nothing, btn_off, PrinterContext()).output isa GraphicsCanvas
+    @test print_document(_proj(), nothing, btn_off, PrinterContext()).output isa GraphicsCanvas
 
     cb = WidgetCheckbox(Point2D(0, 0), true)
     @test cb.enabled === true
@@ -173,11 +173,11 @@ end
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
                        action = (_e) -> (fired[] = true), enabled = false)
     proj = _proj()
-    iomap = projection_print(proj, nothing, btn, PrinterContext())
+    iomap = print_document(proj, nothing, btn, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # disabled still renders
-    @test projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers())) === nothing
-    @test projection_read(proj, iomap, MouseDown(:left, 10, 10, Modifiers())) === nothing
-    @test projection_read(proj, iomap, MouseMove(10, 10, :none, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MouseDown(:left, 10, 10, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MouseMove(10, 10, :none, Modifiers())) === nothing
     @test fired[] == false
     @test btn.hovered == false && btn.pressed == false
 end
@@ -185,9 +185,9 @@ end
 @testset "a disabled checkbox swallows the toggle click" begin
     cb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
     proj = _proj()
-    iomap = projection_print(proj, nothing, cb, PrinterContext())
+    iomap = print_document(proj, nothing, cb, PrinterContext())
     @test iomap.output isa GraphicsCanvas
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
     @test cb.content === false                                # value unchanged
 end
 
@@ -223,8 +223,8 @@ end
     on  = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
     off = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; enabled = false)
     proj = _proj()
-    on_canvas  = projection_print(proj, nothing, on,  PrinterContext()).output
-    off_canvas = projection_print(proj, nothing, off, PrinterContext()).output
+    on_canvas  = print_document(proj, nothing, on,  PrinterContext()).output
+    off_canvas = print_document(proj, nothing, off, PrinterContext()).output
     @test length(off_canvas.elements) < length(on_canvas.elements)
 end
 
@@ -236,7 +236,7 @@ end
     for w in (WidgetSwitch(Point2D(0, 0), true; enabled=false),
               WidgetToggle(Point2D(0, 0), "Bold"; pressed=true, enabled=false),
               WidgetSelect(Point2D(0, 0), "Apple"; width=180, enabled=false))
-        @test projection_print(proj, nothing, w, PrinterContext()).output isa GraphicsCanvas
+        @test print_document(proj, nothing, w, PrinterContext()).output isa GraphicsCanvas
     end
 end
 
@@ -256,9 +256,9 @@ end
     end
     for mk in (() -> WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"),
                () -> WidgetCheckbox(Point2D(0, 0), false))
-        un = projection_print(proj, nothing, mk(), PrinterContext()).output
+        un = print_document(proj, nothing, mk(), PrinterContext()).output
         fw = mk(); getfield(fw, :selection)[] = EmptyReferencePath()
-        fo = projection_print(proj, nothing, fw, PrinterContext()).output
+        fo = print_document(proj, nothing, fw, PrinterContext()).output
         # Same element count in both states (the ring element is persistent)…
         @test length(collect(fo.elements)) == length(collect(un.elements))
         ru = _ring(un); rf = _ring(fo)
@@ -274,20 +274,20 @@ end
 @testset "Enter/Space activate the focused button and checkbox" begin
     proj = _proj()
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing)
-    biomap = projection_print(proj, nothing, btn, PrinterContext())
-    @test projection_read(proj, biomap, KeyDown(:return, Modifiers())) isa InvokeWidgetActionOperation
-    @test projection_read(proj, biomap, KeyDown(:space,  Modifiers())) isa InvokeWidgetActionOperation
+    biomap = print_document(proj, nothing, btn, PrinterContext())
+    @test read_intent(proj, biomap, KeyDown(:return, Modifiers())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, biomap, KeyDown(:space,  Modifiers())) isa InvokeWidgetActionOperation
     dbtn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing, enabled = false)
-    @test projection_read(proj, projection_print(proj, nothing, dbtn, PrinterContext()),
+    @test read_intent(proj, print_document(proj, nothing, dbtn, PrinterContext()),
                           KeyDown(:return, Modifiers())) === nothing
 
     cb = WidgetCheckbox(Point2D(0, 0), false)
-    ciomap = projection_print(proj, nothing, cb, PrinterContext())
-    op = projection_read(proj, ciomap, KeyDown(:space, Modifiers()))
+    ciomap = print_document(proj, nothing, cb, PrinterContext())
+    op = read_intent(proj, ciomap, KeyDown(:space, Modifiers()))
     @test op isa ReplaceReferencedValueOperation && op.value == true
-    @test projection_read(proj, ciomap, KeyDown(:return, Modifiers())) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, ciomap, KeyDown(:return, Modifiers())) isa ReplaceReferencedValueOperation
     dcb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
-    @test projection_read(proj, projection_print(proj, nothing, dcb, PrinterContext()),
+    @test read_intent(proj, print_document(proj, nothing, dcb, PrinterContext()),
                           KeyDown(:space, Modifiers())) === nothing
 end
 
@@ -351,7 +351,7 @@ end
     proj = _proj()
     tab  = KeyDown(:tab, Modifiers())
     stab = KeyDown(:tab, Modifiers(shift=true))
-    _read(c, ev) = projection_read(proj, projection_print(proj, nothing, c, PrinterContext()), ev)
+    _read(c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
 
     comp = WidgetComposite(Point2D(0, 0), Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")])
 
@@ -396,7 +396,7 @@ end
             LayoutToGraphics().dispatch,
             WidgetToGraphics(_font; measure=_stub).dispatch)))))
     tab = KeyDown(:tab, Modifiers())
-    _read(c, ev) = projection_read(lproj, projection_print(lproj, nothing, c, PrinterContext()), ev)
+    _read(c, ev) = read_intent(lproj, print_document(lproj, nothing, c, PrinterContext()), ev)
 
     lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")]; gap=8)
     op = _read(lay, tab)                              # bootstrap → first focusable

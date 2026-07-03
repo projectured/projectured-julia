@@ -8,7 +8,7 @@ character; all other span types are ignored.
 """
 module TextToStringModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..IoMapModule: SimpleIoMap
@@ -29,11 +29,11 @@ function map_reference_backward(::TextStringToString, iomap, reference)
     return nothing
 end
 
-function projection_print(p::TextStringToString, recursion, ts::TextString, ctx)
+function print_document(p::TextStringToString, recursion, ts::TextString, ctx)
     SimpleIoMap(p, ts, Cell(() -> ts.content::AbstractString))
 end
 
-function projection_read(::TextStringToString, iomap::SimpleIoMap, op)
+function read_intent(::TextStringToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
@@ -49,11 +49,11 @@ function map_reference_backward(::TextNewlineToString, iomap, reference)
     return nothing
 end
 
-function projection_print(p::TextNewlineToString, recursion, tn::TextNewline, ctx)
+function print_document(p::TextNewlineToString, recursion, tn::TextNewline, ctx)
     SimpleIoMap(p, tn, Cell("\n"))
 end
 
-function projection_read(::TextNewlineToString, iomap::SimpleIoMap, op)
+function read_intent(::TextNewlineToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
@@ -71,8 +71,8 @@ end
 
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
-function projection_print(proj::TextTextToString, recursion, text::TextText, ctx)
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
+function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin
@@ -86,7 +86,7 @@ function projection_print(proj::TextTextToString, recursion, text::TextText, ctx
     SimpleIoMap(proj, text, output)
 end
 
-function projection_read(::TextTextToString, iomap::SimpleIoMap, op)
+function read_intent(::TextTextToString, iomap::SimpleIoMap, op)
     return nothing
 end
 

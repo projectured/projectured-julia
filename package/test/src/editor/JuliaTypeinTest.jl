@@ -22,7 +22,7 @@ using Projectured: JuliaInsertion, JuliaFunction, JuliaIdentifier, JuliaInteger,
                    SelectNextInsertionOperation, evaluate_operation, evaluate_reference,
                    set_selection!, with_selection, strip_reference_types,
                    ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
-                   RecursiveProjection, JuliaToSyntax, projection_print, projection_read,
+                   RecursiveProjection, JuliaToSyntax, print_document, read_intent,
                    KeyPress, KeyDown, Modifiers
 using Projectured.ReactiveModule: Cell
 using ProjecturedExample: make_julia_document_example
@@ -95,8 +95,8 @@ const _JT_RET = KeyDown(:return, Modifiers())
 
 # Feed one event through `proj`; returns the (possibly root-swapped) document.
 function _jt_feed(proj, doc, ev)
-    iom = projection_print(proj, doc)
-    op  = projection_read(proj, iom, ev)
+    iom = print_document(proj, doc)
+    op  = read_intent(proj, iom, ev)
     op === nothing && return doc
     ed = _JtEditor(doc, iom)
     evaluate_operation(ed, op)

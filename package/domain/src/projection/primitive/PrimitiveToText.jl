@@ -11,7 +11,7 @@ module PrimitiveToTextModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           ReplaceStringRangeOperation
@@ -61,14 +61,14 @@ map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
+function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.style)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(b)))
     SimpleIoMap(p, b, out)
 end
 
-function projection_read(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = _backward_value(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -85,14 +85,14 @@ map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
+function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.style)
     out = TextText(CellVector(() -> TextDocument[span]),
                    Cell(() -> _value_selection_to_text(n)))
     SimpleIoMap(p, n, out)
 end
 
-function projection_read(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = _backward_value(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -116,7 +116,7 @@ map_reference_forward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference
 map_reference_backward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
     _backward_value(reference)
 
-function projection_print(p::PrimitiveStringToTextText, recursion, s::PrimitiveString, ctx)
+function print_document(p::PrimitiveStringToTextText, recursion, s::PrimitiveString, ctx)
     value_span = TextString(() -> something(s.value, ""), p.style)
     # When the value is empty and a placeholder is configured, show a muted hint
     # span instead. Both spans keep a stable identity; the CellVector thunk only
@@ -129,7 +129,7 @@ function projection_print(p::PrimitiveStringToTextText, recursion, s::PrimitiveS
     SimpleIoMap(p, s, out)
 end
 
-function projection_read(p::PrimitiveStringToTextText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveStringToTextText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = _backward_value(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -154,9 +154,9 @@ _string_value_path(range::RangeReference) = @reference value.^(range)
 # `ReplaceStringRangeOperation` in the `PrimitiveString`'s own `value[range]`
 # vocabulary), so it is reified once as `@gestures PrimitiveString` rather than
 # duplicated in every primitive projection's reader. Both `PrimitiveStringToTextText`
-# and `PrimitiveStringToSyntaxLeaf` reach it through the generic `document_read`
+# and `PrimitiveStringToSyntaxLeaf` reach it through the generic `read_gesture`
 # fallback (a leaf projection with no bespoke event reader delegates raw input
-# gestures to `document_read(iomap.input, …)`). The `when` precondition gates the
+# gestures to `read_gesture(iomap.input, …)`). The `when` precondition gates the
 # whole table on there being a `value[range]` cursor — a non-editing selection
 # (or none) declines, exactly as the old `range === nothing && return nothing`.
 @gestures PrimitiveString begin

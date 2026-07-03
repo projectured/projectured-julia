@@ -3,7 +3,7 @@ function test_syntax_to_text()
 
 s2st = RecursiveProjection(SyntaxToText())
 stree = SyntaxLeaf("val"; open="[", close="]")
-sst = projection_print(s2st, stree).output
+sst = print_document(s2st, stree).output
 @test length(sst.elements) == 3
 @test sst.elements[1].content == "["
 @test sst.elements[2].content == "val"
@@ -13,14 +13,14 @@ sst = projection_print(s2st, stree).output
 
 # node flattening
 sn = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="(", close=")", sep=", ")
-sst2 = projection_print(s2st, sn).output
+sst2 = print_document(s2st, sn).output
 texts = [s.content for s in sst2.elements]
 @test join(texts) == "(a, b)"
 
 # value-level incrementality
 lv = Cell("X")
 sl = SyntaxLeaf(() -> lv[]; open="[", close="]")
-sst3 = projection_print(s2st, sl).output
+sst3 = print_document(s2st, sl).output
 @test sst3.elements[2].content == "X"
 @test is_up_to_date(getfield(sst3.elements, :elements))  # spans structure still valid
 lv[] = "Y"
@@ -30,7 +30,7 @@ lv[] = "Y"
 # structural incrementality
 src2 = Cell(2)
 sn2 = SyntaxNode(() -> SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:src2[]]; open="<", close=">", sep=",")
-sst4 = projection_print(s2st, sn2).output
+sst4 = print_document(s2st, sn2).output
 _ = [s.content for s in sst4.elements]  # force eval
 @test is_up_to_date(getfield(sst4.elements, :elements))
 src2[] = 3
@@ -99,13 +99,13 @@ pipe_off = RecursiveProjection(SyntaxToText())
 pipe_on  = RecursiveProjection(SyntaxToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸")))
 
 # Marker off (default): byte-for-byte unchanged, no marker recorded.
-iomap_off = projection_print(pipe_off, node)
+iomap_off = print_document(pipe_off, node)
 @test join(s.content for s in iomap_off.output.elements) == "[1, 2, 3]"
 @test iomap_off.marker_index[] == 0
 
 # Marker on, expanded: leading ▾ as element 1.
 node.collapsed = false
-iomap_x = projection_print(pipe_on, node)
+iomap_x = print_document(pipe_on, node)
 spans_x = [s.content for s in iomap_x.output.elements]
 @test spans_x[1] == "▾"
 @test join(spans_x) == "▾[1, 2, 3]"
@@ -114,7 +114,7 @@ spans_x = [s.content for s in iomap_x.output.elements]
 # Marker on, collapsed: the glyph swaps to ▸ and the body folds to a single
 # ellipsis between the delimiters — the children are not laid out.
 node.collapsed = true
-iomap_c = projection_print(pipe_on, node)
+iomap_c = print_document(pipe_on, node)
 spans_c = [s.content for s in iomap_c.output.elements]
 @test spans_c[1] == "▸"
 @test join(spans_c) == "▸[…]"
@@ -123,7 +123,7 @@ node.collapsed = false
 
 # Empty node: no marker even when configured (nothing to fold).
 empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
-iomap_e = projection_print(pipe_on, empty_node)
+iomap_e = print_document(pipe_on, empty_node)
 @test join(s.content for s in iomap_e.output.elements) == "[]"
 @test iomap_e.marker_index[] == 0
 
@@ -162,12 +162,12 @@ pipe = RecursiveProjection(SyntaxToText())
 p    = _S2T.SyntaxNodeToText()
 
 # Expanded output, captured for the restoration check below.
-expanded = join(s.content for s in projection_print(pipe, node).output.elements)
+expanded = join(s.content for s in print_document(pipe, node).output.elements)
 @test expanded == "[1, 2, 3]"
 
 # Collapsed (no marker configured): open + ellipsis + close.
 node.collapsed = true
-collapsed = join(s.content for s in projection_print(pipe, node).output.elements)
+collapsed = join(s.content for s in print_document(pipe, node).output.elements)
 @test collapsed == "[…]"
 
 # Flat-position round-trip holds while collapsed.
@@ -183,16 +183,16 @@ end
 
 # Toggling back restores the expanded output byte-for-byte.
 node.collapsed = false
-@test join(s.content for s in projection_print(pipe, node).output.elements) == expanded
+@test join(s.content for s in print_document(pipe, node).output.elements) == expanded
 
 # Empty node: collapsing adds no ellipsis (nothing to fold).
 empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 empty_node.collapsed = true
-@test join(s.content for s in projection_print(pipe, empty_node).output.elements) == "[]"
+@test join(s.content for s in print_document(pipe, empty_node).output.elements) == "[]"
 
 # Reactivity: toggling `collapsed` invalidates the output spans cell.
 react_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="[", close="]", sep=", ")
-out = projection_print(pipe, react_node).output
+out = print_document(pipe, react_node).output
 _ = [s.content for s in out.elements]                       # force the spans cell
 @test is_up_to_date(getfield(out.elements, :elements))
 react_node.collapsed = true
@@ -216,8 +216,8 @@ node = SyntaxNode(
 read_key(sel, key, mods=Modifiers()) = begin
     clear_selection!(node)
     set_selection!(node, sel)
-    io = projection_print(s2st, node)
-    projection_read(s2st, io, KeyDown(key, mods))
+    io = print_document(s2st, node)
+    read_intent(s2st, io, KeyDown(key, mods))
 end
 op_path(sel, key, mods=Modifiers()) = begin
     op = read_key(sel, key, mods)
@@ -253,7 +253,7 @@ end
 @testset "plain arrows with a character cursor are not tree navigation" begin
     # A character cursor inside a leaf must not do tree navigation.
     # :down has no text-domain meaning at console level → declines.
-    # :right is handled by the console fallback (document_read on output TextText)
+    # :right is handled by the console fallback (read_gesture on output TextText)
     # and returns a character-level cursor move, not a tree step.
     cursor = @reference children[1].value{2}
     @test read_key(cursor, :down) === nothing

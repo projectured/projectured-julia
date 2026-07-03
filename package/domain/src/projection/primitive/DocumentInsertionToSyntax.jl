@@ -25,7 +25,7 @@ follow-up).
 """
 module DocumentInsertionToSyntaxModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document, with_selection
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
@@ -91,7 +91,7 @@ end
 
 # ── Printer ──────────────────────────────────────────────────────────────────
 
-function projection_print(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
+function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     SimpleIoMap(p, ins, SyntaxLeaf(
         TextString(() -> something(ins.value, ""), p.value);
         open=TextString(p.prefix, p.label),
@@ -119,7 +119,7 @@ _value_path(range::RangeReference) =
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
-function projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path = path
     path isa ConcreteReferencePath || return nothing
@@ -185,7 +185,7 @@ function _insertion_delete(ins, dir::Symbol)
     new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
 end
 
-projection_read(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =
+read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =
     read_projection_gesture(p, iomap, event)
 
 # ── Factory: name → domain document / insertion ───────────────────────────────
@@ -336,7 +336,7 @@ SqlInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_sql_commit)
 # is therefore a **printer-only** leaf (mirroring `PrimitiveStringToSyntaxLeaf`): it
 # renders the buffer plus a pale-green completion continuation, maps the `value{k}`
 # char cursor, and carries **no key-capturing reader**, so raw input falls through the
-# generic `document_read` fallback to the gesture table — the single source of truth.
+# generic `read_gesture` fallback to the gesture table — the single source of truth.
 
 """
     JuliaInsertionToSyntaxLeaf()
@@ -366,7 +366,7 @@ function map_reference_backward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
     end
 end
 
-function projection_print(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
+function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
     SimpleIoMap(p, ins, SyntaxLeaf(
         TextString(() -> something(ins.value, ""), p.value);
         close=TextString(() -> julia_completion(something(ins.value, "")), p.completion),
@@ -374,8 +374,8 @@ function projection_print(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaIn
 end
 
 # Only the structural selection mapping lives here; raw key input has no method and
-# falls through to the generic `document_read` fallback → `@gestures JuliaInsertion`.
-function projection_read(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+# falls through to the generic `read_gesture` fallback → `@gestures JuliaInsertion`.
+function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head

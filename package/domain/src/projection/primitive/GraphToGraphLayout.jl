@@ -21,9 +21,9 @@ module GraphToGraphLayoutModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstraint
 import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layout_graph
@@ -60,7 +60,7 @@ _canvas_wh(im) = begin
     o isa GraphicsCanvas ? (Int(o.w), Int(o.h)) : (60, 30)
 end
 
-function projection_print(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph, ctx)
+function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph, ctx)
     iomap_cell = Cell(nothing)
 
     # Recurse each vertex's content to measure its intrinsic size. Reactive: a
@@ -73,7 +73,7 @@ function projection_print(p::GraphGraphToGraphLayout, recursion, graph::GraphGra
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
                 cref = @reference ^(ctx.reference).vertices[i].content
-                push!(ims, projection_printer_recurse(recursion, content, child_context(ctx, cref)))
+                push!(ims, print_child(recursion, content, child_context(ctx, cref)))
             else
                 push!(ims, nothing)
             end

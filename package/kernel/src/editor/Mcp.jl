@@ -583,7 +583,7 @@ function _submodules(proj::Module)
 end
 
 # True for compiler-generated names that should never surface to a human/AI:
-# gensym'd closure and method types (`#projection_print##0#…`, `##BookBook#1`,
+# gensym'd closure and method types (`#print_document##0#…`, `##BookBook#1`,
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
 _is_gensym_name(sname::AbstractString) = occursin('#', sname)
 

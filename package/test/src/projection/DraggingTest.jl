@@ -12,15 +12,15 @@
 
 using Projectured: MoveRangeOperation, DraggingProjection, DraggingProjectionIoMap, DraggingState,
                    ReplaceSelectionOperation, JsonArray, JsonNumber,
-                   Change, Projection, projection_print, projection_read, evaluate_operation, Operation, cell_at,
+                   Intent, Projection, print_document, read_intent, evaluate_operation, Operation, cell_at,
                    MouseDown, MouseUp, MouseMove, MousePress, Modifiers
 
 # Stub inner projection: `f(gesture) -> op` plays the graphics-layer hit-test.
 struct _CoordStub <: Projection
     f::Any
 end
-Projectured.projection_read(p::_CoordStub, recursion, change::Change, iomap) =
-    Change(change.gesture, p.f(change.gesture))
+Projectured.read_intent(p::_CoordStub, recursion, change::Intent, iomap) =
+    Intent(change.gesture, p.f(change.gesture))
 
 struct _StubInner
     projection::Any
@@ -40,7 +40,7 @@ function _drag_setup(content, hit)
     (proj, iomap)
 end
 
-_feed(proj, iomap, evt) = projection_read(proj, iomap, evt)
+_feed(proj, iomap, evt) = read_intent(proj, iomap, evt)
 
 function test_dragging()
 @testset "DraggingProjection drag-and-drop" begin
@@ -107,7 +107,7 @@ function test_dragging()
     @testset "real pipeline: drag an array element to reorder" begin
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
         c1 = cell_at(content.elements, 1)
-        inner = projection_print(make_json_projection_example(), content)
+        inner = print_document(make_json_projection_example(), content)
         proj  = DraggingProjection()
         iomap = DraggingProjectionIoMap(proj, DraggingState(content; threshold=5),
                                         inner.output, inner)

@@ -10,15 +10,15 @@ for reference mapping functions.
 The module provides:
 - Default `map_reference_forward` — strips projection wrapper from forward references
 - Default `map_reference_backward` — adds projection wrapper to backward references
-- Default `projection_read` — handles `ReplaceSelectionOperation` for backward mapping
+- Default `read_intent` — handles `ReplaceSelectionOperation` for backward mapping
 
 These defaults work for simple projections where the output structure
 directly mirrors the input structure.
 """
 module ProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                           ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
@@ -29,12 +29,12 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
-import ..DocumentApiModule: Document, document_read
+import ..DocumentApiModule: Document, read_gesture
 
 export @projection
 
-function projection_print(projection, input)
-    projection_print(projection, nothing, input, PrinterContext())
+function print_document(projection, input)
+    print_document(projection, nothing, input, PrinterContext())
 end
 
 """
@@ -65,7 +65,7 @@ function map_reference_backward(projection::Projection, iomap, reference)
 end
 
 """
-    projection_read(projection::Projection, iomap, operation)
+    read_intent(projection::Projection, iomap, operation)
 
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
@@ -80,7 +80,7 @@ former document-replace and sequence-insert/delete operations, which are
 (carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
 forwarded unchanged; all other operation types return `nothing`.
 """
-function projection_read(projection::Projection, iomap, operation)
+function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
     # stay in sync with `OperationRerootingModule.reroot_operation`. A new
     # path-bearing operation missing from either is silently passed through with
@@ -88,13 +88,13 @@ function projection_read(projection::Projection, iomap, operation)
     if operation isa Union{KeyPress, KeyDown, MousePress}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
-        # `document_read` of its input document. This generalizes the per-projection
+        # `read_gesture` of its input document. This generalizes the per-projection
         # delegation `SyntaxToText`/`TextToGraphics` already do by hand, so any
         # `@gestures`-declared domain is reachable through any projection with no
         # bespoke reader. (Higher-order projections route events through their own
         # 4-arg readers and never reach this leaf default.)
         input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
-        return input isa Document ? document_read(input, operation) : nothing
+        return input isa Document ? read_gesture(input, operation) : nothing
     elseif operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
         # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take
@@ -117,7 +117,7 @@ function projection_read(projection::Projection, iomap, operation)
         input_ref === nothing && return nothing
         return ReplaceNumberRangeOperation(input_ref, operation.replacement)
     elseif operation isa CompoundOperation
-        mapped = Any[projection_read(projection, iomap, o) for o in operation.operations]
+        mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing
         return CompoundOperation(mapped)
     elseif operation isa ToggleCollapseOperation
@@ -135,20 +135,20 @@ function projection_read(projection::Projection, iomap, operation)
 end
 
 """
-    projection_read(p::Projection, recursion, change::Change, iomap)
+    read_intent(p::Projection, recursion, change::Intent, iomap)
 
-Generic bridge from the symmetric 4-arg `Change` interface to the legacy 3-arg
-reader. For any projection without its own 4-arg method, unwrap the `Change` and
-dispatch the legacy `projection_read(p, iomap, payload)` on the operation (when one
+Generic bridge from the symmetric 4-arg `Intent` interface to the legacy 3-arg
+reader. For any projection without its own 4-arg method, unwrap the `Intent` and
+dispatch the legacy `read_intent(p, iomap, payload)` on the operation (when one
 has already been produced) or otherwise the gesture (the gesture→operation stage),
-then re-wrap the result as a `Change` with the gesture preserved. Compound
+then re-wrap the result as a `Intent` with the gesture preserved. Compound
 projections that must thread the change to their children override this with a
 4-arg method of their own.
 """
-function projection_read(p::Projection, recursion, change::Change, iomap)
+function read_intent(p::Projection, recursion, change::Intent, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
-    op = projection_read(p, iomap, payload)
-    return Change(change.gesture, op)
+    op = read_intent(p, iomap, payload)
+    return Intent(change.gesture, op)
 end
 
 """

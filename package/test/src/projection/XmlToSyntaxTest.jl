@@ -2,20 +2,20 @@ function test_xml_to_syntax()
 @testset "XmlToSyntax" begin
 
 x2s = RecursiveProjection(XmlToSyntax())
-@test render(projection_print(x2s, XmlText("hi")).output) == "hi"
-@test render(projection_print(x2s, XmlElement("br")).output) == "<br></br>"
+@test render(print_document(x2s, XmlText("hi")).output) == "hi"
+@test render(print_document(x2s, XmlElement("br")).output) == "<br></br>"
 
 # element with an attribute and a text child
 el = XmlElement("a", [XmlAttribute("href", "x")], XmlDocument[XmlText("hi")])
-@test render(projection_print(x2s, el).output) == "<a href=\"x\">hi</a>"
+@test render(print_document(x2s, el).output) == "<a href=\"x\">hi</a>"
 
 # attribute values are XML-escaped
-@test render(projection_print(x2s, XmlElement("x", [XmlAttribute("k", "a\"b")])).output) ==
+@test render(print_document(x2s, XmlElement("x", [XmlAttribute("k", "a\"b")])).output) ==
       "<x k=\"a&quot;b\"></x>"
 
 # incremental: a tag rename propagates to both the open and close tags
 edoc = XmlElement("old")
-etree = projection_print(x2s, edoc).output
+etree = print_document(x2s, edoc).output
 eout = Cell(() -> render(etree))
 @test eout[] == "<old></old>"
 edoc.tag = "new"
@@ -44,8 +44,8 @@ selof(x) = getfield(x, :selection)[]
 
 read_key(doc, sel, evt) = begin
     set_selection!(doc, sel)
-    iomap = projection_print(x2s, doc)
-    projection_read(x2s, iomap, evt)
+    iomap = print_document(x2s, doc)
+    read_intent(x2s, iomap, evt)
 end
 
 # A type-to-replace gesture returns the folded `replace_document` compound;

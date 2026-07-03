@@ -196,17 +196,17 @@ function _typein_one(document, projection, target, ch)
 
     # 2. Project and confirm the cursor shows up in the Graphics image.
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        return (false, "projection_print threw: $e")
+        return (false, "print_document threw: $e")
     end
     _cursor_present(iomap) || return (false, "no cursor in Graphics image for string $(repr(old))")
 
     # 3. Type a character through the reader.
     op = try
-        projection_read(projection, iomap, KeyPress(first(ch)))
+        read_intent(projection, iomap, KeyPress(first(ch)))
     catch e
-        return (false, "projection_read(KeyPress) threw: $e")
+        return (false, "read_intent(KeyPress) threw: $e")
     end
     op isa ReplaceStringRangeOperation ||
         return (false, "KeyPress produced $(op === nothing ? "nothing" : string(typeof(op))), not ReplaceStringRangeOperation")

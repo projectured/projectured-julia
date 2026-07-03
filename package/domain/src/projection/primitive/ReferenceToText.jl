@@ -20,7 +20,7 @@ module ReferenceToTextModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
@@ -183,13 +183,13 @@ function _short_text(p::ReferenceToText, ref)
     TextText(spans...)
 end
 
-projection_print(p::ReferenceToText, recursion, ::Nothing, ctx) =
+print_document(p::ReferenceToText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _short_text(p, nothing))
 
-projection_print(p::ReferenceToText, recursion, ref::EmptyReferencePath, ctx) =
+print_document(p::ReferenceToText, recursion, ref::EmptyReferencePath, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
-projection_print(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx) =
+print_document(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -363,13 +363,13 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
     TextText(spans...)
 end
 
-projection_print(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =
+print_document(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _long_text(p, nothing))
 
-projection_print(p::ReferenceToHumanReadableText, recursion, ref::EmptyReferencePath, ctx) =
+print_document(p::ReferenceToHumanReadableText, recursion, ref::EmptyReferencePath, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
-projection_print(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReferencePath, ctx) =
+print_document(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReferencePath, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
 end # module

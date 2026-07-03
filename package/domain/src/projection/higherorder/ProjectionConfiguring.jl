@@ -27,10 +27,10 @@ this projection owns, delegate the rest.
 """
 module ProjectionConfiguringProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
@@ -72,10 +72,10 @@ ProjectionConfiguringProjection(; inner, control=ObjectToWidget(), orientation::
 
 # ── Printer ───────────────────────────────────────────────────────────────
 
-function projection_print(p::ProjectionConfiguringProjection, recursion, input, ctx)
-    inner_iomap   = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::ProjectionConfiguringProjection, recursion, input, ctx)
+    inner_iomap   = print_document(p.inner, recursion, input, ctx)
     # Project the inner projection *object* into a control form.
-    control_iomap = projection_print(p.control, p.control, p.inner, ctx)
+    control_iomap = print_document(p.control, p.control, p.inner, ctx)
     control_widget = control_iomap.output
     # WidgetSplitPane only renders WidgetDocument slots, so a non-widget
     # projected document (e.g. a TextText) is wrapped in a WidgetScrollPane,
@@ -89,15 +89,15 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::ProjectionConfiguringProjection, recursion,
-                         change::Change, iomap::ProjectionConfiguringProjectionIoMap)
+function read_intent(p::ProjectionConfiguringProjection, recursion,
+                         change::Intent, iomap::ProjectionConfiguringProjectionIoMap)
     op = change.operation
 
     # 1. A checkbox click (ReplaceReferencedValueOperation rooted at a control widget) →
     #    redirect onto the inner projection's parameter cell.
     if op isa ReplaceReferencedValueOperation
-        redirected = projection_read(p.control, iomap.control_iomap, op)
-        redirected !== op && return Change(change.gesture, redirected)
+        redirected = read_intent(p.control, iomap.control_iomap, op)
+        redirected !== op && return Intent(change.gesture, redirected)
     end
 
     # 2. A control-bar text edit. The renderer re-roots it at our output split
@@ -107,9 +107,9 @@ function projection_read(p::ProjectionConfiguringProjection, recursion,
     if op isa ReplaceStringRangeOperation
         rest = _strip_control_slot(op.reference)
         if rest !== nothing
-            converted = projection_read(p.control, iomap.control_iomap,
+            converted = read_intent(p.control, iomap.control_iomap,
                                         ReplaceStringRangeOperation(rest, op.replacement))
-            converted isa ReplaceReferencedValueOperation && return Change(change.gesture, converted)
+            converted isa ReplaceReferencedValueOperation && return Intent(change.gesture, converted)
         end
     end
 
@@ -117,21 +117,21 @@ function projection_read(p::ProjectionConfiguringProjection, recursion,
     #    slot) is consumed — the control caret is derived, so there is no input
     #    selection to set, and it must not fall through to the document.
     if op isa ReplaceSelectionOperation && _strip_control_slot(op.path) !== nothing
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     end
 
     # 4. Show/hide the control bar.
     toggle = _toggle_operation(change.gesture, iomap.control_widget)
-    toggle !== nothing && return Change(change.gesture, toggle)
+    toggle !== nothing && return Intent(change.gesture, toggle)
 
     # 5. Otherwise the change belongs to the projected document.
-    projection_read(p.inner, recursion, change, iomap.inner_iomap)
+    read_intent(p.inner, recursion, change, iomap.inner_iomap)
 end
 
 # 3-arg compatibility shim (tests / hit-test recursion).
-projection_read(p::ProjectionConfiguringProjection,
+read_intent(p::ProjectionConfiguringProjection,
                 iomap::ProjectionConfiguringProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Strip the control split-slot step (`elements[1]`, 0-based start 0) from a
 # reference rooted at our output split pane, returning the remainder (rooted at

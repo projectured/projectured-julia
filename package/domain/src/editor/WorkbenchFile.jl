@@ -7,8 +7,8 @@ by the file extension (see `DocumentFileModule`): binary for `.pdoc`, natural
 text for `.json`/`.xml`/`.sql`/`.jl`.
 
 The gestures are a reified `@gestures WorkbenchEditor` table. They fire because
-`WorkbenchEditorToWidgetScrollPane.projection_read` delegates a raw
-`KeyDown`/`KeyPress` to `document_read` of its `WorkbenchEditor` input before the
+`WorkbenchEditorToWidgetScrollPane.read_intent` delegates a raw
+`KeyDown`/`KeyPress` to `read_gesture` of its `WorkbenchEditor` input before the
 event descends into the tab's content (see `WorkbenchToWidget.jl`). Each gesture
 emits a **self-contained** operation carrying the `WorkbenchEditor`, so it bubbles
 up through every wrapping reader (page → workbench → window → screen) unchanged

@@ -8,7 +8,7 @@ using Projectured
 using Projectured: save_document, load_document, import_document, export_document,
                    SaveDocumentOperation, LoadDocumentOperation,
                    ImportDocumentOperation, ExportDocumentOperation,
-                   document_to_text, evaluate_operation, projection_print,
+                   document_to_text, evaluate_operation, print_document,
                    set_selection!, jsonparse, xmlparse, sqlparse, juliaparse,
                    JsonObject, XmlElement, SqlSelectStatement, JuliaFunction
 using Projectured: var"@reference"
@@ -49,7 +49,7 @@ function test_serialization()
                 @test getfield(selcell, :thunk) === nothing
 
                 # The detached document still projects through the real pipeline.
-                @test projection_print(proj, loaded) !== nothing
+                @test print_document(proj, loaded) !== nothing
             end
         end
 

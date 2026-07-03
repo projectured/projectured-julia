@@ -149,7 +149,7 @@ _ddl_render_pipe() = ChainingProjection(
     RecursiveProjection(SqlToSyntax()),
     RecursiveProjection(SyntaxToText()),
     RecursiveProjection(TextToString()))
-_ddl_to_sql(stmt) = projection_print(_ddl_render_pipe(), stmt).output[]
+_ddl_to_sql(stmt) = print_document(_ddl_render_pipe(), stmt).output[]
 
 # Full DDL lifecycle, run entirely inside a dedicated `test` schema (the `public`
 # schema is reserved for other purposes here). Each statement is parsed from
@@ -234,7 +234,7 @@ function test_db_catalog_to_sql_live(adapter)
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        script = projection_print(pipe, schema).output[]
+        script = print_document(pipe, schema).output[]
         @test occursin("CREATE SCHEMA test", script)
         @test occursin("CREATE TABLE test.film", script)
 

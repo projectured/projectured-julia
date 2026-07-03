@@ -6,7 +6,7 @@ _test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
 src = "Lorem ipsum dolor sit amet"
 input = TextText(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
-out = projection_print(WordWrapping(max_width=100, measure=m), input).output
+out = print_document(WordWrapping(max_width=100, measure=m), input).output
 
 # Concatenating output TextString contents must reproduce the original.
 joined = join((elem.content for elem in out.elements if elem isa TextString), "")
@@ -20,7 +20,7 @@ end # @testset "WordWrapping characters preserved"
 
 input = TextText(TextString("short", font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
-out = projection_print(WordWrapping(max_width=1000, measure=m), input).output
+out = print_document(WordWrapping(max_width=1000, measure=m), input).output
 @test length(out.elements) == 1
 @test out.elements[1] isa TextString
 @test out.elements[1].content == "short"
@@ -32,7 +32,7 @@ end # @testset "WordWrapping no-wrap"
 src = "Lorem ipsum dolor"           # words at chars [0..4), [6..10), [12..16)
 input = TextText(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
-iomap = projection_print(WordWrapping(max_width=80, measure=m), input)
+iomap = print_document(WordWrapping(max_width=80, measure=m), input)
 segs = iomap.segs[]
 
 # Every output sub-span maps backward then forward to itself.
@@ -63,7 +63,7 @@ m = _test_measure(10, 18)
 proj = WordWrapping(max_width=10_000, measure=m)
 avail = Cell(60)  # 60px ≈ 6 chars per line
 ctx = with_available_size(PrinterContext(); width=avail)
-iomap = projection_print(proj, nothing, input, ctx)
+iomap = print_document(proj, nothing, input, ctx)
 out = iomap.output
 
 joined = join((elem.content for elem in out.elements if elem isa TextString), "")
@@ -82,7 +82,7 @@ input = TextText(
     TextString("abcdef", font_ubuntu_monospace_regular_20, color_default),
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
-out = projection_print(WordWrapping(max_width=80, measure=m), input).output
+out = print_document(WordWrapping(max_width=80, measure=m), input).output
 els = [out.elements[i] for i in 1:length(out.elements)]
 
 @test count(e -> e isa TextNewline, els) == 1
@@ -102,7 +102,7 @@ input = TextText(
     TextString("ab", font_ubuntu_monospace_regular_20, color_default),
     TextGraphics(ImageMemory(nothing), 40, 40),
 )
-out = projection_print(WordWrapping(max_width=1000, measure=m), input).output
+out = print_document(WordWrapping(max_width=1000, measure=m), input).output
 els = [out.elements[i] for i in 1:length(out.elements)]
 @test count(e -> e isa TextNewline, els) == 0
 @test any(e -> e isa TextGraphics, els)
@@ -117,7 +117,7 @@ input = TextText(
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
 proj  = WordWrapping(max_width=80, measure=m)
-iomap = projection_print(proj, input)
+iomap = print_document(proj, input)
 # The image is input span 2; its atomic positions {0} and {1} must survive
 # the forward/backward mapping even though a soft newline shifted its index.
 for c in (0, 1)

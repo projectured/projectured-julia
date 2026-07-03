@@ -11,7 +11,7 @@ child iomaps so that map_reference_backward can delegate through them
 """
 module CopyingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
@@ -43,10 +43,10 @@ _is_doc_field(c::Cell) = c[] isa Document
 _unwrap(x) = x
 _unwrap(c::Cell) = c[]
 
-# ── projection_print ──────────────────────────────────────────────────────
+# ── print_document ──────────────────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, recursion, input::CellVector, ctx)
-    children = [projection_printer_recurse(recursion, input[i],
+function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
+    children = [print_child(recursion, input[i],
                     child_context(ctx, ElementReference(i)))
                 for i in 1:length(input)]
     out_cells = Cell[Cell(im.output) for im in children]
@@ -57,14 +57,14 @@ end
 
 # ── ListNode path (lazy) ─────────────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, recursion, input::ListNode, ctx)
+function print_document(p::CopyingProjection, recursion, input::ListNode, ctx)
     output_head = _map_node(p, input, recursion, ctx, 1)
     CopyingProjectionIoMap(p, input, output_head, nothing, nothing, recursion, ctx)
 end
 
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, index::Int)
     # Project current element
-    elem_iomap = projection_printer_recurse(recursion, input_node.value,
+    elem_iomap = print_child(recursion, input_node.value,
                      child_context(ctx, ElementReference(index)))
 
     # Create output node
@@ -95,8 +95,8 @@ end
 
 # ── Vector{Cell} and struct paths ─────────────────────────────────────────
 
-function projection_print(p::CopyingProjection, recursion, input::Vector{Cell}, ctx)
-    children = [projection_printer_recurse(recursion, c[],
+function print_document(p::CopyingProjection, recursion, input::Vector{Cell}, ctx)
+    children = [print_child(recursion, c[],
                     child_context(ctx, ElementReference(i)))
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
@@ -104,7 +104,7 @@ function projection_print(p::CopyingProjection, recursion, input::Vector{Cell}, 
     CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
-function projection_print(p::CopyingProjection, recursion, input, ctx)
+function print_document(p::CopyingProjection, recursion, input, ctx)
     input isa Document || return CopyingProjectionIoMap(p, input, input, Any[], nothing, nothing, nothing)
     T = typeof(input)
     all_names = fieldnames(T)
@@ -124,7 +124,7 @@ function projection_print(p::CopyingProjection, recursion, input, ctx)
             end))
         elseif _is_doc_field(fv)
             child_ctx = child_context(ctx, FieldReference(string(nm)))
-            im = projection_printer_recurse(recursion, _unwrap(fv), child_ctx)
+            im = print_child(recursion, _unwrap(fv), child_ctx)
             push!(children, im); push!(names, string(nm))
             push!(field_vals, im.output)
         else
@@ -214,7 +214,7 @@ end
 function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
-    return projection_printer_recurse(iomap.recursion, input_node.value,
+    return print_child(iomap.recursion, input_node.value,
                child_context(iomap.base_ctx, ElementReference(index)))
 end
 
@@ -244,7 +244,7 @@ function map_reference_forward(::CopyingProjection, iomap::CopyingProjectionIoMa
     _map_ref(map_reference_forward, iomap, reference)
 end
 
-# CopyingProjection is domain-independent: it has no `projection_read` method of
+# CopyingProjection is domain-independent: it has no `read_intent` method of
 # its own. The generic reader bridge (ProjectionModule) routes selection and
 # edit operations back through `map_reference_backward`, which delegates into the
 # stored child iomaps. Screen/window event routing lives in `ScreenToScreen`, the

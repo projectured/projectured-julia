@@ -3,12 +3,12 @@
 
 A higher-order projection that holds a list of projections and delegates
 to the one selected by a reactive index cell. Changing the index cell
-switches which branch is active on the next projection_print call.
+switches which branch is active on the next print_document call.
 """
 module SwitchingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..ReactiveModule: Cell
 import ..IoMapApiModule: IoMap
 export SwitchingProjection, SwitchingProjectionIoMap
@@ -27,7 +27,7 @@ end
 A compound higher-order projection that selects one projection from a list
 by index and delegates all print and read operations to it.
 
-The `index` is a `Cell{Int}` whose value is read on every `projection_print`
+The `index` is a `Cell{Int}` whose value is read on every `print_document`
 call, so the active branch can be changed at any time by writing to the cell:
 
     ap.index[] = 2   # switch to the second projection
@@ -39,9 +39,9 @@ call, so the active branch can be changed at any time by writing to the cell:
         [JsonToSyntax(), XmlToSyntax()],
         index
     )
-    result = projection_print(ap, json_doc)   # uses JsonToSyntax
+    result = print_document(ap, json_doc)   # uses JsonToSyntax
     index[] = 2
-    result = projection_print(ap, xml_doc)    # uses XmlToSyntax
+    result = print_document(ap, xml_doc)    # uses XmlToSyntax
 """
 struct SwitchingProjection <: Projection
     projections::Vector{Any}
@@ -53,27 +53,27 @@ SwitchingProjection(projections::Vector{Any}, index::Int=1) =
     SwitchingProjection(projections, Cell(index))
 
 """
-    projection_print(ap::SwitchingProjection, recursion, input, ctx) -> SwitchingProjectionIoMap
+    print_document(ap::SwitchingProjection, recursion, input, ctx) -> SwitchingProjectionIoMap
 
 Apply the projection at the current index, wrapping its IoMap so the reader
 knows which branch was active.
 """
-function projection_print(ap::SwitchingProjection, recursion, input, ctx)
+function print_document(ap::SwitchingProjection, recursion, input, ctx)
     i = ap.index[]
-    inner_iomap = projection_print(ap.projections[i], recursion, input, ctx)
+    inner_iomap = print_document(ap.projections[i], recursion, input, ctx)
     return SwitchingProjectionIoMap(ap, input, inner_iomap.output, i, inner_iomap)
 end
 
 """
-    projection_read(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, event)
+    read_intent(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, event)
 
 Delegate to the same branch that was active when the IoMap was produced.
 """
-projection_read(ap::SwitchingProjection, recursion, change::Change, iomap::SwitchingProjectionIoMap) =
-    projection_read(ap.projections[iomap.index], recursion, change, iomap.inner_iomap)
+read_intent(ap::SwitchingProjection, recursion, change::Intent, iomap::SwitchingProjectionIoMap) =
+    read_intent(ap.projections[iomap.index], recursion, change, iomap.inner_iomap)
 
-projection_read(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, payload) =
-    projection_read(ap, nothing, Change(payload), iomap).operation
+read_intent(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, payload) =
+    read_intent(ap, nothing, Intent(payload), iomap).operation
 
 function map_reference_forward(::SwitchingProjection, iomap, reference)
     return nothing

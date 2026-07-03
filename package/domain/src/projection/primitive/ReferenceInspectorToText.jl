@@ -25,7 +25,7 @@ so a click landing inside the rendered panel produces no operation.
 module ReferenceInspectorToTextModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, map_reference_forward,
+import ..ProjectionApiModule: print_document, map_reference_forward,
                               map_reference_backward, Projection
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
 import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
@@ -68,7 +68,7 @@ function _append_spans!(spans::Vector{TextDocument}, tt::TextText)
     spans
 end
 
-function projection_print(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
+function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
     short_proj = ReferenceToText(font = p.font)
     out = TextText(() -> begin
         ref    = input.reference        # tracked: ReferencePath or nothing
@@ -78,8 +78,8 @@ function projection_print(p::ReferenceInspectorToText, recursion, input::Referen
                     annotate_reference_types(target, ref) : ref
         long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
         ictx = PrinterContext()
-        short = projection_print(short_proj, nothing, canonical, ictx).output
-        long  = projection_print(long_proj,  nothing, canonical, ictx).output
+        short = print_document(short_proj, nothing, canonical, ictx).output
+        long  = print_document(long_proj,  nothing, canonical, ictx).output
 
         spans = TextDocument[]
         push!(spans, _header("Compact", p))

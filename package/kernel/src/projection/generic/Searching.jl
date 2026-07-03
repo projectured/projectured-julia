@@ -12,7 +12,7 @@ document tree and gathers matches from anywhere inside it.
 """
 module SearchingProjectionModule
 
-import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
@@ -47,7 +47,7 @@ returns `true`. The default `field_match` matches a field whose value is an
 # Example
 
     sp = SearchingProjection(r"foo")
-    iomap = projection_print(sp, nothing, document, PrinterContext())
+    iomap = print_document(sp, nothing, document, PrinterContext())
     iomap.output   # CellVector of every object with a string field matching "foo"
 """
 struct SearchingProjection <: Projection
@@ -64,9 +64,9 @@ SearchingProjection(pattern::Regex; field_match::Function = _default_field_match
 SearchingProjection(pattern::AbstractString; kw...) =
     SearchingProjection(Regex(pattern); kw...)
 
-# ── projection_print ──────────────────────────────────────────────────────
+# ── print_document ──────────────────────────────────────────────────────
 
-function projection_print(p::SearchingProjection, recursion, input, ctx)
+function print_document(p::SearchingProjection, recursion, input, ctx)
     matches = Tuple{ReferencePath,Any}[]
     seen = Base.IdSet{Any}()
     _walk(p, input, EmptyReferencePath(), matches, seen)
@@ -89,8 +89,8 @@ function projection_print(p::SearchingProjection, recursion, input, ctx)
 end
 
 # Two-argument convenience entry mirroring the editor's bare-call form.
-projection_print(p::SearchingProjection, input) =
-    projection_print(p, nothing, input, nothing)
+print_document(p::SearchingProjection, input) =
+    print_document(p, nothing, input, nothing)
 
 # ── The recursive walk ────────────────────────────────────────────────────
 # Pre-order DFS over the three structural shapes the codebase uses, building the

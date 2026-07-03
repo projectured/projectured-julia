@@ -15,7 +15,7 @@ module JuliaToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,

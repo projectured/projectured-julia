@@ -60,7 +60,7 @@ matches. New modes are new subtypes with zero changes to the projection.
 is the direct analogue of `ClipboardSliceToAnyProjection`:
 
 - **Printer** — `(idx, version) = select_version(input)`, recurse into
-  `version.value` through `projection_printer_recurse`, and make that recursion's
+  `version.value` through `print_child`, and make that recursion's
   output *be* the projection's output (the wrapper vanishes). When no version
   matches, the output is a `DocumentNothing` (the clipboard's empty-slice
   fallback).
@@ -78,7 +78,7 @@ is the direct analogue of `ClipboardSliceToAnyProjection`:
   operation is re-rooted under `versions[idx].value`.
 
 Recursion across nested versioned objects falls out of
-`projection_printer_recurse` re-dispatching on each node, so a versioned value
+`print_child` re-dispatching on each node, so a versioned value
 containing further versioned objects is resolved layer by layer.
 
 ### Criterion swapping

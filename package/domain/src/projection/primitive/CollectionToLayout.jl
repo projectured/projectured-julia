@@ -23,7 +23,7 @@ module CollectionToLayoutModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
@@ -36,7 +36,7 @@ export CellVectorToVerticalLayout
     gap::Int = 8
 end
 
-function projection_print(p::CellVectorToVerticalLayout, recursion, cv::CellVector, ctx)
+function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector, ctx)
     # Reuse the input's element cells (no transform here — the layout renderer
     # recurses them). The deferred-iomap trick wires the output selection.
     iomap_cell = Cell(nothing)

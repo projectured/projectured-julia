@@ -10,8 +10,8 @@ module PlaybackModule
 
 import ..EditorModule: Editor, read!, evaluate!, print!, perf!
 import ..PerformanceCounterModule: perf_reset!, @perf_time
-import ..ProjectionApiModule: projection_read
-import ..ChangeModule: Change
+import ..ProjectionApiModule: read_intent
+import ..IntentModule: Intent
 import ..ScreenDocumentModule: EventEnvelope
 import ..OperationApiModule: Operation
 import ..OperationModule: QuitEditorException
@@ -62,8 +62,8 @@ function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix
     else
         editor.iomap === nothing && return nothing
         env = EventEnvelope(window_id, entry.event)
-        change = projection_read(editor.projection, nothing, Change(env, nothing), editor.iomap)
-        op = change isa Change ? change.operation : change
+        change = read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)
+        op = change isa Intent ? change.operation : change
         return op isa Operation ? op : nothing
     end
 end

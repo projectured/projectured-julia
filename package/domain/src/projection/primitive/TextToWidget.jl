@@ -21,7 +21,7 @@ recursive rendering handles both widget chrome and text content.
 module TextToWidgetModule
 
 import ..ReactiveModule: Cell
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText
 import ..WidgetModule: WidgetScrollPane, Point2D, Inset, inset_default
@@ -64,7 +64,7 @@ end
 
 # ── Printer ──────────────────────────────────────────────────────────────
 
-function projection_print(p::TextToWidget, recursion, input::TextText, ctx)
+function print_document(p::TextToWidget, recursion, input::TextText, ctx)
     scroll_pane = WidgetScrollPane(input;
         size=Point2D(p.default_width, p.default_height),
         content_fill_color=p.content_fill_color,
@@ -101,7 +101,7 @@ end
 
 # ── Reader ───────────────────────────────────────────────────────────────
 
-function projection_read(p::TextToWidget, iomap::TextToWidgetIoMap, op)
+function read_intent(p::TextToWidget, iomap::TextToWidgetIoMap, op)
     if op isa ReplaceSelectionOperation
         new_path = map_reference_backward(p, iomap, op.path)
         return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)

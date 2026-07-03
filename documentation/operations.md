@@ -154,7 +154,7 @@ entries that are *either* a device `event` (run through the reader) *or* an
 directly-injected operation skips the reader, it is **not** rerooted through
 container wrappers automatically — when the document is wrapped (e.g. in a
 `ScreenDocument`/`WindowDocument` for live playback), `play_live!` reroots it via
-`op_prefix` using `prepend_steps_to_op` (see the
+`op_prefix` using `reroot_operation` (see the
 [rerooting invariant](#two-invariants-every-operation-must-respect) below). The
 search-based pattern above sidesteps this by searching the *live* root, so it
 needs no prefix.
@@ -162,13 +162,13 @@ needs no prefix.
 ## Reader → operation → evaluate flow
 
 ```
-SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► Change(gesture, nothing)
+SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► Intent(gesture, nothing)
                                           │
                                           ▼
-          projection_read(projection, recursion, change::Change, iomap)
+          read_intent(projection, recursion, change::Intent, iomap)
                                           │
                                           ▼
-                  Change(gesture, operation)  (operation may be nothing)
+                  Intent(gesture, operation)  (operation may be nothing)
                                           │
                                           ▼
                        evaluate_operation(editor, change.operation)
@@ -177,12 +177,12 @@ SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► Ch
                              cells written → invalidated
                                           │
                                           ▼
-                       projection_print refreshes the iomap lazily
+                       print_document refreshes the iomap lazily
 ```
 
-The reader threads a [`Change`](projection-system.md#the-change-the-reader-threads)
+The reader threads a [`Intent`](projection-system.md#the-change-the-reader-threads)
 (the originating `gesture` plus the `operation` produced so far) and walks the
-pipeline last-to-first, calling `projection_read` on each step. The `gesture`
+pipeline last-to-first, calling `read_intent` on each step. The `gesture`
 rides along unchanged; the first step that fills in a non-nothing `operation`
 short-circuits the walk, and subsequent earlier steps translate that operation
 further toward the document's own domain.
@@ -190,8 +190,8 @@ further toward the document's own domain.
 Within a single structural projection, the reader recurses the same way the
 printer did: it **delegates a raw authoring gesture to the projection of the
 selected child** and **lifts** the child's operation back into its own domain by
-prepending the step that reaches the child (`prepend_steps_to_op`) — handling the
-gesture itself (via [`document_read`](projection-system.md#domain-owned-geometry-free-gesture-mapping-document_read))
+prepending the step that reaches the child (`reroot_operation`) — handling the
+gesture itself (via [`read_gesture`](projection-system.md#domain-owned-geometry-free-gesture-mapping-read_gesture))
 only when the child declines. This is what makes `,`/`Tab` reach the *nearest
 enclosing* object/array rather than only the root. See
 [Recursive gesture reading](projection-system.md#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation).
@@ -216,14 +216,14 @@ When you do need a new one:
    primitives — `replace_selection!`, mutating reactive cells, throwing
    `QuitEditorException` — rather than reaching directly into private state.
 3. **Have a projection produce it.** Add a 4-arg
-   `projection_read(p, recursion, change::Change, iomap)` method on the
-   projection that owns the gesture; return `Change(change.gesture, MyOp(...))`
+   `read_intent(p, recursion, change::Intent, iomap)` method on the
+   projection that owns the gesture; return `Intent(change.gesture, MyOp(...))`
    when the event applies (and a nothing-change otherwise). If the projection
    only needs to re-target a reference-carrying operation, you need no method at
    all — the default reader does that.
 4. **(Optional) Translate it upstream.** If the operation needs to flow
    through more projections before reaching the document, give the
-   upstream projections matching `projection_read` methods that consume the
+   upstream projections matching `read_intent` methods that consume the
    downstream operation and emit an equivalent operation in their own
    input domain.
 
@@ -236,7 +236,7 @@ When you do need a new one:
   change the document by writing into the Cells that are already wired into the
   projection graph. If an operation instead swaps a whole value/subtree out from
   under the projection (replacing the structure the iomap was built against), it
-  must **null `editor.iomap`** to force a fresh `projection_print` — exactly what a
+  must **null `editor.iomap`** to force a fresh `print_document` — exactly what a
   `ReplaceReferencedValueOperation` with an empty reference (the `replace_document` whole-root
   swap) does. An operation that silently rebinds structure without dropping the iomap
   renders stale.
@@ -246,9 +246,9 @@ When you do need a new one:
   remaining path-bearing types `ReplaceSelectionOperation` /
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
   `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
-  is handled in **both** the default `projection_read`
+  is handled in **both** the default `read_intent`
   ([common/Projection.jl](../package/kernel/src/common/Projection.jl)) **and**
-  `prepend_steps_to_op`
+  `reroot_operation`
   ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing
   from either is **silently passed through unmapped** — its reference stays in the

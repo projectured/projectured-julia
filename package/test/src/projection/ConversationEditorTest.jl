@@ -10,7 +10,7 @@ using Projectured: ConversationTurn, ConversationPart, PrimitiveString, TextText
                    ComposerCommitChooserOperation, ComposerCommitSourceOperation,
                    ComposerEvaluateOperation, ComposerRevertOperation,
                    ComposerSubmitOperation,
-                   projection_print, projection_read, evaluate_operation,
+                   print_document, read_intent, evaluate_operation,
                    projection_gestures,
                    KeyPress, KeyDown
 using Projectured: Modifiers
@@ -94,34 +94,34 @@ function test_conversation_editor()
         @testset "reader: gesture → operation per active state" begin
             proj = ConversationComposerToWidget()
             turn = _ce_draft()
-            iom = projection_print(proj, turn)
+            iom = print_document(proj, turn)
 
             # text typein
-            @test projection_read(proj, iom, KeyPress('a')) isa ComposerInputOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerSubmitOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
-            @test projection_read(proj, iom, KeyDown(:insert, Modifiers())) isa ComposerInsertPartOperation
-            @test projection_read(proj, iom, KeyDown(:tab, Modifiers())) isa ComposerInsertPartOperation
-            @test projection_read(proj, iom, KeyDown(:backspace, Modifiers())) isa ComposerBackspaceOperation
+            @test read_intent(proj, iom, KeyPress('a')) isa ComposerInputOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerSubmitOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
+            @test read_intent(proj, iom, KeyDown(:insert, Modifiers())) isa ComposerInsertPartOperation
+            @test read_intent(proj, iom, KeyDown(:tab, Modifiers())) isa ComposerInsertPartOperation
+            @test read_intent(proj, iom, KeyDown(:backspace, Modifiers())) isa ComposerBackspaceOperation
 
             # kind chooser
             _ce_apply!(ComposerInsertPartOperation(turn))
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitChooserOperation
-            @test projection_read(proj, iom, KeyDown(:escape, Modifiers())) isa ComposerRevertOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitChooserOperation
+            @test read_intent(proj, iom, KeyDown(:escape, Modifiers())) isa ComposerRevertOperation
 
             # julia source
             _ce_type!(turn, "julia")
             _ce_apply!(ComposerCommitChooserOperation(turn))
             @test turn.parts[length(turn.parts)].content isa JuliaInsertion
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitSourceOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers(alt=true))) isa ComposerEvaluateOperation
-            @test projection_read(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitSourceOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers(alt=true))) isa ComposerEvaluateOperation
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
         end
 
         @testset "show: projection_gestures mirrors what the reader fires (fire == show)" begin
             proj = ConversationComposerToWidget()
             turn = _ce_draft()
-            iom = projection_print(proj, turn)
+            iom = print_document(proj, turn)
             descs() = Set(b.description for b in projection_gestures(proj, iom))
 
             # text typein mode — Submit / New line / Add a structured part / Insert

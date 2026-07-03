@@ -10,8 +10,8 @@ module SyntaxToTextModule
 
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
@@ -24,7 +24,7 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..DocumentApiModule: document_read
+import ..DocumentApiModule: read_gesture
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
 import ..MouseModule: MousePress
@@ -70,7 +70,7 @@ end
 #   PS(p).open[k]  →  .elements[1]
 #   PS(p).close[k] →  .elements[3]
 #   anything else  →  no cursor
-function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
+function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         leaf_sel = strip_reference_types(leaf.selection)   # canonical → plain skeleton
         leaf_sel isa EmptyReferencePath && return @reference()
@@ -80,7 +80,7 @@ function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     SimpleIoMap(p, leaf, TextText(CellVector(() -> TextDocument[leaf.open, leaf.value, leaf.close]), sel))
 end
 
-function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
@@ -91,7 +91,7 @@ end
 # For now only spans the value span (i == 2); editing into the open/close
 # delimiter span is deferred — those are typically projection-introduced
 # characters that need a different kind of structural edit.
-function projection_read(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
@@ -104,7 +104,7 @@ end
 # Pass KeyDown events through so upstream projections (e.g.
 # PrimitiveStringToSyntaxLeaf) can react to Backspace/Delete. TextToGraphics
 # returns the raw KeyDown for keys it doesn't consume.
-projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
+read_intent(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 
 # ── SyntaxNodeToText ───────────────────────────────────────────────────
 # For nodes with non-empty open/close delimiters (like { } or [ ]):
@@ -113,7 +113,7 @@ projection_read(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 #   child₁ sep child₂ …
 # Reading node.children[] registers it as a dependency of the
 # TextText's spans cell, so structural changes trigger a rebuild.
-# Children are projected recursively via projection_print(recursion, ...).
+# Children are projected recursively via print_document(recursion, ...).
 
 # Default rule for which nodes may carry an inline expand/collapse marker:
 # any node with at least one child. Projection instances can pass a custom
@@ -192,7 +192,7 @@ end
 #        .open[k]      →  .elements at char k of the open span
 #        .close[k]     →  .elements at char k of the close span
 #        .children[i]  →  .elements at offset of child i + child's cursor
-function projection_print(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
+function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     # Spans depend only on the syntax content, not the selection: the spans-only
     # pass (`want_cursor=false`) skips every selection read, so the output
     # TextText's element vector is stable across caret moves and only the
@@ -243,46 +243,46 @@ end
 #      is a fold gesture → toggle that specific node.
 #   2. Alt+click promotes the mapped position to a whole-element (tree) selection
 #      on the enclosing node — the mouse half of tree navigation.
-function projection_read(p::SyntaxNodeToText, recursion, change::Change, iomap::SyntaxNodeToTextIoMap)
+function read_intent(p::SyntaxNodeToText, recursion, change::Intent, iomap::SyntaxNodeToTextIoMap)
     op = change.operation
     gesture = change.gesture
     if op isa ReplaceSelectionOperation && gesture isa MousePress
         flat = _click_flat_pos(iomap, op.path)
         if flat >= 0
             node = _node_at_collapse_glyph(iomap.input, flat, p, 0)
-            node !== nothing && return Change(gesture, ToggleCollapseOperation(node))
+            node !== nothing && return Intent(gesture, ToggleCollapseOperation(node))
             if gesture.modifiers.alt
                 tree_sel = _pos_to_tree_selection(iomap.input, flat, p, 0)
-                return Change(gesture, ReplaceSelectionOperation(tree_sel))
+                return Intent(gesture, ReplaceSelectionOperation(tree_sel))
             end
         end
     end
     # Everything else (keyboard, plain clicks, other operations) falls through to
     # the operation-typed readers below.
     payload = op === nothing ? gesture : op
-    result = projection_read(p, iomap, payload)
+    result = read_intent(p, iomap, payload)
 
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
-    # already filled the operation slot via its own `document_read` delegation, so
+    # already filled the operation slot via its own `read_gesture` delegation, so
     # `op !== nothing` and we never reach here for a gesture. In the console
     # pipeline (`… → SyntaxToText → EnvelopeUnwrapping`) there is no
     # `TextToGraphics`, so the operation slot is still empty: `payload` is the raw
-    # gesture and `projection_read(p, iomap, gesture)` only handled the syntax
+    # gesture and `read_intent(p, iomap, gesture)` only handled the syntax
     # (tree-navigation) subset. When that yields nothing, the gesture may still be
     # a geometry-free Text-domain edit/navigation (character insert/delete,
-    # left/right cursor, …). Ask the *output* TextText's `document_read` for a
+    # left/right cursor, …). Ask the *output* TextText's `read_gesture` for a
     # text-domain operation and route it back through this projection's existing
     # operation-typed readers, which map the `.elements[i].content[…]` reference
     # to the enclosing syntax leaf.
     if result === nothing && op === nothing
-        text_op = document_read(iomap.output, gesture)
-        text_op === nothing || return Change(gesture, projection_read(p, iomap, text_op))
+        text_op = read_gesture(iomap.output, gesture)
+        text_op === nothing || return Intent(gesture, read_intent(p, iomap, text_op))
     end
 
-    return Change(gesture, result)
+    return Intent(gesture, result)
 end
 
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
@@ -293,7 +293,7 @@ end
 # in hand — to the innermost collapsible node containing the cursor, then let
 # it propagate up unchanged. An already-targeted operation (e.g. a click
 # resolved above) passes through untouched.
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ToggleCollapseOperation)
+function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ToggleCollapseOperation)
     op.target === nothing || return op
     target = _resolve_collapsible(iomap.input, iomap.input.selection)
     return ToggleCollapseOperation(target)
@@ -301,20 +301,20 @@ end
 
 # Tree-selection navigation by keyboard. The whole keyboard mapping for a syntax
 # tree is geometry-free — it walks the input `SyntaxNode` and its selection paths
-# — so it lives on the Syntax domain as `document_read(::SyntaxNode, gesture)` (in
+# — so it lives on the Syntax domain as `read_gesture(::SyntaxNode, gesture)` (in
 # `SyntaxModule`). Delegate to it; the operation it returns (a
 # `ReplaceSelectionOperation` on the syntax tree) is mapped backward to the source
 # domain by the rest of the chain, exactly as before. The mouse hit-testing for
-# collapse glyphs / Alt+click stays in the 4-arg `Change` reader above (geometry).
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::KeyDown)
-    return document_read(iomap.input, evt)
+# collapse glyphs / Alt+click stays in the 4-arg `Intent` reader above (geometry).
+function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, evt::KeyDown)
+    return read_gesture(iomap.input, evt)
 end
 
 # Translate a flat-text `ReplaceStringRangeOperation` to a SyntaxNode-domain
 # op rooted at the enclosing leaf. The start and stop offsets are mapped via
 # `_text_elem_path_to_flat` and `_pos_to_selection`; if both endpoints don't
 # resolve to the same leaf's `.value` field, the op is rejected.
-function projection_read(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
@@ -416,13 +416,13 @@ function map_reference_backward(::SyntaxListToText, iomap, reference)
 end
 
 """
-    projection_print(::SyntaxListToText, recursion, ln::ListNode, ctx)
+    print_document(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
 Convert a `ListNode(SyntaxDocument)` to a `TextText` with `ListNode` elements.
 Each syntax element becomes its text spans (open, value, close for leaves),
 with `TextNewline` separators between elements.
 """
-function projection_print(p::SyntaxListToText, recursion, ln::ListNode, ctx)
+function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     cache = IdDict{ListNode, ListNode}()
     out_head = _syntax_list_to_text_node(ln, recursion, cache)
     SimpleIoMap(p, ln, TextText(out_head, Cell(nothing)))

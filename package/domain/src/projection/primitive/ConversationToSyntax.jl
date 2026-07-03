@@ -20,7 +20,7 @@ module ConversationToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
@@ -79,10 +79,10 @@ _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
 # ── Top-level conversation: one turn per line ──────────────────────────────────
 
-function projection_print(p::ConversationConversationToSyntaxNode,
+function print_document(p::ConversationConversationToSyntaxNode,
                           recursion, c::ConversationConversation, ctx)
     children = CellVector(() -> SyntaxDocument[
-        projection_printer_recurse(recursion, c.turns[i], ctx).output
+        print_child(recursion, c.turns[i], ctx).output
         for i in eachindex(c.turns)
     ])
     node = SyntaxNode(children; indentation=1)
@@ -91,10 +91,10 @@ end
 
 # ── Turn: "<role>: <part><part>…" ──────────────────────────────────────────────
 
-function projection_print(p::ConversationTurnToSyntaxNode,
+function print_document(p::ConversationTurnToSyntaxNode,
                           recursion, t::ConversationTurn, ctx)
     children = CellVector(() -> SyntaxDocument[
-        projection_printer_recurse(recursion, t.parts[i], ctx).output
+        print_child(recursion, t.parts[i], ctx).output
         for i in eachindex(t.parts)
     ])
     label = string(t.role, ":\n")
@@ -106,7 +106,7 @@ end
 
 # ── Part: dispatch on content ──────────────────────────────────────────────────
 
-function projection_print(p::ConversationPartToSyntaxNode,
+function print_document(p::ConversationPartToSyntaxNode,
                           recursion, part::ConversationPart, ctx)
     content = part.content
     if content isa EvaluatorForm
@@ -151,7 +151,7 @@ for P in (ConversationConversationToSyntaxNode,
           ConversationPartToSyntaxNode)
     @eval map_reference_forward(::$P, iomap, ref)  = nothing
     @eval map_reference_backward(::$P, iomap, ref) = nothing
-    @eval projection_read(::$P, iomap, op) = op
+    @eval read_intent(::$P, iomap, op) = op
 end
 
 # ── Factory ────────────────────────────────────────────────────────────────────

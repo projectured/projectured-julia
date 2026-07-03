@@ -22,7 +22,7 @@ The enclosing schema name is threaded down through the printer context (the
 
 Read-only: a serialiser for LLM consumption, not an editor view, so reference
 mapping / read support return `nothing`. The catalog child collections are lazy
-`CellVector`s, and recursing each child through `projection_printer_recurse`
+`CellVector`s, and recursing each child through `print_child`
 forces the whole subtree, so wrapping this in a `RecursiveProjection` fully walks
 the catalog.
 """
@@ -35,7 +35,7 @@ import ..DbCatalogDocumentModule: DbCatalogDocument, DbCatalogRdbms, DbCatalogDa
 import ..SqlDocumentModule: SqlColumnDefinition, SqlCreateTableStatement,
                             SqlCreateSchemaStatement, SqlStatementList,
                             SqlTableName, SqlColumnName
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -51,7 +51,7 @@ const SCHEMA_PROPERTY = :sql_schema_name
 # Recurse a single catalog child through the dispatcher, returning its built Sql
 # document. Iterating a (lazy) child `CellVector` forces its query.
 _recurse(recursion, ctx, child, i) =
-    projection_printer_recurse(recursion, child, child_context(ctx, ElementReference(i))).output
+    print_child(recursion, child, child_context(ctx, ElementReference(i))).output
 
 # Flatten a sequence of catalog children — each of which projects to a
 # `SqlStatementList` — into one flat vector of statements.
@@ -68,19 +68,19 @@ end
 
 struct DbCatalogColumnToSql <: Projection end
 
-function projection_print(p::DbCatalogColumnToSql, recursion, col::DbCatalogColumn, ctx)
+function print_document(p::DbCatalogColumnToSql, recursion, col::DbCatalogColumn, ctx)
     SimpleIoMap(p, col, SqlColumnDefinition(SqlColumnName(col.name), col.data_type))
 end
 
 map_reference_forward(::DbCatalogColumnToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogColumnToSql, iomap, ref) = nothing
-projection_read(::DbCatalogColumnToSql, iomap, op) = nothing
+read_intent(::DbCatalogColumnToSql, iomap, op) = nothing
 
 # ── DbCatalogTableToSql ──────────────────────────────────────────────────────────
 
 struct DbCatalogTableToSql <: Projection end
 
-function projection_print(p::DbCatalogTableToSql, recursion, table::DbCatalogTable, ctx)
+function print_document(p::DbCatalogTableToSql, recursion, table::DbCatalogTable, ctx)
     schema = get_property(ctx, SCHEMA_PROPERTY, nothing)
     table_name = schema === nothing ? SqlTableName(table.name) :
                                       SqlTableName(schema, table.name)
@@ -92,13 +92,13 @@ end
 
 map_reference_forward(::DbCatalogTableToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogTableToSql, iomap, ref) = nothing
-projection_read(::DbCatalogTableToSql, iomap, op) = nothing
+read_intent(::DbCatalogTableToSql, iomap, op) = nothing
 
 # ── DbCatalogSchemaToSql ─────────────────────────────────────────────────────────
 
 struct DbCatalogSchemaToSql <: Projection end
 
-function projection_print(p::DbCatalogSchemaToSql, recursion, schema::DbCatalogSchema, ctx)
+function print_document(p::DbCatalogSchemaToSql, recursion, schema::DbCatalogSchema, ctx)
     # Thread the schema name down so each table can schema-qualify its name.
     table_ctx = with_property(ctx, SCHEMA_PROPERTY, schema.name)
     stmts = Any[SqlCreateSchemaStatement(schema.name)]
@@ -110,33 +110,33 @@ end
 
 map_reference_forward(::DbCatalogSchemaToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogSchemaToSql, iomap, ref) = nothing
-projection_read(::DbCatalogSchemaToSql, iomap, op) = nothing
+read_intent(::DbCatalogSchemaToSql, iomap, op) = nothing
 
 # ── DbCatalogDatabaseToSql ───────────────────────────────────────────────────────
 
 struct DbCatalogDatabaseToSql <: Projection end
 
-function projection_print(p::DbCatalogDatabaseToSql, recursion, db::DbCatalogDatabase, ctx)
+function print_document(p::DbCatalogDatabaseToSql, recursion, db::DbCatalogDatabase, ctx)
     stmts = _flatten_statements(recursion, ctx, db.schemas)
     SimpleIoMap(p, db, SqlStatementList(CellVector(stmts)))
 end
 
 map_reference_forward(::DbCatalogDatabaseToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogDatabaseToSql, iomap, ref) = nothing
-projection_read(::DbCatalogDatabaseToSql, iomap, op) = nothing
+read_intent(::DbCatalogDatabaseToSql, iomap, op) = nothing
 
 # ── DbCatalogRdbmsToSql ──────────────────────────────────────────────────────────
 
 struct DbCatalogRdbmsToSql <: Projection end
 
-function projection_print(p::DbCatalogRdbmsToSql, recursion, rdbms::DbCatalogRdbms, ctx)
+function print_document(p::DbCatalogRdbmsToSql, recursion, rdbms::DbCatalogRdbms, ctx)
     stmts = _flatten_statements(recursion, ctx, rdbms.databases)
     SimpleIoMap(p, rdbms, SqlStatementList(CellVector(stmts)))
 end
 
 map_reference_forward(::DbCatalogRdbmsToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogRdbmsToSql, iomap, ref) = nothing
-projection_read(::DbCatalogRdbmsToSql, iomap, op) = nothing
+read_intent(::DbCatalogRdbmsToSql, iomap, op) = nothing
 
 # ── Compound convenience constructor ─────────────────────────────────────────────
 

@@ -8,7 +8,7 @@
 # explore_text_selections(document, projection[, initial_selection])
 #   Performs a BFS over all selection states reachable from initial_selection
 #   using navigation key presses.  At each state every nav key is tried via
-#   projection_read; any thrown exception is collected as an error.  A new
+#   read_intent; any thrown exception is collected as an error.  A new
 #   state is only enqueued when its path string has not been seen before,
 #   ensuring each distinct selection is visited exactly once.
 #   If initial_selection is omitted, Ctrl+Home is used to find the first state.
@@ -41,14 +41,14 @@ function explore_text_selections(document, projection, initial_selection=nothing
 
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        return (state_count=0, errors=["projection_print failed: $e"], visited=visited)
+        return (state_count=0, errors=["print_document failed: $e"], visited=visited)
     end
 
     if initial_selection === nothing
         op = try
-            projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
+            read_intent(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
         catch e
             return (state_count=0, errors=["Ctrl+Home failed: $e"], visited=visited)
         end
@@ -72,7 +72,7 @@ function explore_text_selections(document, projection, initial_selection=nothing
         set_selection!(document, path)
 
         iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
             msg = "reprint at [$path_str] failed: $e"
             push!(errors, msg)
@@ -83,7 +83,7 @@ function explore_text_selections(document, projection, initial_selection=nothing
 
         for key in nav_keys
             op = try
-                projection_read(projection, iomap, key)
+                read_intent(projection, iomap, key)
             catch e
                 push!(errors, "reader error at [$path_str] with $key: $e")
                 nothing

@@ -36,10 +36,10 @@ proj = make_layout_projection_example()
 # Project `menu`, then click the first item by landing on its rendered text (the
 # whole chain: menu reader hit-tests + routes to the item reader).
 function _click_first_item(menu, button=:left)
-    iomap = projection_print(proj, menu)
+    iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     xy === nothing && return (nothing, nothing)
-    op = projection_read(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, Modifiers()))
     (op, iomap)
 end
 
@@ -91,9 +91,9 @@ end
 @testset "a submenu item opens its submenu as an anchor-relative popup" begin
     submenu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])
     item = WidgetMenuItem("File"; submenu = submenu)
-    iomap = projection_print(proj, item)
+    iomap = print_document(proj, item)
 
-    op = projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
@@ -107,9 +107,9 @@ end
 @testset "a submenu takes precedence over an action" begin
     submenu = WidgetMenu([WidgetMenuItem("New")])
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = submenu)
-    iomap = projection_print(proj, item)
+    iomap = print_document(proj, item)
 
-    op = projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
     @test op isa OpenPopupOperation            # opened the submenu, did not run the action
     @test !(op isa CompoundOperation)
 end
@@ -117,8 +117,8 @@ end
 @testset "a disabled submenu item is inert" begin
     submenu = WidgetMenu([WidgetMenuItem("New")])
     item = WidgetMenuItem("File"; submenu = submenu, enabled = false)
-    iomap = projection_print(proj, item)
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    iomap = print_document(proj, item)
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
 end
 
 @testset "the resolver maps the submenu anchor to an absolute OpenWindowOperation" begin
@@ -128,9 +128,9 @@ end
     # content projection, isolated through a NestingProjection.
     inner = NestingProjection(proj; recursion = IdentityProjection())
     resolver = WidgetPopupResolverProjection(inner = inner)
-    rio = projection_print(resolver, item)
+    rio = print_document(resolver, item)
 
-    op = projection_read(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
     @test op isa OpenWindowOperation
     @test op.id === :widget_popup
     @test op.style === :floating
@@ -146,21 +146,21 @@ end
 @testset "hovering a menu item sets its hovered flag and draws a surface" begin
     item = WidgetMenuItem("New")
     menu = WidgetMenu([item, WidgetMenuItem("Open")])
-    iomap = projection_print(proj, menu)
+    iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
-    op = projection_read(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, Modifiers()))
+    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, Modifiers()))
     @test op isa ReplaceReferencedValueOperation
     @test op.value === true
 
     # A hovered item renders an extra (hover surface) element vs an un-hovered one.
-    plain = projection_print(proj, WidgetMenuItem("New"))
+    plain = print_document(proj, WidgetMenuItem("New"))
     hov   = WidgetMenuItem("New"); hov.hovered = true
-    hovio = projection_print(proj, hov)
+    hovio = print_document(proj, hov)
     @test length(collect(hovio.output.elements)) > length(collect(plain.output.elements))
     # A disabled hovered item shows no surface (same element count as plain).
     dis = WidgetMenuItem("New"; enabled=false); dis.hovered = true
-    @test length(collect(projection_print(proj, dis).output.elements)) ==
+    @test length(collect(print_document(proj, dis).output.elements)) ==
           length(collect(plain.output.elements))
 end
 

@@ -15,8 +15,8 @@ function test_widget_transform_pane()
     @testset "Ctrl+wheel zooms in about the cursor" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M isa AffineTransform
@@ -29,8 +29,8 @@ function test_widget_transform_pane()
     @testset "Ctrl+wheel zooms out below 1×" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, MouseScroll(0, -1, 50, 50, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 50, Modifiers(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
@@ -39,17 +39,17 @@ function test_widget_transform_pane()
         doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
                                     size=Point2D(200, 200), transform=affine_scale(4.0, 4.0))
         proj  = _proj()
-        iomap = projection_print(proj, doc)
+        iomap = print_document(proj, doc)
         # Already at ZOOM_MAX (4.0); a further zoom-in is a no-op.
-        op = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
         @test op === nothing
     end
 
     @testset "plain wheel pans, does not zoom" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers()))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers()))
         @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M.a ≈ 1.0            # no scale change
@@ -61,8 +61,8 @@ function test_widget_transform_pane()
     @testset "horizontal wheel pans on x" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, MouseScroll(1, 0, 50, 50, Modifiers()))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, Modifiers()))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.e ≈ 24.0
         @test op.value.f ≈ 0.0
@@ -71,18 +71,18 @@ function test_widget_transform_pane()
     @testset "successive zooms accumulate" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op1 = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op1 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
         evaluate_operation(nothing, op1)
-        op2 = projection_read(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op2 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
         @test op2.value.a ≈ 1.1 * 1.1
     end
 
     @testset "Ctrl+= zooms in about the viewport centre" begin
         doc   = _doc()                       # 200×200, no insets → centre (100,100)
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, KeyDown(:equals, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, KeyDown(:equals, Modifiers(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.1
         @test all(affine_apply(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
@@ -91,8 +91,8 @@ function test_widget_transform_pane()
     @testset "Ctrl+- zooms out" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, KeyDown(:minus, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, KeyDown(:minus, Modifiers(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
@@ -101,8 +101,8 @@ function test_widget_transform_pane()
         doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
                                     size=Point2D(200, 200), transform=affine_scale(2.0, 2.0))
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        op = projection_read(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true)))
+        iomap = print_document(proj, doc)
+        op = read_intent(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value == affine_identity
     end
@@ -110,15 +110,15 @@ function test_widget_transform_pane()
     @testset "Ctrl+0 at the identity is a no-op" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        @test projection_read(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true))) === nothing
+        iomap = print_document(proj, doc)
+        @test read_intent(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true))) === nothing
     end
 
     @testset "plain = (no Ctrl) does not zoom" begin
         doc   = _doc()
         proj  = _proj()
-        iomap = projection_print(proj, doc)
-        @test projection_read(proj, iomap, KeyDown(:equals, Modifiers())) === nothing
+        iomap = print_document(proj, doc)
+        @test read_intent(proj, iomap, KeyDown(:equals, Modifiers())) === nothing
     end
 
 end

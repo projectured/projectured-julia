@@ -121,8 +121,8 @@ Long-term:
 Adding a new domain in ProjecturEd is intentionally small:
 
 1. Define your document types (structs with `@document` + `selection::Reference`).
-2. Write `projection_print` methods mapping each type to the syntax domain.
-3. Write `projection_read` methods translating selection operations backward.
+2. Write `print_document` methods mapping each type to the syntax domain.
+3. Write `read_intent` methods translating selection operations backward.
 4. Add an example and a test.
 
 Step 2–3 together are typically 50–150 lines for a simple domain. The

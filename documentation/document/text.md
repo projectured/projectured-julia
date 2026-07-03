@@ -57,10 +57,10 @@ Each span has:
 - Reactive styling updates propagate automatically
 - Flat character offset selection for easy navigation
 
-## Gesture mapping (`document_read`)
+## Gesture mapping (`read_gesture`)
 
 The geometry-free half of the Text reader lives on the document itself:
-`document_read(::TextText, gesture)` ([document/Text.jl](../../package/domain/src/document/Text.jl))
+`read_gesture(::TextText, gesture)` ([document/Text.jl](../../package/domain/src/document/Text.jl))
 maps an input gesture to an operation expressed against the `TextText`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 

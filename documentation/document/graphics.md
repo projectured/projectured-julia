@@ -84,7 +84,7 @@ proj = ChainingProjection(
     TextToGraphics(measure=sdl_measure_text),
     GraphicsCanvasToImageFile("snapshot.bmp"; width=1200, height=800),
 )
-iomap = projection_print(proj, doc)
+iomap = print_document(proj, doc)
 # iomap.output isa ImageFile
 ```
 
@@ -122,7 +122,7 @@ proj = ChainingProjection(
     make_graphics_image_projection_example(),
     GraphicsCanvasToPdfFile("snapshot.pdf"; width=1200, height=800),
 )
-projection_print(proj, doc)   # writes snapshot.pdf
+print_document(proj, doc)   # writes snapshot.pdf
 ```
 
 Unlike `write_image`, `write_pdf` is **SDL-free** — it never opens a renderer.

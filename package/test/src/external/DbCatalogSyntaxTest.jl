@@ -19,7 +19,7 @@ function _with_real_db_catalog(f::Function; show_detail=false)
     instance = _make_test_instance()
     pool     = _make_test_pool()
     try
-        rdbms   = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+        rdbms   = print_document(DatabaseInstanceToDbCatalog(pool), instance).output
         dbs     = collect(rdbms.databases)
         @test !isempty(dbs)
         db      = first(filter(d -> d.name == "projectured_test", dbs))
@@ -49,7 +49,7 @@ end
 function test_db_catalog_column_to_syntax(; show_detail=false)
     @testset "DbCatalogColumnToSyntaxLeaf" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
-            iomap = projection_print(DbCatalogColumnToSyntaxLeaf(), col)
+            iomap = print_document(DbCatalogColumnToSyntaxLeaf(), col)
             @test iomap.output isa SyntaxLeaf
 
             leaf = iomap.output
@@ -67,7 +67,7 @@ end
 function test_db_catalog_table_to_syntax(; show_detail=false)
     @testset "DbCatalogTableToSyntaxNode" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
-            iomap = projection_print(DbCatalogTableToSyntaxNode(), table)
+            iomap = print_document(DbCatalogTableToSyntaxNode(), table)
             @test iomap.output isa SyntaxNode
 
             entity = iomap.output
@@ -97,7 +97,7 @@ end
 function test_db_catalog_schema_to_syntax(; show_detail=false)
     @testset "DbCatalogSchemaToSyntaxNode" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
-            iomap = projection_print(DbCatalogSchemaToSyntaxNode(), schema)
+            iomap = print_document(DbCatalogSchemaToSyntaxNode(), schema)
             @test iomap.output isa SyntaxNode
 
             entity = iomap.output
@@ -125,7 +125,7 @@ end
 function test_db_catalog_database_to_syntax(; show_detail=false)
     @testset "DbCatalogDatabaseToSyntaxNode" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
-            iomap = projection_print(DbCatalogDatabaseToSyntaxNode(), db)
+            iomap = print_document(DbCatalogDatabaseToSyntaxNode(), db)
             @test iomap.output isa SyntaxNode
 
             entity = iomap.output
@@ -153,7 +153,7 @@ end
 function test_db_catalog_rdbms_to_syntax(; show_detail=false)
     @testset "DbCatalogRdbmsToSyntaxNode" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
-            iomap = projection_print(DbCatalogRdbmsToSyntaxNode(), rdbms)
+            iomap = print_document(DbCatalogRdbmsToSyntaxNode(), rdbms)
             @test iomap.output isa SyntaxNode
 
             entity = iomap.output
@@ -183,24 +183,24 @@ function test_db_catalog_to_syntax_dispatch(; show_detail=false)
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
             p = RecursiveProjection(DbCatalogToSyntax())
 
-            iomap1 = projection_print(p, rdbms)
+            iomap1 = print_document(p, rdbms)
             @test iomap1.output isa SyntaxNode
             @test iomap1.output.indentation == -1
             @test !isempty(iomap1.output.open.content::AbstractString)
 
-            iomap2 = projection_print(p, db)
+            iomap2 = print_document(p, db)
             @test iomap2.output isa SyntaxNode
             @test iomap2.output.indentation == -1
 
-            iomap3 = projection_print(p, schema)
+            iomap3 = print_document(p, schema)
             @test iomap3.output isa SyntaxNode
             @test iomap3.output.indentation == -1
 
-            iomap4 = projection_print(p, table)
+            iomap4 = print_document(p, table)
             @test iomap4.output isa SyntaxNode
             @test iomap4.output.indentation == -1
 
-            iomap5 = projection_print(p, col)
+            iomap5 = print_document(p, col)
             @test iomap5.output isa SyntaxLeaf
             @test iomap5.output.value isa TextString
         end
@@ -214,7 +214,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
             # ── Table → Syntax forward/backward ──
             p_table = DbCatalogTableToSyntaxNode()
-            iomap_t = projection_print(p_table, table)
+            iomap_t = print_document(p_table, table)
 
             # Forward: columns[1] → children[1].children[1] (keyword group → item)
             in_ref = @reference columns[1]
@@ -233,7 +233,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
 
             # ── Schema → Syntax forward/backward ──
             p_schema = DbCatalogSchemaToSyntaxNode()
-            iomap_s = projection_print(p_schema, schema)
+            iomap_s = print_document(p_schema, schema)
 
             in_ref_s = @reference tables[1]
             out_ref_s = map_reference_forward(p_schema, iomap_s, in_ref_s)
@@ -244,7 +244,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
 
             # ── Database → Syntax forward/backward ──
             p_db = DbCatalogDatabaseToSyntaxNode()
-            iomap_d = projection_print(p_db, db)
+            iomap_d = print_document(p_db, db)
 
             in_ref_d = @reference schemas[1]
             out_ref_d = map_reference_forward(p_db, iomap_d, in_ref_d)
@@ -255,7 +255,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
 
             # ── Rdbms → Syntax forward/backward ──
             p_rdbms = DbCatalogRdbmsToSyntaxNode()
-            iomap_r = projection_print(p_rdbms, rdbms)
+            iomap_r = print_document(p_rdbms, rdbms)
 
             in_ref_r = @reference databases[1]
             out_ref_r = map_reference_forward(p_rdbms, iomap_r, in_ref_r)
@@ -266,7 +266,7 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
 
             # ── Column leaf backward wraps in ProjectionReference ──
             p_col = DbCatalogColumnToSyntaxLeaf()
-            iomap_c = projection_print(p_col, col)
+            iomap_c = print_document(p_col, col)
 
             col_back = map_reference_backward(p_col, iomap_c, @reference value{0})
             @test col_back !== nothing
@@ -296,7 +296,7 @@ function test_dbcatalog_selection_wiring(; show_detail=false)
             p = RecursiveProjection(DbCatalogToSyntax())
 
             # Project a table — entity_node.selection should initially be nothing
-            iomap = projection_print(p, table)
+            iomap = print_document(p, table)
             entity = iomap.output
             @test entity.selection === nothing
 
@@ -329,7 +329,7 @@ function test_dbcatalog_marker_eligible(; show_detail=false)
             p = RecursiveProjection(DbCatalogToSyntax())
 
             # Entity nodes should be eligible (non-empty open, has children)
-            iomap1 = projection_print(p, rdbms)
+            iomap1 = print_document(p, rdbms)
             @test dbcatalog_marker_eligible(iomap1.output)
 
             # Keyword group nodes should be eligible (they carry a label).
@@ -337,20 +337,20 @@ function test_dbcatalog_marker_eligible(; show_detail=false)
             @test dbcatalog_marker_eligible(keyword)
 
             # Same pattern for other entity levels
-            iomap2 = projection_print(p, db)
+            iomap2 = print_document(p, db)
             @test dbcatalog_marker_eligible(iomap2.output)
             @test dbcatalog_marker_eligible(iomap2.output.children[1])
 
-            iomap3 = projection_print(p, schema)
+            iomap3 = print_document(p, schema)
             @test dbcatalog_marker_eligible(iomap3.output)
             @test dbcatalog_marker_eligible(iomap3.output.children[1])
 
-            iomap4 = projection_print(p, table)
+            iomap4 = print_document(p, table)
             @test dbcatalog_marker_eligible(iomap4.output)
             @test dbcatalog_marker_eligible(iomap4.output.children[1])
 
             # Column leaf should NOT be eligible
-            iomap5 = projection_print(p, col)
+            iomap5 = print_document(p, col)
             @test !dbcatalog_marker_eligible(iomap5.output)
         end
     end
@@ -393,7 +393,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
                 TextToGraphics())
 
             # ── Test at the table level (entity + keyword) ──────────────
-            iomap  = projection_print(proj, table)
+            iomap  = print_document(proj, table)
             t2g    = _find_text_iomap_dbcat(iomap)
             @test t2g !== nothing
             coords = t2g.char_to_coord[]
@@ -412,7 +412,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
             end
 
             # Simulate mouse click on the marker
-            op = projection_read(proj, iomap, MousePress(:left, click[1], click[2], Modifiers()))
+            op = read_intent(proj, iomap, MousePress(:left, click[1], click[2], Modifiers()))
 
             if show_detail
                 println("  Operation: ", op)
@@ -429,7 +429,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
                 @test target.collapsed == true
 
                 # Re-render after collapse — should show ▸ and ellipsis
-                iomap2  = projection_print(proj, table)
+                iomap2  = print_document(proj, table)
                 t2g2    = _find_text_iomap_dbcat(iomap2)
                 coords2 = t2g2.char_to_coord[]
                 line2   = join(sc.text for sc in coords2)
@@ -443,7 +443,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
                 # Click ellipsis to expand
                 eclick = _glyph_click_dbcat(coords2, "…")
                 @test eclick !== nothing
-                op2 = projection_read(proj, iomap2, MousePress(:left, eclick[1], eclick[2], Modifiers()))
+                op2 = read_intent(proj, iomap2, MousePress(:left, eclick[1], eclick[2], Modifiers()))
                 @test op2 isa ToggleCollapseOperation
                 evaluate_operation(nothing, op2)
                 @test target.collapsed == false

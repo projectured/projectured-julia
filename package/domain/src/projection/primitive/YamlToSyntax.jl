@@ -22,7 +22,7 @@ module YamlToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..YamlModule: YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
@@ -42,7 +42,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationRerootingModule: reroot_operation
-import ..DocumentApiModule: document_read
+import ..DocumentApiModule: read_gesture
 import ..KeyboardModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
@@ -167,8 +167,8 @@ end
     marker_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
 end
 
-function projection_print(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
+function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(seq.elements)])
 
@@ -224,13 +224,13 @@ function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::Childre
     end
 end
 
-function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
     ReplaceSelectionOperation(result)
 end
 
-function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
@@ -239,7 +239,7 @@ end
 # The input step into the focused child plus that child's iomap, derived from the
 # sequence's own selection — the reader-side mirror of the recursive printer. A
 # non-`.elements[i]` selection yields nothing, so the gesture falls to the
-# sequence's own `document_read` (its `@gestures`, e.g. `,` to insert an element).
+# sequence's own `read_gesture` (its `@gestures`, e.g. `,` to insert an element).
 function _block_seq_focused_child(iomap, sel)
     @reference_case sel begin
         ::YamlSequence.elements{s:e}.rest... => begin
@@ -251,18 +251,18 @@ function _block_seq_focused_child(iomap, sel)
     end
 end
 
-function projection_read(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown})
+function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown})
     seq = iomap.input
     sel = getfield(seq, :selection)[]
     if sel !== nothing
         fc = _block_seq_focused_child(iomap, sel)
         if fc !== nothing
             child, steps = fc
-            child_op = projection_read(child.projection, child, evt)
+            child_op = read_intent(child.projection, child, evt)
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
-    return document_read(seq, evt)
+    return read_gesture(seq, evt)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

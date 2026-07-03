@@ -19,9 +19,9 @@ module WidgetToGraphicsModule
 
 import ..ReactiveModule: Cell, set_function!
 import ..TimeModule: editor_time, reactive_editor_time
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..ColorModule: StyleColor,
@@ -718,7 +718,7 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result = read_intent(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return result
     end
     nothing
@@ -783,7 +783,7 @@ end
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
+function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     content = w.content
@@ -804,7 +804,7 @@ function map_reference_backward(::WidgetLabelToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
     return nothing
 end
 
@@ -819,7 +819,7 @@ end
     text::StyleText
 end
 
-function projection_print(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
+function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
     content = "insert here"
     content_width, content_height = _text_size(p.measure, p.text.font, content)
     elements = Any[]
@@ -829,7 +829,7 @@ end
 
 map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
-projection_read(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
@@ -844,7 +844,7 @@ struct WidgetTextToGraphicsCanvasIoMap <: IoMap
     content_iomap::Any
 end
 
-function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
+function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -856,7 +856,7 @@ function projection_print(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetTex
     radius = _sc(p.corner_radius)
     content = w.content
     if content isa Document
-        content_iomap = projection_printer_recurse(recursion, content, ctx)
+        content_iomap = print_child(recursion, content, ctx)
         inner = content_iomap.output::GraphicsCanvas
         iw, ih = Int(inner.w[]), Int(inner.h[])
         elems = Any[]
@@ -896,24 +896,24 @@ function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextT
     ConcreteReferencePath(FieldReference("content"), reference)
 end
 
-function projection_read(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
     return nothing
 end
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`. MousePress is
 # translated into the content's coordinate frame first.
-function projection_read(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     op = @event_case evt begin
         MousePress(button, x, y) => begin
             cox, coy = _content_offset(iomap.input)
-            projection_read(content_iomap.projection, content_iomap,
+            read_intent(content_iomap.projection, content_iomap,
                             MousePress(button, x - cox, y - coy, evt.modifiers))
         end
-        _ => projection_read(content_iomap.projection, content_iomap, evt)
+        _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
     _validate_text_edit(iomap.input, _retarget_op(p, iomap, op))
 end
@@ -930,7 +930,7 @@ end
 
 # ── WidgetCheckbox ──────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
+function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     checked = w.content === true
@@ -978,7 +978,7 @@ end
 _checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
     ConcreteReferencePath(FieldReference("content"), EmptyReferencePath()), !(w.content === true))
 
-function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
     op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
@@ -988,7 +988,7 @@ end
 # Enter / Space toggle the focused checkbox (the keystroke reaches it via the
 # selection-driven routing). Tab is left to fall through (nothing) so focus
 # traversal can claim it.
-function projection_read(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
     op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
@@ -1007,7 +1007,7 @@ _button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing 
 # Icon (Stage 5): a bound command's icon wins, else the button's own.
 _button_icon(w::WidgetButton) = (c = _button_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
 
-function projection_print(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
+function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     minimum_size = w.size::Point2D
@@ -1079,7 +1079,7 @@ end
 # what that means for its state (hovered/pressed). A click invokes the action;
 # press/release drive the held-down look. (The reader only runs when the parent
 # hit-tested the pointer onto this button, so coordinate events are "inside".)
-function projection_read(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     # A disabled button (or one bound to a disabled command) is inert: no action,
     # and no hover/press state changes, so it can never show an interaction surface
@@ -1127,7 +1127,7 @@ end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
+function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -1148,7 +1148,7 @@ function projection_print(p::WidgetTooltipToGraphicsCanvas, recursion, w::Widget
         cw, ch = _text_size(p.measure, p.text.font, content)
         _push_text!(body, p.text.font, content, cox, coy, p.text.color)
     elseif content isa WidgetDocument
-        cim = projection_printer_recurse(recursion, content, ctx)
+        cim = print_child(recursion, content, ctx)
         inner = cim.output
         cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
         push!(child_iomaps, (cox, coy, cim))
@@ -1170,7 +1170,7 @@ function map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, referenc
     return nothing
 end
 
-function projection_read(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseScroll || return nothing
     child_iomaps = iomap.child_iomaps[]::Vector
     _route_scroll_to_children(child_iomaps, evt)
@@ -1194,12 +1194,12 @@ struct WidgetContextMenuToGraphicsCanvasIoMap <: IoMap
     anchor::ReferencePath
 end
 
-function projection_print(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
+function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     child = w.child
     child isa Document || return SimpleIoMap(p, w, _empty_canvas())
     cox, coy = _content_offset(w)
-    child_iomap = projection_printer_recurse(recursion, child, ctx)
+    child_iomap = print_child(recursion, child, ctx)
     inner = child_iomap.output::GraphicsCanvas
     iw, ih = Int(inner.w[]), Int(inner.h[])
     tx, ty = _inset_total(w)
@@ -1220,13 +1220,13 @@ map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContext
     reference === nothing ? nothing : ConcreteReferencePath(FieldReference("child"), reference)
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
 
-projection_read(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # A right click opens the context menu at the pointer (Step 4d): an anchor-relative
 # `OpenPopupOperation` whose offset is the *local* click coordinates, so the
 # resolver places the menu under the pointer. Every other event routes to the
 # child (its returned op is re-rooted through `.child`).
-function projection_read(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
     w = iomap.input
     if evt isa MousePress && evt.button === :right
         (w.enabled === false || w.menu === nothing) && return nothing
@@ -1237,10 +1237,10 @@ function projection_read(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetCont
     cox, coy = _content_offset(w)
     op = @event_case evt begin
         MousePress(button, x, y) =>
-            projection_read(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.modifiers))
+            read_intent(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.modifiers))
         MouseScroll(dx, dy, x, y) =>
-            projection_read(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
-        _ => projection_read(child_iomap.projection, child_iomap, evt)
+            read_intent(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
+        _ => read_intent(child_iomap.projection, child_iomap, evt)
     end
     _retarget_op(p, iomap, op)
 end
@@ -1286,7 +1286,7 @@ struct WidgetDialogToGraphicsCanvasIoMap <: IoMap
     button_entries::Cell     # Vector of (ox, oy, cim)
 end
 
-function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
+function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
     gap = _sc(p.gap); radius = _sc(p.corner_radius)
@@ -1303,7 +1303,7 @@ function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetD
     content = w.content
     content_iomap = nothing; content_w = 0; content_h = 0
     if content isa Document
-        content_iomap = projection_printer_recurse(recursion, content, ctx)
+        content_iomap = print_child(recursion, content, ctx)
         cc = content_iomap.output
         content_w, content_h = cc isa GraphicsCanvas ? (Int(cc.w[]), Int(cc.h[])) : (0, 0)
     elseif content !== nothing
@@ -1315,7 +1315,7 @@ function projection_print(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetD
     btn_w = 0; btn_h = 0
     for b in w.buttons
         b isa WidgetDocument || continue
-        bim = projection_printer_recurse(recursion, b, ctx)
+        bim = print_child(recursion, b, ctx)
         bc = bim.output
         bw, bh = bc isa GraphicsCanvas ? (Int(bc.w[]), Int(bc.h[])) : (0, 0)
         push!(button_iomaps, (bim, bw, bh))
@@ -1377,12 +1377,12 @@ map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGrap
     reference === nothing ? nothing : ConcreteReferencePath(FieldReference("content"), reference)
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 
-projection_read(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # Esc / a backdrop click (on the scrim, outside the card) dismiss; a button click
 # runs its action AND closes (one CompoundOperation); a click inside the card on
 # the content routes to it (re-rooted through `.content`).
-function projection_read(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, evt)
     pid = iomap.input.popup_id
     if evt isa KeyDown
         return evt.key === :escape ? CloseWindowOperation(pid) : nothing
@@ -1396,7 +1396,7 @@ function projection_read(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToG
     ce = iomap.content_entry
     ce === nothing && return nothing
     (ox, oy, cim) = ce
-    op = projection_read(cim.projection, cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
+    op = read_intent(cim.projection, cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
     _retarget_op(p, iomap, op)
 end
 
@@ -1424,7 +1424,7 @@ _menu_item_enabled(w::WidgetMenuItem) =
     !(w.enabled === false) && !((c = _menu_item_command(w)) !== nothing && c.enabled === false)
 _menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
 
-function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
+function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     cox, coy = _content_offset(w)
     command = _menu_item_command(w)
@@ -1437,7 +1437,7 @@ function projection_print(p::WidgetMenuItemToGraphicsCanvas, recursion, w::Widge
     elems = Any[]
     cw, ch = 0, 0
     if content isa WidgetDocument
-        cim = projection_printer_recurse(recursion, content, ctx)
+        cim = print_child(recursion, content, ctx)
         inner = cim.output
         cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
         push!(child_iomaps, (cox, coy, cim))
@@ -1478,9 +1478,9 @@ map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, refe
 map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible item (printer returned a bare empty canvas): inert.
-projection_read(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
+read_intent(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
 
-function projection_read(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     w = iomap.input
     # Per-instance gestures win over the built-in click/submenu handling (an enabled
     # item only, matching the built-in gate). Hover crossings below are unaffected.
@@ -1538,7 +1538,7 @@ _menu_item_width(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
         (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
 
-function projection_print(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
+function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     horizontal = w.orientation === :horizontal
@@ -1554,7 +1554,7 @@ function projection_print(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMen
         # captures `…elements[i]` as its anchor, which a content-root resolver can
         # forward-map back to graphics coordinates (Step 4c).
         cctx = child_context(ctx, FieldReference("elements"), RangeReference(i - 1, i))
-        cim = projection_printer_recurse(recursion, item, cctx)
+        cim = print_child(recursion, item, cctx)
         push!(child_iomaps, (x_cursor, y_cursor, cim))
         push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
         if horizontal
@@ -1576,7 +1576,7 @@ function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
-function projection_read(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     evt isa MousePress && return _route_click_to_children(child_iomaps, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(child_iomaps, evt)
@@ -1586,7 +1586,7 @@ end
 
 # ── WidgetComposite ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetCompositeToGraphicsCanvas, recursion, w::WidgetComposite, ctx)
+function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::WidgetComposite, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
@@ -1596,7 +1596,7 @@ function projection_print(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widg
         # A composite renders widget children and embedded layout children (e.g.
         # a GridLayout form from ObjectToWidget); both re-enter the recursion.
         (child isa WidgetDocument || child isa LayoutDocument) || continue
-        cim = projection_printer_recurse(recursion, child, ctx)
+        cim = print_child(recursion, child, ctx)
         push!(child_iomaps, (cox, coy, cim))
         push!(elems, _make_canvas(cox, coy, Any[cim.output]))
     end
@@ -1619,7 +1619,7 @@ end
 # each child. The op a child returns is re-rooted by prepending `elements[i]` —
 # the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValueOperation
 # from a control) pass through `reroot_operation` unchanged.
-function projection_read(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
     # selection-only routing so a Tab the selected child declines can advance my
@@ -1666,7 +1666,7 @@ function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result = read_intent(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -1678,7 +1678,7 @@ function _forward_composite_event_slot(child_iomaps::Vector, evt, slot::Int)
     entry = child_iomaps[slot]
     entry === nothing && return nothing
     (_, _, cim) = entry::Tuple{Int,Int,Any}
-    result = projection_read(cim.projection, cim, evt)
+    result = read_intent(cim.projection, cim, evt)
     result isa Operation ? (result, slot) : nothing
 end
 
@@ -1744,7 +1744,7 @@ end
 
 # ── WidgetShell ─────────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShell, ctx)
+function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShell, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     elems = Any[]
@@ -1759,7 +1759,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
         # Extend the reference into `menu_bar` so a menu-bar entry's submenu anchor
         # (`menu_bar.elements[i]`) forward-maps back through the shell (Step 4c).
         mb_ctx = child_context(ctx, FieldReference("menu_bar"))
-        cim = projection_printer_recurse(recursion, mb, mb_ctx)
+        cim = print_child(recursion, mb, mb_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, menu_h = p.measure("M", p.font)
@@ -1767,7 +1767,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     end
     tb = w.toolbar
     if tb isa WidgetDocument
-        cim = projection_printer_recurse(recursion, tb, ctx)
+        cim = print_child(recursion, tb, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
         _, toolbar_h = p.measure("M", p.font)
@@ -1803,14 +1803,14 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
             max(0, Int(sz.y[]) - ty - (content_y_now - coy_now) - status_h_now)
         end)
         content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
-        cim = projection_printer_recurse(recursion, content, content_ctx)
+        cim = print_child(recursion, content, content_ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     end
     # Place the status bar along the shell's bottom edge (a fixed print-time y from
     # the size; live-resize repositioning is a v1 limitation, like the other bands).
     if sb isa WidgetDocument && sz isa Point2D
-        cim = projection_printer_recurse(recursion, sb, ctx)
+        cim = print_child(recursion, sb, ctx)
         _, ty = _inset_total(w)
         sb_y = coy + Int(sz.y[]) - ty - status_h
         push!(child_iomaps, (cox, sb_y, cim))
@@ -1818,7 +1818,7 @@ function projection_print(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetSh
     end
     tt = w.tooltip
     if tt isa WidgetDocument
-        cim = projection_printer_recurse(recursion, tt, ctx)
+        cim = print_child(recursion, tt, ctx)
         push!(child_iomaps, (0, 0, cim))
         push!(elems, _make_canvas(0, 0, Any[cim.output]))
     end
@@ -1887,7 +1887,7 @@ function _shell_shortcut_actions(w::WidgetShell)
     acc
 end
 
-function projection_read(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     # Stage 4 shortcuts: a `KeyDown` matching an (enabled) menu/toolbar command's
     # shortcut fires it globally — before the focused child sees the key — so e.g.
     # Ctrl+S works regardless of which widget is selected.
@@ -1918,14 +1918,14 @@ end
 # first child that produced an `Operation`. Entries are `(x, y, cim)` tuples —
 # coords are ignored here. A child has only *handled* the event if it returns
 # an `Operation`; readers that pass the raw event back through (the common
-# `projection_read(p, iomap, op) = op` passthrough) must not be mistaken for
+# `read_intent(p, iomap, op) = op` passthrough) must not be mistaken for
 # handlers, otherwise a non-focused pane would swallow the keystroke before a
 # later, focused pane is reached.
 function _forward_to_children(child_entries::Vector, evt)
     for entry in child_entries
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
-        result = projection_read(cim.projection, cim, evt)
+        result = read_intent(cim.projection, cim, evt)
         result isa Operation && return result
     end
     nothing
@@ -1933,7 +1933,7 @@ end
 
 # ── WidgetTitlePane ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
+function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     elems = Any[]
@@ -1945,7 +1945,7 @@ function projection_print(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widg
     content_y = coy + th + _sc(p.title_gap)
     content = w.content
     if content isa WidgetDocument
-        cim = projection_printer_recurse(recursion, content, ctx)
+        cim = print_child(recursion, content, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
     elseif content isa AbstractString
@@ -1962,7 +1962,7 @@ function map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-function projection_read(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseScroll || return nothing
     child_iomaps = iomap.child_iomaps[]::Vector
     _route_scroll_to_children(child_iomaps, evt)
@@ -1996,7 +1996,7 @@ function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
     layout_preferred(elem, axis, intrinsic)
 end
 
-function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
+function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     orientation = w.orientation::Symbol
@@ -2057,7 +2057,7 @@ function projection_print(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widg
         cctx  = main_axis === :x ?
                 with_available_size(ctx; width=cell) :
                 with_available_size(ctx; height=cell)
-        cim = projection_printer_recurse(recursion, inner, cctx)
+        cim = print_child(recursion, inner, cctx)
         push!(inner_iomaps, cim)
     end
 
@@ -2215,7 +2215,7 @@ end
 function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
     # Without a slot index this function can't disambiguate which child;
-    # leave path-bearing translation to `projection_read` (which tracks the
+    # leave path-bearing translation to `read_intent` (which tracks the
     # slot it actually routed to). Cell-cursor mapping for the split's
     # selection is not currently used.
     return nothing
@@ -2316,7 +2316,7 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     nothing
 end
 
-function projection_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     w = iomap.input
     if w isa WidgetSplitPane
         drag = _split_drag_read(p, iomap, w, evt)
@@ -2427,7 +2427,7 @@ function _forward_split_event_slot(child_iomaps::Vector, evt, slot::Int)
     entry = child_iomaps[slot]
     entry === nothing && return nothing
     (_, _, cim) = entry::Tuple{Cell,Cell,Any}
-    result = projection_read(cim.projection, cim, evt)
+    result = read_intent(cim.projection, cim, evt)
     result isa Operation ? (result, slot) : nothing
 end
 
@@ -2441,7 +2441,7 @@ function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         oy = Int(y_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = projection_read(cim.projection, cim, make_evt(lx, ly))
+        result = read_intent(cim.projection, cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -2483,7 +2483,7 @@ end
 _tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
     clamp(Int(getfield(w, :tab_scroll)[]), 0, max(0, strip_w - view_w))
 
-function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
+function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pairs = w.selector_element_pairs
     child_iomaps = Any[]
@@ -2542,7 +2542,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     for pair in pairs
         content = pair.element
         if content !== nothing
-            cim = projection_printer_recurse(recursion, content, content_ctx)
+            cim = print_child(recursion, content, content_ctx)
             push!(child_iomaps, (cox, coy + sel_h, cim))
             push!(all_cims, cim)
         else
@@ -2569,7 +2569,7 @@ function projection_print(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Wid
     end
     # Horizontal scroll: when the strip is wider than the viewport, shift its inner
     # canvas left by the clamped `tab_scroll` so overflow tabs scroll into view (a
-    # wheel over the strip drives it — see projection_read). Reactive on both the
+    # wheel over the strip drives it — see read_intent). Reactive on both the
     # stored offset and the viewport width.
     scroll_x = Cell(() -> Int32(-cox - _tab_scroll_offset(w, strip_w, Int(sel_view_w[]))))
     # The viewport sits at the content origin; its inner canvas is shifted back
@@ -2614,7 +2614,7 @@ function _tab_view_w(iomap::ChildrenIoMap, strip_w::Int)
     vp isa GraphicsViewport ? Int(vp.w[]) : strip_w
 end
 
-function projection_read(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = iomap.child_iomaps[]::Vector
     if evt isa MousePress
         w = iomap.input
@@ -2689,7 +2689,7 @@ function _route_selected_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     entry = child_iomaps[idx]
     entry === nothing && return nothing
     (_, _, cim) = entry::Tuple{Int,Int,Any}
-    op = projection_read(cim.projection, cim, evt)
+    op = read_intent(cim.projection, cim, evt)
     op === nothing && return nothing
     (op, idx)
 end
@@ -2743,7 +2743,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
             MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
         _ => evt
     end
-    op = projection_read(cim.projection, cim, child_evt)
+    op = read_intent(cim.projection, cim, child_evt)
     op === nothing && return nothing
     (op, active_idx)
 end
@@ -2791,7 +2791,7 @@ end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
+function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
     w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
     sz  = w.size
@@ -2831,7 +2831,7 @@ function projection_print(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Wid
     content = w.content
     if content isa Document
         content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
-        content_iomap = projection_printer_recurse(recursion, content, content_ctx)
+        content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
         # Vertical offset of the content inside the viewport. Normally this is the
@@ -2891,7 +2891,7 @@ _scroll_by(sp, dx, dy) = let old = sp.scroll_position
     ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
 end
 
-function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
     @event_case evt begin
         MouseScroll(dx, dy, x, y) => begin
@@ -2921,10 +2921,10 @@ function projection_read(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrol
             sp = getfield(w, :scroll_position)[]::Point2D
             sx, sy = Int(sp.x[]), Int(sp.y[])
             lx, ly = x - cox + sx, y - coy + sy
-            projection_read(content_iomap.projection, content_iomap,
+            read_intent(content_iomap.projection, content_iomap,
                              MousePress(button, lx, ly, evt.modifiers))
         end
-        _ => projection_read(content_iomap.projection, content_iomap, evt)
+        _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
     _retarget_op(p, iomap, op)
 end
@@ -2941,7 +2941,7 @@ const _ZOOM_STEP = 1.1     # multiplicative zoom per wheel notch
 const _ZOOM_MIN  = 0.25    # smallest total scale
 const _ZOOM_MAX  = 4.0     # largest total scale
 
-function projection_print(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::WidgetTransformPane, ctx)
+function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::WidgetTransformPane, ctx)
     w.visible == false && return WidgetTransformPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
     sz  = w.size
@@ -2975,7 +2975,7 @@ function projection_print(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::
     content = w.content
     if content isa Document
         content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
-        content_iomap = projection_printer_recurse(recursion, content, content_ctx)
+        content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
         # Inner canvas stays at the origin; the transform carries pan + zoom.
@@ -3026,7 +3026,7 @@ function _zoom_op(w, M::AffineTransform, dir, ax, ay)
     ReplaceReferencedValueOperation(w, "transform", _zoom_about(M, f, ax, ay))
 end
 
-function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
     w = iomap.input
     M = getfield(w, :transform)[]::AffineTransform
@@ -3054,10 +3054,10 @@ function projection_read(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTr
         MousePress(button, x, y) => begin
             inv = affine_inverse(M)
             lxf, lyf = affine_apply(inv, Float64(x - cox), Float64(y - coy))
-            projection_read(content_iomap.projection, content_iomap,
+            read_intent(content_iomap.projection, content_iomap,
                              MousePress(button, round(Int, lxf), round(Int, lyf), evt.modifiers))
         end
-        _ => projection_read(content_iomap.projection, content_iomap, evt)
+        _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
     op = _retarget_op(p, iomap, op)
     op === nothing || return op
@@ -3079,7 +3079,7 @@ end
 
 # ── WidgetToolbar ───────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetToolbar, ctx)
+function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetToolbar, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     cox, coy = _content_offset(w)
     child_iomaps = Any[]
@@ -3088,7 +3088,7 @@ function projection_print(p::WidgetToolbarToGraphicsCanvas, recursion, w::Widget
     item_gap = p.item_gap
     for item in w.elements
         item isa WidgetDocument || continue
-        cim = projection_printer_recurse(recursion, item, ctx)
+        cim = print_child(recursion, item, ctx)
         push!(child_iomaps, (x_cursor, coy, cim))
         push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
         # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
@@ -3108,7 +3108,7 @@ function map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, referenc
     return nothing
 end
 
-function projection_read(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     entries = iomap.child_iomaps[]::Vector
     evt isa MousePress && return _route_click_to_children(entries, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
@@ -3127,7 +3127,7 @@ end
     gap::Int
 end
 
-function projection_print(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
+function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     cox, coy = _content_offset(w)
     gap = _sc(p.gap)
@@ -3149,11 +3149,11 @@ end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
-projection_read(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
-function projection_print(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, _)
+function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, _)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position
     sz  = w.size
@@ -3190,7 +3190,7 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-function projection_read(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     evt isa MousePress || return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
@@ -3222,7 +3222,7 @@ macro _printer_only(P)
     quote
         map_reference_forward(::$(esc(P)), iomap, reference) = nothing
         map_reference_backward(::$(esc(P)), iomap, reference) = nothing
-        projection_read(::$(esc(P)), iomap, evt) = nothing
+        read_intent(::$(esc(P)), iomap, evt) = nothing
     end
 end
 
@@ -3244,7 +3244,7 @@ end
     outline_border::StyleColor
 end
 
-function projection_print(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
+function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     text = string(w.content)
@@ -3276,7 +3276,7 @@ end
     stroke::StyleStroke    # color + width of the rule
 end
 
-function projection_print(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
+function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     rule_length = _sc(Int(w.length))
@@ -3369,7 +3369,7 @@ function _card_build(p, w, ctx, tim, cim)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
 end
 
-function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
+function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     position = w.position::Point2D
     ox, oy = _origin(position)
@@ -3388,8 +3388,8 @@ function projection_print(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCar
     inner_w = avail_w === nothing ? nothing :
               Cell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
     inner_ctx = with_available_size(ctx; width=inner_w, height=nothing)
-    tim = w.title isa Document ? projection_printer_recurse(recursion, w.title, inner_ctx) : nothing
-    cim = w.content isa Document ? projection_printer_recurse(recursion, w.content, inner_ctx) : nothing
+    tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
+    cim = w.content isa Document ? print_child(recursion, w.content, inner_ctx) : nothing
     build = Cell(() -> _card_build(p, w, ctx, tim, cim))
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(() -> Int32(build[].w)),
@@ -3401,7 +3401,7 @@ end
 
 # A click on the card's header (a Document title — its first child entry) is a
 # fold gesture → toggle the card. Clicks elsewhere route into the card content.
-function projection_read(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
     w = iomap.input
     entries = iomap.child_iomaps[]
     if w.title isa Document && !isempty(entries)
@@ -3414,7 +3414,7 @@ function projection_read(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, ev
     end
     _route_click_to_children(entries, evt)
 end
-projection_read(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt) = nothing
+read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt) = nothing
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 
@@ -3449,7 +3449,7 @@ function _switch_fraction(w::WidgetSwitch, now::Float64)
     from + (target - from) * _switch_ease((now - t0) / (t1 - t0))
 end
 
-function projection_print(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
+function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     on  = w.checked === true
@@ -3510,14 +3510,14 @@ function _switch_toggle(w::WidgetSwitch)
     ])
 end
 
-function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
     op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _switch_toggle(w)
 end
 
-function projection_read(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
     op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
@@ -3536,7 +3536,7 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
     fill_color::StyleColor     # filled portion
 end
 
-function projection_print(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
+function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     value = clamp(Float64(w.value), 0.0, 1.0)
@@ -3566,7 +3566,7 @@ end
     ring_color::StyleColor      # focus ring when selected
 end
 
-function projection_print(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
+function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     enabled = !(w.enabled === false)
@@ -3606,7 +3606,7 @@ end
     ring_color::StyleColor         # focus ring when selected
 end
 
-function projection_print(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
+function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     enabled = !(w.enabled === false)
@@ -3651,7 +3651,7 @@ end
     background_color::StyleColor  # circle fill
 end
 
-function projection_print(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
+function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     size = _sc(Int(w.size))
@@ -3681,7 +3681,7 @@ end
     destructive_color::StyleColor      # title + border in the destructive variant
 end
 
-function projection_print(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
+function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     destructive = w.variant === :destructive
@@ -3719,7 +3719,7 @@ end
     corner_radius::Int
 end
 
-function projection_print(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
+function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     block_width  = _resolve_width(ctx, _sc(Int(w.width)))
@@ -3861,7 +3861,7 @@ end
     ring_color::StyleColor
 end
 
-function projection_print(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
+function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     text = string(w.content)
@@ -3904,7 +3904,7 @@ end
     ring_color::StyleColor             # focus ring when selected
 end
 
-function projection_print(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
+function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     enabled = !(w.enabled === false)
@@ -3974,7 +3974,7 @@ struct WidgetSelectToGraphicsCanvasIoMap <: IoMap
     control_height::Int
 end
 
-function projection_print(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
+function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     text = string(w.value)
@@ -4010,14 +4010,14 @@ map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, refere
 map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible select (printer returned a bare empty canvas): inert.
-projection_read(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # A left click on the box opens the option list as a floating popup window,
 # anchored just below the box. The reader carries only the anchor reference + a
 # trigger-baked offset; a content-root resolver (`WidgetPopupResolver`) maps the
 # anchor forward to absolute coordinates and turns this into an `OpenWindowOperation`.
 # The deep reader never computes its own screen position.
-function projection_read(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
     @event_case evt begin
@@ -4051,7 +4051,7 @@ end
     padding::Inset
 end
 
-function projection_print(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
+function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     label = string(w.label)
@@ -4078,7 +4078,7 @@ _pick_option(w::WidgetOption) = CompoundOperation(Any[
     CloseWindowOperation(w.popup_id),
 ])
 
-function projection_read(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? _pick_option(w) : nothing
@@ -4112,7 +4112,7 @@ struct WidgetSpinBoxToGraphicsCanvasIoMap <: IoMap
     stepper_w::Int
 end
 
-function projection_print(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
+function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     enabled = !(w.enabled === false)
@@ -4146,8 +4146,8 @@ map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 
-projection_read(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
-function projection_read(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
+read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
     w = iomap.input
     (w.enabled === false) && return nothing
     _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
@@ -4182,7 +4182,7 @@ struct WidgetListToGraphicsCanvasIoMap <: IoMap
     control_width::Int
 end
 
-function projection_print(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
+function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
@@ -4218,8 +4218,8 @@ map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
 
-projection_read(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
-function projection_read(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
+read_intent(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
     w = iomap.input
     (w.enabled === false) && return nothing
     n = length(collect(w.items))
@@ -4248,7 +4248,7 @@ end
     ring_color::StyleColor      # focus ring when selected
 end
 
-function projection_print(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
+function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     enabled = !(w.enabled === false)
@@ -4287,7 +4287,7 @@ end
     chevron_size::Int
 end
 
-function projection_print(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
+function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     expanded = Int(w.expanded)
@@ -4564,7 +4564,7 @@ function _wt_highlight_bounds(sel, geom::WTGeometry)
     (0, 0, 0, 0)
 end
 
-function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
+function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     pad = _sc(Int(w.padding))
@@ -4585,7 +4585,7 @@ function projection_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTa
                           horizontal_gap=gap, vertical_gap=gap)
         # The grid is positioned at grid_off inside the outer canvas; extend the
         # context reference to the table's grid so child contexts are rooted here.
-        projection_printer_recurse(recursion, grid, ctx)
+        print_child(recursion, grid, ctx)
     end)
 
     geometry = Cell(() -> begin
@@ -4783,33 +4783,33 @@ end
 # cell; a plain click routes into the cell content). Keyboard grid navigation
 # (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
 # live table. Everything else falls through to per-cell editing via the grid.
-function projection_read(p::WidgetTableToGraphicsCanvas, recursion, change::Change, iomap::WidgetTableToGraphicsCanvasIoMap)
+function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
     if change.operation === nothing && g isa MousePress && g.button === :left
-        return Change(g, _wt_mouse_select(iomap, g))
+        return Intent(g, _wt_mouse_select(iomap, g))
     end
     # Pointer crossings (synthesised by WidgetHoverTrackingProjection) drive the
     # hover band: MouseEnter always re-writes (so the tracker keeps the table as its
     # hover target), MouseMove writes only when the hovered row changes, MouseLeave
     # clears.
     if change.operation === nothing && g isa MouseEnter
-        return Change(g, _wt_hover_set(iomap, g.x, g.y, true))
+        return Intent(g, _wt_hover_set(iomap, g.x, g.y, true))
     end
     if change.operation === nothing && g isa MouseMove
-        return Change(g, _wt_hover_set(iomap, g.x, g.y, false))
+        return Intent(g, _wt_hover_set(iomap, g.x, g.y, false))
     end
     if change.operation === nothing && g isa MouseLeave
-        return Change(g, _wt_hover_clear(iomap))
+        return Intent(g, _wt_hover_clear(iomap))
     end
     if change.operation === nothing && g isa KeyDown
         op = _wt_key_navigate(iomap, g, iomap.geometry[])
-        op === nothing || return Change(g, op)
+        op === nothing || return Intent(g, op)
     end
     # Fall through: plain editing keys route into the active cell via the grid; an
     # already-produced operation passes straight through. Use the grid passthrough
     # directly (not the 3-arg reader) to avoid re-entering this gesture logic.
     payload = change.operation === nothing ? g : change.operation
-    return Change(g, _wt_grid_passthrough(p, iomap, payload))
+    return Intent(g, _wt_grid_passthrough(p, iomap, payload))
 end
 
 # Resolve a left click into a selection operation (or nothing).
@@ -4923,7 +4923,7 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     cell_x = geom.grid_off + Int(ox_cell[]) + Int(canvas.x)
     cell_y = geom.grid_off + Int(oy_cell[]) + Int(canvas.y)
     local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
-    op = projection_read(cim.projection, cim, local_evt)
+    op = read_intent(cim.projection, cim, local_evt)
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
         ConcreteReferencePath(FieldReference("children"),
@@ -5026,7 +5026,7 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     entry = entries[gidx]
     entry === nothing && return nothing
     cim = entry[3]
-    op = projection_read(cim.projection, cim, KeyDown(:home, Modifiers(ctrl=true)))
+    op = read_intent(cim.projection, cim, KeyDown(:home, Modifiers(ctrl=true)))
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
         ConcreteReferencePath(FieldReference("children"),
@@ -5038,12 +5038,12 @@ end
 # delegates plain editing events here; (b) a *parent* container (composite, grid,
 # split pane) routes a raw event to this nested table via the 3-arg call. For (b)
 # we must still run the table's own gesture logic (left-click selection, grid
-# navigation), so a bare MousePress/KeyDown is lifted into a Change and handled by
+# navigation), so a bare MousePress/KeyDown is lifted into a Intent and handled by
 # the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
-function projection_read(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     if event isa MousePress || event isa KeyDown ||
        event isa MouseEnter || event isa MouseMove || event isa MouseLeave
-        return projection_read(p, nothing, Change(event, nothing), iomap).operation
+        return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
     return _wt_grid_passthrough(p, iomap, event)
 end
@@ -5054,7 +5054,7 @@ function _wt_grid_passthrough(p::WidgetTableToGraphicsCanvas, iomap::WidgetTable
     gim = iomap.grid_iomap[]
     gim isa GridLayoutIoMap || return nothing
     geom = iomap.geometry[]
-    op = projection_read(gim.projection, gim, event)
+    op = read_intent(gim.projection, gim, event)
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(op.path, geom)
     table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
@@ -5169,7 +5169,7 @@ function _wtree_highlight_band(sel, geom)
     (0, 0)
 end
 
-function projection_print(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
+function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     indent = _sc(p.indent)
@@ -5295,14 +5295,14 @@ map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 # `MouseLeave`, synthesised by `WidgetHoverTrackingProjection`) drive the hover
 # band; ↑/↓ walk the flattened rows. Handled in the 3-arg form (like the other
 # widgets) so a container routing an event into the tree via
-# `projection_read(cim.projection, cim, evt)` reaches it — the default 4-arg
-# `projection_read` bridges the editor's top-level `Change` to this. Non-gestures
+# `read_intent(cim.projection, cim, evt)` reaches it — the default 4-arg
+# `read_intent` bridges the editor's top-level `Intent` to this. Non-gestures
 # return nothing: the tree is a leaf (no child ops bubble up to re-target).
 #
 # Per-instance gestures are consulted first — tree-level, then per-node — so a
 # binding can add / override (shadow) / suppress; the built-in select / collapse /
 # hover / nav below is the fallback.
-function projection_read(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
+function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
     w = iomap.input
     op = read_document_gesture(w, evt)
     op === nothing || return op
@@ -5579,8 +5579,8 @@ struct WidgetScrollPaneToGraphicsViewport <: Projection
     measure::Function
 end
 
-function projection_print(p::WidgetScrollPaneToGraphicsViewport, recursion, w::WidgetScrollPane, ctx)
-    content_iomap = projection_printer_recurse(recursion, w.content, ctx)
+function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::WidgetScrollPane, ctx)
+    content_iomap = print_child(recursion, w.content, ctx)
     content_output = content_iomap.output::GraphicsCanvas
 
     pos = w.position
@@ -5604,7 +5604,7 @@ function projection_print(p::WidgetScrollPaneToGraphicsViewport, recursion, w::W
     WidgetScrollPaneToGraphicsViewportIoMap(p, w, output, content_iomap)
 end
 
-function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, evt)
+function read_intent(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, evt)
     if evt isa MouseScroll
         mx, my = evt.x, evt.y
         hit_element_at(iomap.output, mx, my) === nothing && return nothing
@@ -5636,7 +5636,7 @@ function projection_read(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScr
         MouseMove(x, y)          => MouseMove(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
         _ => evt
     end
-    op = projection_read(content_iomap.projection, content_iomap, translated)
+    op = read_intent(content_iomap.projection, content_iomap, translated)
     return _retarget_op(p, iomap, op)
 end
 

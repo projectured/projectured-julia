@@ -35,10 +35,10 @@ reverse-routes the pointer); here the synthesised events are `MouseEnter` /
 """
 module WidgetHoverTrackingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
@@ -74,14 +74,14 @@ end
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::WidgetHoverTrackingProjection, recursion, input, ctx)
-    child_iomap = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::WidgetHoverTrackingProjection, recursion, input, ctx)
+    child_iomap = print_document(p.inner, recursion, input, ctx)
     WidgetHoverTrackingProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Change,
+function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent,
                          iomap::WidgetHoverTrackingProjectionIoMap)
     event = change.gesture
     # Top-level Tab wrap-around (Stage 2): the only non-local part of focus
@@ -92,22 +92,22 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
     # so this only fires for genuine wrap-around. See
     # plan/pending/widget-focus-traversal.md.
     if event isa KeyDown && event.key === :tab
-        res = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-        op = res isa Change ? res.operation : res
+        res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+        op = res isa Intent ? res.operation : res
         op === nothing || return res
         root = iomap.child_iomap.input
         wrap = event.modifiers.shift ? last_focusable_path(root) : first_focusable_path(root)
-        return Change(event, wrap === nothing ? nothing : ReplaceSelectionOperation(wrap))
+        return Intent(event, wrap === nothing ? nothing : ReplaceSelectionOperation(wrap))
     end
-    event isa MouseMove || return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    event isa MouseMove || return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 
     child = iomap.child_iomap
     # 0. Forward the real MouseMove down the inner pipeline first, so widgets
     #    that legitimately consume MouseMove (e.g. an active splitter drag in
     #    WidgetSplitPane) get a chance to react. Hover enter/leave synthesis
     #    runs afterwards and its ops are merged in with the inner result.
-    inner_res = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-    inner_op  = inner_res isa Change ? inner_res.operation : inner_res
+    inner_res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    inner_op  = inner_res isa Intent ? inner_res.operation : inner_res
 
     # 1. Who is under the pointer now? Route an enter and read back the widget's
     #    own response; its `widget` field is an opaque identity token.
@@ -119,7 +119,7 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
         # Same widget (or both dead space): keep the inside position fresh so a
         # future leave is routed at a point still over the target.
         new_target === nothing || (p.last_pos[] = (event.x, event.y))
-        return Change(event, inner_op)
+        return Intent(event, inner_op)
     end
 
     ops = Any[]
@@ -137,17 +137,17 @@ function projection_read(p::WidgetHoverTrackingProjection, recursion, change::Ch
 
     p.last[] = new_target
     p.last_pos[] = new_target === nothing ? nothing : (event.x, event.y)
-    Change(event, isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops))
+    Intent(event, isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops))
 end
 
 # 3-arg compatibility shim (tests / hit-test recursion).
-projection_read(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Route a synthetic event through the inner pipeline and return the bare op.
 function _route(p::WidgetHoverTrackingProjection, recursion, child_iomap, event)
-    res = projection_read(child_iomap.projection, recursion, Change(event, nothing), child_iomap)
-    res isa Change ? res.operation : res
+    res = read_intent(child_iomap.projection, recursion, Intent(event, nothing), child_iomap)
+    res isa Intent ? res.operation : res
 end
 
 # Opaque identity of the widget an enter-response came from. The tracker never

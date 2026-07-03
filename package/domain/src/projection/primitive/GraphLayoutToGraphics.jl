@@ -20,9 +20,9 @@ module GraphLayoutToGraphicsModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout
 import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
@@ -80,7 +80,7 @@ struct GraphLayoutToGraphicsCanvasIoMap <: IoMap
     child_iomaps::Cell      # vector of (x, y, content_iomap) per vertex layout
 end
 
-function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
+function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
     reference = ctx.reference
 
     # Recurse each vertex's content into a canvas, tracking its placed origin.
@@ -94,7 +94,7 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
                 content = v isa GraphVertex ? getfield(v, :content)[] : nothing
                 if content !== nothing
                     cref = @reference ^(reference).vertex_layouts[i].vertex.content
-                    cim = projection_printer_recurse(recursion, content, child_context(ctx, cref))
+                    cim = print_child(recursion, content, child_context(ctx, cref))
                     push!(entries, (Int(vl.x), Int(vl.y), cim))
                 else
                     push!(entries, (Int(vl.x), Int(vl.y), nothing))
@@ -117,7 +117,7 @@ function projection_print(p::GraphLayoutToGraphicsCanvas, recursion, layout::Gra
             label = e isa GraphEdge ? getfield(e, :label)[] : nothing
             if label !== nothing
                 lref = @reference ^(reference).edge_layouts[i].edge.label
-                push!(out, projection_printer_recurse(recursion, label, child_context(ctx, lref)))
+                push!(out, print_child(recursion, label, child_context(ctx, lref)))
             else
                 push!(out, nothing)
             end
@@ -197,7 +197,7 @@ end
 
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics).
-function projection_read(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
+function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     if event isa MousePress && event.button === :left
         op = _route_click(iomap, event)
         op === nothing || return op
@@ -222,7 +222,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         ox = canvas isa GraphicsCanvas ? Int(canvas.x) : 0
         oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
         local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.modifiers)
-        op = projection_read(cim.projection, cim, local_evt)
+        op = read_intent(cim.projection, cim, local_evt)
         op isa ReplaceSelectionOperation || return nothing
         return ReplaceSelectionOperation(@reference vertex_layouts[i].vertex.content.^(op.path))
     end
@@ -237,7 +237,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         entry = entries[i]
         (entry === nothing || entry[3] === nothing) && continue
         cim = entry[3]
-        op = projection_read(cim.projection, cim, event)
+        op = read_intent(cim.projection, cim, event)
         if op isa ReplaceSelectionOperation
             return ReplaceSelectionOperation(@reference vertex_layouts[i].vertex.content.^(op.path))
         end

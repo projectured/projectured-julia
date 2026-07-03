@@ -39,9 +39,9 @@ clipboard, exactly as before.
 """
 module ClipboardToAnyProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
                           insert_elements, delete_elements, CompoundOperation
@@ -130,12 +130,12 @@ end
 
 # ── Printers ────────────────────────────────────────────────────────────────
 
-function projection_print(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
-    content_iomap = projection_printer_recurse(recursion, input.content,
+function print_document(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
+    content_iomap = print_child(recursion, input.content,
                         child_context(ctx, FieldReference("content")))
     slice_val = input.slice
     slice_iomap = slice_val isa Document ?
-        projection_printer_recurse(recursion, slice_val,
+        print_child(recursion, slice_val,
             child_context(ctx, FieldReference("slice"))) : nothing
     # Reactive output: a derived cell over the display flag (the projection stays
     # domain-generic — it still exposes the active child directly). The reactive
@@ -147,11 +147,11 @@ function projection_print(p::ClipboardSliceToAnyProjection, recursion, input::Cl
     ClipboardSliceToAnyProjectionIoMap(p, input, output, content_iomap, slice_iomap)
 end
 
-function projection_print(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
-    content_iomap = projection_printer_recurse(recursion, input.content,
+function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
+    content_iomap = print_child(recursion, input.content,
                         child_context(ctx, FieldReference("content")))
     elements = input.elements
-    element_iomaps = [projection_printer_recurse(recursion, elements[i],
+    element_iomaps = [print_child(recursion, elements[i],
                           child_context(ctx, FieldReference("elements"), ElementReference(i)))
                       for i in 1:length(elements)]
     # Reactive output (see the slice printer): a derived cell over the display flag,
@@ -520,13 +520,13 @@ function projection_gestures(p::ClipboardSliceToAnyProjection, iomap)
     ]
 end
 
-function projection_read(p::ClipboardSliceToAnyProjection, recursion, change::Change,
+function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardSliceToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
-    own !== nothing && return Change(change.gesture, own)
+    own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
-    inner = projection_read(cim.projection, recursion, change, cim)
-    Change(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
+    inner = read_intent(cim.projection, recursion, change, cim)
+    Intent(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
 end
 
 # Gather this projection's own gestures plus the content child's, mirroring the
@@ -554,13 +554,13 @@ function projection_gestures(p::ClipboardCollectionToAnyProjection, iomap)
     ]
 end
 
-function projection_read(p::ClipboardCollectionToAnyProjection, recursion, change::Change,
+function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardCollectionToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
-    own !== nothing && return Change(change.gesture, own)
+    own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
-    inner = projection_read(cim.projection, recursion, change, cim)
-    Change(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
+    inner = read_intent(cim.projection, recursion, change, cim)
+    Intent(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
 end
 
 function collect_gestures(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)
@@ -572,10 +572,10 @@ function collect_gestures(p::ClipboardCollectionToAnyProjection, recursion, ioma
 end
 
 # 3-arg legacy shims (used by tests and any parent that hands a bare payload).
-projection_read(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
-projection_read(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Operation re-rooting ───────────────────────────────────────────────────────
 # Prepend `steps` to the reference path carried by a delegated content operation,

@@ -182,7 +182,7 @@ point them at an **iomap** to search the *whole projection pipeline* at once:
 every intermediate document and every projected output tree, at every stage.
 
 ```julia
-iomap = projection_print(proj, doc)          # links input → output, holds every stage
+iomap = print_document(proj, doc)          # links input → output, holds every stage
 search_references(iomap, "Wonderland")       # every location across the pipeline
 search_objects(iomap, x -> x isa JsonNumber) # every number, source through output
 ```

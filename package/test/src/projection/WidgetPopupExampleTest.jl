@@ -7,7 +7,7 @@
 # HoverProbe pipeline test (an `EventEnvelope` routed in grows the screen's window
 # list).
 
-using Projectured: EventEnvelope, Change
+using Projectured: EventEnvelope, Intent
 
 function test_widget_popup_example()
 @testset "widget_popup example (window route)" begin
@@ -16,7 +16,7 @@ function test_widget_popup_example()
 @testset "the screen example renders with its pre-opened popup" begin
     doc   = make_widget_popup_document_example()
     proj  = make_widget_popup_projection_example()
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
     @test iomap.output !== nothing
     ids = Symbol[w.id for w in doc.windows]
     @test :widget_popup_main in ids
@@ -32,12 +32,12 @@ end
                             content=VerticalLayout(Any[select]; horizontal_align=:left))
     screen = ScreenDocument([main])
     proj   = make_widget_popup_projection_example()
-    iomap  = projection_print(proj, screen)
+    iomap  = print_document(proj, screen)
 
     nbefore = length(screen.windows)
     # A left press at (15, 12) lands on the select (top-left of the window content).
     env = EventEnvelope(:main, MousePress(:left, 15, 12, Modifiers()))
-    projection_read(proj, nothing, Change(env, nothing), iomap)
+    read_intent(proj, nothing, Intent(env, nothing), iomap)
 
     @test length(screen.windows) == nbefore + 1
     popup = nothing

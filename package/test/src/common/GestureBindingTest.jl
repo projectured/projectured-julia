@@ -1,6 +1,6 @@
 # Reified gesture bindings: pattern matching/describe, the @gestures macro,
-# supertype inheritance, applicability, and the document_read interpreter.
-# JSON document_read *parity* with the old hand-written readers lives in
+# supertype inheritance, applicability, and the read_gesture interpreter.
+# JSON read_gesture *parity* with the old hand-written readers lives in
 # JsonToSyntaxTest (test_json_to_syntax_reader) — exercised through the real
 # projection pipeline.
 
@@ -135,11 +135,11 @@ function test_gesture_binding()
         @test length(applicable_gestures(leaf, document_gestures(GestureProbeLeaf))) == 4
     end
 
-    @testset "document_read interpreter routes through the reified table" begin
+    @testset "read_gesture interpreter routes through the reified table" begin
         arr = GestureProbeArray()
         arr.selection = EmptyReferencePath()
-        @test document_read(arr, KeyPress(',')) == MarkOperation(:append)   # own
-        @test document_read(arr, KeyPress('p')) == MarkOperation(:pos)      # inherited
+        @test read_gesture(arr, KeyPress(',')) == MarkOperation(:append)   # own
+        @test read_gesture(arr, KeyPress('p')) == MarkOperation(:pos)      # inherited
     end
 
     @testset "@gesture_set + splice shares a set across unrelated types" begin
@@ -160,11 +160,11 @@ function test_gesture_binding()
         # Both unrelated types fire the shared gestures; each keeps its own.
         a = ProbeAlpha(); a.selection = EmptyReferencePath()
         b = ProbeBeta();  b.selection = EmptyReferencePath()
-        @test document_read(a, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
-        @test document_read(b, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
-        @test document_read(a, KeyPress('a')) == MarkOperation(:alpha)
-        @test document_read(b, KeyPress('b')) == MarkOperation(:beta)
-        @test document_read(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha
+        @test read_gesture(a, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
+        @test read_gesture(b, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
+        @test read_gesture(a, KeyPress('a')) == MarkOperation(:alpha)
+        @test read_gesture(b, KeyPress('b')) == MarkOperation(:beta)
+        @test read_gesture(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha
     end
 
 end

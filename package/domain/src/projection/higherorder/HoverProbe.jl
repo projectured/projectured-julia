@@ -33,10 +33,10 @@ backend dependency, the same way `TextToGraphics` takes its `measure`.
 """
 module HoverProbeProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..MouseModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation
@@ -85,30 +85,30 @@ end
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::HoverProbeProjection, recursion, input, ctx)
-    child_iomap = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::HoverProbeProjection, recursion, input, ctx)
+    child_iomap = print_document(p.inner, recursion, input, ctx)
     HoverProbeProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::HoverProbeProjection, recursion, change::Change, iomap::HoverProbeProjectionIoMap)
+function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::HoverProbeProjectionIoMap)
     event = change.gesture
     if event isa MouseMove
         # Reverse-project the hover position exactly as a left click would be.
         press = MousePress(:left, event.x, event.y, event.modifiers)
-        probe = projection_read(iomap.child_iomap.projection, recursion,
-                                Change(press, nothing), iomap.child_iomap)
-        probe_op = probe isa Change ? probe.operation : probe
+        probe = read_intent(iomap.child_iomap.projection, recursion,
+                                Intent(press, nothing), iomap.child_iomap)
+        probe_op = probe isa Intent ? probe.operation : probe
         ref = probe_op isa ReplaceSelectionOperation ? probe_op.path : nothing
-        return Change(change.gesture, _hover_op(p, iomap, ref))
+        return Intent(change.gesture, _hover_op(p, iomap, ref))
     end
     # Pass everything else through to the wrapped content.
-    return projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 end
 
-projection_read(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Decide the follower-window operation for a probed reference (or `nothing`).
 function _hover_op(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, ref)

@@ -9,7 +9,7 @@ explicit width when width > 0).
 """
 module TextLineNumberingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
@@ -38,7 +38,7 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 # the output element list whenever the input spans change.  For each line
 # (delimited by TextNewline elements) a TextString prefix is inserted before
 # the first span on that line.
-function projection_print(p::TextLineNumbering, recursion, text::TextText, ctx)
+function print_document(p::TextLineNumbering, recursion, text::TextText, ctx)
     elements_cv = CellVector(() -> begin
         elems = text.elements
         n_newlines = 0
@@ -94,7 +94,7 @@ end
 # Reader: map an output `.elements[out_span].content{char}` path back to the
 # matching input span. Prefix spans (added by this projection) have no
 # pre-image, so they round-trip to char 0 of the next real input span.
-function projection_read(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     out_span, out_char = _parse_text_elem_path(op.path)
     out_span === nothing && return nothing
     mapping = _output_to_input_map(iomap.input.elements)
@@ -109,7 +109,7 @@ function projection_read(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSe
     ReplaceSelectionOperation(@reference elements[in_span].content{char_offset + out_char})
 end
 
-projection_read(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
+read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
 
 # Walk the input element list mirroring the printer's prefix-insertion
 # logic. For each emitted output element, record the corresponding input

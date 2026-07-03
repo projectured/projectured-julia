@@ -31,7 +31,7 @@ import ..ColorModule: StyleColor
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ..FontModule: StyleFont, font_logical_size
 import ..ImageModule: ImageFile
-import ..ProjectionApiModule: projection_print, Projection
+import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: EmptyReferencePath
@@ -831,7 +831,7 @@ end
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
               measure = pdf_measure_text) -> ImageFile
 
-Run `projection_print(projection, document)` to obtain a `GraphicsCanvas` and
+Run `print_document(projection, document)` to obtain a `GraphicsCanvas` and
 write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
 
 With `paginate = false` (default), a single page is sized to the content (same
@@ -864,7 +864,7 @@ function write_pdf(document, projection, filename::AbstractString;
                    measure = pdf_measure_text)
     print_canvas = (aw, ah) -> begin
         ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
-        iomap = projection_print(projection, nothing, document, ctx)
+        iomap = print_document(projection, nothing, document, ctx)
         canvas = iomap.output
         canvas isa GraphicsCanvas ||
             error("write_pdf: projection output is $(typeof(canvas)), expected GraphicsCanvas")
@@ -915,7 +915,7 @@ end
     GraphicsCanvasToPdfFile(filename; width=800, height=600,
                             background=(0xfd,0xf6,0xe3,0xff), paginate=false)
 
-Printer-only projection. On `projection_print` it renders the input
+Printer-only projection. On `print_document` it renders the input
 `GraphicsCanvas` to a vector PDF and saves to `filename`. With `paginate=true`,
 content taller than `height` flows across multiple `width × height` pages. The
 `output` of the returned `SimpleIoMap` is an `ImageFile`. Has no reader (subtypes
@@ -936,7 +936,7 @@ function GraphicsCanvasToPdfFile(filename::AbstractString;
                             NTuple{4,UInt8}(background), paginate)
 end
 
-function projection_print(p::GraphicsCanvasToPdfFile, recursion, canvas::GraphicsCanvas, ctx)
+function print_document(p::GraphicsCanvasToPdfFile, recursion, canvas::GraphicsCanvas, ctx)
     output = write_pdf(canvas, p.filename;
                        width = p.width, height = p.height,
                        background = p.background, paginate = p.paginate)

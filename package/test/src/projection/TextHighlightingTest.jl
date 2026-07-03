@@ -19,7 +19,7 @@ _contents(text) = [e.content for e in text.elements if e isa TextString]
 @testset "TextHighlighting splits and fills matches" begin
 
     input = TextText(TextString("alpha beta alpha", _font, color_default))
-    out = projection_print(TextHighlighting(r"alpha", color=color_red), input).output
+    out = print_document(TextHighlighting(r"alpha", color=color_red), input).output
     @test _contents(out) == ["alpha", " beta ", "alpha"]
     fills = [e.fill_color for e in out.elements if e isa TextString]
     @test fills[1] == color_red          # matched run filled
@@ -31,7 +31,7 @@ end # @testset
 @testset "TextHighlighting leaves a no-match span untouched" begin
 
     input = TextText(TextString("beta gamma", _font, color_default))
-    out = projection_print(TextHighlighting(r"alpha", color=color_red), input).output
+    out = print_document(TextHighlighting(r"alpha", color=color_red), input).output
     @test length(out.elements) == 1
     @test out.elements[1] === input.elements[1]   # same object, not a copy
 
@@ -44,7 +44,7 @@ end # @testset
         TextNewline(font=_font),
         TextString("b", _font, color_default),
     )
-    out = projection_print(TextHighlighting(), input).output
+    out = print_document(TextHighlighting(), input).output
     @test length(out.elements) == 3
     for i in 1:3
         @test out.elements[i] === input.elements[i]
@@ -55,7 +55,7 @@ end # @testset
 @testset "TextHighlighting selection round-trip" begin
 
     proj = TextHighlighting(r"alpha", color=color_red)
-    iomap = projection_print(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
+    iomap = print_document(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
     segs = iomap.segs[]
     @test length(segs) == 3
     for seg in segs
@@ -72,9 +72,9 @@ end # @testset
 @testset "TextHighlighting reader shifts char range by sub-span start" begin
 
     proj = TextHighlighting(r"alpha", color=color_red)
-    iomap = projection_print(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
+    iomap = print_document(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
     # Output span 3 is the second "alpha", starting at input char 11.
-    edit = projection_read(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
+    edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
     @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(1, 11, 16)
     @test edit.replacement == "X"
@@ -85,9 +85,9 @@ end # @testset
 
     # `r"a*"` yields empty matches between consonants; they must not produce
     # zero-length sub-spans, hang, or drop characters.
-    out = projection_print(TextHighlighting(r"a*", color=color_red),
+    out = print_document(TextHighlighting(r"a*", color=color_red),
                            TextText(TextString("banana", _font, color_default))).output
-    iomap_segs = projection_print(TextHighlighting(r"a*", color=color_red),
+    iomap_segs = print_document(TextHighlighting(r"a*", color=color_red),
                                   TextText(TextString("banana", _font, color_default))).segs[]
     @test all(s.length >= 1 for s in iomap_segs)
     @test join((e.content for e in out.elements if e isa TextString), "") == "banana"
@@ -97,7 +97,7 @@ end # @testset
 @testset "TextHighlighting re-highlights when the pattern cell changes" begin
 
     pat = Cell(r"alpha")
-    out = projection_print(TextHighlighting(pat, color=color_red),
+    out = print_document(TextHighlighting(pat, color=color_red),
                            TextText(TextString("alpha beta", _font, color_default))).output
     @test _contents(out) == ["alpha", " beta"]
 
@@ -112,14 +112,14 @@ end # @testset
 @testset "TextHighlighting string source + case_insensitive flag" begin
 
     # A plain String source is compiled to a Regex; empty source = no highlights.
-    out = projection_print(TextHighlighting("alpha", color=color_red),
+    out = print_document(TextHighlighting("alpha", color=color_red),
                            TextText(TextString("alpha beta", _font, color_default))).output
     @test _contents(out) == ["alpha", " beta"]
 
     # case_insensitive adds the `i` flag when the source String is compiled.
     ci = Cell(false)
     src = Cell("ALPHA")
-    out2 = projection_print(TextHighlighting(src; case_insensitive=ci, color=color_red),
+    out2 = print_document(TextHighlighting(src; case_insensitive=ci, color=color_red),
                             TextText(TextString("alpha beta", _font, color_default))).output
     @test _contents(out2) == ["alpha beta"]    # case-sensitive: no match
     ci[] = true

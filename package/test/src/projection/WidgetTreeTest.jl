@@ -8,10 +8,10 @@
 # projection directly with a deterministic text measure so row geometry is exact.
 
 using Projectured: WidgetTree, WidgetTreeNode, WidgetToGraphics, VerticalLayout,
-    WidgetTabbedPane, WidgetShell, Point2D, Change,
+    WidgetTabbedPane, WidgetShell, Point2D, Intent,
     MousePress, MouseEnter, MouseMove, MouseLeave, Modifiers,
     ReplaceReferencedValueOperation, ReplaceSelectionOperation,
-    GraphicsRect, font_ubuntu_regular_20, projection_print, projection_read
+    GraphicsRect, font_ubuntu_regular_20, print_document, read_intent
 using Projectured.ReactiveModule: Cell
 
 function test_widget_tree()
@@ -28,12 +28,12 @@ end
 
 _mods = Modifiers()
 _readop(io, g) = begin
-    ch = projection_read(_treeproj, nothing, Change(g, nothing), io)
-    ch isa Change ? ch.operation : ch
+    ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
+    ch isa Intent ? ch.operation : ch
 end
 _fresh() = begin
     w = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl", "b.jl"]), "README"])
-    (w, projection_print(_treeproj, w))
+    (w, print_document(_treeproj, w))
 end
 # GraphicsRect overlays in the canvas (the hover + selection bands). Canvas
 # elements may be raw graphics or Cell-wrapped, so unwrap defensively.
@@ -144,14 +144,14 @@ end
         WidgetTreeNode(:file, "README")])
     # Count grid points whose MouseEnter / MousePress reach the tree.
     function reach(doc; xs, ys)
-        io = projection_print(_full, doc)
+        io = print_document(_full, doc)
         enters = clicks = 0
         for x in xs, y in ys
-            ce = projection_read(_full, nothing, Change(MouseEnter(x, y, :none, _mods), nothing), io)
-            oe = ce isa Change ? ce.operation : ce
+            ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, :none, _mods), nothing), io)
+            oe = ce isa Intent ? ce.operation : ce
             oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
-            cp = projection_read(_full, nothing, Change(MousePress(:left, x, y, _mods), nothing), io)
-            op = cp isa Change ? cp.operation : cp
+            cp = read_intent(_full, nothing, Intent(MousePress(:left, x, y, _mods), nothing), io)
+            op = cp isa Intent ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)
         end
         (enters, clicks)

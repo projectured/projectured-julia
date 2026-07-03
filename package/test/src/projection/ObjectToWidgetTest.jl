@@ -8,7 +8,7 @@ _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReference
 @testset "ObjectToWidget reflects renderable Cell fields into controls" begin
 
     proj = _proj()
-    iomap = projection_print(ObjectToWidget(), proj)
+    iomap = print_document(ObjectToWidget(), proj)
     out = iomap.output
 
     # The output is a WidgetComposite (a real widget, carrying `visible`) wrapping
@@ -32,7 +32,7 @@ end # @testset
 @testset "ObjectToWidget converts a text edit to a parameter value op" begin
 
     proj = _proj()
-    iomap = projection_print(ObjectToWidget(), proj)
+    iomap = print_document(ObjectToWidget(), proj)
 
     # A Text-domain edit on the pattern control: insert "X" at the end (caret at
     # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
@@ -45,7 +45,7 @@ end # @testset
                   ConcreteReferencePath(RangeReference(0, 1),
                     ConcreteReferencePath(FieldReference("content"),
                       ConcreteReferencePath(RangeReference(5, 5), EmptyReferencePath())))))))
-    op = projection_read(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
+    op = read_intent(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
     @test op.reference.head == FieldReference("pattern")
@@ -56,11 +56,11 @@ end # @testset
 @testset "ObjectToWidget redirects a checkbox edit to the object's field" begin
 
     proj = _proj()
-    iomap = projection_print(ObjectToWidget(), proj)
+    iomap = print_document(ObjectToWidget(), proj)
 
     # The checkbox control emits an edit rooted at itself; redirect to the field.
     cb_ctrl = iomap.controls[2][1]
-    op = projection_read(ObjectToWidget(), iomap,
+    op = read_intent(ObjectToWidget(), iomap,
                          ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
@@ -72,10 +72,10 @@ end # @testset
 @testset "ObjectToWidget coerces a checkbox edit to Bool" begin
 
     proj = _proj()
-    iomap = projection_print(ObjectToWidget(), proj)
+    iomap = print_document(ObjectToWidget(), proj)
     cb_ctrl = iomap.controls[2][1]
 
-    op = projection_read(ObjectToWidget(), iomap,
+    op = read_intent(ObjectToWidget(), iomap,
                          ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
     evaluate_operation(nothing, op)
     @test proj.case_insensitive[] === true
@@ -85,10 +85,10 @@ end # @testset
 @testset "ObjectToWidget passes through an unrelated operation" begin
 
     proj = _proj()
-    iomap = projection_print(ObjectToWidget(), proj)
+    iomap = print_document(ObjectToWidget(), proj)
     foreign = WidgetText(Point2D(0, 0), "x")
     op = ReplaceReferencedValueOperation(foreign, _content_ref(), "y")
-    @test projection_read(ObjectToWidget(), iomap, op) === op
+    @test read_intent(ObjectToWidget(), iomap, op) === op
 
 end # @testset
 
@@ -100,8 +100,8 @@ end # @testset
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
 
     cb = WidgetCheckbox(Point2D(0, 0), false)
-    iomap = projection_print(cb_proj, nothing, cb, PrinterContext())
-    op = projection_read(cb_proj, iomap, MousePress(:left, 1, 1, Modifiers()))
+    iomap = print_document(cb_proj, nothing, cb, PrinterContext())
+    op = read_intent(cb_proj, iomap, MousePress(:left, 1, 1, Modifiers()))
 
     @test op isa ReplaceReferencedValueOperation
     @test op.document === cb
@@ -113,7 +113,7 @@ end # @testset
 @testset "ObjectToWidget renders nested struct + vector as collapsible cards" begin
 
     app = make_nested_object_to_widget_document_example()
-    iomap = projection_print(ObjectToWidget(), app)
+    iomap = print_document(ObjectToWidget(), app)
     out = iomap.output
 
     # Root stays a bare composite wrapping a 2-column grid (no card) — flat-compat.
@@ -146,7 +146,7 @@ end # @testset
 @testset "ObjectToWidget collapse hides the body and is reversible" begin
 
     app = make_nested_object_to_widget_document_example()
-    iomap = projection_print(ObjectToWidget(), app)
+    iomap = print_document(ObjectToWidget(), app)
     grid = iomap.output.elements[1]
     window_card = first(c for c in collect(grid.children) if c isa Projectured.WidgetCard)
 
@@ -167,14 +167,14 @@ end # @testset
 @testset "ObjectToWidget edits a nested field through its full path" begin
 
     app = make_nested_object_to_widget_document_example()
-    iomap = projection_print(ObjectToWidget(), app)
+    iomap = print_document(ObjectToWidget(), app)
 
     # The deep checkbox is `window.visible`; its control path is window → visible.
     vis = first((c, pth) for (c, pth) in iomap.controls
                 if c isa WidgetCheckbox && pth.head == FieldReference("window"))
     vis_ctrl, vis_path = vis
 
-    op = projection_read(ObjectToWidget(), iomap,
+    op = read_intent(ObjectToWidget(), iomap,
                          ReplaceReferencedValueOperation(vis_ctrl, _content_ref(), false))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === app

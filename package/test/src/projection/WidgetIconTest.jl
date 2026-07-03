@@ -23,7 +23,7 @@ function test_widget_icon()
 @testset "Icons" begin
 
 proj = make_widget_projection_example()
-_btn(; kw...) = projection_print(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; kw...)).output
+_btn(; kw...) = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; kw...)).output
 
 @testset "a built-in vector icon renders as tinted polylines and widens the button" begin
     plain  = _btn()
@@ -50,7 +50,7 @@ end
 
 @testset "a bound command's icon drives the button (Action.icon)" begin
     save = Action("Save"; icon = :save)
-    b = projection_print(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; command = save)).output
+    b = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; command = save)).output
     @test !isempty(_prims_of(b, GraphicsPolyline))
 end
 
@@ -61,7 +61,7 @@ end
 end
 
 @testset "a menu item shows a leading icon" begin
-    io = projection_print(proj, WidgetMenuItem("Save"; icon = :save)).output
+    io = print_document(proj, WidgetMenuItem("Save"; icon = :save)).output
     @test !isempty(_prims_of(io, GraphicsPolyline))
 end
 
@@ -69,13 +69,13 @@ end
     tb = WidgetToolButton(:save)
     @test tb isa WidgetButton
     @test tb.icon === :save
-    @test !isempty(_prims_of(projection_print(proj, tb).output, GraphicsPolyline))
+    @test !isempty(_prims_of(print_document(proj, tb).output, GraphicsPolyline))
 end
 
 @testset "a tabbed pane draws an icon on a 3-tuple tab" begin
-    plain = projection_print(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x")),
+    plain = print_document(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x")),
                                                      ("B", WidgetLabel(Point2D(0,0), "y"))])).output
-    iconed = projection_print(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x"), :folder),
+    iconed = print_document(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x"), :folder),
                                                       ("B", WidgetLabel(Point2D(0,0), "y"))])).output
     @test isempty(_prims_of(plain, GraphicsPolyline))      # icon-less tabs
     @test !isempty(_prims_of(iconed, GraphicsPolyline))    # the :folder tab icon
@@ -85,10 +85,10 @@ end
     tr = WidgetTree(Point2D(0, 0), Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
     ])
-    @test !isempty(_prims_of(projection_print(proj, tr).output, GraphicsPolyline))
+    @test !isempty(_prims_of(print_document(proj, tr).output, GraphicsPolyline))
     # An icon-less (legacy) tree draws no icon polylines.
     legacy = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
-    @test isempty(_prims_of(projection_print(proj, legacy).output, GraphicsPolyline))
+    @test isempty(_prims_of(print_document(proj, legacy).output, GraphicsPolyline))
 end
 
 end # @testset

@@ -41,7 +41,7 @@ end
 @testset "IdentityProjection" begin
     canvas = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20)])
     proj = IdentityProjection()
-    iomap = projection_print(proj, nothing, canvas, nothing)
+    iomap = print_document(proj, nothing, canvas, nothing)
     @test iomap.input === canvas
     @test iomap.output === canvas
 end

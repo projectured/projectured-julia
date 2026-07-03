@@ -19,7 +19,7 @@ module FileSystemToWidgetModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..GestureBindingModule: GestureBinding
@@ -62,7 +62,7 @@ end
 
 # ── Printer ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::FileSystemToWidgetTree, recursion, doc::FileSystemDocument, ctx)
+function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDocument, ctx)
     # Wire the tree's selection forward from the document selection through this
     # projection's own forward map (deferred-iomap trick, as in FileSystemToSyntax).
     iomap_cell = Cell(nothing)
@@ -74,7 +74,7 @@ function projection_print(p::FileSystemToWidgetTree, recursion, doc::FileSystemD
         map_reference_forward(p, im, path)
     end)
     # The roots are a reactive thunk so structural file-system changes rebuild the
-    # node tree without re-running `projection_print`.
+    # node tree without re-running `print_document`.
     roots = CellVector(() -> Any[_fs_node(doc)])
     tree = WidgetTree(Cell(p.position), roots, Cell(true), sel, Cell(nothing), Cell(Set{Vector{Int}}()), Cell(GestureBinding[]))
     iomap = SimpleIoMap(p, doc, tree)

@@ -28,7 +28,7 @@ import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
 import ..BackendApiModule: decode_image
 import ..GraphicsModule: GraphicsDocument
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
@@ -94,8 +94,8 @@ end
 end
 
 
-function projection_print(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
-    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
+function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
+    element_iomaps = Cell(() -> [print_child(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements[i]))
                                  for (i, e) in enumerate(b.elements)])
 
@@ -228,7 +228,7 @@ function map_reference_backward(p::BookBookToSyntaxNode,
     end
 end
 
-function projection_read(p::BookBookToSyntaxNode,
+function read_intent(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
@@ -240,7 +240,7 @@ end
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
 # domain (`.title`, `.author`, `.elements[i].…`) through map_reference_backward,
 # the single definition reused for selection reads.
-function projection_read(p::BookBookToSyntaxNode,
+function read_intent(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
@@ -269,8 +269,8 @@ end
 end
 
 
-function projection_print(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
-    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
+function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
+    element_iomaps = Cell(() -> [print_child(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
@@ -407,7 +407,7 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
     end
 end
 
-function projection_read(p::BookChapterToSyntaxNode,
+function read_intent(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
@@ -419,7 +419,7 @@ end
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
 # (shifted by the numbering prefix); element edits delegate through the child IO
 # maps. map_reference_backward owns the shift and the range stays intact.
-function projection_read(p::BookChapterToSyntaxNode,
+function read_intent(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
@@ -473,8 +473,8 @@ end
 end
 
 
-function projection_print(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
-    element_iomaps = Cell(() -> [projection_printer_recurse(recursion, e,
+function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
+    element_iomaps = Cell(() -> [print_child(recursion, e,
                                      child_context(ctx, @reference ^(ctx.reference).elements{i}))
                                  for (i, e) in enumerate(b.elements)])
 
@@ -538,7 +538,7 @@ function map_reference_backward(p::BookListToSyntaxNode,
     end
 end
 
-function projection_read(p::BookListToSyntaxNode,
+function read_intent(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
@@ -549,7 +549,7 @@ end
 
 # Type-in: each bullet wraps its element at `.children[i].children[1]`; the edit
 # delegates through the child IO map back to `.elements[i].…`.
-function projection_read(p::BookListToSyntaxNode,
+function read_intent(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
@@ -626,7 +626,7 @@ end
 # (that position is simply not selectable), which keeps navigation bounded.
 # Everything else — the printer, both reference mappers, and the type-in reader —
 # comes from the template.
-function projection_read(p::BookPictureToSyntaxLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::BookPictureToSyntaxLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? ReplaceSelectionOperation(result) : nothing
 end

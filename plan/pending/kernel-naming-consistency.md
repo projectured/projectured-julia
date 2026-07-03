@@ -117,7 +117,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
 - [x] **Batch 6 — function abbreviations & snake_case** *(done)*: `set_value!`,
       `set_function!`, `is_up_to_date`, `reroot_reference`/`reroot_operation`,
       `insert_row!`/`insert_column!`/`delete_row!`/`delete_column!` (+ pure forms).
-- [ ] **Batch 7 — core protocol verbs and the Intent rename**:
+- [x] **Batch 7 — core protocol verbs and the Intent rename** *(done)*:
       `projection_print` → `print_document`, `projection_read` →
       `read_intent`, `projection_printer_recurse` → `print_child`,
       `document_read` → `read_gesture`, and the type `Change` → `Intent`

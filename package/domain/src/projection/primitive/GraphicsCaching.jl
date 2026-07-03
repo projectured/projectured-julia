@@ -13,7 +13,7 @@ upstream projection readers interpret as a character position.
 """
 module GraphicsCachingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, hit_element_at
 import ..ColorModule: StyleColor
 import ..FontModule: font_logical_size
@@ -105,7 +105,7 @@ function _make_checker_background(canvas::GraphicsCanvas)
     rects
 end
 
-function projection_print(p::GraphicsCanvasToGraphicsImage, recursion, canvas::GraphicsCanvas, ctx)
+function print_document(p::GraphicsCanvasToGraphicsImage, recursion, canvas::GraphicsCanvas, ctx)
     bg_rects = _make_checker_background(canvas)
     orig_cv = canvas.elements::CellVector
     orig_elements_cell = getfield(orig_cv, :elements)
@@ -125,7 +125,7 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cx >= Int(r.x) && cx < Int(r.x) + Int(r.w) &&
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
-function projection_read(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
+function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
     evt isa MousePress || return nothing
     canvas = iomap.input
     elems  = canvas.elements

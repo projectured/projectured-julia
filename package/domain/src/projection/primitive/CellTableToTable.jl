@@ -19,7 +19,7 @@ import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector, CellTable
 import ..WidgetModule: WidgetTable, Point2D
 import ..JsonModule: JsonString, JsonNumber, JsonBool, JsonNull
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
 
@@ -38,7 +38,7 @@ struct CellTableToWidgetTable <: Projection end
 # Backwards-compatible alias (the projection was renamed from CellTableToTable).
 const CellTableToTable = CellTableToWidgetTable
 
-function projection_print(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx)
+function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx)
     nr, nc = size(ct)
     # The lazy `CellVector(f)` constructor wraps each item `f()` returns in its
     # own slot Cell, so the thunks return *raw* values (Documents / inner
@@ -70,6 +70,6 @@ end
 
 map_reference_forward(::CellTableToWidgetTable, iomap, ref) = nothing
 map_reference_backward(::CellTableToWidgetTable, iomap, ref) = nothing
-projection_read(::CellTableToWidgetTable, iomap, op) = nothing
+read_intent(::CellTableToWidgetTable, iomap, op) = nothing
 
 end # module

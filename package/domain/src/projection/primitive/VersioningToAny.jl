@@ -9,7 +9,7 @@ printer selects one `ObjectVersion` according to the document's `criterion`
 (`select_version`) and projects that version's **value object** in place of the
 wrapper — so the output is a plain, non-versioned document and the wrapper
 vanishes. Because the elimination is purely structural and recurses through
-`projection_printer_recurse`, nested `VersionedObject`s inside a selected value
+`print_child`, nested `VersionedObject`s inside a selected value
 resolve automatically, each by its own criterion.
 
 The reader delegates non-versioning gestures into the selected value's child
@@ -37,9 +37,9 @@ delegating reader then have no child to descend into and decline.
 """
 module VersioningToAnyProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
                           insert_elements, delete_elements, CompoundOperation
@@ -103,12 +103,12 @@ end
 
 # ── Printer ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::VersioningToAnyProjection, recursion, input::VersionedObject, ctx)
+function print_document(p::VersioningToAnyProjection, recursion, input::VersionedObject, ctx)
     selection_cell = Cell(() -> begin
         selected = select_version(input)
         selected === nothing && return nothing
         idx, version = selected
-        value_iomap = projection_printer_recurse(recursion, version.value,
+        value_iomap = print_child(recursion, version.value,
                           child_context(ctx, FieldReference("versions"),
                                         ElementReference(idx), FieldReference("value")))
         (idx, value_iomap)
@@ -219,20 +219,20 @@ end
 
 # ── Reader ─────────────────────────────────────────────────────────────────────
 
-function projection_read(p::VersioningToAnyProjection, recursion, change::Change,
+function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
                          iomap::VersioningToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
-    own !== nothing && return Change(change.gesture, own)
+    own !== nothing && return Intent(change.gesture, own)
     vim = iomap.value_iomap
-    vim === nothing && return Change(change.gesture, nothing)
-    inner = projection_read(vim.projection, recursion, change, vim)
-    Change(change.gesture, _prefix_op(inner.operation,
+    vim === nothing && return Intent(change.gesture, nothing)
+    inner = read_intent(vim.projection, recursion, change, vim)
+    Intent(change.gesture, _prefix_op(inner.operation,
         (FieldReference("versions"), ElementReference(iomap.index), FieldReference("value"))))
 end
 
 # 3-arg legacy shim (used by tests and any parent that hands a bare payload).
-projection_read(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Own gestures (create/delete version) plus the selected value's, so the help
 # window shows both -- the collector mirrors the reader's own-then-delegate shape.

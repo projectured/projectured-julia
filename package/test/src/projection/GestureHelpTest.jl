@@ -18,13 +18,13 @@ function test_gesture_help()
         arr = mkarr()
         state = GestureHelpState()
         help = GestureHelpProjection(inner = inner, state = state)
-        iomap = projection_print(help, arr)
+        iomap = print_document(help, arr)
 
         # What the window must show == what collect yields over the same iomap.
         expected = gesture_map(collect_gestures(inner, nothing, iomap.inner_iomap), arr)
         @test length(expected.rows) == 9          # the array's full reified set
 
-        op = projection_read(help, iomap, f1)
+        op = read_intent(help, iomap, f1)
         @test op isa OpenWindowOperation
         @test op.id === :gesture_help
         @test op.content isa GestureMap
@@ -37,10 +37,10 @@ function test_gesture_help()
         arr = mkarr()
         state = GestureHelpState()
         help = GestureHelpProjection(inner = inner, state = state)
-        iomap = projection_print(help, arr)
+        iomap = print_document(help, arr)
 
-        @test projection_read(help, iomap, f1) isa OpenWindowOperation
-        op = projection_read(help, iomap, f1)
+        @test read_intent(help, iomap, f1) isa OpenWindowOperation
+        op = read_intent(help, iomap, f1)
         @test op isa CloseWindowOperation
         @test op.id === :gesture_help
         @test !state.open
@@ -50,20 +50,20 @@ function test_gesture_help()
         arr = mkarr()
         state = GestureHelpState()
         help = GestureHelpProjection(inner = inner, state = state)
-        iomap = projection_print(help, arr)
+        iomap = print_document(help, arr)
 
-        op = projection_read(help, iomap, KeyDown(:comma, none))  # array insert
+        op = read_intent(help, iomap, KeyDown(:comma, none))  # array insert
         @test !(op isa OpenWindowOperation)
         @test !state.open
         # The decorator returns exactly what the wrapped editor returned.
-        direct = projection_read(inner, iomap.inner_iomap, KeyDown(:comma, none))
+        direct = read_intent(inner, iomap.inner_iomap, KeyDown(:comma, none))
         @test typeof(op) === typeof(direct)
     end
 
     @testset "transparent printer: output is the inner's own output" begin
         arr = mkarr()
         help = GestureHelpProjection(inner = inner)
-        io = projection_print(help, arr)
+        io = print_document(help, arr)
         @test io.output === io.inner_iomap.output
     end
 
@@ -86,11 +86,11 @@ function test_gesture_help()
             ),
         )
         screen = ScreenDocument([WindowDocument(; id = :main, content = arr)])
-        iomap = projection_print(projection, screen)
+        iomap = print_document(projection, screen)
         @test length(screen.windows) == 1
 
         # F1 in the focused window → a help window appears beside it.
-        op = projection_read(projection, iomap, EventEnvelope(:main, f1))
+        op = read_intent(projection, iomap, EventEnvelope(:main, f1))
         @test !(op isa Operation)                       # consumed by the manager
         @test length(screen.windows) == 2
         @test length(iomap.output.windows) == 2         # output mirrors input
@@ -101,7 +101,7 @@ function test_gesture_help()
         @test state.open
 
         # F1 again → the help window closes.
-        op2 = projection_read(projection, iomap, EventEnvelope(:main, f1))
+        op2 = read_intent(projection, iomap, EventEnvelope(:main, f1))
         @test !(op2 isa Operation)
         @test length(screen.windows) == 1
         @test screen.windows[1].id === :main
@@ -115,9 +115,9 @@ function test_gesture_help()
         arr = mkarr()
         composed = ProjecturedExample._multi_window_projection([make_json_projection_example()])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
-        iomap = projection_print(composed, screen)
+        iomap = print_document(composed, screen)
 
-        op = projection_read(composed, iomap, EventEnvelope(:json, f1))
+        op = read_intent(composed, iomap, EventEnvelope(:json, f1))
         @test !(op isa Operation)
         @test length(screen.windows) == 2
         @test screen.windows[2].id === :gesture_help
@@ -137,7 +137,7 @@ function test_gesture_help()
         content = PrimitiveString("hello")
         slice = ClipboardSlice(content)
         p = ClipboardSliceToAnyProjection()
-        iomap = projection_print(p, IdentityProjection(), slice, PrinterContext())
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
         descs = [b.description for b in collect_gestures(p, nothing, iomap)]
         @test "Copy" in descs                # the clipboard's own gesture
         @test "Insert character" in descs    # descended into the PrimitiveString content

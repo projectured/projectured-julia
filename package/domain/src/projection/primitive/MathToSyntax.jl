@@ -13,7 +13,7 @@ module MathToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string
 import ..PrimitiveModule: PrimitiveNumber
@@ -41,7 +41,7 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
+function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
     output_selection = Cell(() -> map_reference_forward(p, nothing, m.selection))
     SimpleIoMap(p, m, SyntaxLeaf(TextString("⌷", p.style); selection=output_selection))
 end
@@ -64,13 +64,13 @@ function map_reference_backward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, 
     end
 end
 
-function projection_print(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
+function print_document(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
     SimpleIoMap(p, v, SyntaxLeaf(
         TextString(() -> v.name, p.style);
         selection=getfield(v, :selection)))
 end
 
-function projection_read(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
@@ -127,12 +127,12 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
     end
 end
 
-function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
+function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
     reference = ctx.reference
     left_ctx  = child_context(ctx, @reference ^(reference).left)
     right_ctx = child_context(ctx, @reference ^(reference).right)
-    left_iomap = Cell(() -> projection_printer_recurse(recursion, m.left, left_ctx))
-    right_iomap = Cell(() -> projection_printer_recurse(recursion, m.right, right_ctx))
+    left_iomap = Cell(() -> print_child(recursion, m.left, left_ctx))
+    right_iomap = Cell(() -> print_child(recursion, m.right, right_ctx))
 
     op_leaf = SyntaxLeaf(TextString(() -> _operator_string(m.operator), p.op))
 
@@ -167,7 +167,7 @@ function projection_print(p::MathBinaryOperationToSyntaxNode, recursion, m::Math
     ChildrenIoMap(p, m, node, Cell(() -> [left_iomap[], right_iomap[]]))
 end
 
-function projection_read(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -206,10 +206,10 @@ function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::Childre
     end
 end
 
-function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
+function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
     reference = ctx.reference
     content_ctx = child_context(ctx, @reference ^(reference).content)
-    content_iomap = Cell(() -> projection_printer_recurse(recursion, m.content, content_ctx))
+    content_iomap = Cell(() -> print_child(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
         path = m.selection
@@ -235,7 +235,7 @@ function projection_print(p::MathParenthesizedToSyntaxNode, recursion, m::MathPa
     ChildrenIoMap(p, m, node, content_iomap)
 end
 
-function projection_read(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
@@ -291,12 +291,12 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
     end
 end
 
-function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
+function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
     reference = ctx.reference
     target_ctx = child_context(ctx, @reference ^(reference).target)
     value_ctx  = child_context(ctx, @reference ^(reference).value)
-    target_iomap = Cell(() -> projection_printer_recurse(recursion, m.target, target_ctx))
-    value_iomap = Cell(() -> projection_printer_recurse(recursion, m.value, value_ctx))
+    target_iomap = Cell(() -> print_child(recursion, m.target, target_ctx))
+    value_iomap = Cell(() -> print_child(recursion, m.value, value_ctx))
 
     eq_leaf = SyntaxLeaf(TextString("=", p.eq))
 
@@ -331,7 +331,7 @@ function projection_print(p::MathAssignmentToSyntaxNode, recursion, m::MathAssig
     ChildrenIoMap(p, m, node, Cell(() -> [target_iomap[], value_iomap[]]))
 end
 
-function projection_read(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)

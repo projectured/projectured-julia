@@ -2,7 +2,7 @@
 # doesn't work").
 #
 # A WorkbenchPage renders as a WidgetTabbedPane whose *active* tab is a forward
-# projection of the page selection: `WorkbenchPageToWidgetTabbedPane.projection_print`
+# projection of the page selection: `WorkbenchPageToWidgetTabbedPane.print_document`
 # wires the pane's `:selection` cell to `map_reference_forward(elements[i]) ->
 # selector_element_pairs[i]`. The bug was that the cell truncated the page selection
 # to `sel.head` alone — and because type checkpoints fold into the path nodes,
@@ -21,7 +21,7 @@
 using Projectured: WorkbenchToWidget, RecursiveProjection, ReplaceSelectionOperation,
     ReplaceReferencedValueOperation, evaluate_operation, ConcreteReferencePath, FieldReference,
     RangeReference, GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, MouseScroll,
-    Modifiers, Change, PrinterContext, EmptyReferencePath, KeyPress, ComposerInputOperation
+    Modifiers, Intent, PrinterContext, EmptyReferencePath, KeyPress, ComposerInputOperation
 
 # The 1-based active tab index encoded in a tabbed pane's forward-projected
 # `:selection` (shape `selector_element_pairs[i].<rest>`); 0 when no tab is selected
@@ -69,7 +69,7 @@ function test_workbench_tab_click()
 
     function active_after(sel_ref)
         sel_ref === nothing || evaluate_operation((; document = doc), ReplaceSelectionOperation(sel_ref))
-        iomap = projection_print(proj, doc)
+        iomap = print_document(proj, doc)
         _active_tab_index(iomap.editing_page_iomap.output)
     end
 
@@ -90,7 +90,7 @@ end
 @testset "clicking the contact-list.json tab selects the JSON editor" begin
     doc  = make_workbench_document_example()
     proj = make_workbench_projection_example()
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
 
     acc = Tuple{Int,Int,String}[]
     _collect_texts!(acc, iomap.output, 0, 0)
@@ -99,14 +99,14 @@ end
     @test !isempty(tab)
 
     (tx, ty, _) = first(tab)
-    ch = projection_read(proj, nothing,
-                         Change(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
+    ch = read_intent(proj, nothing,
+                         Intent(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
     op = ch === nothing ? nothing : ch.operation
     @test op isa ReplaceSelectionOperation
 
     evaluate_operation((; document = doc), op)
     # The editing page's tabbed pane now reports the JSON tab (index 3) as active.
-    iomap2 = projection_print(RecursiveProjection(WorkbenchToWidget()), doc)
+    iomap2 = print_document(RecursiveProjection(WorkbenchToWidget()), doc)
     @test _active_tab_index(iomap2.editing_page_iomap.output) == 3
 end
 
@@ -120,7 +120,7 @@ end
     # `tab_scroll` is transient output, rebuilt by a fresh print).
     ctx = PrinterContext(EmptyReferencePath(),
                          Projectured.Cell(1280), Projectured.Cell(1000), Dict{Symbol,Any}())
-    iomap = projection_print(proj, nothing, doc, ctx)
+    iomap = print_document(proj, nothing, doc, ctx)
 
     # Click a tab label on the current (re-forced) iomap; true iff it selects an editor.
     function click_selects_editor(title)
@@ -128,8 +128,8 @@ end
         m = filter(p -> p[3] == title && p[2] < 40, acc)
         isempty(m) && return false
         (tx, ty, _) = first(m)
-        ch = projection_read(proj, nothing,
-                             Change(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
+        ch = read_intent(proj, nothing,
+                             Intent(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
         op = ch === nothing ? nothing : ch.operation
         op isa ReplaceSelectionOperation && occursin("editing_page", string(op))
     end
@@ -140,8 +140,8 @@ end
 
     # A wheel over the strip (top row of the editing column) produces a horizontal
     # scroll write on the tabbed pane.
-    sch = projection_read(proj, nothing,
-                          Change(MouseScroll(0, -3, 430, 17, Modifiers()), nothing), iomap)
+    sch = read_intent(proj, nothing,
+                          Intent(MouseScroll(0, -3, 430, 17, Modifiers()), nothing), iomap)
     sop = sch === nothing ? nothing : sch.operation
     @test sop isa ReplaceReferencedValueOperation
     @test sop.value isa Integer && sop.value > 0    # scrolled the strip rightwards
@@ -168,8 +168,8 @@ end
     function type_op(ref)
         ref === nothing || evaluate_operation((; document = doc),
                                               ReplaceSelectionOperation(ref))
-        iomap = projection_print(proj, doc)
-        ch = projection_read(proj, nothing, Change(KeyPress('X'), nothing), iomap)
+        iomap = print_document(proj, doc)
+        ch = read_intent(proj, nothing, Intent(KeyPress('X'), nothing), iomap)
         ch === nothing ? nothing : ch.operation
     end
 

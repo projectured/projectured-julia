@@ -11,9 +11,9 @@ browsing tools below. Do not guess names — search for them.
 | Concept | Names to search | Guide |
 |---|---|---|
 | Document & domains | `@document`; `JsonObject`/`JsonString`/`JsonNumber`, `XmlElement`, `TextText`/`TextString`, `SyntaxNode`/`SyntaxLeaf`, `GraphicsCanvas`, `WidgetButton`, `JuliaCall`, `TableTable` | `concepts`, `architecture`, `document/*` |
-| Reactive cell | `Cell`, `setfn!`, `getfield` (escape hatch), `perf_counters` | `reactive-cells` |
+| Reactive cell | `Cell`, `set_function!`, `getfield` (escape hatch), `perf_counters` | `reactive-cells` |
 | Macros | `@document`, `@projection`, `@iomap` | `macros` |
-| Projection (interface) | `Projection`, `projection_print`, `projection_read`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
+| Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
 | Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
@@ -35,10 +35,10 @@ browsing tools below. Do not guess names — search for them.
 - **Find** — `search_references(editor.document, query)` → paths;
   `search_objects(...)` → nodes. `query` is a predicate `node -> Bool`, or a
   `String`/`Regex` matching leaf text. Both walk **any** graph, so passing an
-  **iomap** (`projection_print(proj, doc)`) searches the whole projection
+  **iomap** (`print_document(proj, doc)`) searches the whole projection
   pipeline — a debugging move for "where did the value go?" (see `debugging`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
-- **Change** — build an `Operation`, then `evaluate_operation(editor, op)`
+- **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
   (e.g. `ReplaceSelectionOperation(path)` to select). This is the *one* way to
   change the document; operations carry their own target, so they work through any
   `ScreenDocument`/`WindowDocument` wrapping.

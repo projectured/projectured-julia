@@ -100,7 +100,7 @@ printable key; routing raw keys through the selected panel is what stops it from
 swallowing keystrokes meant for another document. When nothing is selected the
 composer keeps focus as the sensible default (so `ENTER` still submits a draft in
 a freshly opened workbench). See the raw-event branch of
-`WorkbenchWorkbenchToWidgetShell`'s `projection_read` in `WorkbenchToWidget.jl`.
+`WorkbenchWorkbenchToWidgetShell`'s `read_intent` in `WorkbenchToWidget.jl`.
 
 ## Where to look for the layout details
 

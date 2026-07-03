@@ -22,7 +22,7 @@ module FormulaToSyntaxModule
 
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference,
@@ -61,7 +61,7 @@ _empty(font) = TextString("", font, color_default)
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function projection_print(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
+function print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(
         TextString("insert formula", p.style);
         selection=getfield(b, :selection)))
@@ -78,7 +78,7 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
 end
 
-function projection_print(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
+function print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
     SimpleIoMap(p, r, SyntaxLeaf(
         TextString(() -> begin
             t = r.target
@@ -116,9 +116,9 @@ function _result_to_string(result)
     String(take!(buf))
 end
 
-function projection_print(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
+function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
     code_ref = child_context(ctx, @reference ^(ctx.reference).code)
-    code_iomap = Cell(() -> projection_printer_recurse(recursion, f.code, code_ref))
+    code_iomap = Cell(() -> print_child(recursion, f.code, code_ref))
 
     # The name leaf displays the formula name; renaming is a structural
     # operation, not character editing here, so it carries no input mapping.
@@ -213,9 +213,9 @@ end
     font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
-function projection_print(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
+function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
     child_iomaps = Cell(() ->
-        [projection_printer_recurse(recursion, e.formulas[i],
+        [print_child(recursion, e.formulas[i],
              child_context(ctx, @reference ^(ctx.reference).formulas[i]))
          for i in 1:length(e.formulas)])
 

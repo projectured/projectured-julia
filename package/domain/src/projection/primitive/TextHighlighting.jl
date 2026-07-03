@@ -17,7 +17,7 @@ a pattern is set on the reactive `pattern` cell.
 """
 module TextHighlightingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString
 import ..ColorModule: StyleColor, color_yellow
 import ..ReactiveModule: Cell
@@ -94,7 +94,7 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::TextHighlighting, recursion, text::TextText, ctx)
+function print_document(p::TextHighlighting, recursion, text::TextText, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     color = p.color
@@ -229,7 +229,7 @@ function map_reference_backward(p::TextHighlighting, iomap::TextHighlightingIoMa
     nothing
 end
 
-function projection_read(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -237,7 +237,7 @@ end
 
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to
 # the unwrapped input domain, shifting the char range by the sub-span's start.
-function projection_read(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -256,7 +256,7 @@ function projection_read(p::TextHighlighting, iomap::TextHighlightingIoMap, op::
 end
 
 # Forward arbitrary events upstream (KeyDown / KeyPress / etc.).
-projection_read(::TextHighlighting, ::TextHighlightingIoMap, op) = op
+read_intent(::TextHighlighting, ::TextHighlightingIoMap, op) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

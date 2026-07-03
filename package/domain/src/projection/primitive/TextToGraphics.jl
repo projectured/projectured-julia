@@ -19,7 +19,7 @@ module TextToGraphicsModule
 
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument,
                      _build_selection_path, _cursor_position, _is_structural_selection
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
@@ -31,7 +31,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..DocumentApiModule: document_read
+import ..DocumentApiModule: read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
 import ..EventCaseModule: var"@event_case"
@@ -96,22 +96,22 @@ function map_reference_backward(::TextToGraphics, iomap, reference)
     return nothing
 end
 
-function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceSelectionOperation)
     return _translate_click(p, iomap, op.path)
 end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives
-# on the Text domain (`document_read(::TextText, ::KeyPress)` in `TextModule`).
+# on the Text domain (`read_gesture(::TextText, ::KeyPress)` in `TextModule`).
 # Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
 # against `.elements[i].content[range]`) flows back through the chain unchanged.
-function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
-    return document_read(iomap.input, evt)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
+    return read_gesture(iomap.input, evt)
 end
 
 # Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
 # step above us). Translate to a text-domain selection by picking the
 # segment that owns the click and the character offset within it.
-function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePress)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePress)
     evt.button === :left || return nothing
     coord_map = iomap.char_to_coord[]
     isempty(coord_map) && return nothing
@@ -123,22 +123,22 @@ function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Mou
     return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
 end
 
-function projection_read(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     evt isa KeyDown || return nothing
 
     # Geometry-INDEPENDENT gestures (character cursor left/right, Ctrl+Home/End,
     # Backspace/Delete, the Ctrl+. fold recognition, and the tree-gesture decline
-    # rules) live on the Text domain. Delegate to `document_read`, which reads
+    # rules) live on the Text domain. Delegate to `read_gesture`, which reads
     # only the span structure and the flat-character selection — no layout.
-    op = document_read(iomap.input, evt)
+    op = read_gesture(iomap.input, evt)
     op === nothing || return op
 
-    # `document_read` returned nothing: either it *declined* a tree gesture
+    # `read_gesture` returned nothing: either it *declined* a tree gesture
     # (Alt+arrow, plain arrow while structural, Tab) so an outer syntax layer can
     # own it, or it is a key this layer must resolve with pixel geometry (plain
     # up/down, plain Home/End). Re-apply the decline guards so the geometry arms
     # below never mis-handle a declined tree gesture as line motion. (`Ctrl+.` is
-    # already consumed by `document_read`, so it cannot reach here.)
+    # already consumed by `read_gesture`, so it cannot reach here.)
     declined = @event_case evt begin
         when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
         when(KeyDown(k), k in (:up, :down, :left, :right) &&
@@ -203,7 +203,7 @@ end
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
-    projection_print(p::TextToGraphics, styled::TextText) -> Cell{Vector{GraphicsText}}
+    print_document(p::TextToGraphics, styled::TextText) -> Cell{Vector{GraphicsText}}
 
 Lay an already-wrapped `TextText` out into reactive `GraphicsText` primitives.
 Lines advance left-to-right; the line breaks come from `TextNewline` elements
@@ -215,7 +215,7 @@ The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
 relevant cell in the `TextText`, so any value or structural change
 invalidates the layout; recomputation happens only when the `Cell` is read.
 """
-function projection_print(p::TextToGraphics, recursion, styled::TextText, ctx)
+function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
@@ -830,7 +830,7 @@ end
 # `_cursor_position`, `_is_structural_selection`, and `_build_selection_path` are
 # pure `TextText`-selection helpers; they were relocated to `TextModule` (the
 # document layer) and are imported above. They are shared between the
-# geometry-free `document_read` (in TextModule) and the geometry-dependent layout
+# geometry-free `read_gesture` (in TextModule) and the geometry-dependent layout
 # / mouse / line-motion code that remains here.
 
 function _make_sdl(text, x, y, font, color::StyleColor)
@@ -885,7 +885,7 @@ end
 # (ElementReference(segment_i) → PointReference(rx, ry)) back into a flat
 # character-position selection on the Text domain.
 #
-# The path is produced by GraphicsCanvasToGraphicsImage.projection_read:
+# The path is produced by GraphicsCanvasToGraphicsImage.read_intent:
 #   ElementReference(i)   — 1-based index of the graphics element that was hit
 #   PointReference(rx,…) — pixel offset within that element
 #
@@ -915,7 +915,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the
-# logic in GraphicsCanvasToGraphicsImage.projection_read for text elements:
+# logic in GraphicsCanvasToGraphicsImage.read_intent for text elements:
 #   on a y-band that contains the click, pick the segment with the largest
 #   x ≤ click_x (i.e. the rightmost left-edge that still sits to the left
 #   of the click). If no band matches y, snap to the nearest line by y.

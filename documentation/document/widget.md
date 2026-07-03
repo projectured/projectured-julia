@@ -131,7 +131,7 @@ Alongside `visible`, interactive widgets carry a shared **`enabled::Bool`**
 (default `true`) — the second cross-cutting interactivity flag. The convention
 for it is uniform:
 
-- **Reader gating.** A widget's `projection_read` returns `nothing` for every
+- **Reader gating.** A widget's `read_intent` returns `nothing` for every
   event when `w.enabled === false` (guard at the top, before any operation is
   produced). A disabled control emits no action, no edit, and no transient state
   change.

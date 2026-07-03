@@ -10,7 +10,7 @@ _szs(doc) = isempty(doc.sizes) ? Int[] : [Int(doc.sizes[i]) for i in 1:length(do
 
 # Feed an event through the pipeline and evaluate any resulting operation.
 function _feed(proj, iomap, evt)
-    op = projection_read(proj, iomap, evt)
+    op = read_intent(proj, iomap, evt)
     op isa Operation && evaluate_operation(nothing, op)
     op
 end
@@ -18,7 +18,7 @@ end
 @testset "unconstrained: down/move/up resizes adjacent slots, total conserved" begin
     doc   = make_widget_split_pane_document_example()   # horizontal, sizes=[300,300]
     proj  = _proj()
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
 
     # The lone splitter sits in the ~1px gap before the second child (x≈300).
     down = _feed(proj, iomap, MouseDown(:left, 300, 50, Modifiers()))
@@ -48,9 +48,9 @@ end
 @testset "a press away from the band does not start a drag" begin
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
     # Well inside the left slot, far from the x≈300 splitter band.
-    op = projection_read(proj, iomap, MouseDown(:left, 100, 50, Modifiers()))
+    op = read_intent(proj, iomap, MouseDown(:left, 100, 50, Modifiers()))
     @test !(op isa StartSplitterDragOperation)
     @test doc.active_splitter == 0
 end
@@ -58,8 +58,8 @@ end
 @testset "no MouseMove resize without an active drag" begin
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
-    iomap = projection_print(proj, doc)
-    op = projection_read(proj, iomap, MouseMove(350, 50, :left, Modifiers()))
+    iomap = print_document(proj, doc)
+    op = read_intent(proj, iomap, MouseMove(350, 50, :left, Modifiers()))
     @test !(op isa ResizeSplitPaneOperation)
     @test _szs(doc) == [300, 300]
 end
@@ -69,7 +69,7 @@ end
     bottom = WidgetTitlePane("B", WidgetLabel(Point2D(8, 8), "b"))
     doc    = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[200, 200])
     proj   = _proj()
-    iomap  = projection_print(proj, doc)
+    iomap  = print_document(proj, doc)
 
     # Splitter band is in the gap before the second child (y≈200).
     down = _feed(proj, iomap, MouseDown(:left, 40, 200, Modifiers()))
@@ -87,7 +87,7 @@ end
     doc   = WidgetSplitPane(:horizontal, Any[mk("L"), mk("R")])
     proj  = _proj()
     ctx   = with_available_size(PrinterContext(); width=Cell(601), height=Cell(400))
-    iomap = projection_print(proj, nothing, doc, ctx)
+    iomap = print_document(proj, nothing, doc, ctx)
 
     _feed(proj, iomap, MouseDown(:left, 300, 50, Modifiers()))
     _feed(proj, iomap, MouseMove(380, 50, :left, Modifiers()))
@@ -98,7 +98,7 @@ end
 
     # Re-print under the same available width: allocate_axis must honour the
     # dragged size instead of redistributing back to the weighted preference.
-    iomap2 = projection_print(proj, nothing, doc, ctx)
+    iomap2 = print_document(proj, nothing, doc, ctx)
     xs = [Int(e.x[]) for e in iomap2.output.elements
           if e isa Projectured.GraphicsModule.GraphicsCanvas]
     @test length(xs) == 2
@@ -117,12 +117,12 @@ end
     split  = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[150, 150])
     tabbed = WidgetTabbedPane(Any[("Tab", split)])
     proj   = _proj()
-    iomap  = projection_print(proj, tabbed)
+    iomap  = print_document(proj, tabbed)
 
     # The splitter is drawn at slot1 (150px) plus the tab strip offset, i.e.
     # well below screen-y 150. Find where a MouseDown actually starts the drag.
     starts = [y for y in 0:400
-              if projection_read(proj, iomap, MouseDown(:left, 40, y, Modifiers())) isa StartSplitterDragOperation]
+              if read_intent(proj, iomap, MouseDown(:left, 40, y, Modifiers())) isa StartSplitterDragOperation]
     @test !isempty(starts)
     @test first(starts) > 150   # grab region sits at the drawn splitter, not at column-local 150
 

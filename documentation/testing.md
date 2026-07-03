@@ -86,8 +86,8 @@ every test has a sibling that does the same work without wrapping it in
 
 | Helper | Location | What it does |
 |---|---|---|
-| `walk_printer_output(doc, proj)` | [PrinterTest.jl:115](../package/test/src/editor/PrinterTest.jl#L115) | Calls `projection_print`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
-| `walk_reader_events(doc, proj)` | [ReaderTest.jl:51](../package/test/src/editor/ReaderTest.jl#L51) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `projection_read`. Returns `errors::Vector{String}`. |
+| `walk_printer_output(doc, proj)` | [PrinterTest.jl:115](../package/test/src/editor/PrinterTest.jl#L115) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
+| `walk_reader_events(doc, proj)` | [ReaderTest.jl:51](../package/test/src/editor/ReaderTest.jl#L51) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
 | `walk_repl_loop(doc, proj)` | [ReplTest.jl:27](../package/test/src/editor/ReplTest.jl#L27) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
 | `explore_text_selections(doc, proj[, initial])` | [TextNavigationTest.jl:24](../package/test/src/editor/TextNavigationTest.jl#L24) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
 | `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [SelectionEnumeration.jl](../package/test/src/editor/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
@@ -123,7 +123,7 @@ dedicated test under [test/src/document/](../package/test/src/document/).
 
 ## Validating the recursion contract
 
-The four core projection functions (`projection_print`, `projection_read`,
+The four core projection functions (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) must each be **recursive** —
 descending into children only by delegating to the child projection's own version
 of the same function. That is [the recursion contract](projection-system.md#the-recursion-contract),

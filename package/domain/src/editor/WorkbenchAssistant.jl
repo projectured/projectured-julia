@@ -28,7 +28,7 @@ Internal helpers:
 module WorkbenchAssistantModule
 
 import ..OperationApiModule: Operation, evaluate_operation
-import ..ProjectionApiModule: projection_read, projection_print
+import ..ProjectionApiModule: read_intent, print_document
 import ..ReactiveModule: Cell
 import ..TextModule: TextText, TextString
 import ..PrimitiveModule: PrimitiveString
@@ -200,7 +200,7 @@ _flatten_text!(io, _)             = nothing
 function _via_chain(chain, doc)
     try
         io = IOBuffer()
-        _flatten_text!(io, projection_print(chain, doc).output)
+        _flatten_text!(io, print_document(chain, doc).output)
         String(take!(io))
     catch
         _content_to_string(doc)
@@ -972,7 +972,7 @@ end
 # `ComposerSubmitOperation` (ENTER on a text typein) — which merely normalizes the
 # draft — and turn it into a `SubmitDraftTurnOperation` that pushes the draft into
 # the conversation and launches a streaming turn.
-function projection_read(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, op::ComposerSubmitOperation)
     iomap.input isa WorkbenchAssistant || return op
     SubmitDraftTurnOperation(iomap.input::WorkbenchAssistant)
@@ -980,13 +980,13 @@ end
 
 # Fallback for when the composer chain declines a raw key (so it reaches the
 # panel directly): route it to the draft, intercepting submit as above.
-function projection_read(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyPress)
     iomap.input isa WorkbenchAssistant || return nothing
     composer_read(iomap.input.draft, evt)
 end
 
-function projection_read(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
     iomap.input isa WorkbenchAssistant || return nothing
     a = iomap.input::WorkbenchAssistant

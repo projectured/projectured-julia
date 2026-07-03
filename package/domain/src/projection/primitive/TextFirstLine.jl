@@ -25,7 +25,7 @@ edits/selection inside the first line land on the real underlying span.
 """
 module TextFirstLineModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphics
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
@@ -62,7 +62,7 @@ end
 
 # ── Print ─────────────────────────────────────────────────────────────────────
 
-function projection_print(p::TextFirstLine, recursion, text::TextText, ctx)
+function print_document(p::TextFirstLine, recursion, text::TextText, ctx)
     both = Cell(() -> _first_line(text))
     elements_cv = CellVector(() -> both[][1])
     info_cell = Cell(() -> both[][2])
@@ -140,7 +140,7 @@ function map_reference_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, ref
     _text_elem_path(out_span, out_char)
 end
 
-function projection_read(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -148,7 +148,7 @@ end
 
 # A range edit on the first line maps back to the identical span/range (indices
 # and char offsets are preserved for the visible prefix).
-function projection_read(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -162,7 +162,7 @@ end
 
 # Forward arbitrary events (KeyDown / KeyPress / …) upstream so projections above
 # keep getting a chance at them.
-projection_read(::TextFirstLine, ::TextFirstLineIoMap, op) = op
+read_intent(::TextFirstLine, ::TextFirstLineIoMap, op) = op
 
 # ── Path helpers (mirrors WordWrapping) ───────────────────────────────────────
 

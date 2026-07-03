@@ -6,7 +6,7 @@ collection document.
 """
 module ReversingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference
@@ -23,14 +23,14 @@ A generic projection that reverses the order of elements in the input collection
 # Example
 
     rev = ReversingProjection()
-    result = projection_print(rev, [1, 2, 3])  # [3, 2, 1]
+    result = print_document(rev, [1, 2, 3])  # [3, 2, 1]
 """
 struct ReversingProjection <: Projection end
 
-function projection_print(p::ReversingProjection, recursion, input, ctx)
+function print_document(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
     child_iomaps = Cell(() -> [
-        projection_printer_recurse(recursion, input[i],
+        print_child(recursion, input[i],
             child_context(ctx, ElementReference(i)))
         for i in 1:length(input)
     ])

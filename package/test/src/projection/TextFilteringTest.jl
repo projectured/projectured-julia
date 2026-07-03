@@ -30,7 +30,7 @@ _contents(text) = [e.content for e in text.elements if e isa TextString]
 
 @testset "TextFiltering keeps matching lines" begin
 
-    iomap = projection_print(TextFiltering(r"dolor"), _fixture())
+    iomap = print_document(TextFiltering(r"dolor"), _fixture())
     out = iomap.output
     @test _contents(out) == ["alpha dolor", "delta dolor"]
     @test iomap.kept[] == [1, 2, 5]           # both matching lines incl. line 1's newline
@@ -40,7 +40,7 @@ end # @testset
 
 @testset "TextFiltering invert keeps the complement" begin
 
-    iomap = projection_print(TextFiltering(r"dolor", invert=true), _fixture())
+    iomap = print_document(TextFiltering(r"dolor", invert=true), _fixture())
     @test _contents(iomap.output) == ["beta gamma"]
     @test iomap.kept[] == [3, 4]
 
@@ -48,7 +48,7 @@ end # @testset
 
 @testset "TextFiltering nothing pattern is pass-through" begin
 
-    iomap = projection_print(TextFiltering(), _fixture())
+    iomap = print_document(TextFiltering(), _fixture())
     @test length(iomap.output.elements) == 5
     @test iomap.kept[] == [1, 2, 3, 4, 5]
     @test _contents(iomap.output) == ["alpha dolor", "beta gamma", "delta dolor"]
@@ -58,7 +58,7 @@ end # @testset
 @testset "TextFiltering selection round-trip" begin
 
     proj = TextFiltering(r"dolor")
-    iomap = projection_print(proj, _fixture())
+    iomap = print_document(proj, _fixture())
 
     # Kept line 1 (output span 1) and line 3 (output span 3) round-trip.
     for (in_span, out_span, char) in ((1, 1, 3), (5, 3, 2))
@@ -75,15 +75,15 @@ end # @testset
 @testset "TextFiltering reader remaps element index" begin
 
     proj = TextFiltering(r"dolor")
-    iomap = projection_print(proj, _fixture())
+    iomap = print_document(proj, _fixture())
 
     # ReplaceSelectionOperation on output span 3 → input span 5, char preserved.
-    sel = projection_read(proj, iomap, ReplaceSelectionOperation(_ref(3, 2)))
+    sel = read_intent(proj, iomap, ReplaceSelectionOperation(_ref(3, 2)))
     @test sel isa ReplaceSelectionOperation
     @test sel.path == _ref(5, 2)
 
     # ReplaceStringRangeOperation on output span 3 → input span 5, range preserved.
-    edit = projection_read(proj, iomap, ReplaceStringRangeOperation(_range(3, 1, 4), "XYZ"))
+    edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 1, 4), "XYZ"))
     @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(5, 1, 4)
     @test edit.replacement == "XYZ"
@@ -93,7 +93,7 @@ end # @testset
 @testset "TextFiltering re-filters when the pattern cell changes" begin
 
     pat = Cell(r"dolor")
-    iomap = projection_print(TextFiltering(pat), _fixture())
+    iomap = print_document(TextFiltering(pat), _fixture())
     @test iomap.kept[] == [1, 2, 5]
 
     pat[] = r"gamma"
@@ -108,19 +108,19 @@ end # @testset
 @testset "TextFiltering string source, case_insensitive and reactive invert" begin
 
     # String source compiles to a Regex; empty source keeps everything.
-    iomap = projection_print(TextFiltering("dolor"), _fixture())
+    iomap = print_document(TextFiltering("dolor"), _fixture())
     @test iomap.kept[] == [1, 2, 5]
 
     # case_insensitive adds the `i` flag.
     ci = Cell(false)
-    iomap2 = projection_print(TextFiltering(Cell("DOLOR"); case_insensitive=ci), _fixture())
+    iomap2 = print_document(TextFiltering(Cell("DOLOR"); case_insensitive=ci), _fixture())
     @test iomap2.kept[] == Int[]             # case-sensitive: no line matches "DOLOR"
     ci[] = true
     @test iomap2.kept[] == [1, 2, 5]         # now the dolor lines match
 
     # invert is now a reactive Cell.
     inv = Cell(false)
-    iomap3 = projection_print(TextFiltering(Cell("dolor"); invert=inv), _fixture())
+    iomap3 = print_document(TextFiltering(Cell("dolor"); invert=inv), _fixture())
     @test iomap3.kept[] == [1, 2, 5]
     inv[] = true
     @test iomap3.kept[] == [3, 4]            # keep the complement

@@ -31,7 +31,7 @@ projection = RecursiveProjection(
     ),
 )
 
-iomap = projection_print(projection, screen)
+iomap = print_document(projection, screen)
 
 @testset "initial state" begin
     @test length(screen.windows) == 1
@@ -40,7 +40,7 @@ end
 
 @testset "open on trigger" begin
     show[] = true
-    op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2          # output mirrors input
@@ -55,7 +55,7 @@ end
 end
 
 @testset "no-op when already open" begin
-    op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -63,7 +63,7 @@ end
 
 @testset "close on trigger off" begin
     show[] = false
-    op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 1
     @test length(iomap.output.windows) == 1
@@ -72,7 +72,7 @@ end
 
 @testset "re-open after close" begin
     show[] = true
-    op = projection_read(projection, iomap, EventEnvelope(:main, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:main, :tick))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -103,21 +103,21 @@ projection = RecursiveProjection(
         Any            => IdentityProjection(),
     ),
 )
-iomap = projection_print(projection, screen)
+iomap = print_document(projection, screen)
 
 # First open.
-projection_read(projection, iomap, EventEnvelope(:main, :tick))
+read_intent(projection, iomap, EventEnvelope(:main, :tick))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 1 && screen.windows[2].width == 3
 
 # Re-open with new geometry: deco won't fire a second open (is_open=true),
 # so to verify duplicate-id update semantics, flip closed and re-open.
 show[] = false
-projection_read(projection, iomap, EventEnvelope(:main, :tick))
+read_intent(projection, iomap, EventEnvelope(:main, :tick))
 @test length(screen.windows) == 1
 pos[] = (50, 60, 70, 80)
 show[] = true
-projection_read(projection, iomap, EventEnvelope(:main, :tick))
+read_intent(projection, iomap, EventEnvelope(:main, :tick))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 50 && screen.windows[2].width == 70
 
@@ -140,11 +140,11 @@ projection = RecursiveProjection(
         Any            => IdentityProjection(),
     ),
 )
-iomap = projection_print(projection, screen)
+iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Close the popup via its native close button.
-op = projection_read(projection, iomap, EventEnvelope(:popup, WindowClose()))
+op = read_intent(projection, iomap, EventEnvelope(:popup, WindowClose()))
 @test !(op isa Operation)
 @test length(screen.windows) == 1
 @test length(iomap.output.windows) == 1
@@ -152,11 +152,11 @@ op = projection_read(projection, iomap, EventEnvelope(:popup, WindowClose()))
 @test iomap.output.windows[1].id === :main
 
 # A close for an unknown id is a silent no-op.
-projection_read(projection, iomap, EventEnvelope(:ghost, WindowClose()))
+read_intent(projection, iomap, EventEnvelope(:ghost, WindowClose()))
 @test length(screen.windows) == 1
 
 # The main window can be closed too (e.g. quitting via the frame).
-projection_read(projection, iomap, EventEnvelope(:main, WindowClose()))
+read_intent(projection, iomap, EventEnvelope(:main, WindowClose()))
 @test length(screen.windows) == 0
 @test length(iomap.output.windows) == 0
 
@@ -179,21 +179,21 @@ projection = RecursiveProjection(
         Any            => IdentityProjection(),
     ),
 )
-iomap = projection_print(projection, screen)
+iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Focus-lost on the main window: ignored (not a popup).
-projection_read(projection, iomap, EventEnvelope(:main, WindowDefocus()))
+read_intent(projection, iomap, EventEnvelope(:main, WindowDefocus()))
 @test length(screen.windows) == 2
 
 # Focus-lost on the popup: dismissed, on both input and output.
-projection_read(projection, iomap, EventEnvelope(:popup, WindowDefocus()))
+read_intent(projection, iomap, EventEnvelope(:popup, WindowDefocus()))
 @test length(screen.windows) == 1
 @test screen.windows[1].id === :main
 @test length(iomap.output.windows) == 1
 
 # Focus-lost for an unknown id: no-op.
-projection_read(projection, iomap, EventEnvelope(:ghost, WindowDefocus()))
+read_intent(projection, iomap, EventEnvelope(:ghost, WindowDefocus()))
 @test length(screen.windows) == 1
 
 end # @testset

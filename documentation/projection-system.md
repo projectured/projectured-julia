@@ -7,22 +7,22 @@ they make, flows through one or more projections.
 A projection has four entry points:
 
 ```julia
-projection_print(projection, recursion, input, context::PrinterContext) → iomap
-projection_read(projection, recursion, change::Change, iomap)            → Change
+print_document(projection, recursion, input, context::PrinterContext) → iomap
+read_intent(projection, recursion, change::Intent, iomap)            → Intent
 map_reference_forward(projection, iomap, reference)                       → output_ref_or_nothing
 map_reference_backward(projection, iomap, reference)                      → input_ref_or_nothing
 ```
 
 The four functions come in two symmetric pairs, one per direction of data flow.
-Forward, `projection_print` produces the output **and** wires the cursor by
-calling `map_reference_forward`. Backward, `projection_read` consumes a
-backward-flowing [`Change`](#the-change-the-reader-threads) (a gesture plus the
+Forward, `print_document` produces the output **and** wires the cursor by
+calling `map_reference_forward`. Backward, `read_intent` consumes a
+backward-flowing [`Intent`](#the-change-the-reader-threads) (a gesture plus the
 operation produced so far) **and** maps the cursor by calling
 `map_reference_backward`.
 The rule of thumb that follows from this symmetry — and that the rest of this
 guide leans on — is:
 
-> **`projection_print` uses `map_reference_forward`; `projection_read` uses
+> **`print_document` uses `map_reference_forward`; `read_intent` uses
 > `map_reference_backward`.** The two mappers are the single source of truth for
 > how a path crosses the projection, written once and reused on both sides.
 
@@ -40,7 +40,7 @@ these four**:
 > When a projection descends into a child document, each of the four functions
 > hands that child to the **child projection's own** version of *the same*
 > function — the printer via the `recursion` argument
-> (`projection_printer_recurse(recursion, child, ctx)`), the reader and both
+> (`print_child(recursion, child, ctx)`), the reader and both
 > mappers via the **stored child IoMaps** (`ChildrenIoMap.child_iomaps`). Every
 > function maps its **own single level** and delegates the rest.
 
@@ -76,7 +76,7 @@ scoped in `plan/pending/syntaxtotext-delegation.md`.
 
 ## The four functions
 
-### `projection_print` — the printer
+### `print_document` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
 `IoMap` (subtype of `IoMap`, see [api/IoMap.jl](../package/kernel/src/api/IoMap.jl))
@@ -103,7 +103,7 @@ The two extra arguments are essential:
   passes a fresh `PrinterContext()` (whose reference is
   `EmptyReferencePath()`).
 
-A two-argument convenience overload `projection_print(p, input)` is defined in
+A two-argument convenience overload `print_document(p, input)` is defined in
 [common/Projection.jl](../package/kernel/src/common/Projection.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
@@ -131,13 +131,13 @@ small prefix strip. Once wired, those forward-projected selection cells let the
 reader route events by selection — see below and
 [the selection guide](editor/selection.md#forward-projecting-selection).
 
-### The `Change` the reader threads
+### The `Intent` the reader threads
 
-The reader's payload is a **`Change`** ([api/Projection.jl](../package/kernel/src/api/Projection.jl)) —
+The reader's payload is a **`Intent`** ([api/Projection.jl](../package/kernel/src/api/Projection.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
-struct Change
+struct Intent
     gesture    # the originating device event (MousePress/KeyDown), threaded UNCHANGED
     operation  # the change in the current projection's input domain; starts nothing
 end
@@ -151,35 +151,35 @@ end
 - **`operation`** starts as `nothing` (a "nothing-change") and is filled in /
   re-mapped by each reader as the change travels one domain inward.
 
-A reader returns a `Change`: either it keeps `operation === nothing` (it had
-nothing to say) or it returns a fresh `Change` with the gesture preserved and a
+A reader returns a `Intent`: either it keeps `operation === nothing` (it had
+nothing to say) or it returns a fresh `Intent` with the gesture preserved and a
 real operation swapped in.
 
-### `projection_read` — the reader
+### `read_intent` — the reader
 
 ```julia
-projection_read(projection, recursion, change::Change, iomap) → Change
+read_intent(projection, recursion, change::Intent, iomap) → Intent
 ```
 
-The symmetric dual of `projection_print` — both take
-`(projection, recursion, payload, context)`, where the payload is the `Change`
+The symmetric dual of `print_document` — both take
+`(projection, recursion, payload, context)`, where the payload is the `Intent`
 and the context is the printer's `iomap`. The reader turns an output-domain
-change into an input-domain one and returns a `Change` (operation filled in /
+change into an input-domain one and returns a `Intent` (operation filled in /
 re-mapped, gesture preserved), or a nothing-change if it has nothing to say.
 
 The editor hands the raw device event to the **top-level** projection's
-`projection_read`; routing from there is up to each projection. A
+`read_intent`; routing from there is up to each projection. A
 `ChainingProjection` forwards the change down its chain and threads the
 operation that comes back up through each earlier step; a routing projection
 instead dispatches it to the sub-projection of the relevant document part.
 
-**Most projections need no `projection_read` method.** The default in
+**Most projections need no `read_intent` method.** The default in
 `ProjectionModule` re-targets any reference-carrying operation —
 `ReplaceSelectionOperation`, `ReplaceStringRangeOperation`,
 `ReplaceNumberRangeOperation` — by mapping its reference with
 `map_reference_backward`. So a projection that only moves the cursor or edits a
 value through a structure-preserving map needs **only** the two reference-mapping
-functions. Write a `projection_read` method (the 4-arg `Change` form above) only
+functions. Write a `read_intent` method (the 4-arg `Intent` form above) only
 when you must do more than re-target a reference. The moves available, from the
 lightest touch to the most involved:
 
@@ -195,9 +195,9 @@ lightest touch to the most involved:
   `ReplaceNumberRangeOperation` so the evaluator re-parses the value), or
   replace it outright with whatever operation expresses the same intent in this
   projection's input domain.
-- **Recurse, then extend.** When `projection_print` descended into children,
+- **Recurse, then extend.** When `print_document` descended into children,
   mirror it: forward the event/operation to the matching child's
-  `projection_read`, take the operation it returns, and extend it to this
+  `read_intent`, take the operation it returns, and extend it to this
   projection's context — typically by prepending the steps that reach the child
   (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
 - **Probe a child to decide.** A reader may *speculatively* recurse into a
@@ -205,7 +205,7 @@ lightest touch to the most involved:
   that answer to decide its own final operation — e.g. to choose among
   alternatives, or to act only when the child declines (returns `nothing`).
 - **Route by selection.** When the printer forward-projected the selection onto
-  this node (see [Wiring the selection](#projection_print--the-printer)), a
+  this node (see [Wiring the selection](#print_document--the-printer)), a
   reader can read its node's `selection` to forward a coordless event (a
   keystroke) *only* to the child the selection points at, rather than
   broadcasting to every child. This is the usual desired behavior — the
@@ -213,12 +213,12 @@ lightest touch to the most involved:
   exactly this; see
   [the selection guide](editor/selection.md#selection-directed-event-routing).
 
-Whichever moves it makes, a projection returns a `Change` carrying an operation
+Whichever moves it makes, a projection returns a `Intent` carrying an operation
 in its own input domain (or a nothing-change); the operation the **top-level**
 projection ultimately returns is the final answer the editor applies to the
 document.
 
-#### Domain-owned, geometry-free gesture mapping (`document_read`)
+#### Domain-owned, geometry-free gesture mapping (`read_gesture`)
 
 A projection reader mixes two kinds of gesture handling, and only one of them is
 really the *projection's* business:
@@ -234,7 +234,7 @@ really the *projection's* business:
 
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
-`document_read(document, gesture) -> Union{Operation, Nothing}`
+`read_gesture(document, gesture) -> Union{Operation, Nothing}`
 ([api/Document.jl](../package/kernel/src/api/Document.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
@@ -244,10 +244,10 @@ own it"). The operation then flows back through the normal
 
 A projection reader **delegates** to it and keeps only its geometry arms:
 
-- `TextToGraphics` calls `document_read(iomap.input, evt)` for character
+- `TextToGraphics` calls `read_gesture(iomap.input, evt)` for character
   insert/delete and left/right/Ctrl+Home-End cursor motion, and keeps visual
   up/down, plain Home/End, and mouse click.
-- `SyntaxToText` (`SyntaxNodeToText`) calls `document_read(iomap.input, evt)` for
+- `SyntaxToText` (`SyntaxNodeToText`) calls `read_gesture(iomap.input, evt)` for
   tree navigation (Ctrl+Alt+Home, Ctrl+Space toggle, Alt/structural arrows), and
   keeps the mouse hit-test for collapse glyphs and Alt+click.
 
@@ -256,14 +256,14 @@ geometry-free editing for free. The console pipeline (`… → SyntaxToText →
 EnvelopeUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
 which — when its operation slot is still empty (the console case) and it does not
 handle the gesture as a syntax gesture — falls back to
-`document_read(iomap.output, gesture)` on the output `TextText` and maps the
+`read_gesture(iomap.output, gesture)` on the output `TextText` and maps the
 result backward. In SDL the operation slot is already filled by `TextToGraphics`,
 so that fallback is a no-op and SDL behaviour is unchanged.
 
 > **Legacy 3-arg shim.** You may still see a 3-arg
-> `projection_read(projection, iomap, event_or_op)` returning a bare operation.
+> `read_intent(projection, iomap, event_or_op)` returning a bare operation.
 > That form is **obsolete** — a transitional shim the generic bridge adapts to
-> the 4-arg `Change` interface. Write the 4-arg `Change` form in new code.
+> the 4-arg `Intent` interface. Write the 4-arg `Intent` form in new code.
 
 #### Recursive gesture reading: delegate to the selected child, lift the operation
 
@@ -286,20 +286,20 @@ This is the reader-side mirror of three things the printer side already does:
   the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
 - **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
   route a mouse gesture to the hit child and lift the returned operation with
-  `prepend_steps_to_op` ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
+  `reroot_operation` ([common/OperationRerooting.jl](../package/kernel/src/common/OperationRerooting.jl)).
 
 The template engine applies the rule **automatically**: the `RuleIoMap` reader in
 [projection/ProjectionTemplate.jl](../package/domain/src/projection/ProjectionTemplate.jl)
 handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
-declined — the domain *authoring* gestures of [`document_read`](#domain-owned-geometry-free-gesture-mapping-document_read))
+declined — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
 by (1) finding the selected child from the node's `selection` and its
-`child_iomaps`, (2) delegating the gesture to that child's `projection_read`, and
-(3) **lifting** the child's operation with `prepend_steps_to_op`, prepending the
+`child_iomaps`, (2) delegating the gesture to that child's `read_intent`, and
+(3) **lifting** the child's operation with `reroot_operation`, prepending the
 input step that reaches the child (`entries[i].value`, `elements[i]`). Only when
-the focused child returns `nothing` does the node fall back to `document_read` on
+the focused child returns `nothing` does the node fall back to `read_gesture` on
 its own input document. So a node never needs to special-case nested editing — the
 recursion descends innermost-first and **bubbles**: the *nearest enclosing*
-structural node whose `document_read` produces an operation wins (e.g. `,` inserts
+structural node whose `read_gesture` produces an operation wins (e.g. `,` inserts
 a sibling into the nearest enclosing object/array, `Tab` steps key→value in the
 enclosing object), exactly where the cursor is.
 
@@ -332,7 +332,7 @@ end
 
 Two principles keep these methods correct across the whole pipeline:
 
-- **Recurse in lockstep with the printer.** If `projection_print` recursed into
+- **Recurse in lockstep with the printer.** If `print_document` recursed into
   children, both mappers must recurse too: peel only the step this projection
   owns, look the child up in the stored child IO maps, delegate the remaining
   tail to that child projection's own mapper, and prepend the steps that reach
@@ -360,7 +360,7 @@ Two principles keep these methods correct across the whole pipeline:
 
 ## IoMap
 
-`IoMap` is the abstract supertype of every map returned by `projection_print`.
+`IoMap` is the abstract supertype of every map returned by `print_document`.
 Every IoMap has a `projection`, `input`, and `output` field. Common shapes:
 
 | Type | Use case |
@@ -402,38 +402,38 @@ A typical pipeline looks like:
 ```
 JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToText──► TextText ──TextToGraphics──► GraphicsCanvas ──► SDL window
    ▲  (selection shared)                                                                    │
-   └─────────────────── projection_read chain ◄──── KeyPress / MouseClick ─────────────────┘
+   └─────────────────── read_intent chain ◄──── KeyPress / MouseClick ─────────────────┘
 ```
 
 Forward, each step extends the `context`'s reference path (via
 `child_context`) so child projections know their position relative to the
 document root, and wires its output selection with `map_reference_forward`.
 Backward, each step's IoMap is visited in reverse, with each projection's
-`projection_read` translating the operation a step closer to the document's
+`read_intent` translating the operation a step closer to the document's
 domain (via `map_reference_backward`).
 
 ## Writing a custom projection
 
 1. Define a struct that subtypes `Projection`. Use `@projection` if you have
    reactive Cell fields.
-2. Implement `projection_print(p, recursion, input, ctx)` returning an
+2. Implement `print_document(p, recursion, input, ctx)` returning an
    `IoMap`. Use `SimpleIoMap` for positional projections, or define your own
    IoMap struct (with `<: IoMap`) when you need to carry extra data.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
-   the cleanest way is `@reference_case`. `projection_print` wires its output
-   selection by calling `map_reference_forward`; the default `projection_read`
+   the cleanest way is `@reference_case`. `print_document` wires its output
+   selection by calling `map_reference_forward`; the default `read_intent`
    handles selection by calling `map_reference_backward`. Write the pair once
    and both directions work.
 4. If your projection needs to do more than re-target a reference (e.g. mouse
    scroll, type-to-edit, retyping an operation), add a 4-arg
-   `projection_read(p, recursion, change::Change, iomap)` method that returns a
-   `Change` carrying the corresponding domain operation. Selection moves and
+   `read_intent(p, recursion, change::Intent, iomap)` method that returns a
+   `Intent` carrying the corresponding domain operation. Selection moves and
    structure-preserving edits need no method — the default handles them.
 
 ```julia
 struct MyProjection <: Projection end
 
-function projection_print(p::MyProjection, recursion, input, ctx)
+function print_document(p::MyProjection, recursion, input, ctx)
     output = transform(input)
     SimpleIoMap(p, input, output)
 end
@@ -465,7 +465,7 @@ other's entries), is never evicted, and is unsafe under the editor's reuse of on
 process for many documents.
 
 **No side effects from inside a cell.** A reactive computation — a `Cell(() -> …)`
-thunk, or the part of `projection_print` that builds them — must be a pure
+thunk, or the part of `print_document` that builds them — must be a pure
 function of its inputs *as observed by every other reactive node*. In particular
 it must never **write another cell** (`other_cell[] = v`) or mutate shared
 document state. The eager engine invalidates a written cell's consumers
@@ -477,7 +477,7 @@ That makes recomputation order-dependent and the graph inconsistent.
 To preserve output-object identity across recomputes (printer locality —
 reconciliation), do **not** rebuild objects, and do **not** reuse-then-mutate them
 with imperative cell writes. Instead reuse a *persistent* object whose
-geometry/content fields are `setfn!` cells that **derive** their value from the
+geometry/content fields are `set_function!` cells that **derive** their value from the
 upstream layout cell — the cursor/highlight overlays in `TextToGraphics` are the
 canonical example, generalised to every span by its per-segment graphics cache. A
 projection's *own* private reconciliation cache (a plain `Dict` held in its cell
@@ -490,7 +490,7 @@ A leaf projection maps one document value to one output value. A compound
 projection maps one input *node* to an output node whose children are the
 recursively-projected input children. The extra requirements are:
 
-1. **Recurse into each child** with `projection_printer_recurse(recursion, child, child_ctx)`
+1. **Recurse into each child** with `print_child(recursion, child, child_ctx)`
    (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection-deep-dive.md)).
@@ -506,12 +506,12 @@ recursively-projected input children. The extra requirements are:
 ```julia
 struct MyNodeProjection <: Projection end
 
-function projection_print(p::MyNodeProjection, recursion, node::MyNode, ctx)
+function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project children, store IO maps in a shared cell.
-    # `projection_printer_recurse` re-enters the whole pipeline for each child;
+    # `print_child` re-enters the whole pipeline for each child;
     # `child_context` extends the reference path to child i.
     child_iomaps = Cell(() -> [
-        projection_printer_recurse(recursion,
+        print_child(recursion,
                                    getfield(node, :children)[][i][],
                                    child_context(ctx, ElementReference(i)))
         for i in 1:length(node.children)
@@ -577,19 +577,19 @@ example with document types, example, and test.
 Whenever a node-shaped projection produces children, it recurses into each with
 
 ```julia
-projection_printer_recurse(recursion, child, child_ctx)
+print_child(recursion, child, child_ctx)
 ```
 
 where `child_ctx` extends the current context
 (`child_context(ctx, <step to the child>)`). The helper expands to
-`projection_print(recursion, recursion, child, child_ctx)` — `recursion`
+`print_document(recursion, recursion, child, child_ctx)` — `recursion`
 appears **twice** on purpose: the first slot is the projection to invoke, the
 second is *that* call's own `recursion` argument. Both must be `recursion` (not
 `p`, not `nothing`) so the child re-enters the whole pipeline — typically a
 `RecursiveProjection` wrapping a `TypeDispatchingProjection` — rather than this
 one projection. The node projection thus does not hard-code which inner
 projections handle each child type. **Always recurse through
-`projection_printer_recurse`** rather than open-coding the doubled argument: it
+`print_child`** rather than open-coding the doubled argument: it
 keeps the doubling in one place and call sites read as "recurse into this
 child". (Open-coding it and getting either slot wrong silently breaks
 heterogeneous recursion — the child gets projected by the wrong projection, or
@@ -610,7 +610,7 @@ not recursively at all.)
 
 ## Mapping references when the printer recurses
 
-When `projection_print` recurses into children, `map_reference_forward` and
+When `print_document` recurses into children, `map_reference_forward` and
 `map_reference_backward` must recurse in lockstep — the path mapping has to
 descend through exactly the structure the printer built. **The rule (call it
 "School A"): peel only the one step this projection owns, then delegate the
@@ -674,7 +674,7 @@ When the child the printer recursed into went through a `CopyingProjection` (as
 >
 > The same prohibition applies to the **printer**. Flattening a child subtree
 > into your own output — walking `input`'s descendants yourself instead of calling
-> `projection_print(recursion, recursion, child, …)` and composing each
+> `print_document(recursion, recursion, child, …)` and composing each
 > `child_iomap.output` — is the printer-side School B. It forecloses composing any
 > descendant with another projection, for the same reasons. (`SyntaxNodeToText`
 > historically did exactly this; see
@@ -710,7 +710,7 @@ each:
 - **`ScreenToScreen`** (a domain projection over `ScreenDocument` /
   `WindowDocument`) owns all screen *structure*. Its printer copies the screen
   shell, copies each window's metadata verbatim, and recurses each window's
-  `content` back through the pipeline with `projection_printer_recurse` —
+  `content` back through the pipeline with `print_child` —
   seeding the window's `width`/`height` as the available layout extent so
   layout-aware content sizes itself to the window. Its reader routes an
   `EventEnvelope` to the matching window by `window_id`, hands the inner event

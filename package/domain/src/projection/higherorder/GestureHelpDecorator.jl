@@ -22,8 +22,8 @@ caller threads one state object through every decorator so the toggle is stable.
 """
 module GestureHelpDecoratorProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
@@ -78,28 +78,28 @@ end
 
 # ── Printer (transparent) ──────────────────────────────────────────────────
 
-function projection_print(p::GestureHelpProjection, recursion, input, ctx)
-    inner_iomap = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::GestureHelpProjection, recursion, input, ctx)
+    inner_iomap = print_document(p.inner, recursion, input, ctx)
     GestureHelpProjectionIoMap(p, input, inner_iomap.output, inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
-function projection_read(p::GestureHelpProjection, recursion, change::Change, iomap::GestureHelpProjectionIoMap)
+function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap::GestureHelpProjectionIoMap)
     # The wrapped editor has priority: if it produced an operation, that wins and
     # the help gesture (if any) is reconsidered next event.
-    child = projection_read(p.inner, recursion, change, iomap.inner_iomap)
+    child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
     child.operation isa Operation && return child
 
     if is_help_gesture(change.gesture)
         if p.state.open
             p.state.open = false
-            return Change(change.gesture, CloseWindowOperation(p.id))
+            return Intent(change.gesture, CloseWindowOperation(p.id))
         end
         bindings = collect_gestures(p.inner, recursion, iomap.inner_iomap)
         gm = gesture_map(bindings, iomap.input)
         p.state.open = true
-        return Change(change.gesture, OpenWindowOperation(
+        return Intent(change.gesture, OpenWindowOperation(
             id = p.id, title = p.title,
             x = p.x, y = p.y, width = p.width, height = p.height,
             style = :normal, content = gm))
@@ -107,8 +107,8 @@ function projection_read(p::GestureHelpProjection, recursion, change::Change, io
     return child
 end
 
-projection_read(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (transparent — output is the inner's output) ──────────
 

@@ -27,7 +27,7 @@ _proj() = RecursiveProjection(SyntaxToWidget())
 
 @testset "indented node → collapsible WidgetCard" begin
     root, _, _, _ = _make_tree()
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     card = iomap.output
     @test card isa WidgetCard
     # Header (title) is the open-delimiter line; body holds the children + close.
@@ -40,7 +40,7 @@ end
 
 @testset "inline node → HorizontalLayout of leaves" begin
     _, pair, _, _ = _make_tree()
-    iomap = projection_print(_proj(), pair)
+    iomap = print_document(_proj(), pair)
     line = iomap.output
     @test line isa HorizontalLayout
     # No open/close delimiter content on the pair node, separator ": " between
@@ -53,7 +53,7 @@ end
 
 @testset "leaf → embedded TextText with three spans" begin
     _, _, key, _ = _make_tree()
-    iomap = projection_print(SyntaxLeafToWidget(), nothing, key, PrinterContext())
+    iomap = print_document(SyntaxLeafToWidget(), nothing, key, PrinterContext())
     tt = iomap.output
     @test tt isa TextText
     @test length(tt.elements) == 3
@@ -66,7 +66,7 @@ end
     _, _, key, _ = _make_tree()
     # Place a cursor at char 1 of the value span.
     set_selection!(key, @reference value{1})
-    iomap = projection_print(SyntaxLeafToWidget(), nothing, key, PrinterContext())
+    iomap = print_document(SyntaxLeafToWidget(), nothing, key, PrinterContext())
     sel = iomap.output.selection
     # value{1} → elements[2].content{1}
     @test sel == (@reference elements[2].content{1})
@@ -74,9 +74,9 @@ end
 
 @testset "leaf reader maps a ReplaceSelectionOperation back to the leaf domain" begin
     _, _, key, _ = _make_tree()
-    iomap = projection_print(SyntaxLeafToWidget(), nothing, key, PrinterContext())
+    iomap = print_document(SyntaxLeafToWidget(), nothing, key, PrinterContext())
     # A Text-domain selection on the value span → leaf `.value{2}`.
-    op = projection_read(SyntaxLeafToWidget(), iomap,
+    op = read_intent(SyntaxLeafToWidget(), iomap,
                          ReplaceSelectionOperation(@reference elements[2].content{2}))
     @test op isa ReplaceSelectionOperation
     @test op.path == (@reference value{2})
@@ -84,7 +84,7 @@ end
 
 @testset "leaf reader retypes nothing for delimiter-span edits" begin
     _, _, key, _ = _make_tree()
-    iomap = projection_print(SyntaxLeafToWidget(), nothing, key, PrinterContext())
+    iomap = print_document(SyntaxLeafToWidget(), nothing, key, PrinterContext())
     # `.elements[span_idx].content[s:e]` reference for a span edit.
     span_range_ref(span_idx, s, e) =
         ConcreteReferencePath(FieldReference("elements"),
@@ -93,11 +93,11 @@ end
               ConcreteReferencePath(RangeReference(s, e), EmptyReferencePath()))))
     # An edit into the open delimiter span (span 1) is declined (only the value
     # span, span 2, is editable here).
-    op = projection_read(SyntaxLeafToWidget(), iomap,
+    op = read_intent(SyntaxLeafToWidget(), iomap,
                          ReplaceStringRangeOperation(span_range_ref(1, 0, 1), "x"))
     @test op === nothing
     # An edit into the value span maps to `.value[1:2]`.
-    op2 = projection_read(SyntaxLeafToWidget(), iomap,
+    op2 = read_intent(SyntaxLeafToWidget(), iomap,
                           ReplaceStringRangeOperation(span_range_ref(2, 1, 2), "x"))
     @test op2 isa ReplaceStringRangeOperation
     @test op2.replacement == "x"
@@ -105,11 +105,11 @@ end
 
 @testset "node selection maps backward: widget leaf path → domain leaf path" begin
     root, _, _, _ = _make_tree()
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     # Root (indented object) body piece 1 = the inline pair; pair HL piece 3 =
     # the value leaf; its value span is elements[2]. A click there arrives as:
     widget_path = @reference children[1].children[3].elements[2].content{2}
-    op = projection_read(_proj(), iomap, ReplaceSelectionOperation(widget_path))
+    op = read_intent(_proj(), iomap, ReplaceSelectionOperation(widget_path))
     @test op isa ReplaceSelectionOperation
     # … and re-roots to the pair's second child (the value leaf) value{2}.
     @test op.path == (@reference children[1].children[2].value{2})
@@ -117,7 +117,7 @@ end
 
 @testset "node selection maps forward: domain leaf path → widget leaf path" begin
     root, _, _, _ = _make_tree()
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     fwd = map_reference_forward(iomap.projection, iomap,
                                 @reference children[1].children[2].value{1})
     # Inverse of the backward case: child 2 of the inline pair sits at HL piece 3.
@@ -126,7 +126,7 @@ end
 
 @testset "node selection: ∅ is identity, chrome (sep) pieces are rejected" begin
     root, _, _, _ = _make_tree()
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     @test map_reference_backward(iomap.projection, iomap, EmptyReferencePath()) ==
           EmptyReferencePath()
     @test map_reference_forward(iomap.projection, iomap, EmptyReferencePath()) ==
@@ -134,7 +134,7 @@ end
     # Pair HL piece 2 is the ": " separator — projection chrome with no syntax
     # pre-image, so the whole op is dropped.
     sep_path = @reference children[1].children[2].elements[1].content{0}
-    @test projection_read(_proj(), iomap, ReplaceSelectionOperation(sep_path)) === nothing
+    @test read_intent(_proj(), iomap, ReplaceSelectionOperation(sep_path)) === nothing
 end
 
 @testset "inline value click routes to the value leaf, not the greedy key" begin
@@ -147,7 +147,7 @@ end
     pair = SyntaxNode(SyntaxDocument[key, val]; sep=TextString(": "))
     gproj = ChainingProjection(RecursiveProjection(SyntaxToWidget()),
                                  make_syntax_widget_graphics())
-    iomap = projection_print(gproj, pair)
+    iomap = print_document(gproj, pair)
 
     # Walk the canvas to the rendered value glyph and read its global x.
     val_x = Ref(-1); val_y = Ref(0)
@@ -165,7 +165,7 @@ end
     walk(iomap.output, 0, 0)
     @test val_x[] >= 0    # the value glyph rendered
 
-    op = projection_read(gproj, iomap,
+    op = read_intent(gproj, iomap,
                          MousePress(:left, val_x[] + 2, val_y[] + 6, Modifiers()))
     @test op isa ReplaceSelectionOperation
     # child 2 of the inline pair is the value leaf; child 1 (the key) must NOT win.
@@ -174,12 +174,12 @@ end
 
 @testset "collapse: ToggleCollapseOperation on the card retargets to the node" begin
     root, _, _, _ = _make_tree()
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     card = iomap.output
     # The WidgetCard graphics reader emits ToggleCollapseOperation(card); the
     # SyntaxToWidget reader walks the iomap and turns the widget target into the
     # owning SyntaxNode so the editor flips `node.collapsed`.
-    op = projection_read(_proj(), iomap, ToggleCollapseOperation(card))
+    op = read_intent(_proj(), iomap, ToggleCollapseOperation(card))
     @test op isa ToggleCollapseOperation
     @test op.target === root
 end
@@ -188,13 +188,13 @@ end
     # Wrap the object in an outer indented array so there are two cards.
     inner_root, _, _, _ = _make_tree()
     outer = SyntaxNode(SyntaxDocument[inner_root]; open=TextString("["), close=TextString("]"), sep=TextString(","), indentation=1)
-    iomap = projection_print(_proj(), outer)
+    iomap = print_document(_proj(), outer)
     outer_card = iomap.output
     @test outer_card isa WidgetCard
     # The inner card sits in the body's first slot.
     inner_card = outer_card.content.children[1]
     @test inner_card isa WidgetCard
-    op = projection_read(_proj(), iomap, ToggleCollapseOperation(inner_card))
+    op = read_intent(_proj(), iomap, ToggleCollapseOperation(inner_card))
     @test op isa ToggleCollapseOperation
     @test op.target === inner_root
 end
@@ -202,7 +202,7 @@ end
 @testset "collapsed node shows the ellipsis inline in the header, empty body" begin
     root, _, _, _ = _make_tree()
     root.collapsed = true
-    iomap = projection_print(_proj(), root)
+    iomap = print_document(_proj(), root)
     card = iomap.output
     # Ellipsis is appended to the header line (inline with the open delimiter),
     # not placed on a separate body line.
@@ -231,7 +231,7 @@ end
                     DbCatalogDatabase[DbCatalogDatabase("dvd", mkschemas())]))
     rdbms = DbCatalogRdbms("localhost", 5432, mkdbs())
 
-    iomap = projection_print(RecursiveProjection(DbCatalogToSyntax()), rdbms)
+    iomap = print_document(RecursiveProjection(DbCatalogToSyntax()), rdbms)
     root  = iomap.output
 
     # Projecting the root must not touch the database. The entity node is always
@@ -282,7 +282,7 @@ end
     length(table1.columns)
     @test queried == ["databases", "schemas", "tables", "cols:t1"]
 
-    iomap = projection_print(RecursiveProjection(DbCatalogToSyntax()), rdbms)
+    iomap = print_document(RecursiveProjection(DbCatalogToSyntax()), rdbms)
     root  = iomap.output
 
     # entity.children[1] is the keyword group; its children are the item entities.
@@ -312,7 +312,7 @@ end
     # keyword group starts expanded — the path opened by e.g. `explore_dbcatalog!`.
     cols   = CellVector(Cell[Cell(DbCatalogColumn("id", "int"))])  # eager → valid
     table  = DbCatalogTable("t1", cols)
-    iomap  = projection_print(RecursiveProjection(DbCatalogToSyntax()), table)
+    iomap  = print_document(RecursiveProjection(DbCatalogToSyntax()), table)
     entity = iomap.output
     @test entity isa SyntaxNode
     @test entity.collapsed == false                 # entity always expanded

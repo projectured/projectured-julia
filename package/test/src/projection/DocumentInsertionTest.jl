@@ -6,7 +6,7 @@ using Projectured: DocumentInsertion, JuliaInsertion, JsonInsertion, JuliaDocume
                    SqlInsertion, SqlInsertionToSyntaxLeaf, SqlStatement,
                    DocumentNothing, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
                    default_factory, default_completion,
-                   projection_print, projection_read, evaluate_operation,
+                   print_document, read_intent, evaluate_operation,
                    ReplaceReferencedValueOperation, CompoundOperation, ReplaceStringRangeOperation,
                    KeyPress, KeyDown, Modifiers,
                    ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
@@ -33,22 +33,22 @@ function test_document_insertion()
             ins = DocumentInsertion("juli")
             ins.selection = _ins_vpath(4)
             proj = DocumentInsertionToSyntaxLeaf()
-            iom = projection_print(proj, proj, ins, nothing)
+            iom = print_document(proj, proj, ins, nothing)
 
             # A printable key edits the value.
-            op = projection_read(proj, iom, KeyPress('a'))
+            op = read_intent(proj, iom, KeyPress('a'))
             @test op isa ReplaceStringRangeOperation
             evaluate_operation((document = ins,), op)
             @test ins.value == "julia"
 
             # Enter commits via the factory → a JuliaInsertion.
             ins.selection = _ins_vpath(length(ins.value))
-            commit = projection_read(proj, iom, KeyDown(:return, Modifiers()))
+            commit = read_intent(proj, iom, KeyDown(:return, Modifiers()))
             @test commit isa CompoundOperation
             @test _written_doc(commit) isa JuliaInsertion
 
             # Escape aborts to DocumentNothing.
-            esc = projection_read(proj, iom, KeyDown(:escape, Modifiers()))
+            esc = read_intent(proj, iom, KeyDown(:escape, Modifiers()))
             @test esc isa CompoundOperation
             @test _written_doc(esc) isa DocumentNothing
         end
@@ -57,32 +57,32 @@ function test_document_insertion()
             ji = JuliaInsertion("factorial(5)")
             ji.selection = _ins_vpath(length("factorial(5)"))
             jproj = JuliaInsertionToSyntaxLeaf()
-            jiom = projection_print(jproj, jproj, ji, nothing)
-            commit = projection_read(jproj, jiom, KeyDown(:return, Modifiers()))
+            jiom = print_document(jproj, jproj, ji, nothing)
+            commit = read_intent(jproj, jiom, KeyDown(:return, Modifiers()))
             @test commit isa CompoundOperation
             @test _written_doc(commit) isa JuliaDocument
 
             # Unparseable / empty source cannot commit.
             empty_ji = JuliaInsertion("")
             empty_ji.selection = _ins_vpath(0)
-            eiom = projection_print(jproj, jproj, empty_ji, nothing)
-            @test projection_read(jproj, eiom, KeyDown(:return, Modifiers())) === nothing
+            eiom = print_document(jproj, jproj, empty_ji, nothing)
+            @test read_intent(jproj, eiom, KeyDown(:return, Modifiers())) === nothing
         end
 
         @testset "SqlInsertion commits source via sqlparse" begin
             si = SqlInsertion("SELECT * FROM persons")
             si.selection = _ins_vpath(length("SELECT * FROM persons"))
             sproj = SqlInsertionToSyntaxLeaf()
-            siom = projection_print(sproj, sproj, si, nothing)
-            commit = projection_read(sproj, siom, KeyDown(:return, Modifiers()))
+            siom = print_document(sproj, sproj, si, nothing)
+            commit = read_intent(sproj, siom, KeyDown(:return, Modifiers()))
             @test commit isa CompoundOperation
             @test _written_doc(commit) isa SqlStatement
 
             # Unparseable / empty source cannot commit.
             empty_si = SqlInsertion("")
             empty_si.selection = _ins_vpath(0)
-            esiom = projection_print(sproj, sproj, empty_si, nothing)
-            @test projection_read(sproj, esiom, KeyDown(:return, Modifiers())) === nothing
+            esiom = print_document(sproj, sproj, empty_si, nothing)
+            @test read_intent(sproj, esiom, KeyDown(:return, Modifiers())) === nothing
         end
     end
 end

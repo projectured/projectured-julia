@@ -24,7 +24,7 @@ end
     @test isempty(g.column_align)
     @test isempty(g.column_stretch)
     # Renders as before (two cells side by side, no stretch).
-    io = projection_print(proj, g)
+    io = print_document(proj, g)
     @test io.output isa GraphicsCanvas
 end
 
@@ -37,8 +37,8 @@ end
     filled = GridLayout(copy(cells), 2; column_stretch=[0, 1], horizontal_gap=8)
     ctx = with_available_size(PrinterContext(EmptyReferencePath());
                               width=_LC_Cell(600), height=_LC_Cell(400))
-    pw = Int(projection_print(proj, nothing, plain,  ctx).output.w[])
-    fw = Int(projection_print(proj, nothing, filled, ctx).output.w[])
+    pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
+    fw = Int(print_document(proj, nothing, filled, ctx).output.w[])
     @test fw > pw          # the stretched grid filled the available width
     @test fw >= 600 - 8    # ~the full seeded width (minus a gap rounding)
 end
@@ -49,12 +49,12 @@ end
     pages() = Any[WidgetLabel(Point2D(0, 0), "P1"),
                   WidgetLabel(Point2D(0, 0), "P2"),
                   WidgetLabel(Point2D(0, 0), "P3")]
-    all_io = projection_print(wproj, StackLayout(pages()))                 # active=0 ⇒ z-stack
-    one_io = projection_print(wproj, StackLayout(pages(); active=2))       # only page 2
+    all_io = print_document(wproj, StackLayout(pages()))                 # active=0 ⇒ z-stack
+    one_io = print_document(wproj, StackLayout(pages(); active=2))       # only page 2
     @test length(collect(all_io.output.elements)) == 3
     @test length(collect(one_io.output.elements)) == 1
     # Out-of-range is empty (no crash).
-    oor = projection_print(wproj, StackLayout(pages(); active=9))
+    oor = print_document(wproj, StackLayout(pages(); active=9))
     @test length(collect(oor.output.elements)) == 0
 end
 

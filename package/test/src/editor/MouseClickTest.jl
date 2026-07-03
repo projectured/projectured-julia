@@ -2,9 +2,9 @@
 # test/src/editor/MouseClickTest.jl
 #
 # Mouse click round-trip test. For each (document, projection) pair:
-#   1. Call projection_print to obtain an iomap and graphics output.
+#   1. Call print_document to obtain an iomap and graphics output.
 #   2. For various mouse click positions (inside and outside text):
-#      a. Call projection_read with the mouse click event.
+#      a. Call read_intent with the mouse click event.
 #      b. If it produces a ReplaceSelectionOperation, set it on the document.
 #      c. Re-print to get the updated graphics output.
 #      d. Verify the graphics element (cursor or text) is close enough to the click.
@@ -184,7 +184,7 @@ end
 
 Tests the mouse click round-trip for a given document and projection.
 For each sample click position:
-  1. Calls projection_read with the mouse click.
+  1. Calls read_intent with the mouse click.
   2. If a selection is produced, sets it and re-prints.
   3. Verifies the closest graphics element is within tolerance pixels.
 
@@ -198,9 +198,9 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
         # Initial print
         clear_selection!(document)
         iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
-            push!(errors, "Initial projection_print threw: $e")
+            push!(errors, "Initial print_document threw: $e")
             @test isempty(errors)
             return
         end
@@ -223,12 +223,12 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
         clicks = generate_sample_clicks(canvas)
         
         for (click_x, click_y, description) in clicks
-            # Call projection_read with mouse click
+            # Call read_intent with mouse click
             event = MousePress(:left, click_x, click_y)
             op = try
-                projection_read(projection, iomap, event)
+                read_intent(projection, iomap, event)
             catch e
-                push!(errors, "projection_read threw for $description at ($click_x, $click_y): $e")
+                push!(errors, "read_intent threw for $description at ($click_x, $click_y): $e")
                 continue
             end
             
@@ -244,7 +244,7 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
                 
                 # Re-print to get updated graphics
                 new_iomap = try
-                    projection_print(projection, document)
+                    print_document(projection, document)
                 catch e
                     push!(errors, "Re-print threw for $description: $e")
                     continue

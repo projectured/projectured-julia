@@ -19,7 +19,7 @@ reactive `pattern` cell.
 """
 module TextFilteringModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
@@ -89,7 +89,7 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::TextFiltering, recursion, text::TextText, ctx)
+function print_document(p::TextFiltering, recursion, text::TextText, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     invert_cell = p.invert
@@ -169,7 +169,7 @@ function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, ref
     _text_elem_path(kept[out_span], out_char)
 end
 
-function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -178,7 +178,7 @@ end
 # Translate a `ReplaceStringRangeOperation` from the filtered output domain back
 # to the input domain: remap the element index via the kept table, keep the
 # character range unchanged.
-function projection_read(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -195,7 +195,7 @@ end
 
 # Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections
 # above TextFiltering keep getting a chance at them.
-projection_read(::TextFiltering, ::TextFilteringIoMap, op) = op
+read_intent(::TextFiltering, ::TextFilteringIoMap, op) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

@@ -76,7 +76,7 @@ function make_dvdrental_dbcatalog_document_example(;
         database=dbname, host=host, port=port,
         credentials=DatabaseCredentials(user=user, password=password))
     proj = DatabaseInstanceToDbCatalog(pool)
-    iomap = projection_print(proj, nothing, inst, PrinterContext())
+    iomap = print_document(proj, nothing, inst, PrinterContext())
     explore_dbcatalog!(iomap.output)
 end
 

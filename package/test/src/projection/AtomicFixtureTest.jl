@@ -66,7 +66,7 @@ function test_atomic_render(fx::AtomicFixture)
     @testset "$(fx.name)" begin
         document   = fx.make_document()
         projection = fx.make_projection()
-        out_tree   = projection_print(projection, document).output
+        out_tree   = print_document(projection, document).output
         out        = Cell(() -> render(out_tree))
         if fx.render !== nothing
             _assert_render(fx.name, out[], fx.render)

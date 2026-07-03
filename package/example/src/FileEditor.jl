@@ -261,16 +261,16 @@ function warm_file_editor(domain::Symbol; workbench::Bool = false)
         # so the window-free console backend is enough.
         editor = Editor(make_backend(:console), screen, composed,
                         Device[Screen(), Keyboard(), Mouse()])
-        editor.iomap = projection_print(composed, screen)
+        editor.iomap = print_document(composed, screen)
         _force_reactive!(editor.iomap)
         for event in _WARMUP_EVENTS
             env    = EventEnvelope(window_id, event)
-            change = projection_read(composed, nothing, Change(env), editor.iomap)
-            op     = change isa Change ? change.operation : change
+            change = read_intent(composed, nothing, Intent(env), editor.iomap)
+            op     = change isa Intent ? change.operation : change
             op isa Operation || continue
             editor.operation = op
             evaluate_operation(editor, op)
-            editor.iomap = projection_print(composed, editor.document)
+            editor.iomap = print_document(composed, editor.document)
             _force_reactive!(editor.iomap)
         end
     catch err

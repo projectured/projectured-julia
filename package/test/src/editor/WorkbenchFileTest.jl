@@ -1,7 +1,7 @@
 # Tests for the WorkbenchEditor file keybindings (Ctrl+S save / Ctrl+O reload)
 # and the format-by-extension file I/O they use. The gesture is fired through the
 # *real* workbench → widget → window → screen pipeline (the same one
-# `run_file_editor` runs), so this proves the document_read delegation in
+# `run_file_editor` runs), so this proves the read_gesture delegation in
 # WorkbenchEditorToWidgetScrollPane actually lights up @gestures WorkbenchEditor.
 
 using Test
@@ -9,8 +9,8 @@ using Projectured
 using ProjecturedExample
 using ProjecturedExample: make_workbench_document, make_workbench_projection,
                           _build_window_scene, _multi_window_projection
-using Projectured: jsonparse, projection_print, projection_read, evaluate_operation,
-                   Change, EventEnvelope, KeyDown, Modifiers,
+using Projectured: jsonparse, print_document, read_intent, evaluate_operation,
+                   Intent, EventEnvelope, KeyDown, Modifiers,
                    SaveWorkbenchEditorOperation, ReloadWorkbenchEditorOperation,
                    read_document_file, write_document_file, new_document_for,
                    JsonInsertion, XmlInsertion, SqlInsertion, JuliaInsertion,
@@ -22,8 +22,8 @@ mutable struct _WBFakeEditor; document::Any; iomap::Any; end
 # Fire a KeyDown through the composed pipeline and return the produced operation.
 function _wb_fire(composed, iomap, window_id, key; ctrl=false)
     env = EventEnvelope(window_id, KeyDown(key, Modifiers(ctrl=ctrl)))
-    ch = projection_read(composed, nothing, Change(env), iomap)
-    ch isa Change ? ch.operation : ch
+    ch = read_intent(composed, nothing, Intent(env), iomap)
+    ch isa Intent ? ch.operation : ch
 end
 
 function test_workbench_file_keys()
@@ -54,7 +54,7 @@ function test_workbench_file_keys()
             screen   = _build_window_scene(Any[doc], String[name]; width=800, height=600)
             composed = _multi_window_projection(Any[proj])
             wid   = Symbol(name)
-            iomap = projection_print(composed, screen)
+            iomap = print_document(composed, screen)
             ed    = _WBFakeEditor(screen, iomap)
 
             # Plain 's' (no Ctrl) is not a save — the tab binding requires Ctrl.

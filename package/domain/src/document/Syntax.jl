@@ -381,11 +381,11 @@ end
 set_function!(t::SyntaxLeaf, f::Function) = (set_function!(getfield(t.value, :content), f); t)
 set_function!(n::SyntaxNode, f::Function) = (set_function!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
-# ── document_read via reified @gestures: geometry-free tree navigation ─────
+# ── read_gesture via reified @gestures: geometry-free tree navigation ─────
 #
 # The projection-independent half of the Syntax domain's reader, now a reified
-# `@gestures` table on `SyntaxNode` (was a `document_read(::SyntaxNode)` method).
-# The generic `document_read` interpreter (`read_document_gesture`) fires it, so
+# `@gestures` table on `SyntaxNode` (was a `read_gesture(::SyntaxNode)` method).
+# The generic `read_gesture` interpreter (`read_document_gesture`) fires it, so
 # the table that *fires* is exactly the one gesture-help enumerates. Any projection
 # whose input is a `SyntaxNode` (e.g. `SyntaxToText`) reaches it through that
 # interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs

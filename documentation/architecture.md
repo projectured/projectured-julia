@@ -127,7 +127,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 ### Layer 2 — Projection modules (`projection/`)
 
 Every projection below — primitive, generic, or higher-order — implements the same
-four-function interface (`projection_print`, `projection_read`,
+four-function interface (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) and recurses into children
 **only** by delegating to the child projection's own version of those four. No
 projection adds a fifth recursive function; that is [the recursion

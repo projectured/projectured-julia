@@ -27,7 +27,7 @@
 # canonical selection machinery uses (set_selection! / evaluate_reference):
 #   * FieldReference  → getfield, unwrapping a Cell
 #   * ElementReference → document[i] (CellVector indexing)
-# so the generated path strings are identical to what projection_read returns.
+# so the generated path strings are identical to what read_intent returns.
 # (The generic collect_references walker is deliberately NOT reused: it descends
 # into a CellVector's internal `elements` field and so yields non-canonical
 # paths like `.elements.elements[i]` instead of `.elements[i]`.)

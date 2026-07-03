@@ -77,12 +77,12 @@ invalidates anything that depended on it.
 A **projection** is a bidirectional transformation between two domains. It has
 two sides:
 
-- **Printer** (`projection_print`) — translates the input document forward into
+- **Printer** (`print_document`) — translates the input document forward into
   an output document in the next domain. Every projection returns an *IO map*
   alongside the output: a record of the correspondence between input and output
   elements that the reader needs to invert the transformation.
 
-- **Reader** (`projection_read`) — translates a user event or an operation in
+- **Reader** (`read_intent`) — translates a user event or an operation in
   the output domain backward into an operation in the input domain.
 
 Projections are composable. The standard pipeline for JSON looks like:
@@ -270,7 +270,7 @@ ReplaceSelectionOperation({2})    # cursor at offset 2 in JsonString domain
   on `TextText.selection`, it is stale.
 
 **Step 6 — The printer re-renders.**
-On the next frame, the editor calls `projection_print` again. Because of the
+On the next frame, the editor calls `print_document` again. Because of the
 reactive cell system, only the stale cells actually recompute — in this case,
 just the cursor position computation. The text content, layout, and most of the
 graphics are unchanged and served from cache.
@@ -294,5 +294,5 @@ necessary subset of the document tree.
 - **[Reactive cells](reactive-cells.md)** — how the `Cell` system implements
   the reactive incrementality described in Step 5–6 above.
 - **[Projection system](projection-system.md)** — the four interface functions
-  (`projection_print`, `projection_read`, `map_reference_forward`,
+  (`print_document`, `read_intent`, `map_reference_forward`,
   `map_reference_backward`) and how compound projections use them.

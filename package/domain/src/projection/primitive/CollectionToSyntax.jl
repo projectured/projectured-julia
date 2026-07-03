@@ -12,7 +12,7 @@ module CollectionToSyntaxModule
 
 import ..ReactiveModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
@@ -71,8 +71,8 @@ function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference
     return nothing
 end
 
-function projection_print(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x,
+function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, x,
                                    child_context(ctx, ElementReference(i)))
                                for (i, x) in enumerate(cv)])
     # Wire the output SyntaxNode's selection cell to forward-project the input
@@ -115,7 +115,7 @@ function _translate_collection_path(cv::CellVector, path::ReferencePath)
     ConcreteReferencePath(ElementReference(child_i), rest0.tail)
 end
 
-function projection_read(p::CollectionCellVectorToSyntax,
+function read_intent(p::CollectionCellVectorToSyntax,
                           iomap::ChildrenIoMap,
                           op::ReplaceSelectionOperation)
     result = _translate_collection_path(iomap.input::CellVector, op.path)
@@ -139,19 +139,19 @@ function map_reference_backward(::CollectionListNodeToSyntax, iomap, reference)
 end
 
 """
-    projection_print(::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
+    print_document(::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
 
 Maps each element in the `ListNode` through `recursion` lazily.
 The output is a `ListNode(projected)` preserving the lazy structure.
 """
-function projection_print(p::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
+function print_document(p::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
     out_head = _map_listnode(recursion, ln, ctx, 1)
     SimpleIoMap(p, ln, out_head)
 end
 
 function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     child_ctx = child_context(ctx, ElementReference(index))
-    child_iomap = projection_printer_recurse(recursion, input_node.value, child_ctx)
+    child_iomap = print_child(recursion, input_node.value, child_ctx)
     out_node = ListNode(child_iomap.output)
 
     # Lazy next

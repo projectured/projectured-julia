@@ -70,7 +70,7 @@ end
 
 function test_db_catalog_projection_rdbms(instance, pool)
     @testset "P1 — DatabaseInstanceToDbCatalog produces an Rdbms tree" begin
-        rdbms = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+        rdbms = print_document(DatabaseInstanceToDbCatalog(pool), instance).output
         @test rdbms isa DbCatalogRdbms
         @test rdbms.databases isa CellVector
         dbs = collect(rdbms.databases)
@@ -80,7 +80,7 @@ function test_db_catalog_projection_rdbms(instance, pool)
 end
 
 function _force_persons_table(instance, pool)
-    rdbms  = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+    rdbms  = print_document(DatabaseInstanceToDbCatalog(pool), instance).output
     db     = first(filter(d -> d.name == "projectured_test", collect(rdbms.databases)))
     schema = first(filter(s -> s.name == "public", collect(db.schemas)))
     table  = first(filter(t -> t.name == "persons", collect(schema.tables)))
@@ -89,7 +89,7 @@ end
 
 function test_db_catalog_projection_database(instance, pool)
     @testset "P2 — database level expands to schemas" begin
-        rdbms = projection_print(DatabaseInstanceToDbCatalog(pool), instance).output
+        rdbms = print_document(DatabaseInstanceToDbCatalog(pool), instance).output
         db = first(filter(d -> d.name == "projectured_test", collect(rdbms.databases)))
         schemas = collect(db.schemas)
         @test all(s -> s isa DbCatalogSchema, schemas)

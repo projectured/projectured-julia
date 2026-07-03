@@ -10,8 +10,8 @@ function test_focusing()
 
     # ── focus out: Ctrl+, drops the last step of the focus part ──────────────
     let fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
-        iomap = projection_print(fp, nothing, input, nothing)
-        op = projection_read(fp, iomap, KeyDown(:comma, ctrl))
+        iomap = print_document(fp, nothing, input, nothing)
+        op = read_intent(fp, iomap, KeyDown(:comma, ctrl))
         @test op isa ReplaceFocusPartOperation
         @test op.projection === fp
         @test op.part == EmptyReferencePath()           # the single step was dropped
@@ -19,20 +19,20 @@ function test_focusing()
 
     # ── focus out declines when already at the root (empty part) ─────────────
     let fp = FocusingProjection()                         # part defaults to ∅
-        iomap = projection_print(fp, nothing, input, nothing)
-        @test projection_read(fp, iomap, KeyDown(:comma, ctrl)) === nothing
+        iomap = print_document(fp, nothing, input, nothing)
+        @test read_intent(fp, iomap, KeyDown(:comma, ctrl)) === nothing
     end
 
     # ── focus in declines when the input has no selection to descend into ────
     let fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
-        iomap = projection_print(fp, nothing, input, nothing)   # raw Vector: no `.selection`
-        @test projection_read(fp, iomap, KeyDown(:period, ctrl)) === nothing
+        iomap = print_document(fp, nothing, input, nothing)   # raw Vector: no `.selection`
+        @test read_intent(fp, iomap, KeyDown(:period, ctrl)) === nothing
     end
 
     # ── exact modifiers: a bare comma (no Ctrl) is not the focus-out gesture ──
     let fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
-        iomap = projection_print(fp, nothing, input, nothing)
-        @test projection_read(fp, iomap, KeyDown(:comma, Modifiers())) === nothing
+        iomap = print_document(fp, nothing, input, nothing)
+        @test read_intent(fp, iomap, KeyDown(:comma, Modifiers())) === nothing
     end
 end
 end

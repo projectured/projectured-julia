@@ -8,8 +8,8 @@ input domain one step at a time.
 """
 module ChainingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..GestureBindingModule: collect_gestures, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
@@ -40,12 +40,12 @@ end
 
 A compound higher-order projection that applies a sequence of projections
 one after the other.  Given projections `[p₁, p₂, …, pₙ]`, calling
-`projection_print` feeds the input through:
+`print_document` feeds the input through:
 
     input → p₁ → p₂ → … → pₙ → output
 
 Each intermediate result is a reactive data structure produced by the
-previous projection's `projection_print`.  Because every primitive
+previous projection's `print_document`.  Because every primitive
 projection already returns lazy, incremental reactive structures,
 the full chain is automatically lazy and incremental — changes at the
 source propagate through each layer only when (and as far as) needed.
@@ -57,7 +57,7 @@ source propagate through each layer only when (and as far as) needed.
         SyntaxToText(),
         TextToGraphics()
     )
-    sdl_texts = projection_print(seq, json_doc)
+    sdl_texts = print_document(seq, json_doc)
 """
 struct ChainingProjection <: Projection
     projections::Vector{Any}
@@ -67,10 +67,10 @@ end
 ChainingProjection(ps...) = ChainingProjection(collect(Any, ps))
 
 """
-    projection_print(seq::ChainingProjection, recursion, input, ctx) -> output
+    print_document(seq::ChainingProjection, recursion, input, ctx) -> output
 
 Apply each projection in order, threading the reactive output of one as the input
-to the next. Each stage's `projection_print` is wrapped in a computed cell keyed on
+to the next. Each stage's `print_document` is wrapped in a computed cell keyed on
 the previous stage's output cell, so a *structural* change in a stage's output
 (e.g. a projection that swaps which child it exposes) re-prints exactly that stage
 and the stages after it — value changes still propagate through each stage's
@@ -82,7 +82,7 @@ time (the same timing the rest of the pipeline assumes), not lazily on the first
 reader/render access. Cells stay re-pullable, so a later structural change still
 recomputes only the affected stages; we just don't defer the *first* compute.
 """
-function projection_print(seq::ChainingProjection, recursion, input, ctx)
+function print_document(seq::ChainingProjection, recursion, input, ctx)
     step_iomaps = Cell[]
     out = Cell(input)                         # stage 1's input, as a (constant) cell
     for p in seq.projections
@@ -98,7 +98,7 @@ end
 # `iomap.output` (projections may expose a reactive output) to the plain value the
 # next stage prints. A helper so each closure captures its own `p`/`prev`/`cell`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
-    iomap_cell = Cell(() -> projection_print(p, recursion, prev[], ctx))
+    iomap_cell = Cell(() -> print_document(p, recursion, prev[], ctx))
     out_cell   = Cell(() -> begin
         o = iomap_cell[].output
         o isa Cell ? o[] : o
@@ -107,12 +107,12 @@ function _seq_stage(p, recursion, prev::Cell, ctx)
 end
 
 """
-    projection_read(seq::ChainingProjection, recursion, change::Change, iomap::ChainingProjectionIoMap)
+    read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
 
-Thread one `Change` through the chain. Search the steps from last to first until
+Thread one `Intent` through the chain. Search the steps from last to first until
 one produces an operation (a change whose `operation !== nothing`), then walk
 backwards through the earlier steps translating that change into each step's input
-domain. The gesture rides along for free — it is a field of the threaded `Change`,
+domain. The gesture rides along for free — it is a field of the threaded `Intent`,
 constant at every step. A nothing-change short-circuits.
 
 **Input-domain authoring gestures get first say.** A printable key can be a text
@@ -128,31 +128,31 @@ is produced as before. Only at the start of a read (`change.operation === nothin
 so a re-entrant thread is not re-overridden, and only with output stages present
 (`n ≥ 2`) since a single stage already handles its own gesture.
 """
-function projection_read(seq::ChainingProjection, recursion, change::Change, iomap::ChainingProjectionIoMap)
+function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
     n = length(seq.projections)
     g = change.gesture
     if n >= 2 && g !== nothing && change.operation === nothing
-        first_out = projection_read(seq.projections[1], recursion, Change(g, nothing), iomap.step_iomaps[1][])
+        first_out = read_intent(seq.projections[1], recursion, Intent(g, nothing), iomap.step_iomaps[1][])
         first_out.operation === nothing || return first_out
     end
     start_i = n
-    out = projection_read(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
+    out = read_intent(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
     while out.operation === nothing && start_i > 1
         start_i -= 1
-        out = projection_read(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i][])
+        out = read_intent(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i][])
     end
     out.operation === nothing && return out
     for i in (start_i-1):-1:1
         out.operation === nothing && return out
-        out = projection_read(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+        out = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
     end
     return out
 end
 
 # 3-arg compatibility shim: legacy callers (tests, hit-test recursion) that pass a
-# bare event/operation get it wrapped into a Change and the operation back.
-projection_read(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
-    projection_read(seq, nothing, Change(payload), iomap).operation
+# bare event/operation get it wrapped into a Intent and the operation back.
+read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
+    read_intent(seq, nothing, Intent(payload), iomap).operation
 
 # Where the reader threads one change through the chain, the collector gathers
 # every stage's gestures (each stage's own input document, plus projection-owned

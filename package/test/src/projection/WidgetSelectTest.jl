@@ -19,9 +19,9 @@ proj = make_layout_projection_example()
 @testset "click opens the option list as an anchor-relative popup" begin
     select = WidgetSelect(Point2D(0, 0), "Apple";
                           options=["Apple", "Banana", "Cherry"], width=180)
-    iomap = projection_print(proj, select)
+    iomap = print_document(proj, select)
 
-    op = projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
@@ -42,14 +42,14 @@ end
 
 @testset "a select with no options is inert" begin
     select = WidgetSelect(Point2D(0, 0), "x"; width=120)
-    iomap = projection_print(proj, select)
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    iomap = print_document(proj, select)
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
 end
 
 @testset "a disabled select swallows the click" begin
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], enabled=false)
-    iomap = projection_print(proj, select)
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    iomap = print_document(proj, select)
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
 end
 
 @testset "the resolver maps the anchor to an absolute OpenWindowOperation" begin
@@ -58,9 +58,9 @@ end
     # through a NestingProjection (as HoverProbe does).
     inner = NestingProjection(proj; recursion = IdentityProjection())
     resolver = WidgetPopupResolverProjection(inner = inner)
-    rio = projection_print(resolver, select)
+    rio = print_document(resolver, select)
 
-    op = projection_read(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
     @test op isa OpenWindowOperation
     @test op.id === :widget_popup
     @test op.style === :floating
@@ -75,9 +75,9 @@ end
 @testset "clicking an option writes the value back and closes the popup" begin
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], width=180)
     option = WidgetOption(Point2D(0, 0), select, "Banana"; width=180)
-    oio = projection_print(proj, option)
+    oio = print_document(proj, option)
 
-    op = projection_read(proj, oio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, oio, MousePress(:left, 5, 5, Modifiers()))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
 
@@ -100,8 +100,8 @@ end
 @testset "a non-left click on an option does nothing" begin
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple"], width=120)
     option = WidgetOption(Point2D(0, 0), select, "Apple"; width=120)
-    oio = projection_print(proj, option)
-    @test projection_read(proj, oio, MousePress(:right, 5, 5, Modifiers())) === nothing
+    oio = print_document(proj, option)
+    @test read_intent(proj, oio, MousePress(:right, 5, 5, Modifiers())) === nothing
     @test select.value == "Apple"
 end
 

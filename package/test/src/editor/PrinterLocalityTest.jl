@@ -175,9 +175,9 @@ from a subsequent re-force.
 function printer_locality_report(document, projection, mutate!)
     errors = String[]
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        push!(errors, "projection_print threw: $e")
+        push!(errors, "print_document threw: $e")
         return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0, perf_counters(), errors)
     end
     output = iomap.output

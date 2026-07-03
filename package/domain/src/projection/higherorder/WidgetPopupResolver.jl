@@ -19,10 +19,10 @@ how `HoverProbeProjection` produces window ops from the content level.
 """
 module WidgetPopupResolverProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
-import ..ChangeModule: Change
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
@@ -50,32 +50,32 @@ end
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::WidgetPopupResolverProjection, recursion, input, ctx)
-    child_iomap = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::WidgetPopupResolverProjection, recursion, input, ctx)
+    child_iomap = print_document(p.inner, recursion, input, ctx)
     WidgetPopupResolverProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::WidgetPopupResolverProjection, recursion, change::Change,
+function read_intent(p::WidgetPopupResolverProjection, recursion, change::Intent,
                          iomap::WidgetPopupResolverProjectionIoMap)
-    res = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-    op = res isa Change ? res.operation : res
-    op isa OpenPopupOperation || return res isa Change ? res : Change(change.gesture, op)
+    res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    op = res isa Intent ? res.operation : res
+    op isa OpenPopupOperation || return res isa Intent ? res : Intent(change.gesture, op)
     pt = anchor_point(iomap.child_iomap, op.anchor)
     # Anchor unresolved (the trigger's reference has no graphics image): drop the
     # open rather than place the popup at a wrong (0,0).
-    pt === nothing && return Change(change.gesture, nothing)
+    pt === nothing && return Intent(change.gesture, nothing)
     x, y = pt
     win = OpenWindowOperation(; id=op.id, x=x + op.dx, y=y + op.dy,
                               width=op.width, height=op.height,
                               style=:floating, auto_dismiss=op.auto_dismiss,
                               content=op.content)
-    Change(change.gesture, win)
+    Intent(change.gesture, win)
 end
 
-projection_read(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (passthrough — transparent on print) ─────────────────
 

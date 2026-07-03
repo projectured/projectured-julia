@@ -12,15 +12,15 @@ not a `ScreenDocument`.
 ## Interactivity (Phase 2) and its limits
 
 The **geometry-free** half of caret/text editing now lives on the Text domain
-(`document_read(::TextText, gesture)` in `TextModule`), so the console pipeline
+(`read_gesture(::TextText, gesture)` in `TextModule`), so the console pipeline
 gets it even though it omits `TextToGraphics`: `SyntaxToText` falls back to the
-output `TextText`'s `document_read` when its operation slot is empty (the console
+output `TextText`'s `read_gesture` when its operation slot is empty (the console
 case). What this backend drives is therefore:
 
   - **Structural tree navigation** (handled by `SyntaxToText`): arrows move
     node-to-node once a whole element is selected; `Home` selects the root.
   - **`Ctrl+Space`** toggles structural ⇄ text-cursor selection.
-  - **Character editing** (via the Text domain's `document_read`): character
+  - **Character editing** (via the Text domain's `read_gesture`): character
     insert (`KeyPress`), `Backspace`/`Delete`, and character left/right cursor
     movement — none of which need pixel geometry.
   - **`Ctrl+C`** quits.

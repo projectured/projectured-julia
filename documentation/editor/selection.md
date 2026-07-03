@@ -141,7 +141,7 @@ forward-projected selection, exactly mirroring how `set_selection!` distributes
 it across the domain tree. `CopyingProjection` does this generically; compound
 projections that introduce structure (e.g. `WorkbenchToWidget`, whose shell
 inserts split panes that have no domain counterpart) wire the selection cells
-explicitly in `projection_print`.
+explicitly in `print_document`.
 
 ### Selection-directed event routing
 

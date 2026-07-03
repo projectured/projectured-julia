@@ -70,7 +70,7 @@ It also generates:
 The uniformity matters:
 
 1. Any field can be wired into a reactive computation later by calling
-   `setfn!(getfield(obj, :field), thunk)` — without changing types.
+   `set_function!(getfield(obj, :field), thunk)` — without changing types.
 2. Projections can read any field as if it were the source of truth and the
    reactive engine will invalidate the projection automatically.
 3. Equality, struct hashing, and reflection still work because the field
@@ -79,7 +79,7 @@ The uniformity matters:
 ### Escape hatch
 
 When you genuinely need the raw `Cell` (for example to share it between two
-documents or pass it to `setfn!`), use `getfield(obj, :field)`. The
+documents or pass it to `set_function!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
 `SyntaxLeaf` literally the same Cell as the upstream `JsonString.selection`.
 
@@ -239,4 +239,4 @@ machinery, and with it the same three sharp edges:
 
 The result is that domain and projection code reads like Julia you'd write
 without any framework — the reactivity is invisible until you reach for
-`Cell`, `setfn!`, or `getfield` explicitly.
+`Cell`, `set_function!`, or `getfield` explicitly.

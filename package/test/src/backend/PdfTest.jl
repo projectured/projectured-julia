@@ -79,7 +79,7 @@ end
         make_graphics_image_projection_example(measure=pdf_measure_text),
         GraphicsCanvasToPdfFile(filename; width=400, height=300),
     )
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
     @test iomap.output isa ImageFile
     @test isfile(filename)
     @test _is_pdf(filename)
@@ -139,7 +139,7 @@ end
     canvas = _tall_canvas(40)               # ~810 tall; 300-tall pages → ⌈810/300⌉ = 3
     filename = tempname() * ".pdf"
     proj = GraphicsCanvasToPdfFile(filename; width=300, height=300, paginate=true)
-    iomap = projection_print(proj, canvas)
+    iomap = print_document(proj, canvas)
     @test iomap.output isa ImageFile
     @test _page_count(filename) == 3
     rm(filename)

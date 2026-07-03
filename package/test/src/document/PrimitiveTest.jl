@@ -3,7 +3,7 @@ using Projectured: PositionReference, ConcreteReferencePath, EmptyReferencePath,
                     PrimitiveString, PrimitiveNumber,
                     ReplaceStringRangeOperation, ReplaceNumberRangeOperation,
                     PrimitiveStringToSyntaxLeaf, SimpleIoMap, KeyPress, KeyDown,
-                    Modifiers, evaluate_operation, projection_read, set_selection!,
+                    Modifiers, evaluate_operation, read_intent, set_selection!,
                     strip_reference_types, @reference
 
 function _value_range_ref(start::Int, stop::Int)
@@ -109,7 +109,7 @@ end
     @test doc.value === nothing
 end
 
-# ── projection_read producer ────────────────────────────────────────────
+# ── read_intent producer ────────────────────────────────────────────
 
 @testset "PrimitiveStringToSyntaxLeaf produces operation for printable key" begin
     s = PrimitiveString("ab")
@@ -117,7 +117,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x')
-    op = projection_read(p, iomap, evt)
+    op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
     pref = op.reference
@@ -134,7 +134,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:backspace, Modifiers())
-    op = projection_read(p, iomap, evt)
+    op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
@@ -146,7 +146,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:delete, Modifiers())
-    op = projection_read(p, iomap, evt)
+    op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
@@ -154,7 +154,7 @@ end
 
 @testset "PrimitiveStringToSyntaxLeaf inserts a printable (KeyPress ignores modifiers)" begin
     # String editing is now reified as document-level `@gestures PrimitiveString`,
-    # reached through the generic `document_read` fallback. Per the reification
+    # reached through the generic `read_gesture` fallback. Per the reification
     # convention (shared with Text/JSON), KeyPress patterns ignore modifiers — a real
     # Ctrl-combo arrives as a KeyDown, never a KeyPress — so a printable KeyPress
     # inserts regardless of a stray ctrl flag; the old per-projection defensive
@@ -164,7 +164,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
-    op = projection_read(p, iomap, evt)
+    op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
 end
@@ -175,7 +175,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:backspace, Modifiers())
-    @test projection_read(p, iomap, evt) === nothing
+    @test read_intent(p, iomap, evt) === nothing
 end
 
 @testset "PrimitiveStringToSyntaxLeaf delete at end returns nothing" begin
@@ -184,7 +184,7 @@ end
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyDown(:delete, Modifiers())
-    @test projection_read(p, iomap, evt) === nothing
+    @test read_intent(p, iomap, evt) === nothing
 end
 
 end # @testset

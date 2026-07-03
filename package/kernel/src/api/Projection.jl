@@ -2,22 +2,22 @@
     ProjectionApiModule
 
 Shared projection interface. Declares the four generic functions every
-projection implements — `projection_print`, `projection_read`,
+projection implements — `print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward` — dispatched on by all
 projection types, primitive and higher-order alike. Keeping the interface here
 avoids circular dependencies between projection modules.
 
 The four functions form two symmetric pairs, one per direction of data flow:
 
-- **Forward (printing).** `projection_print` transforms input → output and, for
+- **Forward (printing).** `print_document` transforms input → output and, for
   the cursor, calls `map_reference_forward` to map the input selection into an
   output selection.
-- **Backward (reading).** `projection_read` turns an output-domain event/
+- **Backward (reading).** `read_intent` turns an output-domain event/
   operation back into an input-domain operation and, for the cursor, calls
   `map_reference_backward` to map an output reference into an input reference.
 
-Rule of thumb: **`projection_print` uses `map_reference_forward`;
-`projection_read` uses `map_reference_backward`.** The two mappers are the
+Rule of thumb: **`print_document` uses `map_reference_forward`;
+`read_intent` uses `map_reference_backward`.** The two mappers are the
 single source of truth for how a path crosses this projection — written once,
 reused on both sides.
 
@@ -29,7 +29,7 @@ else is universal. The contract that keeps arbitrary projections composable is:
 > Recursion across projections flows **only** through these four functions. When a
 > projection descends into a child document, each function hands that child to the
 > **child projection's own** version of *the same* function. The vehicles are the
-> `recursion` parameter — invoked via `projection_printer_recurse(recursion, child,
+> `recursion` parameter — invoked via `print_child(recursion, child,
 > ctx)` on the printer side — and the **stored child IoMaps**
 > (`ChildrenIoMap.child_iomaps`) that the reader and both mappers walk on the
 > backward side. Each function maps its **own single level** and delegates the rest.
@@ -58,20 +58,20 @@ for the selection mechanism.
 """
 module ProjectionApiModule
 
-export projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+export print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 
 """
     Projection
 
 Abstract base type for all projection types, primitive and higher-order alike.
 Subtype this to register with the default `map_reference_forward`,
-`map_reference_backward`, and `projection_read` fallbacks (defined in
+`map_reference_backward`, and `read_intent` fallbacks (defined in
 `ProjectionModule`, `package/kernel/src/common/Projection.jl`).
 """
 abstract type Projection end
 
 """
-    projection_print(projection, recursion, input, context::PrinterContext) -> iomap
+    print_document(projection, recursion, input, context::PrinterContext) -> iomap
 
 Forward half of a projection: transform `input` from this projection's input
 domain into its output domain. Returns an `IoMap` recording `projection`,
@@ -83,16 +83,16 @@ recurses. Each concrete projection adds a method; compound projections such as
 # Arguments
 - `recursion` — the projection to invoke when descending into a child. A leaf
   projection that never descends ignores it. A node projection recurses into a
-  child with the `projection_printer_recurse` helper:
+  child with the `print_child` helper:
 
-      projection_printer_recurse(recursion, child, child_ctx)
+      print_child(recursion, child, child_ctx)
 
-  which expands to `projection_print(recursion, recursion, child, child_ctx)` —
+  which expands to `print_document(recursion, recursion, child, child_ctx)` —
   `recursion` is *both* the projection to call and that call's own `recursion`
   argument, so the child re-enters the whole pipeline (normally a
   `RecursiveProjection` wrapping a `TypeDispatchingProjection`) instead of this
   single projection. Always recurse through the helper rather than open-coding
-  the doubled argument. The 2-arg overload `projection_print(p, input)` supplies
+  the doubled argument. The 2-arg overload `print_document(p, input)` supplies
   `nothing`.
 - `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
@@ -138,42 +138,42 @@ a substituted projection, and only delegation lets the recursion follow whatever
 projection actually runs. This is the printer-side form of the "delegate, don't
 re-walk by type" rule the reference mappers follow (see `map_reference_forward`).
 """
-function projection_print end
+function print_document end
 
 """
-    projection_printer_recurse(recursion, input, ctx) -> iomap
+    print_child(recursion, input, ctx) -> iomap
 
 Project a child by re-entering the whole pipeline. Equivalent to
-`projection_print(recursion, recursion, input, ctx)`: `recursion` is both the
+`print_document(recursion, recursion, input, ctx)`: `recursion` is both the
 projection to invoke *and* that call's own `recursion` argument, so the child
 goes back through the full pipeline (normally a `RecursiveProjection` wrapping a
 `TypeDispatchingProjection`) instead of one projection. Node printers should
 recurse through this helper so the doubled `recursion` argument lives in exactly
 one place and call sites read as "recurse into this child".
 """
-projection_printer_recurse(recursion, input, ctx) =
-    projection_print(recursion, recursion, input, ctx)
+print_child(recursion, input, ctx) =
+    print_document(recursion, recursion, input, ctx)
 
 """
-    projection_read(projection, recursion, change::Change, iomap) -> Change
+    read_intent(projection, recursion, change::Intent, iomap) -> Intent
 
-Backward half of a projection — the symmetric dual of `projection_print`: both
-read `(projection, recursion, payload, context)`. The payload is a `Change`
+Backward half of a projection — the symmetric dual of `print_document`: both
+read `(projection, recursion, payload, context)`. The payload is a `Intent`
 (gesture + operation); the context is the printer's `iomap` (the correspondence
 that the forward pass recorded). The reader turns an output-domain change into an
-input-domain one, returning a `Change` whose `operation` is filled in / re-mapped
+input-domain one, returning a `Intent` whose `operation` is filled in / re-mapped
 and whose `gesture` is preserved, or a nothing-change (`operation === nothing`) if
 this projection has nothing to say about it.
 
-Most projections need no `projection_read` method at all: the generic bridge in
-`ProjectionModule` unwraps the `Change` and dispatches the legacy 3-arg
-`projection_read(projection, iomap, event_or_op)` on the gesture (when no
+Most projections need no `read_intent` method at all: the generic bridge in
+`ProjectionModule` unwraps the `Intent` and dispatches the legacy 3-arg
+`read_intent(projection, iomap, event_or_op)` on the gesture (when no
 operation has been produced yet) or the operation, then re-wraps the result with
 the gesture preserved. Leaf projections therefore keep their 3-arg methods; only
 compound projections that thread the change to children override the 4-arg form.
 
 The editor hands the raw device event (key press, mouse click) to the
-**top-level** projection's `projection_read`; from there, routing is entirely
+**top-level** projection's `read_intent`; from there, routing is entirely
 up to each projection. A `ChainingProjection` forwards the event down its
 chain and threads the operation that comes back up through each earlier step,
 translating it one domain closer to the input at every step. A different
@@ -186,7 +186,7 @@ projection's input domain, or `nothing`.
 
 The default method (in `ProjectionModule`) handles `ReplaceSelectionOperation`
 by mapping its path with `map_reference_backward`, so a projection that only
-moves the cursor needs **no** `projection_read` method. When you do write one,
+moves the cursor needs **no** `read_intent` method. When you do write one,
 these are the moves available — from the lightest touch to the most involved:
 
 - **Re-target the references.** Most often the incoming operation is the right
@@ -200,9 +200,9 @@ these are the moves available — from the lightest touch to the most involved:
   into a `ReplaceNumberRangeOperation` so the evaluator re-parses the edited text
   as a number), or replace it outright with whatever operation expresses the same
   intent in this projection's input domain.
-- **Recurse, then extend.** When `projection_print` descended into children, the
+- **Recurse, then extend.** When `print_document` descended into children, the
   reader mirrors it: forward the event/operation to the matching child's
-  `projection_read`, take the operation it returns, and extend that operation to
+  `read_intent`, take the operation it returns, and extend that operation to
   *this* projection's context — typically by prepending the reference steps that
   reach the child (reuse `map_reference_backward`).
 - **Probe a child to decide.** A reader may *speculatively* recurse into a
@@ -214,7 +214,7 @@ Whichever moves it makes, a projection returns an `Operation` in its own input
 domain (or `nothing`); the operation the **top-level** projection ultimately
 returns is the final answer the editor applies to the document.
 """
-function projection_read end
+function read_intent end
 
 """
     map_reference_forward(projection, iomap, reference) -> reference_or_nothing
@@ -224,12 +224,12 @@ document) to an **output reference** (steps understood from its output
 document). Returns `nothing` when the input reference has no image in the
 output (e.g. an element dropped by a filtering projection).
 
-This is the mapper `projection_print` uses to wire the output selection (see
+This is the mapper `print_document` uses to wire the output selection (see
 its docstring), so getting it right gives the forward cursor mapping for free.
 
 - Express the cases with `@reference_case` (see
   [documentation/editor/reference.md](../../../documentation/editor/reference.md)).
-- **Recurse in lockstep with the printer.** If `projection_print` recursed into
+- **Recurse in lockstep with the printer.** If `print_document` recursed into
   children, so must this: peel only the steps this projection owns, look up the
   child the peeled step selects in the **stored child IoMaps**, and delegate the
   remaining tail to that child projection's own `map_reference_forward`. Do *not*
@@ -272,7 +272,7 @@ Map an **output reference** (steps understood from `projection`'s output
 document) to an **input reference** (steps understood from its input document).
 Returns `nothing` when the output reference has no pre-image in the input.
 
-This is the mapper `projection_read` uses (directly in the default method) to
+This is the mapper `read_intent` uses (directly in the default method) to
 translate selections — and the one you reuse to re-target edit operations. Like
 its forward twin it must **recurse in lockstep with the printer**: peel the
 output steps that lead to a child, look that child up in the **stored child

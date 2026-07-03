@@ -30,7 +30,7 @@ end
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),
     )
-    iomap = projection_print(proj, doc)
+    iomap = print_document(proj, doc)
     @test iomap.output isa ImageFile
     @test isfile(filename)
     @test filesize(filename) > 0

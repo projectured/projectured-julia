@@ -2,7 +2,7 @@
 # test/src/editor/RecursionContractTest.jl
 #
 # Validates the *recursion contract*: the four core projection functions
-# (projection_print, projection_read, map_reference_forward,
+# (print_document, read_intent, map_reference_forward,
 # map_reference_backward) must each be recursive by DELEGATING a child to the
 # child projection's own version of the same function — via the `recursion`
 # parameter (printer) and the stored child IoMaps (reader / mappers). No
@@ -17,7 +17,7 @@
 # Two checks:
 #
 #   1. Delegation probe (the discriminating check).  Re-invokes a node
-#      projection's `projection_print` with a *spy* recursion that counts how
+#      projection's `print_document` with a *spy* recursion that counts how
 #      often it is called, and forces the result so the lazy child cells run.
 #      A node whose input has projectable children MUST call the spy at least
 #      once; a projection that flattens its subtree (ignores `recursion`) never
@@ -47,11 +47,11 @@ end
 
 _SpyRecursion(real) = _SpyRecursion(real, Ref(0))
 
-# projection_printer_recurse(spy, child, ctx) == projection_print(spy, spy, child, ctx),
+# print_child(spy, child, ctx) == print_document(spy, spy, child, ctx),
 # so a delegating node lands here once per child; flatten-by-self never does.
-function Projectured.projection_print(s::_SpyRecursion, recursion, input, ctx)
+function Projectured.print_document(s::_SpyRecursion, recursion, input, ctx)
     s.count[] += 1
-    projection_print(s.real, s.real, input, ctx)
+    print_document(s.real, s.real, input, ctx)
 end
 
 # A node input "should delegate" only for the container types we positively
@@ -101,14 +101,14 @@ end
     probe_delegation(document, projection) -> Vector{NamedTuple}
 
 For every node projection that ran in the pipeline whose input has projectable
-children, re-invoke its `projection_print` with a spy recursion and report how
+children, re-invoke its `print_document` with a spy recursion and report how
 often it delegated. Each entry is `(projection_name, count, delegated, broken)`
 where `delegated = count > 0` and `broken` marks the known flatteners.
 """
 function probe_delegation(document, projection)
     results = NamedTuple[]
     top = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
         return results
     end
@@ -132,7 +132,7 @@ function probe_delegation(document, projection)
         spy = _SpyRecursion(projection)
         ok = true
         try
-            res = projection_print(p, spy, input, Projectured.PrinterContext())
+            res = print_document(p, spy, input, Projectured.PrinterContext())
             _walk!(res, Set{UInt64}(), String[])   # force lazy child cells
         catch e
             ok = false                              # probe could not run; don't assert
@@ -160,9 +160,9 @@ function walk_reference_roundtrip(document, projection)
     errors = String[]
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        push!(errors, "projection_print threw: $e")
+        push!(errors, "print_document threw: $e")
         return errors
     end
     for ref in collect_text_selections(document)

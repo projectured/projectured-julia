@@ -27,7 +27,7 @@ module DbCatalogToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                    DbCatalogSchema, DbCatalogTable, DbCatalogColumn
@@ -56,7 +56,7 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaT
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
-function projection_print(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
+function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
     sel = Cell(() -> begin
         path = col.selection
         path === nothing && return nothing
@@ -82,7 +82,7 @@ function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference
     ConcreteReferencePath(Cell(ProjectionReference(p, reference)), Cell(EmptyReferencePath()))
 end
 
-function projection_read(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+function read_intent(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
     ReplaceSelectionOperation(result)
@@ -216,7 +216,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_style::StyleText,
                               keyword::String, label, children)
     child_iomaps = Cell(() -> begin
-        [projection_printer_recurse(recursion, elem, child_context(ctx, ElementReference(i)))
+        [print_child(recursion, elem, child_context(ctx, ElementReference(i)))
          for (i, elem) in enumerate(children)]
     end)
 
@@ -253,7 +253,7 @@ end
     name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
 end
 
-function projection_print(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
+function print_document(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
         p, recursion, ctx, table, p.name,
         "Columns", () -> " " * table.name, table.columns)
@@ -266,7 +266,7 @@ map_reference_forward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) 
     _catalog_forward_ref(p, iomap, ref, "columns")
 map_reference_backward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "columns")
-projection_read(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+read_intent(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
     _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
@@ -275,7 +275,7 @@ projection_read(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::Replace
     name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
-function projection_print(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
+function print_document(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
         p, recursion, ctx, schema, p.name,
         "Tables", () -> " " * schema.name, schema.tables)
@@ -288,7 +288,7 @@ map_reference_forward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref)
     _catalog_forward_ref(p, iomap, ref, "tables")
 map_reference_backward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "tables")
-projection_read(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+read_intent(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
     _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
@@ -297,7 +297,7 @@ projection_read(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::Replac
     name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
-function projection_print(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
+function print_document(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
         p, recursion, ctx, db, p.name,
         "Schemas", () -> " " * db.name, db.schemas)
@@ -310,7 +310,7 @@ map_reference_forward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, re
     _catalog_forward_ref(p, iomap, ref, "schemas")
 map_reference_backward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "schemas")
-projection_read(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+read_intent(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
     _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
@@ -319,7 +319,7 @@ projection_read(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::Repl
     name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
-function projection_print(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)
+function print_document(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
         p, recursion, ctx, rdbms, p.name,
         "Databases", () -> " " * rdbms.host * ":" * string(rdbms.port), rdbms.databases)
@@ -332,7 +332,7 @@ map_reference_forward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) 
     _catalog_forward_ref(p, iomap, ref, "databases")
 map_reference_backward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "databases")
-projection_read(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
+read_intent(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation) =
     _catalog_read_selection(p, iomap, op)
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────

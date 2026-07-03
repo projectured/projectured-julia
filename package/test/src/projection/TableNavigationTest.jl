@@ -7,7 +7,7 @@
 # explore_table_selections(document, projection)
 #   BFS over the tree-selection states reachable from Ctrl+Alt+Home (whole
 #   table). At each state every navigation chord (arrows / Alt+arrows /
-#   Shift/Ctrl+Space / Enter) is tried via projection_read; the resulting path is
+#   Shift/Ctrl+Space / Enter) is tried via read_intent; the resulting path is
 #   re-applied, re-printed and the iomap walked. Returns (state_count, errors).
 #
 # Reference vocabulary on WidgetTable: whole cell = `rows[r][c]`, whole row =
@@ -38,13 +38,13 @@ function explore_table_selections(document, projection; onstate=nothing)
 
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        return (state_count=0, errors=["projection_print failed: $e"])
+        return (state_count=0, errors=["print_document failed: $e"])
     end
 
     op = try
-        projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
+        read_intent(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
     catch e
         return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"])
     end
@@ -63,7 +63,7 @@ function explore_table_selections(document, projection; onstate=nothing)
         set_selection!(document, path)
 
         iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
             msg = "reprint at [$path_str] failed: $e"
             push!(errors, msg)
@@ -74,7 +74,7 @@ function explore_table_selections(document, projection; onstate=nothing)
 
         for key in nav_keys
             op = try
-                projection_read(projection, iomap, key)
+                read_intent(projection, iomap, key)
             catch e
                 push!(errors, "reader error at [$path_str] with $key: $e")
                 nothing
@@ -149,8 +149,8 @@ end
 function _table_nav(document, projection, gesture, sel)
     clear_selection!(document)
     sel === nothing || set_selection!(document, sel)
-    iomap = projection_print(projection, document)
-    op = projection_read(projection, iomap, gesture)
+    iomap = print_document(projection, document)
+    op = read_intent(projection, iomap, gesture)
     op isa ReplaceSelectionOperation ? string(op.path) : (op === nothing ? "nothing" : string(typeof(op)))
 end
 
@@ -216,7 +216,7 @@ end
     m = _table_measure()
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
-    io = projection_print(proj, doc)
+    io = print_document(proj, doc)
     geom = io.geometry[]
 
     # Aim at the centre of the (row 2, column 2) data cell.
@@ -225,8 +225,8 @@ end
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
 
-    alt_op   = projection_read(proj, io, MousePress(:left, cx, cy, Modifiers(alt=true)))
-    plain_op = projection_read(proj, io, MousePress(:left, cx, cy, Modifiers()))
+    alt_op   = read_intent(proj, io, MousePress(:left, cx, cy, Modifiers(alt=true)))
+    plain_op = read_intent(proj, io, MousePress(:left, cx, cy, Modifiers()))
 
     @test alt_op isa ReplaceSelectionOperation
     @test string(alt_op.path) == ".rows[2][2]"
@@ -239,25 +239,25 @@ end
     m = _table_measure()
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
-    io = projection_print(proj, doc)
+    io = print_document(proj, doc)
     geom = io.geometry[]
 
     # Column header strip (grid row 1) over data column 3.
     gc = 3 + geom.col_offset
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
-    col_op = projection_read(proj, io, MousePress(:left, cx, div(geom.row_y[2], 2), Modifiers()))
+    col_op = read_intent(proj, io, MousePress(:left, cx, div(geom.row_y[2], 2), Modifiers()))
     @test col_op isa ReplaceSelectionOperation
     @test string(col_op.path) == ".column_headers[3]"
 
     # Row header strip (grid column 1) over data row 2.
     gr = 2 + geom.row_offset
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
-    row_op = projection_read(proj, io, MousePress(:left, div(geom.col_x[2], 2), cy, Modifiers()))
+    row_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), cy, Modifiers()))
     @test row_op isa ReplaceSelectionOperation
     @test string(row_op.path) == ".rows[2]"
 
     # Top-left corner (header intersection) selects the whole table.
-    corner_op = projection_read(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), Modifiers()))
+    corner_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), Modifiers()))
     @test corner_op isa ReplaceSelectionOperation
     @test corner_op.path isa EmptyReferencePath
 end

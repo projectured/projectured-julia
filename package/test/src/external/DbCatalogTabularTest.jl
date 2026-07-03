@@ -14,7 +14,7 @@ using Projectured
 function test_sql_to_cell_table(instance, pool; show_detail=false)
     @testset "SqlToCellTable → CellTable on persons" begin
         stmt = SqlSelectStatement("persons")
-        ct = projection_print(SqlToCellTable(pool, instance), stmt).output
+        ct = print_document(SqlToCellTable(pool, instance), stmt).output
         @test ct isa CellTable
 
         nr, nc = size(ct)
@@ -36,10 +36,10 @@ end
 function test_cell_table_to_table(instance, pool)
     @testset "CellTableToWidgetTable → WidgetTable" begin
         stmt = SqlSelectStatement("persons")
-        ct = projection_print(SqlToCellTable(pool, instance), stmt).output
+        ct = print_document(SqlToCellTable(pool, instance), stmt).output
         nr, nc = size(ct)
 
-        wt = projection_print(CellTableToWidgetTable(), ct).output
+        wt = print_document(CellTableToWidgetTable(), ct).output
         @test wt isa WidgetTable
         @test Int(wt.column_count)        == nc            # one column per result column
         @test length(wt.column_headers)   == nc            # header strip from row 1

@@ -30,11 +30,11 @@ module ProjectionTemplateModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ProjectionApiModule: map_reference_forward, map_reference_backward, projection_read, Projection,
-                              projection_printer_recurse
-import ..ChangeModule: Change
+import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent, Projection,
+                              print_child
+import ..IntentModule: Intent
 # Bind the module itself so `@projection_template` can emit a module-qualified
-# `ProjectionApiModule.projection_print` method-definition name (see the macro).
+# `ProjectionApiModule.print_document` method-definition name (see the macro).
 import ..ProjectionApiModule
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
@@ -43,7 +43,7 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
 import ..PrinterContextModule: child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..DocumentApiModule: Document, document_read
+import ..DocumentApiModule: Document, read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
 import ..OperationRerootingModule: reroot_operation
 
@@ -81,8 +81,8 @@ _project_child_cell(recursion, doc, ctx, prj::Project) =
         v -> begin
             cctx = child_context(ctx, FieldReference(String(prj.input)))
             ov = _override(prj.override, v)
-            ov === nothing ? projection_printer_recurse(recursion, v, cctx) :
-                             ProjectionApiModule.projection_print(ov, recursion, v, cctx)
+            ov === nothing ? print_child(recursion, v, cctx) :
+                             ProjectionApiModule.print_document(ov, recursion, v, cctx)
         end)
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
@@ -425,7 +425,7 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
     child_iomaps = if coll.element === nothing
         # homogeneous: each element projected by its own projection
         _reconciling_child_iomaps(elements_fn, (i, x) ->
-            projection_printer_recurse(recursion, x,
+            print_child(recursion, x,
                 child_context(ctx, FieldReference(String(input_field)), ElementReference(i))))
     else
         # templated: build a fixed-children node per element via the element builder
@@ -605,7 +605,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
     end
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
     coll_iomaps = Cell(() -> [
-        projection_printer_recurse(recursion, x,
+        print_child(recursion, x,
             child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
     children = CellVector(() -> vcat(
@@ -682,7 +682,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
         for (field, mk) in specs
             coll = getproperty(doc, field)
             isempty(coll) && continue
-            entries = [projection_printer_recurse(recursion, x,
+            entries = [print_child(recursion, x,
                            child_context(ctx, FieldReference(String(field)), ElementReference(i)))
                        for (i, x) in enumerate(coll)]
             push!(res, (field=field, mk=mk, entries=entries))
@@ -1139,7 +1139,7 @@ end
 # the child's operation is lifted back into this node's input domain by prepending
 # the input step that leads to that child (`entries[i].value`, `elements[i]`, …).
 # A node handles the gesture itself — via its document's `@gestures`
-# (`document_read`) — only when the child declines: innermost-first, with bubbling
+# (`read_gesture`) — only when the child declines: innermost-first, with bubbling
 # to the nearest enclosing structural node. This is the reader-side mirror of the
 # recursive printer (`collection`/`project`) and the recursive operation reader
 # (`map_reference_backward` below), and reuses the same lift (`reroot_operation`)
@@ -1153,7 +1153,7 @@ end
 # The input step(s) into the focused child plus that child's iomap, derived from
 # this node's input selection. `nothing` ⇒ the selection does not descend into a
 # recursable child projection (a leaf cursor, a key cursor, or no selection), so
-# the caller falls back to this node's own `document_read`.
+# the caller falls back to this node's own `read_gesture`.
 _focused_child(::Any, iomap, sel) = nothing
 
 function _focused_child(w::NodeWiring, iomap, sel)
@@ -1236,7 +1236,7 @@ function _focused_child(w::SectionsWiring, iomap, sel)
     nothing
 end
 
-function projection_read(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown})
+function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown})
     input = iomap.input
     input isa Document || return nothing
     sel = getfield(input, :selection)[]
@@ -1244,24 +1244,24 @@ function projection_read(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, K
         fc = _focused_child(iomap.wiring, iomap, sel)
         if fc !== nothing
             child, steps = fc
-            child_op = projection_read(child.projection, child, evt)
+            child_op = read_intent(child.projection, child, evt)
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
     # Own-level handling: the nearest enclosing node's reified gestures, and the
     # override seam (a node that must special-case a gesture does so here).
-    return document_read(input, evt)
+    return read_gesture(input, evt)
 end
 
 # Disambiguation (mirrors the op shims below): the recursive reader above
 # (`Projection`) and the transparent `RecursiveProjection` wrapper's 3-arg reader
 # both match `(RecursiveProjection, RuleIoMap, evt)`, neither more specific. Defer
 # to the wrapper so it threads the read into its child projection.
-projection_read(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
-    projection_read(rp, nothing, Change(evt), iomap).operation
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+    read_intent(rp, nothing, Intent(evt), iomap).operation
 
 # Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
-function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
     w = iomap.wiring
     # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`, …) has
     # no editable text, so a character insert there is never a valid text edit.
@@ -1279,7 +1279,7 @@ end
 # Whole-element selection: map back, else (node) the position is a structural
 # introduced one with no input pre-image ⇒ wrap into this projection's own step
 # (the domain-neutral counterpart of the Syntax flat-offset fallback).
-function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
@@ -1287,35 +1287,35 @@ function projection_read(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOp
 end
 
 # Disambiguation: the two generic RuleIoMap readers above (`Projection`) and the
-# transparent RecursiveProjection wrapper's `projection_read(rp, iomap, payload)`
+# transparent RecursiveProjection wrapper's `read_intent(rp, iomap, payload)`
 # both match `(RecursiveProjection, RuleIoMap, op)`, neither more specific. One
 # concrete-typed method per op (not a Union, which would still tie with the
 # `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
 # read into its child projection.
-projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
-    projection_read(rp, nothing, Change(op), iomap).operation
-projection_read(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
-    projection_read(rp, nothing, Change(op), iomap).operation
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
+    read_intent(rp, nothing, Intent(op), iomap).operation
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
+    read_intent(rp, nothing, Intent(op), iomap).operation
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────
 
 """
     @projection_template ProjName InType (p, doc) -> <builder body>
 
-Emit `projection_print(p::ProjName, recursion, doc::InType, ctx)` that runs the
+Emit `print_document(p::ProjName, recursion, doc::InType, ctx)` that runs the
 builder through `rule_print`.
 """
 macro projection_template(projname, intype, builder)
     quote
         # Define the method with a *module-qualified* name so it always extends
-        # the canonical `ProjectionApiModule.projection_print` the type-dispatcher
+        # the canonical `ProjectionApiModule.print_document` the type-dispatcher
         # calls — regardless of what the calling module imported. The unescaped
         # `ProjectionApiModule` hygiene-resolves to this macro's defining module
         # (which binds it via `import ..ProjectionApiModule`). The old
-        # `esc(:projection_print)` instead resolved the name in the *caller's*
+        # `esc(:print_document)` instead resolved the name in the *caller's*
         # module and, if it hadn't imported the generic, silently defined a dead
         # local one → a confusing MethodError at dispatch time.
-        function ProjectionApiModule.projection_print(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
+        function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             $(rule_print)(p, recursion, doc, ctx, $(esc(builder)))
         end
     end

@@ -29,8 +29,8 @@ module SyntaxToWidgetModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse,
-                              projection_read, map_reference_forward,
+import ..ProjectionApiModule: print_document, print_child,
+                              read_intent, map_reference_forward,
                               map_reference_backward, Projection
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TextModule: TextText, TextString, TextDocument
@@ -139,7 +139,7 @@ function map_reference_backward(::SyntaxLeafToWidget, iomap, reference)
     return nothing
 end
 
-function projection_print(p::SyntaxLeafToWidget, recursion, leaf::SyntaxLeaf, ctx)
+function print_document(p::SyntaxLeafToWidget, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         s = leaf.selection
         s isa EmptyReferencePath && return @reference()
@@ -150,7 +150,7 @@ function projection_print(p::SyntaxLeafToWidget, recursion, leaf::SyntaxLeaf, ct
     SimpleIoMap(p, leaf, tt)
 end
 
-function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     return ReplaceSelectionOperation(input_path)
@@ -158,7 +158,7 @@ end
 
 # Translate a TextText-domain ReplaceStringRangeOperation (referencing
 # `.elements[2].content[s:e]`, the value span) back to a `.value[s:e]` op.
-function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
@@ -169,8 +169,8 @@ function projection_read(p::SyntaxLeafToWidget, iomap::SimpleIoMap, op::ReplaceS
 end
 
 # Pass KeyDown through so upstream projections can react (Backspace/Delete etc.).
-projection_read(::SyntaxLeafToWidget, iomap::SimpleIoMap, evt::KeyDown) = evt
-projection_read(::SyntaxLeafToWidget, iomap::SimpleIoMap, evt) = nothing
+read_intent(::SyntaxLeafToWidget, iomap::SimpleIoMap, evt::KeyDown) = evt
+read_intent(::SyntaxLeafToWidget, iomap::SimpleIoMap, evt) = nothing
 
 # ── SyntaxNodeToWidget ──────────────────────────────────────────────────────
 # An indented node → WidgetCard (collapsible: header = open delimiter, content =
@@ -204,13 +204,13 @@ _chrome_text(s::AbstractString) =
     TextText(CellVector(() -> TextDocument[TextString(s, font_dejavu_monospace_regular_20, color_solarized_gray)]),
              Cell(nothing))
 
-function projection_print(p::SyntaxNodeToWidget, recursion, node::SyntaxNode, ctx)
+function print_document(p::SyntaxNodeToWidget, recursion, node::SyntaxNode, ctx)
     ref = ctx.reference
     # Delegate every child through the recursion (C1): each re-enters the
     # pipeline and is dispatched by its own type. Cache the iomaps so the toggle
     # reader can match the produced widgets and the layout reads each `.output`.
     child_ioms = Cell(() -> Any[
-        projection_printer_recurse(recursion, node.children[i],
+        print_child(recursion, node.children[i],
                                    child_context(ctx, @reference ^(ref).children[i]))
         for i in eachindex(node.children)
     ])
@@ -278,7 +278,7 @@ end
 # projection-introduced open/close/sep pieces — to the syntax child it came from,
 # then delegate the tail through that child's stored iomap (School A, as in
 # `JsonArrayToSyntaxNode`). The helpers below mirror the piece layout built by
-# `projection_print`:
+# `print_document`:
 #
 #   inline node (HorizontalLayout): [ open?  child₁  sep  child₂ … childₙ  close? ]
 #   indented node body (VerticalLayout): [ child₁  child₂ … childₙ  close? ]
@@ -427,7 +427,7 @@ end
 
 # The WidgetCard header-click reader emits ToggleCollapseOperation(card); retarget
 # it to the owning SyntaxNode so `evaluate_operation` flips `node.collapsed`.
-function projection_read(::SyntaxNodeToWidget, iomap, op::ToggleCollapseOperation)
+function read_intent(::SyntaxNodeToWidget, iomap, op::ToggleCollapseOperation)
     op.target === nothing && return op
     node = _find_collapse_target(iomap, op.target)
     node === nothing ? op : ToggleCollapseOperation(node)
@@ -436,18 +436,18 @@ end
 # Re-root a path-bearing op from the widget output domain back to the syntax
 # domain via the backward mapper (which recurses through the stored child iomaps).
 # A reference with no syntax pre-image (a sep/chrome piece) drops the op.
-function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     new = map_reference_backward(p, iomap, op.path)
     new === nothing ? nothing : ReplaceSelectionOperation(new)
 end
 
-function projection_read(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::SyntaxNodeToWidget, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new = map_reference_backward(p, iomap, op.reference)
     new === nothing ? nothing : ReplaceStringRangeOperation(new, op.replacement)
 end
 
 # Anything else (scrolls, non-path ops, …) passes through.
-projection_read(::SyntaxNodeToWidget, iomap, op) = op
+read_intent(::SyntaxNodeToWidget, iomap, op) = op
 
 # ── Factory ──────────────────────────────────────────────────────────────────
 

@@ -20,7 +20,7 @@ using ProjecturedKernel
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
 const BackendApiModule = ProjecturedKernel.BackendApiModule
-const ChangeModule = ProjecturedKernel.ChangeModule
+const IntentModule = ProjecturedKernel.IntentModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
 const DeviceApiModule = ProjecturedKernel.DeviceApiModule

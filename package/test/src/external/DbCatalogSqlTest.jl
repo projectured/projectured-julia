@@ -14,13 +14,13 @@ _ddl_pipe() = ChainingProjection(
     RecursiveProjection(SqlToSyntax()),
     RecursiveProjection(SyntaxToText()),
     RecursiveProjection(TextToString()))
-_catalog_ddl(node) = projection_print(_ddl_pipe(), node).output[]
+_catalog_ddl(node) = print_document(_ddl_pipe(), node).output[]
 
 # ── Per-type construction ─────────────────────────────────────────────────────
 
 function test_db_catalog_column_to_sql()
     @testset "DbCatalogColumnToSql" begin
-        out = projection_print(DbCatalogColumnToSql(), DbCatalogColumn("title", "text")).output
+        out = print_document(DbCatalogColumnToSql(), DbCatalogColumn("title", "text")).output
         @test out isa SqlColumnDefinition
         @test out.column_name.name == "title"
         @test out.data_type == "text"
@@ -34,7 +34,7 @@ function test_db_catalog_table_to_sql()
             Cell(DbCatalogColumn("length", "integer"))]))
 
         # Standalone (no enclosing schema): unqualified table name.
-        out = projection_print(RecursiveProjection(DbCatalogToSql()), table).output
+        out = print_document(RecursiveProjection(DbCatalogToSql()), table).output
         @test out isa SqlCreateTableStatement
         @test out.table_name.schema_name === nothing
         @test out.table_name.name == "film"
@@ -53,7 +53,7 @@ function test_db_catalog_schema_to_sql()
         actor = DbCatalogTable("actor", CellVector(Cell[Cell(DbCatalogColumn("first_name", "text"))]))
         schema = DbCatalogSchema("public", CellVector(Cell[Cell(film), Cell(actor)]))
 
-        out = projection_print(RecursiveProjection(DbCatalogToSql()), schema).output
+        out = print_document(RecursiveProjection(DbCatalogToSql()), schema).output
         @test out isa SqlStatementList
         # CREATE SCHEMA + one CREATE TABLE per table.
         @test length(out.statements) == 3
@@ -77,7 +77,7 @@ function test_db_catalog_database_to_sql()
         schema = DbCatalogSchema("public", CellVector(Cell[Cell(film)]))
         db     = DbCatalogDatabase("dvdrental", CellVector(Cell[Cell(schema)]))
 
-        out = projection_print(RecursiveProjection(DbCatalogToSql()), db).output
+        out = print_document(RecursiveProjection(DbCatalogToSql()), db).output
         @test out isa SqlStatementList
         # Flattened: CREATE SCHEMA + CREATE TABLE (not a nested list).
         @test length(out.statements) == 2
@@ -96,7 +96,7 @@ function test_db_catalog_rdbms_to_sql()
         db     = DbCatalogDatabase("dvdrental", CellVector(Cell[Cell(schema)]))
         rdbms  = DbCatalogRdbms("localhost", 5432, CellVector(Cell[Cell(db)]))
 
-        out = projection_print(RecursiveProjection(DbCatalogToSql()), rdbms).output
+        out = print_document(RecursiveProjection(DbCatalogToSql()), rdbms).output
         @test out isa SqlStatementList
         @test length(out.statements) == 2
         @test out.statements[1] isa SqlCreateSchemaStatement

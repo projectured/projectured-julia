@@ -93,7 +93,7 @@ abstract types + generic function *declarations* (`function f end`) + docstrings
 **no** concrete types, algorithms, factory registries, or mutable globals.
 (Implementations that used to sit here now live in their impl modules: the
 `splice_*` text helpers and default `evaluate_operation` methods in
-`OperationModule`, and the concrete protocol data types `Change` / `NoOperation`
+`OperationModule`, and the concrete protocol data types `Intent` / `NoOperation`
 in `common/` — they are data vehicles that cross the seam, not interfaces to
 implement.) The stateless factory seams `make_backend(kind)` /
 `make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own
@@ -139,7 +139,7 @@ Current shape:
 | `reference/` | reference paths, `@reference`, `@reference_case` |
 | `device/` | Modifiers, Keyboard, Mouse, EventCase, ScreenDevice |
 | `document/` | Collection, Primitive, ScreenDocument (the engine's own vocabulary) |
-| `common/` | remaining cross-layer impl (Change, Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
+| `common/` | remaining cross-layer impl (Intent, Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
 | `projection/` | the projection algebra (`higherorder/`, `generic/`) |
 | `editor/` | EditorTime (the animation clock), PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
 
@@ -151,5 +151,5 @@ imports; the `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently **module
 names are de-facto public API** — renaming one ripples into the domain alias block
 and the umbrella. New sub-modules extracted within a layer (as `PerformanceCounter`
-/ `EditorTime` / `Change` were) are picked up by the umbrella automatically and
+/ `EditorTime` / `Intent` were) are picked up by the umbrella automatically and
 need only an added domain alias if a domain file imports from them directly.

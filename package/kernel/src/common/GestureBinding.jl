@@ -1,7 +1,7 @@
 """
     GestureBindingModule
 
-Reified **gesture → operation** bindings: the data layer the `document_read`
+Reified **gesture → operation** bindings: the data layer the `read_gesture`
 seam was missing. A `GestureBinding` is a piece of *data* that can both **fire**
 an operation and be **inspected** (gesture rendering + human description +
 applicability), so the very same declaration that handles a key both edits the
@@ -25,7 +25,7 @@ The pieces:
 - **`@gestures DocType begin … end`** — the declarative authoring form. It emits
   the `document_gestures_own(::Type{DocType})` method holding the reified table.
   Firing is then a *single generic interpreter* (`read_document_gesture`, wired
-  into `document_read`) that walks that very table — so what *fires* is provably
+  into `read_gesture`) that walks that very table — so what *fires* is provably
   the set that is *shown*.
 
 This is the kernel half (Stage 1 + the `projection_gestures` seam / collector
@@ -38,7 +38,7 @@ module GestureBindingModule
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ModifiersModule: Modifiers
-import ..DocumentApiModule: Document, document_read
+import ..DocumentApiModule: Document, read_gesture
 import ..ProjectionApiModule: Projection
 # Reuse the `@event_case` pattern parser for the LHS of `@gestures` rules.
 # These EventCase internals are deliberately shared (not exported) — see the
@@ -279,7 +279,7 @@ Fire the first matching binding for `doc`, checking its per-instance
 [`instance_gestures`](@ref) first and then its per-type [`document_gestures`](@ref)
 table (walking the supertype chain), evaluated against the current selection.
 Instance bindings therefore shadow same-pattern type defaults. This is the single
-interpreter that backs `document_read` for every `@gestures`-declared type; an
+interpreter that backs `read_gesture` for every `@gestures`-declared type; an
 object with neither instance nor type bindings yields `nothing`, exactly as the
 old default.
 """
@@ -309,9 +309,9 @@ end
 
 # The projection-independent reader for any `@gestures`-declared document is the
 # table interpreter. JSON, Syntax and Text are all reified onto it; a domain may
-# still add a more-specific `document_read(::SomeDoc, evt)` that wins. Documents
+# still add a more-specific `read_gesture(::SomeDoc, evt)` that wins. Documents
 # with no registered gestures get `nothing` (empty table), exactly as the old default.
-document_read(doc::Document, event) = read_document_gesture(doc, event)
+read_gesture(doc::Document, event) = read_document_gesture(doc, event)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Projection-owned gestures (Stage 2 seam) + collector defaults
@@ -323,7 +323,7 @@ document_read(doc::Document, event) = read_document_gesture(doc, event)
 Gestures owned by a *projection* rather than a document (focus, collapse glyph,
 clipboard, …). Default empty; a projection overrides this to contribute its own
 rows to the contextual collector. The combinator `collect_gestures` methods
-(beside the `projection_read` combinators) gather these across the chain.
+(beside the `read_intent` combinators) gather these across the chain.
 """
 projection_gestures(::Projection, iomap) = GestureBinding[]
 
@@ -361,11 +361,11 @@ end
     collect_gestures(projection, recursion, iomap) -> Vector{GestureBinding}
 
 Gather every gesture available at `iomap` — the data-driven generalization of
-`projection_read`'s 4-arg routing: where the reader *matches* one gesture, this
+`read_intent`'s 4-arg routing: where the reader *matches* one gesture, this
 *collects* them all. The leaf default is the projection's own
 `projection_gestures` plus `document_gestures(iomap.input)`; compound projections
 override to recurse in lockstep with their reader. Each combinator method lives
-beside that combinator's `projection_read` (so coverage extends incrementally —
+beside that combinator's `read_intent` (so coverage extends incrementally —
 un-reified layers simply contribute nothing).
 """
 function collect_gestures(p::Projection, recursion, iomap)

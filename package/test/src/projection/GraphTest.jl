@@ -84,7 +84,7 @@ end
     # Content recursion: Json → Syntax → Text → Graphics (the mixed pipeline).
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
     stage = GraphGraphToGraphLayout(FallbackLayoutEngine())
-    iomap = projection_print(stage, content, g, _gctx())
+    iomap = print_document(stage, content, g, _gctx())
     layout = iomap.output
     @test layout isa GraphLayout
     @test length(layout.vertex_layouts) == 1
@@ -112,7 +112,7 @@ end
         GraphLayoutToGraphicsCanvas(),
     )
     proj = NestingProjection(graph_stages; recursion=content)
-    iomap = projection_print(proj, g)
+    iomap = print_document(proj, g)
     canvas = iomap.output
     @test canvas isa GraphicsCanvas
 
@@ -130,7 +130,7 @@ end
 @testset "selection descends into vertex content" begin
     g = make_graph_document_example()
     proj = make_graph_projection_example(measure=(t, f) -> (length(t) * 10, 20))
-    iomap = projection_print(proj, g)
+    iomap = print_document(proj, g)
     @test iomap.output isa GraphicsCanvas
 
     # A selection into the first vertex's content maps forward to a non-nothing
@@ -139,7 +139,7 @@ end
     # Forward mapping of the stage-1 projection: vertices[i] ↔ vertex_layouts[i].vertex.
     stage = GraphGraphToGraphLayout(FallbackLayoutEngine())
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
-    s1 = projection_print(stage, content, g, _gctx())
+    s1 = print_document(stage, content, g, _gctx())
     fwd = map_reference_forward(stage, s1, @reference vertices[1])
     @test fwd !== nothing
     back = map_reference_backward(stage, s1, fwd)

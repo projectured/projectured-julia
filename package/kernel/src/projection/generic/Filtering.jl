@@ -6,7 +6,7 @@ subset of elements matching a given predicate.
 """
 module FilteringProjectionModule
 
-import ..ProjectionApiModule: projection_print, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
@@ -30,7 +30,7 @@ keeping only those for which `predicate(element)` returns `true`.
 # Example
 
     fp = FilteringProjection(predicate=x -> x > 0)
-    result = projection_print(fp, [-1, 2, -3, 4])  # [2, 4]
+    result = print_document(fp, [-1, 2, -3, 4])  # [2, 4]
 """
 struct FilteringProjection <: Projection
     predicate::Function
@@ -39,7 +39,7 @@ end
 FilteringProjection(; predicate::Function=Returns(true)) =
     FilteringProjection(predicate)
 
-function projection_print(p::FilteringProjection, recursion, input::CellVector, ctx)
+function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
     n = length(input)
     kept_indices = Int[i for i in 1:n if p.predicate(input[i])]
     out_cells = Cell[Cell(input[i]) for i in kept_indices]
@@ -48,13 +48,13 @@ function projection_print(p::FilteringProjection, recursion, input::CellVector, 
     FilteringProjectionIoMap(p, input, output, kept_indices)
 end
 
-function projection_print(p::FilteringProjection, recursion, input::Vector{Cell}, ctx)
+function print_document(p::FilteringProjection, recursion, input::Vector{Cell}, ctx)
     kept_indices = Int[i for (i, c) in enumerate(input) if p.predicate(c)]
     output = Cell[input[i] for i in kept_indices]
     FilteringProjectionIoMap(p, input, output, kept_indices)
 end
 
-function projection_print(p::FilteringProjection, recursion, input, ctx)
+function print_document(p::FilteringProjection, recursion, input, ctx)
     kept_indices = findall(p.predicate, input)
     output = input[kept_indices]
     FilteringProjectionIoMap(p, input, output, kept_indices)

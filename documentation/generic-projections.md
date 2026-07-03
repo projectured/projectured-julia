@@ -29,8 +29,8 @@ though it changes the output domain.
 struct IdentityProjection <: Projection end
 ```
 
-Pass-through. `projection_print` returns `SimpleIoMap(p, input, input)` —
-the *same* object on both sides. `projection_read` and the reference maps
+Pass-through. `print_document` returns `SimpleIoMap(p, input, input)` —
+the *same* object on both sides. `read_intent` and the reference maps
 are the identity. Useful as a no-op branch inside dispatchers (e.g.
 "sort entries, preserve everything else").
 
@@ -47,16 +47,16 @@ a placeholder when a sub-tree is collapsed).
 ## CopyingProjection
 
 The workhorse of `ApplyAtProjection`. Recursively re-projects every child
-of the input with `projection_printer_recurse(recursion, child, child_ctx)`, then
+of the input with `print_child(recursion, child, child_ctx)`, then
 rebuilds an output struct/`CellVector`/`ListNode` of the same shape with
 the new outputs in place. It is strictly domain-independent — it has no
-`projection_read` method of its own (the default reader re-targets selection and
+`read_intent` method of its own (the default reader re-targets selection and
 edit operations through `map_reference_backward`) and knows nothing about any
 specific domain. Key behaviours:
 
 - For a `CellVector`, eagerly projects every slot.
 - For a `ListNode`, projects only the head eagerly; `prev`/`next` are
-  *lazy* — each direction is a `setfn!` thunk that projects only when read.
+  *lazy* — each direction is a `set_function!` thunk that projects only when read.
   This is what makes copying an infinite linked list cheap.
 - For a struct, projects every field whose value is a `Document` and
   passes non-document fields through unchanged.
@@ -72,7 +72,7 @@ when a backward reference points there.
 ## ReversingProjection
 
 ```julia
-projection_print(::ReversingProjection, recursion, input, ctx)
+print_document(::ReversingProjection, recursion, input, ctx)
 ```
 
 Reverses the elements. The reference map flips an index `i` to

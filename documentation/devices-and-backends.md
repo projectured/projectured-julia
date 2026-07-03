@@ -45,7 +45,7 @@ MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
 WindowQuit()                            # window close or Escape
 ```
 
-This vocabulary is what insulates a `TextToGraphics.projection_read` (which
+This vocabulary is what insulates a `TextToGraphics.read_intent` (which
 maps the `:left`/`:right` `KeyDown` keys to a `ReplaceSelectionOperation`) from
 any specific backend.
 
@@ -189,7 +189,7 @@ of truth.
 ### Incremental rendering (dirty-rect patches)
 
 Rather than resend a whole window on every change, a reactive **dirty-walk**
-(`_collect_canvas_dirty!` and friends) keyed on the cells' `isuptodate` flags
+(`_collect_canvas_dirty!` and friends) keyed on the cells' `is_up_to_date` flags
 computes the smallest rectangle covering everything that changed since the last
 paint, reusing SDL's bounds helpers. Per-window `prev_bounds` unions a unit's old
 and new extent so moved/shrunk content clears its vacated pixels.

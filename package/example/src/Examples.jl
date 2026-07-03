@@ -520,8 +520,8 @@ function _make_tooltip_source(doc; id::Symbol)
     content = TextText(() -> begin
         sel = doc.selection
         ctx = PrinterContext()
-        short = projection_print(short_proj, nothing, sel, ctx).output
-        long  = projection_print(long_proj,  nothing, sel, ctx).output
+        short = print_document(short_proj, nothing, sel, ctx).output
+        long  = print_document(long_proj,  nothing, sel, ctx).output
         spans = TextDocument[]
         for i in 1:length(short.elements)
             push!(spans, short.elements[i])
@@ -639,7 +639,7 @@ function run_example(names::Vector{<:AbstractString}; kwargs...)
 end
 
 function print_example(example::Example)
-    iomap = projection_print(example.projection, example.document)
+    iomap = print_document(example.projection, example.document)
     output = iomap.output
     println(print_object(output isa Cell ? output[] : output; open_delimiter="{", close_delimiter="}"))
 end
@@ -693,7 +693,7 @@ function run_console_example(; document=make_json_document_example(),
         end
     else
         backend = make_backend(:console; ansi=ansi, clear=something(clear, false))
-        iomap = projection_print(projection, document)
+        iomap = print_document(projection, document)
         output = iomap.output
         output = output isa Cell ? output[] : output
         write_to_devices(backend, Device[], output)

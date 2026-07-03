@@ -16,7 +16,7 @@ module WorkspaceToFileSystemModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..OperationApiModule: Operation
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
@@ -32,7 +32,7 @@ export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
 struct WorkspaceFolderToFileSystemDirectory <: Projection end
 
-function projection_print(p::WorkspaceFolderToFileSystemDirectory,
+function print_document(p::WorkspaceFolderToFileSystemDirectory,
                            recursion, folder::WorkspaceFolder, ctx)
     dir = make_filesystem_pathname(folder.pathname)
     SimpleIoMap(p, folder, dir)
@@ -53,7 +53,7 @@ end
 # the gesture there would short-circuit the whole read with a non-operation
 # "operation" (the navigator's clicks/hover/collapse all die that way). Decline
 # anything that is not an Operation so the normal output→input threading runs.
-function projection_read(::WorkspaceFolderToFileSystemDirectory, iomap, op)
+function read_intent(::WorkspaceFolderToFileSystemDirectory, iomap, op)
     op isa Operation ? op : nothing
 end
 
@@ -61,9 +61,9 @@ end
 
 struct WorkspaceWorkspaceProjection <: Projection end
 
-function projection_print(p::WorkspaceWorkspaceProjection,
+function print_document(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
-    child_iomaps = [projection_printer_recurse(recursion, elem,
+    child_iomaps = [print_child(recursion, elem,
                                    child_context(ctx, FieldReference("folders"), ElementReference(i)))
                     for (i, elem) in enumerate(w.folders)]
     # The output is the first folder's output for single-root workspaces.
@@ -83,7 +83,7 @@ end
 # Identity on references (see WorkspaceFolderToFileSystemDirectory above): pass
 # operations through unchanged, but decline raw gestures so the sequential
 # reader's input-domain "first say" does not short-circuit with a bare event.
-function projection_read(::WorkspaceWorkspaceProjection, iomap, op)
+function read_intent(::WorkspaceWorkspaceProjection, iomap, op)
     op isa Operation ? op : nothing
 end
 

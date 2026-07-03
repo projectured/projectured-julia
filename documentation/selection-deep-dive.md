@@ -111,14 +111,14 @@ containers. They are terminal output; the selection mechanism does not enter the
 
 ## 5. How the printer projects the selection
 
-Every `projection_print` method maps both the input *content* and the input
+Every `print_document` method maps both the input *content* and the input
 *selection* forward. The selection mapping is expressed as a **computed cell**
 so it updates reactively whenever the input selection changes:
 
 ```julia
 # SyntaxLeafToText — excerpt. The printer is always 4-arg:
-# projection_print(projection, recursion, input, ctx::PrinterContext)
-function projection_print(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
+# print_document(projection, recursion, input, ctx::PrinterContext)
+function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
         c < 0 ? nothing : ConcreteReferencePath(PositionReference(c))
@@ -139,7 +139,7 @@ offset:
 | `ProjectionReference(p, .close + {k})` | `open_len + value_len + k` |
 
 The key point: **the selection is not passed as a parameter through
-`projection_print`** — it is wired reactively. The output document's
+`print_document`** — it is wired reactively. The output document's
 `selection` cell reads from the input document's `selection` cell as a computed
 dependency.
 
@@ -147,17 +147,17 @@ dependency.
 
 ## 6. How the reader translates the selection
 
-The reader chain walks right-to-left, threading a [`Change`](projection-system.md#the-change-the-reader-threads)
+The reader chain walks right-to-left, threading a [`Intent`](projection-system.md#the-change-the-reader-threads)
 (gesture + operation) and translating its `ReplaceSelectionOperation` from the
 output domain back to the input domain at each step. Each reader is the 4-arg
-`projection_read(p, recursion, change::Change, iomap) → Change`; the `gesture`
+`read_intent(p, recursion, change::Intent, iomap) → Intent`; the `gesture`
 rides along unchanged while the `operation` is re-mapped one domain inward.
-(Most steps need no `projection_read` method at all — the default re-targets a
+(Most steps need no `read_intent` method at all — the default re-targets a
 `ReplaceSelectionOperation`'s path via `map_reference_backward`. The steps below
 spell out the path translation each one's mapper performs.)
 
 **`TextToGraphics`** (outermost reader):
-- The `Change.gesture` is a raw key event (`KeyDown(:right, ...)`).
+- The `Intent.gesture` is a raw key event (`KeyDown(:right, ...)`).
 - Reads the current flat cursor offset from `iomap.input.selection[]`.
 - Produces `ReplaceSelectionOperation({new_pos})` in Text domain.
 
@@ -203,13 +203,13 @@ into children the formats differ across domains (see §8 below).
 ## 8. Selection projection under recursion
 
 When a compound projection recurses into children (calling
-`projection_printer_recurse(recursion, child, child_ctx)` for each element), the
+`print_child(recursion, child, child_ctx)` for each element), the
 output document's selection must be computed via a three-step algorithm, not by
 passing the input suffix directly:
 
 **Step 1 — Recurse first, collect child IO maps.**
 ```julia
-child_iomaps = Cell(() -> [projection_printer_recurse(recursion, child,
+child_iomaps = Cell(() -> [print_child(recursion, child,
                                                        child_context(ctx, ElementReference(i)))
                             for (i, child) in enumerate(elements)])
 ```
@@ -245,7 +245,7 @@ child projection's selection mapping entirely.
 
 **Why child IO maps must be shared.**
 Both the children `Cell` and the selection `Cell` must call
-`projection_print` on the same children. Computing them in two separate cells
+`print_document` on the same children. Computing them in two separate cells
 would instantiate different output document objects, breaking the identity
 invariant that the selection cell reads from the same document the children
 cell exposes. The child IO maps must be computed in a single shared reactive

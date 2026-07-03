@@ -13,7 +13,7 @@ module ObjectToSyntaxModule
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
 import ..LlmModule: Llm
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
@@ -41,7 +41,7 @@ export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
     include_selection::Bool = false
 end
 
-function projection_print(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
+function print_document(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
     leaf = SyntaxLeaf(TextString("nothing", p.style))
     SimpleIoMap(p, nothing, leaf)
 end
@@ -53,7 +53,7 @@ end
     include_selection::Bool = false
 end
 
-function projection_print(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
+function print_document(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
     leaf = SyntaxLeaf(TextString(b ? "true" : "false", p.style))
     SimpleIoMap(p, b, leaf)
 end
@@ -65,7 +65,7 @@ end
     include_selection::Bool = false
 end
 
-function projection_print(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
+function print_document(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
     leaf = SyntaxLeaf(TextString(string(n), p.style))
     SimpleIoMap(p, n, leaf)
 end
@@ -78,7 +78,7 @@ end
     include_selection::Bool = false
 end
 
-function projection_print(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
+function print_document(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
     leaf = SyntaxLeaf(
         TextString(s, p.value);
         open=TextString("\"", p.quote_style),
@@ -93,7 +93,7 @@ end
     include_selection::Bool = false
 end
 
-function projection_print(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
+function print_document(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
     leaf = SyntaxLeaf(TextString(string(s), p.style))
     SimpleIoMap(p, s, leaf)
 end
@@ -106,7 +106,7 @@ end
     include_selection::Bool = false
 end
 
-function projection_print(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
+function print_document(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
     leaf = SyntaxLeaf(
         TextString(string(c), p.value);
         open=TextString("'", p.quote_style),
@@ -121,7 +121,7 @@ end
     cycle::StyleText = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
 end
 
-function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
+function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     visited = get_property(ctx, :objects_seen, nothing)
     if visited !== nothing && haskey(visited, cell)
         cycle_leaf = SyntaxLeaf(TextString("⟨cycle: Cell⟩", p.cycle))
@@ -131,7 +131,7 @@ function projection_print(p::CellToSyntax, recursion, cell::Cell, ctx)
     new_visited[cell] = true
     ctx = with_property(ctx, :objects_seen, new_visited)
     unwrapped = cell[]
-    projection_printer_recurse(recursion, unwrapped, ctx)
+    print_child(recursion, unwrapped, ctx)
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -172,13 +172,13 @@ _type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString) =
 function _field_node(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol)
     name_leaf = SyntaxLeaf(TextString(string(fn), p.field_name))
     value_node = isdefined(obj, fn) ?
-        projection_printer_recurse(recursion, getfield(obj, fn),
+        print_child(recursion, getfield(obj, fn),
                          child_context(ctx, FieldReference(string(fn)))).output :
         SyntaxLeaf(TextString("<undefined>", p.undef))
     SyntaxNode("", "", " ", SyntaxDocument[name_leaf, value_node]; indentation=0)
 end
 
-function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
+function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
 
     # Cycle detection for mutable ancestors. Self-referential graphs (e.g.
@@ -210,7 +210,7 @@ function projection_print(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         idxs = p.filter === nothing ? collect(1:length(obj)) :
                [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
         element_nodes = SyntaxDocument[
-            projection_printer_recurse(recursion, obj[i],
+            print_child(recursion, obj[i],
                            child_context(ctx, ElementReference(i))).output
             for i in idxs
         ]
@@ -312,7 +312,7 @@ function print_object(obj; include_selection=false, open_delimiter="{", close_de
         RecursiveProjection(SyntaxToText(indent_size=indent)),
         RecursiveProjection(TextToString())
     )
-    iomap = projection_print(seq, seq, obj, PrinterContext())
+    iomap = print_document(seq, seq, obj, PrinterContext())
     out = iomap.output[]
     # The sibling separator (" ") leaves a trailing space before each newline;
     # strip per-line trailing whitespace so the rendering is clean.
@@ -377,7 +377,7 @@ finite. `maxdepth` separately bounds recursion depth for structures that are nev
 the *same* object, e.g. an infinite lazy list whose nodes are generated fresh on
 demand. See [`search_objects`](@ref) for the matching objects themselves (each once).
 
-`obj` need not be a document: passing an **iomap** (`projection_print(proj, doc)`)
+`obj` need not be a document: passing an **iomap** (`print_document(proj, doc)`)
 walks the whole projection pipeline — every stage's input and output — so you can
 find where a value lives across all stages. Paths rooted at an iomap are for
 inspection only (not selectable); see the debugging guide's

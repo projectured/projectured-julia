@@ -40,10 +40,10 @@ function test_query_filtered(adapter)
 end
 
 function test_projection_print(adapter)
-    @testset "T4 (proj) — projection_print produces DatabaseTableIoMap" begin
+    @testset "T4 (proj) — print_document produces DatabaseTableIoMap" begin
         doc = DatabaseTable(adapter, "persons")
         p   = DatabaseTableToTabularGrid()
-        iomap = projection_print(p, doc)
+        iomap = print_document(p, doc)
         @test iomap isa DatabaseTableIoMap
         g = iomap.output
         @test g isa TabularGrid
@@ -56,7 +56,7 @@ function test_ctid_values_captured(adapter)
     @testset "T5 (proj) — ctid values captured" begin
         doc = DatabaseTable(adapter, "persons")
         p   = DatabaseTableToTabularGrid()
-        iomap = projection_print(p, doc)
+        iomap = print_document(p, doc)
         ctids = iomap.ctid_values[]
         @test length(ctids) == length(iomap.output.rows) - 1  # exclude header
         @test all(c -> c !== nothing, ctids)
@@ -67,10 +67,10 @@ function test_projection_read_header_readonly(adapter)
     @testset "T6 (proj) — header row is read-only" begin
         doc   = DatabaseTable(adapter, "persons")
         p     = DatabaseTableToTabularGrid()
-        iomap = projection_print(p, doc)
+        iomap = print_document(p, doc)
         ref   = @reference rows[1].cells[1].content.value{0:3}
         op    = ReplaceStringRangeOperation(ref, "XYZ")
-        result = projection_read(p, iomap, op)
+        result = read_intent(p, iomap, op)
         @test result === nothing
     end
 end
@@ -79,10 +79,10 @@ function test_projection_read_data_row(adapter)
     @testset "T7 (proj) — data row edit → DatabaseUpdateOperation" begin
         doc   = DatabaseTable(adapter, "persons")
         p     = DatabaseTableToTabularGrid()
-        iomap = projection_print(p, doc)
+        iomap = print_document(p, doc)
         ref   = @reference rows[2].cells[1].content.value{0:5}
         op    = ReplaceStringRangeOperation(ref, "Dave")
-        result = projection_read(p, iomap, op)
+        result = read_intent(p, iomap, op)
         @test result isa DatabaseUpdateOperation
         @test result.column == "name"
         @test result.table  == "persons"

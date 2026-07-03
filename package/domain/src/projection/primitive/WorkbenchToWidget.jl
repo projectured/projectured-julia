@@ -19,7 +19,7 @@ hierarchy to a widget tree.
 
 The printer also **forward-projects the workbench selection** onto the widget
 tree: each `map_reference_forward` method is the structure-complete inverse of
-the matching `map_reference_backward`, and `projection_print` wires the
+the matching `map_reference_backward`, and `print_document` wires the
 `selection` cells of the shell, the structural split panes, and the tabbed
 panes to it. That lets the widget readers route a keystroke to the child the
 selection points at (split panes via `_selected_split_slot`, tabbed panes by
@@ -28,7 +28,7 @@ pane. See the "Forward-Projecting Selection" section of documentation/editor/sel
 """
 module WorkbenchToWidgetModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
@@ -51,7 +51,7 @@ import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..KeyboardModule: KeyDown, KeyPress
-import ..DocumentApiModule: document_read
+import ..DocumentApiModule: read_gesture
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -137,7 +137,7 @@ const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
 const _SHELL_FALLBACK_HEIGHT = 720   # window height when run outside a window
 
 _recurse(recursion, doc, ctx) =
-    (recursion !== nothing && doc isa WorkbenchDocument) ? projection_printer_recurse(recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
+    (recursion !== nothing && doc isa WorkbenchDocument) ? print_child(recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
 
 _title_widget(doc::WorkbenchDocument) = title(doc)
 
@@ -162,9 +162,9 @@ function _strip_split_child(path, slot::Int)
     _strip_field(rest.tail, "child")
 end
 
-# ── projection_print ──────────────────────────────────────────────────────────
+# ── print_document ──────────────────────────────────────────────────────────
 
-function projection_print(::WorkbenchWorkbenchToWidgetShell,
+function print_document(::WorkbenchWorkbenchToWidgetShell,
                            recursion, w::WorkbenchWorkbench, ctx)
     nav_iomap  = _recurse(recursion, w.navigation_page,  child_context(ctx, @reference ^(ctx.reference).navigation_page))
     edit_iomap = _recurse(recursion, w.editing_page,     child_context(ctx, @reference ^(ctx.reference).editing_page))
@@ -232,7 +232,7 @@ function projection_print(::WorkbenchWorkbenchToWidgetShell,
     iomap
 end
 
-function projection_print(::WorkbenchPageToWidgetTabbedPane,
+function print_document(::WorkbenchPageToWidgetTabbedPane,
                            recursion, page::WorkbenchPage, ctx)
     element_iomaps = Any[_recurse(recursion, page.elements[i],
                              child_context(ctx, @reference ^(ctx.reference).elements[i]))
@@ -287,14 +287,14 @@ function _tab_index_prefix(sel)
     ConcreteReferencePath(sel.type, sel.head, EmptyReferencePath())
 end
 
-function projection_print(::WorkbenchNavigatorToWidgetScrollPane,
+function print_document(::WorkbenchNavigatorToWidgetScrollPane,
                            recursion, nav::WorkbenchNavigator, ctx)
     scroll = WidgetScrollPane(nav.workspace;
                               padding=_PAD5, padding_color=_WHITE)
     WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, Any[])
 end
 
-function projection_print(::WorkbenchConsoleToWidgetScrollPane,
+function print_document(::WorkbenchConsoleToWidgetScrollPane,
                            recursion, c::WorkbenchConsole, ctx)
     content_iomap = _recurse(recursion, c.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
@@ -302,7 +302,7 @@ function projection_print(::WorkbenchConsoleToWidgetScrollPane,
     ContentIoMap(nothing, c, scroll, content_iomap)
 end
 
-function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
+function print_document(::WorkbenchDescriptorToWidgetScrollPane,
                            recursion, d::WorkbenchDescriptor, ctx)
     text = TextText(
         TextString(() -> string(d.content),
@@ -313,21 +313,21 @@ function projection_print(::WorkbenchDescriptorToWidgetScrollPane,
     SimpleIoMap(nothing, d, scroll)
 end
 
-function projection_print(::WorkbenchOperatorToWidgetScrollPane,
+function print_document(::WorkbenchOperatorToWidgetScrollPane,
                            recursion, o::WorkbenchOperator, ctx)
     scroll = WidgetScrollPane(nothing;
                               padding=_PAD5, padding_color=_WHITE)
     SimpleIoMap(nothing, o, scroll)
 end
 
-function projection_print(::WorkbenchSearcherToWidgetScrollPane,
+function print_document(::WorkbenchSearcherToWidgetScrollPane,
                            recursion, s::WorkbenchSearcher, ctx)
     scroll = WidgetScrollPane(nothing;
                               padding=_PAD5, padding_color=_WHITE)
     SimpleIoMap(nothing, s, scroll)
 end
 
-function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
+function print_document(::WorkbenchEvaluatorToWidgetScrollPane,
                            recursion, e::WorkbenchEvaluator, ctx)
     content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
@@ -335,11 +335,11 @@ function projection_print(::WorkbenchEvaluatorToWidgetScrollPane,
     ContentIoMap(nothing, e, scroll, content_iomap)
 end
 
-function projection_print(::WorkbenchAssistantToWidgetSplitPane,
+function print_document(::WorkbenchAssistantToWidgetSplitPane,
                            recursion, a::WorkbenchAssistant, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
-    # document. `WidgetScrollPaneToGraphicsCanvas.projection_print` calls
-    # `projection_printer_recurse(recursion, content, …)` directly, so the outer
+    # document. `WidgetScrollPaneToGraphicsCanvas.print_document` calls
+    # `print_child(recursion, content, …)` directly, so the outer
     # TypeDispatchingProjection routes `ConversationDocument` to
     # `ConversationToWidget` and `PrimitiveDocument` (the input) to the
     # Primitive→Syntax→Text→Graphics chain. This is also what makes the
@@ -366,7 +366,7 @@ function projection_print(::WorkbenchAssistantToWidgetSplitPane,
     SimpleIoMap(nothing, a, column)
 end
 
-function projection_print(::WorkbenchEditorToWidgetScrollPane,
+function print_document(::WorkbenchEditorToWidgetScrollPane,
                            recursion, e::WorkbenchEditor, ctx)
     content_iomap = _recurse(recursion, e.content, child_context(ctx, @reference ^(ctx.reference).content))
     scroll = WidgetScrollPane(content_iomap.output;
@@ -499,9 +499,9 @@ map_reference_forward(::WorkbenchSearcherToWidgetScrollPane, iomap, reference) =
 # pane, `selector_element_pairs[i]` for a tabbed pane, `elements[i].child`
 # for a split pane slot wrapped in a LayoutConstraint); the panel
 # projections strip the widget naming and re-root with the panel's own
-# workbench field name. The default `projection_read` consults these
+# workbench field name. The default `read_intent` consults these
 # functions to translate `ReplaceSelectionOperation`, and custom
-# `projection_read` overrides below extend the same translation to
+# `read_intent` overrides below extend the same translation to
 # `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`.
 
 function map_reference_backward(::WorkbenchEditorToWidgetScrollPane,
@@ -646,9 +646,9 @@ _page_backward(page_iomap::WorkbenchPageToWidgetTabbedPaneIoMap, rest) =
     map_reference_backward(WorkbenchPageToWidgetTabbedPane(), page_iomap, rest)
 _page_backward(_, _) = nothing
 
-# ── projection_read ───────────────────────────────────────────────────────────
+# ── read_intent ───────────────────────────────────────────────────────────
 
-function projection_read(p::WorkbenchWorkbenchToWidgetShell,
+function read_intent(p::WorkbenchWorkbenchToWidgetShell,
                           iomap::WorkbenchWorkbenchToWidgetShellIoMap, op)
     # 1. Tab-strip click: a SelectTabOperation produced by the widget
     # tabbed pane. Find which page owns the tab strip (by matching
@@ -660,7 +660,7 @@ function projection_read(p::WorkbenchWorkbenchToWidgetShell,
                                           ("information_page", iomap.information_page_iomap),
                                           ("control_page",     iomap.control_page_iomap))
             page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
-            result = projection_read(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
+            result = read_intent(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
             result isa ReplaceSelectionOperation || continue
             return ReplaceSelectionOperation(
                 ConcreteReferencePath(FieldReference(field_name), result.path))
@@ -689,7 +689,7 @@ function projection_read(p::WorkbenchWorkbenchToWidgetShell,
         return new_ref === nothing ? nothing : ReplaceReferencedValueOperation(nothing, new_ref, op.value)
     end
     if op isa CompoundOperation
-        mapped = Any[projection_read(p, iomap, o) for o in op.operations]
+        mapped = Any[read_intent(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
     end
     # 3. Other operation types (an identity-rooted ReplaceReferencedValueOperation that
@@ -759,7 +759,7 @@ end
 # reader returns a non-Operation, e.g. the raw key passed straight through so it
 # can be threaded to the panel's own text cursor instead).
 function _panel_raw_key(field_name, elem_idx, elem_iomap, op)
-    result = projection_read(WorkbenchToWidget(), elem_iomap, op)
+    result = read_intent(WorkbenchToWidget(), elem_iomap, op)
     result isa Operation || return nothing
     _prefix_operation(result, (FieldReference(field_name),
                                FieldReference("elements"),
@@ -774,7 +774,7 @@ end
 # folded document-replace / sequence-splice ops) and CompoundOperation reroot too.
 _prefix_operation(op, prefix_steps::Tuple) = reroot_operation(op, prefix_steps)
 
-function projection_read(p::WorkbenchPageToWidgetTabbedPane,
+function read_intent(p::WorkbenchPageToWidgetTabbedPane,
                           iomap::WorkbenchPageToWidgetTabbedPaneIoMap, op)
     # Convert a tab-strip click into a workbench-domain selection move.
     if op isa SelectTabOperation
@@ -782,41 +782,41 @@ function projection_read(p::WorkbenchPageToWidgetTabbedPane,
         idx = op.tab_index
         1 <= idx <= length(iomap.input.elements) || return op
         # The tabbed pane's active tab is a forward projection of the page
-        # selection (see projection_print), so moving the document selection
+        # selection (see print_document), so moving the document selection
         # to this element is enough — no imperative write to the widget cell.
         return ReplaceSelectionOperation(@reference elements[idx])
     end
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchNavigatorToWidgetScrollPane,
+function read_intent(p::WorkbenchNavigatorToWidgetScrollPane,
                           iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchConsoleToWidgetScrollPane,
+function read_intent(p::WorkbenchConsoleToWidgetScrollPane,
                           iomap::ContentIoMap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchDescriptorToWidgetScrollPane, iomap, op)
+function read_intent(p::WorkbenchDescriptorToWidgetScrollPane, iomap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchOperatorToWidgetScrollPane, iomap, op)
+function read_intent(p::WorkbenchOperatorToWidgetScrollPane, iomap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchSearcherToWidgetScrollPane, iomap, op)
+function read_intent(p::WorkbenchSearcherToWidgetScrollPane, iomap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchEvaluatorToWidgetScrollPane,
+function read_intent(p::WorkbenchEvaluatorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
     _retarget_panel_op(p, iomap, op)
 end
 
-function projection_read(p::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(p::WorkbenchAssistantToWidgetSplitPane,
                           iomap, op)
     # The specific KeyPress / KeyDown handlers live in
     # `WorkbenchAssistantModule` (loaded later in the include chain) and
@@ -830,17 +830,17 @@ function projection_read(p::WorkbenchAssistantToWidgetSplitPane,
     nothing
 end
 
-function projection_read(p::WorkbenchEditorToWidgetScrollPane,
+function read_intent(p::WorkbenchEditorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
     # Give the WorkbenchEditor tab first crack at a raw input gesture — its
     # `@gestures` table (Ctrl+S save, Ctrl+O reload, in `WorkbenchFileModule`) —
     # before the event descends into the tab's content. `iomap.input` is the
     # `WorkbenchEditor`. This mirrors the generic leaf delegation to
-    # `document_read` in `Projection.jl`, which this projection's own reader
+    # `read_gesture` in `Projection.jl`, which this projection's own reader
     # override would otherwise shadow. A handled gesture yields a self-contained
     # operation (it carries the tab), so it bubbles up unchanged.
     if op isa Union{KeyDown, KeyPress}
-        tab_op = document_read(iomap.input, op)
+        tab_op = read_gesture(iomap.input, op)
         tab_op === nothing || return tab_op
     end
     _retarget_panel_op(p, iomap, op)

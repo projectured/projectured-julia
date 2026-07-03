@@ -141,7 +141,7 @@ dispatch, not by the name.
   `reset_performance_counters!`. A name ending in `!` is an action, so it
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
-- **Qualifiers are suffixes**: `get_document_gestures_own`,
+- **Qualifiers are suffixes**: `get_document_gesture_bindings_own`,
   `is_reference_equal_ignoring_types`, `is_prefix_of_ignoring_types`.
 
 ### Words

@@ -6,14 +6,14 @@
 # plan/pending/widget-per-instance-gestures.md.
 
 using Projectured: WidgetButton, WidgetCheckbox, WidgetSwitch, WidgetTree, WidgetTreeNode, Point2D,
-    WidgetToGraphics, Change, PrinterContext,
+    WidgetToGraphics, Intent, PrinterContext,
     ChainingProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
     MousePress, KeyDown, Modifiers,
     GestureBinding, MousePressPattern, KeyDownPattern,
     NoOperation, InvokeWidgetActionOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation,
     FieldReference, RangeReference, ConcreteReferencePath, EmptyReferencePath,
     font_ubuntu_monospace_regular_20, font_ubuntu_regular_20,
-    projection_print, projection_read, evaluate_operation
+    print_document, read_intent, evaluate_operation
 
 mutable struct _WidgetGestureMockEditor
     document::Any
@@ -38,11 +38,11 @@ _bproj() = ChainingProjection(
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
                        action = (_e) -> (fired[] = true), gestures = [rc])
     proj = _bproj()
-    iomap = projection_print(proj, nothing, btn, PrinterContext())
+    iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
-    @test projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
     # Right-click — previously `nothing` — now fires the custom binding.
-    op = projection_read(proj, iomap, MousePress(:right, 10, 10, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers()))
     @test op isa InvokeWidgetActionOperation && op.widget === btn
     evaluate_operation(_WidgetGestureMockEditor(btn), op)
     @test fired[] == true
@@ -56,8 +56,8 @@ end
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
                        action = (_e) -> (fired[] = true), gestures = [shadow])
     proj = _bproj()
-    iomap = projection_print(proj, nothing, btn, PrinterContext())
-    op = projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    iomap = print_document(proj, nothing, btn, PrinterContext())
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
     @test op isa ReplaceReferencedValueOperation                 # the instance binding won…
     @test !(op isa InvokeWidgetActionOperation)         # …the default primary op did not fire
 end
@@ -70,8 +70,8 @@ end
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
                        action = (_e) -> (fired[] = true), gestures = [suppress])
     proj = _bproj()
-    iomap = projection_print(proj, nothing, btn, PrinterContext())
-    op = projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    iomap = print_document(proj, nothing, btn, PrinterContext())
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
     @test op isa NoOperation                            # consumed, not declined
     evaluate_operation(_WidgetGestureMockEditor(btn), op)   # …and does nothing
     @test fired[] == false
@@ -81,9 +81,9 @@ end
     fired = Ref(false)
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> (fired[] = true))
     proj = _bproj()
-    iomap = projection_print(proj, nothing, btn, PrinterContext())
-    @test projection_read(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
-    @test projection_read(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
+    iomap = print_document(proj, nothing, btn, PrinterContext())
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
 end
 
 # ── WidgetCheckbox / WidgetSwitch (same pattern as the button) ───────────────
@@ -98,10 +98,10 @@ end
                         _always, "context", "test")
     cb = WidgetCheckbox(Point2D(0, 0), false; gestures = [rc])
     proj = _bproj()
-    iomap = projection_print(proj, nothing, cb, PrinterContext())
-    op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    iomap = print_document(proj, nothing, cb, PrinterContext())
+    op = read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
     @test fired[] == true && op isa NoOperation
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
 end
 
 @testset "switch: a right-click binding fires; left-click still toggles" begin
@@ -111,10 +111,10 @@ end
                         _always, "context", "test")
     sw = WidgetSwitch(Point2D(0, 0), false; gestures = [rc])
     proj = _bproj()
-    iomap = projection_print(proj, nothing, sw, PrinterContext())
-    op = projection_read(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    iomap = print_document(proj, nothing, sw, PrinterContext())
+    op = read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
     @test fired[] == true && op isa NoOperation
-    @test projection_read(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
 end
 
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────
@@ -128,8 +128,8 @@ _treeproj = let w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det), 
     pr
 end
 _readop(io, g) = begin
-    ch = projection_read(_treeproj, nothing, Change(g, nothing), io)
-    ch isa Change ? ch.operation : ch
+    ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
+    ch isa Intent ? ch.operation : ch
 end
 # The path-[i] selection reference the tree reader recognises (roots[i]).
 _pathref(i) = ConcreteReferencePath(FieldReference("roots"),
@@ -142,7 +142,7 @@ _pathref(i) = ConcreteReferencePath(FieldReference("roots"),
                         _always, "open", "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [nb])
     w = WidgetTree(Point2D(0, 0), Any[node])
-    io = projection_print(_treeproj, w)
+    io = print_document(_treeproj, w)
     row = io.geometry[].rows[1]
     op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, Modifiers()))
     @test opened[] == true
@@ -152,7 +152,7 @@ end
 @testset "tree: a node without a binding still selects on left-click" begin
     node = WidgetTreeNode(:file, "a.jl")            # no gestures
     w = WidgetTree(Point2D(0, 0), Any[node])
-    io = projection_print(_treeproj, w)
+    io = print_document(_treeproj, w)
     row = io.geometry[].rows[1]
     op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, Modifiers()))
     @test op isa ReplaceSelectionOperation          # built-in select intact
@@ -165,7 +165,7 @@ end
                         _always, "enter", "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [kb])
     w = WidgetTree(Point2D(0, 0), Any[node])
-    io = projection_print(_treeproj, w)
+    io = print_document(_treeproj, w)
     getfield(w, :selection)[] = _pathref(1)          # select the node
     op = _readop(io, KeyDown(:return, Modifiers()))
     @test entered[] == true

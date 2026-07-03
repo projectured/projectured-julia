@@ -6,7 +6,7 @@ document by a configurable key function.
 """
 module SortingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
@@ -26,7 +26,7 @@ A generic projection that sorts the elements in the input collection.
 # Example
 
     srt = SortingProjection(by=length)
-    result = projection_print(srt, ["bb", "a", "ccc"])  # ["a", "bb", "ccc"]
+    result = print_document(srt, ["bb", "a", "ccc"])  # ["a", "bb", "ccc"]
 """
 struct SortingProjection <: Projection
     by::Function
@@ -45,12 +45,12 @@ struct SortingProjectionIoMap <: IoMap
     element_iomaps::Cell
 end
 
-function projection_print(p::SortingProjection, recursion, input::CellVector, ctx)
+function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
     recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (CellVector getindex already unwraps the Cell)
-    children = [projection_printer_recurse(recursion, input[i],
+    children = [print_child(recursion, input[i],
                     child_context(ctx, ElementReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
@@ -61,12 +61,12 @@ function projection_print(p::SortingProjection, recursion, input::CellVector, ct
     SortingProjectionIoMap(p, input, output, perm, element_iomaps)
 end
 
-function projection_print(p::SortingProjection, recursion, input::Vector{Cell}, ctx)
+function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ctx)
     recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (unwrapping Cell like CopyingProjection does)
-    children = [projection_printer_recurse(recursion, c[],
+    children = [print_child(recursion, c[],
                     child_context(ctx, ElementReference(i)))
                 for (i, c) in enumerate(input)]
     # Build output by arranging projected Cells in sorted order (no double-wrapping)
@@ -75,12 +75,12 @@ function projection_print(p::SortingProjection, recursion, input::Vector{Cell}, 
     SortingProjectionIoMap(p, input, output, perm, element_iomaps)
 end
 
-function projection_print(p::SortingProjection, recursion, input, ctx)
+function print_document(p::SortingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
     n = length(input)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element
-    children = [projection_printer_recurse(recursion, input[i],
+    children = [print_child(recursion, input[i],
                     child_context(ctx, ElementReference(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order

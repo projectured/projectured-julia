@@ -12,23 +12,23 @@ function test_sql_to_syntax()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        @test projection_print(pipe, stmt).output[] == "SELECT \n  *\nFROM \n  persons\n"
+        @test print_document(pipe, stmt).output[] == "SELECT \n  *\nFROM \n  persons\n"
 
         # Top-level dispatch produces a SyntaxNode
-        node = projection_print(RecursiveProjection(SqlToSyntax()), stmt).output
+        node = print_document(RecursiveProjection(SqlToSyntax()), stmt).output
         @test node isa SyntaxNode
 
         # Leaf projections produce SyntaxLeaf nodes
-        @test projection_print(SqlAllColumnsToSyntaxLeaf(), SqlAllColumns()).output isa SyntaxLeaf
-        @test projection_print(SqlTableExpressionToSyntaxLeaf(), SqlTableExpression("t")).output isa SyntaxLeaf
-        @test projection_print(SqlColumnReferenceToSyntaxLeaf(), SqlColumnReference("id")).output isa SyntaxLeaf
+        @test print_document(SqlAllColumnsToSyntaxLeaf(), SqlAllColumns()).output isa SyntaxLeaf
+        @test print_document(SqlTableExpressionToSyntaxLeaf(), SqlTableExpression("t")).output isa SyntaxLeaf
+        @test print_document(SqlColumnReferenceToSyntaxLeaf(), SqlColumnReference("id")).output isa SyntaxLeaf
 
         # Full pipeline (Sql→Syntax→Text→String) covers all types
         sql_pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql_text(doc) = projection_print(sql_pipe, doc).output[]
+        sql_text(doc) = print_document(sql_pipe, doc).output[]
 
         @test sql_text(SqlAllColumns()) == "*"
         @test sql_text(SqlAllColumns(SqlTableAlias("t"))) == "t.*"
@@ -81,7 +81,7 @@ function test_sql_insert_update_selection()
             SqlTableName("persons"),
             [SqlColumnName("name"), SqlColumnName("age")],
             [SqlScalarValue("Ada"), SqlScalarValue(36)])
-        iomap = projection_print(proj, insert_doc)
+        iomap = print_document(proj, insert_doc)
         p = iomap.projection
         for path in (
                 ReferencePath(FieldReference("table")),
@@ -98,7 +98,7 @@ function test_sql_insert_update_selection()
             [SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))],
             SqlWhereClause(SqlWhereFilterCondition(SqlComparison(
                 SqlColumnReference(SqlColumnName("name")), "=", SqlScalarValue("Ada")))))
-        uiomap = projection_print(proj, update_doc)
+        uiomap = print_document(proj, update_doc)
         up = uiomap.projection
         for path in (
                 ReferencePath(FieldReference("table")),
@@ -158,7 +158,7 @@ function test_sql_ddl()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql_text(doc) = projection_print(sql_pipe, doc).output[]
+        sql_text(doc) = print_document(sql_pipe, doc).output[]
 
         # CREATE TABLE: multi-line, schema-qualified, indented column list.
         create_table = SqlCreateTableStatement(
@@ -184,7 +184,7 @@ function test_sql_ddl_selection()
             SqlTableName("public", "film"),
             [SqlColumnDefinition("title", "text"),
              SqlColumnDefinition("len", "integer")])
-        iomap = projection_print(proj, create_table)
+        iomap = print_document(proj, create_table)
         p = iomap.projection
         for path in (
                 ReferencePath(FieldReference("table_name")),
@@ -198,7 +198,7 @@ function test_sql_ddl_selection()
         end
 
         # CREATE SCHEMA only maps the whole-statement (∅) selection.
-        siomap = projection_print(proj, SqlCreateSchemaStatement("public"))
+        siomap = print_document(proj, SqlCreateSchemaStatement("public"))
         sp = siomap.projection
         @test map_reference_forward(sp, siomap, EmptyReferencePath()) == EmptyReferencePath()
     end

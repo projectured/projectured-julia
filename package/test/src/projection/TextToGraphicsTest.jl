@@ -32,7 +32,7 @@ st_wrap = TextText(
 )
 m = _test_measure(10, 18)
 chain = ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
-sdl_cell = projection_print(chain, st_wrap).output
+sdl_cell = print_document(chain, st_wrap).output
 texts = _texts(sdl_cell)
 @test length(texts) >= 2  # should wrap
 @test texts[1].y == 0
@@ -42,7 +42,7 @@ texts = _texts(sdl_cell)
 st_nl = TextText(
     TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_20, color_white),
 )
-sdl_nl = projection_print(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
+sdl_nl = print_document(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
 items_nl = _texts(sdl_nl)
 @test length(items_nl) == 3
 @test items_nl[1].text == "line1"
@@ -57,7 +57,7 @@ st_color = TextText(
     TextString("red text", font_ubuntu_monospace_regular_20, color_red),
     TextString(" blue text", font_ubuntu_monospace_regular_20, color_blue),
 )
-sdl_color = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
+sdl_color = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = _texts(sdl_color)
 @test items_c[1].color == color_red    # red
 @test items_c[2].color == color_blue   # blue
@@ -71,7 +71,7 @@ items_c = _texts(sdl_color)
 st_react = TextText(
     TextString("short", font_ubuntu_monospace_regular_20, color_white),
 )
-sdl_react = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
+sdl_react = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
 _ = length(line1.elements)
 @test is_up_to_date(getfield(line1.elements, :elements))
@@ -82,7 +82,7 @@ items_r = _texts(sdl_react)
 
 # hex color parsing
 st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_20, StyleColor(1.0, 0.53, 0.0, 1.0)))
-sdl_hex = projection_print(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
+sdl_hex = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
 # StyleColor is now carried through unchanged (no byte round-trip).
 @test h.color == StyleColor(1.0, 0.53, 0.0, 1.0)
@@ -100,7 +100,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, IdentityProjection(), tt, PrinterContext())
+iomap = print_document(p, IdentityProjection(), tt, PrinterContext())
 canvas = iomap.output
 
 # Top-level canvas has ListNode elements, layout_vertical, non-overlapping
@@ -151,7 +151,7 @@ tt = TextText()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
-iomap = projection_print(p, IdentityProjection(), tt, PrinterContext())
+iomap = print_document(p, IdentityProjection(), tt, PrinterContext())
 
 # The first paragraph collects spans until it finds the TextNewline,
 # walking past it forces node2.next thunk to find where para 2 starts
@@ -173,7 +173,7 @@ st = TextText(
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", font_ubuntu_monospace_regular_20, color_white),
 )
-canvas = projection_print(TextToGraphics(measure=m), st).output
+canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Exactly one GraphicsImage, at the expected box (after "ab" = 20px).
 imgs = _imgs(canvas)
@@ -204,7 +204,7 @@ st = TextText(
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", font_ubuntu_monospace_regular_20, color_white),
 )
-iomap = projection_print(p, st)
+iomap = print_document(p, st)
 
 # A click path encodes (element-index → pixel offset). The persistent highlight
 # rect is element 1, so the image (2nd text segment) is element index 2 (0-based);
@@ -212,8 +212,8 @@ iomap = projection_print(p, st)
 click(rx) = ReplaceSelectionOperation(
     ConcreteReferencePath(RangeReference(2, 3),
         ConcreteReferencePath(PointReference(rx, 0), EmptyReferencePath())))
-left  = projection_read(p, iomap, click(10))
-right = projection_read(p, iomap, click(50))
+left  = read_intent(p, iomap, click(10))
+right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
 @test right isa ReplaceSelectionOperation
 # Left half → cursor before the image (content{0}); right half → after ({1}).
@@ -229,7 +229,7 @@ hl = TextString("hi", font_ubuntu_monospace_regular_20, color_red)
 hl.fill_color = color_blue              # a highlighted span opts into a swatch
 plain = TextString("xy", font_ubuntu_monospace_regular_20, color_red)
 st = TextText(hl, plain)
-canvas = projection_print(TextToGraphics(measure=m), st).output
+canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Exactly one *visible* rect — the filled span; the default-`nothing` span gets
 # none. The always-present highlight/cursor overlay rects are zero-width here.
@@ -262,7 +262,7 @@ st = TextText(
     TextString("beta",  font_ubuntu_monospace_regular_20, color_white), nl(),
     TextString("gamma", font_ubuntu_monospace_regular_20, color_white),
 )
-canvas = projection_print(TextToGraphics(measure=m), st).output
+canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Top canvas: [highlight, vertical line stack, cursor].
 stack = canvas.elements[2]

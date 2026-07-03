@@ -13,8 +13,8 @@ Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 """
 module NestingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: collect_gestures, GestureBinding
 export NestingProjection, NestingProjectionIoMap
@@ -31,13 +31,13 @@ end
 
 A compound projection that applies projections in a nesting (recursive)
 fashion rather than sequentially. The first element handles the outer
-structure and can call `projection_printer_recurse(recursion, content, ...)` to
+structure and can call `print_child(recursion, content, ...)` to
 project nested content through the remaining elements.
 
 # Example
 
     np = NestingProjection(outer_projection, inner_projection)
-    result = projection_print(np, recursion, input, reference)
+    result = print_document(np, recursion, input, reference)
 """
 struct NestingProjection <: Projection
     elements::Vector{Any}
@@ -47,29 +47,29 @@ end
 NestingProjection(first_elem::Projection, rest...; recursion=nothing) =
     NestingProjection(Any[first_elem, rest...], recursion)
 
-function projection_print(np::NestingProjection, recursion, input, ctx)
+function print_document(np::NestingProjection, recursion, input, ctx)
     effective = np.recursion !== nothing ? np.recursion : recursion
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
-        iomap = projection_print(np.elements[1], inner, input, ctx)
+        iomap = print_document(np.elements[1], inner, input, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     else
-        iomap = projection_print(effective, recursion, input, ctx)
+        iomap = print_document(effective, recursion, input, ctx)
         NestingProjectionIoMap(np, input, iomap.output, iomap)
     end
 end
 
-function projection_read(np::NestingProjection, recursion, change::Change, iomap::NestingProjectionIoMap)
+function read_intent(np::NestingProjection, recursion, change::Intent, iomap::NestingProjectionIoMap)
     if !isempty(np.elements)
-        projection_read(np.elements[1], recursion, change, iomap.child_iomap)
+        read_intent(np.elements[1], recursion, change, iomap.child_iomap)
     else
-        np.recursion === nothing && return Change(change.gesture, nothing)
-        projection_read(np.recursion, recursion, change, iomap.child_iomap)
+        np.recursion === nothing && return Intent(change.gesture, nothing)
+        read_intent(np.recursion, recursion, change, iomap.child_iomap)
     end
 end
 
-projection_read(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
-    projection_read(np, nothing, Change(payload), iomap).operation
+read_intent(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
+    read_intent(np, nothing, Intent(payload), iomap).operation
 
 # Gather gestures from the same place the reader delegates to: the first element
 # (or the stored recursion when empty), over the nested child iomap. This lets a

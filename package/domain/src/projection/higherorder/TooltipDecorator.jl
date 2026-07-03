@@ -18,8 +18,8 @@ sources independently.
 """
 module TooltipDecoratorProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
@@ -74,16 +74,16 @@ TooltipDecoratorProjection(; trigger::Function,
 
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
-function projection_print(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
-    child_iomap = projection_printer_recurse(recursion, input.child, ctx)
+function print_document(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
+    child_iomap = print_child(recursion, input.child, ctx)
     TooltipDecoratorProjectionIoMap(p, input, child_iomap.output, child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::TooltipDecoratorProjection, recursion, change::Change, iomap::TooltipDecoratorProjectionIoMap)
+function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, iomap::TooltipDecoratorProjectionIoMap)
     event = change.gesture
-    child_op = projection_read(iomap.child_iomap.projection, recursion, change, iomap.child_iomap).operation
+    child_op = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap).operation
 
     source = iomap.input::TooltipSource
     fired = p.trigger(source, event)::Bool
@@ -124,15 +124,15 @@ function projection_read(p::TooltipDecoratorProjection, recursion, change::Chang
             is_open = false
         end
         p.state[sid] = (arm_time, is_open)
-        return Change(change.gesture, decorator_op)
+        return Intent(change.gesture, decorator_op)
     end
 
     p.state[sid] = (arm_time, is_open)
-    return Change(change.gesture, child_op)
+    return Intent(change.gesture, child_op)
 end
 
-projection_read(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping ────────────────────────────────────────────────────
 # The decorator's output is the child's output (the TooltipSource's

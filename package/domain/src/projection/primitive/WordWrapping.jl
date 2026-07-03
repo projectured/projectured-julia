@@ -15,7 +15,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 """
 module WordWrappingModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphics
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
@@ -73,7 +73,7 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function projection_print(p::WordWrapping, recursion, text::TextText, ctx)
+function print_document(p::WordWrapping, recursion, text::TextText, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
     both = Cell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
@@ -280,7 +280,7 @@ function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, refer
     nothing
 end
 
-function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
@@ -291,7 +291,7 @@ end
 # `.elements[out_span].content[s:e]`; we look up the input span and shift
 # the character range by the sub-span's start offset. Ranges that span more
 # than one input span are rejected (return `nothing`) for now.
-function projection_read(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
@@ -312,7 +312,7 @@ end
 
 # Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections
 # above WordWrapping keep getting a chance at them.
-projection_read(::WordWrapping, ::WordWrappingIoMap, op) = op
+read_intent(::WordWrapping, ::WordWrappingIoMap, op) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

@@ -22,8 +22,8 @@ recursion on each new window to produce the output side.
 """
 module WindowManagingProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
-import ..ChangeModule: Change
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowResize, WindowClose, WindowDefocus, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
@@ -55,14 +55,14 @@ end
 
 # ── Printer (passthrough; remembers recursion + ctx for the reader) ──────
 
-function projection_print(p::WindowManagingProjection, recursion, input, ctx)
-    inner_iomap = projection_print(p.inner, recursion, input, ctx)
+function print_document(p::WindowManagingProjection, recursion, input, ctx)
+    inner_iomap = print_document(p.inner, recursion, input, ctx)
     WindowManagingProjectionIoMap(p, input, inner_iomap.output, inner_iomap, recursion, ctx)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function projection_read(p::WindowManagingProjection, recursion, change::Change, iomap::WindowManagingProjectionIoMap)
+function read_intent(p::WindowManagingProjection, recursion, change::Intent, iomap::WindowManagingProjectionIoMap)
     env = change.gesture
     # Modality: while a modal window is open, only it receives input. Drop any
     # envelope routed to a different window — base content gets no events, with no
@@ -71,15 +71,15 @@ function projection_read(p::WindowManagingProjection, recursion, change::Change,
     # never by focus-lost, so it is opened with auto_dismiss=false.
     if env isa EventEnvelope
         modal = _modal_window(iomap.input)
-        (modal !== nothing && env.window_id !== modal.id) && return Change(change.gesture, nothing)
+        (modal !== nothing && env.window_id !== modal.id) && return Intent(change.gesture, nothing)
     end
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the envelope.
     if env isa EventEnvelope && env.event isa WindowResize
         win = _find_window(iomap.input, env.window_id)
-        win === nothing && return Change(change.gesture, nothing)
-        return Change(change.gesture,
+        win === nothing && return Intent(change.gesture, nothing)
+        return Intent(change.gesture,
                       ResizeWindowOperation(win, env.event.width, env.event.height))
     end
     # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
@@ -89,20 +89,20 @@ function projection_read(p::WindowManagingProjection, recursion, change::Change,
     # close is owned in one place rather than relying on evaluate_operation.
     if env isa EventEnvelope && env.event isa WindowClose
         win = _find_window(iomap.input, env.window_id)
-        win === nothing && return Change(change.gesture, nothing)
+        win === nothing && return Intent(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the main window or a tooltip.
     if env isa EventEnvelope && env.event isa WindowDefocus
         win = _find_window(iomap.input, env.window_id)
-        (win !== nothing && win.auto_dismiss === true) || return Change(change.gesture, nothing)
+        (win !== nothing && win.auto_dismiss === true) || return Intent(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     end
 
-    inner = projection_read(p.inner, recursion, change, iomap.inner_iomap)
+    inner = read_intent(p.inner, recursion, change, iomap.inner_iomap)
     return _apply_window_ops(iomap, change, inner)
 end
 
@@ -115,10 +115,10 @@ function _apply_window_ops(iomap, change, inner)
     op = inner.operation
     if op isa OpenWindowOperation
         _apply_open!(iomap, op)
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     elseif op isa CloseWindowOperation
         _apply_close!(iomap, op)
-        return Change(change.gesture, nothing)
+        return Intent(change.gesture, nothing)
     elseif op isa CompoundOperation
         rest = Any[]
         for o in op.operations
@@ -130,16 +130,16 @@ function _apply_window_ops(iomap, change, inner)
                 push!(rest, o)
             end
         end
-        isempty(rest) && return Change(change.gesture, nothing)
-        length(rest) == 1 && return Change(change.gesture, rest[1])
-        return Change(change.gesture, CompoundOperation(rest))
+        isempty(rest) && return Intent(change.gesture, nothing)
+        length(rest) == 1 && return Intent(change.gesture, rest[1])
+        return Intent(change.gesture, CompoundOperation(rest))
     else
         return inner
     end
 end
 
-projection_read(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, payload) =
-    projection_read(p, nothing, Change(payload), iomap).operation
+read_intent(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Apply Open: add a new window (or update an existing one with the same
 # id) on both the input and the output. The output side requires
@@ -179,7 +179,7 @@ function _apply_open!(iomap::WindowManagingProjectionIoMap, op::OpenWindowOperat
                               bg=op.bg, style=op.style,
                               auto_dismiss=op.auto_dismiss, modal=op.modal,
                               content=op.content)
-    new_iomap = projection_printer_recurse(iomap.recursion, new_in, iomap.ctx)
+    new_iomap = print_child(iomap.recursion, new_in, iomap.ctx)
     new_out = new_iomap.output
 
     push!(in_wins, Cell(new_in))
@@ -200,7 +200,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.modal  = op.modal
     if project_content
         # Re-project the new content for the output side.
-        content_iomap = projection_printer_recurse(recursion, op.content, ctx)
+        content_iomap = print_child(recursion, op.content, ctx)
         w.content = content_iomap.output
     else
         w.content = op.content

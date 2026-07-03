@@ -67,7 +67,7 @@ julia> print_example(syntax_example)
 
 Implementation is at
 [example/src/Examples.jl:75](../package/example/src/Examples.jl#L75). It calls
-`projection_print`, takes `iomap.output`, forces the outer cell if needed,
+`print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
 ## Listing what's available
@@ -90,15 +90,15 @@ editor loop uses are available:
 julia> ex = json_example;
 julia> doc, proj = ex.document, ex.projection;
 
-julia> iomap = projection_print(proj, doc);    # forward projection
+julia> iomap = print_document(proj, doc);    # forward projection
 julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
-julia> using Projectured: KeyDown, Modifiers, Change
-julia> change = projection_read(proj, nothing, Change(KeyDown(:right, Modifiers())), iomap);
+julia> using Projectured: KeyDown, Modifiers, Intent
+julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, Modifiers())), iomap);
 julia> change.operation                              # the operation the reader produced
 julia> evaluate_operation((; document = doc), change.operation);   # apply it (editor.document)
-julia> projection_print(proj, doc)                   # reprint after the edit
+julia> print_document(proj, doc)                   # reprint after the edit
 ```
 
 This is exactly the read-eval-print loop from
@@ -111,14 +111,14 @@ apart so you can step through it one call at a time.
 [finding-and-selecting guide](editor/finding-and-selecting.md)) are usually run
 against `editor.document`, but they walk **any** object graph — unwrapping cells,
 descending struct fields and collections. An **iomap** is exactly such a graph:
-the value `projection_print` returns links a projection's *input* to its *output*
+the value `print_document` returns links a projection's *input* to its *output*
 and stores every nested stage (`input`, `output`, `child_iomaps`, `step_iomaps`,
 `inner_iomap`). Searching an iomap therefore searches the **entire projection
 pipeline at once** — every intermediate document and every projected output tree,
 at every stage — not just the source document.
 
 ```julia
-julia> iomap = projection_print(make_json_projection_example(),
+julia> iomap = print_document(make_json_projection_example(),
                                 make_json_document_example());
 
 julia> search_references(iomap, "Wonderland")   # 16 paths — one per pipeline location
@@ -170,7 +170,7 @@ didn't propagate — search the iomap and read which stages it survives to:
   at the first projection, not the renderer.
 
 Because one call covers every stage, you can bisect the pipeline without
-hand-stepping `projection_print` layer by layer.
+hand-stepping `print_document` layer by layer.
 
 > The paths returned from an **iomap** search are rooted at the iomap
 > (`::…IoMap.input…` / `.output…`), so they are for **inspection only** — do
@@ -190,11 +190,11 @@ hand-stepping `projection_print` layer by layer.
 
 When you want to see *what reads what* — how a single event propagates down
 through the projection stack — point logging at the four projection interface
-generic functions (`projection_read`, `projection_print`,
+generic functions (`read_intent`, `print_document`,
 `map_reference_forward`, `map_reference_backward`). These are declared in
 [program/src/api/Projection.jl](../package/kernel/src/api/Projection.jl) and each
 projection adds its own method; the recursion happens peer-to-peer (a
-projection's `projection_read` calls `projection_read` on its children
+projection's `read_intent` calls `read_intent` on its children
 directly), so to see the whole tree you must instrument the generic function
 itself, not just the editor's top-level call.
 
@@ -203,34 +203,34 @@ functions as an indented tree, with **no edits to any projection method**:
 
 ```julia
 julia> using Cassette, Projectured
-julia> using Projectured: KeyDown, Modifiers, Change
+julia> using Projectured: KeyDown, Modifiers, Intent
 julia> Cassette.@context TraceCtx
 julia> const _depth = Ref(0)
 
-# Hook the 4-arg reader: projection_read(p, recursion, change, iomap)
-julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.projection_read), p, recursion, change, iomap)
+# Hook the 4-arg reader: read_intent(p, recursion, change, iomap)
+julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.read_intent), p, recursion, change, iomap)
            println("  "^_depth[], "→ read ", nameof(typeof(p)), "   <", nameof(typeof(change.gesture)), ">")
            _depth[] += 1
        end
-julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.projection_read), p, recursion, change, iomap) = (_depth[] -= 1)
+julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.read_intent), p, recursion, change, iomap) = (_depth[] -= 1)
 
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;
-julia> iomap = projection_print(proj, doc);
-julia> Cassette.overdub(TraceCtx(), () -> projection_read(proj, nothing, Change(KeyDown(:right, Modifiers())), iomap))
+julia> iomap = print_document(proj, doc);
+julia> Cassette.overdub(TraceCtx(), () -> read_intent(proj, nothing, Intent(KeyDown(:right, Modifiers())), iomap))
 ```
 
 You get an indented call tree of every read as the event flows through the
-stack. Add more `prehook`/`posthook` pairs for `projection_print` and the two
+stack. Add more `prehook`/`posthook` pairs for `print_document` and the two
 reference mappers to watch the forward direction and the path mapping too.
 
 **Until Cassette works on 1.12**, two dependency-free fallbacks:
 
 - *Targeted `@debug`.* Drop `@debug "read" typeof(p) typeof(x)` into the
-  specific `projection_read` methods you suspect and run with
+  specific `read_intent` methods you suspect and run with
   `JULIA_DEBUG=Projectured`. No automatic depth tree, but no machinery either.
-- *Funnel + toggle.* Rename the real `projection_read` methods to
-  `_projection_read` and make the public `projection_read` a thin logging
+- *Funnel + toggle.* Rename the real `read_intent` methods to
+  `_projection_read` and make the public `read_intent` a thin logging
   wrapper gated by a `TRACE[]` flag (with a depth counter for indentation).
   This reproduces the indented-tree UX with zero dependencies and zero runtime
   cost when off, at the price of a one-time mechanical refactor of the ~111
@@ -304,7 +304,7 @@ julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`); `hold` is how
 many seconds to display the resulting state. The initial state is shown for
 `initial_hold` seconds (default `0.5`). Each gesture runs the full editor cycle
-(`projection_read` → `evaluate_operation` → `projection_print`) and `round(hold *
+(`read_intent` → `evaluate_operation` → `print_document`) and `round(hold *
 fps)` identical frames are emitted, so the frame count is predictable: the
 recording above is `15 + 9 + 9 + 15 = 48` frames at `fps=30`.
 
@@ -375,7 +375,7 @@ you need an on-disk fixture.
 2. `print_example("name")` to confirm the printer doesn't blow up.
 3. `run_example("name"; reset=true)` to see it on screen.
 4. If something is wrong, grab `ex = some_example; ex.document, ex.projection`
-   and step through `projection_print` / `projection_read` /
+   and step through `print_document` / `read_intent` /
    `evaluate_operation` by hand.
 5. Cross-reference with the test helpers documented in
    [the testing guide](testing.md) — `walk_printer_output`, `walk_reader_events`,

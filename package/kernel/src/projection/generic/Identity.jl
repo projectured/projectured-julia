@@ -7,17 +7,17 @@ projections where no transformation is needed.
 """
 module IdentityProjectionModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
 export IdentityProjection
 
 struct IdentityProjection <: Projection end
 
-function projection_print(projection::IdentityProjection, recursion, input, ctx)
+function print_document(projection::IdentityProjection, recursion, input, ctx)
     SimpleIoMap(projection, input, input)
 end
 
-function projection_read(::IdentityProjection, iomap, operation)
+function read_intent(::IdentityProjection, iomap, operation)
     operation
 end
 

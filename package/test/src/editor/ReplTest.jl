@@ -3,12 +3,12 @@
 #
 # Full REPL-loop test.  For each event in _ALL_READER_EVENTS the complete
 # editor cycle is exercised:
-#   1. projection_read       — translate event to operation
+#   1. read_intent       — translate event to operation
 #   2. evaluate_operation    — apply operation to document
-#   3. projection_print      — re-project the updated document
+#   3. print_document      — re-project the updated document
 #   4. _walk! on the iomap   — force every Cell in the new output
-# The iomap fed to the next projection_read is always the one produced by
-# the most recent projection_print, mirroring the real editor loop.
+# The iomap fed to the next read_intent is always the one produced by
+# the most recent print_document, mirroring the real editor loop.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # A minimal stand-in for the mutable `Editor`: operations such as
@@ -28,18 +28,18 @@ function walk_repl_loop(document, projection; onevent=nothing)
     errors = String[]
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        msg = "initial projection_print threw: $e"
+        msg = "initial print_document threw: $e"
         push!(errors, msg)
         onevent === nothing || onevent(nothing, false, msg)
         return errors
     end
     for event in _ALL_READER_EVENTS
         op = try
-            projection_read(projection, iomap, event)
+            read_intent(projection, iomap, event)
         catch e
-            msg = "projection_read threw for $event: $e"
+            msg = "read_intent threw for $event: $e"
             push!(errors, msg)
             onevent === nothing || onevent(event, false, msg)
             continue
@@ -59,9 +59,9 @@ function walk_repl_loop(document, projection; onevent=nothing)
             continue
         end
         new_iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
-            msg = "projection_print threw after $event: $e"
+            msg = "print_document threw after $event: $e"
             push!(errors, msg)
             onevent === nothing || onevent(event, false, msg)
             break

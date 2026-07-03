@@ -21,11 +21,11 @@ using Projectured: ReplaceSelectionOperation, OpenWindowOperation,
                     NestingProjection, IdentityProjection, ChainingProjection,
                     WordWrapping, TextToGraphics, GraphicsCanvas, truetype_measure_text,
                     reference_equal, MouseMove, MousePress, Modifiers,
-                    ScreenDocument, WindowDocument, EventEnvelope, Change
+                    ScreenDocument, WindowDocument, EventEnvelope, Intent
 using Projectured.TextModule: TextText, TextString
 
 _inspector_text(ref, target) =
-    projection_print(ReferenceInspectorToText(),
+    print_document(ReferenceInspectorToText(),
                      ReferenceInspector(reference = ref, target = target)).output
 
 # Concatenate the plain content of every TextString span (skips newlines).
@@ -72,7 +72,7 @@ function test_reference_inspector_text()
         chain = ChainingProjection(ReferenceInspectorToText(),
                                      WordWrapping(measure = truetype_measure_text),
                                      TextToGraphics(measure = truetype_measure_text))
-        canvas = projection_print(chain, ReferenceInspector(reference = ref, target = doc)).output
+        canvas = print_document(chain, ReferenceInspector(reference = ref, target = doc)).output
         @test canvas isa GraphicsCanvas
     end
 end
@@ -100,7 +100,7 @@ function test_hover_probe()
         doc = ex.document
         proj = ex.projection
 
-        plain = projection_print(proj, doc)
+        plain = print_document(proj, doc)
         t2g = _find_text_iomap(plain)
         measure = _pipeline_measure(proj)
         if t2g === nothing || measure === nothing
@@ -121,10 +121,10 @@ function test_hover_probe()
         inner = NestingProjection(proj; recursion = IdentityProjection())
         hp = HoverProbeProjection(inner = inner, id = :inspector,
                                   pointer = () -> (7, 9))
-        hpio = projection_print(hp, doc)
+        hpio = print_document(hp, doc)
 
         # Hover → OpenWindowOperation carrying a ReferenceInspector.
-        mv = projection_read(hp, hpio, MouseMove(cx, cy, :none, Modifiers()))
+        mv = read_intent(hp, hpio, MouseMove(cx, cy, :none, Modifiers()))
         @test mv isa OpenWindowOperation
         if mv isa OpenWindowOperation
             @test mv.id === :inspector
@@ -134,14 +134,14 @@ function test_hover_probe()
             @test mv.x == 7 + 16
             @test mv.y == 9 + 20
             # The displayed reference equals what a real click here selects.
-            press = projection_read(proj, plain, MousePress(:left, cx, cy, Modifiers()))
+            press = read_intent(proj, plain, MousePress(:left, cx, cy, Modifiers()))
             if press isa ReplaceSelectionOperation
                 @test reference_equal(mv.content.reference, press.path)
             end
         end
 
         # A real click is not intercepted — it still selects through the probe.
-        click = projection_read(hp, hpio, MousePress(:left, cx, cy, Modifiers()))
+        click = read_intent(hp, hpio, MousePress(:left, cx, cy, Modifiers()))
         @test click isa ReplaceSelectionOperation
     end
 end
@@ -161,7 +161,7 @@ function test_hover_probe_pipeline()
 
         # A valid content pixel (content layout is the same standalone or inside
         # the window, which ScreenToScreen sizes but does not offset).
-        plain = projection_print(proj, doc)
+        plain = print_document(proj, doc)
         t2g = _find_text_iomap(plain)
         measure = _pipeline_measure(proj)
         if t2g === nothing || measure === nothing
@@ -182,11 +182,11 @@ function test_hover_probe_pipeline()
         screen = ScreenDocument([win])
         composed = ProjecturedExample._multi_window_projection_inspector(
                        [proj]; pointer = () -> (50, 60))
-        iomap = projection_print(composed, screen)
+        iomap = print_document(composed, screen)
 
         nbefore = length(screen.windows)
         env = EventEnvelope(:json, MouseMove(cx, cy, :none, Modifiers()))
-        projection_read(composed, nothing, Change(env, nothing), iomap)
+        read_intent(composed, nothing, Intent(env, nothing), iomap)
 
         @test length(screen.windows) == nbefore + 1
         insp = nothing

@@ -41,7 +41,7 @@ Used by `ProjectionConfiguringProjection`, which projects an inner projection
 """
 module ObjectToWidgetModule
 
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
 import ..ReactiveModule: Cell, set_function!
@@ -109,9 +109,9 @@ const _COLLAPSED_MARKER = "▸"
 # forever (the editor would otherwise hang printing it).
 const _MAX_DEPTH = 16
 
-# ── projection_print ──────────────────────────────────────────────────────
+# ── print_document ──────────────────────────────────────────────────────
 
-function projection_print(p::ObjectToWidget, recursion, obj, ctx)
+function print_document(p::ObjectToWidget, recursion, obj, ctx)
     controls = Tuple{Any,ReferencePath}[]
     # The root struct renders as a bare composite (no card), so a flat object is
     # byte-identical to the historical output and ProjectionConfiguring still gets
@@ -122,7 +122,7 @@ function projection_print(p::ObjectToWidget, recursion, obj, ctx)
 end
 
 # Two-argument convenience entry mirroring the editor's bare-call form.
-projection_print(p::ObjectToWidget, obj) = projection_print(p, nothing, obj, nothing)
+print_document(p::ObjectToWidget, obj) = print_document(p, nothing, obj, nothing)
 
 # ── Reflection: which fields to show, and how to classify a value ───────────
 
@@ -264,7 +264,7 @@ _end_cursor(n::Int) = ConcreteReferencePath(FieldReference("elements"),
         ConcreteReferencePath(FieldReference("content"),
             ConcreteReferencePath(RangeReference(n, n), EmptyReferencePath()))))
 
-# ── projection_read ───────────────────────────────────────────────────────
+# ── read_intent ───────────────────────────────────────────────────────
 # Two control-edit shapes are converted to the input domain (a
 # ReplaceReferencedValueOperation that sets the parameter cell):
 #
@@ -277,7 +277,7 @@ _end_cursor(n::Int) = ConcreteReferencePath(FieldReference("elements"),
 #   the new whole value. Nested text-caret edits are deferred to the navigation
 #   stage and pass through.
 
-function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceReferencedValueOperation)
+function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceReferencedValueOperation)
     for (control, path) in iomap.controls
         op.document === control || continue
         current = evaluate_reference(iomap.input, path)
@@ -287,7 +287,7 @@ function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::Repl
     op   # not one of ours — pass through
 end
 
-function projection_read(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_control_edit(op.reference)
     parsed === nothing && return op
     row, cstart, cstop = parsed
@@ -308,11 +308,11 @@ end
 # output. The control caret is a derived view (pinned to the text end), so there is
 # no object-domain selection to set; consume it rather than letting it reach the
 # object (which has no widget-shaped reference path).
-projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
+read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
 
 # Everything else (including ToggleCollapseOperation, whose target is the output
 # card itself) passes straight through to the editor.
-projection_read(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
+read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
 
 # Parse a control text-edit reference. The output is a WidgetComposite wrapping the
 # root grid, so a renderer-produced reference looks like

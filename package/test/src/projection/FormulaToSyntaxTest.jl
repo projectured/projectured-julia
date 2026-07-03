@@ -29,7 +29,7 @@ end
     ref = FormulaReference(target)
     f2s = RecursiveProjection(FormulaToSyntax())
 
-    out = projection_print(f2s, ref).output
+    out = print_document(f2s, ref).output
     rendered = Cell(() -> render(out))
     @test rendered[] == "A1"
 
@@ -45,13 +45,13 @@ end
     f = env.formulas[1]
 
     f.display_mode = :code
-    @test render(projection_print(f2s, f).output) == "2 + 3"
+    @test render(print_document(f2s, f).output) == "2 + 3"
 
     f.display_mode = :result
-    @test render(projection_print(f2s, f).output) == "5"
+    @test render(print_document(f2s, f).output) == "5"
 
     f.display_mode = :both
-    both = render(projection_print(f2s, f).output)
+    both = render(print_document(f2s, f).output)
     @test occursin("A1", both)
     @test occursin("2 + 3", both)
     @test occursin("=", both)
@@ -111,7 +111,7 @@ end
         FormulaFormula("A1", juliaparse("1"); display_mode=:result),
         FormulaFormula("B1", juliaparse("2"); display_mode=:result),
     ])
-    rendered = render(projection_print(f2s, env).output)
+    rendered = render(print_document(f2s, env).output)
     @test occursin("1", rendered)
     @test occursin("2", rendered)
     @test occursin("\n", rendered)

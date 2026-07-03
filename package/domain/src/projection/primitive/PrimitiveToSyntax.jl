@@ -7,7 +7,7 @@ with appropriate delimiters and colors.
 """
 module PrimitiveToSyntaxModule
 
-import ..ProjectionApiModule: projection_print, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReactiveModule: Cell
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
@@ -44,11 +44,11 @@ function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap,
     end
 end
 
-function projection_print(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
+function print_document(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
     SimpleIoMap(p, b, SyntaxLeaf(TextString(() -> string(b.value), p.style); selection=getfield(b, :selection)))
 end
 
-function projection_read(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
@@ -74,11 +74,11 @@ function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMa
     end
 end
 
-function projection_print(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
+function print_document(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
     SimpleIoMap(p, n, SyntaxLeaf(TextString(() -> string(n.value), p.style); selection=getfield(n, :selection)))
 end
 
-function projection_read(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
@@ -105,7 +105,7 @@ function map_reference_backward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMa
     end
 end
 
-function projection_print(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
+function print_document(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
     SimpleIoMap(p, s, SyntaxLeaf(
         TextString(() -> something(s.value, ""), p.value);
         open=TextString("\"", p.quote_style),
@@ -113,7 +113,7 @@ function projection_print(p::PrimitiveStringToSyntaxLeaf, recursion, s::Primitiv
         selection=getfield(s, :selection)))
 end
 
-function projection_read(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
@@ -128,7 +128,7 @@ end
 # String character-editing (insert / Backspace / Delete) is reified once as
 # `@gestures PrimitiveString` in `PrimitiveToText.jl` (a document-level concern in
 # the PrimitiveString's own `value[range]` vocabulary); this leaf reaches it
-# through the generic `document_read` fallback, so no bespoke event reader lives
+# through the generic `read_gesture` fallback, so no bespoke event reader lives
 # here — only the structural `ReplaceSelectionOperation` mapping above.
 
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────

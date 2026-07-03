@@ -19,7 +19,7 @@ module FileSystemToSyntaxModule
 
 import ..ReactiveModule: Cell
 import ..CollectionModule: CellVector
-import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..TextModule: TextString
@@ -43,7 +43,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
-function projection_print(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
+function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
     SimpleIoMap(p, f, SyntaxLeaf(
         TextString(() -> " " * basename(f.pathname), p.style);
         selection=f.selection))
@@ -54,7 +54,7 @@ end
 map_reference_forward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
 map_reference_backward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
 
-function projection_read(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
     ReplaceSelectionOperation(result)
@@ -76,8 +76,8 @@ end
 end
 
 
-function projection_print(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
-    child_iomaps = Cell(() -> [projection_printer_recurse(recursion, elem,
+function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, elem,
                                    child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(d.elements)])
 
@@ -148,7 +148,7 @@ function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::Child
     end
 end
 
-function projection_read(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
     ReplaceSelectionOperation(result)

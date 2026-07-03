@@ -32,16 +32,16 @@ _cursor(n) = ConcreteReferencePath(FieldReference("content"),
 
 @testset "WidgetText recurses Document content and renders to graphics" begin
     doc = _doc()
-    iomap = projection_print(_proj(), nothing, doc, PrinterContext())
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas
 end
 
 @testset "typing into a WidgetText edits via the Text domain, re-rooted at content" begin
     doc = _doc()
     set_selection!(doc, _cursor(3))            # cursor after "edi"
-    iomap = projection_print(_proj(), nothing, doc, PrinterContext())
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    op = projection_read(_proj(), iomap, KeyPress('X', "X", Modifiers()))
+    op = read_intent(_proj(), iomap, KeyPress('X', "X", Modifiers()))
     @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
     @test op.reference.head == FieldReference("content")
@@ -54,25 +54,25 @@ end
     content = TextText(TextString("edit me", _font, color_default))
     doc = WidgetText(Point2D(0, 0), content; enabled=false)
     set_selection!(doc, _cursor(3))
-    iomap = projection_print(_proj(), nothing, doc, PrinterContext())
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
-    @test projection_read(_proj(), iomap, KeyPress('X', "X", Modifiers())) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", Modifiers())) === nothing
     @test doc.content.elements[1].content == "edit me"         # value unchanged
 end
 
 @testset "backspace and arrow navigation are re-rooted at content too" begin
     doc = _doc()
     set_selection!(doc, _cursor(4))            # cursor after "edit"
-    iomap = projection_print(_proj(), nothing, doc, PrinterContext())
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    bs = projection_read(_proj(), iomap, KeyDown(:backspace, Modifiers()))
+    bs = read_intent(_proj(), iomap, KeyDown(:backspace, Modifiers()))
     @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReference("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].content == "edi me"
 
-    iomap2 = projection_print(_proj(), nothing, doc, PrinterContext())
-    arrow = projection_read(_proj(), iomap2, KeyDown(:left, Modifiers()))
+    iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
+    arrow = read_intent(_proj(), iomap2, KeyDown(:left, Modifiers()))
     @test arrow isa ReplaceSelectionOperation
     @test arrow.path.head == FieldReference("content")
 end

@@ -2,7 +2,7 @@
 
 Higher-order projections compose other projections. Each one lives in its own
 module under `program/src/projection/higherorder/` and implements
-`projection_print`, `projection_read`, and the two reference-mapping
+`print_document`, `read_intent`, and the two reference-mapping
 functions. They never touch any specific domain — their argument is always
 some other projection.
 
@@ -36,9 +36,9 @@ ChainingProjection(
 )
 ```
 
-`projection_print` threads the previous step's `iomap.output` as the next
+`print_document` threads the previous step's `iomap.output` as the next
 step's input and stores every step's iomap in `ChainingProjectionIoMap.step_iomaps`.
-`projection_read` walks from the *last* step backward. If a step returns
+`read_intent` walks from the *last* step backward. If a step returns
 `nothing`, the reader keeps trying earlier steps until one accepts the event,
 then translates the result through the remaining earlier steps. This is what
 lets a `:left`/`:right` key be consumed by `TextToGraphics` and translated
@@ -103,12 +103,12 @@ RecursiveProjection(TypeDispatchingProjection(
 ))
 ```
 
-Calls `projection_print(child, self, input, ctx)` — that is, it passes
+Calls `print_document(child, self, input, ctx)` — that is, it passes
 *itself* as the `recursion` argument. (The 4th argument is a
 `PrinterContext` that *carries* the document-root-relative reference path
 plus layout extent and properties; it was historically a bare
 `ReferencePath`, since promoted to the context struct.) This lets node-shaped
-inner projections recurse with `projection_printer_recurse(recursion, child, child_ctx)`
+inner projections recurse with `print_child(recursion, child, child_ctx)`
 without hard-coding the inner pipeline. Every multi-shape domain projection
 (JsonToSyntax, XmlToSyntax, ObjectToSyntax, WidgetToGraphics, …) wraps a
 TypeDispatchingProjection in a RecursiveProjection.
@@ -165,7 +165,7 @@ DraggingProjection()   # dispatched on a DraggingState document
 ```
 
 Adds drag-and-drop reordering to whatever document a `DraggingState` wraps. Like
-`TooltipDecoratorProjection`, it is a **transparent decorator**: `projection_print`
+`TooltipDecoratorProjection`, it is a **transparent decorator**: `print_document`
 just recurses into `state.content` and returns its output, so the wrapper is
 invisible. All the work is in the reader, a press→drag→drop state machine whose
 transient state (`:idle` / `:pending` / `:dragging` + grab coords + source

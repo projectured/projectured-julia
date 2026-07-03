@@ -64,7 +64,7 @@ DatabaseTable(adapter, table;
     DatabaseUpdateOperation(adapter, table, ctid, column, new_value)
 
 Updates a single cell identified by `ctid` in `table`. Produced by
-`DatabaseTableToTabularGrid.projection_read` when a data-row cell is edited.
+`DatabaseTableToTabularGrid.read_intent` when a data-row cell is edited.
 Evaluated by `evaluate_operation` in `DatabaseTabularModule`.
 """
 struct DatabaseUpdateOperation <: Operation

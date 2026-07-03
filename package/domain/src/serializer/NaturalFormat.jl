@@ -22,7 +22,7 @@ editor scaffolding.
 """
 module NaturalFormatModule
 
-import ..ProjectionApiModule: projection_print
+import ..ProjectionApiModule: print_document
 import ..DocumentApiModule: Document
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ChainingProjectionModule: ChainingProjection
@@ -80,7 +80,7 @@ function document_to_text(document::Document)
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString()),
     )
-    String(projection_print(pipeline, document).output[])
+    String(print_document(pipeline, document).output[])
 end
 
 # ── Import / export ─────────────────────────────────────────────────────────

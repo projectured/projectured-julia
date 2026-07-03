@@ -8,10 +8,10 @@
 # shell (routed via the container crossing routing + the table's 3-arg bridge).
 
 using Projectured: WidgetTable, VerticalLayout, WidgetTabbedPane, WidgetShell, Point2D,
-    Change, MouseEnter, MouseMove, MouseLeave, MousePress, Modifiers,
+    Intent, MouseEnter, MouseMove, MouseLeave, MousePress, Modifiers,
     ReplaceReferencedValueOperation, ReplaceSelectionOperation, GraphicsRect,
     WidgetToGraphics, LayoutToGraphics, TypeDispatchingProjection, RecursiveProjection,
-    font_ubuntu_regular_20, projection_print, projection_read
+    font_ubuntu_regular_20, print_document, read_intent
 using Projectured.ReactiveModule: Cell
 
 function test_widget_table()
@@ -26,8 +26,8 @@ _mods = Modifiers()
 _mktable() = WidgetTable(Point2D(0, 0), ["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
 _rd(io, g) = begin
-    ch = projection_read(_rec, nothing, Change(g, nothing), io)
-    ch isa Change ? ch.operation : ch
+    ch = read_intent(_rec, nothing, Intent(g, nothing), io)
+    ch isa Intent ? ch.operation : ch
 end
 # Centre coordinate of body row r's band, and of a body column.
 _bx(g) = (g.col_x[g.col_offset + 1] + g.col_x[g.col_offset + 2]) ÷ 2
@@ -42,7 +42,7 @@ function _rects(io)
 end
 
 @testset "MouseEnter/Move/Leave drive the whole-row hover" begin
-    w = _mktable(); io = projection_print(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
     # Enter a body cell → its whole row.
     op = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
@@ -59,7 +59,7 @@ end
 end
 
 @testset "column header hovers the column; a click still selects" begin
-    w = _mktable(); io = projection_print(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
     op = _rd(io, MouseEnter(_bx(g), chy, :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
@@ -73,7 +73,7 @@ end
 end
 
 @testset "hover band renders (faint overlay follows w.hovered)" begin
-    w = _mktable(); io = projection_print(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
     _ = _rects(io)
     # The hover band is the faint (alpha≈0x20) translucent rect; before hovering it
     # is collapsed to 0 height.
@@ -87,7 +87,7 @@ end
 
 @testset "hover + click reach a table nested in containers" begin
     function reach(doc; xs, ys)
-        io = projection_print(_rec, doc)
+        io = print_document(_rec, doc)
         e = c = 0
         for x in xs, y in ys
             oe = _rd(io, MouseEnter(x, y, :none, _mods))

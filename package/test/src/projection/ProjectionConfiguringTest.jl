@@ -5,7 +5,7 @@ end
 function test_projection_configuring()
 
 _font = font_ubuntu_monospace_regular_20
-_mkchange(g, o) = Projectured.ProjectionApiModule.Change(g, o)
+_mkchange(g, o) = Projectured.ProjectionApiModule.Intent(g, o)
 _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
 _input() = TextText(TextString("alpha dolor", _font, color_default))
 
@@ -13,7 +13,7 @@ _input() = TextText(TextString("alpha dolor", _font, color_default))
 
     th  = TextHighlighting("dolor")
     pcp = ProjectionConfiguringProjection(inner=th)
-    iomap = projection_print(pcp, nothing, _input(), PrinterContext())
+    iomap = print_document(pcp, nothing, _input(), PrinterContext())
 
     out = iomap.output
     @test out isa WidgetSplitPane
@@ -31,11 +31,11 @@ end # @testset
 
     th  = TextHighlighting("dolor")
     pcp = ProjectionConfiguringProjection(inner=th)
-    iomap = projection_print(pcp, nothing, _input(), PrinterContext())
+    iomap = print_document(pcp, nothing, _input(), PrinterContext())
 
     ctrl = iomap.control_iomap.controls[1][1]   # the pattern control
     edit = ReplaceReferencedValueOperation(ctrl, _content_ref(), "alpha")
-    out  = projection_read(pcp, nothing, _mkchange(nothing, edit), iomap)
+    out  = read_intent(pcp, nothing, _mkchange(nothing, edit), iomap)
 
     @test out.operation isa ReplaceReferencedValueOperation
     @test out.operation.document === th
@@ -49,22 +49,22 @@ end # @testset
 @testset "Ctrl+F toggles and Escape hides the control bar" begin
 
     pcp = ProjectionConfiguringProjection(inner=TextHighlighting("dolor"))
-    iomap = projection_print(pcp, nothing, _input(), PrinterContext())
+    iomap = print_document(pcp, nothing, _input(), PrinterContext())
 
     # Control starts visible → Ctrl+F hides it.
     ctrl_f = KeyDown(:f, Modifiers(ctrl=true))
-    op = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
+    op = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
     @test op isa ReplaceReferencedValueOperation && op.value == false   # hide = visible←false
     @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
     esc = KeyDown(:escape, Modifiers())
-    op_esc = projection_read(pcp, nothing, _mkchange(esc, nothing), iomap).operation
+    op_esc = read_intent(pcp, nothing, _mkchange(esc, nothing), iomap).operation
     @test op_esc isa ReplaceReferencedValueOperation && op_esc.value == false
 
     # After hiding, Ctrl+F shows again.
     iomap.control_widget.visible = false
-    op2 = projection_read(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
+    op2 = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
     @test op2 isa ReplaceReferencedValueOperation && op2.value == true   # show = visible←true
 
 end # @testset
@@ -84,14 +84,14 @@ end # @testset
     proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextText(TextString("alpha dolor", font, color_default))
-    iomap = projection_print(proj, nothing, doc, PrinterContext())
+    iomap = print_document(proj, nothing, doc, PrinterContext())
 
     # A click that lands on a checkbox routes through renderer → split pane →
     # composite rows → checkbox, bubbles a ReplaceReferencedValueOperation, and PCP
     # redirects it onto the inner projection's bool cell.
     flipped = false
     for y in 0:4:120, x in 150:5:230
-        op = projection_read(proj, iomap, MousePress(:left, x, y, Modifiers()))
+        op = read_intent(proj, iomap, MousePress(:left, x, y, Modifiers()))
         op isa ReplaceReferencedValueOperation || continue
         evaluate_operation(_PcEditor(doc), op)
         if inner.case_insensitive[] || inner.invert[]
@@ -118,10 +118,10 @@ end # @testset
 
     doc   = TextText(TextString("alpha dolor", font, color_default))
     ctx   = with_available_size(PrinterContext(); width=Cell(800), height=Cell(600))
-    iomap = projection_print(proj, nothing, doc, ctx)
+    iomap = print_document(proj, nothing, doc, ctx)
 
     # A KeyPress routes to the (only) editable control and appends to the pattern.
-    op = projection_read(proj, nothing, _mkchange(KeyPress('X', "X", Modifiers()), nothing), iomap).operation
+    op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", Modifiers()), nothing), iomap).operation
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head == FieldReference("pattern")
     evaluate_operation(_PcEditor(doc), op)

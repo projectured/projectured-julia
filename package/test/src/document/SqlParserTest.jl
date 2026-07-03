@@ -20,7 +20,7 @@ function test_sql_parser()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        roundtrip(stmt) = normalize_sql(projection_print(sql_pipe, stmt).output[])
+        roundtrip(stmt) = normalize_sql(print_document(sql_pipe, stmt).output[])
 
         # ── simplest case ─────────────────────────────────────────────
         @testset "SELECT * FROM table" begin

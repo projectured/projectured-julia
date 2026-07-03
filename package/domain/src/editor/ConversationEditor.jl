@@ -30,7 +30,7 @@ module ConversationEditorModule
 import ..ReactiveModule: Cell, set_function!
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..ProjectionApiModule: projection_print, projection_read,
+import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
@@ -462,7 +462,7 @@ _part_card(content, active::Bool) =
                          _editable_body(content) : _committed_body(content),
                width = _PART_WIDTH)
 
-function projection_print(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
+function print_document(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
     # The draft is always a user message, so it renders as just its stack of part
     # cards — no role/avatar header card around them. Reactive part list: the last
     # part is the active typein (gets the caret). The thunk recomputes on
@@ -583,10 +583,10 @@ composer_read(::Any, ::Any) = nothing
 # here (it can't be referenced directly — module order: the composer loads first).
 const SUBMIT_HANDLER = Ref{Any}(nothing)
 
-projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
+read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     composer_read(iomap.input, evt)
 
-function projection_read(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
+function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
     d = iomap.input                       # ConversationDraft
     op = composer_read(d, evt)
     # When the draft belongs to an assistant, ENTER's `ComposerSubmitOperation`

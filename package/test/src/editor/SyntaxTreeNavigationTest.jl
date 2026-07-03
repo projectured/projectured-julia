@@ -10,7 +10,7 @@
 #   :right) at each state.  Each state is visited exactly once (keyed by
 #   its path string).  At every state:
 #     1. set_selection! applies the path;
-#     2. projection_print re-renders (errors collected);
+#     2. print_document re-renders (errors collected);
 #     3. the iomap is walked (cells forced, errors collected).
 #   Returns (state_count, errors).
 #
@@ -32,13 +32,13 @@ function explore_tree_selections(document, projection; onstate=nothing)
     # Seed: Ctrl+Alt+Home → ReplaceSelectionOperation(∅), resolved at syntax layer
     clear_selection!(document)
     iomap = try
-        projection_print(projection, document)
+        print_document(projection, document)
     catch e
-        return (state_count=0, errors=["projection_print failed: $e"], visited=visited)
+        return (state_count=0, errors=["print_document failed: $e"], visited=visited)
     end
 
     op = try
-        projection_read(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
+        read_intent(projection, iomap, KeyDown(:home, Modifiers(ctrl=true, alt=true)))
     catch e
         return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"], visited=visited)
     end
@@ -60,7 +60,7 @@ function explore_tree_selections(document, projection; onstate=nothing)
         set_selection!(document, path)
 
         iomap = try
-            projection_print(projection, document)
+            print_document(projection, document)
         catch e
             msg = "reprint at [$path_str] failed: $e"
             push!(errors, msg)
@@ -71,7 +71,7 @@ function explore_tree_selections(document, projection; onstate=nothing)
 
         for key in nav_keys
             op = try
-                projection_read(projection, iomap, key)
+                read_intent(projection, iomap, key)
             catch e
                 push!(errors, "reader error at [$path_str] with $key: $e")
                 nothing
