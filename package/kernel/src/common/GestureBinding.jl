@@ -237,7 +237,13 @@ function get_document_gesture_bindings(T::Type)
     result = GestureBinding[]
     S = T
     while true
-        append!(result, get_document_gesture_bindings_own(S))
+        # Kind-parameterized document types (`JsonArray{ReactiveCell{Any}}`) carry
+        # their bindings on the bare stem `JsonArray` — the UnionAll the `@gestures`
+        # method dispatches on (`::Type{JsonArray}`). The supertype walk goes
+        # `JsonArray{…} → JsonDocument → …` and never visits that stem, so normalize
+        # each concrete level to its UnionAll base before the registry lookup.
+        base = S isa DataType ? S.name.wrapper : S
+        append!(result, get_document_gesture_bindings_own(base))
         S === Any && break
         S = supertype(S)
     end
