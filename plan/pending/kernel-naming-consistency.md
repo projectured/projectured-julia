@@ -114,7 +114,7 @@ The full old → new mapping with reasoning is in the table at the end of this f
       `api/` only; `evaluate_operation` owned and exported by `api/` only —
       `PrimitiveModule` imports the generic and adds methods without
       re-exporting it.
-- [ ] **Batch 6 — function abbreviations & snake_case**: `set_value!`,
+- [x] **Batch 6 — function abbreviations & snake_case** *(done)*: `set_value!`,
       `set_function!`, `is_up_to_date`, `reroot_reference`/`reroot_operation`,
       `insert_row!`/`insert_column!`/`delete_row!`/`delete_column!` (+ pure forms).
 - [ ] **Batch 7 — core protocol verbs and the Intent rename**:
@@ -131,6 +131,10 @@ The full old → new mapping with reasoning is in the table at the end of this f
 - [ ] **Batch 8 — getters become `get_*`**: every noun-phrase accessor gains
       the `get_` prefix so it pairs with its `set_stem!` twin
       (`get_selection` / `set_selection!`); ~20 renames, see the table.
+      The `*_gestures` family additionally fixes its rung: those functions
+      return `Vector{GestureBinding}`, not gestures, so the stem becomes
+      `gesture_bindings` (`get_document_gesture_bindings`,
+      `collect_gesture_bindings`, …).
 - [ ] **Batch 9 — remaining non-verb stragglers**:
       `start_agent_server!`/`stop_agent_server!`,
       `is_reference_equal(_ignoring_types)`, `pop_gesture!`,
@@ -153,6 +157,38 @@ The full old → new mapping with reasoning is in the table at the end of this f
   docs. (Batch 7 also diverges: Lisp's `call-printer`/`call-reader`/`command`
   become `print_document`/`read_intent`/`Intent` — the concepts and the REPL
   verbs survive, the literal names don't.)
+
+### Second audit findings (pending ruling)
+
+A re-check of every exported name against the finished rules found these
+additional items:
+
+- `NoOperation` and `CompoundOperation` violate "operations are verb-first,
+  no exceptions" — they are the two *structural* operations (the null
+  operation and the composite). Recommend blessing them as noun-named
+  structural exceptions, mirroring the Identity/Constant math-noun exception
+  for projections.
+- Bare-verb functions, by the `start_agent_server!` precedent (bare verb =
+  too generic): `run!` → `run_editor!` (both methods construct/run an
+  editor), `tick!` → `tick_editor_time!`, `recognize!` →
+  `recognize_gesture!` (recognition verbs take the recognized thing as
+  object), `init!`/`quit!` (Backend) → `initialize_backend!`/`quit_backend!`
+  (`init` is also a banned abbreviation).
+- `is_ctrl`/`is_alt`/`is_meta`: `ctrl`/`alt`/`meta` are canonical keyboard
+  modifier labels, not abbreviations — recommend adding them to the
+  sanctioned compact words in naming.md rather than renaming.
+- Mcp: `list_classes`/`read_class_documentation` list Julia *structs* —
+  "class" is not a Julia concept → `list_types`/`read_type_documentation`.
+- `take_first_n(node, n, direction)` — the count is an argument; it does not
+  belong in the name → `take_first`.
+- `@perf_time`: macros are exempt from the verb rule, not the abbreviation
+  rule → `@performance_time`.
+- `record_performance!` (already tabled) keeps its name — "records a
+  performance measurement" is the purpose; `increment_performance_counter!`
+  would name the mechanism.
+- `print_child` is a conscious soft exception to verb + flowing-unit: "child"
+  names the unit's role, not its kind (`print_child_document` was judged not
+  worth the weight).
 
 ### Resolved during discussion
 
@@ -701,7 +737,8 @@ function: @reference, @step
 | `pointer_position` | `get_pointer_position` | function | same |
 | `editor_time` / `reactive_editor_time` | `get_editor_time` / `get_reactive_editor_time` | function | same |
 | `iomap_projection` / `iomap_input` / `iomap_output` | `get_iomap_projection` / `get_iomap_input` / `get_iomap_output` | function | same |
-| `document_gestures` / `document_gestures_own` / `instance_gestures` / `projection_gestures` / `applicable_gestures` | `get_document_gestures` / `get_document_gestures_own` / `get_instance_gestures` / `get_projection_gestures` / `get_applicable_gestures` | function | same |
+| `document_gestures` / `document_gestures_own` / `instance_gestures` / `projection_gestures` / `applicable_gestures` | `get_document_gesture_bindings` / `get_document_gesture_bindings_own` / `get_instance_gesture_bindings` / `get_projection_gesture_bindings` / `get_applicable_gesture_bindings` | function | getter + honest rung: they return `Vector{GestureBinding}`, not gestures |
+| `collect_gestures` | `collect_gesture_bindings` | function | same rung fix; was already verb-first |
 | `left_tail` / `right_tail` / `cell_at` | `get_left_tail` / `get_right_tail` / `get_cell_at` | function | same |
 | `anthropic_tool_schema` | `get_anthropic_tool_schema` | function | same |
 | `valid_reference_prefix` | `get_valid_reference_prefix` | function | same |
