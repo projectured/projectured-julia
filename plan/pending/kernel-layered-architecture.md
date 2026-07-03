@@ -82,6 +82,339 @@ defines only the step's shape and never imports `Projection`; only higher layers
 construct and interpret the payload (same pattern as `Intent`). So projection → reference
 (PrinterContext, reference mapping) is the only edge, and it points down.
 
+## Target folder/file structure (with exports and kernel imports)
+
+Generated from the real source headers (export statements, `@document struct`
+declarations, and `import ..Module: symbols` lines) with the module merges and the
+R1-R6 refactors applied. Conventions: *(fragment)* files are `include`d by their
+module's aggregator file and share its namespace; imports between files of the same
+target module are internal and omitted; import lines name the **post-merge** source
+module; *(aggregator)* / *(new)* files list only the symbols they add.
+
+```
+# *  = @document-generated export (the struct + its R/I/M kind aliases)
+package/kernel/src/
+  ProjecturedKernel.jl                     # 9 layer sections, includes aggregators/standalone modules only
+  cell/                                # layer 1 - cell
+    PerformanceCounter.jl
+        exports: get_performance_counters, reset_performance_counters!, record_performance!,
+            @performance_time
+    CellModule.jl
+        exports: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell, set_value!,
+            set_function!, is_up_to_date
+    AbstractCell.jl (fragment)
+        (no exports)
+    ReactiveCell.jl (fragment)
+        (no exports)
+        imports PerformanceCounterModule: _perf
+    MutableCell.jl (fragment)
+        (no exports)
+    ImmutableCell.jl (fragment)
+        (no exports)
+    Time.jl
+        exports: get_editor_time, get_reactive_editor_time, tick_editor_time!
+        imports CellModule: Cell
+  document/                                # layer 2 - document
+    Interface.jl (fragment)
+        exports: Document, get_selection, clear_selection!, set_selection!, with_selection,
+            read_gesture
+    Document.jl (fragment)
+        exports: Document, copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
+            @document, @forward, @forward_vector, @forward_map, T*, Foo*
+        imports CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
+    DocumentModule.jl (aggregator)
+  reference/                                # layer 3 - reference
+    ReferenceModule.jl (aggregator)
+    Reference.jl (fragment)
+        exports: Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
+            FunctionReference, ProjectionReference, TextRectangularReference, ReferencePath,
+            EmptyReferencePath, append_reference, concat_references, reference_steps,
+            evaluate_reference, is_valid_reference, collect_references, is_element_reference,
+            is_position_reference, is_range_reference, is_reference_equal, is_prefix_of,
+            is_reference_equal_ignoring_types, is_prefix_of_ignoring_types, ReferenceTypeMismatch,
+            get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
+            fold_reference_types, RangeReference*, FieldReference*, ConcreteReferencePath*,
+            PointReference*
+        imports CellModule: Cell, AbstractCell
+        imports DocumentModule: @document
+    ReferenceCase.jl (fragment)
+        exports: @reference_case, when, prefix
+    ReferenceBuilder.jl (fragment)
+        exports: @reference, @step
+  operation/                                # layer 4 - operation
+    OperationModule.jl (aggregator)
+        exports (new seam): child_reference_steps
+    Interface.jl (fragment)
+        exports: Operation, evaluate_operation, invalidate_projection!
+    Operations.jl (fragment)
+        exports: DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation,
+            QuitEditorException, replace_selection!, ToggleCollapseOperation,
+            ReplaceReferencedValueOperation, replace_document, insert_elements, delete_elements,
+            SelectNextInsertionOperation, CompoundOperation, AdjustZoomOperation,
+            AdjustFontZoomOperation, update_selection!, splice_string, splice_number, splice_value!
+        imports DocumentModule: Document, clear_selection!, set_selection!, with_selection
+        imports ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+            FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference,
+            is_reference_equal, annotate_reference_types, strip_reference_types, append_reference,
+            concat_references, reference_steps
+        imports CellModule: Cell, AbstractCell
+    Rerooting.jl (fragment)
+        exports: reroot_reference, reroot_operation
+        imports ReferenceModule: ReferencePath, ConcreteReferencePath
+  device/                                # layer 5 - device
+    Device.jl
+        exports: Device, write_to_devices, read_from_devices
+    Modifiers.jl
+        exports: Modifiers
+    Keyboard.jl
+        exports: Keyboard, KeyDown, KeyUp, KeyPress, KeyChord, is_ctrl, is_shift, is_alt, is_meta
+        imports DeviceModule: Device
+        imports ModifiersModule: Modifiers
+    Mouse.jl
+        exports: Mouse, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, MouseEnter,
+            MouseLeave
+        imports DeviceModule: Device
+        imports ModifiersModule: Modifiers
+    ScreenDevice.jl
+        exports: Screen, WindowQuit
+        imports DeviceModule: Device
+    GestureModule.jl (aggregator)
+        exports (rehomed, R5): EventEnvelope
+    EventCase.jl (fragment)
+        exports: var"@event_case"
+        imports KeyboardModule (whole module)
+        imports MouseModule (whole module)
+        imports ModifiersModule (whole module)
+    GestureBinding.jl (fragment)
+        exports: GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern, MouseDownPattern,
+            MouseUpPattern, MousePressPattern, MouseMovePattern, MouseScrollPattern, GestureBinding,
+            matches, describe, get_document_gesture_bindings, get_document_gesture_bindings_own,
+            get_instance_gesture_bindings, read_document_gesture, read_node_gesture,
+            get_applicable_gesture_bindings, is_help_gesture, var"@gestures", var"@gesture_set"
+        imports KeyboardModule: KeyDown, KeyUp, KeyPress
+        imports MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+        imports ModifiersModule: Modifiers
+        imports DocumentModule: Document, read_gesture
+    GestureRecognizer.jl
+        exports: GestureRecognizer, recognize_gesture!, pop_gesture!
+        imports MouseModule: MouseDown, MouseUp, MousePress
+        imports KeyboardModule: KeyDown, KeyChord
+        imports GestureModule: EventEnvelope
+  backend/                                # layer 6 - backend
+    Backend.jl
+        exports: Backend, initialize_backend!, quit_backend!, measure_text, make_backend,
+            write_image, record_video, render_canvas, decode_image, get_pointer_position
+    Display.jl
+        exports: get_display_size, set_display_size_provider!
+    HeadlessBackend.jl (new)
+        exports: HeadlessBackend, rendered_output, push_event!
+        imports BackendModule: Backend, make_backend
+        imports DeviceModule: Device, read_from_devices, write_to_devices
+  projection/                                # layer 7 - projection
+    ProjectionModule.jl (aggregator)
+        exports (moved in, R3): get_projection_gesture_bindings, read_projection_gesture,
+            collect_gesture_bindings
+    Interface.jl (fragment)
+        exports: print_document, print_child, read_intent, map_reference_forward,
+            map_reference_backward, Projection, pure_print_document, pure_print_child
+    Intent.jl (fragment)
+        exports: Intent
+    IoMapInterface.jl (fragment)
+        exports: IoMap, get_iomap_projection, get_iomap_input, get_iomap_output
+    IoMap.jl (fragment)
+        exports: SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
+        imports CellModule: Cell
+        imports DocumentModule: _cell_autowrap_ctor, _cell_property_accessors, _cell_kw_params,
+            _cell_kwctor
+    PrinterContext.jl (fragment)
+        exports: PrinterContext, make_child_context, with_available_size, with_property,
+            get_property
+        imports CellModule: Cell
+        imports ReferenceModule: ReferencePath, EmptyReferencePath, ReferenceStep, append_reference
+    Defaults.jl (fragment)
+        exports: @projection, pure_print
+        imports OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
+            ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
+        imports CellModule: Cell, AbstractCell
+        imports DocumentModule: snapshot, Document, read_gesture
+        imports ReferenceModule: EmptyReferencePath, var"@reference_case", var"@reference"
+        imports KeyboardModule: KeyPress, KeyDown
+        imports MouseModule: MousePress
+    algebra/Identity.jl (fragment)
+        exports: IdentityProjection
+    algebra/Constant.jl (fragment)
+        exports: ConstantProjection
+    algebra/Chaining.jl (fragment)
+        exports: ChainingProjection, ChainingProjectionIoMap
+        imports GestureModule: GestureBinding
+        imports CellModule: Cell, AbstractCell
+    algebra/Switching.jl (fragment)
+        exports: SwitchingProjection, SwitchingProjectionIoMap
+        imports CellModule: Cell
+    algebra/TypeDispatching.jl (fragment)
+        exports: TypeDispatchingProjection
+        imports GestureModule: GestureBinding
+    algebra/PredicateDispatching.jl (fragment)
+        exports: PredicateDispatchingProjection
+    algebra/ReferenceDispatching.jl (fragment)
+        exports: ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
+        imports ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+            FieldReference, RangeReference, PointReference, ProjectionReference, head, tail,
+            is_reference_equal, is_prefix_of
+    algebra/Recursive.jl (fragment)
+        exports: RecursiveProjection
+    algebra/Nesting.jl (fragment)
+        exports: NestingProjection, NestingProjectionIoMap
+        imports GestureModule: GestureBinding
+    algebra/EnvelopeUnwrapping.jl (fragment)
+        exports: EnvelopeUnwrappingProjection, EnvelopeUnwrappingProjectionIoMap
+        imports GestureModule: EventEnvelope
+    algebra/Focusing.jl (fragment)
+        exports: FocusingProjection, ReplaceFocusPartOperation
+        imports OperationModule: Operation, evaluate_operation, ReplaceSelectionOperation
+        imports ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+            evaluate_reference, append_reference, strip_reference_types
+        imports CellModule: set_function!
+        imports GestureModule: GestureBinding, KeyDownPattern
+    algebra/Reversing.jl (fragment)
+        exports: ReversingProjection
+        imports CellModule: Cell
+        imports ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
+            RangeReference, append_reference, var"@reference_case"
+  agent/                                # layer 8 - agent
+    Agent.jl
+        exports: make_agent_server, start_agent_server!, stop_agent_server!
+    ToolRegistry.jl
+        exports: Tool, Resource, register_tool!, register_tools!, list_tools, call_tool, find_tool,
+            register_resource!, register_resources!, list_resources, read_resource, find_resource,
+            get_anthropic_tool_schema, clear_registry!
+    Llm.jl
+        exports: Llm, AnthropicLlm, FakeLlm, stream_turn, ScriptedLlm, make_scripted_turn,
+            make_scripted_think, make_scripted_say, make_scripted_run
+    Mcp.jl
+        exports: execute_julia_code, get_last_evaluated_value, list_guides, read_guide,
+            list_modules, list_types, list_functions, read_module_documentation,
+            read_type_documentation, read_function_documentation, search_documentation, search_api,
+            register_default_tools_and_resources!
+        imports ToolRegistryModule: Tool, Resource, register_tool!, register_resource!, list_tools,
+            list_resources
+  editor/                                # layer 9 - editor
+    Editor.jl
+        exports: Editor, run_editor!
+        imports ProjectionModule: Projection, print_document, read_intent, Intent, IoMap
+        imports DeviceModule: Device, read_from_devices, write_to_devices
+        imports BackendModule: Backend, initialize_backend!, quit_backend!
+        imports ScreenDeviceModule: Screen, WindowQuit
+        imports GestureModule: EventEnvelope
+        imports PerformanceCounterModule: get_performance_counters, reset_performance_counters!,
+            @performance_time
+        imports TimeModule: tick_editor_time!
+        imports DocumentModule: Document
+        imports KeyboardModule: Keyboard, KeyDown
+        imports MouseModule: Mouse
+        imports OperationModule: Operation, evaluate_operation, invalidate_projection!,
+            ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation,
+            AdjustFontZoomOperation, QuitEditorException
+        imports GestureRecognizerModule: GestureRecognizer, pop_gesture!
+        imports AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
+    Playback.jl
+        exports: play_live!
+        imports EditorModule: Editor, read!, evaluate!, print!, perf!
+        imports PerformanceCounterModule: reset_performance_counters!, @performance_time
+        imports ProjectionModule: read_intent, Intent
+        imports GestureModule: EventEnvelope
+        imports OperationModule: Operation, QuitEditorException, reroot_operation
+        imports ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
+        imports BackendModule: Backend, initialize_backend!, quit_backend!
+        imports DeviceModule: Device
+        imports ScreenDeviceModule: Screen
+        imports KeyboardModule: Keyboard
+        imports MouseModule: Mouse
+package/base/src/
+  ProjecturedBase.jl                       # kernel-alias preamble + 2 layer sections
+  document/                                # layer 1 - document
+    Collection.jl
+        exports: CollectionDocument, get_left_tail, get_right_tail, get_cell_at, take_first,
+            insertrow!, insertcol!, deleterow!, deletecol!, insertrow, deleterow, CellVector*,
+            CellMatrix*, CellTable*, ListNode*
+        imports CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell,
+            set_function!, set_value!
+        imports DocumentModule: Document, copy_document, rekind, sync_document!, _same_cell,
+            _same_wrapper, _shadow_elem, @document, @forward
+        imports ReferenceModule: Reference
+    Primitive.jl
+        exports: PrimitiveDocument, ReplaceNumberRangeOperation, ReplaceStringRangeOperation,
+            PrimitiveInsertion*, PrimitiveBool*, PrimitiveNumber*, PrimitiveString*
+        imports CellModule: Cell, set_function!, set_value!
+        imports DocumentModule: Document, clear_selection!, set_selection!, @document
+        imports OperationModule: Operation, evaluate_operation, splice_string, splice_value!,
+            splice_number
+        imports ReferenceModule: Reference, ReferencePath, ConcreteReferencePath,
+            EmptyReferencePath, ReferenceStep, FieldReference, RangeReference, evaluate_reference,
+            strip_reference_types, reference_steps
+    ScreenDocument.jl
+        exports: WindowClose, WindowResize, WindowDefocus, OpenWindowOperation, OpenPopupOperation,
+            CloseWindowOperation, ResizeWindowOperation, ScreenDocument*, WindowDocument*
+        imports CellModule: Cell, set_function!, set_value!
+        imports DocumentModule: Document, @document
+        imports CollectionModule: CellVector
+        imports ReferenceModule: Reference, ReferencePath
+        imports OperationModule: Operation, evaluate_operation
+  projection/                                # layer 2 - projection
+    BaseProjectionModule.jl (aggregator)
+    Sorting.jl (fragment)
+        exports: SortingProjection, SortingProjectionIoMap
+        imports ProjectionModule: print_document, print_child, map_reference_forward,
+            map_reference_backward, Projection, SimpleIoMap, IoMap, make_child_context,
+            IdentityProjection
+        imports CellModule: Cell
+        imports CollectionModule: CellVector
+        imports ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
+            RangeReference, append_reference, var"@reference_case", var"@reference"
+    Filtering.jl (fragment)
+        exports: FilteringProjection, FilteringProjectionIoMap
+        imports ProjectionModule: print_document, map_reference_forward, map_reference_backward,
+            Projection, IoMap
+        imports CellModule: Cell
+        imports CollectionModule: CellVector
+        imports ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
+            append_reference, var"@reference_case"
+    Searching.jl (fragment)
+        exports: SearchingProjection, SearchingProjectionIoMap
+        imports ProjectionModule: print_document, map_reference_forward, map_reference_backward,
+            Projection, IoMap
+        imports CellModule: Cell, AbstractCell, set_function!
+        imports CollectionModule: CellVector
+        imports DocumentModule: Document
+        imports ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+            FieldReference, ElementReference, append_reference, head, tail, strip_reference_types,
+            var"@reference_case"
+    Copying.jl (fragment)
+        exports: CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap,
+            make_copying_element_iomap
+        imports ProjectionModule: print_document, print_child, map_reference_forward,
+            map_reference_backward, Projection, PrinterContext, make_child_context, IoMap
+        imports CellModule: Cell, set_function!, set_value!
+        imports DocumentModule: Document
+        imports ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
+            ElementReference, is_element_reference, head, tail
+        imports CollectionModule: CellVector, ListNode
+    WindowManaging.jl (fragment)
+        exports: WindowManagingProjection, WindowManagingProjectionIoMap
+        imports ProjectionModule: print_document, print_child, read_intent, map_reference_forward,
+            map_reference_backward, Projection, Intent, IoMap
+        imports CellModule: Cell
+        imports GestureModule: EventEnvelope
+        imports ScreenDocumentModule: ScreenDocument, WindowDocument, WindowResize, WindowClose,
+            WindowDefocus, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
+        imports OperationModule: CompoundOperation
+    ReaderDefaults.jl (fragment, R6)
+        (methods only, no exports: the Primitive-op read_intent defaults moved out of
+            common/Projection.jl)
+        imports ProjectionModule: read_intent, Change
+        imports PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+```
+
 ## The six refactors (the only semantic changes; all verified against source)
 
 - **R1 — Operation → Collection** (`common/Operation.jl:23` + the `node isa CellVector`
