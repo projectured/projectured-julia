@@ -1,5 +1,5 @@
 """
-    EditorTimeModule
+    TimeModule
 
 The global animation clock, built on the reactive `Cell` engine. A single global
 primitive cell holds the current logical time in seconds; the editor's main loop
@@ -18,7 +18,7 @@ Two ways to read it, named so intent is obvious:
     to *arm* an animation (capture a start instant) without the arming code itself
     re-running every frame.
 """
-module EditorTimeModule
+module TimeModule
 
 import ..ReactiveModule: Cell
 

@@ -5,7 +5,7 @@ Display-size query with a provider indirection. A rendering backend that can que
 the real display (the SDL backend) registers a provider via
 `set_display_size_provider!`; without one, a fixed SDL-free default is returned so
 headless callers still get a sensible size. It holds **process-global provider
-state**, so it lives here rather than in the pure `BackendModule` interface.
+state**, so it lives here rather than in the pure `BackendApiModule` interface.
 """
 module DisplayModule
 

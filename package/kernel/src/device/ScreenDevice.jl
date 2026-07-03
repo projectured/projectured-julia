@@ -1,5 +1,5 @@
 """
-    ScreenModule
+    ScreenDeviceModule
 
 Backend-agnostic screen device. `Screen <: Device` describes the
 hardware target — the display the editor renders onto. It carries no
@@ -7,9 +7,9 @@ per-window state; the live native windows are managed by the backend
 based on the projection-output `ScreenDocument` (see
 `document/ScreenDocument.jl`).
 """
-module ScreenModule
+module ScreenDeviceModule
 
-import ..DeviceModule: Device
+import ..DeviceApiModule: Device
 
 export Screen, QuitEvent
 

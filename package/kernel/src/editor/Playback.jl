@@ -1,12 +1,12 @@
 """
-    LivePlaybackModule
+    PlaybackModule
 
 Scripted live playback: drive the editor's read-eval-print loop while firing a
 predefined timeline on a wall-clock schedule, so a scripted session unfolds in a
 real window. Extracted from Editor.jl; builds on the editor-loop primitives
 (`read!`/`evaluate!`/`print!`/`perf!`).
 """
-module LivePlaybackModule
+module PlaybackModule
 
 import ..EditorModule: Editor, read!, evaluate!, print!, perf!
 import ..PerformanceCounterModule: perf_reset!, @perf_time
@@ -17,9 +17,9 @@ import ..OperationApiModule: Operation
 import ..OperationModule: QuitEditorException
 import ..OperationRerootingModule: prepend_steps_to_op
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
-import ..BackendModule: Backend, init!, quit!
-import ..DeviceModule: Device
-import ..ScreenModule: Screen
+import ..BackendApiModule: Backend, init!, quit!
+import ..DeviceApiModule: Device
+import ..ScreenDeviceModule: Screen
 import ..KeyboardModule: Keyboard
 import ..MouseModule: Mouse
 

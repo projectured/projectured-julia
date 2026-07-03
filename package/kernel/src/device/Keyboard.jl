@@ -23,7 +23,7 @@ The first three carry a `Modifiers` struct for Ctrl/Shift/Alt/Meta state.
 """
 module KeyboardModule
 
-import ..DeviceModule: Device
+import ..DeviceApiModule: Device
 import ..ModifiersModule: Modifiers
 
 export Keyboard, KeyDown, KeyUp, KeyPress, KeyChord

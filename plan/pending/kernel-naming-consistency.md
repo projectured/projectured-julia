@@ -90,7 +90,7 @@ rename they read as *same object through* / *fresh copy with iomaps* /
 
 The full old → new mapping with reasoning is in the table at the end of this file.
 
-- [ ] **Batch 1 — module/file alignment**: api layer markers (`AgentApiModule`,
+- [x] **Batch 1 — module/file alignment** *(done)*: api layer markers (`AgentApiModule`,
       `BackendApiModule`, `DeviceApiModule`), `ScreenDeviceModule`,
       `LivePlaybackModule` → `PlaybackModule` and `EditorTimeModule` →
       `TimeModule` (the files keep their names — `editor/Playback.jl` and

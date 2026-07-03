@@ -1,5 +1,5 @@
 """
-    DeviceModule
+    DeviceApiModule
 
 Device interface. Declares the batch I/O used to render a document to, and poll
 input from, a set of devices. These are pure interface stubs: a concrete backend
@@ -8,7 +8,7 @@ adds the methods, dispatching on its own backend type (e.g.
 backend type, so `Device` does not depend on `Backend` — the two abstractions are
 independent siblings, and only a concrete implementation binds them together.
 """
-module DeviceModule
+module DeviceApiModule
 
 export Device, write_to_devices, read_from_devices
 

@@ -26,16 +26,16 @@ dependency DAG**, machine-checked by the include-order guard (see below).
 Grouped by role, top = highest level. **Every arrow points *down*: "depends on".**
 The API-stub tier (B) is the cycle-breaker: implementation tiers depend downward
 onto the abstract stubs, never up. The editor reaches the agent surface only
-through the `AgentModule` *stub* (a `make_agent_server(:mcp, …)` factory seam), so
+through the `AgentApiModule` *stub* (a `make_agent_server(:mcp, …)` factory seam), so
 it does **not** depend on `Mcp`/`Llm` — which is why the agent surface hangs off to
 the side.
 
 ```
    ┌──────────────────────────────────────────────────────────────┐
- H │  EDITOR      EditorModule  ·  ScreenModule(device)  ·          │  run!/play_live!
+ H │  EDITOR      EditorModule  ·  ScreenDeviceModule(device)  ·          │  run!/play_live!
    │              GestureRecognizerModule                           │
    └───┬───────────────────────────────┬─────────────────┬─────────┘
-       │ (pulls in nearly every tier)  │                 │ via AgentModule stub
+       │ (pulls in nearly every tier)  │                 │ via AgentApiModule stub
        │                               │                 ▼
        │                               │      ┌───────────────────────────┐
        │                               │    G │ AGENT SURFACE             │

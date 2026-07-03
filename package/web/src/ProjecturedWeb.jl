@@ -15,8 +15,8 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend
-import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices
+import ProjecturedDomain.BackendApiModule: Backend, init!, quit!, measure_text, make_backend
+import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
@@ -26,7 +26,7 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.ReactiveModule: Cell, isuptodate
-import ProjecturedDomain.ScreenModule: QuitEvent
+import ProjecturedDomain.ScreenDeviceModule: QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers

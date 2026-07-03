@@ -12,12 +12,12 @@ module EditorModule
 import ..ProjectionApiModule: Projection, projection_print, projection_read
 import ..ChangeModule: Change
 import ..IoMapApiModule: IoMap
-import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..BackendModule: Backend, init!, quit!
-import ..ScreenModule: Screen, QuitEvent
+import ..DeviceApiModule: Device, read_from_devices, write_to_devices
+import ..BackendApiModule: Backend, init!, quit!
+import ..ScreenDeviceModule: Screen, QuitEvent
 import ..ScreenDocumentModule: EventEnvelope
 import ..PerformanceCounterModule: perf_counters, perf_reset!, @perf_time
-import ..EditorTimeModule: tick!
+import ..TimeModule: tick!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
@@ -25,7 +25,7 @@ import ..OperationApiModule: Operation, evaluate_operation, invalidate_projectio
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
 import ..GestureRecognizerModule: GestureRecognizer, next_gesture!
-import ..AgentModule: make_agent_server, agent_server_start!, agent_server_stop!
+import ..AgentApiModule: make_agent_server, agent_server_start!, agent_server_stop!
 
 export Editor, run!
 

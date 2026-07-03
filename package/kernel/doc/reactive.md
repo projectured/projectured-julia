@@ -19,7 +19,7 @@ Reactive.jl             (ReactiveModule)             — the Cell engine
 
 They were split out of a single `Reactive.jl` so each concern has its own home; the
 load order above is the dependency order the include-order guard checks. A third
-concern once bundled here — the animation clock (`EditorTimeModule`) — is *built on*
+concern once bundled here — the animation clock (`TimeModule`) — is *built on*
 `Cell` rather than part of the engine, so it lives in the **editor** layer
 ([src/editor/Time.jl](../src/editor/Time.jl)), not here.
 
@@ -57,7 +57,7 @@ Public surface: `perf_counters()` (a copy of the dict), `perf_reset!()`,
 reports these every frame, which is the easiest way to profile what work a
 particular edit triggered.
 
-## EditorTimeModule — the animation clock
+## TimeModule — the animation clock
 
 A single global primitive cell, `EDITOR_TIME`, holding the current logical time in
 seconds. The editor's main loop writes it once per frame via `tick!`; because cell

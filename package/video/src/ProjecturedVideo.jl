@@ -8,7 +8,7 @@ screenshot users (`Projectured` + `ProjecturedSdl`) don't carry FFMPEG.
 `record_video` reuses `ProjecturedSdl`'s offscreen renderer to rasterise each frame
 (`_open_offscreen_renderer` / `_emit_frames!` / `_close_offscreen_renderer`), then shells
 out to `ffmpeg` (via `FFMPEG.jl`) to encode the frames into an `.mp4`. The
-`record_video` *generic* is the kernel `BackendModule` seam (re-exported by the
+`record_video` *generic* is the kernel `BackendApiModule` seam (re-exported by the
 `Projectured` umbrella); this package adds the method.
 
 Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo; record_video(doc, proj, gestures, "out.mp4")`.
@@ -18,14 +18,14 @@ module ProjecturedVideo
 using ProjecturedDomain
 import FFMPEG
 
-import ProjecturedDomain.BackendModule: record_video
+import ProjecturedDomain.BackendApiModule: record_video
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas
 import ProjecturedDomain.ProjectionApiModule: projection_print, projection_read
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.ReactiveModule: Cell
-import ProjecturedDomain.EditorTimeModule: tick!
+import ProjecturedDomain.TimeModule: tick!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!

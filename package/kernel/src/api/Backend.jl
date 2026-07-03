@@ -1,5 +1,5 @@
 """
-    BackendModule
+    BackendApiModule
 
 Abstract backend interface. A `Backend` encapsulates everything needed to
 initialise, shut down, read input from, and write output to a particular
@@ -11,7 +11,7 @@ referencing any concrete backend at load time. A generic that isn't implemented
 because its backend package isn't loaded raises a `MethodError` (or, for the
 `make_backend` factory seam, a helpful error).
 """
-module BackendModule
+module BackendApiModule
 
 export Backend, init!, quit!, measure_text, make_backend, write_image, record_video,
        render_canvas, decode_image, pointer_position

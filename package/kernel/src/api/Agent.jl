@@ -1,5 +1,5 @@
 """
-    AgentModule
+    AgentApiModule
 
 Abstract agent control-surface interface. An *agent server* is a channel that
 lets an external AI agent inspect and manipulate a running editor — conceptually
@@ -13,7 +13,7 @@ these generics, so it never names a concrete server type — letting the
 implementation move into an optional extension whose type cannot be referenced
 at load time.
 """
-module AgentModule
+module AgentApiModule
 
 export make_agent_server, agent_server_start!, agent_server_stop!
 

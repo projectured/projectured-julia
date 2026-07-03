@@ -21,10 +21,10 @@ using ProjecturedDomain
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ProjecturedDomain.BackendModule: Backend, init!, quit!, measure_text, make_backend, write_image,
+import ProjecturedDomain.BackendApiModule: Backend, init!, quit!, measure_text, make_backend, write_image,
                         render_canvas, decode_image, pointer_position
 import ProjecturedDomain.DisplayModule: display_size, set_display_size_provider!
-import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices, write_to_device
+import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices, write_to_device
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
@@ -36,7 +36,7 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
-import ProjecturedDomain.ScreenModule: Screen, QuitEvent
+import ProjecturedDomain.ScreenDeviceModule: Screen, QuitEvent
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowCloseRequest, WindowResizeEvent, WindowFocusLost
 import ProjecturedDomain.ModifiersModule: Modifiers
 import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
@@ -1815,7 +1815,7 @@ function sdl_render_canvas(canvas::GraphicsCanvas)
 end
 
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
-# through the generic BackendModule seams without naming SdlBackendModule, so the
+# through the generic BackendApiModule seams without naming SdlBackendModule, so the
 # SDL backend can move into an optional extension.
 render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
 

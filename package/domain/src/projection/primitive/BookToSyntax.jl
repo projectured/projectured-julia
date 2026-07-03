@@ -26,7 +26,7 @@ module BookToSyntaxModule
 import ..ReactiveModule: Cell, setfn!
 import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
-import ..BackendModule: decode_image
+import ..BackendApiModule: decode_image
 import ..GraphicsModule: GraphicsDocument
 import ..ProjectionApiModule: projection_print, projection_printer_recurse, projection_read,
                               map_reference_forward, map_reference_backward, Projection

@@ -19,21 +19,21 @@ using ProjecturedKernel
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
-const BackendModule = ProjecturedKernel.BackendModule
+const BackendApiModule = ProjecturedKernel.BackendApiModule
 const ChangeModule = ProjecturedKernel.ChangeModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
-const DeviceModule = ProjecturedKernel.DeviceModule
+const DeviceApiModule = ProjecturedKernel.DeviceApiModule
 const DisplayModule = ProjecturedKernel.DisplayModule
 const DocumentApiModule = ProjecturedKernel.DocumentApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
-const EditorTimeModule = ProjecturedKernel.EditorTimeModule
+const TimeModule = ProjecturedKernel.TimeModule
 const EventCaseModule = ProjecturedKernel.EventCaseModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule
-const LivePlaybackModule = ProjecturedKernel.LivePlaybackModule
+const PlaybackModule = ProjecturedKernel.PlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule
 const McpModule = ProjecturedKernel.McpModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
@@ -56,7 +56,7 @@ const ReferenceCaseModule = ProjecturedKernel.ReferenceCaseModule
 const ReferenceDispatchingModule = ProjecturedKernel.ReferenceDispatchingModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ScreenDocumentModule = ProjecturedKernel.ScreenDocumentModule
-const ScreenModule = ProjecturedKernel.ScreenModule
+const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const SequentialProjectionModule = ProjecturedKernel.SequentialProjectionModule
 const SortingProjectionModule = ProjecturedKernel.SortingProjectionModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
