@@ -388,9 +388,14 @@ this plan assumed. Facts established by light-path probes against real types:
 - [x] **Phase 0 — catalog skeleton, no kernel change.** DONE (branch
   `discovered-example-catalog`). `Example.terminal`; `minimal` (containers empty); bridge
   edge set + run-and-inspect `path_sequences`/`paths`/`projection_to`; `discover_atomic_pairs`
-  (leaf stages only) + `reachability_examples` (:text); `runnable`/`catalog_domain`/`catalog(;…)`;
-  `test_catalog` (`_required_terminal`/`_applies` in the test package). Core logic validated
-  by light-path probe (minimal, is_leaf, 95 discovered pairs, terminals, json/array→text).
+  (leaf stages only) + `reachability_examples` (**`:text` and `:graphics`**);
+  `runnable`/`catalog_domain`/`catalog(;…)`; `test_catalog` (`_required_terminal`/`_applies`
+  in the test package). Core logic validated by light-path probe (minimal, is_leaf, 95
+  discovered pairs, terminals, json/xml/array → text **and → graphics**).
+  **Graphics bridge unlocked**: `WordWrapping + TextToGraphics` measured with the headless
+  `truetype_measure_text` (= `pdf_measure_text`, the default `run_example` uses) → output is
+  an `RGraphicsCanvas` (`<: GraphicsDocument`), so `<doc> → graphics` entries are
+  `run_example`-able (SDL) and `<doc> → text` entries are `run_console_example`-able.
   **Not yet loaded through `using ProjecturedExample`** — that + `catalog()`/`test_catalog()`
   is an external-terminal check (beyond the light path safe to run here).
 - [ ] **Phase 1 — element-domain annotation (mechanism under review).** Original plan:
