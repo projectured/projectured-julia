@@ -362,15 +362,42 @@ breaking snapshots). Instead:
 method-overwrite" history. Keep this phase isolated and verify with `test_cell()` plus
 the Json document/printer tests before moving on.
 
+## Implementation notes (discovered during Phase 0)
+
+The cell-kind refactor (see the "Cell-kinds review gate") changes the reflection surface
+this plan assumed. Facts established by light-path probes against real types:
+
+- **Document umbrella types are `UnionAll`s, not `DataType`s.** `JsonNull` is
+  `JsonNull{K} where K` (kind `K`), `<: Document` but `!(JsonNull isa DataType)`; the
+  concrete instance is `RJsonNull = JsonNull{Reactive}` and `IJsonNull = JsonNull{Immutable}`.
+  `print_document` methods dispatch on the umbrella (`doc::JsonNull`). ⇒ discovery must
+  filter on `isa Type`, **never** `isa DataType` (the latter silently drops every
+  cell-kind document — 95 leaf stage pairs → 0). `nameof`/`parentmodule`/constructor
+  (`JsonNull()`) all work on the umbrella; `RJsonNull()` (concrete) does **not**.
+- **The `IFoo` companion's fields are `ImmutableCell{T}`, not `T`.** Unwrap the cell
+  wrapper to recover the declared type the instantiator needs.
+- **`CellVector` is already parametric on the cell kind** (`CellVector{K} where K`).
+  So the Phase-1 idea "annotate `elements::CellVector{JsonDocument}`" collides with the
+  existing kind parameter — the element domain would need a *second* parameter (or a
+  separate `document_field_types` metadata accessor that does not touch the type). This
+  materially raises Phase 1's cost/risk and interacts with the in-flight cell-kind work;
+  **revisit Phase 1's mechanism before implementing.**
+
 ## Phases (each independently shippable; suite stays green)
 
-- [ ] **Phase 0 — catalog skeleton, no kernel change.** Add the optional `terminal`
-  field to `Example`; `minimal` for leaf/defaulted structs (containers empty); bridge
-  edge set + `paths`/`projection_to` (run-and-inspect for output types); `discover_atomic_pairs`;
-  `requires`/`applies`/`runnable`/`domain`/filters; computed `name`; `catalog()`;
-  `test_catalog`. Fully useful already (empty `JsonArray` is a valid minimal doc).
-- [ ] **Phase 1 — element-domain annotation.** Widen `@document` CellVector detection;
-  emit `document_field_types`; annotate Json container fields; `minimal` fills one child.
+- [x] **Phase 0 — catalog skeleton, no kernel change.** DONE (branch
+  `discovered-example-catalog`). `Example.terminal`; `minimal` (containers empty); bridge
+  edge set + run-and-inspect `path_sequences`/`paths`/`projection_to`; `discover_atomic_pairs`
+  (leaf stages only) + `reachability_examples` (:text); `runnable`/`catalog_domain`/`catalog(;…)`;
+  `test_catalog` (`_required_terminal`/`_applies` in the test package). Core logic validated
+  by light-path probe (minimal, is_leaf, 95 discovered pairs, terminals, json/array→text).
+  **Not yet loaded through `using ProjecturedExample`** — that + `catalog()`/`test_catalog()`
+  is an external-terminal check (beyond the light path safe to run here).
+- [ ] **Phase 1 — element-domain annotation (mechanism under review).** Original plan:
+  widen `@document` CellVector detection; emit `document_field_types`; annotate Json
+  container fields; `minimal` fills one child. **Blocked/revise**: `CellVector` is already
+  kind-parametric (see Implementation notes) and `@document` is a fatal-precompile-risk
+  surface mid cell-kind review — decide the metadata mechanism with the user first.
   Verify `test_cell()` + Json doc/printer tests green.
 - [ ] **Phase 2 — wire real testers + run-as-example.** `test_printer`/`reader`/`repl`
   over `filter(applies, catalog())`; `text_navigation`/`typein` over the `:text` subset;
