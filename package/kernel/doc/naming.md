@@ -117,6 +117,18 @@ dispatch, not by the name.
   object names the rung of the pipeline ladder being consumed: the document
   flows forward through the printer, the intent flows backward through the
   readers.
+- **Protocol functions come in two kinds, and both name their input.**
+  A *rung-transformer* moves the unit up the ladder — `read_gesture`
+  (gesture in, operation out), `evaluate_operation` (operation in, document
+  state out); input and output are different kinds, which is where reading
+  and evaluating visibly convert form into meaning. A *domain-translator*
+  keeps the kind and moves it across one projection — `print_document`
+  (document in, document out inside the returned IoMap), `read_intent`
+  (intent in, intent out, translated one domain inward),
+  `map_reference_forward` / `map_reference_backward` (reference in,
+  reference out). The full reading of a gesture into an operation is
+  distributed across the pipeline: each `read_intent` step advances it by
+  one domain, and the composition of the steps is the reader.
 - **Factories are `make_*`**: `make_backend`, `make_agent_server`,
   `make_child_context`, `make_scripted_say`.
 - **Predicates start with `is_`** (`is_valid_reference`,
