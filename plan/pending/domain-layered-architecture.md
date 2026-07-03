@@ -19,24 +19,44 @@ engine     generic    rendering    feature slices
            machinery  substrate    (json, sql, workbench, …)
 ```
 
-## The rule of division (decided)
+## Driving principles — package vs layer vs module vs file (decided)
 
-- **A package is a dependency or consumer boundary.** Create one only for a new external
-  dependency, or for a distinct consumer set that wants the code *without* the rest.
-  Every existing opt-in package obeys this (sdl=SDL2, web=HTTP, odbc=ODBC, …).
-- **A layer is a direction-of-dependency boundary inside a package.** Folder + module +
-  guard; layer N imports only layers ≤ N. Pure-Julia code with shared dependencies gets
-  layers, not packages.
+Each level of the hierarchy answers to a different criterion. The question "should X
+be a package?" is really four questions, one per level:
 
-Applying it: `visual` earns a package on the **consumer** clause — verified: `sdl`
-imports only {Color, Font, Geometry, Graphics, Image} + one projection, `web` only
-{Color, Font, Geometry, Graphics} + Pdf/Sdl backends, `odbc` only the SQL surface +
-the Sql→Syntax→Text→String chain. The backends already bind to exactly this substrate
-and nothing else. The pure-Julia source domains do **not** earn packages (no distinct
-dependencies, no distinct consumers) — they earn feature-slice layers. Rejected
-alternatives: one package per domain (~20 Project.tomls for zero dependency benefit),
-and themed multi-packages (data-formats/code/apps — boundaries are arguable and buy
-nothing a slice folder doesn't).
+- **A package is a dependency or consumer boundary.** Unit of `Project.toml`,
+  versioning, precompilation, and Pkg-enforced acyclicity. Create one **only** for a
+  new external dependency, or for a distinct consumer set that wants the code
+  *without* the rest. Every existing opt-in package obeys this (sdl=SDL2, web=HTTP,
+  odbc=ODBC, tulip=C++ solver, llm/mcp=protocol clients). Cost of a package: a
+  Project.toml, a slot in the resolver graph, alias plumbing in every dependent — so
+  the criterion is strict, not aesthetic.
+- **A layer is a direction-of-dependency boundary inside a package.** Unit of
+  understanding order, tests, and docs: one folder, layer N imports only layers ≤ N,
+  machine-enforced by the guard. Pure-Julia code with shared dependencies gets layers,
+  not packages. A **feature slice** is a layer instance that groups by *feature*
+  (a document with its parser, projections, tests) instead of by *kind* — used where
+  cohesion is "these files change together", as in the domain tiers.
+- **A module is a namespace and import-surface boundary.** Module names are de-facto
+  public API (the umbrella re-exports every module's exports; domain aliases them by
+  name), so module granularity = API granularity. Keep a module separate when it is a
+  seam others import or implement against by name (`CollectionModule`,
+  `BackendModule`); merge modules when they are only ever imported together and their
+  separation just multiplies import headers (the kernel's 17-projection lesson).
+- **A file is a readability boundary only.** A *fragment* file is `include`d by its
+  module's aggregator and shares its namespace — zero API cost, so split freely by
+  concept when a module grows. Never let file layout imply an API boundary that the
+  module structure doesn't enforce.
+
+Applying the package criterion here: `visual` earns a package on the **consumer**
+clause — verified: `sdl` imports only {Color, Font, Geometry, Graphics, Image} + one
+projection, `web` only {Color, Font, Geometry, Graphics} + Pdf/Sdl backends, `odbc`
+only the SQL surface + the Sql→Syntax→Text→String chain. The backends already bind to
+exactly this substrate and nothing else. The pure-Julia source domains do **not** earn
+packages (no distinct dependencies, no distinct consumers) — they earn feature-slice
+layers. Rejected alternatives: one package per domain (~20 Project.tomls for zero
+dependency benefit), and themed multi-packages (data-formats/code/apps — boundaries
+are arguable and buy nothing a slice folder doesn't).
 
 ## The dependency shape (verified 2026-07-03)
 
@@ -149,6 +169,153 @@ merges are a later cosmetic pass. Four files return to **base**: `ScreenToScreen
 Edge-ownership rule (records the invariant): a projection X→Y lives with its
 more-specific/higher-tier side — `JsonToSyntax`→json/, `SyntaxToText`→visual,
 `ObjectToSyntax`→visual (generic input, visual output), `WorkbenchToWidget`→workbench/.
+
+## Target file tree (folders, files, one-line descriptions)
+
+Placement is the machine-verified map (see the invariant section); module names are
+unchanged in the first pass. Files marked *(new)* are created by a refactor.
+
+### `package/visual/` — the rendering substrate
+
+```
+src/
+  ProjecturedVisual.jl          # top module: kernel/base alias preamble + 3 layer sections
+
+  style/                        # LAYER 1 — pure value types every visual thing shares
+    Color.jl                    # RGBA color value type + defaults/equality
+    Font.jl                     # font descriptor (family, size, style)
+    Geometry.jl                 # 2D points, sizes, rectangles
+    Image.jl                    # bitmap image value type
+    StyleText.jl                # styled-run text attributes (→ Font, Color)
+    StyleStroke.jl              # stroke/outline style (→ Color)
+    ConstraintSolver.jl         # the layout constraint solver (used by LayoutToGraphics)
+
+  render/                       # LAYER 2 — the five render targets + spine projections
+    Syntax.jl                   # tree-presentation domain: leaves/nodes, delimiters,
+                                #   indentation, collapsibles — every source domain's target
+    Text.jl                     # styled-text domain (TextText/TextString/TextNewline…)
+    Graphics.jl                 # retained drawing domain (text/rect/canvas/viewport/image)
+    Widget.jl                   # UI widget domain (labels, buttons, panes, menus…)
+    Layout.jl                   # layout container domain
+    SyntaxToText.jl             # flattens syntax trees to styled text (the shared step
+                                #   many XToSyntax projections reuse helpers from)
+    SyntaxToWidget.jl           # syntax → widget forms
+    TextToGraphics.jl           # text → canvas + caret rendering
+    TextToWidget.jl             # text → editable widget (→ TextToGraphics, WidgetToGraphics)
+    TextToString.jl             # text → plain String (textualization endpoint)
+    WidgetToGraphics.jl         # widget tree → canvas (the big one; → Layout, StyleStroke)
+    LayoutToGraphics.jl         # layout → canvas via the constraint solver
+    CollectionToLayout.jl       # base CellVector → layout container
+    GraphicsCaching.jl          # graphics → graphics caching layer
+    LineNumbering.jl            # Text→Text decorator: line-number gutter
+    WordWrapping.jl             # Text→Text decorator: soft wrap
+    TextFiltering.jl            # Text→Text decorator: row filter
+    TextFirstLine.jl            # Text→Text decorator: first-line preview
+    TextHighlighting.jl         # Text→Text decorator: match highlighting
+    SelectionInverting.jl       # Text→Text decorator: inverted-selection rendering
+    ObjectToSyntax.jl           # bridge: any Julia value → syntax tree (reflection)
+    CollectionToSyntax.jl       # bridge: base collections → syntax tree
+    PrimitiveToSyntax.jl        # bridge: base primitive docs → syntax tree
+    PrimitiveToText.jl          # bridge: base primitive docs → text
+    ReferenceToText.jl          # bridge: kernel references → text
+    ObjectToWidget.jl           # bridge: reflection-driven editable form for Cell fields
+    WidgetHoverTracking.jl      # decorator: hover state over widgets
+    ProjectionConfiguring.jl    # decorator: editable parameter-control bar (→ ObjectToWidget)
+    WidgetPopupResolver.jl      # decorator: resolves widget popups onto the screen
+
+  backend/                      # LAYER 3 — the dependency-free concrete backends
+    Console.jl                  # ANSI terminal backend rendering the Text domain
+    Pdf.jl                      # SDL-free vector-PDF export of the Graphics domain
+
+test/
+  runtests.jl                   # guard: LAYERS = ["style","render","backend"]
+  style/ · render/ · backend/   # migrated from ProjecturedTest: TextTest, SyntaxTest,
+                                #   GraphicsTest, GeometryTest, SyntaxToTextTest,
+                                #   TextToGraphicsTest, the Widget*Test family, …
+doc/
+  architecture.md · style.md · render.md · backend.md
+```
+
+### `package/domain/` — the feature slices
+
+Each source slice follows the same shape — *document* (the data structure), *parser*
+(text → document), *XToSyntax/XToWidget* (renders it) — so per-file comments below are
+only given where a file departs from that pattern.
+
+```
+src/
+  ProjecturedDomain.jl          # top module: kernel/base/visual alias preamble +
+                                #   guard-checked tier/slice include order
+
+  core/                         # TIER 0 — shared cross-domain glue
+    Document.jl                 # DocumentCoreModule: the shared document-insertion document
+    DocumentInsertion.jl        # (new, D1) the insertion registration seam; each slice
+                                #   registers its own insertion rendering/parsing
+
+  json/                         # TIER 1 — source slices (document + parser + projection)
+    Json.jl · JsonParser.jl · JsonToSyntax.jl · JsonInsertion.jl (new, D1)
+  xml/       Xml.jl · XmlParser.jl · XmlToSyntax.jl · XmlInsertion.jl (new, D1)
+  yaml/      Yaml.jl · YamlParser.jl · YamlToSyntax.jl
+  julia/     Julia.jl · JuliaParser.jl · JuliaToSyntax.jl · JuliaInsertion.jl (new, D1)
+  math/      Math.jl · MathToSyntax.jl
+  markdown/  Markdown.jl · MarkdownParser.jl · MarkdownToSyntax.jl
+  book/      Book.jl · BookToSyntax.jl
+  sql/       Sql.jl · SqlParser.jl · SqlToSyntax.jl · SqlInsertion.jl (new, D1)
+             DbCatalog.jl                # database-catalog document
+             DbCatalogToSql.jl           # catalog → SQL statements (domain-to-domain)
+             DbCatalogToSyntax.jl
+             Database.jl · DatabaseInstance.jl · DatabaseAdapters.jl (ex external/Database.jl)
+                                         # adapter layer odbc plugs into (D3: wire here)
+             Tabular.jl · CellTableToTable.jl   # tabular grid (D2: Json import smell)
+  graph/     Graph.jl · GraphLayout.jl          # graph + laid-out-graph documents
+             GraphLayoutEngine.jl               # the layout algorithm
+             GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
+  filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
+  formula/   Formula.jl · FormulaToSyntax.jl    # spreadsheet-style formulas (→ julia/)
+  gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
+                                         # gesture cheat-sheet document + help overlay
+  versioning/ Versioning.jl · VersioningToAny.jl # object-versioning wrapper + passthrough
+  clipboard/ Clipboard.jl · OsClipboard.jl · ClipboardToAny.jl
+                                         # clipboard document, OS glue, paste projection
+  dragging/  Dragging.jl (document) · DraggingProjection.jl (decorator; rename of
+             projection/higherorder/Dragging.jl to break the twin basename)
+  tooltip/   Tooltip.jl · TooltipDecorator.jl   # tooltip document + show/hide decorator
+  inspector/ ReferenceInspector.jl · HoverProbe.jl · ReferenceInspectorToText.jl
+                                         # live reference-inspection overlay
+  component/ Component.jl                # orphan — D3: wire or delete
+
+  serialization/                # TIER 2 — aggregates the text-serializable slices
+    BinarySerialization.jl      # generic binary snapshot of any document
+    NaturalFormat.jl            # textual round-trip via the slices' ToSyntax + parsers
+    DocumentFile.jl             # extension-dispatched load/save entry point
+    NaturalProjection.jl        # aggregate projection picking each type's natural rendering
+
+  workbench/                    # TIER 3 — applications (compose the slices below)
+    Workbench.jl                # the IDE-shell document (pages, navigator, console, …)
+    Workspace.jl                # project/workspace document
+    WorkspaceToFileSystem.jl    # workspace → filesystem view
+    WorkbenchToWidget.jl        # the shell's widget rendering
+    WorkbenchFile.jl            # load/save workbench state (→ serialization)
+    WorkbenchAssistant.jl       # LLM assistant wiring (→ conversation, parsers, Llm/Mcp)
+  conversation/
+    Conversation.jl             # chat-conversation document
+    Evaluator.jl                # code-evaluation document (assistant tool results)
+    ConversationToSyntax.jl · ConversationToWidget.jl
+    ConversationEditor.jl       # interactive conversation editing (→ parsers, Mcp)
+
+test/
+  runtests.jl                   # guard: tiers + acyclic slice→slice DAG check
+  json/ · sql/ · … · workbench/ # per-slice tests migrated from ProjecturedTest
+                                #   (JsonTest + JsonParserTest + JsonToSyntaxTest → json/, …)
+doc/
+  architecture.md               # tiers, slice DAG, the D1 seam, extension recipe
+  slices.md                     # catalog: one section per slice
+  core.md · apps.md
+```
+
+Returned to `package/base` (combinator aggregates with no document imports):
+`ScreenToScreen.jl`, `compound/Generic.jl`, `compound/HigherOrder.jl`,
+`ProjectionTemplate.jl`.
 
 ## The refactors
 
