@@ -76,8 +76,7 @@ end
 # ── Projection graph: edges = runnable whole-tree bridges (thunks for freshness) ──
 # The only declared graph metadata — ~O(domains). Each is `RecursiveProjection`-wrapped
 # so it is independently runnable via `print_document(bridge, doc)` (mirrors the proven
-# `_JSON_TO_TEXT` chains in WorkbenchAssistant.jl). The graphics bridge is deferred:
-# `TextToGraphics` needs a native `measure` function.
+# `_JSON_TO_TEXT` chains in WorkbenchAssistant.jl).
 const BRIDGES = Function[
     () -> RecursiveProjection(JsonToSyntax()),
     () -> RecursiveProjection(XmlToSyntax()),
@@ -85,6 +84,12 @@ const BRIDGES = Function[
     () -> RecursiveProjection(JuliaToSyntax()),
     () -> RecursiveProjection(MarkdownToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
+    # text → graphics: WordWrapping + TextToGraphics, measured with the headless
+    # `truetype_measure_text` (= pdf_measure_text — the same default `run_example` uses).
+    # Output is an `RGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render
+    # via `run_example` (SDL). Running this bridge exercises the font-metrics path.
+    () -> ChainingProjection(WordWrapping(measure = truetype_measure_text),
+                             TextToGraphics(measure = truetype_measure_text)),
 ]
 
 # (input type, bridge index) → output instance | nothing. Bridges (esp. the slow ones)
@@ -207,15 +212,15 @@ _reach_example(docT, seq, term, name) =
     Example(name, () -> minimal(docT), () -> _compile(seq); terminal = term)
 
 # B. Reachability cases — for each projectable document type, the minimal composite
-#    projection(s) that reach a target domain a test/example needs. `:text` only for now
-#    (graphics bridge deferred).
+#    projection(s) that reach a target domain a test/example needs: `:text` (console) and
+#    `:graphics` (SDL / `run_example`). Reaching `:graphics` runs the font-metrics path.
 function reachability_examples()
     examples = Example[]
     for docT in _projectable_document_types()
         _has_icompanion(docT) || continue
         local start
         try start = minimal(docT) catch; continue end
-        for (reached, term) in ((is_text, :text),)
+        for (reached, term) in ((is_text, :text), (is_graphics, :graphics))
             seqs = try path_sequences(start, reached) catch; Vector{Function}[] end
             seqs = filter(!isempty, seqs)                        # drop the "already in domain" empties
             for (k, seq) in enumerate(seqs)
