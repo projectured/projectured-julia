@@ -700,10 +700,22 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
 `julia --project=. -e 'using Projectured'` (umbrella load = collision + alias check) ·
 **V3** the ProjecturedTest `test_*` functions touching the moved area.
 
-- [ ] **P0 — guard rework**: fragment-aware include tree (fixes the existing red —
+- [x] **P0 — guard rework**: fragment-aware include tree (fixes the existing red —
       verify before/after), `LAYERS=["cell"]` + per-layer runner skeleton + self-tests.
-- [ ] **P1 — cell**: `git mv editor/Time.jl cell/Time.jl`; CellModule docstring tweak
+      *(Done a9e8dd8. Guard was red on disk pre-commit — 4 cell/*.jl fragments failed
+      the set-equality check and errored `module_and_deps`. Rewrote around a recursive
+      include walker that folds fragment imports into their nearest module ancestor.
+      Added LAYERS=["cell"] + layer_errors with non-LAYERS folders exempt during
+      transition, cell/ runner skeleton (3 smoke tests), and layer-rule self-tests.
+      Guard now green.)*
+- [x] **P1 — cell**: `git mv editor/Time.jl cell/Time.jl`; CellModule docstring tweak
       (Time now lives beside the engine); migrate CellTest + new tests; `doc/cell.md`.
+      *(Done. Time.jl moved beside CellModule; ProjecturedKernel.jl include reordered.
+      Migrated CellTest to kernel/test/cell/CellTest.jl (using ProjecturedKernel.CellModule);
+      added PerformanceCounterTest + TimeTest — 72 tests green. Removed
+      package/test/src/common/CellTest.jl and its test_all() call + export.
+      Renamed doc/reactive.md → doc/cell.md with the Time.jl rehome noted. V1 green;
+      V2/V3 defer to phases with the umbrella load available.)*
 - [ ] **P2 — document (contract)**: merge DocumentApi into `DocumentModule`; move
       `common/Document.jl`; retarget ~9 importers + aliases; ToyNode contract tests;
       `doc/document.md`. (Concrete documents stay put until P7. Note: `IoMapModule`

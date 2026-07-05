@@ -7,8 +7,12 @@ writes it once per frame via `tick_editor_time!`. Because cell writes invalidate
 (write-driven propagation), any computed cell that read the time is re-evaluated
 on the next pull — which is all animation needs.
 
-Extracted from `Reactive.jl`: it is an application-level clock layered *on top of*
-the pure Cell engine (it depends on `Cell`), not part of the engine itself.
+An application-level clock layered *on top of* the pure Cell engine (it depends
+on `Cell`), not part of the engine itself. Lives beside `CellModule` in the
+cell layer because it depends on nothing else in the kernel and every animated
+projection reads it — domain code can `import ..TimeModule` directly, without
+pulling in the editor loop that drives it (kernel plan P1: previously under
+`editor/`).
 
 Two ways to read it, named so intent is obvious:
   • `get_reactive_editor_time()` — SUBSCRIBE. A tracked read; the calling cell becomes

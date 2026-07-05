@@ -1,4 +1,14 @@
-function test_cell()
+"""
+`CellModule` — the reactive engine and the two non-reactive cell kinds.
+
+Migrated from ProjecturedTest/common/CellTest.jl in kernel plan P1 so the cell
+layer is exercised entirely from ProjecturedKernel — no domain vocabulary is
+in scope, which is exactly the pressure that keeps `cell/` dependency-free.
+"""
+
+using Test
+using ProjecturedKernel.CellModule
+
 @testset "Cell" begin
 
 a = Cell(1)
@@ -57,7 +67,7 @@ flag[] = false
 x[] = 999          # x is no longer a dep after last eval
 @test is_up_to_date(cond)  # cond should still be valid
 
-# ── cell kinds (plan/pending/cell-kind-documents.md, Phase 1) ──────────────
+# ── cell kinds ──────────────────────────────────────────────────────────
 
 @testset "typed ReactiveCell" begin
     t = ReactiveCell{Int}(1)
@@ -73,7 +83,7 @@ x[] = 999          # x is no longer a dep after last eval
     t[] = 10
     @test !is_up_to_date(tc)
     @test tc[] == 11
-    set_function!(tc, () -> t[] * 2)             # typed set_function! keeps the stale value slot
+    set_function!(tc, () -> t[] * 2)      # typed set_function! keeps the stale value slot
     @test tc[] == 20
 end
 
@@ -92,9 +102,9 @@ end
     @test obs[] == 20
     m[] = 5
     @test is_up_to_date(obs)                 # unaware of the write
-    @test obs[] == 20                     # stale until *reactive* invalidation
+    @test obs[] == 20                        # stale until *reactive* invalidation
     w = MutableCell{Union{Nothing,Int}}(nothing)
-    w[] = 3                               # explicit wide type admits both
+    w[] = 3                                  # explicit wide type admits both
     @test w[] == 3
 end
 
@@ -109,4 +119,3 @@ end
 end
 
 end # @testset "Cell"
-end # test_cell

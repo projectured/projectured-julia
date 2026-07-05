@@ -36,9 +36,15 @@ The module exposes:
 The instrumentation counters (`PerformanceCounterModule`,
 `cell/PerformanceCounter.jl`, whose `_perf` dict `ReactiveCell` bumps inline on the
 hot path) count **reactive** cell traffic only: `MutableCell`/`ImmutableCell`
-reads cost a pointer load, so they are deliberately not counted. Anything *built
-on* cells rather than part of the engine — an animation clock that samples time,
-say — belongs in a higher layer, not here.
+reads cost a pointer load, so they are deliberately not counted.
+
+The one non-engine sibling that also lives in the `cell/` layer is the global
+editor clock — `TimeModule` in [`Time.jl`](Time.jl) — a single `Cell(0.0)`
+that the editor loop writes once per frame. It is a *use* of Cell, not part
+of the engine, but it belongs beside it: it depends on nothing else in the
+kernel, and every animated projection reads it. Domain code that consumes
+`get_reactive_editor_time()` therefore imports the cell-layer TimeModule
+directly, without pulling in the editor loop.
 
 Dependency tracking is automatic: when a computed reactive cell evaluates its
 thunk, every `ReactiveCell` read via `c[]` is recorded as a dependency. When any

@@ -7,14 +7,18 @@ Runnable via `Pkg.test("ProjecturedKernel"; test_args=["cell"])` or directly:
 Rule (statically enforced by the top-level layer guard): tests under
 `test/cell/` may reference ProjecturedKernel modules from the cell layer only.
 Higher-layer references are a static error.
+
+Files:
+- `CellTest.jl`               — the reactive engine + typed/Mutable/Immutable kinds
+                                (migrated from ProjecturedTest/common/CellTest.jl).
+- `PerformanceCounterTest.jl` — the process-global counter store.
+- `TimeTest.jl`               — the sample/subscribe split on the editor clock.
 """
 
 using Test
-using ProjecturedKernel
 
-@testset "cell layer smoke" begin
-    # The three cell kinds are wired up and the reactive counters bump on read.
-    @test ProjecturedKernel.CellModule.Cell(1)[] == 1
-    @test ProjecturedKernel.CellModule.ImmutableCell{Int}(1)[] == 1
-    @test ProjecturedKernel.CellModule.MutableCell{Int}(1)[] == 1
+@testset "cell" begin
+    include("CellTest.jl")
+    include("PerformanceCounterTest.jl")
+    include("TimeTest.jl")
 end

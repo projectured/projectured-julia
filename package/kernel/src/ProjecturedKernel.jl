@@ -24,12 +24,15 @@ module ProjecturedKernel
 # obeys those dependency edges. Only ProjectionApiModule (api/ProjectionApi.jl) is
 # structurally load-bearing among the api stubs.
 
-# ── Cell kinds (layer 0 — the DAG's dependency-free base) ──────────────────
+# ── Cell layer (layer 1 — the DAG's dependency-free base) ──────────────────
 # PerformanceCounter (leaf) before the cells, whose reactive kind bumps its
-# `_perf` on the hot path. Cell.jl is the module aggregator; it includes the base
+# `_perf` on the hot path. CellModule is the aggregator; it includes the base
 # type and the three kind files (AbstractCell/ReactiveCell/MutableCell/ImmutableCell).
+# Time is the one global animation clock, a single `Cell` built on the engine
+# above — it belongs beside cells (P1), not with the editor loop that drives it.
 include("cell/PerformanceCounter.jl")
 include("cell/CellModule.jl")
+include("cell/Time.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
 # Pure interface modules: abstract types and generic-function stubs only. The
@@ -121,10 +124,10 @@ include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 
 # ── Editor ─────────────────────────────────────────────────────────────────
-# The read-eval-print loop and its immediate dependencies: the animation clock
-# (built on Cell, advanced once per frame), the Screen device, and the gesture
-# recognizer (which needs ScreenDocument). Editor pulls in nearly every layer above.
-include("editor/Time.jl")
+# The read-eval-print loop and its immediate dependencies: the Screen device
+# and the gesture recognizer (which needs ScreenDocument). The animation clock
+# (TimeModule) is now included at the top of the file beside CellModule (P1).
+# Editor pulls in nearly every layer above.
 include("device/ScreenDevice.jl")
 include("editor/GestureRecognizer.jl")
 include("editor/Editor.jl")

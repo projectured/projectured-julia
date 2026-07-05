@@ -1,6 +1,6 @@
 # The cell layer
 
-Layer A of the kernel — the bottom of the dependency DAG, the one part with **no
+Layer 1 of the kernel — the bottom of the dependency DAG, the one part with **no
 kernel dependencies** that everything else is built on. This page is an overview of
 the layer's *structure* (its modules and how they fit together). For the hands-on
 "how do I use cells" guide — construction, reading/writing, invalidation semantics,
@@ -8,8 +8,8 @@ the invariants, and idioms — see the repository-level
 [documentation/reactive-cells.md](../../../documentation/reactive-cells.md); this
 page does not repeat it.
 
-The layer lives in [src/cell/](../src/cell/): the instrumentation counter module
-and the cell module, loaded in this order:
+The layer lives in [src/cell/](../src/cell/): the instrumentation counter module,
+the cell module, and the animation clock, loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
@@ -19,12 +19,18 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         ├─ ReactiveCell.jl    — the pull-based reactive engine (imports _perf)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         └─ ImmutableCell.jl   — read-only, zero-cost wrapper
+        │  Cell imported by ↓
+Time.jl                 (TimeModule)                  — the global editor clock
 ```
 
 The load order is the dependency order the include-order guard checks. The
-animation clock (`TimeModule`) is *built on* `Cell` rather than part of the engine,
-so it lives in the **editor** layer ([src/editor/Time.jl](../src/editor/Time.jl)),
-not here.
+animation clock (`TimeModule`) is a *use* of `Cell` (a single primitive cell that
+the editor loop writes once per frame), not part of the engine, but it lives in
+the cell layer because it depends on nothing else in the kernel and every
+animated projection reads it — domain code that consumes `get_reactive_editor_time()`
+therefore imports the cell-layer TimeModule directly, without pulling in the
+editor loop. Kernel plan P1 moved `Time.jl` from `editor/` to `cell/` for this
+reason; earlier docs called it an editor concept.
 
 ## CellModule — the cell kinds
 
