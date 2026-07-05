@@ -63,9 +63,12 @@ include("document/DocumentModule.jl")
 # type) is a dependency-free leaf. Concrete documents move to base at P7.
 include("common/Intent.jl")
 include("common/IoMap.jl")
-include("reference/Reference.jl")
-include("reference/ReferenceCase.jl")
-include("reference/ReferenceBuilder.jl")
+# Reference layer (layer 3) — the ReferenceModule aggregator wraps the three
+# fragments: Reference.jl (types + value protocol), ReferenceCase.jl (the
+# @reference_case DSL), ReferenceBuilder.jl (the @reference/@step DSL).
+# Merged from ReferenceModule + ReferenceCaseModule + ReferenceBuilderModule
+# at P3; the old names live on as aliases in ProjecturedDomain.
+include("reference/ReferenceModule.jl")
 include("document/Collection.jl")
 include("common/Operation.jl")
 include("document/Primitive.jl")

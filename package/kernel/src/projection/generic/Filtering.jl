@@ -11,7 +11,7 @@ import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, append_reference
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference_case"
 export FilteringProjection, FilteringProjectionIoMap
 
 struct FilteringProjectionIoMap <: IoMap

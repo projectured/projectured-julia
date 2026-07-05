@@ -47,7 +47,7 @@ function teardown_persons_table(adapter)
 end
 
 include("common/GestureBindingTest.jl")
-include("reference/ReferenceBuilderTest.jl")
+# test_reference_builder migrated to package/kernel/test/reference/ (P3)
 include("reference/TypeReferenceTest.jl")
 include("device/EventCaseTest.jl")
 include("backend/ConsoleBackendTest.jl")
@@ -241,9 +241,8 @@ end
 
 function test_all()
     @testset "Projectured" begin
-    # test_cell migrated to package/kernel/test/cell/ (kernel plan P1);
-    # run with `Pkg.test("ProjecturedKernel"; test_args=["cell"])`.
-    test_reference_builder()
+    # test_cell + test_reference_builder migrated to package/kernel/test/;
+    # run with `Pkg.test("ProjecturedKernel"; test_args=["cell","reference"])`.
     test_type_reference()
     test_event_case()
     test_gesture_binding()
@@ -292,7 +291,7 @@ function test_table()
 end
 
 export test_all
-export test_reference_builder, test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
+export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_tabular, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
 export AtomicFixture, test_atomic_render, test_atomic_fixtures

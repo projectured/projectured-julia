@@ -34,7 +34,18 @@ const DOT        = Symbol(".")
 
 # Declared layers, in order of increasing index. Non-LAYERS folders are exempt
 # from the layer-index check during transition; the final phase forbids them.
-const LAYERS = String["cell", "document"]
+const LAYERS = String["cell", "document", "reference"]
+
+# Transitional file-level exemptions: concrete engine documents currently live
+# under `document/` but leave the kernel entirely at P7 (base package). Until
+# then, they import from higher layers (Reference/Operation/…) which the layer
+# rule would flag. They are exempted by relpath here; the P7 phase removes both
+# the files and this list.
+const LAYER_EXEMPT_FILES = Set{String}([
+    "document/Collection.jl",
+    "document/Primitive.jl",
+    "document/ScreenDocument.jl",
+])
 
 # ── AST helpers ────────────────────────────────────────────────────────────
 
@@ -215,7 +226,7 @@ non-LAYERS folder does not constrain the importer, and an importer in a
 non-LAYERS folder skips the check). This is the transition-safe form; the
 final phase removes the exemption.
 """
-function layer_errors(entries, layers)
+function layer_errors(entries, layers, exempt_files = Set{String}())
     # Build module → layer index (or `nothing` if outside LAYERS).
     idx_of_layer = Dict(l => i for (i, l) in enumerate(layers))
     mod_layer = Dict{Symbol, Union{Int, Nothing}}()
@@ -224,8 +235,9 @@ function layer_errors(entries, layers)
     end
     errs = String[]
     for (rel, mod, deps) in entries
+        rel in exempt_files && continue         # transitional per-file exemption
         my_idx = get(idx_of_layer, layer_of(rel), nothing)
-        my_idx === nothing && continue          # importer exempt
+        my_idx === nothing && continue          # importer exempt (non-LAYERS folder)
         for d in deps
             dep_idx = get(mod_layer, d, nothing)
             dep_idx === nothing && continue     # dep exempt (non-LAYERS)
@@ -281,7 +293,7 @@ end
     end
 
     @testset "declared layers respect the LAYERS index" begin
-        errs = layer_errors(entries, LAYERS)
+        errs = layer_errors(entries, LAYERS, LAYER_EXEMPT_FILES)
         if !isempty(errs)
             println(stderr, "\nLayer-index violations (LAYERS = $LAYERS):")
             foreach(e -> println(stderr, "  ", e), errs)
@@ -330,6 +342,12 @@ end
     exempt_dep = [("common/B.jl", :B, Symbol[]),
                   ("cell/A.jl",   :A, [:B])]
     @test isempty(layer_errors(exempt_dep, layers))
+
+    # A per-file exemption suppresses the upward-edge error for that importer.
+    upward = [("document/B.jl", :B, Symbol[]),
+              ("cell/A.jl",     :A, [:B])]
+    @test length(layer_errors(upward, layers)) == 1
+    @test isempty(layer_errors(upward, layers, Set(["cell/A.jl"])))
 end
 
 # ── per-layer runner ───────────────────────────────────────────────────────

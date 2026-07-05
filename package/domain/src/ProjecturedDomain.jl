@@ -53,8 +53,10 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CellModule = ProjecturedKernel.CellModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceBuilderModule
-const ReferenceCaseModule = ProjecturedKernel.ReferenceCaseModule
+# Kernel plan P3 merged ReferenceCase/Builder into ReferenceModule; the old
+# names stay as aliases so existing domain/opt-in files keep resolving.
+const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
+const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ScreenDocumentModule = ProjecturedKernel.ScreenDocumentModule

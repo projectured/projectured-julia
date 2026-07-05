@@ -1,18 +1,9 @@
-"""
-    ReferenceCaseModule
-
-The `@reference_case` pattern-matching DSL — the destructuring counterpart of the
-`@reference` construction DSL (`ReferenceBuilderModule`). It matches a reference
-path against a series of `pattern => result` rules (much like Julia's `match`),
-binding the variable parts of the path (indices, field names, tails) for the
-result expression. The pattern grammar mirrors `@reference`'s step syntax; the
-`when(pattern, cond)` and `prefix(pattern)` surface helpers add a guard and a
-prefix (rather than exact) match.
-"""
-module ReferenceCaseModule
-
-using ..ReferenceModule
-export @reference_case, when, prefix
+# Fragment of `ReferenceModule` — the `@reference_case` pattern-matching DSL,
+# the destructuring counterpart of the `@reference` construction DSL
+# (`ReferenceBuilder.jl`). Both DSLs are siblings that share the reference-type
+# vocabulary from `Reference.jl` and live in the same module now (before P3
+# these were `ReferenceCaseModule` and `ReferenceBuilderModule` — modules that
+# were only ever imported together).
 
 """
     when(pattern, condition)
@@ -694,6 +685,4 @@ macro reference_case(ref, block)
             $chain
         end
     end
-end
-
 end

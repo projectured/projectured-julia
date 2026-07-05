@@ -1,18 +1,7 @@
-"""
-    ReferenceBuilderModule
-
-The `@reference` / `@step` construction DSL: a compact surface syntax for building
-`ReferencePath`s and `ReferenceStep`s. `@reference address.city` expands to the
-nested `ConcreteReferencePath(FieldReference("address"), …)` you would otherwise
-write by hand, with `[i]` / `{k}` / `.field(e)` / `.point(x,y)` / `.proj(p, sub)`
-covering the other step kinds and `^(expr)` splicing a runtime path/step into the
-literal. The pattern-matching counterpart is `@reference_case` in
-`ReferenceCaseModule`.
-"""
-module ReferenceBuilderModule
-
-using ..ReferenceModule
-export @reference, @step
+# Fragment of `ReferenceModule` — the `@reference` / `@step` construction DSL,
+# the compact surface syntax for building `ReferencePath`s / `ReferenceStep`s.
+# The pattern-matching counterpart is `@reference_case` in
+# `ReferenceCase.jl`, its fragment sibling.
 
 # ------------------------------------------------------------
 # Parsing for constructor DSL
@@ -297,7 +286,7 @@ _splice(s::ReferenceModule.ReferenceStep) =
 # Concatenate two paths via the canonical, type-preserving `concat_references`
 # (ReferenceModule), so an already-folded spliced sub-path keeps its node types
 # even when it is not the last segment (e.g. `^(expr).field`). The `_concat` name
-# is kept because the generated code below emits `ReferenceBuilderModule._concat`.
+# is kept because the generated code below emits `ReferenceModule._concat`.
 const _concat = ReferenceModule.concat_references
 
 # Wrap a built (possibly TypeReference-bearing) path expression in the runtime
@@ -331,11 +320,11 @@ function _gen_concat_chain(steps::Vector{BuildStep})
         return :(ReferenceModule.EmptyReferencePath())
     end
     if steps[1] isa BSPathSplice
-        head = :(ReferenceBuilderModule._splice($(_gen_build_step(steps[1]))))
+        head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
         # _concat needs an EmptyReferencePath base case to short-circuit when
         # there's nothing after the splice.
-        return :(ReferenceBuilderModule._concat($head, $tail))
+        return :(ReferenceModule._concat($head, $tail))
     end
     # Gather a run of non-splice steps into a single literal ReferencePath.
     i = findfirst(s -> s isa BSPathSplice, steps)
@@ -346,7 +335,7 @@ function _gen_concat_chain(steps::Vector{BuildStep})
         return prefix_expr
     end
     tail = _gen_concat_chain(steps[cutoff:end])
-    return :(ReferenceBuilderModule._concat($prefix_expr, $tail))
+    return :(ReferenceModule._concat($prefix_expr, $tail))
 end
 
 """
@@ -441,6 +430,4 @@ function _parse_step(ex)
     else
         error("unsupported @step syntax: $ex")
     end
-end
-
 end

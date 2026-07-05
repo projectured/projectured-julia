@@ -20,7 +20,7 @@ import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, ElementReference, append_reference, head, tail,
                           strip_reference_types
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference_case"
 export SearchingProjection, SearchingProjectionIoMap
 
 # ── IoMap ─────────────────────────────────────────────────────────────────

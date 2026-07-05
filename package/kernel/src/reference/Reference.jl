@@ -1,39 +1,9 @@
-"""
-    ReferenceModule
-
-The reference module provides path-like references into document trees,
-implemented as a reactive linked list of typed steps. Each step descends one
-level by integer index, named field, projection-introduced element, or pixel
-coordinate. The selection mechanism propagates paths recursively, writing each
-suffix into the matching child Document's selection cell so every node in the
-tree always holds the sub-path relevant to its own subtree.
-
-The module includes:
-- **Reference steps**: `RangeReference` (unified sequence step with backward-compatible
-  `ElementReference`/`PositionReference` constructors), `FieldReference`,
-  `TypeReference`, `FunctionReference`, `ProjectionReference`, `PointReference`
-- **Reference paths**: `ReferencePath` (abstract), `EmptyReferencePath`,
-  `ConcreteReferencePath`
-- **Functions**: `append_reference`, `evaluate_reference`, `is_valid_reference`
-
-The linked-list *shape* is persistent — extending a path reuses the existing
-tail rather than copying. The `@document`-backed step/path structs are mutable
-and store their dynamic values (indices, positions, the head/tail links) in
-reactive `Cell`s, so a caret move can update those cells in place (see
-`update_selection!`) without rebuilding the chain.
-"""
-module ReferenceModule
-
-import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: @document
-export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
-       FunctionReference, ProjectionReference, TextRectangularReference, ReferencePath,
-       EmptyReferencePath, append_reference, concat_references, reference_steps,
-       evaluate_reference, is_valid_reference, collect_references, is_element_reference,
-       is_position_reference, is_range_reference, is_reference_equal, is_prefix_of,
-       is_reference_equal_ignoring_types, is_prefix_of_ignoring_types, ReferenceTypeMismatch,
-       get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
-       fold_reference_types
+# Fragment of `ReferenceModule` — the reference-path *types* (steps, paths,
+# their `@document`-generated struct forms) plus the value protocol on them
+# (`append_reference`, `evaluate_reference`, `is_valid_reference`,
+# `annotate_reference_types`, …). The DSL fragments `ReferenceCase.jl` and
+# `ReferenceBuilder.jl` build on these; both are included by
+# `ReferenceModule.jl` after this one.
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -862,5 +832,3 @@ function _search_document(node, current_path, search_value, results)
         end
     end
 end
-
-end # module

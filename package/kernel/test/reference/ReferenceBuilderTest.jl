@@ -1,4 +1,15 @@
-function test_reference_builder()
+"""
+`ReferenceModule` — the `@reference` / `@step` construction DSL and the
+`@reference_case` pattern-matching DSL. Migrated from
+`ProjecturedTest/reference/ReferenceBuilderTest.jl` in kernel plan P3; the
+three former modules (Reference / ReferenceCase / ReferenceBuilder) are now
+one `ReferenceModule`, so this whole suite lives directly on the reference
+layer's test folder.
+"""
+
+using Test
+using ProjecturedKernel.ReferenceModule
+
 @testset "ReferenceBuilder" begin
 
 # ── basic forms ──────────────────────────────────────────────────────────
@@ -112,6 +123,3 @@ let sample = @reference items{3}
 end
 
 end
-end
-
-export test_reference_builder

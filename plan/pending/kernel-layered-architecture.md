@@ -730,8 +730,22 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       green. New test/document/DocumentContractTest.jl exercises @document + selection
       + snapshot round-trip through a test-local `ToyNode`; 17 tests pass. Wrote
       doc/document.md; kernel guard + cell + document tests green.)*
-- [ ] **P3 — reference**: merge the trio into `ReferenceModule`; retarget 5 kernel
+- [x] **P3 — reference**: merge the trio into `ReferenceModule`; retarget 5 kernel
       importers + aliases; migrate/new tests; `doc/reference.md`.
+      *(Done. Reference.jl / ReferenceCase.jl / ReferenceBuilder.jl stripped to
+      fragments; new aggregator reference/ReferenceModule.jl wires them together
+      and re-exports all three DSLs' surface. Retargeted 5 kernel importers to
+      `..ReferenceModule`. ProjectDomain aliases: `ReferenceCaseModule` and
+      `ReferenceBuilderModule` point at ReferenceModule (backward compat).
+      Generated-code `ReferenceBuilderModule._concat` / `._splice` internal
+      references rewritten to `ReferenceModule.*` since the fragments now share
+      the aggregator namespace. LAYERS grew to `["cell","document","reference"]`;
+      added a transitional per-file exemption list (LAYER_EXEMPT_FILES) for the
+      three concrete kernel documents (Collection/Primitive/ScreenDocument) that
+      import from higher layers and leave for base at P7. Migrated
+      ReferenceBuilderTest and added ReferenceEvalTest (walks evaluate_reference
+      over a test-local ToyBranch); 29 reference tests pass. Guard, layer check,
+      and self-tests all green.)*
 - [ ] **P4 — operation**: merge OperationApi + Operation + Rerooting into
       `OperationModule`; **R1 + R2 seams** (the concrete methods land beside
       Collection/Primitive at their current location, moving with them in P7);

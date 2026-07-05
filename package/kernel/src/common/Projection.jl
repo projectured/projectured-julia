@@ -27,8 +27,8 @@ import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: snapshot
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
 import ..DocumentModule: Document, read_gesture
