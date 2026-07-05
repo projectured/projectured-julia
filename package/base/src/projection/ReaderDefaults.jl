@@ -14,6 +14,9 @@ that was previously an if-elseif chain.
 module ReaderDefaultsModule
 
 import ProjecturedKernel.ProjectionApiModule: read_intent, map_reference_backward, Projection
+import ProjecturedKernel.IntentModule: Intent
+import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
+import ProjecturedKernel.RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
 function read_intent(projection::Projection, iomap, operation::ReplaceStringRangeOperation)
@@ -27,5 +30,28 @@ function read_intent(projection::Projection, iomap, operation::ReplaceNumberRang
     input_ref === nothing && return nothing
     return ReplaceNumberRangeOperation(input_ref, operation.replacement)
 end
+
+# D5 (Q2, 2026-07-06) — the value-edit retype for ProjectionTemplate's
+# RuleIoMap. Moved out of `kernel/projection/ProjectionTemplate.jl` because
+# it references `ReplaceStringRangeOperation` (a base/Primitive type) that
+# the kernel cannot import.
+function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
+    w = iomap.wiring
+    # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`,
+    # …) has no editable text, so a character insert there is never a
+    # valid text edit. Reject it (rather than mapping to a bogus
+    # introduced-position op) so a non-gesture key is a clean NO-OP.
+    w isa AtomicWiring && w.bound_field === nothing && return nothing
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    if w isa AtomicWiring && w.retype !== nothing
+        return w.retype(new_ref, op.replacement)
+    end
+    return ReplaceStringRangeOperation(new_ref, op.replacement)
+end
+
+# Disambiguation for RecursiveProjection over RuleIoMap.
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
+    read_intent(rp, nothing, Intent(op), iomap).operation
 
 end # module

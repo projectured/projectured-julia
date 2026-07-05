@@ -584,4 +584,14 @@ function child_reference_steps(node::CellVector)
     pairs
 end
 
+# D5 seam (Q2, 2026-07-06) — CellVector methods for the kernel's
+# children-container generics. The kernel's `ProjectionTemplate` uses
+# these instead of naming `CellVector` directly so its file can live at
+# the kernel projection layer without importing a base document type.
+import ..ChildrenContainerModule: make_children_container, children_container_type
+
+make_children_container(cells::Vector) = CellVector(cells)
+make_children_container(thunk::Function) = CellVector(thunk)
+children_container_type() = CellVector
+
 end # module

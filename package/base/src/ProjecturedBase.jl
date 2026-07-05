@@ -53,6 +53,10 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
 const GestureModule = ProjecturedKernel.GestureModule
 const BackendModule = ProjecturedKernel.BackendModule
+# Q2/D5 (2026-07-06) — kernel-side seams that base implements methods on.
+const ChildrenContainerModule = ProjecturedKernel.ChildrenContainerModule
+const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
+const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
 
 # ── Layer 1 — document (concrete engine documents) ────────────────────────
 # Collection precedes Primitive and ScreenDocument (both import CellVector).

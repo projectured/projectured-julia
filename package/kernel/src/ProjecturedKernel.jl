@@ -96,6 +96,9 @@ include("backend/HeadlessBackend.jl")
 # Then the higher-order combinators and the generic projections; Preserving
 # precedes Reversing/Sorting, which build on it.
 include("projection/PrinterContext.jl")
+# D5 seam (Q2, 2026-07-06) — open generics for the children container
+# ProjectionTemplate uses; base's Collection.jl adds CellVector methods.
+include("projection/ChildrenContainer.jl")
 # R3 (kernel plan P8, completed 2026-07-06) — must load before the
 # combinators (Chaining/Nesting/Recursive/TypeDispatching) that import
 # collect_gesture_bindings from it.
@@ -120,6 +123,17 @@ include("projection/generic/Focusing.jl")
 # macro. Nothing in the kernel imports it, so it loads after the whole algebra;
 # it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
 include("projection/Projection.jl")
+
+# ── ProjectionTemplate (Q2/D5, 2026-07-06) ─────────────────────────────────
+# The builder-and-walk projection-template engine every XToSyntax uses.
+# Moved down from domain at Q2/D5 because it is projection machinery, not
+# per-domain content. Two base leaks were seamed out:
+#   (a) constructive CellVector(...) sites use the D5 children-container
+#       generic (make_children_container / children_container_type);
+#       base's Collection.jl registers CellVector methods.
+#   (b) the ReplaceStringRangeOperation read_intent method moved to
+#       base/projection/ReaderDefaults.jl beside the R6 defaults.
+include("projection/ProjectionTemplate.jl")
 
 # R3 note: projection/GestureBindings.jl is loaded above (before the
 # higher-order combinators that import from it).

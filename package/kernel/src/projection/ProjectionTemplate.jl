@@ -28,7 +28,12 @@ documents — no adapter or engine change.
 module ProjectionTemplateModule
 
 import ..CellModule: Cell
-import ..CollectionModule: CellVector
+# D5 seam (Q2, 2026-07-06) — ProjectionTemplate no longer names CellVector
+# directly. `make_children_container(...)` builds the container (base's
+# Collection.jl registers Vector/Function methods on CellVector);
+# `children_container_type()` returns the concrete type for TypeReference
+# markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
+import ..ChildrenContainerModule: make_children_container, children_container_type
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent, Projection,
                               print_child
@@ -42,10 +47,15 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
                           fold_reference_types, strip_reference_types
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..DocumentApiModule: Document, read_gesture
+# D5 seam (Q2, 2026-07-06) — the single
+# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
+# method moved to base beside the R6 reader defaults so this file is
+# Primitive-free. (Its recursive-projection sibling remained here since it
+# uses no base type — it dispatches on RecursiveProjection + the
+# base-registered method.)
+import ..DocumentModule: Document, read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: reroot_operation
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 
@@ -468,7 +478,7 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
         path === nothing && return nothing
         map_reference_forward(p, im, path)
     end)
-    children = CellVector(() -> [im.output for im in child_iomaps[]])
+    children = make_children_container(() -> [im.output for im in child_iomaps[]])
     setproperty!(out, children_field, children)   # replace the Collection marker with the real children
     out = _with_selection(out, sel)
     wiring = NodeWiring(_dtype(doc), _dtype(out), input_field, children_field)
@@ -551,7 +561,7 @@ end
 function _fixed_print(p, recursion, doc, ctx, out)
     children_field = _find_fixed_children(out)
     slots, store, output_cells = _walk_markers(p, recursion, doc, ctx, getproperty(out, children_field))
-    setproperty!(out, children_field, CellVector(output_cells))
+    setproperty!(out, children_field, make_children_container(output_cells))
     # The fixed node is a real output node, so its selection cell must hold an
     # *output* path: forward-map the element's input selection through this node's
     # own wiring (deferred-iomap trick, as the top node does).
@@ -575,7 +585,7 @@ end
 # (structure) and each output cell (child content / type-swap).
 function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
     state = Cell(() -> _walk_markers(p, recursion, doc, ctx, thunk()))
-    setproperty!(out, children_field, CellVector(() -> [c[] for c in state[][3]]))
+    setproperty!(out, children_field, make_children_container(() -> [c[] for c in state[][3]]))
     iomap_cell = Cell(nothing)
     out = _with_selection(out, Cell(() -> begin
         im = iomap_cell[]
@@ -634,7 +644,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         print_child(recursion, x,
             make_child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
-    children = CellVector(() -> vcat(
+    children = make_children_container(() -> vcat(
         [s isa Cell ? s[].output : s for s in prefix_sources],
         [im.output for im in coll_iomaps[]]))
     setproperty!(out, children_field, children)
@@ -670,7 +680,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
         end
         bound_index == 0 || break
     end
-    children = CellVector(() -> begin
+    children = make_children_container(() -> begin
         # The thunk rebuilds the leaves fresh each recompute, so rebuilding a bound
         # leaf with its selection cell here happens before anything references it.
         map(thunk()) do leaf
@@ -717,7 +727,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
         end
         res
     end)
-    children = CellVector(() -> [s.mk([im.output for im in s.entries]) for s in section_iomaps[]])
+    children = make_children_container(() -> [s.mk([im.output for im in s.entries]) for s in section_iomaps[]])
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
     out = _with_selection(out, Cell(() -> begin
@@ -830,7 +840,7 @@ function _node_forward(p, w, iomap, reference)
             inner = map_reference_forward(child.projection, child, after.tail)
             inner === nothing && return nothing
             return _prepend(inner, TypeReference(w.outtype), FieldReference(String(w.children_field)),
-                            TypeReference(CellVector), ElementReference(child_i))
+                            TypeReference(children_container_type()), ElementReference(child_i))
         end
     end
     return nothing
@@ -1288,21 +1298,13 @@ end
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
 
-# Value-edit retype (atomic) + plain String/Number retargeting (both shapes).
-function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
-    w = iomap.wiring
-    # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`, …) has
-    # no editable text, so a character insert there is never a valid text edit.
-    # Reject it (rather than mapping to a bogus introduced-position op) so a
-    # non-gesture key is a clean NO-OP and a structural gesture can take over.
-    w isa AtomicWiring && w.bound_field === nothing && return nothing
-    new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
-    if w isa AtomicWiring && w.retype !== nothing
-        return w.retype(new_ref, op.replacement)
-    end
-    return ReplaceStringRangeOperation(new_ref, op.replacement)
-end
+# D5 (Q2, 2026-07-06): the value-edit retype method
+# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
+# moved to `package/base/src/projection/ReaderDefaults.jl` beside the R6
+# reader defaults — it references `ReplaceStringRangeOperation` (a
+# base/Primitive type) that the kernel cannot name. Base imports
+# `RuleIoMap` + `AtomicWiring` from this module to preserve the same
+# dispatch behaviour.
 
 # Whole-element selection: map back, else (node) the position is a structural
 # introduced one with no input pre-image ⇒ wrap into this projection's own step
@@ -1320,8 +1322,9 @@ end
 # concrete-typed method per op (not a Union, which would still tie with the
 # `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
 # read into its child projection.
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
-    read_intent(rp, nothing, Intent(op), iomap).operation
+# D5 (Q2, 2026-07-06): the recursive disambiguation for
+# ReplaceStringRangeOperation moved to base/projection/ReaderDefaults.jl
+# for the same reason (it names a base type).
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
 

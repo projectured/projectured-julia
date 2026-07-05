@@ -54,6 +54,9 @@ const GestureModule = ProjecturedKernel.GestureModule
 # Kernel plan P8 (R3, completed 2026-07-06): the Projection-typed seam
 # methods moved out to their own projection-layer module.
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
+# Q2/D5 (2026-07-06): ProjectionTemplate moved to package/kernel
+# (projection/ProjectionTemplate.jl); the old name lives on as an alias.
+const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule
@@ -212,7 +215,9 @@ include("projection/primitive/ScreenToScreen.jl")
 include("clipboard/ClipboardToAny.jl")
 include("versioning/VersioningToAny.jl")
 include("dragging/DraggingProjection.jl")
-include("projection/ProjectionTemplate.jl")
+# Q2/D5 (2026-07-06): ProjectionTemplate moved to package/kernel
+# (projection/ProjectionTemplate.jl). Aliased below so domain files that
+# import ..ProjectionTemplateModule keep resolving.
 include("json/JsonToSyntax.jl")
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
