@@ -155,107 +155,94 @@ const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
 const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
-include("common/OsClipboard.jl")
+include("clipboard/OsClipboard.jl")
 include("document/Document.jl")
 # Q1 sub-commit 2: Text/Syntax/Graphics moved to package/visual (text/syntax/
 # graphics slices). Style + Image already moved in sub-commit 1. Available
 # via the visual aliases at the top of this file.
-include("document/Json.jl")
-include("document/Yaml.jl")
-include("document/GestureMap.jl")
-include("document/Math.jl")
-include("document/Julia.jl")
-include("document/Tabular.jl")
-include("document/Database.jl")
-include("document/DbCatalog.jl")
-# Q3: DatabaseInstance.jl deleted — orphan (effectively only used by
-# Component, itself an orphan; verified in Q0 D3 finding).
-include("document/Sql.jl")
-include("document/Xml.jl")
-include("document/FileSystem.jl")
+# ── Q3 slice folders (source slices) ─────────────────────────────────────
+# Each source slice groups a document + its parser + its XToSyntax bridge
+# in one folder. Includes are ordered so any cross-slice edges (e.g.
+# formula→julia, dbcatalog→sql) are satisfied — the plan verifies these
+# form an acyclic slice DAG.
+# ── Q3 slice-folder includes ─────────────────────────────────────────────
+# Each source slice groups a document + its parser + its XToSyntax bridge
+# in one folder. Load order: document/parser/toSyntax within each slice;
+# slices ordered by the acyclic slice DAG the plan verifies
+# (json/xml/yaml/julia/math/markdown/book independent; formula → julia;
+# dbcatalog → sql; tabular → json).
+include("json/Json.jl")
+include("yaml/Yaml.jl")
+include("gesturemap/GestureMap.jl")
+include("math/Math.jl")
+include("julia/Julia.jl")
+include("tabular/Tabular.jl")
+include("database/Database.jl")
+include("dbcatalog/DbCatalog.jl")
+include("sql/Sql.jl")
+include("xml/Xml.jl")
+include("filesystem/FileSystem.jl")
 include("document/Workspace.jl")
-include("document/Clipboard.jl")
-include("document/Versioning.jl")
-# Q1 sub-commit 2: Widget/ConstraintSolver/Layout moved to package/visual
-# (widget + layout slices).
-include("document/Graph.jl")
-include("document/GraphLayout.jl")
-include("layout/GraphLayoutEngine.jl")
-# Q3: Component.jl deleted — true orphan (no importers anywhere in the
-# repo; verified in Q0 D3 finding).
-include("document/Book.jl")
-include("document/Markdown.jl")
+include("clipboard/Clipboard.jl")
+include("versioning/Versioning.jl")
+include("graph/Graph.jl")
+include("graph/GraphLayout.jl")
+include("graph/GraphLayoutEngine.jl")
+include("book/Book.jl")
+include("markdown/Markdown.jl")
 include("document/Evaluator.jl")
-include("document/Formula.jl")
+include("formula/Formula.jl")
 include("document/Conversation.jl")
-include("parser/JuliaParser.jl")
-include("parser/JsonParser.jl")
-include("parser/YamlParser.jl")
-include("parser/XmlParser.jl")
-include("parser/MarkdownParser.jl")
-include("parser/SqlParser.jl")
+include("julia/JuliaParser.jl")
+include("json/JsonParser.jl")
+include("yaml/YamlParser.jl")
+include("xml/XmlParser.jl")
+include("markdown/MarkdownParser.jl")
+include("sql/SqlParser.jl")
 include("document/Workbench.jl")
-# Image moved to package/visual at Q1 (style slice).
-include("document/Tooltip.jl")
-include("document/ReferenceInspector.jl")
-include("document/Dragging.jl")
-include("projection/higherorder/TooltipDecorator.jl")
-include("projection/higherorder/GestureHelpDecorator.jl")
+include("tooltip/Tooltip.jl")
+include("inspector/ReferenceInspector.jl")
+include("dragging/Dragging.jl")
+include("tooltip/TooltipDecorator.jl")
+include("gesturemap/GestureHelpDecorator.jl")
 include("projection/primitive/ScreenToScreen.jl")
-# Q1 sub-commit 2: ObjectToWidget moved to visual/widget/.
-include("projection/primitive/ClipboardToAny.jl")
-include("projection/primitive/VersioningToAny.jl")
-# Q1 sub-commit 2: ProjectionConfiguring moved to visual/widget/.
-include("projection/higherorder/Dragging.jl")
-# Q1 sub-commit 2: SyntaxToText, TextToGraphics, GraphicsCaching moved to
-# visual (syntax, text, graphics slices).
+include("clipboard/ClipboardToAny.jl")
+include("versioning/VersioningToAny.jl")
+include("dragging/DraggingProjection.jl")
 include("projection/ProjectionTemplate.jl")
-include("projection/primitive/JsonToSyntax.jl")
-include("projection/primitive/YamlToSyntax.jl")
-include("projection/primitive/GestureMapToSyntax.jl")
-include("projection/primitive/XmlToSyntax.jl")
-include("projection/primitive/MarkdownToSyntax.jl")
-include("projection/primitive/FileSystemToSyntax.jl")
-include("projection/primitive/FileSystemToWidget.jl")
+include("json/JsonToSyntax.jl")
+include("yaml/YamlToSyntax.jl")
+include("gesturemap/GestureMapToSyntax.jl")
+include("xml/XmlToSyntax.jl")
+include("markdown/MarkdownToSyntax.jl")
+include("filesystem/FileSystemToSyntax.jl")
+include("filesystem/FileSystemToWidget.jl")
 include("projection/primitive/WorkspaceToFileSystem.jl")
-# Q1 sub-commit 2: TextToString, ObjectToSyntax, LayoutToGraphics,
-# WidgetToGraphics moved to visual. WidgetHoverTracking, WidgetPopupResolver,
-# TextToWidget likewise.
-include("projection/primitive/GraphToGraphLayout.jl")
-include("projection/primitive/GraphLayoutToGraphics.jl")
-# Q1 sub-commit 2: SyntaxToWidget moved to visual/syntax/.
-include("projection/primitive/BookToSyntax.jl")
-# Q1 sub-commit 2: LineNumbering, WordWrapping, TextFirstLine, TextFiltering,
-# TextHighlighting, SelectionInverting, PrimitiveToSyntax, PrimitiveToText,
-# ReferenceToText all moved to visual.
-include("projection/primitive/ReferenceInspectorToText.jl")
-include("projection/higherorder/HoverProbe.jl")
-include("projection/primitive/MathToSyntax.jl")
+include("graph/GraphToGraphLayout.jl")
+include("graph/GraphLayoutToGraphics.jl")
+include("book/BookToSyntax.jl")
+include("inspector/ReferenceInspectorToText.jl")
+include("inspector/HoverProbe.jl")
+include("math/MathToSyntax.jl")
 # DocumentInsertionToSyntax before JuliaToSyntax/SqlToSyntax: it defines the
 # per-domain insertion→syntax leaves (JuliaInsertionToSyntaxLeaf, …) those
 # projections register, and it depends on none of them.
 include("projection/primitive/DocumentInsertionToSyntax.jl")
-include("projection/primitive/JuliaToSyntax.jl")
-include("projection/primitive/FormulaToSyntax.jl")
-include("projection/primitive/SqlToSyntax.jl")
-# Q1 sub-commit 2: CollectionToSyntax moved to visual/syntax/.
+include("julia/JuliaToSyntax.jl")
+include("formula/FormulaToSyntax.jl")
+include("sql/SqlToSyntax.jl")
+include("dbcatalog/DbCatalogToSql.jl")
+include("dbcatalog/DbCatalogToSyntax.jl")
+include("tabular/CellTableToTable.jl")
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")
-# Q1 sub-commit 2: CollectionToLayout moved to package/visual (layout slice).
 include("projection/primitive/NaturalProjection.jl")
-# Q2 (D4): BinarySerialization moved to package/base (base/serialization/).
-# NaturalFormat + DocumentFile remain here until their framework/registration
-# split lands (D4 refactor); they keep their current include position.
 include("serializer/NaturalFormat.jl")
 include("serializer/DocumentFile.jl")
 include("projection/compound/HigherOrder.jl")
 include("projection/compound/Generic.jl")
-# Q1 sub-commit 3: Console + Pdf moved to package/visual (backend slice).
-include("external/Database.jl")
-include("projection/primitive/CellTableToTable.jl")
-include("projection/primitive/DbCatalogToSql.jl")
-include("projection/primitive/DbCatalogToSyntax.jl")
+include("database/DatabaseAdapters.jl")
 include("editor/ConversationEditor.jl")
 include("editor/WorkbenchAssistant.jl")
 include("editor/WorkbenchFile.jl")
