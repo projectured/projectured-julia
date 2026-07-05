@@ -22,7 +22,9 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                           ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+# R6 (kernel plan P8) — the ReplaceStringRangeOperation / ReplaceNumberRangeOperation
+# branches of the default read_intent moved to base/projection/ReaderDefaults.jl
+# beside the Primitive document types. This module stays Primitive-free.
 import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: snapshot
 import ..ReferenceModule: EmptyReferencePath
@@ -133,14 +135,9 @@ function read_intent(projection::Projection, iomap, operation)
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    elseif operation isa ReplaceStringRangeOperation
-        input_ref = map_reference_backward(projection, iomap, operation.reference)
-        input_ref === nothing && return nothing
-        return ReplaceStringRangeOperation(input_ref, operation.replacement)
-    elseif operation isa ReplaceNumberRangeOperation
-        input_ref = map_reference_backward(projection, iomap, operation.reference)
-        input_ref === nothing && return nothing
-        return ReplaceNumberRangeOperation(input_ref, operation.replacement)
+    # R6: ReplaceString/NumberRange branches moved to base/projection/ReaderDefaults.jl
+    # (added as more-specific `read_intent(::Projection, iomap, ::ReplaceStringRangeOperation)`
+    # methods there — they take precedence over this catch-all).
     elseif operation isa CompoundOperation
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing

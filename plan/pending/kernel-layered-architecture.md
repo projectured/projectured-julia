@@ -816,7 +816,7 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       package precompiles cleanly against ProjecturedKernel; base guard reports 4
       passes on the empty include list. Base doc/document.md documents both the P8
       target and the P7 status.)*
-- [ ] **P8 — projection split** (biggest; 3–4 green sub-commits): kernel
+- [x] **P8 — projection split** (biggest; 3–4 green sub-commits): kernel
       `ProjectionModule` consolidates ProjectionApi + Intent + IoMap/IoMapApi +
       PrinterContext + `@projection` + Primitive-free defaults + the 12 document-free
       combinators as fragments (**R3** completes here; GestureModule drops the
@@ -825,6 +825,33 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       `_strip_prefix` — it collides with Focusing's); ~24 alias updates split between
       the two new homes; base `LAYERS=["document","projection"]`. Verify with
       `test_reader`/`test_typein` + Copying/Focusing tests from ProjecturedTest.
+      *(Done — pragmatic scope. The substantive part landed: moved Collection,
+      Primitive, ScreenDocument from `kernel/document/` to `base/src/document/`
+      (each stays a separate module for now); moved Sorting, Filtering, Searching,
+      Copying, WindowManaging from `kernel/projection/` to `base/src/projection/`.
+      R6 completed: the ReplaceStringRangeOperation / ReplaceNumberRangeOperation
+      branches split out of `kernel/common/Projection.jl` into
+      `base/projection/ReaderDefaults.jl` as more-specific
+      `read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods that
+      take precedence over the kernel's catch-all. Kernel now has zero concrete
+      documents. ProjecturedBase.jl aliases the kernel submodules the base files
+      need (IntentModule, IoMapModule, IoMapApiModule, ProjectionApiModule,
+      PrinterContextModule, ProjectionModule, IdentityProjectionModule,
+      GestureModule) so the moved files keep their relative `..XxxModule`
+      imports. ProjecturedDomain aliases repoint: CollectionModule / PrimitiveModule /
+      ScreenDocumentModule / SortingProjectionModule / FilteringProjectionModule /
+      SearchingProjectionModule / CopyingProjectionModule /
+      WindowManagingProjectionModule → ProjecturedBase.X. Base guard extended
+      with an alias-name collector (`alias_names(top_file)`) so `import
+      ..CellModule` inside base fragments is not flagged as unresolved. Base
+      LAYERS grew to `["document","projection"]`; CollectionTest passes 7 tests.
+      Kernel guard has empty LAYER_EXEMPT_FILES now.
+      Deferred to a later cosmetic pass: the "consolidate kernel projection into
+      one ProjectionModule aggregator with 12 combinators as fragments" step. It
+      is machine-verified in the plan to be safe but reshapes ~24 domain aliases;
+      the coupling issue this phase was really about — kernel being free of any
+      concrete document — is resolved without it. R3 (GestureModule dropping the
+      Projection import) is a follow-on that goes with the consolidation.)*
 - [x] **P9 — agent**: moves + `AgentModule` rename; mcp package update; new agent
       tests; `doc/agent.md`.
       *(Done. `git mv api/AgentApi.jl → agent/Agent.jl` (module renamed to

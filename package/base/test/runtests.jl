@@ -20,7 +20,7 @@ const BASE_SRC = normpath(joinpath(@__DIR__, "..", "src"))
 const TOP_FILE = joinpath(BASE_SRC, "ProjecturedBase.jl")
 const DOT      = Symbol(".")
 
-const LAYERS = String[]                # populate at P8 with "document","projection"
+const LAYERS = String["document", "projection"]
 const LAYER_EXEMPT_FILES = Set{String}()
 
 # ── AST helpers (mirrors kernel/test/runtests.jl) ──────────────────────────
@@ -112,7 +112,31 @@ function walk_includes(top_file, src_root)
     reached, entries
 end
 
-function topo_errors(entries)
+"""
+Return the set of module-symbol *aliases* declared at the top of `ProjecturedBase.jl`
+— every `const XxxModule = ProjecturedKernel.XxxModule` line. These names are
+valid targets for `..XxxModule` imports inside fragments, but they don't come
+from an `include`, so the topo checker below needs to know about them
+separately.
+"""
+function alias_names(top_file)
+    ast = parse_file(top_file)
+    top_mods = collect_exprs(e -> e.head === :module, ast)
+    length(top_mods) == 1 || return Set{Symbol}()
+    aliases = Set{Symbol}()
+    for stmt in top_mods[1].args[3].args
+        stmt isa Expr || continue
+        stmt.head === :const || continue
+        length(stmt.args) >= 1 && stmt.args[1] isa Expr || continue
+        eq = stmt.args[1]
+        eq.head === :(=) || continue
+        eq.args[1] isa Symbol || continue
+        push!(aliases, eq.args[1])
+    end
+    aliases
+end
+
+function topo_errors(entries, aliases = Set{Symbol}())
     all_mods = Set(m for (_, m, _) in entries)
     seen = Set{Symbol}()
     errs = String[]
@@ -120,6 +144,8 @@ function topo_errors(entries)
         for d in deps
             if d in seen
                 continue
+            elseif d in aliases
+                continue                                       # aliased from kernel
             elseif d in all_mods
                 push!(errs, "[$i] $label ($mod) imports ..$d, which is included later")
             else
@@ -151,9 +177,26 @@ end
         @test length(names) == length(unique(names))
     end
 
+    aliases = alias_names(TOP_FILE)
+
     @testset "includes are a valid topological order" begin
-        errs = topo_errors(entries)
+        errs = topo_errors(entries, aliases)
         isempty(errs) || foreach(e -> println(stderr, "  ", e), errs)
         @test isempty(errs)
     end
 end
+
+# Per-layer runner — mirror the kernel discipline.
+function run_layer_tests(layers, filter)
+    for layer in layers
+        isempty(filter) || (layer in filter) || continue
+        dir = joinpath(@__DIR__, layer)
+        runner = joinpath(dir, "runtests.jl")
+        isfile(runner) || continue
+        @testset "$layer" begin
+            include(runner)
+        end
+    end
+end
+
+run_layer_tests(LAYERS, ARGS)

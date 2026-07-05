@@ -49,21 +49,18 @@ include("api/IoMapApi.jl")
 # at P2 from the old api/DocumentApi.jl + common/Document.jl.
 include("document/DocumentModule.jl")
 
-# ── References, operations, foundational documents ─────────────────────────
-# Reference machinery + operation layer with R1/R2 open seams + the concrete
-# engine documents. The concrete documents (Collection, Primitive,
-# ScreenDocument) will migrate to package/base at P8 alongside the
-# document-shaped projections that depend on them; kernel plan P7 stood up
-# the ProjecturedBase package skeleton without moving content, because
-# ScreenDocument couples to WindowManagingProjection and Primitive couples
-# to Projection.jl's default reader — carving them out one at a time would
-# leave a wrong-direction kernel→base edge.
+# ── References, operations ─────────────────────────────────────────────────
+# Reference machinery + operation layer with R1/R2 open seams. Concrete
+# documents (Collection, Primitive, ScreenDocument) and the five
+# document-shaped projections (Sorting, Filtering, Searching, Copying,
+# WindowManaging) moved to package/base at P8; their R1/R2 methods register
+# from there. R6 also completed: the Primitive-op branches of the default
+# read_intent moved to base/projection/ReaderDefaults.jl beside the ops they
+# interpret. The kernel is now free of any concrete document.
 include("common/Intent.jl")
 include("common/IoMap.jl")
 include("reference/ReferenceModule.jl")
 include("operation/OperationModule.jl")
-include("document/Collection.jl")
-include("document/Primitive.jl")
 
 # ── Device layer (layer 5 — input devices, events, gestures) ───────────────
 # The DeviceModule interface (renamed from DeviceApiModule at P5), the
@@ -89,13 +86,9 @@ include("backend/Backend.jl")
 include("backend/Display.jl")
 include("backend/HeadlessBackend.jl")
 
-# ── Foundational documents (projection output vocabulary) ──────────────────
-# Kernel plan P7 moved Collection and Primitive out to package/base but
-# left ScreenDocument here for now — the kernel's WindowManagingProjection
-# imports its types, and moving only ScreenDocument would create a
-# wrong-direction kernel→base edge. Both ScreenDocument and
-# WindowManagingProjection move together at P8 with the projection split.
-include("document/ScreenDocument.jl")
+# Kernel plan P8: ScreenDocument moved to package/base beside Collection and
+# Primitive alongside the projection split (its WindowManagingProjection
+# consumer also moved to base/projection/, so the couple stayed together).
 
 # ── Projection infrastructure & algebra ────────────────────────────────────
 # PrinterContext (Reactive + Reference only) is projection-layer infrastructure
@@ -110,16 +103,13 @@ include("projection/higherorder/Switching.jl")
 include("projection/higherorder/PredicateDispatching.jl")
 include("projection/higherorder/ReferenceDispatching.jl")
 include("projection/higherorder/Nesting.jl")
-include("projection/higherorder/WindowManaging.jl")
 include("projection/higherorder/EnvelopeUnwrapping.jl")
 include("projection/generic/Identity.jl")
 include("projection/generic/Reversing.jl")
-include("projection/generic/Filtering.jl")
-include("projection/generic/Searching.jl")
-include("projection/generic/Sorting.jl")
-include("projection/generic/Copying.jl")
 include("projection/generic/Constant.jl")
 include("projection/generic/Focusing.jl")
+# The 5 document-shaped projections (Sorting, Filtering, Searching, Copying,
+# WindowManaging) moved to package/base at P8.
 
 # ── Projection defaults & the `@projection` macro ──────────────────────────
 # ProjectionModule holds the four-generic fallbacks and the `@projection`

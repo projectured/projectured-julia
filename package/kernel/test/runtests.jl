@@ -36,16 +36,11 @@ const DOT        = Symbol(".")
 # from the layer-index check during transition; the final phase forbids them.
 const LAYERS = String["cell", "document", "reference", "operation", "device", "backend", "agent"]
 
-# Transitional file-level exemptions: concrete engine documents currently live
-# under `document/` but leave the kernel entirely at P7 (base package). Until
-# then, they import from higher layers (Reference/Operation/…) which the layer
-# rule would flag. They are exempted by relpath here; the P7 phase removes both
-# the files and this list.
-const LAYER_EXEMPT_FILES = Set{String}([
-    "document/Collection.jl",
-    "document/Primitive.jl",
-    "document/ScreenDocument.jl",
-])
+# Kernel plan P8 moved the concrete documents (Collection/Primitive/
+# ScreenDocument) and the 5 doc-shaped projections out to ProjecturedBase,
+# so the transitional exemption list is now empty. The list stays here for
+# future phases that need short-lived exemptions.
+const LAYER_EXEMPT_FILES = Set{String}()
 
 # ── AST helpers ────────────────────────────────────────────────────────────
 

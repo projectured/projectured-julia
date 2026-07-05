@@ -29,8 +29,11 @@ using ProjecturedBase
 const BackendApiModule = ProjecturedKernel.BackendModule
 const BackendModule = ProjecturedKernel.BackendModule
 const IntentModule = ProjecturedKernel.IntentModule
-const CollectionModule = ProjecturedKernel.CollectionModule
-const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
+# Kernel plan P8 moved the concrete documents + doc-shaped projections to
+# ProjecturedBase. Aliases repoint here so existing domain files (66
+# importers of CollectionModule alone) keep resolving.
+const CollectionModule = ProjecturedBase.CollectionModule
+const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 # Kernel plan P5: DeviceApiModule renamed to DeviceModule; the old name is
 # still available here for domain/opt-in files.
 const DeviceApiModule = ProjecturedKernel.DeviceModule
@@ -67,7 +70,7 @@ const OperationRerootingModule = ProjecturedKernel.OperationModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const PredicateDispatchingProjectionModule = ProjecturedKernel.PredicateDispatchingProjectionModule
 const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
-const PrimitiveModule = ProjecturedKernel.PrimitiveModule
+const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
@@ -79,10 +82,14 @@ const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const ScreenDocumentModule = ProjecturedKernel.ScreenDocumentModule
+const ScreenDocumentModule = ProjecturedBase.ScreenDocumentModule
 const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const ChainingProjectionModule = ProjecturedKernel.ChainingProjectionModule
-const SortingProjectionModule = ProjecturedKernel.SortingProjectionModule
+const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
+const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
+const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
+const WindowManagingProjectionModule = ProjecturedBase.WindowManagingProjectionModule
+const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 
