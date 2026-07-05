@@ -56,6 +56,7 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
 const GestureModule = ProjecturedKernel.GestureModule
 const BackendModule = ProjecturedKernel.BackendModule
+const BackendApiModule = ProjecturedKernel.BackendModule           # P6 rename
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
@@ -194,6 +195,13 @@ include("syntax/ObjectToSyntax.jl")
 include("syntax/CollectionToSyntax.jl")
 include("syntax/PrimitiveToSyntax.jl")
 
-# Slice 2 (screen) and slice 8 (backend) land in the final Q1 sub-commit.
+# ── Slice 8 — backend (dependency-free concrete backends) ───────────────
+# Console renders the Text domain to an ANSI terminal; Pdf exports the
+# Graphics domain as a vector PDF (SDL-free).
+include("backend/Console.jl")
+include("backend/Pdf.jl")
+
+# Slice 2 (screen — ScreenDocument + WindowManaging move down from base)
+# is the last remaining Q1 relocation.
 
 end # module ProjecturedVisual

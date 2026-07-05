@@ -146,6 +146,10 @@ const ObjectToSyntaxProjectionModule = ProjecturedVisual.ObjectToSyntaxProjectio
 const CollectionToSyntaxProjectionModule = ProjecturedVisual.CollectionToSyntaxProjectionModule
 const PrimitiveToSyntaxProjectionModule = ProjecturedVisual.PrimitiveToSyntaxProjectionModule
 
+# Backend slice (Q1 sub-commit 3)
+const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
+const PdfBackendModule = ProjecturedVisual.PdfBackendModule
+
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("common/OsClipboard.jl")
 include("document/Document.jl")
@@ -239,8 +243,7 @@ include("serializer/NaturalFormat.jl")
 include("serializer/DocumentFile.jl")
 include("projection/compound/HigherOrder.jl")
 include("projection/compound/Generic.jl")
-include("backend/Console.jl")
-include("backend/Pdf.jl")
+# Q1 sub-commit 3: Console + Pdf moved to package/visual (backend slice).
 include("external/Database.jl")
 include("projection/primitive/CellTableToTable.jl")
 include("projection/primitive/DbCatalogToSql.jl")
