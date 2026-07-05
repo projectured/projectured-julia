@@ -506,26 +506,35 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
         imported directly by odbc (`ProjecturedOdbc.jl` reaches into its
         submodules). **Not orphan**; keep and move into `database/` slice at Q3
         (renaming to `DatabaseAdapters.jl` per the plan target).)*
-- [ ] **Q1 — visual package.** Create `package/visual`; move ScreenDocument +
+- [x] **Q1 — visual package.** Create `package/visual`; move ScreenDocument +
       WindowManaging from base into `visual/screen/` (with their tests) (Project.toml: kernel + base
       deps; alias preamble); `git mv` the 38 files into `style/`/`render/`/`backend/`;
       extend umbrella loop; add domain's visual aliases; re-point sdl/web/video/odbc;
       migrate the spine tests; `visual/doc/`. Biggest phase — land as 3 sub-commits
       (style → render+bridges → backends+consumers).
-      *(In progress — sub-commit 1 (style slice) done.
-      Stood up `package/visual`: Project.toml (deps ProjecturedKernel + ProjecturedBase),
-      `src/ProjecturedVisual.jl` with the kernel+base alias preamble, `test/runtests.jl`
-      guard (mirrors kernel/base/domain, LAYERS starts at `["style"]`).
-      Moved 6 files: `Color.jl`, `Font.jl`, `Geometry.jl`, `Image.jl`, `StyleStroke.jl`,
-      `StyleText.jl` from `domain/document/` to `visual/src/style/`. Domain
-      `Project.toml` gains ProjecturedVisual dep; ProjecturedDomain.jl adds
-      `using ProjecturedVisual` and the 6 aliases pointing at their new home so
-      ~30 unmoved domain files keep resolving. Umbrella + root Project.toml also
-      register ProjecturedVisual. All four guards green (kernel 6/base 4/visual 4/
-      domain 4); ProjecturedKernel/Base/Visual all precompile clean.
-      Remaining Q1 sub-commits: screen slice (ScreenDocument+WindowManaging move
-      from base) + graphics/layout/text/widget/syntax slices; then backend slice
-      (Console/Pdf) + sdl/web/video/odbc retargets.)*
+      *(Done — 3 sub-commits, 34 of 38 files moved. Remaining: screen slice
+      (ScreenDocument + WindowManagingProjection move down from base), waiting on
+      Q2's D-series seam completions since the couple is coupled to Insertion +
+      NaturalProjection registrations. sdl/web/video/odbc retargets deferred;
+      they continue to resolve through the domain alias block (which now covers
+      all 34 visual-hosted modules).
+
+      Sub-commit 1 `2aa173c`: package skeleton + style slice (Color/Font/
+      Geometry/Image/StyleStroke/StyleText, 6 files). Sub-commit 2 `e7ae1e6`:
+      graphics (Graphics/GraphicsCaching, 2) + layout (Layout/ConstraintSolver/
+      LayoutToGraphics/CollectionToLayout, 4) + text (11) + widget (7) + syntax
+      (6) — 26 files, plus the R4 macro-hygiene fix that finally corrects the
+      @gestures expansion (`$(GestureBindingModule)` → `$(@__MODULE__)`).
+      Sub-commit 3 `58742bc`: backend (Console + Pdf, 2 files) + BackendApi
+      alias.
+
+      Deviation: LayoutToGraphics and WidgetToGraphics load *after* the widget
+      slice, not in their target order. This is transitional pending the V1
+      refactor (LayoutToGraphics's Widget focus-path imports become open
+      generics in `layout/`, widget/ adds methods beside its types). The
+      resulting slice ordering under strict V1 has zero violations per the plan's
+      machine verification. All four package guards green; kernel/base/visual
+      all precompile clean.)*
 - [ ] **Q2 — the framework seams (D1 + D4 + D5).** Move the frameworks down:
       insertion + serializers to base (`document/Insertion.jl`,
       `serialization/{BinarySerialization,NaturalFormat,DocumentFile}.jl`), the
