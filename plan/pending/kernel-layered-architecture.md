@@ -796,11 +796,26 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       read_from_devices scripted queue, measure_text). doc/backend.md added.
       Consumer retargets in Console/Pdf/sdl/web deferred to P10 closeout — they
       still resolve via the domain alias.)*
-- [ ] **P7 — base package + base/document**: create `package/base` (Project.toml, alias
+- [x] **P7 — base package + base/document**: create `package/base` (Project.toml, alias
       preamble, its own guard with `LAYERS=["document"]`); `git mv`
       Collection/Primitive/ScreenDocument (+ their R1/R2 methods) to
       `base/src/document/`; umbrella loop extended; domain gains the base dep + alias
       retargets; migrate/new base document tests; `base/doc/document.md`.
+      *(Done — package skeleton only. Scope adjusted at implementation: created the
+      package (Project.toml, ProjecturedBase.jl with the kernel alias preamble,
+      test/runtests.jl guard, doc/document.md) but left the concrete-document files
+      in kernel/document/ until P8. Reason: moving any of Collection / Primitive /
+      ScreenDocument alone leaves a wrong-direction kernel→base edge — the four
+      kernel-side generic projections (Searching / Filtering / Copying / Sorting),
+      WindowManagingProjection, and `common/Projection.jl`'s default reader all
+      reference the concrete types. The whole family migrates together at P8 alongside
+      the projection split, which is where the coupling is resolved. Registered
+      ProjecturedBase in the root Project.toml, added it as a dep of both
+      ProjecturedDomain and the Projectured umbrella (`using ProjecturedBase` in
+      domain resolves the aliases; umbrella's re-export loop iterates it too). Base
+      package precompiles cleanly against ProjecturedKernel; base guard reports 4
+      passes on the empty include list. Base doc/document.md documents both the P8
+      target and the P7 status.)*
 - [ ] **P8 — projection split** (biggest; 3–4 green sub-commits): kernel
       `ProjectionModule` consolidates ProjectionApi + Intent + IoMap/IoMapApi +
       PrinterContext + `@projection` + Primitive-free defaults + the 12 document-free

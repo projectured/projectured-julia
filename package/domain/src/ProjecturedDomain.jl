@@ -16,6 +16,11 @@ submodule of `ProjecturedDomain`, `..CellModule` resolves through the
 module ProjecturedDomain
 
 using ProjecturedKernel
+# ProjecturedBase is the intermediate layer between kernel and domain (per
+# plan/pending/kernel-layered-architecture.md). At P7 the package is a skeleton
+# (a set of aliases) so `using` it succeeds but contributes nothing until P8
+# moves the concrete documents and document-shaped projections into it.
+using ProjecturedBase
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────

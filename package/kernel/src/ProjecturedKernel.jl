@@ -51,29 +51,17 @@ include("api/AgentApi.jl")
 include("document/DocumentModule.jl")
 
 # ── References, operations, foundational documents ─────────────────────────
-# The reference machinery, operations, and the foundational document
-# vocabulary (Collection, Primitive) the engine still depends on for now.
-# Collection precedes Operation so the latter can dispatch on `CellVector`
-# directly (a pre-order walk needs it); Operation precedes Primitive, which
-# imports its splice helpers; OperationRerooting needs Operation + Primitive,
-# so it closes the section. Intent (the reader's backward-flowing protocol
-# type) is a dependency-free leaf. Concrete documents move to base at P7.
+# Reference machinery + operation layer with R1/R2 open seams + the concrete
+# engine documents. The concrete documents (Collection, Primitive,
+# ScreenDocument) will migrate to package/base at P8 alongside the
+# document-shaped projections that depend on them; kernel plan P7 stood up
+# the ProjecturedBase package skeleton without moving content, because
+# ScreenDocument couples to WindowManagingProjection and Primitive couples
+# to Projection.jl's default reader — carving them out one at a time would
+# leave a wrong-direction kernel→base edge.
 include("common/Intent.jl")
 include("common/IoMap.jl")
-# Reference layer (layer 3) — the ReferenceModule aggregator wraps the three
-# fragments: Reference.jl (types + value protocol), ReferenceCase.jl (the
-# @reference_case DSL), ReferenceBuilder.jl (the @reference/@step DSL).
-# Merged from ReferenceModule + ReferenceCaseModule + ReferenceBuilderModule
-# at P3; the old names live on as aliases in ProjecturedDomain.
 include("reference/ReferenceModule.jl")
-# Operation layer (layer 4) — the OperationModule aggregator wraps Interface
-# (Operation + evaluate_operation + invalidate_projection!), Operations
-# (built-in ops + splice helpers + R1 child_reference_steps seam), and
-# Rerooting (R2 open reroot_operation seam). Merged from OperationApi +
-# Operation + OperationRerooting at P4; the old names live on as aliases in
-# ProjecturedDomain. Loaded before Collection.jl so the CellVector seam
-# method (R1) registers into an already-declared generic; Primitive.jl
-# similarly adds the R2 methods for its splice-range ops.
 include("operation/OperationModule.jl")
 include("document/Collection.jl")
 include("document/Primitive.jl")
@@ -103,10 +91,11 @@ include("backend/Display.jl")
 include("backend/HeadlessBackend.jl")
 
 # ── Foundational documents (projection output vocabulary) ──────────────────
-# ScreenDocument needs Collection and GestureModule (for EventEnvelope; the
-# re-export is kept until P10 so existing importers still resolve). It is
-# consumed by the window/envelope higher-order projections, GestureRecognizer,
-# and the editor loop.
+# Kernel plan P7 moved Collection and Primitive out to package/base but
+# left ScreenDocument here for now — the kernel's WindowManagingProjection
+# imports its types, and moving only ScreenDocument would create a
+# wrong-direction kernel→base edge. Both ScreenDocument and
+# WindowManagingProjection move together at P8 with the projection split.
 include("document/ScreenDocument.jl")
 
 # ── Projection infrastructure & algebra ────────────────────────────────────

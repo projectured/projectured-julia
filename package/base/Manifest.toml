@@ -1,0 +1,16 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.12.6"
+manifest_format = "2.0"
+project_hash = "b0a538687ee823c5bd324c688175a7ae0f59cbf6"
+
+[[deps.ProjecturedBase]]
+deps = ["ProjecturedKernel"]
+path = "."
+uuid = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+version = "0.1.0"
+
+[[deps.ProjecturedKernel]]
+path = "../kernel"
+uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+version = "0.1.0"

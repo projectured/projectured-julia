@@ -20,9 +20,10 @@ are no name collisions between the kernel/domain submodules (verified), so the p
 module Projectured
 
 import ProjecturedKernel
+import ProjecturedBase
 import ProjecturedDomain
 
-for _src in (ProjecturedKernel, ProjecturedDomain)
+for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedDomain)
     _srcname = nameof(_src)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
