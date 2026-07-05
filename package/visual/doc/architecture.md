@@ -1,0 +1,116 @@
+# ProjecturedVisual — architecture
+
+Contributor-facing guide to the internal structure of the
+`ProjecturedVisual` package. `ProjecturedVisual` is the **rendering
+substrate** — everything about how documents *become visible*: style
+atoms, the screen/window model, the render-target documents (Graphics,
+Layout, Text, Widget, Syntax) with their projections, and the two
+dependency-free backends (Console, Pdf).
+
+Sits between base and domain in the dependency chain
+(`kernel ← base ← visual ← domain`). Its membership test: *"is this
+about presenting/arranging/drawing?"* — anything screen-, window-,
+graphics-, layout-, text-, widget-, or syntax-related lives here. The one
+deliberate exception: the Screen *device* and display-size seam stay in
+the kernel (`device/ScreenDevice.jl` + `backend/Display.jl`) because
+they are the interface the editor writes to, not the graphics themselves.
+
+## Slice order (8 slices)
+
+Each slice imports only slices to its left:
+
+```
+style → screen → graphics → layout → text → widget → syntax → backend
+```
+
+Machine-verified in the plan with one refactor (**V1**):
+`LayoutToGraphics`'s Widget focus-path helpers move down into `layout/`
+as open generics; widget/ adds methods beside its types. Until V1 lands,
+LayoutToGraphics + WidgetToGraphics are transitionally reordered in the
+include list (loaded after Widget); this is order-only, not a semantic
+change.
+
+## Slice inventory
+
+### style/ — the pure value types
+
+`Color.jl`, `Font.jl`, `Geometry.jl`, `Image.jl`, `StyleStroke.jl`,
+`StyleText.jl`. Every visual thing shares these — a `Color` value, a
+`Font` descriptor, a 2D `Geometry.Point`/`Size`/`Rect`. Kernel-only
+imports (Cell + Document + Reference); no visual dependencies within
+the slice.
+
+### screen/ — the window model
+
+`ScreenDocument.jl` (multi-window document holding `WindowDocument`s +
+window events/ops), `WindowManaging.jl` (the higher-order projection
+that wraps a projection over ScreenDocument input to lift open/close/
+resize/defocus operations up from below). Both moved down from base at
+Q2. The couple travels together: WindowManaging references
+ScreenDocument's types.
+
+`EventEnvelope` (which wraps every event with a window id) does **not**
+live here — it moved to the kernel's `GestureModule` at kernel plan P5
+(R5), because it is a protocol type consumed by the editor loop and
+gesture recognizer, not a document concept.
+
+### graphics/ — the retained drawing target
+
+`Graphics.jl` (the drawing domain: text/rect/canvas/viewport/image/
+fence), `GraphicsCaching.jl` (an identity-stable caching wrapper).
+
+### layout/ — spatial arrangement
+
+`Layout.jl` (the container domain), `ConstraintSolver.jl` (the layout
+algebra), `LayoutToGraphics.jl` (renders a laid-out tree onto a canvas
+via the solver), `CollectionToLayout.jl` (bridges a base CellVector
+into a layout container).
+
+### text/ — styled text and its renderings
+
+`Text.jl` (the styled-text domain: TextText/TextString/TextNewline/…),
+`TextToGraphics.jl`, `TextToString.jl` (render endpoints), the
+decorators (`LineNumbering`, `WordWrapping`, `TextFiltering`,
+`TextFirstLine`, `TextHighlighting`, `SelectionInverting`), and the
+bridges (`PrimitiveToText`, `ReferenceToText`).
+
+### widget/ — the UI widget system
+
+`Widget.jl` (the widget domain: labels/buttons/panes/menus/dropdowns/…),
+`WidgetToGraphics.jl` (the big canvas renderer), `TextToWidget.jl` (text
+→ editable widget), `ObjectToWidget.jl` (reflection-driven form),
+`WidgetHoverTracking.jl`, `ProjectionConfiguring.jl`,
+`WidgetPopupResolver.jl` (decorators).
+
+### syntax/ — the tree presentation target of every source domain
+
+`Syntax.jl` (the tree domain: leaves/nodes/delimiters/indentation/
+collapsibles), `SyntaxToText.jl` (flattens to styled text — the shared
+step every domain funnels through), `SyntaxToWidget.jl`, and the
+reflection bridges (`ObjectToSyntax`, `CollectionToSyntax`,
+`PrimitiveToSyntax`).
+
+### backend/ — the dependency-free concrete backends
+
+`Console.jl` (ANSI terminal backend rendering the Text domain),
+`Pdf.jl` (SDL-free vector-PDF export of the Graphics domain). Both
+register `make_backend(:console)` / `make_backend(:pdf)` factory
+methods on the kernel's `BackendModule`.
+
+## Alias preamble
+
+Files under this package's slice folders reference kernel/base modules
+via relative `..XxxModule` imports. Those resolve through the
+`const XxxModule = ProjecturedKernel.XxxModule` (or
+`ProjecturedBase.XxxModule`) declarations at the top of
+`ProjecturedVisual.jl`. The visual guard's `alias_names(top_file)`
+collector recognises them as valid dep targets even though they aren't
+defined by any visual file.
+
+## Consumers
+
+The opt-in `Sdl`, `Web`, and `Video` packages depend on `Domain` but
+primarily consume this package's Color/Font/Geometry/Graphics/Image
+types plus `Pdf`/`Sdl` backend factory registrations. `Odbc` depends on
+domain but reaches through to visual for `SyntaxToText`/`TextToString`
+(the SQL-rendering tail).

@@ -44,45 +44,86 @@ Four layers, bottom to top:
 
 ---
 
-## Package layout
+## Package layout — the 4-package chain (kernel plan P0-P10 + domain plan Q0-Q5)
 
-The conceptual layers above are split across **separate Julia packages** (each a
-top-level folder with its own `Project.toml`). The reusable engine, the concrete
-domains, and the optional/external-dependency backends are physically separated so a
-user editing JSON/XML/Text pays for none of SDL/Web/DB/LLM/MCP.
+The old two-package split (kernel + domain) was restructured across the
+kernel plan (P0–P10) and the domain plan (Q0–Q5) into **four packages** with
+strictly layered dependencies. Each package carries its own static
+[layered-architecture guard](../package/kernel/test/runtests.jl) that
+statically enforces its layer ordering — no upward `..XxxModule` imports
+inside a declared layer.
 
 ```
-ProjecturedKernel (kernel/)   headless engine; layers 0–2 machinery + the editor loop +
-        ▲                     the agent control surface. ZERO dependencies.
-        │                     (api, common, reference, context, device, the projection
-        │                     algebra, Collection/Primitive/ScreenDocument, ToolRegistry/Llm/Mcp-core)
-ProjecturedDomain (domain/)   all concrete documents/projections/parsers + Console & Pdf
-        ▲                     backends. Deps: Base64, Markdown. Binds kernel submodules as
-        │                     const aliases so domain files keep relative ..XxxModule refs.
-Projectured (program/)        umbrella: re-exports Kernel + Domain as one flat API.
-                              `using Projectured` reproduces the full public surface.
+ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
+        ▲                      9 layers: cell → document → reference → operation →
+        │                      device → backend → projection → agent → editor
+        │                      Zero runtime deps, zero concrete documents.
+ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
+        ▲                      3 layers: document (Collection, Primitive) +
+        │                      projection (Sorting/Filtering/Searching/Copying/
+        │                      ReaderDefaults) + serialization (BinarySerialization).
+        │                      Deps: kernel + Serialization stdlib.
+ProjecturedVisual (visual/)    the rendering substrate
+        ▲                      8 slices: style → screen → graphics → layout →
+        │                      text → widget → syntax → backend (Console, Pdf).
+        │                      Deps: kernel + base.
+ProjecturedDomain (domain/)    concrete source domains, feature-sliced
+        ▲                      22 slice folders (json/xml/yaml/julia/math/
+        │                      markdown/book/sql/dbcatalog/database/tabular/
+        │                      graph/filesystem/formula/gesturemap/versioning/
+        │                      clipboard/tooltip/inspector/dragging + workbench/
+        │                      conversation apps + core/) plus a shrinking
+        │                      transitional tier (projection/serializer/ pending
+        │                      D1/D4/D5 seam refactors).
+        │                      Deps: kernel + base + visual + Base64 + Markdown.
+Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
+                               as a single flat public API.
 
 Opt-in packages (depend on the above; loaded only when you `using` them):
   Sdl  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, make_backend(:sdl), write_image, record_video
   Web  (web/)   → Domain  HTTP/JSON3                          WebBackend,  make_backend(:web); assets in web/assets/
+  Video(video/) → Domain  FFMPEG                              record_video method on the kernel seam
   Odbc (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
   Mcp  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
   Llm  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
 ```
 
-The optional backends plug into **factory seams** owned by the kernel/domain
-(`make_backend(kind)`, `make_database_adapter(kind)`, `make_agent_server(kind, …)`):
-generic code (e.g. `run_example`) requests a backend by symbol; the opt-in package
-registers the method on load and errors helpfully if it isn't loaded. So the SQL and
-DbCatalog *documents and projections* stay in `ProjecturedDomain` (they need nothing
-external) — only **live ODBC querying** lives in `Odbc`. Likewise the
-agent *registry and tools* are kernel-resident; only the MCP transport and the
+The four-level division rule: **package** = external dependency or consumer
+boundary; **layer** (folder inside a package) = direction-of-dependency
+boundary; **module** = namespace/import surface; **file** = readability
+boundary only. Fragments (0-module files that share their aggregator's
+namespace) let a module split across files with zero API cost. See
+[architecture-rules.md](architecture-rules.md) for the durable division
+rules.
+
+Each source package also has [`doc/`](../package/kernel/doc/) with per-layer
+guides ([cell](../package/kernel/doc/cell.md),
+[document](../package/kernel/doc/document.md),
+[reference](../package/kernel/doc/reference.md),
+[operation](../package/kernel/doc/operation.md),
+[device](../package/kernel/doc/device.md),
+[backend](../package/kernel/doc/backend.md),
+[agent](../package/kernel/doc/agent.md),
+[editor](../package/kernel/doc/editor.md)).
+
+The optional backends plug into **factory seams** owned by the kernel
+(`make_backend(kind)`, `make_agent_server(kind, …)`) or the domain
+(`make_database_adapter(kind)`): generic code requests a backend by symbol;
+the opt-in package registers the method on load and errors helpfully if it
+isn't loaded. So the SQL and DbCatalog *documents and projections* stay in
+`ProjecturedDomain` (they need nothing external) — only **live ODBC
+querying** lives in `Odbc`. Likewise the agent *registry and tools* are
+kernel-resident (in the agent layer); only the MCP transport and the
 Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
-> The per-file paths cited in the module inventory below (`backend/Sdl.jl`,
-> `program/web/`, …) reflect the pre-split single-package tree; the code now lives in
-> the packages above (e.g. `backend/Sdl.jl` → `sdl/src/Sdl.jl`,
-> `program/web/` → `web/assets/`, `document/*` → `kernel/src/` or `domain/src/`).
+> Per-file paths cited in the module inventory below sometimes reflect the
+> pre-restructure single-package tree; the code now lives across the four
+> packages per the mapping above. A quick reference:
+> — Collection.jl → base/src/document/Collection.jl
+> — Primitive.jl → base/src/document/Primitive.jl
+> — ScreenDocument.jl → visual/src/screen/ScreenDocument.jl
+> — Widget.jl / Graphics.jl / Layout.jl / Text.jl / Syntax.jl / Color.jl / Font.jl → visual/src/<slice>/
+> — Json.jl / Xml.jl / Sql.jl / Julia.jl / … → domain/src/<slice>/
 
 ---
 
