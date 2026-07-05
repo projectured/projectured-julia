@@ -21,6 +21,10 @@ engine     generic    rendering    feature slices
 
 ## Driving principles — package vs layer vs module vs file (decided)
 
+> Documented durably in [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
+> (the division rules, the per-package membership tests, the placement invariant, the
+> seam pattern, and enforcement). This section keeps the review-time rationale.
+
 Each level of the hierarchy answers to a different criterion. The question "should X
 be a package?" is really four questions, one per level:
 
@@ -107,12 +111,12 @@ Widget live in visual, above base) — their least legal home is **visual**.
 
 ## Target packaging
 
-### ProjecturedVisual (new, `package/visual`) — 7 feature slices, depends on kernel + base
+### ProjecturedVisual (new, `package/visual`) — 8 feature slices, depends on kernel + base
 
 The visual package is feature-sliced like domain — one folder per visual domain, each
 owning its document + its projections — not a folder-by-kind `render/` grab-bag.
-Slice order (each imports only slices to its left): style → graphics → layout →
-text → widget → syntax → backend. Machine-verified with one refactor (V1 below):
+Slice order (each imports only slices to its left): style → screen → graphics →
+layout → text → widget → syntax → backend. Machine-verified with one refactor (V1 below):
 LayoutToGraphics imports three Widget focus-path helpers (one private —
 `_next_focusable_in`); those helpers move down into `layout/` as open generics, after
 which layout/ is Widget-free and the ordering above holds with zero violations.
@@ -120,15 +124,21 @@ which layout/ is Widget-free and the ordering above holds with zero violations.
 | # | Slice | Contents | Story |
 | --- | --- | --- | --- |
 | 1 | `style/` | Color, Font, Geometry, Image, StyleText, StyleStroke | pure value types every visual thing shares |
-| 2 | `graphics/` | Graphics + GraphicsCaching | the retained drawing target everything bottoms out in |
-| 3 | `layout/` | Layout + ConstraintSolver + LayoutToGraphics, CollectionToLayout (+ the V1 focus-path generics) | spatial arrangement |
-| 4 | `text/` | Text + TextToGraphics, TextToString, the Text→Text decorators (LineNumbering, WordWrapping, TextFiltering, TextFirstLine, TextHighlighting, SelectionInverting) + PrimitiveToText, ReferenceToText | styled text and its renderings |
-| 5 | `widget/` | Widget + WidgetToGraphics, TextToWidget, ObjectToWidget + the decorators WidgetHoverTracking, ProjectionConfiguring, WidgetPopupResolver (adds its focus-path methods to the layout/ generics) | the UI widget system |
-| 6 | `syntax/` | Syntax + SyntaxToText, SyntaxToWidget + the bridges ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax + InsertionToSyntax (generic rendering of base's insertion document; slices add preview methods — D1) + NaturalProjection (assembles the default full pipeline from base's natural-rendering registry — D4) | the tree-presentation domain every source domain targets |
-| 7 | `backend/` | Console.jl (renders text), Pdf.jl (renders graphics) | the dependency-free concrete backends |
+| 2 | `screen/` | ScreenDocument (windows + window events/ops, **arrives from base/kernel** — screen and window things are visual) + WindowManaging + ScreenToScreen | the window model: what contains everything visible |
+| 3 | `graphics/` | Graphics + GraphicsCaching | the retained drawing target everything bottoms out in |
+| 4 | `layout/` | Layout + ConstraintSolver + LayoutToGraphics, CollectionToLayout (+ the V1 focus-path generics) | spatial arrangement |
+| 5 | `text/` | Text + TextToGraphics, TextToString, the Text→Text decorators (LineNumbering, WordWrapping, TextFiltering, TextFirstLine, TextHighlighting, SelectionInverting) + PrimitiveToText, ReferenceToText | styled text and its renderings |
+| 6 | `widget/` | Widget + WidgetToGraphics, TextToWidget, ObjectToWidget + the decorators WidgetHoverTracking, ProjectionConfiguring, WidgetPopupResolver (adds its focus-path methods to the layout/ generics) | the UI widget system |
+| 7 | `syntax/` | Syntax + SyntaxToText, SyntaxToWidget + the bridges ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax + InsertionToSyntax (generic rendering of base's insertion document; slices add preview methods — D1) + NaturalProjection (assembles the default full pipeline from base's natural-rendering registry — D4) | the tree-presentation domain every source domain targets |
+| 8 | `backend/` | Console.jl (renders text), Pdf.jl (renders graphics) | the dependency-free concrete backends |
 
-40 files total, all moved from `domain`. `sdl`/`web`/`video` re-point their domain
-imports to `visual`; `odbc` re-points its SyntaxToText/TextToString imports.
+43 files total: 41 from `domain` + ScreenDocument and WindowManaging from the kernel
+plan's base (their base placement is superseded — the Screen *device* and display
+seam stay kernel, being the interface the editor writes to; the window *document
+model* is visual). `sdl`/`web`/`video` re-point their domain imports to `visual`;
+`odbc` re-points its SyntaxToText/TextToString imports. Dependency note: `screen/`
+needs nothing visual itself, and `widget/`'s popup resolver imports it — hence its
+low slot.
 
 ### Changes to ProjecturedBase (beyond the kernel plan)
 
@@ -138,7 +148,7 @@ generic machinery whose per-domain methods live above):
 | Layer | Addition | From |
 | --- | --- | --- |
 | `document/` | `Insertion.jl` — the document-insertion document (`DocumentNothing`, insertion state; ex `domain/document/Document.jl`, kernel-only imports, verified) + the D1 open generics slices add methods to | domain core |
-| `projection/` | ScreenToScreen, Generic, HigherOrder (compound combinator aggregates) | domain |
+| `projection/` | Generic, HigherOrder (compound combinator aggregates) | domain |
 | `serialization/` (new layer 3) | `BinarySerialization.jl` (generic binary snapshot; kernel-only imports, moves as-is) · `NaturalFormat.jl` (textual round-trip **framework**: `export_document`/`import_document` generics + format registry — the per-format chains register from slices, D4) · `DocumentFile.jl` (extension-dispatched load/save entry; the extension→insertion-type table becomes slice registrations, D4) + the natural-rendering registry NaturalProjection assembles from | domain serialization |
 
 Base layer order becomes document → projection → serialization; its guard `LAYERS`
@@ -357,14 +367,14 @@ doc/
   core.md · apps.md
 ```
 
-Moved to `package/base` (7 files): `ScreenToScreen.jl`, `compound/Generic.jl`,
-`compound/HigherOrder.jl` (combinator aggregates, kernel-only imports) +
-`document/Document.jl` → `base/document/Insertion.jl` (D1) +
+Moved to `package/base` (6 files): `compound/Generic.jl`, `compound/HigherOrder.jl`
+(combinator aggregates, kernel-only imports) + `document/Document.jl` →
+`base/document/Insertion.jl` (D1) +
 `serializer/{BinarySerialization,NaturalFormat,DocumentFile}.jl` →
 `base/serialization/` (D4). Moved to `package/kernel` (1 file):
 `projection/ProjectionTemplate.jl` → the kernel projection layer (D5). Final split of
-domain's 115 files: **40 → visual, 7 → base, 1 → kernel, 67 stay** (56 in 21 slices +
-11 in apps).
+domain's 115 files: **41 → visual, 6 → base, 1 → kernel, 67 stay** (56 in 21 slices +
+11 in apps); visual additionally receives ScreenDocument + WindowManaging from base.
 
 ## The refactors
 
@@ -420,7 +430,7 @@ domain's 115 files: **40 → visual, 7 → base, 1 → kernel, 67 stay** (56 in 
 ## Guards, tests, docs (same discipline as the kernel plan)
 
 - **Guards**: both packages get the kernel's fragment- and layer-aware
-  `test/runtests.jl` guard. visual `LAYERS = ["style","graphics","layout","text","widget","syntax","backend"]`. domain
+  `test/runtests.jl` guard. visual `LAYERS = ["style","screen","graphics","layout","text","widget","syntax","backend"]`. domain
   layers = `[<slices...>, "workbench", "conversation"]` with the addition the kernel
   guard doesn't need: **within the slice tier, slice→slice edges are allowed but must
   be acyclic** (the guard computes the slice DAG and topo-sorts the include list
@@ -464,7 +474,8 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
 - [ ] **Q0 — guards + orphan decision.** Stand up the visual/domain guard skeletons
       (LAYERS lists, slice-DAG check); decide D3 per orphan file (wire or delete);
       record D2 finding.
-- [ ] **Q1 — visual package.** Create `package/visual` (Project.toml: kernel + base
+- [ ] **Q1 — visual package.** Create `package/visual`; move ScreenDocument +
+      WindowManaging from base into `visual/screen/` (with their tests) (Project.toml: kernel + base
       deps; alias preamble); `git mv` the 38 files into `style/`/`render/`/`backend/`;
       extend umbrella loop; add domain's visual aliases; re-point sdl/web/video/odbc;
       migrate the spine tests; `visual/doc/`. Biggest phase — land as 3 sub-commits
