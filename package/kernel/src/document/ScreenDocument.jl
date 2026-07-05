@@ -31,6 +31,11 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationModule: Operation, evaluate_operation
 
+# Kernel plan P5 (R5): EventEnvelope moved to GestureModule and is re-exported
+# from here for now to keep existing importers resolving. It leaves this export
+# list entirely at P10 (or earlier if the remaining ScreenDocument importers
+# get retargeted).
+import ..GestureModule: EventEnvelope
 export EventEnvelope, WindowClose, WindowResize, WindowDefocus, OpenWindowOperation,
        OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
 
@@ -120,23 +125,8 @@ function WindowDocument(; id::Symbol = :main,
                    Cell(nothing))
 end
 
-# ── Event envelope ────────────────────────────────────────────────────────
-
-"""
-    EventEnvelope(window_id::Symbol, event)
-
-Wraps an input event with the identity of the window it originated
-from. `window_id` is the matching `WindowDocument.id`, or `:none` for
-application-level events with no window (e.g. `SDL_QUIT`).
-
-The backend produces envelopes from raw SDL events; `CopyingProjection`'s
-reader uses `window_id` to dispatch the inner `event` into the matching
-`WindowDocument.content`'s sub-iomap.
-"""
-struct EventEnvelope
-    window_id::Symbol
-    event::Any
-end
+# EventEnvelope moved to GestureModule in kernel plan P5 (R5); still exported
+# from this module via the import at the top.
 
 # ── WindowClose ────────────────────────────────────────────────────
 

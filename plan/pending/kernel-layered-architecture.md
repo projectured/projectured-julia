@@ -764,11 +764,25 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       test-local ToyPathOp registers its own reroot method) and TraversalTest (a
       test-local ToyList registers its own child_reference_steps method) — 18
       operation tests pass. Wrote doc/operation.md with R1/R2 seam rationale.)*
-- [ ] **P5 — device**: DeviceApi rename; **R4** GestureModule merge; **R5**
+- [x] **P5 — device**: DeviceApi rename; **R4** GestureModule merge; **R5**
       EventEnvelope rehome (retarget 5 kernel sites + Console); GestureRecognizer +
       ScreenDevice moves; `read_gesture` rehome; GestureModule temporarily keeps
       `import ..ProjectionApiModule: Projection` (api/ guard-exempt until P8); update
       sdl/web refs; tests; `doc/device.md`.
+      *(Done. DeviceApiModule → DeviceModule in device/Device.jl. R4: merged
+      EventCase.jl + GestureBinding.jl into device/GestureModule.jl aggregator with
+      fragments (private edge dissolved). R5: EventEnvelope moved from
+      ScreenDocumentModule into GestureModule; ScreenDocumentModule re-exports it
+      via `import ..GestureModule: EventEnvelope` during transition so existing
+      importers still resolve. Retargeted 5 kernel EventEnvelope importers +
+      2 additional generic projections (Chaining/TypeDispatching/Recursive/Nesting/
+      Focusing) that imported GestureBindingModule. Moved GestureRecognizer.jl to
+      device/. ProjecturedDomain aliases: DeviceApiModule / EventCaseModule /
+      GestureBindingModule all point at their new homes. Generated `@gestures` code
+      that emitted `GestureBindingModule.get_document_gesture_bindings_own` now emits
+      `GestureModule.…`. LAYERS grew to `["cell","document","reference","operation",
+      "device"]`; 7 device tests pass covering EventEnvelope on the device layer,
+      @event_case, and GesturePattern. doc/device.md documents R4/R5/rename.)*
 - [ ] **P6 — backend**: `BackendApiModule → BackendModule` rename + move; Display move;
       new HeadlessBackend + tests; retarget Console/Pdf/sdl/web; `doc/backend.md`.
 - [ ] **P7 — base package + base/document**: create `package/base` (Project.toml, alias

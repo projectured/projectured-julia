@@ -33,27 +33,12 @@ defaults of Stage 2). The JSON authoring set is ported onto it in
 `document/Json.jl`; the contextual collector combinator methods live with the
 projection combinators they mirror.
 """
-module GestureBindingModule
-
-import ..KeyboardModule: KeyDown, KeyUp, KeyPress
-import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..ModifiersModule: Modifiers
-import ..DocumentModule: Document, read_gesture
-import ..ProjectionApiModule: Projection
-# Reuse the `@event_case` pattern parser for the LHS of `@gestures` rules.
-# These EventCase internals are deliberately shared (not exported) — see the
-# "deliberately-shared parser internals" note in device/EventCase.jl; the seam
-# goes away when Phase 2 merges EventCase + GestureBinding into one module.
-import ..EventCaseModule: _parse_rule, _EVENT_TYPES, EvPat, EvWild, EvBind, EvLit, EvInterp
-
-export GesturePattern, KeyPressPattern, KeyDownPattern, KeyUpPattern,
-       MouseDownPattern, MouseUpPattern, MousePressPattern, MouseMovePattern,
-       MouseScrollPattern,
-       GestureBinding, matches, describe,
-       get_document_gesture_bindings, get_document_gesture_bindings_own, get_instance_gesture_bindings,
-       read_document_gesture, read_node_gesture,
-       get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings, get_applicable_gesture_bindings,
-       is_help_gesture, var"@gestures", var"@gesture_set"
+# Fragment of `GestureModule` — reified gesture→operation bindings, the
+# `@gestures` DSL, and the `read_gesture` catch-all interpreter. Merged into
+# GestureModule alongside `EventCase.jl` in kernel plan P5 (R4): what used
+# to be a cross-module private edge (this file importing `_parse_rule` /
+# `EvPat` / … from `EventCaseModule`) is now a same-namespace reference,
+# since both files are fragments of the aggregator.
 
 # ─────────────────────────────────────────────────────────────────────────
 # Gesture patterns
@@ -582,7 +567,7 @@ macro gestures(doctype, block)
     # Emit a `get_document_gesture_bindings_own(::Type{DocType})` method holding the reified
     # table (built fresh per call; cached by `get_document_gesture_bindings`). A method, not a
     # mutable registry, so the bindings survive precompilation. The function name
-    # is the module-qualified `GestureBindingModule.get_document_gesture_bindings_own` so the
+    # is the module-qualified `GestureModule.get_document_gesture_bindings_own` so the
     # method *extends* the kernel generic regardless of how the caller imported it
     # (a bare `function get_document_gesture_bindings_own` would be hygienically gensym'd into
     # a fresh local function instead of extending ours).
@@ -618,5 +603,3 @@ end
 # Best-effort domain tag from the doctype expression (the bare type name).
 _typename_string(doctype) = doctype isa Symbol ? string(doctype) :
                             doctype isa Expr ? string(doctype) : "document"
-
-end # module

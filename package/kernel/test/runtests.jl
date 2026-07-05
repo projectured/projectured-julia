@@ -34,7 +34,7 @@ const DOT        = Symbol(".")
 
 # Declared layers, in order of increasing index. Non-LAYERS folders are exempt
 # from the layer-index check during transition; the final phase forbids them.
-const LAYERS = String["cell", "document", "reference", "operation"]
+const LAYERS = String["cell", "document", "reference", "operation", "device"]
 
 # Transitional file-level exemptions: concrete engine documents currently live
 # under `document/` but leave the kernel entirely at P7 (base package). Until

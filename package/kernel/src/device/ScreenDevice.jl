@@ -9,7 +9,7 @@ based on the projection-output `ScreenDocument` (see
 """
 module ScreenDeviceModule
 
-import ..DeviceApiModule: Device
+import ..DeviceModule: Device
 
 export Screen, WindowQuit
 

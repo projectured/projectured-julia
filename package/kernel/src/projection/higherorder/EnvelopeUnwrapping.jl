@@ -24,7 +24,7 @@ module EnvelopeUnwrappingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..ScreenDocumentModule: EventEnvelope
+import ..GestureModule: EventEnvelope
 export EnvelopeUnwrappingProjection, EnvelopeUnwrappingProjectionIoMap
 
 struct EnvelopeUnwrappingProjectionIoMap <: IoMap

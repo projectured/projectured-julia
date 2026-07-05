@@ -23,15 +23,21 @@ const BackendApiModule = ProjecturedKernel.BackendApiModule
 const IntentModule = ProjecturedKernel.IntentModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
-const DeviceApiModule = ProjecturedKernel.DeviceApiModule
+# Kernel plan P5: DeviceApiModule renamed to DeviceModule; the old name is
+# still available here for domain/opt-in files.
+const DeviceApiModule = ProjecturedKernel.DeviceModule
+const DeviceModule = ProjecturedKernel.DeviceModule
 const DisplayModule = ProjecturedKernel.DisplayModule
 # Kernel plan P2 merged DocumentApiModule into DocumentModule; the old name
 # stays here as an alias so existing domain/opt-in files keep resolving.
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const TimeModule = ProjecturedKernel.TimeModule
-const EventCaseModule = ProjecturedKernel.EventCaseModule
-const GestureBindingModule = ProjecturedKernel.GestureBindingModule
+# Kernel plan P5 (R4): EventCaseModule + GestureBindingModule merged into
+# GestureModule; the old names live on as aliases.
+const EventCaseModule = ProjecturedKernel.GestureModule
+const GestureBindingModule = ProjecturedKernel.GestureModule
+const GestureModule = ProjecturedKernel.GestureModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule

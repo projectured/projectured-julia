@@ -12,13 +12,13 @@ import ..EditorModule: Editor, read!, evaluate!, print!, perf!
 import ..PerformanceCounterModule: reset_performance_counters!, @performance_time
 import ..ProjectionApiModule: read_intent
 import ..IntentModule: Intent
-import ..ScreenDocumentModule: EventEnvelope
+import ..GestureModule: EventEnvelope
 import ..OperationModule: Operation
 import ..OperationModule: QuitEditorException
 import ..OperationModule: reroot_operation
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
 import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
-import ..DeviceApiModule: Device
+import ..DeviceModule: Device
 import ..ScreenDeviceModule: Screen
 import ..KeyboardModule: Keyboard
 import ..MouseModule: Mouse

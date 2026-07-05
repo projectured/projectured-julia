@@ -58,13 +58,11 @@ Per-event positional field order (modifiers always via `;`, never positional):
 Rules are tried top to bottom; the first match wins. If no rule matches the
 expression evaluates to `nothing`.
 """
-module EventCaseModule
-
-import ..KeyboardModule
-import ..MouseModule
-import ..ModifiersModule
-
-export var"@event_case"
+# Fragment of `GestureModule` — the @event_case dispatch-table macro and
+# its parser. Merged with GestureBinding.jl into one module in kernel plan
+# P5 (R4): GestureBinding.jl reuses this fragment's parser internals
+# (`_parse_rule`, `EvPat`, …), which used to be a documented cross-module
+# private edge; both files being fragments of GestureModule removes it.
 
 # ------------------------------------------------------------
 # NOTE — deliberately-shared parser internals
@@ -281,5 +279,3 @@ macro event_case(scrutinee, block)
         end
     end
 end
-
-end # module

@@ -40,7 +40,6 @@ include("cell/Time.jl")
 # separate api/ tier will disappear at P10. DocumentApi merged into
 # DocumentModule at P2.
 include("api/BackendApi.jl")
-include("api/DeviceApi.jl")
 include("api/ProjectionApi.jl")
 include("api/IoMapApi.jl")
 include("api/AgentApi.jl")
@@ -80,25 +79,27 @@ include("operation/OperationModule.jl")
 include("document/Collection.jl")
 include("document/Primitive.jl")
 
-# ── Input devices & events ─────────────────────────────────────────────────
-# Keyboard/Mouse need Modifiers + the Device stub; EventCase (the `@event_case`
-# pattern parser) needs the event types. These must precede GestureBinding.
-# Display (display-size query + provider glue) is a dependency-free leaf.
+# ── Device layer (layer 5 — input devices, events, gestures) ───────────────
+# The DeviceModule interface (renamed from DeviceApiModule at P5), the
+# modifier/keyboard/mouse event types, and the merged GestureModule (R4: the
+# @event_case macro + parser and the reified GestureBinding/@gestures DSL,
+# formerly two separate modules whose only tie was a documented private edge).
+# GestureModule also owns the rehomed EventEnvelope (R5) — moved out of
+# ScreenDocumentModule so the editor and gesture layers no longer depend on a
+# concrete document type. Display is a dependency-free leaf.
+include("device/Device.jl")
 include("device/Display.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
-include("device/EventCase.jl")
+include("device/GestureModule.jl")
 
 # ── Foundational documents (projection output vocabulary) ──────────────────
-# ScreenDocument needs Collection; it is consumed by the window/envelope
-# higher-order projections, GestureRecognizer, and the editor loop.
+# ScreenDocument needs Collection and GestureModule (for EventEnvelope; the
+# re-export is kept until P10 so existing importers still resolve). It is
+# consumed by the window/envelope higher-order projections, GestureRecognizer,
+# and the editor loop.
 include("document/ScreenDocument.jl")
-
-# ── Gestures ───────────────────────────────────────────────────────────────
-# GestureBinding reuses EventCase's parser and needs the devices + the
-# Document/Projection api stubs; several projections attach gestures through it.
-include("common/GestureBinding.jl")
 
 # ── Projection infrastructure & algebra ────────────────────────────────────
 # PrinterContext (Reactive + Reference only) is projection-layer infrastructure
@@ -140,12 +141,12 @@ include("editor/ToolRegistry.jl")
 include("editor/Mcp.jl")
 
 # ── Editor ─────────────────────────────────────────────────────────────────
-# The read-eval-print loop and its immediate dependencies: the Screen device
-# and the gesture recognizer (which needs ScreenDocument). The animation clock
-# (TimeModule) is now included at the top of the file beside CellModule (P1).
-# Editor pulls in nearly every layer above.
+# The read-eval-print loop. GestureRecognizer was moved into device/ at P5
+# (it operates on device event types and the rehomed EventEnvelope; no
+# document coupling). ScreenDevice loads late because it references WindowQuit
+# from ScreenDocumentModule. TimeModule now lives in the cell layer (P1).
 include("device/ScreenDevice.jl")
-include("editor/GestureRecognizer.jl")
+include("device/GestureRecognizer.jl")
 include("editor/Editor.jl")
 # Scripted live playback builds on the editor loop, so it loads last.
 include("editor/Playback.jl")

@@ -11,7 +11,7 @@ module ChainingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
 import ..IntentModule: Intent
-import ..GestureBindingModule: collect_gesture_bindings, GestureBinding
+import ..GestureModule: collect_gesture_bindings, GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell, AbstractCell

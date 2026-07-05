@@ -49,7 +49,9 @@ module GestureRecognizerModule
 
 import ..MouseModule: MouseDown, MouseUp, MousePress
 import ..KeyboardModule: KeyDown, KeyChord
-import ..ScreenDocumentModule: EventEnvelope
+# Kernel plan P5 (R5): EventEnvelope is now on the device layer beside its
+# consumers, not in ScreenDocumentModule.
+import ..GestureModule: EventEnvelope
 
 export GestureRecognizer, recognize_gesture!, pop_gesture!
 
