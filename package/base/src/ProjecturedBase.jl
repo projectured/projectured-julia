@@ -73,4 +73,11 @@ include("projection/Copying.jl")
 include("projection/WindowManaging.jl")
 include("projection/ReaderDefaults.jl")
 
+# ── Layer 3 — serialization (Q2/D4 — domain-independent persistence) ─────
+# BinarySerialization is exact/lossless persistence via Julia's Serialization
+# stdlib, with a single customization: a Cell serializes as just its value,
+# pruning the reactive graph at every cell boundary. Kernel-only imports —
+# moved as-is from domain/serializer/ at Q2 (D4).
+include("serialization/BinarySerialization.jl")
+
 end # module ProjecturedBase

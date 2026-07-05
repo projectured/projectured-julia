@@ -20,7 +20,7 @@ const BASE_SRC = normpath(joinpath(@__DIR__, "..", "src"))
 const TOP_FILE = joinpath(BASE_SRC, "ProjecturedBase.jl")
 const DOT      = Symbol(".")
 
-const LAYERS = String["document", "projection"]
+const LAYERS = String["document", "projection", "serialization"]
 const LAYER_EXEMPT_FILES = Set{String}()
 
 # ── AST helpers (mirrors kernel/test/runtests.jl) ──────────────────────────

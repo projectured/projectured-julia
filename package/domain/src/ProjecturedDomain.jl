@@ -92,6 +92,8 @@ const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
 const WindowManagingProjectionModule = ProjecturedBase.WindowManagingProjectionModule
 const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
+# Serialization slice (Q2/D4)
+const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 
@@ -238,7 +240,9 @@ include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")
 include("projection/primitive/CollectionToLayout.jl")
 include("projection/primitive/NaturalProjection.jl")
-include("serializer/BinarySerialization.jl")
+# Q2 (D4): BinarySerialization moved to package/base (base/serialization/).
+# NaturalFormat + DocumentFile remain here until their framework/registration
+# split lands (D4 refactor); they keep their current include position.
 include("serializer/NaturalFormat.jl")
 include("serializer/DocumentFile.jl")
 include("projection/compound/HigherOrder.jl")

@@ -12,6 +12,7 @@ authors = []
 
 [deps]
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [sources]
 ProjecturedKernel = {path = "../kernel"}

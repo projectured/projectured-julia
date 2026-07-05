@@ -23,8 +23,8 @@ layout, so it is a *same-version* persistence format, not an interchange format.
 module BinarySerializationModule
 
 import ..CellModule: Cell, ReactiveCell
-import ..DocumentApiModule: Document
-import ..OperationApiModule: Operation, evaluate_operation
+import ..DocumentModule: Document
+import ..OperationModule: Operation, evaluate_operation
 using Serialization
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
