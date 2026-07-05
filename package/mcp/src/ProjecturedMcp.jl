@@ -22,7 +22,7 @@ using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
 import ProjecturedKernel.ToolRegistryModule: Tool, Resource, list_tools, list_resources
 import ProjecturedKernel.McpModule: register_default_tools_and_resources!
-import ProjecturedKernel.AgentApiModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
 

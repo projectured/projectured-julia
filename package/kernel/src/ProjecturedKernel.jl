@@ -41,7 +41,6 @@ include("cell/Time.jl")
 # DocumentModule at P2.
 include("api/ProjectionApi.jl")
 include("api/IoMapApi.jl")
-include("api/AgentApi.jl")
 
 # ── Document layer (layer 2 — the contract) ────────────────────────────────
 # The Document abstract type, the selection generics, the shared @document
@@ -128,14 +127,17 @@ include("projection/generic/Focusing.jl")
 # it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
 include("common/Projection.jl")
 
-# ── Agent surface ──────────────────────────────────────────────────────────
-# Dependency-free agent seams. Llm and ToolRegistry have no kernel imports; Mcp
-# needs only ToolRegistry. The real LLM/MCP transports are the opt-in
-# `ProjecturedLlm` (package/llm) and `ProjecturedMcp` (package/mcp) packages;
-# these files hold only the dependency-free client seam and editor tools.
-include("editor/Llm.jl")
-include("editor/ToolRegistry.jl")
-include("editor/Mcp.jl")
+# ── Agent layer (layer 8 — the AI control surface, side-stack) ─────────────
+# AgentModule (renamed from AgentApiModule at P9) declares the make_agent_server
+# / start_agent_server! / stop_agent_server! seam the editor loop reaches
+# through. Llm, ToolRegistry, Mcp are the dependency-free client seams the
+# real transports (opt-in ProjecturedLlm / ProjecturedMcp packages)
+# implement against. The whole agent stack lives in agent/ now (moved from
+# editor/ at P9), matching its position in the DAG.
+include("agent/Agent.jl")
+include("agent/Llm.jl")
+include("agent/ToolRegistry.jl")
+include("agent/Mcp.jl")
 
 # ── Editor ─────────────────────────────────────────────────────────────────
 # The read-eval-print loop. GestureRecognizer was moved into device/ at P5

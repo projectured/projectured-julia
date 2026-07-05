@@ -52,6 +52,10 @@ const KeyboardModule = ProjecturedKernel.KeyboardModule
 const PlaybackModule = ProjecturedKernel.PlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule
 const McpModule = ProjecturedKernel.McpModule
+# Kernel plan P9 renamed AgentApiModule to AgentModule; the old name is
+# still available here for backward compatibility.
+const AgentApiModule = ProjecturedKernel.AgentModule
+const AgentModule = ProjecturedKernel.AgentModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
 const MouseModule = ProjecturedKernel.MouseModule
 const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule

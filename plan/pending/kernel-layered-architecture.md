@@ -825,8 +825,16 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       `_strip_prefix` — it collides with Focusing's); ~24 alias updates split between
       the two new homes; base `LAYERS=["document","projection"]`. Verify with
       `test_reader`/`test_typein` + Copying/Focusing tests from ProjecturedTest.
-- [ ] **P9 — agent**: moves + `AgentModule` rename; mcp package update; new agent
+- [x] **P9 — agent**: moves + `AgentModule` rename; mcp package update; new agent
       tests; `doc/agent.md`.
+      *(Done. `git mv api/AgentApi.jl → agent/Agent.jl` (module renamed to
+      AgentModule); moved editor/Llm.jl, editor/Mcp.jl, editor/ToolRegistry.jl
+      to agent/. Editor.jl retargeted `..AgentApiModule → ..AgentModule`;
+      package/mcp updated: `ProjecturedKernel.AgentApiModule →
+      ProjecturedKernel.AgentModule`. ProjecturedDomain aliases AgentApiModule
+      → AgentModule. LAYERS grew to `["cell","document","reference","operation",
+      "device","backend","agent"]`. 2 agent tests covering unregistered kind
+      error path + test-local Val method registration; doc/agent.md added.)*
 - [ ] **P10 — editor + closeout**: Editor/Playback import retargets; delete empty
       `api/`/`common/`/old folders; LAYERS complete + exemptions removed in both
       guards; HeadlessBackend loop test; `doc/editor.md`; rewrite kernel/base/repo

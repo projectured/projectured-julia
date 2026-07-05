@@ -25,7 +25,7 @@ import ..OperationModule: Operation, evaluate_operation, invalidate_projection!
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
 import ..GestureRecognizerModule: GestureRecognizer, pop_gesture!
-import ..AgentApiModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 export Editor, run_editor!
 
