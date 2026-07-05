@@ -1,32 +1,9 @@
 """
     JuliaModule
 
-The Julia document domain provides reactive representations of Julia language constructs.
-Every Julia node is a Document with all mutable fields wrapped in reactive Cells,
-enabling automatic dependency tracking and incremental updates.
-
-The domain includes:
-- **Leaf types**: `JuliaIdentifier`, `JuliaInteger`, `JuliaFloat`, `JuliaString`, `JuliaBool`,
-  `JuliaNothing`, `JuliaSymbol`, `JuliaChar`, `JuliaBreak`, `JuliaContinue`
-- **Expression types**: `JuliaBinaryOp`, `JuliaUnaryOp`, `JuliaCall`, `JuliaTernary`,
-  `JuliaIndex`, `JuliaFieldAccess`, `JuliaTuple`, `JuliaArray`, `JuliaRange`,
-  `JuliaTypeAnnotation`
-- **Statement types**: `JuliaAssignment`, `JuliaFor`, `JuliaForIterator`, `JuliaWhile`,
-  `JuliaReturn`, `JuliaTry`, `JuliaBegin`, `JuliaIf`, `JuliaFunction`, `JuliaBlock`
-
-Example: the factorial function is represented as:
-```
-JuliaFunction(
-  JuliaIdentifier("factorial"),
-  [JuliaIdentifier("n")],
-  JuliaBlock([
-    JuliaIf(
-      JuliaBinaryOp(:(==), JuliaIdentifier("n"), JuliaInteger(0)),
-      JuliaBlock([JuliaInteger(1)]),
-      JuliaBlock([JuliaBinaryOp(:*, JuliaIdentifier("n"),
-        JuliaCall(JuliaIdentifier("factorial"), [
-          JuliaBinaryOp(:-, JuliaIdentifier("n"), JuliaInteger(1))]))]))]))
-```
+The Julia document domain — a Julia AST as reactive `Document`s. Leaves
+(identifiers, literals), expressions (binary/call/index/…), and statements
+(assign/for/if/function/block).
 """
 module JuliaModule
 

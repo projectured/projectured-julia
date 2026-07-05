@@ -23,11 +23,9 @@ abstract type WorkspaceDocument <: Document end
 @document struct WorkspaceFolder <: WorkspaceDocument
     name::String
     pathname::String
-    selection::Reference
+    selection::Reference = nothing
 end
 
-WorkspaceFolder(name::AbstractString, pathname::AbstractString) =
-    WorkspaceFolder(Cell(String(name)), Cell(String(pathname)), Cell(nothing))
 
 # ── Workspace ────────────────────────────────────────────────────────────────
 
@@ -36,7 +34,5 @@ WorkspaceFolder(name::AbstractString, pathname::AbstractString) =
     selection::Reference = nothing
 end
 
-Workspace(folders::Vector{WorkspaceFolder}) =
-    Workspace(CellVector(Cell[Cell(f) for f in folders]), Cell(nothing))
 
 end # module

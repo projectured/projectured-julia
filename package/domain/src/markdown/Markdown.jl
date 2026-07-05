@@ -1,18 +1,8 @@
 """
     MarkdownModule
 
-The Markdown document domain. A Markdown document is a sequence of block-level
-nodes; blocks in turn hold either further blocks or a sequence of inline nodes,
-so the selection mechanism can descend from the whole document down into a
-single character of emphasised text.
-
-The domain includes:
-- **Root**: `MarkdownRoot` (the whole document — a block sequence)
-- **Block nodes**: `MarkdownHeading`, `MarkdownParagraph`, `MarkdownCodeBlock`,
-  `MarkdownThematicBreak`, `MarkdownQuote`, `MarkdownList`, `MarkdownListItem`
-- **Inline nodes**: `MarkdownText`, `MarkdownCode`, `MarkdownEmphasis`,
-  `MarkdownStrong`, `MarkdownLink`, `MarkdownImage`
-- **Insertion cursor**: `MarkdownInsertion`
+The Markdown document domain — blocks (headings, paragraphs, code blocks,
+quotes, lists) and inlines (text, code, emphasis, strong, link, image).
 """
 module MarkdownModule
 

@@ -54,7 +54,7 @@ The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
 @document struct DocumentInsertion <: DocumentBase
     value::String
     font::Any
-    selection::Reference
+    selection::Reference = nothing
 end
 
 DocumentInsertion(value::AbstractString=""; font=nothing, selection=nothing) =
@@ -76,7 +76,7 @@ A document that holds a reference path into another document tree.
 """
 @document struct DocumentReference <: DocumentBase
     path::ReferencePath
-    selection::Reference
+    selection::Reference = nothing
 end
 
 DocumentReference(path::ReferencePath; selection=nothing) =

@@ -1,12 +1,10 @@
 """
     WorkbenchModule
 
-The workbench document domain. Models the IDE-level workbench structure:
-a top-level workbench split into four pages (navigation, editing,
-information, control) that each host a sequence of panels. Panels are
-the navigator, console, descriptor, operator, searcher, evaluator, and
-assistant. WorkbenchEntry represents a single open document with title,
-filename, and content.
+The workbench document domain — the IDE shell. A `WorkbenchWorkbench` holds
+four `WorkbenchPage`s (navigation/editing/information/control), each hosting
+panels (navigator, console, descriptor, operator, searcher, evaluator,
+assistant).
 """
 module WorkbenchModule
 
@@ -69,7 +67,7 @@ the right.
     editing_page::WorkbenchPage
     information_page::WorkbenchPage
     control_page::WorkbenchPage
-    selection::Reference
+    selection::Reference = nothing
 end
 
 function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
@@ -98,8 +96,6 @@ The navigator panel.  `workspace` is a `Workspace` document containing
     selection::Reference = nothing
 end
 
-WorkbenchNavigator(workspace::Workspace) =
-    WorkbenchNavigator(Cell(workspace), Cell(nothing))
 
 title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
 
@@ -138,7 +134,7 @@ constant `"Descriptor"`.
 """
 @document struct WorkbenchDescriptor <: WorkbenchDocument
     content::ReferencePath
-    selection::Reference
+    selection::Reference = nothing
 end
 
 function WorkbenchDescriptor(content::ReferencePath)
@@ -279,7 +275,7 @@ Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
-    selection::Reference
+    selection::Reference = nothing
 end
 
 # A fresh user draft (one active text typein) for the composer input pane.
@@ -323,7 +319,7 @@ path on disk.
     filename::String
     content::Any
     follow_end::Bool
-    selection::Reference
+    selection::Reference = nothing
 end
 
 function WorkbenchEditor(content;

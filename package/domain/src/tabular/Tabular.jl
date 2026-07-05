@@ -1,14 +1,9 @@
 """
     TabularModule
 
-Row-primary 2D document layer. Rows own their cells; columns are derived
-views sharing the same reactive Cell objects. No headers — those belong
-to higher-level domain models built on top of this foundation.
-
-The domain includes:
-- **TabularCell**: a single data slot holding any Document
-- **TabularRow**: one row; owns its cells as a CellVector
-- **TabularGrid**: the 2D grid; owns its rows as a CellVector plus a col_count
+Row-primary 2D document layer. Rows own their cells; column views are derived
+by collecting one raw `Cell` from each row (so mutations propagate both ways).
+No headers — higher-level models add them.
 """
 module TabularModule
 
@@ -22,85 +17,37 @@ export TabularDocument, tabular_cell, tabular_column, insert_row!, delete_row!, 
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 
-"""
-    TabularDocument
-
-Abstract base type for all tabular document types. Every concrete tabular
-type subtypes `TabularDocument` and carries a `selection::Reference` field
-as required by the `Document` contract.
-"""
 abstract type TabularDocument <: Document end
 
-# ── TabularCell ──────────────────────────────────────────────────────────────
-
 """
-    TabularCell
-
-A single data slot in a tabular structure.
-
-# Fields
-
-- `content::Document` — the cell value; any `Document` type is accepted,
-  including a nested `TabularGrid` (nesting is implicit via the type system).
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
+A single data slot; `content` is any `Document` (including a nested `TabularGrid`).
 """
 @document struct TabularCell <: TabularDocument
     content::Document
-    selection::Reference
+    selection::Reference = nothing
 end
 
-TabularCell() = TabularCell(Cell(nothing), Cell(nothing))
-TabularCell(content) = TabularCell(Cell(content), Cell(nothing))
-
-# ── TabularRow ───────────────────────────────────────────────────────────────
-
 """
-    TabularRow
-
-One row in a tabular grid. The row owns its cells as a reactive CellVector,
-making row-level insert, delete, reorder, and lazy population cheap: only
-the grid's outer CellVector changes, not the cell data of other rows.
-
-# Fields
-
-- `cells::CellVector` — the cells in this row; elements are `TabularCell`.
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
+One row; owns its cells as a `CellVector` so per-row insert/delete/reorder
+touch only that row's cell data.
 """
 @document struct TabularRow <: TabularDocument
     cells::CellVector = CellVector()
     selection::Reference = nothing
 end
-TabularRow(cells::CellVector) = TabularRow(cells, Cell(nothing))
 
 # ── TabularGrid ──────────────────────────────────────────────────────────────
 
 """
-    TabularGrid
-
-A 2D grid of cells. Rows are the primary axis — each `TabularRow` owns its
-cells. Column views are derived on demand by collecting one raw `Cell` from
-each row; the shared `Cell` objects mean mutations propagate in both
-directions without copying.
-
-# Fields
-
-- `rows::CellVector` — the rows of the grid; elements are `TabularRow`.
-- `col_count::Int` — expected number of cells per row (cross-dimension size).
-  Used for validation; avoids storing redundant column objects.
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell).
-
-# Constructors
-
-- `TabularGrid()` — empty grid (0 rows, col_count 0)
-- `TabularGrid(rows, col_count)` — grid with given rows and column count
+A 2D grid: rows own their cells (primary axis); column views share `Cell`s
+across rows so mutations propagate both directions. `col_count` bounds a
+row's width.
 """
 @document struct TabularGrid <: TabularDocument
     rows::CellVector = CellVector()
     col_count::Int = 0
     selection::Reference = nothing
 end
-TabularGrid(rows::CellVector, col_count::Integer) =
-    TabularGrid(rows, Cell(col_count), Cell(nothing))
 
 # ── TAB-delimited show ────────────────────────────────────────────────────────
 # A spreadsheet-style rendering (overrides the generic `Document` show): a cell

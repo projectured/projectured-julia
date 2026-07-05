@@ -1,13 +1,8 @@
 """
     YamlModule
 
-The YAML document domain. YAML is a superset of JSON, so the value model mirrors
-it closely: scalar literals, block/flow sequences, and ordered mappings.
-
-The domain includes:
-- **Scalar types**: `YamlNull`, `YamlBool`, `YamlNumber`, `YamlString`
-- **Compound types**: `YamlSequence`, `YamlMapping`, `YamlMappingEntry`
-- **Utility types**: `YamlInsertion` for cursor positioning
+The YAML document domain. YAML is a JSON superset; the value model mirrors it —
+scalars, block/flow sequences, ordered mappings.
 """
 module YamlModule
 

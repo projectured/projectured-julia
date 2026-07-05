@@ -1,11 +1,9 @@
 """
     FileSystemModule
 
-The file-system document domain. A file-system tree is modelled as two
-Document types: FileSystemFile (a leaf) and FileSystemDirectory (a node
-whose children are stored in a reactive Cell so structural changes are
-tracked). Both carry a plain-String pathname (identity) and a reactive
-selection Cell.
+The file-system document domain — `FileSystemFile` (leaf) and
+`FileSystemDirectory` (node holding `elements` in a `CellVector`). Both carry
+their `pathname` as identity.
 """
 module FileSystemModule
 
@@ -29,24 +27,19 @@ end
 
 @document struct FileSystemFile <: FileSystemDocument
     pathname::String
-    selection::Reference
+    selection::Reference = nothing
 end
 
-FileSystemFile(pathname::AbstractString) = FileSystemFile(String(pathname), Cell(nothing))
 
 # ── Directory ─────────────────────────────────────────────────────────────────
 
 @document struct FileSystemDirectory <: FileSystemDocument
     pathname::String
     elements::CellVector
-    selection::Reference
+    selection::Reference = nothing
 end
 
-FileSystemDirectory(pathname::AbstractString) =
-    FileSystemDirectory(String(pathname), CellVector(), Cell(nothing))
 
-FileSystemDirectory(pathname::AbstractString, elements::Vector{<:FileSystemDocument}) =
-    FileSystemDirectory(String(pathname), CellVector(Cell[Cell(x) for x in elements]), Cell(nothing))
 
 # ── API ───────────────────────────────────────────────────────────────────────
 

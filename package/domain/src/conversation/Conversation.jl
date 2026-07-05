@@ -1,29 +1,10 @@
 """
     ConversationModule
 
-The conversation document domain models a live AI chat session inside the
-editor. The whole conversation, including in-flight streaming, is a real
-ProjecturEd domain so selection, projections, and editing all compose with
-the rest of the editor.
-
-Uniform *turn / part* model:
-
-- `ConversationConversation` — an ordered sequence of `ConversationTurn`s.
-- `ConversationTurn`         — one message in the chat: a `role`
-                               (`:user` / `:assistant`), an ordered list of
-                               `ConversationPart`s, a `stop_reason`, and a
-                               `collapsed` flag.
-- `ConversationPart`         — one collapsible slot wrapping an arbitrary
-                               `content::Document`. The content's own type
-                               drives projection and serialization:
-                                 * `TextText`     — prose
-                                 * `JuliaDocument`— quoted code
-                                 * `EvaluatorForm`— code + evaluation result
-                                 * `JsonDocument` / `XmlDocument` / … — data
-                                 * `DocumentInsertion` — being typed (composer)
-
-There is exactly **one** part type; there is no part subtype hierarchy. Per-slot
-state that is not in the content (`collapsed`, `selection`) lives on the part.
+The conversation document domain — an AI chat session (including in-flight
+streaming) as a `Document`, so selection/projections/editing compose with the
+rest of the editor. `ConversationConversation` holds `ConversationTurn`s; each
+turn has a role + a list of `ConversationPart`s wrapping arbitrary content.
 """
 module ConversationModule
 
@@ -50,7 +31,7 @@ A collapsible slot around an arbitrary content document.
 @document struct ConversationPart <: ConversationDocument
     content::Document
     collapsed::Bool
-    selection::Reference
+    selection::Reference = nothing
 end
 
 ConversationPart(content::Document; collapsed::Bool = false) =
@@ -61,29 +42,16 @@ ConversationPart(s::AbstractString; collapsed::Bool = false) =
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
 """
-    ConversationThinking(text; signature = "", redacted = false, data = "")
-
-A content document for an extended-thinking ("reasoning") block. Wrapped in a
-`ConversationPart` like any other content type — what makes it special is that
-`signature` / `redacted` / `data` are Anthropic API protocol metadata that must
-survive re-serialization back to the API (parallel to `EvaluatorForm.tool_use_id`),
-so the tool-use round-trip is not broken.
-
-Fields:
-
-- `text::Document`     — the reasoning text (`TextText`; empty when `display` is
-                         `"omitted"` or for redacted blocks).
-- `signature::String`  — the opaque signature from `signature_delta` (`""` until
-                         one arrives; redacted blocks have none).
-- `redacted::Bool`     — `true` for a `redacted_thinking` block.
-- `data::String`       — the opaque payload for a redacted block (`""` otherwise).
+An extended-thinking block. Wrapped in a `ConversationPart` like any content.
+`signature`/`redacted`/`data` are Anthropic API metadata that must survive
+re-serialization back to the API.
 """
 @document struct ConversationThinking <: ConversationDocument
     text::Document
     signature::String
     redacted::Bool
     data::String
-    selection::Reference
+    selection::Reference = nothing
 end
 
 ConversationThinking(text::Document;
@@ -120,7 +88,7 @@ a streaming `stop_reason`, and a `collapsed` flag.
     parts::CellVector
     stop_reason::Symbol
     collapsed::Bool
-    selection::Reference
+    selection::Reference = nothing
 end
 
 ConversationTurn(role::Symbol;
@@ -149,8 +117,6 @@ The whole chat history as an ordered sequence of `ConversationTurn`s.
     turns::CellVector = CellVector()
     selection::Reference = nothing
 end
-ConversationConversation(turns::Vector) =
-    ConversationConversation(CellVector(Cell[Cell(t) for t in turns]), Cell(nothing))
 
 # ── ConversationDraft ─────────────────────────────────────────────────────────
 
@@ -169,7 +135,7 @@ when standalone) so ENTER can submit the draft into the conversation.
 @document struct ConversationDraft <: ConversationDocument
     parts::CellVector
     assistant::Any        # the owning WorkbenchAssistant (or nothing, standalone)
-    selection::Reference
+    selection::Reference = nothing
 end
 
 ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =

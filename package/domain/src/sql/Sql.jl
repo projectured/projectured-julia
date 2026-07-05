@@ -1,15 +1,9 @@
 """
     SqlDocumentModule
 
-SQL statement document model following ANSI/PostgreSQL conventions.
-Every semantic element is a dedicated document type.
-
-The AST is database-agnostic — it carries no connection. Projections render it:
-`SqlToSyntax` produces a syntax tree for display, and `SqlToCellTable` executes
-it against a `DatabaseInstance` (through a connection pool) and returns the
-result rows. The projection pipeline `Sql→Syntax→Text→String` produces the
-printed text output.
-
+The SQL statement document model (ANSI/PostgreSQL conventions). The AST is
+database-agnostic; `SqlToSyntax` renders it and `SqlToCellTable` executes it
+against a `DatabaseInstance`.
 """
 module SqlDocumentModule
 
@@ -30,21 +24,13 @@ abstract type SqlStatement <: SqlDocument end
 # ── SqlInsertion (editable SQL source being entered) ───────────────────────────
 
 """
-    SqlInsertion(value="")
-
-A placeholder holding SQL source text being typed; committed (e.g. on Enter)
-by parsing `value` with `sqlparse` into a real `SqlStatement`. The SQL analogue
-of `JuliaInsertion`: SQL has no in-place type-to-build gesture set, so a fresh
-SQL document (e.g. a new `.sql` file) is authored by typing source into this
-insertion and committing. Its `value` is a plain string, so character edits are
-handled generically by `splice_value!`.
+A placeholder for SQL source being typed; committed on Enter by parsing with
+`sqlparse` into a real `SqlStatement`.
 """
 @document struct SqlInsertion <: SqlStatement
-    value::String
-    selection::Reference
+    value::String = ""
+    selection::Reference = nothing
 end
-
-SqlInsertion(value::AbstractString="") = SqlInsertion(Cell(String(value)), Cell(nothing))
 abstract type SqlSelectExpression <: SqlDocument end
 abstract type SqlFromBaseItem <: SqlDocument end
 abstract type SqlJoinType <: SqlDocument end
@@ -58,30 +44,25 @@ abstract type SqlBooleanExpression <: SqlDocument end
 @document struct SqlTableName <: SqlDocument
     schema_name::Any              # String or nothing
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlTableName(name::AbstractString) =
-    SqlTableName(nothing, String(name), Cell(nothing))
 SqlTableName(schema::AbstractString, name::AbstractString) =
     SqlTableName(String(schema), String(name), Cell(nothing))
 
 @document struct SqlTableAlias <: SqlDocument
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlTableAlias(name::AbstractString) = SqlTableAlias(String(name), Cell(nothing))
 
 @document struct SqlColumnName <: SqlDocument
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlColumnName(name::AbstractString) = SqlColumnName(String(name), Cell(nothing))
 
 @document struct SqlColumnAlias <: SqlDocument
     name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlColumnAlias(name::AbstractString) = SqlColumnAlias(String(name), Cell(nothing))
 
 # ── SELECT clause documents ────────────────────────────────────────────────────
 
@@ -93,37 +74,28 @@ end
     qualifier::Any = nothing      # SqlTableName | SqlTableAlias | nothing
     selection::Reference = nothing
 end
-SqlAllColumns(qualifier) = SqlAllColumns(qualifier, Cell(nothing))
 
 @document struct SqlColumnReference <: SqlSelectExpression
     qualifier::Any                # SqlTableName | SqlTableAlias | nothing
     column_name::SqlColumnName
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlColumnReference(col::SqlColumnName) =
-    SqlColumnReference(nothing, col, Cell(nothing))
 SqlColumnReference(col::AbstractString) =
     SqlColumnReference(nothing, SqlColumnName(col), Cell(nothing))
-SqlColumnReference(qualifier, col::SqlColumnName) =
-    SqlColumnReference(qualifier, col, Cell(nothing))
 
 @document struct SqlSelectItem <: SqlDocument
     expression::SqlSelectExpression
     column_alias::Any             # SqlColumnAlias | nothing
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlSelectItem(expr::SqlSelectExpression) =
-    SqlSelectItem(expr, nothing, Cell(nothing))
 SqlSelectItem(expr::SqlSelectExpression, alias::SqlColumnAlias) =
     SqlSelectItem(expr, alias, Cell(nothing))
 
 @document struct SqlSelectClause <: SqlDocument
     distinct::Any                 # SqlDistinct | nothing
     items::CellVector
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlSelectClause(items::CellVector) =
-    SqlSelectClause(nothing, items, Cell(nothing))
 SqlSelectClause(items::SqlSelectItem...) =
     SqlSelectClause(nothing, CellVector([items...]), Cell(nothing))
 
@@ -131,55 +103,44 @@ SqlSelectClause(items::SqlSelectItem...) =
 
 @document struct SqlWhereFilterCondition <: SqlWhereCondition
     expression::SqlBooleanExpression
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlWhereFilterCondition(expr::SqlBooleanExpression) =
-    SqlWhereFilterCondition(expr, Cell(nothing))
 
 @document struct SqlWhereClause <: SqlDocument
     condition::Any = nothing      # SqlWhereCondition | nothing
     selection::Reference = nothing
 end
-SqlWhereClause(cond::SqlWhereCondition) = SqlWhereClause(cond, Cell(nothing))
 
 # ── Boolean expression documents ───────────────────────────────────────────────
 
 @document struct SqlScalarValue <: SqlDocument
     value::Any                    # Number | String | Bool
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlScalarValue(value) = SqlScalarValue(value, Cell(nothing))
 
 @document struct SqlComparison <: SqlBooleanExpression
     left::Any                     # SqlColumnReference | SqlScalarValue
     operator::String              # "=", "<>", "<", ">", "<=", ">="
     right::Any                    # SqlColumnReference | SqlScalarValue
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlComparison(left, op::AbstractString, right) =
-    SqlComparison(left, String(op), right, Cell(nothing))
 
 @document struct SqlAnd <: SqlBooleanExpression
     left::SqlBooleanExpression
     right::SqlBooleanExpression
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlAnd(left::SqlBooleanExpression, right::SqlBooleanExpression) =
-    SqlAnd(left, right, Cell(nothing))
 
 @document struct SqlOr <: SqlBooleanExpression
     left::SqlBooleanExpression
     right::SqlBooleanExpression
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlOr(left::SqlBooleanExpression, right::SqlBooleanExpression) =
-    SqlOr(left, right, Cell(nothing))
 
 @document struct SqlNot <: SqlBooleanExpression
     expression::SqlBooleanExpression
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlNot(expr::SqlBooleanExpression) = SqlNot(expr, Cell(nothing))
 
 # ── Join type leaf documents ───────────────────────────────────────────────────
 
@@ -207,57 +168,43 @@ end
 
 @document struct SqlJoinOnCondition <: SqlJoinCondition
     expression::SqlBooleanExpression
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlJoinOnCondition(expr::SqlBooleanExpression) =
-    SqlJoinOnCondition(expr, Cell(nothing))
 
 @document struct SqlJoinUsingCondition <: SqlJoinCondition
     column_names::CellVector      # [SqlColumnName]
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlJoinUsingCondition(cols::SqlColumnName...) =
-    SqlJoinUsingCondition(CellVector([cols...]), Cell(nothing))
 
 # ── FROM clause documents ──────────────────────────────────────────────────────
 
 @document struct SqlTableExpression <: SqlFromBaseItem
     table_name::SqlTableName
     alias::Any                    # SqlTableAlias | nothing
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlTableExpression(tname::SqlTableName) =
-    SqlTableExpression(tname, nothing, Cell(nothing))
 SqlTableExpression(tname::SqlTableName, alias::SqlTableAlias) =
     SqlTableExpression(tname, alias, Cell(nothing))
-SqlTableExpression(name::AbstractString) =
-    SqlTableExpression(SqlTableName(name), nothing, Cell(nothing))
 
 @document struct SqlJoinedFromItem <: SqlDocument
     join_type::SqlJoinType
     from_item::SqlFromBaseItem
     condition::Any                # SqlJoinCondition | nothing
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlJoinedFromItem(jt::SqlJoinType, fi::SqlFromBaseItem) =
-    SqlJoinedFromItem(jt, fi, nothing, Cell(nothing))
 SqlJoinedFromItem(jt::SqlJoinType, fi::SqlFromBaseItem, cond::SqlJoinCondition) =
     SqlJoinedFromItem(jt, fi, cond, Cell(nothing))
 
 @document struct SqlFromItem <: SqlDocument
     base_item::SqlFromBaseItem
     joins::CellVector             # [SqlJoinedFromItem]
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlFromItem(base::SqlFromBaseItem) =
-    SqlFromItem(base, CellVector(), Cell(nothing))
 
 @document struct SqlFromClause <: SqlDocument
     items::CellVector             # [SqlFromItem]
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlFromClause(items::SqlFromItem...) =
-    SqlFromClause(CellVector([items...]), Cell(nothing))
 
 # ── Statement layer ────────────────────────────────────────────────────────────
 
@@ -265,10 +212,8 @@ SqlFromClause(items::SqlFromItem...) =
     select_clause::SqlSelectClause
     from_clause::SqlFromClause
     where_clause::SqlWhereClause
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlSelectStatement(sc::SqlSelectClause, fc::SqlFromClause) =
-    SqlSelectStatement(sc, fc, SqlWhereClause(), Cell(nothing))
 SqlSelectStatement(sc::SqlSelectClause, fc::SqlFromClause, wc::SqlWhereClause) =
     SqlSelectStatement(sc, fc, wc, Cell(nothing))
 
@@ -283,10 +228,8 @@ SqlSelectStatement(table_name::AbstractString) =
 @document struct SqlSubqueryFromItem <: SqlFromBaseItem
     subquery::SqlSelectStatement
     alias::Any                    # SqlTableAlias | nothing
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlSubqueryFromItem(sq::SqlSelectStatement) =
-    SqlSubqueryFromItem(sq, nothing, Cell(nothing))
 SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
     SqlSubqueryFromItem(sq, alias, Cell(nothing))
 
@@ -299,8 +242,6 @@ SqlSubqueryFromItem(sq::SqlSelectStatement, alias::SqlTableAlias) =
     values::CellVector = CellVector()  # [SqlScalarValue]
     selection::Reference = nothing
 end
-SqlInsertStatement(table::SqlTableName, columns::CellVector, values::CellVector) =
-    SqlInsertStatement(table, columns, values, Cell(nothing))
 SqlInsertStatement(table::SqlTableName,
                    columns::AbstractVector{<:SqlColumnName},
                    values::AbstractVector{<:SqlScalarValue}) =
@@ -311,10 +252,8 @@ SqlInsertStatement(table::SqlTableName,
 @document struct SqlUpdateAssignment <: SqlDocument
     column_name::SqlColumnName
     value::SqlScalarValue
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlUpdateAssignment(col::SqlColumnName, value::SqlScalarValue) =
-    SqlUpdateAssignment(col, value, Cell(nothing))
 
 # Single-line UPDATE: `UPDATE <table> SET <assignment>, … [WHERE …]`.
 @document struct SqlUpdateStatement <: SqlStatement
@@ -323,8 +262,6 @@ SqlUpdateAssignment(col::SqlColumnName, value::SqlScalarValue) =
     where_clause::SqlWhereClause = SqlWhereClause()
     selection::Reference = nothing
 end
-SqlUpdateStatement(table::SqlTableName, assignments::CellVector) =
-    SqlUpdateStatement(table, assignments, SqlWhereClause(), Cell(nothing))
 SqlUpdateStatement(table::SqlTableName, assignments::CellVector, wc::SqlWhereClause) =
     SqlUpdateStatement(table, assignments, wc, Cell(nothing))
 SqlUpdateStatement(table::SqlTableName,
@@ -339,10 +276,8 @@ SqlUpdateStatement(table::SqlTableName,
 @document struct SqlColumnDefinition <: SqlDocument
     column_name::SqlColumnName
     data_type::String             # e.g. "integer", "text", "varchar(255)"
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlColumnDefinition(col::SqlColumnName, data_type::AbstractString) =
-    SqlColumnDefinition(col, String(data_type), Cell(nothing))
 SqlColumnDefinition(col::AbstractString, data_type::AbstractString) =
     SqlColumnDefinition(SqlColumnName(col), String(data_type), Cell(nothing))
 
@@ -350,10 +285,8 @@ SqlColumnDefinition(col::AbstractString, data_type::AbstractString) =
 @document struct SqlCreateTableStatement <: SqlStatement
     table_name::SqlTableName
     columns::CellVector           # [SqlColumnDefinition]
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
-    SqlCreateTableStatement(table_name, columns, Cell(nothing))
 SqlCreateTableStatement(table_name::SqlTableName,
                         columns::AbstractVector{<:SqlColumnDefinition}) =
     SqlCreateTableStatement(table_name, CellVector([columns...]), Cell(nothing))
@@ -361,10 +294,8 @@ SqlCreateTableStatement(table_name::SqlTableName,
 # `CREATE SCHEMA <schema-name>`.
 @document struct SqlCreateSchemaStatement <: SqlStatement
     schema_name::String
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlCreateSchemaStatement(schema_name::AbstractString) =
-    SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
 
 # ── Statement sequence ──────────────────────────────────────────────────────────
 # An ordered list of statements, rendered one after another (blank-line
@@ -372,13 +303,9 @@ SqlCreateSchemaStatement(schema_name::AbstractString) =
 # followed by its CREATE TABLEs — as a single Sql document.
 @document struct SqlStatementList <: SqlDocument
     statements::CellVector        # [SqlStatement]
-    selection::Reference
+    selection::Reference = nothing
 end
-SqlStatementList(statements::CellVector) =
-    SqlStatementList(statements, Cell(nothing))
 SqlStatementList(statements::AbstractVector) =
-    SqlStatementList(CellVector([statements...]), Cell(nothing))
-SqlStatementList(statements::SqlStatement...) =
     SqlStatementList(CellVector([statements...]), Cell(nothing))
 
 end # module

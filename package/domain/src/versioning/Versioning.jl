@@ -1,29 +1,10 @@
 """
     VersioningModule
 
-Object-versioning document types. A generic, domain-neutral overlay that lets
-**any** document subtree carry multiple versions of itself.
-
-Versioning has exactly two levels:
-
-- `VersionedObject` — the container that *has versions*: a `versions` list (a
-  `CellVector` of `ObjectVersion`s, newest-first by convention) plus the active
-  selection `criterion` (a `VersionCriterion`).
-- `ObjectVersion` — one *value object* (the actual domain document for this
-  version) together with its `VersionProperties` (metadata: when, who, where).
-
-`VersionProperties` is itself a document so it is inspectable/editable/
-projectable (and could later be versioned too). All its fields are optional —
-a version can be anonymous.
-
-The wrapper is *optional* (a subtree is versioned only if wrapped) and
-*recursive* (the value object may itself contain `VersionedObject`s nested
-anywhere within it; each resolves independently). The matching elimination
-projection (`VersioningToAnyProjectionModule`) selects one version by criterion
-and projects that version's value object in place of the wrapper.
-
-This mirrors `ClipboardModule` structurally: a wrapper document holding a
-payload, eliminated by a projection that decides which child becomes the output.
+Object-versioning as a domain-neutral overlay: any document subtree can carry
+multiple versions. `VersionedObject` holds the list; `ObjectVersion` pairs a
+value with `VersionProperties` (when/who/where). Elimination happens through
+`VersioningToAnyProjection`, which picks one version by criterion.
 """
 module VersioningModule
 
@@ -58,7 +39,7 @@ All fields optional — a version can be anonymous.
     author::Any           # who created it (string / user object / nothing)
     origin::Any           # where it came from (host, file, session, nothing)
     label::Any            # optional human name / tag for the version
-    selection::Reference
+    selection::Reference = nothing
 end
 
 VersionProperties(; timestamp=nothing, author=nothing, origin=nothing,
@@ -79,7 +60,7 @@ version) together with its `properties`. The keyword form builds the
 @document struct ObjectVersion <: VersioningDocument
     value::Document            # the actual domain document for this version
     properties::VersionProperties
-    selection::Reference
+    selection::Reference = nothing
 end
 
 ObjectVersion(value; properties=nothing, timestamp=nothing, author=nothing,
@@ -104,7 +85,7 @@ initial `ObjectVersion`.
 @document struct VersionedObject <: VersioningDocument
     versions::CellVector       # Vector{ObjectVersion}, newest-first by convention
     criterion::Any             # a VersionCriterion; selects the active version
-    selection::Reference
+    selection::Reference = nothing
 end
 
 VersionedObject(versions::AbstractVector; criterion=VersionCriterionLatest(),

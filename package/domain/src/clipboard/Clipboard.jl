@@ -1,10 +1,8 @@
 """
     ClipboardModule
 
-Clipboard document types. Two structural shapes: a slice (single content +
-a slice reference) and a collection (single content + a sequence of elements).
-Both carry a reactive selection Cell and inherit from the shared Document
-contract.
+Clipboard document types — a `ClipboardSlice` (content + slice reference) and
+a `ClipboardCollection` (content + sequence of elements).
 """
 module ClipboardModule
 
@@ -29,36 +27,22 @@ end
 # ── ClipboardSlice ────────────────────────────────────────────────────────────
 
 """
-    ClipboardSlice(content; slice=nothing, selection=nothing)
-
-A clipboard entry holding a single `content` document together with a
-`slice` reference that identifies the portion of `content` that was
-copied.
+Clipboard entry: `content` document + `slice` reference identifying the
+copied portion.
 """
 @document struct ClipboardSlice <: ClipboardDocument
     content::Document
-    slice::Any
-    selection::Reference
+    slice::Any = nothing
+    selection::Reference = nothing
 end
 
-ClipboardSlice(content; slice=nothing, selection=nothing) =
-    ClipboardSlice(Cell(content), Cell(slice), Cell(selection))
-
-# ── ClipboardCollection ───────────────────────────────────────────────────────
-
 """
-    ClipboardCollection(content; elements=[], selection=nothing)
-
-A clipboard entry holding a single `content` document together with a
-sequence of `elements` extracted from it.
+Clipboard entry: `content` document + sequence of extracted `elements`.
 """
 @document struct ClipboardCollection <: ClipboardDocument
     content::Document
-    elements::CellVector
-    selection::Reference
+    elements::CellVector = CellVector()
+    selection::Reference = nothing
 end
-
-ClipboardCollection(content; elements=[], selection=nothing) =
-    ClipboardCollection(Cell(content), CellVector(Cell[Cell(x) for x in elements]), Cell(selection))
 
 end # module

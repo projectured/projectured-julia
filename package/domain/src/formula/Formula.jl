@@ -1,26 +1,10 @@
 """
     FormulaModule
 
-A domain for **named, cross-referencing, evaluated formulas** whose code is a
-Julia expression — the spreadsheet idea generalised. A formula is an ordinary
-`Document`: its body reuses the `Julia` domain, it carries a name (the
-spreadsheet's `A1`), and other formulas refer to it by identity and display its
-current name. Each formula's `result` is a reactive `Cell` evaluating the Julia
-body with referenced formulas bound to their values.
-
-Types:
-
-- `FormulaFormula`     — a named formula: `name` + `code` (a `JuliaDocument`) +
-                         a reactive `result` document + a `display_mode`.
-- `FormulaReference`   — a citation of another formula, held by identity; the
-                         projection renders `target.name`, so renames track.
-- `FormulaEnvironment` — the resolution / evaluation scope: the set of named
-                         formulas (the analogue of a spreadsheet *sheet*).
-- `FormulaInsertion`   — the per-domain type-in entry point.
-
-Cycle-freeness is enforced two ways: a static DFS (`would_create_cycle`) lets the
-reader veto a cycle-introducing edit, and the evaluator keeps a currently-
-evaluating set as a safety net that returns an error result rather than looping.
+The Formula domain — named, cross-referencing, evaluated formulas whose code
+is a Julia expression (the spreadsheet idea generalised). Each formula's
+`result` is a reactive `Cell` evaluating the Julia body against a named
+environment; other formulas cite each other by identity.
 """
 module FormulaModule
 
@@ -43,72 +27,39 @@ export FormulaDocument, formula_result_text, wire_result!, resolve, column_lette
        formula_references, formula_dependencies, would_create_cycle, topological_order,
        formula_to_expr, evaluate_formula
 
-# ── Abstract base ────────────────────────────────────────────────────────────
-
 abstract type FormulaDocument <: Document end
 
-# ── FormulaInsertion ─────────────────────────────────────────────────────────
-
 """
-    FormulaInsertion(value="")
-
-The Formula domain's type-in entry point. Holds a buffer of typed text committed
-(e.g. on Enter) by parsing an Excel-style `=expr` or a bare `name = expr` into a
+The Formula domain's type-in entry point: text typed on Enter parses into a
 `FormulaFormula`.
 """
 @document struct FormulaInsertion <: FormulaDocument
-    value::String
-    selection::Reference
+    value::String = ""
+    selection::Reference = nothing
 end
 
-FormulaInsertion(value::AbstractString="") =
-    FormulaInsertion(Cell(String(value)), Cell(nothing))
-
-# ── FormulaReference ─────────────────────────────────────────────────────────
-
 """
-    FormulaReference(target)
-
-A citation of another formula, held *by identity* (`target` is the referenced
-`FormulaFormula`, not a copy of its name). The projection renders `target.name`
-reactively, so renaming a formula updates every reference with no rewrite pass.
+A citation of another formula, held *by identity*. The projection renders
+`target.name` reactively, so renames track without a rewrite pass.
 """
 @document struct FormulaReference <: FormulaDocument
     target::Document
-    selection::Reference
+    selection::Reference = nothing
 end
 
-FormulaReference(target) = FormulaReference(Cell(target), Cell(nothing))
-
-# ── FormulaFormula ───────────────────────────────────────────────────────────
-
 """
-    FormulaFormula(name, code; result, display_mode)
-
-A named formula. `name` is the display name (a literal string, or a `Cell`
-holding a derived thunk such as `cell_name(col, row)`); `code` is the body (a
-`JuliaDocument` that may contain `FormulaReference`s); `result` is the *computed*
-result document; `display_mode` is `:code`, `:result`, or `:both`.
-
-`result` is wired as `Cell(() -> evaluate_formula(self, environment))` once the
-formula is placed in an environment (see [`wire_result!`](@ref)); reading a
-dependency's value inside that thunk registers the reactive dependency.
+A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
+`code` (a `JuliaDocument` that may contain `FormulaReference`s), `result` (the
+computed result document), `display_mode` (`:code`/`:result`/`:both`).
+`result` is wired to `Cell(() -> evaluate_formula(self, env))` once placed in an
+environment; see [`wire_result!`](@ref).
 """
 @document struct FormulaFormula <: FormulaDocument
     name::String
     code::Document
     result::Document
-    display_mode::Symbol
-    selection::Reference
-end
-
-function FormulaFormula(name, code::Document;
-                        result::Document = formula_result_text(""),
-                        display_mode::Symbol = :both)
-    # `name` may be a literal string OR a Cell (e.g. a derived thunk); the
-    # @document inner constructor passes a Cell through unchanged.
-    name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
-    FormulaFormula(name_cell, Cell(code), Cell(result), Cell(display_mode), Cell(nothing))
+    display_mode::Symbol = :both
+    selection::Reference = nothing
 end
 
 # Convenience: build a result document from a value.
@@ -117,15 +68,10 @@ formula_result_text(s) = TextText(TextString(_value_string(s)))
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
 
-# ── FormulaEnvironment ───────────────────────────────────────────────────────
-
 """
-    FormulaEnvironment(formulas = [])
-
-The resolution / evaluation scope: an ordered set of `FormulaFormula`s, the
-analogue of a spreadsheet *sheet*. Provides name → formula lookup, dependency
-extraction, and cycle detection. Each contained formula's `result` is wired to a
-reactive thunk against this environment.
+Named-formula scope: an ordered set of `FormulaFormula`s (a spreadsheet
+*sheet*). Each contained formula's `result` is wired to a reactive thunk
+against this environment.
 """
 @document struct FormulaEnvironment <: FormulaDocument
     formulas::CellVector = CellVector()
