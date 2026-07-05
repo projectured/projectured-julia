@@ -108,45 +108,47 @@ const ImageModule = ProjecturedVisual.ImageModule
 const StyleStrokeModule = ProjecturedVisual.StyleStrokeModule
 const StyleTextModule = ProjecturedVisual.StyleTextModule
 
-# Graphics slice (Q1 sub-commit 2)
+# Graphics slice (Q1 sub-commit 2). Note: actual on-disk module names do NOT
+# have the "Projection" suffix except where the visual file itself does — the
+# aliases below match the module names in each visual file's `module …` line.
 const GraphicsModule = ProjecturedVisual.GraphicsModule
-const GraphicsCachingProjectionModule = ProjecturedVisual.GraphicsCachingProjectionModule
+const GraphicsCachingModule = ProjecturedVisual.GraphicsCachingModule
 
 # Layout slice (Q1 sub-commit 2)
 const LayoutModule = ProjecturedVisual.LayoutModule
 const ConstraintSolverModule = ProjecturedVisual.ConstraintSolverModule
-const LayoutToGraphicsProjectionModule = ProjecturedVisual.LayoutToGraphicsProjectionModule
-const CollectionToLayoutProjectionModule = ProjecturedVisual.CollectionToLayoutProjectionModule
+const LayoutToGraphicsModule = ProjecturedVisual.LayoutToGraphicsModule
+const CollectionToLayoutModule = ProjecturedVisual.CollectionToLayoutModule
 
 # Text slice (Q1 sub-commit 2)
 const TextModule = ProjecturedVisual.TextModule
-const TextToGraphicsProjectionModule = ProjecturedVisual.TextToGraphicsProjectionModule
-const TextToStringProjectionModule = ProjecturedVisual.TextToStringProjectionModule
-const LineNumberingProjectionModule = ProjecturedVisual.LineNumberingProjectionModule
-const WordWrappingProjectionModule = ProjecturedVisual.WordWrappingProjectionModule
-const TextFilteringProjectionModule = ProjecturedVisual.TextFilteringProjectionModule
-const TextFirstLineProjectionModule = ProjecturedVisual.TextFirstLineProjectionModule
-const TextHighlightingProjectionModule = ProjecturedVisual.TextHighlightingProjectionModule
-const SelectionInvertingProjectionModule = ProjecturedVisual.SelectionInvertingProjectionModule
-const PrimitiveToTextProjectionModule = ProjecturedVisual.PrimitiveToTextProjectionModule
-const ReferenceToTextProjectionModule = ProjecturedVisual.ReferenceToTextProjectionModule
+const TextToGraphicsModule = ProjecturedVisual.TextToGraphicsModule
+const TextToStringModule = ProjecturedVisual.TextToStringModule
+const TextLineNumberingModule = ProjecturedVisual.TextLineNumberingModule
+const WordWrappingModule = ProjecturedVisual.WordWrappingModule
+const TextFilteringModule = ProjecturedVisual.TextFilteringModule
+const TextFirstLineModule = ProjecturedVisual.TextFirstLineModule
+const TextHighlightingModule = ProjecturedVisual.TextHighlightingModule
+const SelectionInvertingModule = ProjecturedVisual.SelectionInvertingModule
+const PrimitiveToTextModule = ProjecturedVisual.PrimitiveToTextModule
+const ReferenceToTextModule = ProjecturedVisual.ReferenceToTextModule
 
 # Widget slice (Q1 sub-commit 2)
 const WidgetModule = ProjecturedVisual.WidgetModule
-const WidgetToGraphicsProjectionModule = ProjecturedVisual.WidgetToGraphicsProjectionModule
-const TextToWidgetProjectionModule = ProjecturedVisual.TextToWidgetProjectionModule
-const ObjectToWidgetProjectionModule = ProjecturedVisual.ObjectToWidgetProjectionModule
+const WidgetToGraphicsModule = ProjecturedVisual.WidgetToGraphicsModule
+const TextToWidgetModule = ProjecturedVisual.TextToWidgetModule
+const ObjectToWidgetModule = ProjecturedVisual.ObjectToWidgetModule
 const WidgetHoverTrackingProjectionModule = ProjecturedVisual.WidgetHoverTrackingProjectionModule
 const ProjectionConfiguringProjectionModule = ProjecturedVisual.ProjectionConfiguringProjectionModule
 const WidgetPopupResolverProjectionModule = ProjecturedVisual.WidgetPopupResolverProjectionModule
 
 # Syntax slice (Q1 sub-commit 2)
 const SyntaxModule = ProjecturedVisual.SyntaxModule
-const SyntaxToTextProjectionModule = ProjecturedVisual.SyntaxToTextProjectionModule
-const SyntaxToWidgetProjectionModule = ProjecturedVisual.SyntaxToWidgetProjectionModule
-const ObjectToSyntaxProjectionModule = ProjecturedVisual.ObjectToSyntaxProjectionModule
-const CollectionToSyntaxProjectionModule = ProjecturedVisual.CollectionToSyntaxProjectionModule
-const PrimitiveToSyntaxProjectionModule = ProjecturedVisual.PrimitiveToSyntaxProjectionModule
+const SyntaxToTextModule = ProjecturedVisual.SyntaxToTextModule
+const SyntaxToWidgetModule = ProjecturedVisual.SyntaxToWidgetModule
+const ObjectToSyntaxModule = ProjecturedVisual.ObjectToSyntaxModule
+const CollectionToSyntaxModule = ProjecturedVisual.CollectionToSyntaxModule
+const PrimitiveToSyntaxModule = ProjecturedVisual.PrimitiveToSyntaxModule
 
 # Backend slice (Q1 sub-commit 3)
 const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
@@ -166,7 +168,8 @@ include("document/Julia.jl")
 include("document/Tabular.jl")
 include("document/Database.jl")
 include("document/DbCatalog.jl")
-include("document/DatabaseInstance.jl")
+# Q3: DatabaseInstance.jl deleted — orphan (effectively only used by
+# Component, itself an orphan; verified in Q0 D3 finding).
 include("document/Sql.jl")
 include("document/Xml.jl")
 include("document/FileSystem.jl")
@@ -178,7 +181,8 @@ include("document/Versioning.jl")
 include("document/Graph.jl")
 include("document/GraphLayout.jl")
 include("layout/GraphLayoutEngine.jl")
-include("document/Component.jl")
+# Q3: Component.jl deleted — true orphan (no importers anywhere in the
+# repo; verified in Q0 D3 finding).
 include("document/Book.jl")
 include("document/Markdown.jl")
 include("document/Evaluator.jl")
@@ -238,7 +242,7 @@ include("projection/primitive/SqlToSyntax.jl")
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")
-include("projection/primitive/CollectionToLayout.jl")
+# Q1 sub-commit 2: CollectionToLayout moved to package/visual (layout slice).
 include("projection/primitive/NaturalProjection.jl")
 # Q2 (D4): BinarySerialization moved to package/base (base/serialization/).
 # NaturalFormat + DocumentFile remain here until their framework/registration
