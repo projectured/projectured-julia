@@ -568,4 +568,20 @@ function sync_document!(shadow::CellVector, source::CellVector)
     shadow
 end
 
+# R1 (kernel plan P4) — the CellVector method for `child_reference_steps`:
+# elements are addressed by `RangeReference(i-1, i)`, so the pre-order
+# document walk driving `SelectNextInsertionOperation` picks them up. The
+# default fieldnames-walk (in `operation/Operations.jl`) still applies to
+# non-CellVector documents.
+import ..OperationModule: child_reference_steps
+import ..ReferenceModule: RangeReference
+
+function child_reference_steps(node::CellVector)
+    pairs = Tuple{Any, Any}[]
+    for i in 1:length(node)
+        push!(pairs, (RangeReference(i - 1, i), node[i]))
+    end
+    pairs
+end
+
 end # module

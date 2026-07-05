@@ -1,14 +1,9 @@
-"""
-    OperationApiModule
-
-Domain operations produced by the reader side of the projection pipeline
-and applied by evaluate_operation in the editor. An operation carries the
-intent of a user gesture expressed in the document's own terms, decoupled
-from the raw device event that triggered it.
-"""
-module OperationApiModule
-
-export Operation, evaluate_operation, invalidate_projection!
+# Fragment of `OperationModule` — the operation contract: the `Operation`
+# abstract supertype, the `evaluate_operation` generic, and
+# `invalidate_projection!` (a duck-typed seam the editor loop overrides).
+# The concrete operations, splice helpers, and the R1 `child_reference_steps`
+# traversal seam live in `Operations.jl`; the R2 open `reroot_operation`
+# generic lives in `Rerooting.jl`.
 
 """
     Operation
@@ -44,5 +39,3 @@ generic lives here so `evaluate_operation` methods can call it without depending
 the concrete editor type.
 """
 invalidate_projection!(editor) = nothing
-
-end # module

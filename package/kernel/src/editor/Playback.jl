@@ -13,9 +13,9 @@ import ..PerformanceCounterModule: reset_performance_counters!, @performance_tim
 import ..ProjectionApiModule: read_intent
 import ..IntentModule: Intent
 import ..ScreenDocumentModule: EventEnvelope
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 import ..OperationModule: QuitEditorException
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: reroot_operation
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
 import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
 import ..DeviceApiModule: Device

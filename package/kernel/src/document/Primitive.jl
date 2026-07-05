@@ -11,7 +11,7 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..DocumentModule: clear_selection!, set_selection!
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
@@ -227,5 +227,18 @@ function Base.setindex!(s::PrimitiveString, ch::AbstractChar, i::Integer)
     s.value = splice_string(something(s.value, ""), i - 1, i, string(ch))
     return ch
 end
+
+# R2 (kernel plan P4) — Primitive's own methods for the open `reroot_operation`
+# generic. Both operation types carry a reference field named `reference` (as
+# opposed to `path` on ReplaceSelectionOperation), so their reroot forms
+# prepend the container's steps onto that reference. Every path-bearing
+# operation type must add a method here; missing methods fall through to
+# the catch-all in `operation/Rerooting.jl` and are returned unchanged.
+import ..OperationModule: reroot_operation, reroot_reference
+
+reroot_operation(op::ReplaceStringRangeOperation, steps::Tuple) =
+    ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)
+reroot_operation(op::ReplaceNumberRangeOperation, steps::Tuple) =
+    ReplaceNumberRangeOperation(reroot_reference(op.reference, steps), op.replacement)
 
 end # module

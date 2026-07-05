@@ -21,7 +21,7 @@ import ..TimeModule: tick_editor_time!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
-import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
+import ..OperationModule: Operation, evaluate_operation, invalidate_projection!
 import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
 import ..OperationModule: QuitEditorException
 import ..GestureRecognizerModule: GestureRecognizer, pop_gesture!

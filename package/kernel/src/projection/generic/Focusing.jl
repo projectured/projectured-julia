@@ -7,7 +7,7 @@ navigating into the input using a configurable reference path.
 module FocusingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap

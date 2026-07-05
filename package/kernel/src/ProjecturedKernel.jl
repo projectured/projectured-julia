@@ -42,7 +42,6 @@ include("cell/Time.jl")
 include("api/BackendApi.jl")
 include("api/DeviceApi.jl")
 include("api/ProjectionApi.jl")
-include("api/OperationApi.jl")
 include("api/IoMapApi.jl")
 include("api/AgentApi.jl")
 
@@ -69,10 +68,17 @@ include("common/IoMap.jl")
 # Merged from ReferenceModule + ReferenceCaseModule + ReferenceBuilderModule
 # at P3; the old names live on as aliases in ProjecturedDomain.
 include("reference/ReferenceModule.jl")
+# Operation layer (layer 4) — the OperationModule aggregator wraps Interface
+# (Operation + evaluate_operation + invalidate_projection!), Operations
+# (built-in ops + splice helpers + R1 child_reference_steps seam), and
+# Rerooting (R2 open reroot_operation seam). Merged from OperationApi +
+# Operation + OperationRerooting at P4; the old names live on as aliases in
+# ProjecturedDomain. Loaded before Collection.jl so the CellVector seam
+# method (R1) registers into an already-declared generic; Primitive.jl
+# similarly adds the R2 methods for its splice-range ops.
+include("operation/OperationModule.jl")
 include("document/Collection.jl")
-include("common/Operation.jl")
 include("document/Primitive.jl")
-include("common/OperationRerooting.jl")
 
 # ── Input devices & events ─────────────────────────────────────────────────
 # Keyboard/Mouse need Modifiers + the Device stub; EventCase (the `@event_case`

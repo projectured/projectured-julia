@@ -1,31 +1,13 @@
-"""
-    OperationModule
-
-The built-in operations and the selection machinery that applies them. Holds the
-concrete `Operation` subtypes the reader side of the pipeline produces
-(`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, the window/zoom/collapse
-operations, `CompoundOperation`, …) with their `evaluate_operation` methods, the
-`clear_selection!` / `set_selection!` / `update_selection!` propagation over the
-document tree, and the `splice_*` text-edit helpers. The abstract `Operation`
-vocabulary and the `evaluate_operation` generic live in the pure `OperationApiModule`
-(`api/OperationApi.jl`); this module carries the implementations.
-
-`evaluate_operation` is duck-typed on `editor`, so nothing here references a
-concrete editor type — the module loads early (well before the editor loop) and
-still works against whatever object carries `editor.document`.
-"""
-module OperationModule
-
-import ..OperationApiModule: Operation, evaluate_operation, invalidate_projection!
-import ..DocumentModule: Document, clear_selection!, set_selection!, with_selection
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, TypeReference, is_element_reference, evaluate_reference, is_reference_equal, annotate_reference_types, strip_reference_types, append_reference, concat_references, reference_steps
-import ..CellModule: Cell, AbstractCell
-import ..CollectionModule: CellVector
-export DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation, QuitEditorException, replace_selection!,
-       ToggleCollapseOperation,
-       ReplaceReferencedValueOperation, replace_document, insert_elements, delete_elements, SelectNextInsertionOperation,
-       CompoundOperation, AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
-       splice_string, splice_number, splice_value!
+# Fragment of `OperationModule` — the built-in operations, the selection
+# propagation (clear/set/update), the splice helpers, and the R1
+# `child_reference_steps` traversal seam (open generic; base's Collection.jl
+# adds the `CellVector` method, others fall through to the default
+# fieldnames-walk). The `Operation` supertype + `evaluate_operation` +
+# `invalidate_projection!` generics come from `Interface.jl`, already in scope.
+#
+# `evaluate_operation` is duck-typed on `editor`, so nothing here references
+# a concrete editor type — the fragment loads early (well before the editor
+# loop) and still works against whatever object carries `editor.document`.
 
 """
     DoNothingOperation()
@@ -401,30 +383,43 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     return
 end
 
-# Pre-order Document walk building set_selection!-compatible paths: FieldReference
-# for fields, RangeReference(i-1, i) for CellVector elements (a raw `CellVector`
-# field is itself a Document, reached by its field then indexed). Skips `selection`
-# and guards cycles/shared substructure by identity. Matching `CellVector` by `isa`
-# (CollectionModule loads before this file) keeps an `@forward_vector` Document
-# (indexable but holding its sequence in a field) from being mistaken for a raw
-# element vector.
-function _preorder_documents!(node, path::ReferencePath, seen, out)
-    node isa Document || return
-    node in seen && return
-    push!(seen, node)
-    push!(out, (path, node))
-    if node isa CellVector
-        for i in 1:length(node)
-            _preorder_documents!(node[i], append_reference(path, RangeReference(i - 1, i)), seen, out)
-        end
-        return
-    end
+# R1: `child_reference_steps(node)` — open traversal seam. Returns an
+# iterable of `(step, child)` pairs naming each direct child of `node`
+# reachable by a single reference step. The default walks `fieldnames`
+# (FieldReference per field, skipping `selection`); base's Collection.jl
+# adds the `CellVector` method that yields RangeReference(i-1, i) per
+# element. New container documents override this to name their children.
+"""
+    child_reference_steps(node) -> iterable of (step, child) pairs
+
+Open R1 traversal seam. The default enumerates struct fields as
+`FieldReference` steps, skipping `selection` and any field whose (unwrapped)
+value is not a `Document`. Override for container documents whose children
+are addressed by index (`CellVector`), by position, etc.
+"""
+function child_reference_steps end
+
+function child_reference_steps(node)
+    pairs = Tuple{Any, Any}[]
     for nm in fieldnames(typeof(node))
         nm === :selection && continue
         raw = getfield(node, nm)
         val = raw isa AbstractCell ? raw[] : raw
         val isa Document || continue
-        _preorder_documents!(val, append_reference(path, FieldReference(string(nm))), seen, out)
+        push!(pairs, (FieldReference(string(nm)), val))
+    end
+    pairs
+end
+
+# Pre-order Document walk building set_selection!-compatible paths. Skips
+# `selection` and guards cycles/shared substructure by identity.
+function _preorder_documents!(node, path::ReferencePath, seen, out)
+    node isa Document || return
+    node in seen && return
+    push!(seen, node)
+    push!(out, (path, node))
+    for (step, child) in child_reference_steps(node)
+        _preorder_documents!(child, append_reference(path, step), seen, out)
     end
     return
 end
@@ -662,5 +657,3 @@ function _mutate_terminal_step!(old::RangeReference, new::RangeReference)
     true
 end
 _mutate_terminal_step!(::Any, ::Any) = false
-
-end # module

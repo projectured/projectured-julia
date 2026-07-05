@@ -41,9 +41,11 @@ const McpModule = ProjecturedKernel.McpModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
 const MouseModule = ProjecturedKernel.MouseModule
 const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
-const OperationApiModule = ProjecturedKernel.OperationApiModule
+# Kernel plan P4 merged OperationApi/Operation/Rerooting into OperationModule;
+# the old names live on as aliases so existing domain/opt-in files keep resolving.
+const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationModule = ProjecturedKernel.OperationModule
-const OperationRerootingModule = ProjecturedKernel.OperationRerootingModule
+const OperationRerootingModule = ProjecturedKernel.OperationModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const PredicateDispatchingProjectionModule = ProjecturedKernel.PredicateDispatchingProjectionModule
 const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule

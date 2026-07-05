@@ -29,7 +29,7 @@ import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 
 export EventEnvelope, WindowClose, WindowResize, WindowDefocus, OpenWindowOperation,
        OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation

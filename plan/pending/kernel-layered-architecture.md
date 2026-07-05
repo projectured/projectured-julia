@@ -746,10 +746,24 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       ReferenceBuilderTest and added ReferenceEvalTest (walks evaluate_reference
       over a test-local ToyBranch); 29 reference tests pass. Guard, layer check,
       and self-tests all green.)*
-- [ ] **P4 — operation**: merge OperationApi + Operation + Rerooting into
+- [x] **P4 — operation**: merge OperationApi + Operation + Rerooting into
       `OperationModule`; **R1 + R2 seams** (the concrete methods land beside
       Collection/Primitive at their current location, moving with them in P7);
       INVARIANT rewrites; seam tests; `doc/operation.md`.
+      *(Done. `git mv api/OperationApi.jl → operation/Interface.jl`, `git mv
+      common/Operation.jl → operation/Operations.jl`, `git mv common/OperationRerooting.jl
+      → operation/Rerooting.jl`; stripped to fragments; new aggregator
+      operation/OperationModule.jl wires them together. R1: `child_reference_steps`
+      declared in Operations.jl with the default fieldnames-walk; CellVector method
+      lives in Collection.jl. R2: `reroot_operation` converted to open generic in
+      Rerooting.jl with base methods for Nothing/catch-all/ReplaceSelection/
+      ReplaceReferencedValue/Compound; Primitive.jl adds the ReplaceString/NumberRange
+      methods. Retargeted 6 kernel importers; ProjecturedDomain aliases
+      OperationApiModule and OperationRerootingModule → OperationModule. LAYERS grew
+      to `["cell","document","reference","operation"]`. Added RerootingTest (a
+      test-local ToyPathOp registers its own reroot method) and TraversalTest (a
+      test-local ToyList registers its own child_reference_steps method) — 18
+      operation tests pass. Wrote doc/operation.md with R1/R2 seam rationale.)*
 - [ ] **P5 — device**: DeviceApi rename; **R4** GestureModule merge; **R5**
       EventEnvelope rehome (retarget 5 kernel sites + Console); GestureRecognizer +
       ScreenDevice moves; `read_gesture` rehome; GestureModule temporarily keeps
