@@ -134,6 +134,10 @@ include("style/StyleText.jl")
 # together: WindowManaging references ScreenDocument's types.
 include("screen/ScreenDocument.jl")
 include("screen/WindowManaging.jl")
+# Q2 (2026-07-06): ScreenToScreen (identity projection over the window
+# tree) moved down from domain/projection/primitive/ — imports only
+# visual (screen) + kernel/base, no domain content.
+include("screen/ScreenToScreen.jl")
 
 # ── Slice 3 — graphics (retained drawing target) ─────────────────────────
 # Graphics is the drawing domain (text/rect/canvas/viewport/image/fence).

@@ -57,6 +57,9 @@ const BackendModule = ProjecturedKernel.BackendModule
 const ChildrenContainerModule = ProjecturedKernel.ChildrenContainerModule
 const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
+const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
+const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
+const ReferenceCaseModule = ProjecturedKernel.ReferenceModule       # P3 merge
 
 # ── Layer 1 — document (concrete engine documents) ────────────────────────
 # Collection precedes Primitive and ScreenDocument (both import CellVector).
@@ -79,6 +82,11 @@ include("projection/Searching.jl")
 include("projection/Copying.jl")
 # WindowManagingProjection moved to package/visual (screen slice) at Q2.
 include("projection/ReaderDefaults.jl")
+# Q2 (2026-07-06): the two compound projection aggregates moved down
+# from domain/projection/compound/ — imports only kernel + base
+# combinators, no domain content.
+include("projection/HigherOrderCompound.jl")
+include("projection/GenericCompound.jl")
 
 # ── Layer 3 — serialization (Q2/D4 — domain-independent persistence) ─────
 # BinarySerialization is exact/lossless persistence via Julia's Serialization

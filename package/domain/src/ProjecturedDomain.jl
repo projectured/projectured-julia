@@ -98,6 +98,9 @@ const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
 const WindowManagingProjectionModule = ProjecturedVisual.WindowManagingProjectionModule
 const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
+# Q2 (2026-07-06): compound aggregates moved to package/base.
+const HigherOrderCompoundModule = ProjecturedBase.HigherOrderCompoundModule
+const GenericCompoundModule = ProjecturedBase.GenericCompoundModule
 # Serialization slice (Q2/D4)
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
@@ -211,7 +214,7 @@ include("inspector/ReferenceInspector.jl")
 include("dragging/Dragging.jl")
 include("tooltip/TooltipDecorator.jl")
 include("gesturemap/GestureHelpDecorator.jl")
-include("projection/primitive/ScreenToScreen.jl")
+# Q2 (2026-07-06): ScreenToScreen moved to package/visual (screen slice).
 include("clipboard/ClipboardToAny.jl")
 include("versioning/VersioningToAny.jl")
 include("dragging/DraggingProjection.jl")
@@ -235,7 +238,7 @@ include("math/MathToSyntax.jl")
 # DocumentInsertionToSyntax before JuliaToSyntax/SqlToSyntax: it defines the
 # per-domain insertion→syntax leaves (JuliaInsertionToSyntaxLeaf, …) those
 # projections register, and it depends on none of them.
-include("projection/primitive/DocumentInsertionToSyntax.jl")
+include("insertion/InsertionToSyntax.jl")
 include("julia/JuliaToSyntax.jl")
 include("formula/FormulaToSyntax.jl")
 include("sql/SqlToSyntax.jl")
@@ -245,11 +248,12 @@ include("tabular/CellTableToTable.jl")
 include("conversation/ConversationToSyntax.jl")
 include("conversation/ConversationToWidget.jl")
 include("workbench/WorkbenchToWidget.jl")
-include("projection/primitive/NaturalProjection.jl")
-include("serializer/NaturalFormat.jl")
-include("serializer/DocumentFile.jl")
-include("projection/compound/HigherOrder.jl")
-include("projection/compound/Generic.jl")
+include("insertion/NaturalProjection.jl")
+include("naturalformat/NaturalFormat.jl")
+include("naturalformat/DocumentFile.jl")
+# Q2 (2026-07-06): compound/HigherOrder + compound/Generic moved to
+# package/base (base/projection/HigherOrderCompound.jl +
+# base/projection/GenericCompound.jl). No domain content.
 include("database/DatabaseAdapters.jl")
 include("conversation/ConversationEditor.jl")
 include("workbench/WorkbenchAssistant.jl")
