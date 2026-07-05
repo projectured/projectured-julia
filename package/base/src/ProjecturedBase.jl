@@ -60,7 +60,10 @@ const BackendModule = ProjecturedKernel.BackendModule
 # OperationModule generics.
 include("document/Collection.jl")
 include("document/Primitive.jl")
-include("document/ScreenDocument.jl")
+# ScreenDocument moved to package/visual (screen slice) at Q2 as the Q1
+# leftover — the couple ScreenDocument ↔ WindowManagingProjection travels
+# together, and both belong in visual per the architecture rules (window
+# things are visual, only the Screen device stays in the kernel).
 
 # ── Layer 2 — projection (document-shaped generic projections) ────────────
 # The 5 doc-shaped projections + the R6 reader defaults. Each file is
@@ -70,7 +73,7 @@ include("projection/Sorting.jl")
 include("projection/Filtering.jl")
 include("projection/Searching.jl")
 include("projection/Copying.jl")
-include("projection/WindowManaging.jl")
+# WindowManagingProjection moved to package/visual (screen slice) at Q2.
 include("projection/ReaderDefaults.jl")
 
 # ── Layer 3 — serialization (Q2/D4 — domain-independent persistence) ─────

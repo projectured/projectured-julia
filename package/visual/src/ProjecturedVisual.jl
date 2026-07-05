@@ -65,7 +65,7 @@ const IntentModule = ProjecturedKernel.IntentModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
-const ScreenDocumentModule = ProjecturedBase.ScreenDocumentModule
+# ScreenDocumentModule is now local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 # Kernel modules that visual files still name by their pre-P5/P8 aliases —
 # ProjecturedDomain already normalises these into the merged locations; we
@@ -109,7 +109,7 @@ const AgentModule = ProjecturedKernel.AgentModule
 const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
 const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
-const WindowManagingProjectionModule = ProjecturedBase.WindowManagingProjectionModule
+# WindowManagingProjectionModule is now local to this package (screen slice); no alias.
 
 # ── Slice 1 — style (pure value types every visual thing shares) ─────────
 # Load order: Color and Font first (no forward references); Geometry, Image,
@@ -121,6 +121,17 @@ include("style/Geometry.jl")
 include("style/Image.jl")
 include("style/StyleStroke.jl")
 include("style/StyleText.jl")
+
+# ── Slice 2 — screen (the window model + its management) ────────────────
+# ScreenDocument holds a list of WindowDocument (windows + their events/ops).
+# WindowManagingProjection wraps a projection that consumes ScreenDocument
+# input, applying open/close/resize/defocus operations lifted from below.
+# Moved from `package/base` at Q2 — window things are visual per the
+# architecture rules (only the Screen device and display-size seam stay in
+# the kernel, as the interface the editor writes to). The couple travels
+# together: WindowManaging references ScreenDocument's types.
+include("screen/ScreenDocument.jl")
+include("screen/WindowManaging.jl")
 
 # ── Slice 3 — graphics (retained drawing target) ─────────────────────────
 # Graphics is the drawing domain (text/rect/canvas/viewport/image/fence).

@@ -84,13 +84,13 @@ const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const ScreenDocumentModule = ProjecturedBase.ScreenDocumentModule
+const ScreenDocumentModule = ProjecturedVisual.ScreenDocumentModule
 const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const ChainingProjectionModule = ProjecturedKernel.ChainingProjectionModule
 const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
 const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
-const WindowManagingProjectionModule = ProjecturedBase.WindowManagingProjectionModule
+const WindowManagingProjectionModule = ProjecturedVisual.WindowManagingProjectionModule
 const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
 # Serialization slice (Q2/D4)
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
