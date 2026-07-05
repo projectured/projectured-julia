@@ -873,13 +873,17 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       layer-misplaced file. Wrote `doc/editor.md` documenting the loop's four
       per-frame stages and full downward-edge inventory. Updated
       `doc/architecture.md` to reflect the layered P0-P10 structure and the base
-      package extraction. Deferred: (a) deleting `api/` and `common/` folders —
-      they still hold ProjectionApi/IoMapApi/Intent/IoMap/Projection.jl, awaiting
-      the deferred cosmetic projection consolidation from P8; (b) HeadlessBackend
-      editor-loop integration test — requires a toy-document + toy-projection
-      fixture large enough to warrant its own P10a follow-on; (c) full
-      ProjecturedTest sweep — the umbrella integration suite needs SDL, so it
-      runs in CI, not V1.)*
+      package extraction. Completed 2026-07-06 (commit `2c0675f`):
+      `api/` and `common/` folders deleted; their 5 files
+      (ProjectionApi, IoMapApi, Intent, IoMap, Projection) all moved
+      into `projection/`. R3 completion (GestureModule drops the
+      Projection import) landed in the same commit — the three
+      Projection-typed seam methods moved to
+      `projection/GestureBindings.jl`. Kernel `src/` now has 9 folders,
+      each named for its layer; the layered architecture is fully
+      reflected in the folder structure. Deferred: HeadlessBackend
+      editor-loop integration test (requires a toy fixture); full
+      ProjecturedTest sweep (needs SDL, runs in CI).)*
 
 Risk concentration: P4 (semantic refactor — mitigated by the seam tests landing with
 it), P7 (new package wiring — mitigated by the alias-preamble pattern domain already

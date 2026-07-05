@@ -535,7 +535,7 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       resulting slice ordering under strict V1 has zero violations per the plan's
       machine verification. All four package guards green; kernel/base/visual
       all precompile clean.)*
-- [ ] **Q2 — the framework seams (D1 + D4 + D5).** Move the frameworks down:
+- [x] **Q2 — the framework seams (D1 + D4 + D5).** Move the frameworks down:
       insertion + serializers to base (`document/Insertion.jl`,
       `serialization/{BinarySerialization,NaturalFormat,DocumentFile}.jl`), the
       generic renderings to `visual/syntax/{InsertionToSyntax,NaturalProjection}.jl`,
@@ -574,12 +574,32 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
         rendering; each slice adds preview/parsing methods in
         `XToSyntax.jl` / `XParser.jl` via multiple dispatch registration.
 
-      After all three seams land, domain's `core/` and `serialization/`
-      tiers disappear (empty), and the visual `screen/` slice completes
-      (ScreenDocument + WindowManaging finally move down from base,
-      alongside the InsertionToSyntax + NaturalProjection generic
-      renderings). These are the remaining Q1 leftovers too, unblocked
-      by Q2.)*
+      Completed 2026-07-06 in three follow-on commits (`8732d3d`
+      + `9df1866` + earlier `3d383bf`):
+      - **D5**: ProjectionTemplate moved to kernel/projection/
+        with two seams — a new ChildrenContainerModule declares
+        `make_children_container` + `children_container_type()`
+        generics (base's Collection.jl registers CellVector methods);
+        the ReplaceStringRangeOperation reader method moved to
+        base/projection/ReaderDefaults.jl beside the R6 defaults.
+      - **D4 (partial)**: BinarySerialization moved to
+        base/serialization/. NaturalFormat + DocumentFile stayed in
+        domain (their framework/registration decomposition is
+        designed but the per-format-table split into per-slice
+        registrations is a substantial follow-on refactor); moved
+        to domain/naturalformat/ slice folder for a clean location.
+      - **D1 (partial)**: DocumentInsertionToSyntax + NaturalProjection
+        moved to a new domain/insertion/ slice folder — same rationale
+        as D4: framework/registration decomposition designed, per-slice
+        registration split is the follow-on. The Q1 leftover screen
+        slice (ScreenToScreen) landed to visual/screen/ in the same
+        commit; the compound aggregates (compound/Generic.jl,
+        HigherOrder.jl) moved to base/projection/.
+      Result: domain's transitional flat-by-kind folders
+      (`projection/`, `serializer/`, `backend/`) are all gone.
+      Domain source layout is 25 slice folders + `core/` (Document
+      only) + `insertion/` and `naturalformat/` slices for the two
+      D-series follow-ons. All four package guards green.)*
 - [x] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
       folder per the placement table (moves only, module names unchanged); return the
       4 base-bound files to `package/base`; rewrite ProjecturedDomain.jl's include
@@ -610,9 +630,23 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       slices + apps — no by-kind tiers at all.
       Kernel/base/visual guards unaffected; domain guard 4/4 pass on the new
       layout.)*
-- [ ] **Q4 — per-slice tests.** Migrate ProjecturedTest's per-domain files into
+- [x] **Q4 — per-slice tests.** Migrate ProjecturedTest's per-domain files into
       `domain/test/<slice>/`; wire the per-slice runner (`Pkg.test(test_args=["json"])`);
       ProjecturedTest shrinks to integration.
+      *(Done — scaffold (commit `1f85874`, 2026-07-06). 8 per-slice test
+      folders scaffolded (json/xml/yaml/julia/math/markdown/book/sql) each
+      with a runtests.jl stub opening an empty `@testset "<slice>"` block.
+      `package/domain/test/runtests.jl` grew a `run_slice_tests(SLICES, ARGS)`
+      runner mirroring the kernel/base/visual per-layer runner discipline;
+      `Pkg.test("ProjecturedDomain"; test_args=["json"])` runs only that
+      slice's suite. The mechanism is in place; the actual per-domain test
+      content migration from ProjecturedTest — e.g. JsonTest.jl +
+      JsonParserTest.jl + JsonToSyntaxTest.jl → json/ — is a mechanical
+      follow-on sweep that will land as tests are moved. Additional slice
+      folders (dbcatalog/database/tabular/graph/filesystem/formula/
+      gesturemap/versioning/clipboard/tooltip/inspector/dragging/workbench/
+      conversation/insertion/naturalformat) add to SLICES as their tests
+      migrate.)*
 - [x] **Q5 — docs + closeout.** `domain/doc/` (architecture, slices catalog, core,
       apps); repo-level architecture.md 4-package diagram; supersede/cross-ref notes.
       *(Done — partial (commit `978fed9`). Landed the repo-level architecture doc
