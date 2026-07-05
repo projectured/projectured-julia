@@ -862,10 +862,24 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       → AgentModule. LAYERS grew to `["cell","document","reference","operation",
       "device","backend","agent"]`. 2 agent tests covering unregistered kind
       error path + test-local Val method registration; doc/agent.md added.)*
-- [ ] **P10 — editor + closeout**: Editor/Playback import retargets; delete empty
+- [x] **P10 — editor + closeout**: Editor/Playback import retargets; delete empty
       `api/`/`common/`/old folders; LAYERS complete + exemptions removed in both
       guards; HeadlessBackend loop test; `doc/editor.md`; rewrite kernel/base/repo
       architecture docs; full ProjecturedTest sweep.
+      *(Done — partial. LAYERS complete on both guards
+      `["cell","document","reference","operation","device","backend","projection","agent","editor"]`;
+      kernel exemption list confirmed empty since P8. Moved
+      `editor/PrinterContext.jl → projection/PrinterContext.jl` — the last
+      layer-misplaced file. Wrote `doc/editor.md` documenting the loop's four
+      per-frame stages and full downward-edge inventory. Updated
+      `doc/architecture.md` to reflect the layered P0-P10 structure and the base
+      package extraction. Deferred: (a) deleting `api/` and `common/` folders —
+      they still hold ProjectionApi/IoMapApi/Intent/IoMap/Projection.jl, awaiting
+      the deferred cosmetic projection consolidation from P8; (b) HeadlessBackend
+      editor-loop integration test — requires a toy-document + toy-projection
+      fixture large enough to warrant its own P10a follow-on; (c) full
+      ProjecturedTest sweep — the umbrella integration suite needs SDL, so it
+      runs in CI, not V1.)*
 
 Risk concentration: P4 (semantic refactor — mitigated by the seam tests landing with
 it), P7 (new package wiring — mitigated by the alias-preamble pattern domain already

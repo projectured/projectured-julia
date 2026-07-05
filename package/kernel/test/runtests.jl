@@ -34,7 +34,8 @@ const DOT        = Symbol(".")
 
 # Declared layers, in order of increasing index. Non-LAYERS folders are exempt
 # from the layer-index check during transition; the final phase forbids them.
-const LAYERS = String["cell", "document", "reference", "operation", "device", "backend", "agent"]
+const LAYERS = String["cell", "document", "reference", "operation", "device", "backend",
+                       "projection", "agent", "editor"]
 
 # Kernel plan P8 moved the concrete documents (Collection/Primitive/
 # ScreenDocument) and the 5 doc-shaped projections out to ProjecturedBase,

@@ -95,7 +95,7 @@ include("backend/HeadlessBackend.jl")
 # consumed by ProjectionModule and the generic projections, so it leads here.
 # Then the higher-order combinators and the generic projections; Preserving
 # precedes Reversing/Sorting, which build on it.
-include("editor/PrinterContext.jl")
+include("projection/PrinterContext.jl")
 include("projection/higherorder/Chaining.jl")
 include("projection/higherorder/TypeDispatching.jl")
 include("projection/higherorder/Recursive.jl")

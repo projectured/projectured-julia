@@ -11,11 +11,38 @@ this document is **only about the kernel**.
 `ProjecturedKernel` is the headless, domain-agnostic engine: the reactive cell
 system, the reference/operation/IO-map machinery, the projection algebra
 (higher-order combinators + generic projections), the input-device abstraction,
-the editor read-eval-print loop, and the agent control surface. It carries the
-foundational document *vocabulary* the engine itself needs (`CollectionModule`,
-`PrimitiveModule`, `ScreenDocumentModule`) but **no concrete domains**
-(JSON/XML/Text/…), **no backends**, and **no runtime dependencies** — `using
-ProjecturedKernel` precompiles and loads on its own.
+the editor read-eval-print loop, and the agent control surface. **No concrete
+documents** live here — Collection / Primitive / ScreenDocument moved to the
+`ProjecturedBase` package at plan phase P8. The kernel now has **zero
+concrete-document imports**. **No backends** either (except the dependency-free
+in-memory `HeadlessBackend` used by editor tests). **No runtime dependencies** —
+`using ProjecturedKernel` precompiles and loads on its own.
+
+## Layered structure (kernel plan P0–P10, 2026-07-05)
+
+Kernel plan P0 through P10 restructured the package around a strict layered
+architecture with per-layer guards, docs, and tests:
+
+```
+Layer 1 — cell/       cells + performance counter + the editor clock
+Layer 2 — document/   the Document contract + @document + Cell-struct codegen
+Layer 3 — reference/  reference paths + @reference / @reference_case DSLs
+Layer 4 — operation/  Operation + evaluate_operation + R1 traversal + R2 reroot
+Layer 5 — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
+Layer 6 — backend/    Backend + Display + HeadlessBackend
+Layer 7 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + 12 combinators
+Layer 8 — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
+Layer 9 — editor/     the run_editor! loop + Playback
+```
+
+Every kernel file lives under a declared layer folder (`api/` and `common/`
+still hold ProjectionApi/IoMapApi/Intent/IoMap/Projection.jl — the projection
+consolidation is a deferred cosmetic pass). The **layered guard** in
+[test/runtests.jl](../test/runtests.jl) statically parses `import ..XxxModule`
+lines and asserts every dep points to the same or a lower layer; the plan
+phase per-layer runners (`test/<layer>/`) exercise each layer against its
+own tests, and can be filtered with
+`Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
 The package is one flat include list in [src/ProjecturedKernel.jl](../src/ProjecturedKernel.jl):
 ~50 files, each defining exactly one module. Those modules form a **single acyclic
