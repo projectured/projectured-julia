@@ -81,14 +81,18 @@ Extracted from all 115 source files' real `import ..Module` edges:
 ### Projection-placement invariant — machine-verified
 
 Rule: **home(projection) ≥ max(tier(input), tier(output), tier(every other import))**
-under kernel < base < visual < domain(core < slices < serialization < apps). Verified
-over all 115 files with the placement below: **zero violations except
-`DocumentInsertionToSyntax` (see D1) and one Widget focus-path import in
-`LayoutToGraphics` (see V1)** — both resolved by refactor. The domain slice→slice
-edges form a DAG (no cycles): formula→julia, dbcatalog→sql, tabular→json,
-conversation→{json,julia,xml}, serialization→{json,xml,sql,julia,math,book,filesystem},
-workbench→{conversation, serialization, parsers}. The visual slice ordering
+under kernel < base < visual < domain(slices < apps). Verified over all 115 files
+with the placement below and the seam refactors (D1, D4, V1) modelled as edge
+rewrites: **zero violations**. The domain slice→slice edges form a DAG (no cycles):
+formula→julia, dbcatalog→sql, tabular→json, conversation→{json,julia,xml},
+workbench→{conversation, filesystem, + parser slices}. The visual slice ordering
 style → graphics → layout → text → widget → syntax → backend verifies with V1 applied.
+
+Two placement rounds were themselves corrected by this check: the generic bridges
+(see below) moved base→visual, and the insertion + serialization frameworks moved
+domain→base (they are domain-independent; only their per-domain methods belong to
+slices) — after which domain's `core/` and `serialization/` tiers **disappear
+entirely**: domain is pure feature slices + apps.
 
 Why it holds structurally: pipelines flow *specific → generic* (source document →
 visual substrate), so a projection placed at its more-specific end always sees both
@@ -120,17 +124,31 @@ which layout/ is Widget-free and the ordering above holds with zero violations.
 | 3 | `layout/` | Layout + ConstraintSolver + LayoutToGraphics, CollectionToLayout (+ the V1 focus-path generics) | spatial arrangement |
 | 4 | `text/` | Text + TextToGraphics, TextToString, the Text→Text decorators (LineNumbering, WordWrapping, TextFiltering, TextFirstLine, TextHighlighting, SelectionInverting) + PrimitiveToText, ReferenceToText | styled text and its renderings |
 | 5 | `widget/` | Widget + WidgetToGraphics, TextToWidget, ObjectToWidget + the decorators WidgetHoverTracking, ProjectionConfiguring, WidgetPopupResolver (adds its focus-path methods to the layout/ generics) | the UI widget system |
-| 6 | `syntax/` | Syntax + SyntaxToText, SyntaxToWidget + the bridges ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax | the tree-presentation domain every source domain targets |
+| 6 | `syntax/` | Syntax + SyntaxToText, SyntaxToWidget + the bridges ObjectToSyntax, CollectionToSyntax, PrimitiveToSyntax + InsertionToSyntax (generic rendering of base's insertion document; slices add preview methods — D1) + NaturalProjection (assembles the default full pipeline from base's natural-rendering registry — D4) | the tree-presentation domain every source domain targets |
 | 7 | `backend/` | Console.jl (renders text), Pdf.jl (renders graphics) | the dependency-free concrete backends |
 
-38 files total, all moved from `domain`. `sdl`/`web`/`video` re-point their domain
+40 files total, all moved from `domain`. `sdl`/`web`/`video` re-point their domain
 imports to `visual`; `odbc` re-points its SyntaxToText/TextToString imports.
 
-### ProjecturedDomain — feature slices over 4 tiers
+### Changes to ProjecturedBase (beyond the kernel plan)
 
-Tier rule inside the package: core(0) < source slices(1) < serialization(2) < apps(3);
-slice→slice edges within tier 1 are allowed if acyclic (guard-checked, currently:
-formula→julia, dbcatalog→sql, tabular→json).
+`base` gains the domain-independent frameworks (the same reasoning that created base:
+generic machinery whose per-domain methods live above):
+
+| Layer | Addition | From |
+| --- | --- | --- |
+| `document/` | `Insertion.jl` — the document-insertion document (`DocumentNothing`, insertion state; ex `domain/document/Document.jl`, kernel-only imports, verified) + the D1 open generics slices add methods to | domain core |
+| `projection/` | ScreenToScreen, Generic, HigherOrder (compound combinator aggregates), ProjectionTemplate | domain |
+| `serialization/` (new layer 3) | `BinarySerialization.jl` (generic binary snapshot; kernel-only imports, moves as-is) · `NaturalFormat.jl` (textual round-trip **framework**: `export_document`/`import_document` generics + format registry — the per-format chains register from slices, D4) · `DocumentFile.jl` (extension-dispatched load/save entry; the extension→insertion-type table becomes slice registrations, D4) + the natural-rendering registry NaturalProjection assembles from | domain serialization |
+
+Base layer order becomes document → projection → serialization; its guard `LAYERS`
+gains `"serialization"`.
+
+### ProjecturedDomain — pure feature slices + apps (2 tiers)
+
+Tier rule inside the package: source slices(1) < apps(2); slice→slice edges within
+tier 1 are allowed if acyclic (guard-checked, currently: formula→julia,
+dbcatalog→sql, tabular→json).
 
 ```
 domain/src/
@@ -339,22 +357,37 @@ doc/
   core.md · apps.md
 ```
 
-Returned to `package/base` (combinator aggregates with no document imports):
-`ScreenToScreen.jl`, `compound/Generic.jl`, `compound/HigherOrder.jl`,
-`ProjectionTemplate.jl`.
+Moved to `package/base` (8 files): `ScreenToScreen.jl`, `compound/Generic.jl`,
+`compound/HigherOrder.jl`, `ProjectionTemplate.jl` (combinator aggregates, kernel-only
+imports) + `document/Document.jl` → `base/document/Insertion.jl` (D1) +
+`serializer/{BinarySerialization,NaturalFormat,DocumentFile}.jl` →
+`base/serialization/` (D4). Final split of domain's 115 files: **40 → visual,
+8 → base, 67 stay** (56 in 21 slices + 11 in apps).
 
 ## The refactors
 
-- **D1 — `DocumentInsertionToSyntax` (mandatory; the only invariant violation).**
-  Today it imports Json+Xml+Sql+Julia documents *and parsers*, while
-  `SqlToSyntax`/`JuliaToSyntax` import it back — a slices↔core knot (6 upward edges,
-  the only ones in the package). Fix, mirroring kernel R1/R2: `core/DocumentInsertion.jl`
-  keeps only the generic insertion document + open generics dispatched on document
-  type; each slice adds its methods **in the files it already has** — the rendering
-  method in its `XToSyntax.jl`, the parsing method in its `XParser.jl`. Multiple
-  dispatch *is* the registration; **no new per-slice files** (a file is a readability
-  boundary, and a couple of methods doesn't earn one). After D1, core has zero upward
-  imports and the slices don't import each other through insertion.
+- **D1 — the insertion seam (mandatory).** `DocumentInsertionToSyntax` imports
+  Json+Xml+Sql+Julia documents *and parsers*, while `SqlToSyntax`/`JuliaToSyntax`
+  import it back — the package's only dependency knot. Fix: the insertion *document*
+  + open generics move to **base** (`document/Insertion.jl`, absorbing the kernel-only
+  `DocumentCoreModule`); the generic insertion *rendering* becomes
+  `visual/syntax/InsertionToSyntax.jl`; each slice adds its preview/parsing methods
+  **in the files it already has** (`XToSyntax.jl` / `XParser.jl`). Multiple dispatch
+  is the registration; no new per-slice files (a file is a readability boundary, and
+  a couple of methods doesn't earn one).
+- **D4 — the serialization seam (mandatory for the base move).** The serializers are
+  domain-independent frameworks with hardcoded per-format tables. Split each along the
+  framework/registration line and move the frameworks to **base** `serialization/`:
+  `BinarySerialization` moves as-is (kernel-only imports, verified);
+  `NaturalFormat` keeps `export_document`/`import_document` + a format registry, and
+  each slice registers its chain (its ToSyntax + the visual SyntaxToText→TextToString
+  tail — legal, slices sit above visual) in its own files; `DocumentFile` keeps the
+  extension-dispatched entry point, slices register "extension → insertion type";
+  `NaturalProjection` splits the same way — base owns the natural-rendering registry,
+  slices register their document-type → ToSyntax entries, and the default-pipeline
+  assembly (which needs the widget/layout/text tails) becomes
+  `visual/syntax/NaturalProjection.jl`. After D1+D4, domain's `core/` and
+  `serialization/` tiers are gone.
 - **V1 — `LayoutToGraphics` imports Widget focus-path helpers** (`first_focusable_path`,
   `last_focusable_path`, and the private `_next_focusable_in` — an encapsulation smell
   too). Not a real domain dependency: shared focus-navigation logic. Move the walk into
@@ -375,10 +408,10 @@ Returned to `package/base` (combinator aggregates with no document imports):
 
 - **Guards**: both packages get the kernel's fragment- and layer-aware
   `test/runtests.jl` guard. visual `LAYERS = ["style","graphics","layout","text","widget","syntax","backend"]`. domain
-  layers = `["core", <slices...>, "serialization", "workbench", "conversation"]` with
-  the addition the kernel guard doesn't need: **within tier 1, slice→slice edges are
-  allowed but must be acyclic** (the guard computes the slice DAG and topo-sorts the
-  include list accordingly).
+  layers = `[<slices...>, "workbench", "conversation"]` with the addition the kernel
+  guard doesn't need: **within the slice tier, slice→slice edges are allowed but must
+  be acyclic** (the guard computes the slice DAG and topo-sorts the include list
+  accordingly). base's guard gains `"serialization"`.
 - **Tests**: `package/visual/test/<layer>/` gets the spine tests migrated from
   ProjecturedTest (`TextTest`, `SyntaxTest`, `GraphicsTest`, `GeometryTest`,
   `SyntaxToTextTest`, `TextToGraphicsTest`, the Widget*Test family, …).
@@ -423,9 +456,13 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       extend umbrella loop; add domain's visual aliases; re-point sdl/web/video/odbc;
       migrate the spine tests; `visual/doc/`. Biggest phase — land as 3 sub-commits
       (style → render+bridges → backends+consumers).
-- [ ] **Q2 — D1 insertion seam.** Split `DocumentInsertionToSyntax` into the core
-      seam + per-slice registrations (json/xml/sql/julia gain their insertion files);
-      guard confirms core has no upward edges. Seam test with a toy registered type.
+- [ ] **Q2 — insertion + serialization seams (D1 + D4).** Move the frameworks to
+      base (`document/Insertion.jl`, `serialization/{BinarySerialization,
+      NaturalFormat,DocumentFile}.jl`) and the generic renderings to
+      `visual/syntax/{InsertionToSyntax,NaturalProjection}.jl`; convert the hardcoded
+      per-format tables to registrations added from each slice's existing files.
+      Seam tests with a toy registered type in base; guard confirms zero upward edges
+      remain anywhere.
 - [ ] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
       folder per the placement table (moves only, module names unchanged); return the
       4 base-bound files to `package/base`; rewrite ProjecturedDomain.jl's include
