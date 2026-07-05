@@ -543,6 +543,43 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       seam + reader method to base); convert the hardcoded per-format tables to
       registrations added from each slice's existing files. Seam tests with toy
       registered types; guard confirms zero upward edges remain anywhere.
+      *(In progress — partial. **D4/BinarySerialization landed** (commit
+      `3d383bf`): moved as-is to `package/base/src/serialization/`; base guard
+      LAYERS grew to `["document","projection","serialization"]`; alias in
+      ProjecturedDomain repoints. Serialization stdlib added to base deps.
+
+      **Deferred, all substantial refactors:**
+      - **D4/NaturalFormat + DocumentFile**: framework/registration split
+        needed. NaturalFormat currently hardcodes 4 domain chains
+        (Json/Xml/Sql/Julia → syntax → text → string); the split moves the
+        `export_document`/`import_document` generics + format registry to
+        base and each slice registers its chain in its own file.
+        DocumentFile hardcodes an extension→insertion table with the four
+        specific Insertion types; the split moves the entry point to base
+        and slices register their extension.
+      - **D5/ProjectionTemplate → kernel**: 1300-line file with two base
+        leaks. (a) The `read_intent(::Projection, ::RuleIoMap,
+        ::ReplaceStringRangeOperation)` method (single method) moves to
+        base beside R6 reader defaults. (b) ~8 constructive `CellVector(...)`
+        sites in output plumbing need a children-container seam
+        (`make_children_container(cells)` generic in kernel; base's
+        Collection.jl adds a `::Vector{Cell}` method); the kernel toy-doc
+        tests supply a toy container to keep the seam honest.
+      - **D1/insertion seam**: the biggest of the three. Currently
+        `DocumentInsertionToSyntax` imports Json+Xml+Sql+Julia documents
+        AND their parsers; `SqlToSyntax`/`JuliaToSyntax` import it back —
+        the domain's only real dependency knot. Fix moves the insertion
+        *document* + open generics to `base/document/Insertion.jl`;
+        creates `visual/syntax/InsertionToSyntax.jl` for the generic
+        rendering; each slice adds preview/parsing methods in
+        `XToSyntax.jl` / `XParser.jl` via multiple dispatch registration.
+
+      After all three seams land, domain's `core/` and `serialization/`
+      tiers disappear (empty), and the visual `screen/` slice completes
+      (ScreenDocument + WindowManaging finally move down from base,
+      alongside the InsertionToSyntax + NaturalProjection generic
+      renderings). These are the remaining Q1 leftovers too, unblocked
+      by Q2.)*
 - [ ] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
       folder per the placement table (moves only, module names unchanged); return the
       4 base-bound files to `package/base`; rewrite ProjecturedDomain.jl's include
