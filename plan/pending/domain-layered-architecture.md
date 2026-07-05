@@ -138,7 +138,7 @@ generic machinery whose per-domain methods live above):
 | Layer | Addition | From |
 | --- | --- | --- |
 | `document/` | `Insertion.jl` — the document-insertion document (`DocumentNothing`, insertion state; ex `domain/document/Document.jl`, kernel-only imports, verified) + the D1 open generics slices add methods to | domain core |
-| `projection/` | ScreenToScreen, Generic, HigherOrder (compound combinator aggregates), ProjectionTemplate | domain |
+| `projection/` | ScreenToScreen, Generic, HigherOrder (compound combinator aggregates) | domain |
 | `serialization/` (new layer 3) | `BinarySerialization.jl` (generic binary snapshot; kernel-only imports, moves as-is) · `NaturalFormat.jl` (textual round-trip **framework**: `export_document`/`import_document` generics + format registry — the per-format chains register from slices, D4) · `DocumentFile.jl` (extension-dispatched load/save entry; the extension→insertion-type table becomes slice registrations, D4) + the natural-rendering registry NaturalProjection assembles from | domain serialization |
 
 Base layer order becomes document → projection → serialization; its guard `LAYERS`
@@ -357,12 +357,14 @@ doc/
   core.md · apps.md
 ```
 
-Moved to `package/base` (8 files): `ScreenToScreen.jl`, `compound/Generic.jl`,
-`compound/HigherOrder.jl`, `ProjectionTemplate.jl` (combinator aggregates, kernel-only
-imports) + `document/Document.jl` → `base/document/Insertion.jl` (D1) +
+Moved to `package/base` (7 files): `ScreenToScreen.jl`, `compound/Generic.jl`,
+`compound/HigherOrder.jl` (combinator aggregates, kernel-only imports) +
+`document/Document.jl` → `base/document/Insertion.jl` (D1) +
 `serializer/{BinarySerialization,NaturalFormat,DocumentFile}.jl` →
-`base/serialization/` (D4). Final split of domain's 115 files: **40 → visual,
-8 → base, 67 stay** (56 in 21 slices + 11 in apps).
+`base/serialization/` (D4). Moved to `package/kernel` (1 file):
+`projection/ProjectionTemplate.jl` → the kernel projection layer (D5). Final split of
+domain's 115 files: **40 → visual, 7 → base, 1 → kernel, 67 stay** (56 in 21 slices +
+11 in apps).
 
 ## The refactors
 
@@ -394,6 +396,17 @@ imports) + `document/Document.jl` → `base/document/Insertion.jl` (D1) +
   `layout/` as open generics; `widget/` adds its methods beside its types. Frees
   `layout/` to be its own Widget-free slice below `widget/` (verified: with V1 applied,
   the 7-slice visual ordering has zero violations).
+- **D5 — `ProjectionTemplate` → kernel (mandatory for the kernel move).** The
+  builder-and-walk template engine every `XToSyntax` uses is projection *machinery*
+  (kin of `@projection` and the defaults), not a document or a particular projection —
+  it belongs in the kernel projection layer. Verified: its imports are kernel-only
+  except two base leaks, both seamable. (a) The single
+  `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)` method moves
+  to base beside the R6 reader defaults. (b) The ~8 constructive `CellVector(...)`
+  sites in its output plumbing become a children-container seam: kernel declares the
+  open generics, base `Collection.jl` supplies the `CellVector` methods; the kernel's
+  toy-document tests supply a toy container — which is exactly the pressure that keeps
+  the seam honest.
 - **D2 — `CellTableToTable` imports Json (smell, decide at implementation).** Legal
   under slice ordering (sql→json is in the DAG) but conceptually odd. Either keep the
   edge and the ordering, or remove the Json dependency; look at the actual use first.
@@ -456,13 +469,14 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       extend umbrella loop; add domain's visual aliases; re-point sdl/web/video/odbc;
       migrate the spine tests; `visual/doc/`. Biggest phase — land as 3 sub-commits
       (style → render+bridges → backends+consumers).
-- [ ] **Q2 — insertion + serialization seams (D1 + D4).** Move the frameworks to
-      base (`document/Insertion.jl`, `serialization/{BinarySerialization,
-      NaturalFormat,DocumentFile}.jl`) and the generic renderings to
-      `visual/syntax/{InsertionToSyntax,NaturalProjection}.jl`; convert the hardcoded
-      per-format tables to registrations added from each slice's existing files.
-      Seam tests with a toy registered type in base; guard confirms zero upward edges
-      remain anywhere.
+- [ ] **Q2 — the framework seams (D1 + D4 + D5).** Move the frameworks down:
+      insertion + serializers to base (`document/Insertion.jl`,
+      `serialization/{BinarySerialization,NaturalFormat,DocumentFile}.jl`), the
+      generic renderings to `visual/syntax/{InsertionToSyntax,NaturalProjection}.jl`,
+      and `ProjectionTemplate.jl` to the kernel projection layer (children-container
+      seam + reader method to base); convert the hardcoded per-format tables to
+      registrations added from each slice's existing files. Seam tests with toy
+      registered types; guard confirms zero upward edges remain anywhere.
 - [ ] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
       folder per the placement table (moves only, module names unchanged); return the
       4 base-bound files to `package/base`; rewrite ProjecturedDomain.jl's include

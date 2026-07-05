@@ -66,9 +66,11 @@ is kernel-side only if the machinery itself needs it (currently: none); a *proje
 is kernel-side iff it imports no concrete document.
 ([domain-layered-architecture.md](domain-layered-architecture.md) later extends the
 chain to kernel ← base ← **visual** ← domain and feature-slices the domain package;
-it also moves 8 domain files into base: ScreenToScreen, the two compound combinator
-aggregates, ProjectionTemplate, the insertion document (D1), and a new
-`serialization/` third layer — BinarySerialization, NaturalFormat, DocumentFile (D4).)
+it also moves 7 domain files into base — ScreenToScreen, the two compound combinator
+aggregates, the insertion document (its D1), and a new `serialization/` third layer:
+BinarySerialization, NaturalFormat, DocumentFile (its D4) — and 1 into this kernel's
+projection layer: ProjectionTemplate.jl, the builder-and-walk template engine (its D5;
+kernel-pure after a children-container seam that base's CellVector implements).)
 
 ### No-cycle verification (2026-07-03)
 
