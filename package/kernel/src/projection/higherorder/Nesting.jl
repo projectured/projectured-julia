@@ -16,7 +16,8 @@ module NestingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..GestureModule: collect_gesture_bindings, GestureBinding
+import ..GestureModule: GestureBinding
+import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export NestingProjection, NestingProjectionIoMap
 
 struct NestingProjectionIoMap <: IoMap

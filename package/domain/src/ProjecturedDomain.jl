@@ -51,6 +51,9 @@ const TimeModule = ProjecturedKernel.TimeModule
 const EventCaseModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureModule
 const GestureModule = ProjecturedKernel.GestureModule
+# Kernel plan P8 (R3, completed 2026-07-06): the Projection-typed seam
+# methods moved out to their own projection-layer module.
+const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule

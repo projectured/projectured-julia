@@ -27,7 +27,8 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
-import ..GestureBindingModule: is_help_gesture, collect_gesture_bindings
+import ..GestureBindingModule: is_help_gesture
+import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..GestureMapModule: gesture_map
 
 export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap

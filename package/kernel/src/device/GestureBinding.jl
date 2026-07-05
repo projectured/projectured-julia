@@ -304,74 +304,15 @@ end
 # with no registered gestures get `nothing` (empty table), exactly as the old default.
 read_gesture(doc::Document, event) = read_document_gesture(doc, event)
 
-# ─────────────────────────────────────────────────────────────────────────
-# Projection-owned gestures (Stage 2 seam) + collector defaults
-# ─────────────────────────────────────────────────────────────────────────
-
-"""
-    get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
-
-Gestures owned by a *projection* rather than a document (focus, collapse glyph,
-clipboard, …). Default empty; a projection overrides this to contribute its own
-rows to the contextual collector. The combinator `collect_gesture_bindings` methods
-(beside the `read_intent` combinators) gather these across the chain.
-"""
-get_projection_gesture_bindings(::Projection, iomap) = GestureBinding[]
-
-"""
-    read_projection_gesture(projection, iomap, event) -> Operation | Nothing
-
-Fire the first reified `get_projection_gesture_bindings(projection, iomap)` binding whose
-pattern `matches` the event and whose `applicable` precondition holds; a binding
-whose `operation` returns `nothing` is skipped so a later one may still fire. The
-projection-layer analogue of [`read_document_gesture`](@ref): a projection whose
-reader delegates here (e.g. Clipboard) *fires* the very table `collect_gesture_bindings`
-*shows*, so fire == show holds at the projection layer too.
-
-The binding `operation`/`applicable` closures are built by `get_projection_gesture_bindings`
-over `projection` and `iomap`, so they already capture what they need; the `doc`
-and `selection` passed here are `iomap.input` and its selection (a binding may
-ignore them and use its captured `iomap`).
-"""
-function read_projection_gesture(projection, iomap, event)
-    bindings = get_projection_gesture_bindings(projection, iomap)
-    isempty(bindings) && return nothing
-    input = hasproperty(iomap, :input) ? iomap.input : nothing
-    sel = (input !== nothing && hasfield(typeof(input), :selection)) ?
-          getfield(input, :selection)[] : nothing
-    for b in bindings
-        if matches(b.pattern, event) && b.applicable(input, sel)
-            op = b.operation(input, event)
-            op === nothing || return op
-        end
-    end
-    return nothing
-end
-
-"""
-    collect_gesture_bindings(projection, recursion, iomap) -> Vector{GestureBinding}
-
-Gather every gesture available at `iomap` — the data-driven generalization of
-`read_intent`'s 4-arg routing: where the reader *matches* one gesture, this
-*collects* them all. The leaf default is the projection's own
-`get_projection_gesture_bindings` plus `get_document_gesture_bindings(iomap.input)`; compound projections
-override to recurse in lockstep with their reader. Each combinator method lives
-beside that combinator's `read_intent` (so coverage extends incrementally —
-un-reified layers simply contribute nothing).
-"""
-function collect_gesture_bindings(p::Projection, recursion, iomap)
-    result = GestureBinding[]
-    append!(result, get_projection_gesture_bindings(p, iomap))
-    input = hasproperty(iomap, :input) ? iomap.input : nothing
-    if input isa Document
-        # Per-instance bindings first (they shadow same-pattern type defaults in
-        # the reader), then the per-type table — the same order `read_document_gesture`
-        # fires, so the help window shows exactly what would fire.
-        append!(result, get_instance_gesture_bindings(input))
-        append!(result, get_document_gesture_bindings(typeof(input)))
-    end
-    return result
-end
+# R3 (kernel plan P8, completed 2026-07-06) — the three Projection-typed
+# gesture-seam methods (get_projection_gesture_bindings,
+# read_projection_gesture, and collect_gesture_bindings(::Projection, …))
+# moved up to projection/GestureBindings.jl (ProjectionGestureBindingsModule).
+# They dispatch on `::Projection`, so they belong in the projection layer;
+# keeping them here required importing Projection down from
+# api/ProjectionApi.jl, an upward edge. Any file that used to import them
+# from `..GestureBindingModule` (now `..GestureModule`) retargets to
+# `..ProjectionGestureBindingsModule`.
 
 """
     get_applicable_gesture_bindings(doc, bindings) -> Vector{GestureBinding}

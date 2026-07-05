@@ -11,7 +11,8 @@ module TypeDispatchingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
 import ..IntentModule: Intent
-import ..GestureModule: collect_gesture_bindings, GestureBinding
+import ..GestureModule: GestureBinding
+import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export TypeDispatchingProjection
 
 """

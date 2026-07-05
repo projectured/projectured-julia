@@ -40,7 +40,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..GestureBindingModule: collect_gesture_bindings
+import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..MouseModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown

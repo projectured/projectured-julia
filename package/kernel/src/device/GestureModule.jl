@@ -34,11 +34,11 @@ import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ModifiersModule: Modifiers
 import ..DocumentModule: Document, read_gesture
-# Kernel plan P5: GestureBinding's projection-collector fallback still needs
-# the `Projection` type to dispatch its default. The api/ProjectionApi.jl file
-# will fold into the projection layer at P8; kept as a documented downward
-# private seam until then.
-import ..ProjectionApiModule: Projection
+# R3 (kernel plan P8, completed 2026-07-06) — the upward
+# `import ..ProjectionApiModule: Projection` is gone. The three
+# Projection-typed seam methods moved up to
+# projection/GestureBindings.jl (ProjectionGestureBindingsModule); this
+# module no longer references the Projection type.
 
 export var"@event_case",
        # from GestureBinding.jl
@@ -49,8 +49,9 @@ export var"@event_case",
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings,
        read_document_gesture, read_node_gesture,
-       get_projection_gesture_bindings, read_projection_gesture,
-       collect_gesture_bindings, get_applicable_gesture_bindings,
+       # get_projection_gesture_bindings, read_projection_gesture,
+       # collect_gesture_bindings moved to ProjectionGestureBindingsModule (R3).
+       get_applicable_gesture_bindings,
        is_help_gesture, var"@gestures", var"@gesture_set",
        # rehomed from ScreenDocumentModule (R5)
        EventEnvelope

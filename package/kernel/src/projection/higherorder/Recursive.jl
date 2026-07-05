@@ -11,7 +11,7 @@ module RecursiveProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
 import ..IntentModule: Intent
-import ..GestureModule: collect_gesture_bindings
+import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export RecursiveProjection
 
 """

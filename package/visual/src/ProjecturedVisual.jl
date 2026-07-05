@@ -76,6 +76,8 @@ const MouseModule = ProjecturedKernel.MouseModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
 const EventCaseModule = ProjecturedKernel.GestureModule           # R4 merge
 const GestureBindingModule = ProjecturedKernel.GestureModule       # R4 merge
+# R3 completion (2026-07-06): Projection-typed seam methods moved out.
+const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const OperationApiModule = ProjecturedKernel.OperationModule       # P4 merge
 const OperationRerootingModule = ProjecturedKernel.OperationModule # P4 merge
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule      # P3 merge

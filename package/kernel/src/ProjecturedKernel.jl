@@ -39,8 +39,8 @@ include("cell/Time.jl")
 # IoMap/Agent) are being folded into their owning layers phase by phase; the
 # separate api/ tier will disappear at P10. DocumentApi merged into
 # DocumentModule at P2.
-include("api/ProjectionApi.jl")
-include("api/IoMapApi.jl")
+include("projection/ProjectionApi.jl")
+include("projection/IoMapApi.jl")
 
 # ── Document layer (layer 2 — the contract) ────────────────────────────────
 # The Document abstract type, the selection generics, the shared @document
@@ -57,8 +57,8 @@ include("document/DocumentModule.jl")
 # from there. R6 also completed: the Primitive-op branches of the default
 # read_intent moved to base/projection/ReaderDefaults.jl beside the ops they
 # interpret. The kernel is now free of any concrete document.
-include("common/Intent.jl")
-include("common/IoMap.jl")
+include("projection/Intent.jl")
+include("projection/IoMap.jl")
 include("reference/ReferenceModule.jl")
 include("operation/OperationModule.jl")
 
@@ -96,6 +96,10 @@ include("backend/HeadlessBackend.jl")
 # Then the higher-order combinators and the generic projections; Preserving
 # precedes Reversing/Sorting, which build on it.
 include("projection/PrinterContext.jl")
+# R3 (kernel plan P8, completed 2026-07-06) — must load before the
+# combinators (Chaining/Nesting/Recursive/TypeDispatching) that import
+# collect_gesture_bindings from it.
+include("projection/GestureBindings.jl")
 include("projection/higherorder/Chaining.jl")
 include("projection/higherorder/TypeDispatching.jl")
 include("projection/higherorder/Recursive.jl")
@@ -115,7 +119,10 @@ include("projection/generic/Focusing.jl")
 # ProjectionModule holds the four-generic fallbacks and the `@projection`
 # macro. Nothing in the kernel imports it, so it loads after the whole algebra;
 # it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
-include("common/Projection.jl")
+include("projection/Projection.jl")
+
+# R3 note: projection/GestureBindings.jl is loaded above (before the
+# higher-order combinators that import from it).
 
 # ── Agent layer (layer 8 — the AI control surface, side-stack) ─────────────
 # AgentModule (renamed from AgentApiModule at P9) declares the make_agent_server
