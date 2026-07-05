@@ -25,7 +25,9 @@ const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule
 const DeviceApiModule = ProjecturedKernel.DeviceApiModule
 const DisplayModule = ProjecturedKernel.DisplayModule
-const DocumentApiModule = ProjecturedKernel.DocumentApiModule
+# Kernel plan P2 merged DocumentApiModule into DocumentModule; the old name
+# stays here as an alias so existing domain/opt-in files keep resolving.
+const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const TimeModule = ProjecturedKernel.TimeModule
 const EventCaseModule = ProjecturedKernel.EventCaseModule

@@ -31,7 +31,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
-import ..DocumentApiModule: Document, read_gesture
+import ..DocumentModule: Document, read_gesture
 
 export @projection, pure_print
 

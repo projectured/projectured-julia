@@ -35,26 +35,33 @@ include("cell/CellModule.jl")
 include("cell/Time.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
-# Pure interface modules: abstract types and generic-function stubs only. The
-# concrete protocol data types (Intent, DoNothingOperation) live in common/, not here.
+# Remaining interface modules (Document/Operation/Backend/Device/Projection/
+# IoMap/Agent) are being folded into their owning layers phase by phase; the
+# separate api/ tier will disappear at P10. DocumentApi merged into
+# DocumentModule at P2.
 include("api/BackendApi.jl")
 include("api/DeviceApi.jl")
 include("api/ProjectionApi.jl")
 include("api/OperationApi.jl")
-include("api/DocumentApi.jl")
 include("api/IoMapApi.jl")
 include("api/AgentApi.jl")
 
-# ── Document core & references ──────────────────────────────────────────────
-# Reactive-backed Document/IoMap, the reference machinery, operations, and the
-# foundational document vocabulary (Collection, Primitive) the engine depends
-# on. Collection precedes Operation so the latter can dispatch on `CellVector`
+# ── Document layer (layer 2 — the contract) ────────────────────────────────
+# The Document abstract type, the selection generics, the shared @document
+# machinery. DocumentModule.jl is the aggregator; it includes Interface.jl
+# (the contract fragment) then Document.jl (the machinery fragment). Merged
+# at P2 from the old api/DocumentApi.jl + common/Document.jl.
+include("document/DocumentModule.jl")
+
+# ── References, operations, foundational documents ─────────────────────────
+# The reference machinery, operations, and the foundational document
+# vocabulary (Collection, Primitive) the engine still depends on for now.
+# Collection precedes Operation so the latter can dispatch on `CellVector`
 # directly (a pre-order walk needs it); Operation precedes Primitive, which
-# imports its splice helpers; OperationRerooting needs Operation + Primitive, so
-# it closes the section. Intent (the reader's backward-flowing protocol type) is
-# a dependency-free leaf.
+# imports its splice helpers; OperationRerooting needs Operation + Primitive,
+# so it closes the section. Intent (the reader's backward-flowing protocol
+# type) is a dependency-free leaf. Concrete documents move to base at P7.
 include("common/Intent.jl")
-include("common/Document.jl")
 include("common/IoMap.jl")
 include("reference/Reference.jl")
 include("reference/ReferenceCase.jl")

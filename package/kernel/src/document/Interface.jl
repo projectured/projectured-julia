@@ -1,14 +1,10 @@
-"""
-    DocumentApiModule
-
-Document selection API. Declares clear_selection! and set_selection! as
-generic functions dispatched on by concrete document types and the default
-implementation in common/Operation.jl. Keeping the interface here decouples
-the declaration from the implementation and avoids circular dependencies.
-"""
-module DocumentApiModule
-
-export Document, get_selection, clear_selection!, set_selection!, with_selection, read_gesture
+# Fragment of `DocumentModule` — the document contract shared by every concrete
+# document type: the `Document` abstract supertype, the selection generics
+# (get/clear/set/with), and the domain-facing `read_gesture` seam. Declaring the
+# generics here (as `function foo end`) decouples the declarations from the
+# implementations, which land in `Document.jl` for the shared machinery, in
+# `common/Operation.jl` for the default clear/set (folded in by P4), and in each
+# concrete document type. Included by `DocumentModule.jl`; shares its namespace.
 
 """
     Document
@@ -95,5 +91,3 @@ method is more specific and still takes precedence; a document type with neither
 method nor any registered gestures yields `nothing`.
 """
 function read_gesture end
-
-end # module

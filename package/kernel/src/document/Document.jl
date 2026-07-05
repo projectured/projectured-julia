@@ -1,18 +1,10 @@
-"""
-    DocumentModule
-
-Contract for all document types. Every concrete document must subtype
-Document and carry a selection::Reference holding the ReferencePath relative
-to that node. This shared contract is what allows set_selection! to
-propagate a path generically without knowing the concrete type.
-"""
-module DocumentModule
-
-import ..DocumentApiModule: Document
-import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
-
-export Document, copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
-       @document, @forward, @forward_vector, @forward_map
+# Fragment of `DocumentModule` — the shared machinery every concrete document
+# reuses: the generic `Base.show`, the Cell-struct codegen helpers `_cell_*`
+# (shared with `@iomap`), the `@document` macro and its `@forward*` family,
+# and the value protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/
+# `hydrate`/`sync_document!`. The `Document` abstract type and the selection
+# generics it references come from `Interface.jl`, which `DocumentModule.jl`
+# includes first so they are already in scope here.
 
 """
 Maximum nesting depth printed by the generic document `show` before child
@@ -677,5 +669,3 @@ end
 # A source element rebuilt for the reactive shadow (a document is hydrated fresh; a
 # plain value passes through). Shared by the CellVector reconciler.
 _shadow_elem(x) = x isa Document ? hydrate(x) : x
-
-end # module

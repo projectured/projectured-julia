@@ -34,7 +34,7 @@ const DOT        = Symbol(".")
 
 # Declared layers, in order of increasing index. Non-LAYERS folders are exempt
 # from the layer-index check during transition; the final phase forbids them.
-const LAYERS = String["cell"]
+const LAYERS = String["cell", "document"]
 
 # ── AST helpers ────────────────────────────────────────────────────────────
 

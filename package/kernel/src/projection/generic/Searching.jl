@@ -16,7 +16,7 @@ import ..ProjectionApiModule: print_document, map_reference_forward, map_referen
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell, AbstractCell, set_function!
 import ..CollectionModule: CellVector
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           FieldReference, ElementReference, append_reference, head, tail,
                           strip_reference_types

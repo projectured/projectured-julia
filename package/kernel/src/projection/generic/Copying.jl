@@ -13,7 +13,7 @@ module CopyingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..CellModule: Cell, set_function!, set_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, is_element_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context

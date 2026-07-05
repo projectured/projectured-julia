@@ -25,7 +25,7 @@ button being clicked; readers translate it into a document mutation
 module ScreenDocumentModule
 
 import ..CellModule: Cell, set_function!, set_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath

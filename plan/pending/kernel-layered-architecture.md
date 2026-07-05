@@ -716,11 +716,20 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       package/test/src/common/CellTest.jl and its test_all() call + export.
       Renamed doc/reactive.md → doc/cell.md with the Time.jl rehome noted. V1 green;
       V2/V3 defer to phases with the umbrella load available.)*
-- [ ] **P2 — document (contract)**: merge DocumentApi into `DocumentModule`; move
+- [x] **P2 — document (contract)**: merge DocumentApi into `DocumentModule`; move
       `common/Document.jl`; retarget ~9 importers + aliases; ToyNode contract tests;
       `doc/document.md`. (Concrete documents stay put until P7. Note: `IoMapModule`
       imports the private `_cell_autowrap_ctor`/`_cell_property_accessors` — keep as a
       documented downward private seam.)
+      *(Done. `git mv api/DocumentApi.jl → document/Interface.jl`, `git mv
+      common/Document.jl → document/Document.jl`; both stripped to fragments; new
+      aggregator `document/DocumentModule.jl` wires them together. Retargeted 8 kernel
+      importers from `..DocumentApiModule` to `..DocumentModule`; ProjecturedDomain
+      alias `const DocumentApiModule = ProjecturedKernel.DocumentModule` keeps the 60+
+      domain files resolving unchanged. LAYERS grew to `["cell", "document"]`; guard
+      green. New test/document/DocumentContractTest.jl exercises @document + selection
+      + snapshot round-trip through a test-local `ToyNode`; 17 tests pass. Wrote
+      doc/document.md; kernel guard + cell + document tests green.)*
 - [ ] **P3 — reference**: merge the trio into `ReferenceModule`; retarget 5 kernel
       importers + aliases; migrate/new tests; `doc/reference.md`.
 - [ ] **P4 — operation**: merge OperationApi + Operation + Rerooting into

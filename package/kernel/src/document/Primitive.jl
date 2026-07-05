@@ -8,9 +8,9 @@ is stored in a reactive Cell so changes are tracked.
 module PrimitiveModule
 
 import ..CellModule: Cell, set_function!, set_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
-import ..DocumentApiModule: clear_selection!, set_selection!
+import ..DocumentModule: clear_selection!, set_selection!
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,

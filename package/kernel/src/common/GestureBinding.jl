@@ -38,7 +38,7 @@ module GestureBindingModule
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ModifiersModule: Modifiers
-import ..DocumentApiModule: Document, read_gesture
+import ..DocumentModule: Document, read_gesture
 import ..ProjectionApiModule: Projection
 # Reuse the `@event_case` pattern parser for the LHS of `@gestures` rules.
 # These EventCase internals are deliberately shared (not exported) — see the

@@ -1,0 +1,54 @@
+"""
+    DocumentModule
+
+Layer 2 of the kernel — the **document contract** every concrete document
+subtypes and every projection consumes. Merged in kernel plan P2 from the
+former `DocumentApiModule` (`api/DocumentApi.jl`, the interface) and
+`DocumentModule` (`common/Document.jl`, the machinery); one module now,
+because the two were only ever imported together and their separation just
+multiplied import headers.
+
+The module lives in two fragments that share this namespace:
+
+- [`Interface.jl`](Interface.jl) — the `Document` abstract type, the selection
+  generics (`get_selection`, `clear_selection!`, `set_selection!`,
+  `with_selection`), and the projection-independent `read_gesture` seam. This
+  is the surface every higher layer implements against.
+- [`Document.jl`](Document.jl) — the shared machinery: the generic
+  `Base.show`, the Cell-struct codegen helpers `_cell_*` (also used by
+  `@iomap`), the `@document` macro and its `@forward*` family, and the value
+  protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
+  `sync_document!` that reactive syncing and rehydration ride on.
+
+Concrete documents (Collection, Primitive, ScreenDocument) still live under
+`document/` for now; they leave the kernel entirely at plan phase P7 (base
+package).
+
+The two contracts every concrete document must satisfy:
+
+1. **Selection field.** A `selection::Cell{Reference}` field tracks the
+   current selection (nil or a `ReferencePath`). The `@document`-generated
+   `getproperty` unwraps the Cell.
+2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")`
+   in a path resolves via `getfield(document, :foo)`; renaming a struct field
+   silently breaks every stored reference. Struct fields are public API.
+
+Downward private seam: `IoMapModule` imports `_cell_autowrap_ctor` and
+`_cell_property_accessors` from here — a deliberately documented private
+edge (both macros share Cell-struct codegen; splitting the helpers off just
+for that would be worse than the edge).
+"""
+module DocumentModule
+
+import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
+
+export Document, get_selection, clear_selection!, set_selection!, with_selection, read_gesture,
+       copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
+       @document, @forward, @forward_vector, @forward_map
+
+# The abstract type and selection generics first; the machinery in Document.jl
+# refers to them.
+include("Interface.jl")
+include("Document.jl")
+
+end # module
