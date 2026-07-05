@@ -18,7 +18,7 @@ const VISUAL_SRC = normpath(joinpath(@__DIR__, "..", "src"))
 const TOP_FILE   = joinpath(VISUAL_SRC, "ProjecturedVisual.jl")
 const DOT        = Symbol(".")
 
-const LAYERS = String["style"]
+const LAYERS = String["style", "graphics", "layout", "text", "widget", "syntax"]
 const LAYER_EXEMPT_FILES = Set{String}()
 
 # ── AST helpers (mirror kernel/base) ───────────────────────────────────────

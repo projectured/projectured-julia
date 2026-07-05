@@ -65,6 +65,50 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const ScreenDocumentModule = ProjecturedBase.ScreenDocumentModule
+const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
+# Kernel modules that visual files still name by their pre-P5/P8 aliases —
+# ProjecturedDomain already normalises these into the merged locations; we
+# repeat them here so files with old-style imports keep resolving inside
+# ProjecturedVisual too.
+const KeyboardModule = ProjecturedKernel.KeyboardModule
+const MouseModule = ProjecturedKernel.MouseModule
+const ModifiersModule = ProjecturedKernel.ModifiersModule
+const EventCaseModule = ProjecturedKernel.GestureModule           # R4 merge
+const GestureBindingModule = ProjecturedKernel.GestureModule       # R4 merge
+const OperationApiModule = ProjecturedKernel.OperationModule       # P4 merge
+const OperationRerootingModule = ProjecturedKernel.OperationModule # P4 merge
+const ReferenceCaseModule = ProjecturedKernel.ReferenceModule      # P3 merge
+const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule   # P3 merge
+const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
+const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
+const PredicateDispatchingProjectionModule = ProjecturedKernel.PredicateDispatchingProjectionModule
+const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
+const ChainingProjectionModule = ProjecturedKernel.ChainingProjectionModule
+const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
+const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
+const SwitchingProjectionModule = ProjecturedKernel.SwitchingProjectionModule
+const EnvelopeUnwrappingProjectionModule = ProjecturedKernel.EnvelopeUnwrappingProjectionModule
+const FocusingProjectionModule = ProjecturedKernel.FocusingProjectionModule
+const ReversingProjectionModule = ProjecturedKernel.ReversingProjectionModule
+const ConstantProjectionModule = ProjecturedKernel.ConstantProjectionModule
+const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
+const DisplayModule = ProjecturedKernel.DisplayModule
+const DeviceApiModule = ProjecturedKernel.DeviceModule             # P5 rename
+const DeviceModule = ProjecturedKernel.DeviceModule
+const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
+const TimeModule = ProjecturedKernel.TimeModule
+const LlmModule = ProjecturedKernel.LlmModule
+const McpModule = ProjecturedKernel.McpModule
+const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
+const AgentApiModule = ProjecturedKernel.AgentModule                # P9 rename
+const AgentModule = ProjecturedKernel.AgentModule
+# Base's document-shaped projections used by visual bridges (Sorting is
+# imported from CollectionToSyntax indirectly, but exposing it costs
+# nothing).
+const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
+const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
+const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
+const WindowManagingProjectionModule = ProjecturedBase.WindowManagingProjectionModule
 
 # ── Slice 1 — style (pure value types every visual thing shares) ─────────
 # Load order: Color and Font first (no forward references); Geometry, Image,
@@ -77,6 +121,79 @@ include("style/Image.jl")
 include("style/StyleStroke.jl")
 include("style/StyleText.jl")
 
-# Slices 2-8 land in subsequent Q1 sub-commits.
+# ── Slice 3 — graphics (retained drawing target) ─────────────────────────
+# Graphics is the drawing domain (text/rect/canvas/viewport/image/fence).
+# GraphicsCaching wraps it with a caching layer for identity-stable output.
+include("graphics/Graphics.jl")
+include("graphics/GraphicsCaching.jl")
+
+# ── Slice 4 — layout (spatial arrangement) ───────────────────────────────
+# Layout is the container domain; ConstraintSolver is the layout algebra;
+# LayoutToGraphics renders a laid-out tree onto a canvas; CollectionToLayout
+# bridges a base CellVector into a layout container.
+include("layout/Layout.jl")
+include("layout/ConstraintSolver.jl")
+# LayoutToGraphics loads *after* widget/ because it still imports
+# WidgetModule's focus-path helpers (first_focusable_path, last_focusable_path,
+# _next_focusable_in). The V1 refactor from the domain plan moves those
+# helpers into layout/ as open generics with widget/ adding methods beside its
+# types; until then this transitional reorder keeps the guard green without a
+# semantic change.
+include("layout/CollectionToLayout.jl")
+
+# ── Slice 5 — text (styled text + its renderings) ────────────────────────
+# Text is the styled-text domain (TextText/TextString/TextNewline…);
+# TextToGraphics/TextToString are the render endpoints; the decorators
+# (LineNumbering, WordWrapping, TextFiltering, TextFirstLine,
+# TextHighlighting, SelectionInverting) are Text→Text transforms;
+# PrimitiveToText and ReferenceToText are the base→text and reference→text
+# bridges.
+include("text/Text.jl")
+include("text/TextToGraphics.jl")
+include("text/TextToString.jl")
+include("text/LineNumbering.jl")
+include("text/WordWrapping.jl")
+include("text/TextFiltering.jl")
+include("text/TextFirstLine.jl")
+include("text/TextHighlighting.jl")
+include("text/SelectionInverting.jl")
+include("text/PrimitiveToText.jl")
+include("text/ReferenceToText.jl")
+
+# ── Slice 6 — widget (UI widget system) ──────────────────────────────────
+# Widget is the widget domain (labels, buttons, panes, menus, dropdowns…).
+# WidgetToGraphics is the big canvas renderer; TextToWidget promotes text
+# to an editable widget; ObjectToWidget is the reflection-driven form for
+# Cell-field structs. The decorators (WidgetHoverTracking,
+# ProjectionConfiguring, WidgetPopupResolver) transform a widget tree.
+include("widget/Widget.jl")
+# LayoutToGraphics + WidgetToGraphics — moved to load right after Widget
+# so downstream widget files (TextToWidget, WidgetPopupResolver) that
+# import WidgetToGraphics resolve. LayoutToGraphics still imports Widget
+# focus-path helpers (the V1 refactor from the domain plan will move those
+# helpers into layout/ as open generics; widget/ adds methods beside its
+# types); until V1 lands the order here is transitional.
+include("layout/LayoutToGraphics.jl")
+include("widget/WidgetToGraphics.jl")
+include("widget/TextToWidget.jl")
+include("widget/ObjectToWidget.jl")
+include("widget/WidgetHoverTracking.jl")
+include("widget/ProjectionConfiguring.jl")
+include("widget/WidgetPopupResolver.jl")
+
+# ── Slice 7 — syntax (tree presentation, target of every source domain) ─
+# Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.
+# SyntaxToText flattens a syntax tree to styled text; SyntaxToWidget
+# projects it as widget forms. The bridges (ObjectToSyntax,
+# CollectionToSyntax, PrimitiveToSyntax) are what every source domain
+# eventually funnels through.
+include("syntax/Syntax.jl")
+include("syntax/SyntaxToText.jl")
+include("syntax/SyntaxToWidget.jl")
+include("syntax/ObjectToSyntax.jl")
+include("syntax/CollectionToSyntax.jl")
+include("syntax/PrimitiveToSyntax.jl")
+
+# Slice 2 (screen) and slice 8 (backend) land in the final Q1 sub-commit.
 
 end # module ProjecturedVisual

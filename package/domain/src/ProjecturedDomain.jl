@@ -98,6 +98,7 @@ const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProject
 # ── Visual aliases (domain plan Q1 — style slice) ─────────────────────────
 # Files moved into ProjecturedVisual; the old names live on here so unmoved
 # domain files (~30 importers of ColorModule alone) keep resolving.
+# Style slice (Q1 sub-commit 1)
 const ColorModule = ProjecturedVisual.ColorModule
 const FontModule = ProjecturedVisual.FontModule
 const GeometryModule = ProjecturedVisual.GeometryModule
@@ -105,14 +106,52 @@ const ImageModule = ProjecturedVisual.ImageModule
 const StyleStrokeModule = ProjecturedVisual.StyleStrokeModule
 const StyleTextModule = ProjecturedVisual.StyleTextModule
 
+# Graphics slice (Q1 sub-commit 2)
+const GraphicsModule = ProjecturedVisual.GraphicsModule
+const GraphicsCachingProjectionModule = ProjecturedVisual.GraphicsCachingProjectionModule
+
+# Layout slice (Q1 sub-commit 2)
+const LayoutModule = ProjecturedVisual.LayoutModule
+const ConstraintSolverModule = ProjecturedVisual.ConstraintSolverModule
+const LayoutToGraphicsProjectionModule = ProjecturedVisual.LayoutToGraphicsProjectionModule
+const CollectionToLayoutProjectionModule = ProjecturedVisual.CollectionToLayoutProjectionModule
+
+# Text slice (Q1 sub-commit 2)
+const TextModule = ProjecturedVisual.TextModule
+const TextToGraphicsProjectionModule = ProjecturedVisual.TextToGraphicsProjectionModule
+const TextToStringProjectionModule = ProjecturedVisual.TextToStringProjectionModule
+const LineNumberingProjectionModule = ProjecturedVisual.LineNumberingProjectionModule
+const WordWrappingProjectionModule = ProjecturedVisual.WordWrappingProjectionModule
+const TextFilteringProjectionModule = ProjecturedVisual.TextFilteringProjectionModule
+const TextFirstLineProjectionModule = ProjecturedVisual.TextFirstLineProjectionModule
+const TextHighlightingProjectionModule = ProjecturedVisual.TextHighlightingProjectionModule
+const SelectionInvertingProjectionModule = ProjecturedVisual.SelectionInvertingProjectionModule
+const PrimitiveToTextProjectionModule = ProjecturedVisual.PrimitiveToTextProjectionModule
+const ReferenceToTextProjectionModule = ProjecturedVisual.ReferenceToTextProjectionModule
+
+# Widget slice (Q1 sub-commit 2)
+const WidgetModule = ProjecturedVisual.WidgetModule
+const WidgetToGraphicsProjectionModule = ProjecturedVisual.WidgetToGraphicsProjectionModule
+const TextToWidgetProjectionModule = ProjecturedVisual.TextToWidgetProjectionModule
+const ObjectToWidgetProjectionModule = ProjecturedVisual.ObjectToWidgetProjectionModule
+const WidgetHoverTrackingProjectionModule = ProjecturedVisual.WidgetHoverTrackingProjectionModule
+const ProjectionConfiguringProjectionModule = ProjecturedVisual.ProjectionConfiguringProjectionModule
+const WidgetPopupResolverProjectionModule = ProjecturedVisual.WidgetPopupResolverProjectionModule
+
+# Syntax slice (Q1 sub-commit 2)
+const SyntaxModule = ProjecturedVisual.SyntaxModule
+const SyntaxToTextProjectionModule = ProjecturedVisual.SyntaxToTextProjectionModule
+const SyntaxToWidgetProjectionModule = ProjecturedVisual.SyntaxToWidgetProjectionModule
+const ObjectToSyntaxProjectionModule = ProjecturedVisual.ObjectToSyntaxProjectionModule
+const CollectionToSyntaxProjectionModule = ProjecturedVisual.CollectionToSyntaxProjectionModule
+const PrimitiveToSyntaxProjectionModule = ProjecturedVisual.PrimitiveToSyntaxProjectionModule
+
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("common/OsClipboard.jl")
 include("document/Document.jl")
-# Font/Color/StyleText/StyleStroke/Geometry moved to package/visual at Q1
-# (style slice); available via the visual aliases at the top of this file.
-include("document/Text.jl")
-include("document/Syntax.jl")
-include("document/Graphics.jl")
+# Q1 sub-commit 2: Text/Syntax/Graphics moved to package/visual (text/syntax/
+# graphics slices). Style + Image already moved in sub-commit 1. Available
+# via the visual aliases at the top of this file.
 include("document/Json.jl")
 include("document/Yaml.jl")
 include("document/GestureMap.jl")
@@ -128,9 +167,8 @@ include("document/FileSystem.jl")
 include("document/Workspace.jl")
 include("document/Clipboard.jl")
 include("document/Versioning.jl")
-include("document/Widget.jl")
-include("document/ConstraintSolver.jl")
-include("document/Layout.jl")
+# Q1 sub-commit 2: Widget/ConstraintSolver/Layout moved to package/visual
+# (widget + layout slices).
 include("document/Graph.jl")
 include("document/GraphLayout.jl")
 include("layout/GraphLayoutEngine.jl")
@@ -154,14 +192,13 @@ include("document/Dragging.jl")
 include("projection/higherorder/TooltipDecorator.jl")
 include("projection/higherorder/GestureHelpDecorator.jl")
 include("projection/primitive/ScreenToScreen.jl")
-include("projection/generic/ObjectToWidget.jl")
+# Q1 sub-commit 2: ObjectToWidget moved to visual/widget/.
 include("projection/primitive/ClipboardToAny.jl")
 include("projection/primitive/VersioningToAny.jl")
-include("projection/higherorder/ProjectionConfiguring.jl")
+# Q1 sub-commit 2: ProjectionConfiguring moved to visual/widget/.
 include("projection/higherorder/Dragging.jl")
-include("projection/primitive/SyntaxToText.jl")
-include("projection/primitive/TextToGraphics.jl")
-include("projection/primitive/GraphicsCaching.jl")
+# Q1 sub-commit 2: SyntaxToText, TextToGraphics, GraphicsCaching moved to
+# visual (syntax, text, graphics slices).
 include("projection/ProjectionTemplate.jl")
 include("projection/primitive/JsonToSyntax.jl")
 include("projection/primitive/YamlToSyntax.jl")
@@ -171,26 +208,16 @@ include("projection/primitive/MarkdownToSyntax.jl")
 include("projection/primitive/FileSystemToSyntax.jl")
 include("projection/primitive/FileSystemToWidget.jl")
 include("projection/primitive/WorkspaceToFileSystem.jl")
-include("projection/primitive/TextToString.jl")
-include("projection/primitive/ObjectToSyntax.jl")
-include("projection/primitive/LayoutToGraphics.jl")
-include("projection/primitive/WidgetToGraphics.jl")
-include("projection/higherorder/WidgetHoverTracking.jl")
-include("projection/higherorder/WidgetPopupResolver.jl")
-include("projection/primitive/TextToWidget.jl")
+# Q1 sub-commit 2: TextToString, ObjectToSyntax, LayoutToGraphics,
+# WidgetToGraphics moved to visual. WidgetHoverTracking, WidgetPopupResolver,
+# TextToWidget likewise.
 include("projection/primitive/GraphToGraphLayout.jl")
 include("projection/primitive/GraphLayoutToGraphics.jl")
-include("projection/primitive/SyntaxToWidget.jl")
+# Q1 sub-commit 2: SyntaxToWidget moved to visual/syntax/.
 include("projection/primitive/BookToSyntax.jl")
-include("projection/primitive/LineNumbering.jl")
-include("projection/primitive/WordWrapping.jl")
-include("projection/primitive/TextFirstLine.jl")
-include("projection/primitive/TextFiltering.jl")
-include("projection/primitive/TextHighlighting.jl")
-include("projection/primitive/SelectionInverting.jl")
-include("projection/primitive/PrimitiveToSyntax.jl")
-include("projection/primitive/PrimitiveToText.jl")
-include("projection/primitive/ReferenceToText.jl")
+# Q1 sub-commit 2: LineNumbering, WordWrapping, TextFirstLine, TextFiltering,
+# TextHighlighting, SelectionInverting, PrimitiveToSyntax, PrimitiveToText,
+# ReferenceToText all moved to visual.
 include("projection/primitive/ReferenceInspectorToText.jl")
 include("projection/higherorder/HoverProbe.jl")
 include("projection/primitive/MathToSyntax.jl")
@@ -201,7 +228,7 @@ include("projection/primitive/DocumentInsertionToSyntax.jl")
 include("projection/primitive/JuliaToSyntax.jl")
 include("projection/primitive/FormulaToSyntax.jl")
 include("projection/primitive/SqlToSyntax.jl")
-include("projection/primitive/CollectionToSyntax.jl")
+# Q1 sub-commit 2: CollectionToSyntax moved to visual/syntax/.
 include("projection/primitive/ConversationToSyntax.jl")
 include("projection/primitive/ConversationToWidget.jl")
 include("projection/primitive/WorkbenchToWidget.jl")

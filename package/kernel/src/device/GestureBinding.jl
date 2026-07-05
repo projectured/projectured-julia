@@ -572,7 +572,7 @@ macro gestures(doctype, block)
     # (a bare `function get_document_gesture_bindings_own` would be hygienically gensym'd into
     # a fresh local function instead of extending ours).
     quote
-        function $(GestureBindingModule).get_document_gesture_bindings_own(::Type{$(esc(doctype))})
+        function $(@__MODULE__).get_document_gesture_bindings_own(::Type{$(esc(doctype))})
             _applicable = $applicable_ex
             GestureBinding[$(items...)]
         end
