@@ -580,10 +580,36 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       alongside the InsertionToSyntax + NaturalProjection generic
       renderings). These are the remaining Q1 leftovers too, unblocked
       by Q2.)*
-- [ ] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
+- [x] **Q3 — slice folders.** `git mv` every remaining domain file into its slice
       folder per the placement table (moves only, module names unchanged); return the
       4 base-bound files to `package/base`; rewrite ProjecturedDomain.jl's include
       list into guard-checked tier/slice order.
+      *(Done — 3 commits (`9d97002` source slices + apps tier prep, `a3624a0` apps
+      tier + core rename + folder cleanup, plus the earlier `d9727a4` orphan/alias
+      fix). Landed 22 slice folders: 20 source domains (book/clipboard/database/
+      dbcatalog/dragging/filesystem/formula/gesturemap/graph/inspector/json/
+      julia/markdown/math/sql/tabular/tooltip/versioning/xml/yaml) + apps tier
+      (workbench/conversation, tier 2) + core/ (tier 0, holds Document.jl only
+      pending D1). ~55 files moved; empty flat folders (common/, editor/,
+      external/, layout/, parser/) deleted. `external/Database.jl` renamed to
+      `database/DatabaseAdapters.jl`; `projection/higherorder/Dragging.jl`
+      renamed to `dragging/DraggingProjection.jl` per the plan target to break
+      the twin basename with the document.
+
+      Deferred (blocked on the D-series seams):
+      - core/ tier collapses when D1's insertion seam moves DocumentCoreModule
+        + the shared insertion document down to `base/document/Insertion.jl`.
+      - projection/ tier collapses when D5's ProjectionTemplate move + the
+        children-container seam land the file at `kernel/projection/`;
+        compound/HigherOrder.jl and compound/Generic.jl return to
+        `base/projection/` at the same time.
+      - serializer/ tier collapses when D4's NaturalFormat + DocumentFile
+        framework/registration split moves the frameworks to
+        `base/serialization/`.
+      After the four D-series seams, ProjecturedDomain will be pure feature
+      slices + apps — no by-kind tiers at all.
+      Kernel/base/visual guards unaffected; domain guard 4/4 pass on the new
+      layout.)*
 - [ ] **Q4 — per-slice tests.** Migrate ProjecturedTest's per-domain files into
       `domain/test/<slice>/`; wire the per-slice runner (`Pkg.test(test_args=["json"])`);
       ProjecturedTest shrinks to integration.
