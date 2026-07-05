@@ -187,3 +187,25 @@ end
         @test isempty(errs)
     end
 end
+
+# Per-slice runner — mirror the kernel/base/visual discipline.
+function run_slice_tests(slices, filter)
+    for slice in slices
+        isempty(filter) || (slice in filter) || continue
+        dir = joinpath(@__DIR__, slice)
+        runner = joinpath(dir, "runtests.jl")
+        isfile(runner) || continue
+        @testset "$slice" begin
+            include(runner)
+        end
+    end
+end
+
+# Q4 scaffold (2026-07-06): the per-slice folders below hold stub runners
+# that will be filled as per-domain tests migrate from ProjecturedTest.
+const SLICES = String[
+    "json", "xml", "yaml", "julia", "math", "markdown", "book", "sql",
+    # More slice runners land as tests migrate.
+]
+
+run_slice_tests(SLICES, ARGS)
