@@ -16,11 +16,13 @@ submodule of `ProjecturedDomain`, `..CellModule` resolves through the
 module ProjecturedDomain
 
 using ProjecturedKernel
-# ProjecturedBase is the intermediate layer between kernel and domain (per
-# plan/pending/kernel-layered-architecture.md). At P7 the package is a skeleton
-# (a set of aliases) so `using` it succeeds but contributes nothing until P8
-# moves the concrete documents and document-shaped projections into it.
+# ProjecturedBase — kernel plan P7/P8: concrete engine documents +
+# document-shaped projections.
 using ProjecturedBase
+# ProjecturedVisual — domain plan Q1: style/graphics/layout/text/widget/
+# syntax/backend slices. Aliases below repoint moved modules to
+# ProjecturedVisual so unmoved domain files keep resolving.
+using ProjecturedVisual
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
@@ -93,14 +95,21 @@ const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 
+# ── Visual aliases (domain plan Q1 — style slice) ─────────────────────────
+# Files moved into ProjecturedVisual; the old names live on here so unmoved
+# domain files (~30 importers of ColorModule alone) keep resolving.
+const ColorModule = ProjecturedVisual.ColorModule
+const FontModule = ProjecturedVisual.FontModule
+const GeometryModule = ProjecturedVisual.GeometryModule
+const ImageModule = ProjecturedVisual.ImageModule
+const StyleStrokeModule = ProjecturedVisual.StyleStrokeModule
+const StyleTextModule = ProjecturedVisual.StyleTextModule
+
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("common/OsClipboard.jl")
 include("document/Document.jl")
-include("document/Font.jl")
-include("document/Color.jl")
-include("document/StyleText.jl")
-include("document/StyleStroke.jl")
-include("document/Geometry.jl")
+# Font/Color/StyleText/StyleStroke/Geometry moved to package/visual at Q1
+# (style slice); available via the visual aliases at the top of this file.
 include("document/Text.jl")
 include("document/Syntax.jl")
 include("document/Graphics.jl")
@@ -138,7 +147,7 @@ include("parser/XmlParser.jl")
 include("parser/MarkdownParser.jl")
 include("parser/SqlParser.jl")
 include("document/Workbench.jl")
-include("document/Image.jl")
+# Image moved to package/visual at Q1 (style slice).
 include("document/Tooltip.jl")
 include("document/ReferenceInspector.jl")
 include("document/Dragging.jl")

@@ -512,6 +512,20 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
       extend umbrella loop; add domain's visual aliases; re-point sdl/web/video/odbc;
       migrate the spine tests; `visual/doc/`. Biggest phase — land as 3 sub-commits
       (style → render+bridges → backends+consumers).
+      *(In progress — sub-commit 1 (style slice) done.
+      Stood up `package/visual`: Project.toml (deps ProjecturedKernel + ProjecturedBase),
+      `src/ProjecturedVisual.jl` with the kernel+base alias preamble, `test/runtests.jl`
+      guard (mirrors kernel/base/domain, LAYERS starts at `["style"]`).
+      Moved 6 files: `Color.jl`, `Font.jl`, `Geometry.jl`, `Image.jl`, `StyleStroke.jl`,
+      `StyleText.jl` from `domain/document/` to `visual/src/style/`. Domain
+      `Project.toml` gains ProjecturedVisual dep; ProjecturedDomain.jl adds
+      `using ProjecturedVisual` and the 6 aliases pointing at their new home so
+      ~30 unmoved domain files keep resolving. Umbrella + root Project.toml also
+      register ProjecturedVisual. All four guards green (kernel 6/base 4/visual 4/
+      domain 4); ProjecturedKernel/Base/Visual all precompile clean.
+      Remaining Q1 sub-commits: screen slice (ScreenDocument+WindowManaging move
+      from base) + graphics/layout/text/widget/syntax slices; then backend slice
+      (Console/Pdf) + sdl/web/video/odbc retargets.)*
 - [ ] **Q2 — the framework seams (D1 + D4 + D5).** Move the frameworks down:
       insertion + serializers to base (`document/Insertion.jl`,
       `serialization/{BinarySerialization,NaturalFormat,DocumentFile}.jl`), the

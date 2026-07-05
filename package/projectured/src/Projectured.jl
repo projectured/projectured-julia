@@ -21,9 +21,10 @@ module Projectured
 
 import ProjecturedKernel
 import ProjecturedBase
+import ProjecturedVisual
 import ProjecturedDomain
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedDomain)
+for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
     _srcname = nameof(_src)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
