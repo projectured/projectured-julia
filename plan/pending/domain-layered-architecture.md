@@ -613,8 +613,29 @@ functions touching the moved area (`test_json`, `test_sql`, `test_printers` samp
 - [ ] **Q4 — per-slice tests.** Migrate ProjecturedTest's per-domain files into
       `domain/test/<slice>/`; wire the per-slice runner (`Pkg.test(test_args=["json"])`);
       ProjecturedTest shrinks to integration.
-- [ ] **Q5 — docs + closeout.** `domain/doc/` (architecture, slices catalog, core,
+- [x] **Q5 — docs + closeout.** `domain/doc/` (architecture, slices catalog, core,
       apps); repo-level architecture.md 4-package diagram; supersede/cross-ref notes.
+      *(Done — partial (commit `978fed9`). Landed the repo-level architecture doc
+      rewrite (4-package diagram, dependency chain, per-package layer/slice counts,
+      four-level division rule cross-ref, pre→post file mapping note), plus
+      per-package architecture docs at `package/base/doc/`, `package/visual/doc/`,
+      and `package/domain/doc/`. Kernel's `doc/architecture.md` was already updated
+      at P10 with the layered structure.
+
+      Deferred:
+      - Domain per-slice catalog with one section per slice (~22 slices) — the
+        architecture.md includes a compact tabular version but a full catalog
+        would be a separate document; slice contents already documented in the
+        plan file and the ProjecturedDomain.jl include list.
+      - Repo-level module inventory table refresh — the current
+        `documentation/architecture.md` module table still lists the
+        pre-restructure single-package flat paths. Cross-ref notes at the top
+        of the doc point readers at the new package structure; the per-file
+        contents haven't changed enough to warrant a wholesale table rewrite,
+        just an eventual sweep.
+      - `selection-deep-dive.md` and other implementation-detail docs (which
+        haven't shifted content, only paths) will get updated en masse in a
+        follow-on documentation sweep.)*
 
 ## Open decisions (implementation-time, non-blocking)
 
