@@ -471,9 +471,41 @@ Verification per phase: **V1** `Pkg.test` of the touched packages (guards + laye
 tests) · **V2** `julia --project=. -e 'using Projectured'` · **V3** the ProjecturedTest
 functions touching the moved area (`test_json`, `test_sql`, `test_printers` samples).
 
-- [ ] **Q0 — guards + orphan decision.** Stand up the visual/domain guard skeletons
+- [x] **Q0 — guards + orphan decision.** Stand up the visual/domain guard skeletons
       (LAYERS lists, slice-DAG check); decide D3 per orphan file (wire or delete);
       record D2 finding.
+      *(Done — partial. Domain guard skeleton landed in `package/domain/test/runtests.jl`
+      (mirrors the kernel/base guard, with the alias-name collector so
+      `..CellModule` etc. are recognised valid targets). LAYERS = `[]` at Q0;
+      populated at Q3 when the slice folders take shape. Visual package guard
+      still to be created — deferred to Q1, which stands up the visual package.
+
+      **D2 finding (CellTableToTable → Json):** verified by grep on
+      `package/domain/src/projection/primitive/CellTableToTable.jl`, which imports
+      `JsonString`, `JsonNumber`, `JsonBool`, `JsonNull` from `..JsonModule` to
+      render its cells. Legal under slice ordering (sql slice may reach json
+      slice). **Decision: keep the edge**; removing it would require introducing
+      a shared primitive-cell type just so tabular/ doesn't need json/, which is
+      a bigger surgery than the cost of the edge and would not affect layering.
+
+      **D3 orphan decisions** (verified via
+      `grep -rln 'XxxModule' package/`):
+      - `Component.jl` — **TRUE ORPHAN** (only defined, referenced nowhere in
+        this repo). **Decision: delete** at Q3 (`git rm`; no plan claims it).
+      - `Tabular.jl` — imported by `package/odbc/src/ProjecturedOdbc.jl`
+        (`TabularGrid`, `TabularRow`, `TabularCell`). **Not orphan**; wire into
+        `sql/` slice at Q3 per the plan.
+      - `Database.jl` (in `domain/document/`) — imported by odbc in ~8 places
+        for `DatabaseAdapter`, `RawDatabaseResult`, `db_query`, `db_update!`,
+        `db_insert!`, `db_execute_raw`, catalog helpers. **Not orphan**; wire
+        into `database/` slice at Q3.
+      - `DatabaseInstance.jl` — no importers outside its own module. Effectively
+        orphan (its only would-be caller was Component). **Decision: delete**
+        at Q3 unless a plan claims it before then.
+      - `external/Database.jl` (a separate `DatabaseModule` in `external/`) —
+        imported directly by odbc (`ProjecturedOdbc.jl` reaches into its
+        submodules). **Not orphan**; keep and move into `database/` slice at Q3
+        (renaming to `DatabaseAdapters.jl` per the plan target).)*
 - [ ] **Q1 — visual package.** Create `package/visual`; move ScreenDocument +
       WindowManaging from base into `visual/screen/` (with their tests) (Project.toml: kernel + base
       deps; alias preamble); `git mv` the 38 files into `style/`/`render/`/`backend/`;
