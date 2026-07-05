@@ -13,7 +13,7 @@ import ..ProjectionApiModule: Projection, print_document, read_intent
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
+import ..BackendModule: Backend, initialize_backend!, quit_backend!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..GestureModule: EventEnvelope
 import ..PerformanceCounterModule: get_performance_counters, reset_performance_counters!, @performance_time

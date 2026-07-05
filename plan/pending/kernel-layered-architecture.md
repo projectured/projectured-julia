@@ -783,8 +783,19 @@ per-layer tests) — plus `Pkg.test("ProjecturedBase")` once it exists · **V2**
       `GestureModule.…`. LAYERS grew to `["cell","document","reference","operation",
       "device"]`; 7 device tests pass covering EventEnvelope on the device layer,
       @event_case, and GesturePattern. doc/device.md documents R4/R5/rename.)*
-- [ ] **P6 — backend**: `BackendApiModule → BackendModule` rename + move; Display move;
+- [x] **P6 — backend**: `BackendApiModule → BackendModule` rename + move; Display move;
       new HeadlessBackend + tests; retarget Console/Pdf/sdl/web; `doc/backend.md`.
+      *(Done. `git mv api/BackendApi.jl → backend/Backend.jl` (module renamed to
+      BackendModule) and `git mv device/Display.jl → backend/Display.jl` (Display is
+      a rendering concept). Added `backend/HeadlessBackend.jl` (dependency-free
+      in-memory Backend with scripted event queue + rendered-document log;
+      registered via `make_backend(:headless)`). 2 kernel importers retargeted;
+      ProjecturedDomain alias `BackendApiModule = BackendModule`. LAYERS grew to
+      `["cell","document","reference","operation","device","backend"]`. 12 backend
+      tests pass (make_backend factory, lifecycle no-ops, write_to_devices log,
+      read_from_devices scripted queue, measure_text). doc/backend.md added.
+      Consumer retargets in Console/Pdf/sdl/web deferred to P10 closeout — they
+      still resolve via the domain alias.)*
 - [ ] **P7 — base package + base/document**: create `package/base` (Project.toml, alias
       preamble, its own guard with `LAYERS=["document"]`); `git mv`
       Collection/Primitive/ScreenDocument (+ their R1/R2 methods) to

@@ -1,11 +1,14 @@
 """
     DisplayModule
 
-Display-size query with a provider indirection. A rendering backend that can query
-the real display (the SDL backend) registers a provider via
-`set_display_size_provider!`; without one, a fixed SDL-free default is returned so
-headless callers still get a sensible size. It holds **process-global provider
-state**, so it lives here rather than in the pure `BackendApiModule` interface.
+Display-size query with a provider indirection. A rendering backend that can
+query the real display (the SDL backend) registers a provider via
+`set_display_size_provider!`; without one, a fixed SDL-free default is
+returned so headless callers still get a sensible size. It holds
+**process-global provider state**, so it lives beside `BackendModule` in
+the backend layer rather than folding into it. Moved from `device/` to
+`backend/` in kernel plan P6 — the display is a rendering concept, not an
+input-device one.
 """
 module DisplayModule
 

@@ -19,7 +19,10 @@ using ProjecturedKernel
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
-const BackendApiModule = ProjecturedKernel.BackendApiModule
+# Kernel plan P6: BackendApiModule renamed to BackendModule; the old name
+# lives on as an alias.
+const BackendApiModule = ProjecturedKernel.BackendModule
+const BackendModule = ProjecturedKernel.BackendModule
 const IntentModule = ProjecturedKernel.IntentModule
 const CollectionModule = ProjecturedKernel.CollectionModule
 const CopyingProjectionModule = ProjecturedKernel.CopyingProjectionModule

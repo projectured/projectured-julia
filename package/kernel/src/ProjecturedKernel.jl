@@ -39,7 +39,6 @@ include("cell/Time.jl")
 # IoMap/Agent) are being folded into their owning layers phase by phase; the
 # separate api/ tier will disappear at P10. DocumentApi merged into
 # DocumentModule at P2.
-include("api/BackendApi.jl")
 include("api/ProjectionApi.jl")
 include("api/IoMapApi.jl")
 include("api/AgentApi.jl")
@@ -88,11 +87,20 @@ include("document/Primitive.jl")
 # ScreenDocumentModule so the editor and gesture layers no longer depend on a
 # concrete document type. Display is a dependency-free leaf.
 include("device/Device.jl")
-include("device/Display.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/GestureModule.jl")
+
+# ── Backend layer (layer 6 — rendering targets, independent of device) ─────
+# BackendModule (renamed from BackendApiModule at P6) declares the abstract
+# Backend, the batch generics (initialize_backend!, quit_backend!, measure_text,
+# write_image, record_video, render_canvas, decode_image, get_pointer_position),
+# and the make_backend factory seam. DisplayModule holds the display-size query
+# with a provider indirection — a rendering concept, moved from device/ at P6.
+include("backend/Backend.jl")
+include("backend/Display.jl")
+include("backend/HeadlessBackend.jl")
 
 # ── Foundational documents (projection output vocabulary) ──────────────────
 # ScreenDocument needs Collection and GestureModule (for EventEnvelope; the

@@ -17,7 +17,7 @@ import ..OperationModule: Operation
 import ..OperationModule: QuitEditorException
 import ..OperationModule: reroot_operation
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
-import ..BackendApiModule: Backend, initialize_backend!, quit_backend!
+import ..BackendModule: Backend, initialize_backend!, quit_backend!
 import ..DeviceModule: Device
 import ..ScreenDeviceModule: Screen
 import ..KeyboardModule: Keyboard

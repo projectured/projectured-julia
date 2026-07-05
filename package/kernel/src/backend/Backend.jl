@@ -1,17 +1,21 @@
 """
-    BackendApiModule
+    BackendModule
 
-Abstract backend interface. A `Backend` encapsulates everything needed to
-initialise, shut down, read input from, and write output to a particular
-display/input system. Concrete subtypes and the methods of the generic functions
-declared here live in **opt-in backend packages** that depend on this kernel;
-this module carries only the abstract type and the forward-declared generics, so
-generic code can name a capability (measure text, write an image, …) without
-referencing any concrete backend at load time. A generic that isn't implemented
-because its backend package isn't loaded raises a `MethodError` (or, for the
-`make_backend` factory seam, a helpful error).
+Abstract backend interface — layer 6, independent sibling of the device
+layer. A `Backend` encapsulates everything needed to initialise, shut down,
+read input from, and write output to a particular display/input system.
+Concrete subtypes and the methods of the generic functions declared here
+live in **opt-in backend packages** that depend on this kernel; this module
+carries only the abstract type and the forward-declared generics, so generic
+code can name a capability (measure text, write an image, …) without
+referencing any concrete backend at load time. A generic that isn't
+implemented because its backend package isn't loaded raises a `MethodError`
+(or, for the `make_backend` factory seam, a helpful error).
+
+Renamed from `BackendApiModule` in kernel plan P6; the old name lives on as
+an alias in `ProjecturedDomain`.
 """
-module BackendApiModule
+module BackendModule
 
 export Backend, initialize_backend!, quit_backend!, measure_text, make_backend, write_image, record_video,
        render_canvas, decode_image, get_pointer_position
