@@ -1,10 +1,3 @@
-using Projectured: PositionReference, ConcreteReferencePath, EmptyReferencePath,
-                    FieldReference, RangeReference,
-                    PrimitiveString, PrimitiveNumber,
-                    ReplaceStringRangeOperation, ReplaceNumberRangeOperation,
-                    PrimitiveStringToSyntaxLeaf, SimpleIoMap, KeyPress, KeyDown,
-                    Modifiers, evaluate_operation, read_intent, set_selection!,
-                    strip_reference_types, @reference
 
 function _value_range_ref(start::Int, stop::Int)
     ConcreteReferencePath(FieldReference("value"),

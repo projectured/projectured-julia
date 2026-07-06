@@ -10,13 +10,33 @@ using ProjecturedExample
 # and extends the ground-truth selection enumerators for the domains it owns.
 using ProjecturedKernelTest
 using ProjecturedBaseTest
-import ProjecturedBaseTest: test_collection, test_copying_projection, _text_leaf_length
+using ProjecturedVisualTest
+import ProjecturedBaseTest: test_collection, test_copying_projection
+import ProjecturedVisualTest: test_syntax, test_text, test_graphics, test_affine_transform,
+                              test_graphics_layout, test_layout_allocator,
+                              test_layout_constraint_helpers, test_primitive,
+                              test_syntax_to_text, test_primitive_to_text,
+                              test_text_to_graphics, test_word_wrapping,
+                              test_text_filtering, test_text_highlighting,
+                              test_selection_inverting,
+                              test_object_to_widget, test_projection_configuring,
+                              test_widget_text_editing, test_widget_button_behavior,
+                              test_widget_gestures, test_widget_select_dropdown,
+                              test_widget_menu, test_widget_context_menu,
+                              test_widget_dialog, test_widget_action, test_widget_icon,
+                              test_widget_tree, test_widget_toolbar, test_widget_table,
+                              test_widget_transform_pane, test_layout_closeout,
+                              test_widget_forms, test_anchor_point,
+                              walk_typein, test_typein,
+                              test_click_roundtrip, test_text_nav_invariants,
+                              _find_text_iomap, _find_cursor_rect, _pipeline_measure,
+                              _seg_x_at, _path_contains_projection_ref
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               test_text_navigation, test_tree_navigation,
                               collect_text_selections, collect_tree_selections,
                               explore_text_selections, explore_tree_selections,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
-                              test_event_case, test_gesture_binding,
+                              test_event_case, test_gesture_binding, test_focusing,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
 # Opt into the SDL backend package so the test suite can drive rendering /
@@ -63,16 +83,11 @@ end
 
 include("reference/TypeReferenceTest.jl")
 include("backend/ConsoleBackendTest.jl")
+include("backend/PdfTest.jl")
+include("projection/TableSelectionTest.jl")
 include("document/JsonTest.jl")
-include("document/SyntaxTest.jl")
-include("document/TextTest.jl")
-include("document/GraphicsTest.jl")
-include("document/GeometryTest.jl")
-include("document/GraphicsLayoutTest.jl")
-include("document/LayoutAllocatorTest.jl")
 include("document/ConstraintSolverTest.jl")
 include("document/TabularTest.jl")
-include("document/PrimitiveTest.jl")
 include("document/JsonParserTest.jl")
 include("document/SqlParserTest.jl")
 include("document/SqlDocumentTest.jl")
@@ -81,38 +96,13 @@ include("projection/JsonToSyntaxTest.jl")
 include("projection/AtomicFixtureTest.jl")
 include("projection/GestureMapTest.jl")
 include("projection/GestureHelpTest.jl")
-include("projection/FocusingTest.jl")
 include("projection/FormulaToSyntaxTest.jl")
 include("projection/SqlToSyntaxTest.jl")
 include("projection/XmlToSyntaxTest.jl")
-include("projection/SyntaxToTextTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
-include("projection/TableSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
 include("projection/GraphTest.jl")
 include("projection/FileSystemToSyntaxTest.jl")
-include("projection/PrimitiveToTextTest.jl")
-include("projection/TextToGraphicsTest.jl")
-include("projection/WordWrappingTest.jl")
-include("projection/TextFilteringTest.jl")
-include("projection/TextHighlightingTest.jl")
-include("projection/SelectionInvertingTest.jl")
-include("projection/ObjectToWidgetTest.jl")
-include("projection/ProjectionConfiguringTest.jl")
-include("projection/WidgetTextEditTest.jl")
-include("projection/WidgetButtonTest.jl")
-include("projection/WidgetGestureTest.jl")
-include("projection/WidgetSelectTest.jl")
-include("projection/WidgetMenuTest.jl")
-include("projection/WidgetContextMenuTest.jl")
-include("projection/WidgetDialogTest.jl")
-include("projection/WidgetActionTest.jl")
-include("projection/WidgetIconTest.jl")
-include("projection/WidgetTreeTest.jl")
-include("projection/WidgetToolbarTest.jl")
-include("projection/WidgetTableTest.jl")
-include("projection/LayoutCloseoutTest.jl")
-include("projection/WidgetFormsTest.jl")
 include("projection/WidgetPopupExampleTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/ConversationEditorTest.jl")
@@ -122,25 +112,21 @@ include("projection/TooltipTest.jl")
 include("projection/HoverProbeTest.jl")
 include("projection/SplitPaneDragTest.jl")
 include("projection/WorkbenchTabClickTest.jl")
-include("projection/WidgetTransformPaneTest.jl")
 include("projection/DraggingTest.jl")
-include("projection/AnchorPointTest.jl")
 include("projection/GraphicsToFileTest.jl")
-include("backend/PdfTest.jl")
 include("backend/DirtyRectTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/ExampleSweeps.jl")
 include("editor/SelectionEnumeration.jl")
 include("editor/PrinterLocalityTest.jl")
 include("editor/RecursionContractTest.jl")
-include("editor/TypeinTest.jl")
 include("editor/JuliaTypeinTest.jl")
 include("editor/McpTest.jl")
 include("editor/ConversationSerializationTest.jl")
 include("editor/ConversationParsingTest.jl")
 include("editor/GestureRecognizerTest.jl")
 include("editor/MouseClickTest.jl")
-include("editor/ClickRoundtripTest.jl")
+include("editor/JsonContentClicksTest.jl")
 include("editor/CollapseRoundtripTest.jl")
 include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
@@ -208,7 +194,6 @@ function test_projections()
         test_text_highlighting()
         test_selection_inverting()
         test_object_to_widget()
-        test_syntax_to_widget()
         test_projection_configuring()
         test_widget_text_editing()
         test_widget_button_behavior()
@@ -300,7 +285,7 @@ export test_type_reference, test_event_case, test_gesture_binding, test_focusing
 export test_json, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_tabular, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
 export AtomicFixture, test_atomic_render, test_atomic_fixtures
-export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_syntax_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard_to_any, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_workbench_tab_click, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
+export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard_to_any, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_workbench_tab_click, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_graph
 export test_examples, test_text_navigations, test_text_navigations_complete

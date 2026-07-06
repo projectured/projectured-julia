@@ -5,7 +5,6 @@
 # Disabled items and non-left clicks are inert. The close is a harmless no-op when
 # the menu is rendered inline (no such window).
 
-using Projectured: MouseEnter
 
 mutable struct _MenuMockEditor
     document::Any
@@ -15,9 +14,9 @@ end
 # of every nested canvas along the way. GraphicsText has no right edge, so a click
 # at its origin reliably hits it (see hit_element_at).
 function _first_text_xy(canvas)
-    _gi(v) = Int(v isa Projectured.CellModule.Cell ? v[] : v)
+    _gi(v) = Int(v isa CellModule.Cell ? v[] : v)
     for el in canvas.elements
-        el = el isa Projectured.CellModule.Cell ? el[] : el
+        el = el isa CellModule.Cell ? el[] : el
         if el isa GraphicsText
             return (_gi(el.x), _gi(el.y))
         elseif el isa GraphicsCanvas

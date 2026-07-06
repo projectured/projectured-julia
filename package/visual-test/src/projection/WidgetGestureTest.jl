@@ -5,15 +5,6 @@
 # tables leave a widget's behavior exactly as before. See
 # plan/pending/widget-per-instance-gestures.md.
 
-using Projectured: WidgetButton, WidgetCheckbox, WidgetSwitch, WidgetTree, WidgetTreeNode, Point2D,
-    WidgetToGraphics, Intent, PrinterContext,
-    ChainingProjection, WidgetHoverTrackingProjection, RecursiveProjection, TypeDispatchingProjection,
-    MousePress, KeyDown, Modifiers,
-    GestureBinding, MousePressPattern, KeyDownPattern,
-    DoNothingOperation, InvokeWidgetActionOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation,
-    FieldReference, RangeReference, ConcreteReferencePath, EmptyReferencePath,
-    font_ubuntu_monospace_regular_20, font_ubuntu_regular_20,
-    print_document, read_intent, evaluate_operation
 
 mutable struct _WidgetGestureMockEditor
     document::Any

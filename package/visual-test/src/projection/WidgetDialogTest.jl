@@ -5,7 +5,6 @@
 # modal window is open, envelopes routed to other windows are dropped. A
 # WidgetButton with a `dialog` opens it as a modal window on click.
 
-using Projectured: EventEnvelope, Intent, KeyDown
 
 mutable struct _DialogMockEditor
     document::Any
@@ -14,9 +13,9 @@ end
 # Absolute (x, y) of the first GraphicsText whose text == `target`, summing nested
 # canvas origins (a click at its origin reliably lands on the enclosing widget).
 function _dialog_text_xy(canvas, target)
-    _gi(v) = Int(v isa Projectured.CellModule.Cell ? v[] : v)
+    _gi(v) = Int(v isa CellModule.Cell ? v[] : v)
     for el in canvas.elements
-        el = el isa Projectured.CellModule.Cell ? el[] : el
+        el = el isa CellModule.Cell ? el[] : el
         if el isa GraphicsText
             string(el.text) == target && return (_gi(el.x), _gi(el.y))
         elseif el isa GraphicsCanvas

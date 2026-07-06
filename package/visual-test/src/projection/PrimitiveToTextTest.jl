@@ -1,16 +1,3 @@
-using Projectured: PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                    PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextText,
-                    PrimitiveToText, TextText, TextString,
-                    print_document, read_intent,
-                    map_reference_forward, map_reference_backward,
-                    SimpleIoMap, ReplaceSelectionOperation,
-                    ReplaceStringRangeOperation,
-                    KeyPress, KeyDown, Modifiers,
-                    ConcreteReferencePath, EmptyReferencePath,
-                    FieldReference, RangeReference, ElementReference, PositionReference,
-                    set_selection!,
-                    color_solarized_cyan, color_solarized_magenta, color_solarized_green,
-                    font_ubuntu_monospace_regular_20
 
 _value_range(start::Int, stop::Int) =
     ConcreteReferencePath(FieldReference("value"),

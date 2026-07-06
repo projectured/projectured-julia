@@ -7,12 +7,7 @@
 # synthesises. Must also work when the table is nested in a layout / tabbed pane /
 # shell (routed via the container crossing routing + the table's 3-arg bridge).
 
-using Projectured: WidgetTable, VerticalLayout, WidgetTabbedPane, WidgetShell, Point2D,
-    Intent, MouseEnter, MouseMove, MouseLeave, MousePress, Modifiers,
-    ReplaceReferencedValueOperation, ReplaceSelectionOperation, GraphicsRect,
-    WidgetToGraphics, LayoutToGraphics, TypeDispatchingProjection, RecursiveProjection,
-    font_ubuntu_regular_20, print_document, read_intent
-using Projectured.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell
 
 function test_widget_table()
 @testset "WidgetTable hover" begin

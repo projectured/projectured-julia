@@ -1,5 +1,5 @@
-const _CB = Projectured.ConsoleBackendModule
-const _ED = Projectured.EditorModule
+const _CB = ConsoleBackendModule
+const _ED = EditorModule
 
 # Parse one event from a fresh byte buffer (mirrors how `read_from_devices`
 # drains the input and consumes one event at a time).
@@ -24,7 +24,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
             # mutations (which reuse cells in-place) do not change already-recorded
             # entries.  strip_reference_types removes TypeReference checkpoints so
             # the string matches the plain navigation skeleton the tests assert on.
-            push!(sels, string(Projectured.strip_reference_types(getfield(doc, :selection)[])))
+            push!(sels, string(strip_reference_types(getfield(doc, :selection)[])))
         end
     end
     return sels
@@ -45,7 +45,7 @@ function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
             _ED.evaluate!(editor)
             _ED.print!(editor)
             # Snapshot stripped string (see _drive_console comment above).
-            push!(sels, string(Projectured.strip_reference_types(getfield(doc, :selection)[])))
+            push!(sels, string(strip_reference_types(getfield(doc, :selection)[])))
         end
     end
     return doc, sels
@@ -61,7 +61,7 @@ function _highlighted(doc)
     proj = make_json_console_projection_example()
     io = IOBuffer()
     backend = ConsoleBackend(; io=io, ansi=true, clear=false)
-    out = Projectured.print_document(proj, doc).output
+    out = print_document(proj, doc).output
     write_to_devices(backend, Device[], out)
     s = String(take!(io))
     rev = ""
@@ -86,7 +86,7 @@ function test_console_backend()
         # Home maps to the reader's "select root" chord (Ctrl+Alt+Home).
         @test _parse(0x1b, UInt8('['), UInt8('H')) == KeyDown(:home, Modifiers(ctrl=true, alt=true))
         @test _parse(0x1b, UInt8('['), UInt8('F')) == KeyDown(:end, Modifiers())
-        @test _parse(0x03) isa Projectured.WindowQuit           # Ctrl-C
+        @test _parse(0x03) isa WindowQuit           # Ctrl-C
         @test _parse(0x00) == KeyDown(:space, Modifiers(ctrl=true))  # Ctrl-Space
         @test _parse(0x0d) == KeyDown(:return, Modifiers())
         @test _parse(0x7f) == KeyDown(:backspace, Modifiers())
@@ -100,7 +100,7 @@ function test_console_backend()
     @testset "read_from_devices" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[UInt8('a')]))
         env = read_from_devices(b, Device[])
-        @test env isa Projectured.EventEnvelope
+        @test env isa EventEnvelope
         @test env.window_id === :console
         @test env.event == KeyPress('a')
         # Empty input → nothing.
@@ -111,11 +111,11 @@ function test_console_backend()
     @testset "caret rendering" begin
         # Whole-element selection → the value's text is reverse-highlighted.
         doc = make_json_document_example()
-        set_selection!(doc, Projectured.@reference entries[1].value)
+        set_selection!(doc, @reference entries[1].value)
         @test _highlighted(doc) == "\"Alice\""
         # Text cursor at offset 2 inside "Alice" → block on the char at index 2.
         doc2 = make_json_document_example()
-        set_selection!(doc2, Projectured.@reference entries[1].value.value{2})
+        set_selection!(doc2, @reference entries[1].value.value{2})
         @test _highlighted(doc2) == "i"
     end
 
@@ -123,7 +123,7 @@ function test_console_backend()
     @testset "ansi vs plain" begin
         doc = make_json_document_example()
         proj = make_json_console_projection_example()
-        out = Projectured.print_document(proj, doc).output
+        out = print_document(proj, doc).output
         plain = IOBuffer(); console_render(ConsoleBackend(; io=plain, ansi=false), out)
         colored = IOBuffer(); console_render(ConsoleBackend(; io=colored, ansi=true, clear=false), out)
         cs = String(take!(colored))
@@ -134,7 +134,7 @@ function test_console_backend()
     # ── frame diffing skips an unchanged repaint ──────────────────────────
     @testset "frame diff" begin
         doc = make_json_document_example()
-        out = Projectured.print_document(make_json_console_projection_example(), doc).output
+        out = print_document(make_json_console_projection_example(), doc).output
         io = IOBuffer()
         backend = ConsoleBackend(; io=io, ansi=true, clear=true)
         console_render(backend, out)

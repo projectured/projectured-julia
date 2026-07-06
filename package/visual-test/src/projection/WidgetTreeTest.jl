@@ -7,12 +7,7 @@
 # selection, so they are coordinate-space-agnostic. Here we drive the WidgetTree
 # projection directly with a deterministic text measure so row geometry is exact.
 
-using Projectured: WidgetTree, WidgetTreeNode, WidgetToGraphics, VerticalLayout,
-    WidgetTabbedPane, WidgetShell, Point2D, Intent,
-    MousePress, MouseEnter, MouseMove, MouseLeave, Modifiers,
-    ReplaceReferencedValueOperation, ReplaceSelectionOperation,
-    GraphicsRect, font_ubuntu_regular_20, print_document, read_intent
-using Projectured.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell
 
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin

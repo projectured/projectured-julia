@@ -16,18 +16,11 @@
 #      as the keypress dictates (the typed character inserted at the cursor).
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
-using ProjecturedExample
-using Projectured: ReplaceStringRangeOperation, evaluate_operation,
-                   clear_selection!, set_selection!, evaluate_reference, append_reference,
-                   ReferencePath, EmptyReferencePath,
-                   FieldReference, RangeReference, PositionReference,
-                   GraphicsCanvas, GraphicsRect, GraphicsViewport, KeyPress
-using Projectured.CellModule: Cell
-using Projectured.CollectionModule: CellVector
-using Projectured.FontModule: StyleFont
-using Projectured.TextModule: TextString, TextText
-using Projectured.SyntaxModule: SyntaxNode, SyntaxLeaf
+using ProjecturedKernel.CellModule: Cell
+using ProjecturedBase.CollectionModule: CellVector
+using ProjecturedVisual.FontModule: StyleFont
+using ProjecturedVisual.TextModule: TextString, TextText
+using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
 #
@@ -271,28 +264,5 @@ function test_typein(label, document, projection)
     end
 end
 
-# Build fresh document / projection instances. `walk_typein` mutates the
-# document (it types characters into every string), and in `test_all` this runs
-# after the other reader/repl tests which share the global `example.document`;
-# starting from a pristine document keeps the exact-string assertions reliable.
-function test_typein(example::Example)
-    test_typein(example.name, example.make_document(), example.make_projection())
-end
-
-function test_typeins()
-    @testset "Typeins" begin
-        # The walk builds input-domain cursor targets by field/index name and
-        # anchors them at the right slot for each domain's selection convention,
-        # including document-domain `TextString` (e.g. `SyntaxLeaf.value`) and
-        # `TextText` (e.g. `BookParagraph.content`). Domains whose projection has
-        # no string-edit reader (sorting/primitive/object) are covered elsewhere.
-        for name in ("json", "json_string", "text", "xml", "book", "syntax")
-            idx = findfirst(e -> e.name == name, examples)
-            idx === nothing && continue
-            ex = examples[idx]
-            @testset "$(ex.name)" begin
-                test_typein(ex)
-            end
-        end
-    end
-end
+# The `Example`-typed overload and the sweep (`test_typeins`) live in the
+# `ProjecturedTest` umbrella, which owns the example registry.

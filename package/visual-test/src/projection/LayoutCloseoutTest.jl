@@ -1,8 +1,7 @@
 # Layout closeout (Qt-gap Parts A+B): GridLayout per-column align/stretch +
 # FormLayout sugar, and StackLayout's `active` page container.
 
-using Projectured: PrinterContext, with_available_size, EmptyReferencePath
-const _LC_Cell = Projectured.CellModule.Cell
+const _LC_Cell = CellModule.Cell
 
 function test_layout_closeout()
 @testset "Layout closeout (grid/form/stack)" begin

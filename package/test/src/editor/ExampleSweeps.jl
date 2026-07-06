@@ -191,3 +191,115 @@ function test_tree_navigations_complete()
         end
     end
 end
+
+# ── typein ───────────────────────────────────────────────────────────────────
+
+# Build fresh document / projection instances. `walk_typein` mutates the
+# document (it types characters into every string), and in `test_all` this runs
+# after the other reader/repl tests which share the global `example.document`;
+# starting from a pristine document keeps the exact-string assertions reliable.
+function test_typein(example::Example)
+    test_typein(example.name, example.make_document(), example.make_projection())
+end
+
+function test_typeins()
+    @testset "Typeins" begin
+        # The walk builds input-domain cursor targets by field/index name and
+        # anchors them at the right slot for each domain's selection convention,
+        # including document-domain `TextString` (e.g. `SyntaxLeaf.value`) and
+        # `TextText` (e.g. `BookParagraph.content`). Domains whose projection has
+        # no string-edit reader (sorting/primitive/object) are covered elsewhere.
+        for name in ("json", "json_string", "text", "xml", "book", "syntax")
+            idx = findfirst(e -> e.name == name, examples)
+            idx === nothing && continue
+            ex = examples[idx]
+            @testset "$(ex.name)" begin
+                test_typein(ex)
+            end
+        end
+    end
+end
+
+# ── click roundtrip ──────────────────────────────────────────────────────────
+
+test_click_roundtrip(example::Example) =
+    test_click_roundtrip(example.name, example.document, example.projection)
+
+"""
+    test_click_roundtrips()
+
+Run `test_click_roundtrip` against every example that produces a
+`TextToGraphicsIoMap` somewhere in its pipeline. Examples whose pipeline
+does not include a `TextToGraphics` step (pure widget / table / graphics
+chains) are skipped with a warning.
+"""
+function test_click_roundtrips()
+    @testset "ClickRoundtrips" begin
+        for example in examples
+            # Skip examples whose top-level pipeline does not feed a
+            # TextToGraphics step (handled by other readers entirely).
+            # Skip:
+            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
+            #     TextToGraphics at the top, MousePress is consumed elsewhere
+            #   - xml/filesystem/graphics_image: no selection model on output yet
+            #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
+            #     domain projections do not yet propagate selection through every
+            #     intermediate cell so the cursor does not always re-render; see
+            #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
+            startswith(example.name, "widget") && continue
+            example.name in ("workbench",
+                              "filesystem", "xml", "table", "math_table",
+                              "graphics_image", "layout", "tooltip",
+                              "navigator", "assistant",
+                              "book", "conversation", "object",
+                              "math", "julia",
+                              "line_numbering", "word_wrapping",
+                              # pre-existing: CollectionToSyntax lacks
+                              # read_intent; tracked in
+                              # plan/pending/fix-selection-tests.md
+                              "collection", "reversing", "filtering",
+                              "sorting") && continue
+            @testset "$(example.name)" begin
+                test_click_roundtrip(example)
+            end
+        end
+    end
+end
+
+
+# ── keyboard nav invariants ──────────────────────────────────────────────────
+
+test_text_nav_invariants(example::Example) =
+    test_text_nav_invariants(example.name, example.document, example.projection)
+
+function test_text_nav_invariants_all()
+    @testset "TextNavInvariants" begin
+        for example in examples
+            # Skip:
+            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
+            #     TextToGraphics at the top, MousePress is consumed elsewhere
+            #   - xml/filesystem/graphics_image: no selection model on output yet
+            #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
+            #     domain projections do not yet propagate selection through every
+            #     intermediate cell so the cursor does not always re-render; see
+            #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
+            startswith(example.name, "widget") && continue
+            example.name in ("workbench",
+                              "filesystem", "xml", "table", "math_table",
+                              "graphics_image", "layout", "tooltip",
+                              "navigator", "assistant",
+                              "book", "conversation", "object",
+                              "math", "julia",
+                              "line_numbering", "word_wrapping",
+                              # pre-existing: CollectionToSyntax lacks
+                              # read_intent; tracked in
+                              # plan/pending/fix-selection-tests.md
+                              "collection", "reversing", "filtering",
+                              "sorting") && continue
+            @testset "$(example.name)" begin
+                test_text_nav_invariants(example)
+            end
+        end
+    end
+end
+

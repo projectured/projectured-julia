@@ -6,17 +6,8 @@
 # `collect_tree_selections`) lives in ProjecturedBaseTest; this file adds the
 # pieces that need higher-layer vocabulary until they migrate to their own
 # test packages (plan/pending/test-package-split.md):
-#   * `_text_leaf_length(::TextString)` — visual (phase 2);
-#   * `collect_json_tree_selections`    — domain (phase 3).
+#   * `collect_json_tree_selections` — domain (phase 3).
 # ═══════════════════════════════════════════════════════════════════════════
-
-# A `TextString` is a text leaf: it has no `length`/`getindex`, so
-# `set_selection!` stops at it and stores `{k}` relative to it — the cursor
-# path is `.value{k}`, NOT `.value.content{k}`.
-function _text_leaf_length(v::Projectured.TextString)
-    c = v.content
-    length(c isa Cell ? c[] : c)
-end
 
 # ── JSON whole-element enumeration ────────────────────────────────────────
 #

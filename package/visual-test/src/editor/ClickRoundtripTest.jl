@@ -16,12 +16,8 @@
 #     asserts the BFS reachable-state count matches.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
-using ProjecturedExample
-using Projectured: ReplaceSelectionOperation, set_selection!, clear_selection!,
-                    ConcreteReferencePath, ProjectionReference, EmptyReferencePath
-using Projectured.ReferenceModule: head, tail
-using Projectured.TextToGraphicsModule: TextToGraphicsIoMap, SegCoord
+using ProjecturedKernel.ReferenceModule: head, tail
+using ProjecturedVisual.TextToGraphicsModule: TextToGraphicsIoMap, SegCoord
 
 # ── IoMap traversal helpers ────────────────────────────────────────────────
 
@@ -39,7 +35,7 @@ end
 
 function _find_cursor_rect(t2g::TextToGraphicsIoMap)
     for elem in t2g.output.elements
-        actual = elem isa Projectured.CellModule.Cell ? elem[] : elem
+        actual = elem isa Cell ? elem[] : elem
         # The caret is a narrow rect. Skip the always-present highlight rect,
         # which is zero-width (invisible) for a plain caret selection.
         actual isa GraphicsRect && 0 < Int(actual.w) <= 5 && return actual
@@ -178,49 +174,8 @@ function test_click_roundtrip(label, document, projection)
     end
 end
 
-test_click_roundtrip(example::Example) =
-    test_click_roundtrip(example.name, example.document, example.projection)
-
-"""
-    test_click_roundtrips()
-
-Run `test_click_roundtrip` against every example that produces a
-`TextToGraphicsIoMap` somewhere in its pipeline. Examples whose pipeline
-does not include a `TextToGraphics` step (pure widget / table / graphics
-chains) are skipped with a warning.
-"""
-function test_click_roundtrips()
-    @testset "ClickRoundtrips" begin
-        for example in examples
-            # Skip examples whose top-level pipeline does not feed a
-            # TextToGraphics step (handled by other readers entirely).
-            # Skip:
-            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
-            #     TextToGraphics at the top, MousePress is consumed elsewhere
-            #   - xml/filesystem/graphics_image: no selection model on output yet
-            #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
-            #     domain projections do not yet propagate selection through every
-            #     intermediate cell so the cursor does not always re-render; see
-            #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
-            startswith(example.name, "widget") && continue
-            example.name in ("workbench",
-                              "filesystem", "xml", "table", "math_table",
-                              "graphics_image", "layout", "tooltip",
-                              "navigator", "assistant",
-                              "book", "conversation", "object",
-                              "math", "julia",
-                              "line_numbering", "word_wrapping",
-                              # pre-existing: CollectionToSyntax lacks
-                              # read_intent; tracked in
-                              # plan/pending/fix-selection-tests.md
-                              "collection", "reversing", "filtering",
-                              "sorting") && continue
-            @testset "$(example.name)" begin
-                test_click_roundtrip(example)
-            end
-        end
-    end
-end
+# The `Example`-typed overload and the sweep (`test_click_roundtrips`) live in
+# the `ProjecturedTest` umbrella, which owns the example registry.
 
 # ── Keyboard nav invariants ────────────────────────────────────────────────
 
@@ -273,128 +228,6 @@ function test_text_nav_invariants(label, document, projection)
     end
 end
 
-test_text_nav_invariants(example::Example) =
-    test_text_nav_invariants(example.name, example.document, example.projection)
-
-function test_text_nav_invariants_all()
-    @testset "TextNavInvariants" begin
-        for example in examples
-            # Skip:
-            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
-            #     TextToGraphics at the top, MousePress is consumed elsewhere
-            #   - xml/filesystem/graphics_image: no selection model on output yet
-            #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
-            #     domain projections do not yet propagate selection through every
-            #     intermediate cell so the cursor does not always re-render; see
-            #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
-            startswith(example.name, "widget") && continue
-            example.name in ("workbench",
-                              "filesystem", "xml", "table", "math_table",
-                              "graphics_image", "layout", "tooltip",
-                              "navigator", "assistant",
-                              "book", "conversation", "object",
-                              "math", "julia",
-                              "line_numbering", "word_wrapping",
-                              # pre-existing: CollectionToSyntax lacks
-                              # read_intent; tracked in
-                              # plan/pending/fix-selection-tests.md
-                              "collection", "reversing", "filtering",
-                              "sorting") && continue
-            @testset "$(example.name)" begin
-                test_text_nav_invariants(example)
-            end
-        end
-    end
-end
-
-# ── JSON content click → clean path ────────────────────────────────────────
-
-# A click on a character that comes from a JSON document's content (a
-# JsonString/JsonNumber/JsonBool value, or a JsonObjectEntry key) must
-# produce a path made entirely of FieldReference / RangeReference steps —
-# no ProjectionReference, since the click did not land on a
-# projection-introduced character (delimiter, separator, whitespace).
-#
-# Clicks on JsonNull / JsonInsertion are deliberately *not* asserted because
-# their rendered text ("null", placeholder) is projection-introduced.
-
-"""
-    test_json_content_clicks_clean(label, document, projection)
-
-For each rendered segment whose content matches a known JSON content
-string (a JsonString/JsonNumber/JsonBool value or an object key), fire a
-click and assert the resulting path contains no `ProjectionReference`.
-"""
-function test_json_content_clicks_clean(label, document, projection)
-    @testset "$label" begin
-        clear_selection!(document)
-        iomap = print_document(projection, document)
-        t2g = _find_text_iomap(iomap)
-        if t2g === nothing
-            @test true
-            return
-        end
-        coords = t2g.char_to_coord[]
-        measure = _pipeline_measure(projection)
-        content_strings = _collect_json_content_strings(document)
-        errors = String[]
-        for sc in coords
-            sc.text in content_strings || continue
-            line_h = sc.font.size
-            # Click in the middle of the segment, well inside content.
-            cx = sc.x + max(1, (_seg_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
-            cy = sc.y + max(1, line_h ÷ 2)
-            op = read_intent(projection, iomap, MousePress(:left, cx, cy, Modifiers()))
-            op isa ReplaceSelectionOperation || continue
-            if _path_contains_projection_ref(op.path)
-                push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReference: $(op.path)")
-            end
-        end
-        for e in errors
-            @warn "[$label] $e"
-        end
-        @test isempty(errors)
-    end
-end
-
-# Recursively collect every string that came from the JSON document
-# content (not from projection-introduced delimiters or literals).
-_collect_json_content_strings(_) = String[]
-
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonString)
-    [String(j[])]
-end
-
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonNumber)
-    [string(j[])]
-end
-
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonBool)
-    [j[] ? "true" : "false"]
-end
-
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonArray)
-    out = String[]
-    for e in j.elements
-        append!(out, _collect_json_content_strings(e))
-    end
-    out
-end
-
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonObject)
-    out = String[]
-    for e in Projectured.JsonModule.entries(j)
-        push!(out, String(e.key))
-        append!(out, _collect_json_content_strings(e.value))
-    end
-    out
-end
-
-function test_json_content_clicks_clean_all()
-    @testset "JsonContentClicksClean" begin
-        for name in ("json", "json_sorted", "json_string")
-            ex = examples[findfirst(e -> e.name == name, examples)]
-            test_json_content_clicks_clean(ex.name, ex.document, ex.projection)
-        end
-    end
-end
+# The `Example`-typed overload and the sweep (`test_text_nav_invariants_all`)
+# live in the `ProjecturedTest` umbrella; the JSON content-click checks live
+# beside the JSON domain (JsonContentClicksTest.jl, → domain-test in phase 3).

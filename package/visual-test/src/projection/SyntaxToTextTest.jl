@@ -45,7 +45,7 @@ end # @testset "SyntaxToText"
 # clicking on any character of the rendered text resolves to a selection
 # whose forward map lands back on the same character.
 let
-_S2T = Projectured.SyntaxToTextModule
+_S2T = SyntaxToTextModule
 
 _check_roundtrip = function (label, node, p)
     flat_len = _S2T._subtree_len(node, p, 0)
@@ -87,7 +87,7 @@ end # @testset "SyntaxToText flat-position round-trip"
 # rendered before the open delimiter in both states. Which glyph shows depends
 # on `node.collapsed`; an empty configured marker (the default) emits nothing.
 let
-_S2T = Projectured.SyntaxToTextModule
+_S2T = SyntaxToTextModule
 mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
@@ -154,7 +154,7 @@ end # @testset "SyntaxToText collapse/expand marker"
 # children pruned. The flat-position round-trip must still hold in the
 # collapsed state, and toggling back must restore the expanded output exactly.
 let
-_S2T = Projectured.SyntaxToTextModule
+_S2T = SyntaxToTextModule
 mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")

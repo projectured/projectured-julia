@@ -124,21 +124,21 @@ end # @testset
     @test length(grid.children) == 8
 
     # The struct field (`window`) and the vector field (`tags`) each become a card.
-    cards = filter(c -> c isa Projectured.WidgetCard, collect(grid.children))
+    cards = filter(c -> c isa WidgetCard, collect(grid.children))
     @test length(cards) == 2
     window_card, tags_card = cards[1], cards[2]
 
     # A card's body is the reactive content wrapper; when expanded it holds one
     # child (the composite/list body). Cards default to expanded.
     @test window_card.collapsed == false
-    @test window_card.content isa Projectured.VerticalLayout
+    @test window_card.content isa VerticalLayout
     @test length(window_card.content.children) == 1
     @test window_card.content.children[1] isa WidgetComposite   # window's own grid composite
 
     # The vector card holds a VerticalLayout of its (read-only) elements.
-    @test tags_card.content isa Projectured.VerticalLayout
+    @test tags_card.content isa VerticalLayout
     tags_body = tags_card.content.children[1]
-    @test tags_body isa Projectured.VerticalLayout
+    @test tags_body isa VerticalLayout
     @test length(tags_body.children) == 2                       # "alpha", "beta"
 
 end # @testset
@@ -148,17 +148,17 @@ end # @testset
     app = make_nested_object_to_widget_document_example()
     iomap = print_document(ObjectToWidget(), app)
     grid = iomap.output.elements[1]
-    window_card = first(c for c in collect(grid.children) if c isa Projectured.WidgetCard)
+    window_card = first(c for c in collect(grid.children) if c isa WidgetCard)
 
     @test length(window_card.content.children) == 1            # expanded
 
     # The card-graphics reader turns a header click into ToggleCollapseOperation(card);
     # the default handler flips the card's own `collapsed` cell (output view state).
-    evaluate_operation(nothing, Projectured.ToggleCollapseOperation(window_card))
+    evaluate_operation(nothing, ToggleCollapseOperation(window_card))
     @test window_card.collapsed == true
     @test isempty(window_card.content.children)                # body hidden reactively
 
-    evaluate_operation(nothing, Projectured.ToggleCollapseOperation(window_card))
+    evaluate_operation(nothing, ToggleCollapseOperation(window_card))
     @test window_card.collapsed == false
     @test length(window_card.content.children) == 1            # restored
 
@@ -189,7 +189,7 @@ end # @testset
 end # @testset
 
 @testset "WidgetCard defaults to not collapsed" begin
-    @test Projectured.WidgetCard(Point2D(0, 0); title="t", content="c").collapsed == false
+    @test WidgetCard(Point2D(0, 0); title="t", content="c").collapsed == false
 end # @testset
 
 end # test_object_to_widget

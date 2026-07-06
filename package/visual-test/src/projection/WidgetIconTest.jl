@@ -3,14 +3,13 @@
 # tinted to the label's foreground. v1 ships a built-in vector set (GraphicsPolyline);
 # glyph-font (GraphicsText) and raster (GraphicsImage) backings register the same way.
 
-using Projectured: GraphicsPolyline, GraphicsText, GraphicsViewport, font_ubuntu_regular_20
 
 # Collect every graphics primitive of type T in a canvas tree, descending into both
 # nested canvases and viewports (the tab strip lives inside a GraphicsViewport).
 function _prims_of(canvas, ::Type{T}) where {T}
     out = T[]
     walk(c) = for el in c.elements
-        el = el isa Projectured.CellModule.Cell ? el[] : el
+        el = el isa CellModule.Cell ? el[] : el
         el isa T && push!(out, el)
         el isa GraphicsCanvas && walk(el)
         el isa GraphicsViewport && walk(el.content)

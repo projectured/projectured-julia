@@ -15,6 +15,7 @@ ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
+ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
@@ -39,3 +40,4 @@ ProjecturedSdl = {path = "package/sdl"}
 ProjecturedTulip = {path = "package/tulip"}
 ProjecturedVideo = {path = "package/video"}
 ProjecturedVisual = {path = "package/visual"}
+ProjecturedVisualTest = {path = "package/visual-test"}

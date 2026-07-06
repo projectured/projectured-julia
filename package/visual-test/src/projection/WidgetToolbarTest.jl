@@ -5,10 +5,7 @@
 # hit_element_at then let the leftmost item swallow every crossing — hover always
 # lit the first button. Bounding the item canvas to its footprint fixes it.
 
-using Projectured: WidgetToolbar, WidgetMenuItem, WidgetMenu, Inset, Intent,
-    MouseEnter, Modifiers, ReplaceReferencedValueOperation, GraphicsCanvas,
-    print_document, read_intent
-using Projectured.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell
 
 function test_widget_toolbar()
 @testset "WidgetToolbar pointer routing" begin

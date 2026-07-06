@@ -217,8 +217,8 @@ right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
 @test right isa ReplaceSelectionOperation
 # Left half → cursor before the image (content{0}); right half → after ({1}).
-@test is_reference_equal(left.path,  Projectured.TextToGraphicsModule._build_selection_path(2, 0))
-@test is_reference_equal(right.path, Projectured.TextToGraphicsModule._build_selection_path(2, 1))
+@test is_reference_equal(left.path,  TextToGraphicsModule._build_selection_path(2, 0))
+@test is_reference_equal(right.path, TextToGraphicsModule._build_selection_path(2, 1))
 
 end # @testset "TextToGraphics inline image hit-test"
 

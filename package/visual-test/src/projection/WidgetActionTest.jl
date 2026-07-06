@@ -4,7 +4,6 @@
 # all three: clicking the item or the button, or pressing the shortcut, each emits
 # `InvokeActionOperation(action)`; toggling `action.enabled` disables all three.
 
-using Projectured: KeyDown
 
 mutable struct _ActionMockEditor
     document::Any

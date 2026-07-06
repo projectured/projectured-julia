@@ -5,7 +5,7 @@ end
 function test_projection_configuring()
 
 _font = font_ubuntu_monospace_regular_20
-_mkchange(g, o) = Projectured.ProjectionApiModule.Intent(g, o)
+_mkchange(g, o) = IntentModule.Intent(g, o)
 _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
 _input() = TextText(TextString("alpha dolor", _font, color_default))
 

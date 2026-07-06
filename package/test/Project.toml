@@ -11,9 +11,11 @@ ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedVisualTest = {path = "../visual-test"}
 ProjecturedBaseTest = {path = "../base-test"}
 ProjecturedKernelTest = {path = "../kernel-test"}
