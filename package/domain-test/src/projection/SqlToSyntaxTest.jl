@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # SqlToSyntax projection tests. Pure projection — no live DB needed.
 

@@ -1,0 +1,29 @@
+name = "ProjecturedDomainTest"
+uuid = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
+version = "0.1.0"
+authors = []
+
+# Test package for ProjecturedDomain — fourth tier of the test-package DAG
+# (see plan/pending/test-package-split.md). Reuses the generic drivers from
+# ProjecturedKernelTest, the document-walk enumerators from
+# ProjecturedBaseTest, and the TextToGraphics traversal helpers from
+# ProjecturedVisualTest.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
+ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../kernel"}
+ProjecturedBase = {path = "../base"}
+ProjecturedVisual = {path = "../visual"}
+ProjecturedDomain = {path = "../domain"}
+ProjecturedKernelTest = {path = "../kernel-test"}
+ProjecturedBaseTest = {path = "../base-test"}
+ProjecturedVisualTest = {path = "../visual-test"}

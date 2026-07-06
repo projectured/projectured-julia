@@ -60,19 +60,19 @@ end
 # content (not from projection-introduced delimiters or literals).
 _collect_json_content_strings(_) = String[]
 
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonString)
+function _collect_json_content_strings(j::JsonModule.JsonString)
     [String(j[])]
 end
 
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonNumber)
+function _collect_json_content_strings(j::JsonModule.JsonNumber)
     [string(j[])]
 end
 
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonBool)
+function _collect_json_content_strings(j::JsonModule.JsonBool)
     [j[] ? "true" : "false"]
 end
 
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonArray)
+function _collect_json_content_strings(j::JsonModule.JsonArray)
     out = String[]
     for e in j.elements
         append!(out, _collect_json_content_strings(e))
@@ -80,20 +80,14 @@ function _collect_json_content_strings(j::Projectured.JsonModule.JsonArray)
     out
 end
 
-function _collect_json_content_strings(j::Projectured.JsonModule.JsonObject)
+function _collect_json_content_strings(j::JsonModule.JsonObject)
     out = String[]
-    for e in Projectured.JsonModule.entries(j)
+    for e in JsonModule.entries(j)
         push!(out, String(e.key))
         append!(out, _collect_json_content_strings(e.value))
     end
     out
 end
 
-function test_json_content_clicks_clean_all()
-    @testset "JsonContentClicksClean" begin
-        for name in ("json", "json_sorted", "json_string")
-            ex = examples[findfirst(e -> e.name == name, examples)]
-            test_json_content_clicks_clean(ex.name, ex.document, ex.projection)
-        end
-    end
-end
+# The all-examples sweep (`test_json_content_clicks_clean_all`) lives in the
+# `ProjecturedTest` umbrella, which owns the example registry.

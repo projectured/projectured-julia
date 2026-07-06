@@ -303,3 +303,14 @@ function test_text_nav_invariants_all()
     end
 end
 
+
+# ── JSON content clicks ──────────────────────────────────────────────────────
+
+function test_json_content_clicks_clean_all()
+    @testset "JsonContentClicksClean" begin
+        for name in ("json", "json_sorted", "json_string")
+            ex = examples[findfirst(e -> e.name == name, examples)]
+            test_json_content_clicks_clean(ex.name, ex.document, ex.projection)
+        end
+    end
+end

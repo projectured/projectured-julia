@@ -65,6 +65,7 @@ include("document/PrimitiveTest.jl")
 include("document/SelectionEnumeration.jl")
 
 # ── text / graphics projections ──────────────────────────────────────────────
+include("projection/ProjectionTemplateTest.jl")
 include("projection/SyntaxToTextTest.jl")
 include("projection/PrimitiveToTextTest.jl")
 include("projection/TextToGraphicsTest.jl")
@@ -129,6 +130,7 @@ function test_visual()
         test_layout_constraint_helpers()
         test_primitive()
         # text / graphics projections
+        test_projection_template_hygiene()
         test_syntax_to_text()
         test_primitive_to_text()
         test_text_to_graphics()
@@ -162,6 +164,7 @@ export test_visual, test_visual_layering
 export test_syntax, test_text, test_graphics, test_affine_transform,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive
+export test_projection_template_hygiene
 export test_syntax_to_text, test_primitive_to_text, test_text_to_graphics,
        test_word_wrapping, test_text_filtering, test_text_highlighting,
        test_selection_inverting

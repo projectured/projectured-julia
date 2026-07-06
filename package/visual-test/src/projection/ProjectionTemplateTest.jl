@@ -1,6 +1,3 @@
-using Test
-using Projectured
-
 # Regression for the `@projection_template` import-hygiene fix.
 #
 # `@projection_template` must register its `print_document` method on the
@@ -12,9 +9,14 @@ using Projectured
 #
 # This probe module deliberately does NOT import `print_document`.
 module _ProjectionTemplateHygieneProbe
-    import Projectured: Document, var"@document", Cell, Reference, Projection,
-                        var"@projection", var"@projection_template",
-                        SyntaxLeaf, TextString
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionApiModule: Projection
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template"
+    import ProjecturedVisual.SyntaxModule: SyntaxLeaf
+    import ProjecturedVisual.TextModule: TextString
     # print_document intentionally NOT imported.
 
     @document struct ProbeDoc <: Document

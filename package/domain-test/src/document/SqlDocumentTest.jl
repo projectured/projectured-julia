@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # SQL document-model tests. Pure construction + projection pipeline — no live DB needed.
 

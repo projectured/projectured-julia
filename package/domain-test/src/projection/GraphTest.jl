@@ -1,9 +1,3 @@
-using Projectured: tessellate_spline, polyline_arrowhead, point_near_polyline,
-                   GraphVertex, GraphEdge, GraphGraph,
-                   GraphLayout, VertexLayout, EdgeLayout,
-                   FallbackLayoutEngine, layout_graph,
-                   GraphGraphToGraphLayout, GraphLayoutToGraphicsCanvas,
-                   map_reference_forward, map_reference_backward
 
 const _gctx = PrinterContext
 

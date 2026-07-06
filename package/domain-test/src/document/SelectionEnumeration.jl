@@ -1,12 +1,10 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# test/src/editor/SelectionEnumeration.jl
+# domain-test/src/document/SelectionEnumeration.jl
 #
-# Umbrella-level extensions of the ground-truth selection enumerators. The
-# generic document walk (`_walk_document`, `collect_text_selections`,
-# `collect_tree_selections`) lives in ProjecturedBaseTest; this file adds the
-# pieces that need higher-layer vocabulary until they migrate to their own
-# test packages (plan/pending/test-package-split.md):
-#   * `collect_json_tree_selections` — domain (phase 3).
+# The domain-layer extension of the ground-truth selection enumerators (the
+# generic document walk lives in ProjecturedBaseTest): the projection-aware
+# JSON whole-element enumerator used by the tree-navigation completeness
+# suite.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # ── JSON whole-element enumeration ────────────────────────────────────────

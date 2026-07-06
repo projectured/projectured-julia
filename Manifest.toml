@@ -783,6 +783,12 @@ path = "package/base-test"
 uuid = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 version = "0.1.0"
 
+[[deps.ProjecturedDomainTest]]
+deps = ["ProjecturedBase", "ProjecturedBaseTest", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedVisual", "ProjecturedVisualTest", "Test"]
+path = "package/domain-test"
+uuid = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
+version = "0.1.0"
+
 [[deps.ProjecturedKernelTest]]
 deps = ["ProjecturedKernel", "Test"]
 path = "package/kernel-test"
@@ -814,7 +820,7 @@ uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedBaseTest", "ProjecturedExample", "ProjecturedKernelTest", "ProjecturedOdbc", "ProjecturedSdl", "ProjecturedTulip", "ProjecturedVideo", "ProjecturedVisualTest", "Test"]
+deps = ["Projectured", "ProjecturedBaseTest", "ProjecturedDomainTest", "ProjecturedExample", "ProjecturedKernelTest", "ProjecturedOdbc", "ProjecturedSdl", "ProjecturedTulip", "ProjecturedVideo", "ProjecturedVisualTest", "Test"]
 path = "package/test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

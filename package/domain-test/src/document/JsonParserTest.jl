@@ -1,9 +1,6 @@
 # Tests for the small recursive-descent JSON/XML parsers (jsonparse / xmlparse):
 # enough basic coverage to trust turning typed source into a real document.
 
-using Projectured: jsonparse, xmlparse,
-                   JsonObject, JsonArray, JsonNumber, JsonString, JsonBool, JsonNull,
-                   XmlElement, XmlText, XmlAttribute
 
 function test_json_parser()
     @testset "jsonparse" begin

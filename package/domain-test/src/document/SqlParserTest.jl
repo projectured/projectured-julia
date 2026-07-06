@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # SqlParser tests — parser-only, no DB needed.
 

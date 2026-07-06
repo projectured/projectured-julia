@@ -11,8 +11,26 @@ using ProjecturedExample
 using ProjecturedKernelTest
 using ProjecturedBaseTest
 using ProjecturedVisualTest
+using ProjecturedDomainTest
 import ProjecturedBaseTest: test_collection, test_copying_projection
-import ProjecturedVisualTest: test_syntax, test_text, test_graphics, test_affine_transform,
+import ProjecturedDomainTest: test_json, test_tabular, test_json_parser, test_xml_parser,
+                              test_sql_parser, test_sql_document,
+                              test_json_to_syntax, test_json_to_syntax_reader,
+                              test_json_gesture_collection,
+                              test_xml_to_syntax, test_xml_to_syntax_reader,
+                              test_sql_to_syntax, test_sql_to_syntax_selection,
+                              test_sql_insert_update_selection, test_sql_ddl,
+                              test_sql_ddl_selection,
+                              test_formula_to_syntax, test_filesystem_to_syntax,
+                              test_graph, AtomicFixture, test_atomic_render,
+                              test_atomic_fixtures, test_clipboard_to_any,
+                              test_versioning_to_any, test_syntax_tree_selection,
+                              test_table_selection, test_console_backend,
+                              test_write_pdf, test_type_reference,
+                              test_json_content_clicks_clean,
+                              collect_json_tree_selections
+import ProjecturedVisualTest: test_projection_template_hygiene,
+                              test_syntax, test_text, test_graphics, test_affine_transform,
                               test_graphics_layout, test_layout_allocator,
                               test_layout_constraint_helpers, test_primitive,
                               test_syntax_to_text, test_primitive_to_text,
@@ -81,33 +99,13 @@ function teardown_persons_table(adapter)
     db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
-include("reference/TypeReferenceTest.jl")
-include("backend/ConsoleBackendTest.jl")
-include("backend/PdfTest.jl")
-include("projection/TableSelectionTest.jl")
-include("document/JsonTest.jl")
 include("document/ConstraintSolverTest.jl")
-include("document/TabularTest.jl")
-include("document/JsonParserTest.jl")
-include("document/SqlParserTest.jl")
-include("document/SqlDocumentTest.jl")
-include("projection/ProjectionTemplateTest.jl")
-include("projection/JsonToSyntaxTest.jl")
-include("projection/AtomicFixtureTest.jl")
 include("projection/GestureMapTest.jl")
 include("projection/GestureHelpTest.jl")
-include("projection/FormulaToSyntaxTest.jl")
-include("projection/SqlToSyntaxTest.jl")
-include("projection/XmlToSyntaxTest.jl")
-include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
-include("projection/GraphTest.jl")
-include("projection/FileSystemToSyntaxTest.jl")
 include("projection/WidgetPopupExampleTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/ConversationEditorTest.jl")
-include("projection/ClipboardToAnyTest.jl")
-include("projection/VersioningToAnyTest.jl")
 include("projection/TooltipTest.jl")
 include("projection/HoverProbeTest.jl")
 include("projection/SplitPaneDragTest.jl")
@@ -117,7 +115,6 @@ include("projection/GraphicsToFileTest.jl")
 include("backend/DirtyRectTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/ExampleSweeps.jl")
-include("editor/SelectionEnumeration.jl")
 include("editor/PrinterLocalityTest.jl")
 include("editor/RecursionContractTest.jl")
 include("editor/JuliaTypeinTest.jl")
@@ -126,7 +123,6 @@ include("editor/ConversationSerializationTest.jl")
 include("editor/ConversationParsingTest.jl")
 include("editor/GestureRecognizerTest.jl")
 include("editor/MouseClickTest.jl")
-include("editor/JsonContentClicksTest.jl")
 include("editor/CollapseRoundtripTest.jl")
 include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
