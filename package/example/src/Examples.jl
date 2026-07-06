@@ -1,27 +1,3 @@
-struct Example
-    name::String
-    make_document
-    make_projection
-    document
-    projection
-    # Optional presentation size for the screenshot harness. Most examples size
-    # to their content; a few (e.g. the standalone assistant, which has no window
-    # to fill) need a display width seeded so they render at a useful size. This
-    # is a *presentation* choice and lives here, not as a fixed size baked into
-    # the projection.
-    render_width
-    render_height
-    # The projection's terminal output domain — `:abstract` (unknown / domain-agnostic),
-    # `:syntax`, `:text`, or `:graphics`. It is the single pivot the discovered catalog
-    # uses to decide *which tests apply* and *whether the example is runnable on screen*
-    # (see Catalog.jl). Authored examples leave it `:abstract`; catalog entries set it by
-    # construction. Presentation-only; does not affect projection behaviour.
-    terminal
-    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing, terminal=:abstract) =
-        new(name, make_document, make_projection, make_document(), make_projection(),
-            render_width, render_height, terminal)
-end
-
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
 const json_null_example      = Example("json_null",      make_json_null_document_example,      make_json_null_projection_example)
@@ -705,14 +681,6 @@ function run_console_example(; document=make_json_document_example(),
     return nothing
 end
 
-function write_example_image(example::Example, filename;
-                              width=nothing, height=nothing,
-                              max_width=1800, max_height=1200, kwargs...)
-    write_image(example.document, example.projection, filename;
-                width=width, height=height,
-                max_width=max_width, max_height=max_height, kwargs...)
-end
-
 function write_example_image(name="json", filename=tempname()*".bmp"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
@@ -739,35 +707,11 @@ function write_example_pdf(name="json", filename=tempname()*".pdf"; kwargs...)
     write_example_pdf(examples[idx], filename; kwargs...)
 end
 
-function record_example_video(example::Example, gestures, filename;
-                              width=1200, height=800, fps=30, kwargs...)
-    record_video(example.document, example.projection, gestures, filename;
-                 width=width, height=height, fps=fps, kwargs...)
-end
-
 function record_example_video(name::AbstractString, gestures,
                               filename=tempname()*".mp4"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
     record_example_video(examples[idx], gestures, filename; kwargs...)
-end
-
-"""
-    make_typein_gestures(text; hold=0.15, jitter=0.6) -> Vector
-
-Turn `text` into a list of timed `record_video` gestures: one
-`(event = KeyPress(char), hold = …)` per character, in order. Feed the result to
-`record_video`/`record_example_video` to record someone typing `text`. The
-recording needs an `initial_selection` (a text caret) for the keypresses to land.
-
-To mimic human typing, each hold is `hold` scaled by a random factor in
-`[1-jitter, 1+jitter]` (so `hold` is the *average* per-key duration and `jitter`
-∈ `[0,1]` is how irregular the rhythm is). `jitter=0` gives a perfectly even
-machine cadence. Holds are drawn fresh on every call.
-"""
-function make_typein_gestures(text::AbstractString; hold::Real=0.15, jitter::Real=0.6)
-    j = clamp(Float64(jitter), 0.0, 1.0)
-    [(event = KeyPress(c), hold = hold * (1 + j * (2 * rand() - 1))) for c in text]
 end
 
 """

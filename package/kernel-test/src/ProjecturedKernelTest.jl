@@ -32,6 +32,9 @@ module ProjecturedKernelTest
 
 using Test
 import ProjecturedKernel
+# The `Example` harness struct — the tier-typed driver overloads below
+# dispatch on it; the concrete example sets live in the example packages.
+using ProjecturedKernelExample: Example
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule

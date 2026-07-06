@@ -83,5 +83,8 @@ function test_reader(label, document, projection)
     end
 end
 
-# The `Example`-typed overload and the all-examples sweep (`test_readers`)
-# live in the `ProjecturedTest` umbrella, which owns the example registry.
+
+# The `Example`-typed overload; the all-examples sweep stays in the umbrella.
+function test_reader(example::Example)
+    test_reader(example.name, example.document, example.projection)
+end

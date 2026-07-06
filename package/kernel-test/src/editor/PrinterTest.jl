@@ -154,5 +154,9 @@ function test_printer(label, document, projection)
     end
 end
 
-# The `Example`-typed overload and the all-examples sweep (`test_printers`)
-# live in the `ProjecturedTest` umbrella, which owns the example registry.
+
+# The `Example`-typed overload; the all-examples sweep stays in the umbrella,
+# which owns the example registry.
+function test_printer(example::Example)
+    test_printer(example.name, example.document, example.projection)
+end

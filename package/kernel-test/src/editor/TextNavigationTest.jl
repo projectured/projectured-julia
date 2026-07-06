@@ -152,6 +152,8 @@ function test_text_navigation(label, document, projection, initial_selection=not
     end
 end
 
-# The `Example`-typed overload and the all-examples sweeps
-# (`test_text_navigations`, `test_text_navigations_complete`) live in the
-# `ProjecturedTest` umbrella, which owns the example registry.
+
+# The `Example`-typed overload; the sweeps stay in the umbrella.
+function test_text_navigation(example::Example; check_reaches_all=false)
+    test_text_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all)
+end

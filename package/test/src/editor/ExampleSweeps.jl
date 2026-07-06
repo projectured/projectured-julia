@@ -10,10 +10,6 @@
 
 # ── printer ──────────────────────────────────────────────────────────────────
 
-function test_printer(example::Example)
-    test_printer(example.name, example.document, example.projection)
-end
-
 function test_printers()
     @testset "Printers" begin
         for example in examples
@@ -25,10 +21,6 @@ function test_printers()
 end
 
 # ── reader ───────────────────────────────────────────────────────────────────
-
-function test_reader(example::Example)
-    test_reader(example.name, example.document, example.projection)
-end
 
 function test_readers()
     @testset "Readers" begin
@@ -42,10 +34,6 @@ end
 
 # ── repl ─────────────────────────────────────────────────────────────────────
 
-function test_repl(example::Example)
-    test_repl(example.name, example.document, example.projection)
-end
-
 function test_repls()
     @testset "Repls" begin
         for example in examples
@@ -57,10 +45,6 @@ function test_repls()
 end
 
 # ── text navigation ──────────────────────────────────────────────────────────
-
-function test_text_navigation(example::Example; check_reaches_all=false)
-    test_text_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all)
-end
 
 function test_text_navigations()
     @testset "TextNavigation" begin

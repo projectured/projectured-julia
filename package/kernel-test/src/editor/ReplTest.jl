@@ -89,5 +89,8 @@ function test_repl(label, document, projection)
     end
 end
 
-# The `Example`-typed overload and the all-examples sweep (`test_repls`)
-# live in the `ProjecturedTest` umbrella, which owns the example registry.
+
+# The `Example`-typed overload; the all-examples sweep stays in the umbrella.
+function test_repl(example::Example)
+    test_repl(example.name, example.document, example.projection)
+end

@@ -761,7 +761,7 @@ uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["Profile", "Projectured", "ProjecturedLlm"]
+deps = ["Profile", "Projectured", "ProjecturedKernelExample", "ProjecturedLlm"]
 path = "package/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
@@ -789,8 +789,14 @@ path = "package/domain-test"
 uuid = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
 version = "0.1.0"
 
+[[deps.ProjecturedKernelExample]]
+deps = ["ProjecturedKernel"]
+path = "package/kernel-example"
+uuid = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+version = "0.1.0"
+
 [[deps.ProjecturedKernelTest]]
-deps = ["ProjecturedKernel", "Test"]
+deps = ["ProjecturedKernel", "ProjecturedKernelExample", "Test"]
 path = "package/kernel-test"
 uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"

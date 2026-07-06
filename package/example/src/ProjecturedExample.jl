@@ -2,6 +2,12 @@ module ProjecturedExample
 
 using Projectured
 using Profile
+# The harness core (the `Example` struct + the seam-based image/video entry
+# points) lives at the bottom of the example-package DAG; the name-lookup
+# variants defined here add methods to the imported functions.
+using ProjecturedKernelExample
+import ProjecturedKernelExample: Example, write_example_image, record_example_video,
+                                 make_typein_gestures
 # Loaded for its side effect: registers `stream_turn(::AnthropicLlm, …)` on the
 # kernel LLM seam so the assistant example can use a real Claude model when
 # ANTHROPIC_API_KEY is set (otherwise the agent loop falls back to FakeLlm).
