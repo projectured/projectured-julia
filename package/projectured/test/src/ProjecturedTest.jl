@@ -90,7 +90,7 @@ end
 
 # Live-DB fixture helpers used by the opt-in `external/` catalog tests. Defined
 # here directly (rather than re-exported from the example package) to keep
-# ProjecturedTest free of the `ProjecturedExtrasExample` / native-shim
+# ProjecturedTest free of the opt-in example packages / native-shim
 # dependency. `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
 # `using ProjecturedOdbc` above.
 function setup_persons_table(adapter)

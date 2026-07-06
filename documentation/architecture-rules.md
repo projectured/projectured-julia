@@ -82,12 +82,24 @@ the `-Test` / `-Example` suffixes even though the directories are now nested):
 ```
 runtime:   kernel ← base ← visual ← domain ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
 tests:     kernel/test ← base/test ← visual/test ← domain/test ← projectured/test
-examples:  kernel/example ← visual/example ← domain/example ← projectured/example ← ProjecturedExtrasExample
+examples:  kernel/example ← visual/example ← domain/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```
 
 (There is no `base/example`: every runnable example projects through the visual
 render fabric, so the example DAG skips the base tier — see
 [plan/done/example-package-split.md](../plan/done/example-package-split.md).)
+
+The example DAG's leaves are the **opt-in example packages** — one per engine,
+each under its opt-in package's folder: `package/odbc/example`
+(`ProjecturedOdbcExample`, the live-DB catalog/SQL examples),
+`package/adaptagrams/example` (`ProjecturedAdaptagramsExample`, the native
+graph-layout examples), `package/tulip/example` (`ProjecturedTulipExample`, the
+LP-solved constraint layout). They replace the old single `ProjecturedExtrasExample`
+aggregate ([plan/done/extras-example-split.md](../plan/done/extras-example-split.md)).
+One example, `dvdrental_relationship`, needs two engines (its document is
+DB-derived, its layout native), so `adaptagrams/example` depends on
+`odbc/example` for that document — the lowest-home rule applied to a genuinely
+cross-engine example, keeping each projection source file whole.
 
 - A **test package** depends on the runtime package it tests, plus the test packages
   below it (for the shared drivers and enumerators). It must never depend on a

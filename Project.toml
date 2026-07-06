@@ -7,7 +7,9 @@ ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
 ProjecturedDomainTest = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
-ProjecturedExtrasExample = "fab2bd8f-1e88-4ba3-9632-02350794cb36"
+ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
+ProjecturedOdbcExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
+ProjecturedTulipExample = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
@@ -37,7 +39,9 @@ ProjecturedDomainExample = {path = "package/domain/example"}
 ProjecturedAdaptagrams = {path = "package/adaptagrams"}
 Projectured = {path = "package/projectured"}
 ProjecturedExample = {path = "package/projectured/example"}
-ProjecturedExtrasExample = {path = "package/extras-example"}
+ProjecturedOdbcExample = {path = "package/odbc/example"}
+ProjecturedAdaptagramsExample = {path = "package/adaptagrams/example"}
+ProjecturedTulipExample = {path = "package/tulip/example"}
 ProjecturedTest = {path = "package/projectured/test"}
 ProjecturedMcp = {path = "package/mcp"}
 ProjecturedLlm = {path = "package/llm"}

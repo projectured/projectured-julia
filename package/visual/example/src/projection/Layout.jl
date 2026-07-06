@@ -33,7 +33,7 @@ document (the widgets) to `WidgetToGraphics`.
 `solver` defaults to the dependency-free `FallbackConstraintSolver` (children
 stack at the origin — a valid but unsolved layout). Pass a `TulipConstraintSolver`
 from the opt-in `ProjecturedTulip` package for real constraint solving; the
-`constraint_layout_tulip` example in `ProjecturedExtrasExample` does exactly that.
+`constraint_layout_tulip` example in `ProjecturedTulipExample` does exactly that.
 """
 function make_constraint_layout_projection_example(; measure=truetype_measure_text,
                                                    solver=FallbackConstraintSolver())

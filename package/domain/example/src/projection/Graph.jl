@@ -33,6 +33,6 @@ function make_graph_projection_example(; measure=truetype_measure_text,
 end
 
 # The native AdaptagramsEngine graph projections (graph_adaptagrams,
-# dvdrental_relationship) live in the opt-in `ProjecturedExtrasExample` package so
+# dvdrental_relationship) live in the opt-in `ProjecturedAdaptagramsExample` package so
 # the base example package does not depend on the native ProjecturedAdaptagrams
 # shim. They reuse `make_graph_projection_example` with the engine swapped in.

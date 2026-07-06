@@ -35,7 +35,7 @@ using ProjecturedLlm
 
 # The opt-in examples that need a live database (ODBC) or the native graph-layout
 # engine (ProjecturedAdaptagrams C++ shim) live in the separate
-# `ProjecturedExtrasExample` package, so this base package depends on neither —
+# opt-in example packages (`ProjecturedOdbcExample`, `ProjecturedAdaptagramsExample`, `ProjecturedTulipExample`), so this base package depends on none of them —
 # it precompiles with no native build and no database driver.
 
 const _EXAMPLE_DIR = @__DIR__

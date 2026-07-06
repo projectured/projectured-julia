@@ -63,7 +63,7 @@ codebase against it, and designs a validation that uses only the four functions.
 
 A full sweep of every projection implementation under
 `package/kernel/src/projection/`, `package/domain/src/projection/`,
-`package/example/src/projection/`, and `package/extras-example/src/projection/`
+`package/projectured/example/src/projection/`, and the opt-in example packages' `package/{odbc,adaptagrams,tulip}/example/src/projection/`
 was performed (the four functions plus every private helper they call).
 
 ### Confirmed violation (exactly one)

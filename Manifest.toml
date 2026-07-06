@@ -760,17 +760,30 @@ path = "package/domain"
 uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
+[[deps.ProjecturedAdaptagramsExample]]
+deps = ["Projectured", "ProjecturedAdaptagrams", "ProjecturedExample", "ProjecturedOdbcExample"]
+path = "package/adaptagrams/example"
+uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
+version = "0.1.0"
+
+[[deps.ProjecturedOdbcExample]]
+deps = ["Projectured", "ProjecturedExample", "ProjecturedOdbc"]
+path = "package/odbc/example"
+uuid = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
+version = "0.1.0"
+
+[[deps.ProjecturedTulipExample]]
+deps = ["Projectured", "ProjecturedExample", "ProjecturedTulip"]
+path = "package/tulip/example"
+uuid = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
+version = "0.1.0"
+
 [[deps.ProjecturedExample]]
 deps = ["Profile", "Projectured", "ProjecturedDomainExample", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedVisualExample"]
 path = "package/projectured/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
-[[deps.ProjecturedExtrasExample]]
-deps = ["Projectured", "ProjecturedAdaptagrams", "ProjecturedExample", "ProjecturedOdbc", "ProjecturedTulip"]
-path = "package/extras-example"
-uuid = "fab2bd8f-1e88-4ba3-9632-02350794cb36"
-version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
 path = "package/kernel"

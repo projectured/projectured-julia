@@ -1,0 +1,17 @@
+name = "ProjecturedAdaptagramsExample"
+uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
+version = "0.1.0"
+authors = []
+
+# The Adaptagrams opt-in example package: the native-graph-layout examples
+# (`graph_adaptagrams` and the `dvdrental_relationship` entity-relationship
+# diagram). Keeps projection/Graph.jl whole; the relationship's DB-derived
+# document comes from ProjecturedOdbcExample (the one cross-engine example).
+# Resolves through the root env; precompiles only where the ProjecturedAdaptagrams
+# C++ shim is built (and, for the relationship example, a live DB is reachable).
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedOdbcExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
