@@ -92,7 +92,8 @@ The navigator panel.  `workspace` is a `Workspace` document containing
 `WorkspaceFolder` entries.  Its title is the class-level constant `"Navigator"`.
 """
 @document struct WorkbenchNavigator <: WorkbenchDocument
-    workspace::Workspace = Workspace()
+    workspace::Workspace  # required: keeps the 1-arg `WorkbenchNavigator(workspace)`
+                          # ctor (macro Rule Y needs req≥1)
     selection::Reference = nothing
 end
 
@@ -275,7 +276,8 @@ Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
-    selection::Reference = nothing
+    selection::Reference  # defaulted by the keyword ctor below, not the macro,
+                          # to avoid a zero-arg ctor clash (see FlowLayout pattern)
 end
 
 # A fresh user draft (one active text typein) for the composer input pane.

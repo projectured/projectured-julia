@@ -39,7 +39,8 @@ All fields optional — a version can be anonymous.
     author::Any           # who created it (string / user object / nothing)
     origin::Any           # where it came from (host, file, session, nothing)
     label::Any            # optional human name / tag for the version
-    selection::Reference = nothing
+    selection::Reference  # defaulted by the keyword ctor below, not the macro,
+                          # to avoid a zero-arg ctor clash (see FlowLayout pattern)
 end
 
 VersionProperties(; timestamp=nothing, author=nothing, origin=nothing,

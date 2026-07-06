@@ -56,8 +56,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
-import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
+import ..GestureBindingModule: GestureBinding, KeyDownPattern
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
        SetVersionCriterionOperation

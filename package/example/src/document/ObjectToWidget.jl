@@ -1,4 +1,4 @@
-using Projectured.DocumentApiModule: Document
+using Projectured.DocumentModule: Document
 using Projectured.DocumentModule: @document
 using Projectured.ReferenceModule: Reference
 

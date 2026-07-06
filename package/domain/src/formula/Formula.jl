@@ -68,6 +68,16 @@ formula_result_text(s) = TextText(TextString(_value_string(s)))
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
 
+# Mixed positional+keyword form (name/code positional, result/display_mode
+# keywords) the @document macro can't generate. `name` may be a String or a Cell
+# (a derived thunk); the inner ctor passes a Cell through unchanged.
+function FormulaFormula(name, code::Document;
+                        result::Document = formula_result_text(""),
+                        display_mode::Symbol = :both)
+    name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
+    FormulaFormula(name_cell, Cell(code), Cell(result), Cell(display_mode), Cell(nothing))
+end
+
 """
 Named-formula scope: an ordered set of `FormulaFormula`s (a spreadsheet
 *sheet*). Each contained formula's `result` is wired to a reactive thunk

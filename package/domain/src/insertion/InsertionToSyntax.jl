@@ -46,8 +46,8 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath, ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
-                              get_projection_gesture_bindings, read_projection_gesture, var"@gestures"
+import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, var"@gestures"
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_default, StyleColor
 import ..StyleTextModule: StyleText

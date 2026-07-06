@@ -53,8 +53,8 @@ import ..ColorModule: color_default, color_solarized_gray, color_slate_600
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
 import ..KeyboardModule: KeyDown, KeyPress
-import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern,
-                              matches, get_projection_gesture_bindings
+import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, matches
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
 export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,

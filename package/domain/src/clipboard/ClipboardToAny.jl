@@ -58,8 +58,8 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                           evaluate_reference, head, tail, strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
-import ..GestureBindingModule: GestureBinding, KeyDownPattern,
-                              get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
+import ..GestureBindingModule: GestureBinding, KeyDownPattern
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
 import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,

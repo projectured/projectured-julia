@@ -305,7 +305,70 @@ end
     statements::CellVector        # [SqlStatement]
     selection::Reference = nothing
 end
-SqlStatementList(statements::AbstractVector) =
-    SqlStatementList(CellVector([statements...]), Cell(nothing))
+# The `@document` macro already generates `SqlStatementList(::AbstractVector)`
+# (Rule C: single CellVector + defaulted siblings), which wraps into a CellVector
+# and fills the `selection` default — so no hand-written ctor is needed here.
+
+# ── Convenience constructors restored (deleted by 58be127) ──────────────────────
+# The `@document` macro regenerates the untyped positional / keyword forms, but
+# not these typed-conversion, varargs, mixed-arity, and CellVector-wrapping forms
+# that consumers rely on. Ctor location is independent of struct location, so they
+# live here at module scope. (`SqlScalarValue(value)` is omitted — the macro's
+# Rule Y already provides the untyped 1-arg form.)
+SqlInsertion(value::AbstractString) = SqlInsertion(Cell(String(value)), Cell(nothing))
+SqlTableName(name::AbstractString) =
+    SqlTableName(nothing, String(name), Cell(nothing))
+SqlTableAlias(name::AbstractString) = SqlTableAlias(String(name), Cell(nothing))
+SqlColumnName(name::AbstractString) = SqlColumnName(String(name), Cell(nothing))
+SqlColumnAlias(name::AbstractString) = SqlColumnAlias(String(name), Cell(nothing))
+SqlAllColumns(qualifier) = SqlAllColumns(qualifier, Cell(nothing))
+SqlColumnReference(col::SqlColumnName) =
+    SqlColumnReference(nothing, col, Cell(nothing))
+SqlColumnReference(qualifier, col::SqlColumnName) =
+    SqlColumnReference(qualifier, col, Cell(nothing))
+SqlSelectItem(expr::SqlSelectExpression) =
+    SqlSelectItem(expr, nothing, Cell(nothing))
+SqlSelectClause(items::CellVector) =
+    SqlSelectClause(nothing, items, Cell(nothing))
+SqlWhereFilterCondition(expr::SqlBooleanExpression) =
+    SqlWhereFilterCondition(expr, Cell(nothing))
+SqlWhereClause(cond::SqlWhereCondition) = SqlWhereClause(cond, Cell(nothing))
+SqlComparison(left, op::AbstractString, right) =
+    SqlComparison(left, String(op), right, Cell(nothing))
+SqlAnd(left::SqlBooleanExpression, right::SqlBooleanExpression) =
+    SqlAnd(left, right, Cell(nothing))
+SqlOr(left::SqlBooleanExpression, right::SqlBooleanExpression) =
+    SqlOr(left, right, Cell(nothing))
+SqlNot(expr::SqlBooleanExpression) = SqlNot(expr, Cell(nothing))
+SqlJoinOnCondition(expr::SqlBooleanExpression) =
+    SqlJoinOnCondition(expr, Cell(nothing))
+SqlJoinUsingCondition(cols::SqlColumnName...) =
+    SqlJoinUsingCondition(CellVector([cols...]), Cell(nothing))
+SqlTableExpression(tname::SqlTableName) =
+    SqlTableExpression(tname, nothing, Cell(nothing))
+SqlTableExpression(name::AbstractString) =
+    SqlTableExpression(SqlTableName(name), nothing, Cell(nothing))
+SqlJoinedFromItem(jt::SqlJoinType, fi::SqlFromBaseItem) =
+    SqlJoinedFromItem(jt, fi, nothing, Cell(nothing))
+SqlFromItem(base::SqlFromBaseItem) =
+    SqlFromItem(base, CellVector(), Cell(nothing))
+SqlFromClause(items::SqlFromItem...) =
+    SqlFromClause(CellVector([items...]), Cell(nothing))
+SqlSelectStatement(sc::SqlSelectClause, fc::SqlFromClause) =
+    SqlSelectStatement(sc, fc, SqlWhereClause(), Cell(nothing))
+SqlSubqueryFromItem(sq::SqlSelectStatement) =
+    SqlSubqueryFromItem(sq, nothing, Cell(nothing))
+SqlInsertStatement(table::SqlTableName, columns::CellVector, values::CellVector) =
+    SqlInsertStatement(table, columns, values, Cell(nothing))
+SqlUpdateAssignment(col::SqlColumnName, value::SqlScalarValue) =
+    SqlUpdateAssignment(col, value, Cell(nothing))
+SqlUpdateStatement(table::SqlTableName, assignments::CellVector) =
+    SqlUpdateStatement(table, assignments, SqlWhereClause(), Cell(nothing))
+SqlColumnDefinition(col::SqlColumnName, data_type::AbstractString) =
+    SqlColumnDefinition(col, String(data_type), Cell(nothing))
+SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
+    SqlCreateTableStatement(table_name, columns, Cell(nothing))
+SqlCreateSchemaStatement(schema_name::AbstractString) =
+    SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
 
 end # module

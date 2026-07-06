@@ -57,7 +57,7 @@ The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
     selection::Reference = nothing
 end
 
-DocumentInsertion(value::AbstractString=""; font=nothing, selection=nothing) =
+DocumentInsertion(value::AbstractString; font=nothing, selection=nothing) =
     DocumentInsertion(Cell(String(value)), Cell(font), Cell(selection))
 
 prefix(::DocumentInsertion) = DOCUMENT_INSERTION_PREFIX

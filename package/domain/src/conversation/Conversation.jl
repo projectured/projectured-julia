@@ -60,7 +60,7 @@ ConversationThinking(text::Document;
                      data::AbstractString = "") =
     ConversationThinking(Cell(text), Cell(String(signature)),
                          Cell(redacted), Cell(String(data)), Cell(nothing))
-ConversationThinking(text::AbstractString = "";
+ConversationThinking(text::AbstractString;
                      signature::AbstractString = "",
                      redacted::Bool = false,
                      data::AbstractString = "") =
@@ -138,7 +138,7 @@ when standalone) so ENTER can submit the draft into the conversation.
     selection::Reference = nothing
 end
 
-ConversationDraft(parts::Vector = ConversationPart[], assistant = nothing) =
+ConversationDraft(parts::Vector, assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
 set_function!(d::ConversationDraft, f::Function) =
