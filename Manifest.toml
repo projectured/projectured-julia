@@ -777,6 +777,12 @@ path = "package/kernel"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
+[[deps.ProjecturedKernelTest]]
+deps = ["ProjecturedKernel", "Test"]
+path = "package/kernel-test"
+uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+version = "0.1.0"
+
 [[deps.ProjecturedLlm]]
 deps = ["HTTP", "JSON3", "ProjecturedKernel"]
 path = "package/llm"
@@ -802,7 +808,7 @@ uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedExample", "ProjecturedOdbc", "ProjecturedSdl", "ProjecturedTulip", "ProjecturedVideo", "Test"]
+deps = ["Projectured", "ProjecturedExample", "ProjecturedKernelTest", "ProjecturedOdbc", "ProjecturedSdl", "ProjecturedTulip", "ProjecturedVideo", "Test"]
 path = "package/test"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

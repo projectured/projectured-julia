@@ -6,11 +6,3 @@ authors = []
 # ProjecturedKernel has no runtime dependencies and no extensions: the optional
 # LLM/MCP agent backends are now standalone opt-in packages (llm/, mcp/) that
 # depend on this package, rather than weakdep-triggered extensions of it.
-
-# `Test` is used only by test/runtests.jl (the include-order guard rail); it is
-# a stdlib, so this adds no real dependency weight.
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]

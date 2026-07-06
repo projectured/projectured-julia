@@ -86,6 +86,8 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
     end
 end
 
+# `collect_text_selections` / `collect_tree_selections` extend the open
+# generics declared beside the navigation drivers in ProjecturedKernelTest.
 """
     collect_text_selections(document) -> Vector{ReferencePath}
 
@@ -174,15 +176,3 @@ the path strings match navigation output.
 """
 collect_json_tree_selections(document) =
     _json_collect!(document, EmptyReferencePath(), ReferencePath[])
-
-# Subset assertion: every enumerated selection must be among the reachable ones.
-# One `@test` per enumerated selection so a failure pinpoints exactly which
-# selection navigation cannot reach (rather than a single bulk assertion).
-function _assert_reaches_all(label, enumerated, visited::Set{String})
-    for p in enumerated
-        s = string(p)
-        reached = s in visited
-        reached || @warn "[$label] enumerated selection unreached by navigation: $s"
-        @test reached
-    end
-end

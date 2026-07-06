@@ -3,6 +3,20 @@ module ProjecturedTest
 using Test
 using Projectured
 using ProjecturedExample
+# The generic test drivers ((label, document, projection) forms), the reflexive
+# cell walker, the event battery, and the kernel unit suites live in
+# ProjecturedKernelTest — the base of the test-package DAG. The umbrella keeps
+# the `Example`-typed overloads and the all-examples sweeps (ExampleSweeps.jl),
+# and extends the ground-truth selection enumerators for the domains it owns.
+using ProjecturedKernelTest
+import ProjecturedKernelTest: test_printer, test_reader, test_repl,
+                              test_text_navigation, test_tree_navigation,
+                              collect_text_selections, collect_tree_selections,
+                              explore_text_selections, explore_tree_selections,
+                              walk_printer_output, walk_reader_events, walk_repl_loop,
+                              test_event_case, test_gesture_binding,
+                              WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
+                              _ALL_READER_EVENTS, _assert_reaches_all
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
 # The library itself is SDL-optional; the test package opts in.
@@ -45,9 +59,7 @@ function teardown_persons_table(adapter)
     db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
-include("common/GestureBindingTest.jl")
 include("reference/TypeReferenceTest.jl")
-include("device/EventCaseTest.jl")
 include("backend/ConsoleBackendTest.jl")
 include("document/JsonTest.jl")
 include("document/SyntaxTest.jl")
@@ -116,14 +128,11 @@ include("projection/AnchorPointTest.jl")
 include("projection/GraphicsToFileTest.jl")
 include("backend/PdfTest.jl")
 include("backend/DirtyRectTest.jl")
-include("editor/PrinterTest.jl")
 include("editor/ExampleTest.jl")
+include("editor/ExampleSweeps.jl")
 include("editor/SelectionEnumeration.jl")
 include("editor/PrinterLocalityTest.jl")
-include("editor/TextNavigationTest.jl")
 include("editor/RecursionContractTest.jl")
-include("editor/ReaderTest.jl")
-include("editor/ReplTest.jl")
 include("editor/TypeinTest.jl")
 include("editor/JuliaTypeinTest.jl")
 include("editor/McpTest.jl")
@@ -133,7 +142,6 @@ include("editor/GestureRecognizerTest.jl")
 include("editor/MouseClickTest.jl")
 include("editor/ClickRoundtripTest.jl")
 include("editor/CollapseRoundtripTest.jl")
-include("editor/SyntaxTreeNavigationTest.jl")
 include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/VideoTest.jl")

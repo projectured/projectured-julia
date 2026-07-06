@@ -6,6 +6,7 @@ ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedExtrasExample = "fab2bd8f-1e88-4ba3-9632-02350794cb36"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLlm = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 ProjecturedMcp = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
@@ -20,6 +21,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ProjecturedKernel = {path = "package/kernel"}
+ProjecturedKernelTest = {path = "package/kernel-test"}
 ProjecturedBase = {path = "package/base"}
 ProjecturedDomain = {path = "package/domain"}
 ProjecturedAdaptagrams = {path = "package/adaptagrams"}
