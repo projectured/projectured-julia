@@ -9,6 +9,8 @@ using ProjecturedExample
 # the `Example`-typed overloads and the all-examples sweeps (ExampleSweeps.jl),
 # and extends the ground-truth selection enumerators for the domains it owns.
 using ProjecturedKernelTest
+using ProjecturedBaseTest
+import ProjecturedBaseTest: test_collection, test_copying_projection, _text_leaf_length
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               test_text_navigation, test_tree_navigation,
                               collect_text_selections, collect_tree_selections,
@@ -69,7 +71,6 @@ include("document/GeometryTest.jl")
 include("document/GraphicsLayoutTest.jl")
 include("document/LayoutAllocatorTest.jl")
 include("document/ConstraintSolverTest.jl")
-include("document/CollectionTest.jl")
 include("document/TabularTest.jl")
 include("document/PrimitiveTest.jl")
 include("document/JsonParserTest.jl")
@@ -115,7 +116,6 @@ include("projection/WidgetFormsTest.jl")
 include("projection/WidgetPopupExampleTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/ConversationEditorTest.jl")
-include("projection/CopyingProjectionTest.jl")
 include("projection/ClipboardToAnyTest.jl")
 include("projection/VersioningToAnyTest.jl")
 include("projection/TooltipTest.jl")

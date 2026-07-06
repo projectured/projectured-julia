@@ -1,3 +1,11 @@
+"""
+`CollectionModule` — the reactive collection documents. Covers the `CellVector`
+container protocol and the lazy `ListNode` chain (thunks, `take_first`,
+infinite lists). The seam method `child_reference_steps(::CellVector)` that
+base registers onto the kernel's `OperationModule` generic is validated by the
+kernel operation-layer test through the default fieldnames-walk.
+"""
+
 function test_collection()
 @testset "ReactiveCollection" begin
 
@@ -121,4 +129,26 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
 # TODO: Add bidirectional tests once the implementation is fixed
 
 end # @testset "ReactiveCollection"
+
+@testset "CellVector protocol" begin
+
+    @testset "CellVector constructs and iterates" begin
+        v = CellVector([1, 2, 3])
+        @test length(v) == 3
+        @test v[1] == 1
+        @test v[3] == 3
+        @test collect(v) == [1, 2, 3]
+    end
+
+    @testset "CellVector push/pop mutates in place" begin
+        v = CellVector(Any[])
+        push!(v, 10)
+        push!(v, 20)
+        @test length(v) == 2
+        @test v[2] == 20
+        pop!(v)
+        @test length(v) == 1
+    end
+
+end # @testset "CellVector protocol"
 end # test_collection
