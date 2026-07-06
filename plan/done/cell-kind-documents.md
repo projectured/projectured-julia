@@ -174,9 +174,7 @@ the design is validated and measured *before* the invasive macro rewrite. Small
 enough to run as a light driver in-editor; benchmarks user-run externally if needed.
 
 - [x] A tiny demo document type in the new parametric form, with
-      `RDemoItem` / `IDemoItem` / `MDemoItem` aliases:
-      **`package/kernel/demo/CellKindDemo.jl`** (standalone,
-      `julia --project=. package/kernel/demo/CellKindDemo.jl`).
+      `RDemoItem` / `IDemoItem` / `MDemoItem` aliases.
 - [x] One simple kind-generic projection over it (single printer body serves all
       three kinds via one uniform `getproperty`), a **boundary-cell** case (R parent
       holding an I subtree as one value; subtree swap invalidates the parent render),
@@ -208,7 +206,7 @@ enough to run as a light driver in-editor; benchmarks user-run externally if nee
       Measurement lesson: the first print column was swamped by an O(n²)
       `"  "^depth` indentation artifact — bench harnesses must keep per-node work
       O(1) or the kind differences drown.
-- [x] **Large-JSON benchmark** (`package/domain/demo/CellKindJsonBench.jl`): a
+- [x] **Large-JSON benchmark**: a
       hand-written parametric mirror of the JSON documents (faithful declared
       field types, loose bounds) vs a legacy-emission mirror vs the real
       `JsonObject` stack, all on one 57 489-node tree (depth 4, fanout 16,
