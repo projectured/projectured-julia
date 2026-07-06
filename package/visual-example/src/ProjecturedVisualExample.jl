@@ -3,7 +3,7 @@
 
 The visual tier of the example-package DAG that parallels the runtime DAG
 (kernel ← visual ← domain ← umbrella; see
-plan/pending/example-package-split.md). It hosts:
+plan/done/example-package-split.md). It hosts:
 
 - the visual-tier `Example` instances and their document/projection factories:
   syntax and text documents, the widget gallery, the layout examples, the

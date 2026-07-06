@@ -3,7 +3,7 @@
 
 The base of the example-package DAG that parallels the runtime DAG
 (kernel ← visual ← domain ← umbrella; see
-plan/pending/example-package-split.md). It hosts the **example harness
+plan/done/example-package-split.md). It hosts the **example harness
 core** — the `Example` struct that every example package instantiates and the
 test drivers dispatch on, plus the harness entry points that compile against
 kernel API alone: `write_example_image` / `record_example_video` (the kernel

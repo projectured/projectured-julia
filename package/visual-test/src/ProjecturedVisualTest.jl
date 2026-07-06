@@ -29,7 +29,7 @@ import ProjecturedVisual
 using ProjecturedKernelTest
 using ProjecturedBaseTest
 # The real visual-tier example factories and the tier's registry slice — the
-# mirrored Fixtures.jl copies are gone (plan/pending/example-package-split.md).
+# mirrored Fixtures.jl copies are gone (plan/done/example-package-split.md).
 using ProjecturedVisualExample
 import ProjecturedBaseTest: _text_leaf_length
 

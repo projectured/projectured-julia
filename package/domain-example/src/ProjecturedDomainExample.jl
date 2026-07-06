@@ -3,7 +3,7 @@
 
 The domain tier of the example-package DAG that parallels the runtime DAG
 (kernel ← visual ← domain ← umbrella; see
-plan/pending/example-package-split.md). It hosts:
+plan/done/example-package-split.md). It hosts:
 
 - the domain-tier `Example` instances and their factories: the concrete
   source domains (json/yaml/xml/sql/formula/math/julia/markdown/book/
@@ -155,5 +155,6 @@ export run_console_example, run_example, run_file_editor, sql_insert_syntax_exam
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
 export Example, domain_examples
+export EDITOR_DOMAINS, EXTENSION_DOMAINS
 
 end # module ProjecturedDomainExample

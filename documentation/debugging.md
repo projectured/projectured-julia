@@ -26,9 +26,12 @@ julia> run_example("syntax")        # any name from `examples`
 julia> run_example(json_example)    # or pass the Example object directly
 ```
 
-The function lives at
-[example/src/Examples.jl](../package/example/src/Examples.jl) (the `Example` overload at
-`run_example(example::Example; …)`, plus name/`Vector` overloads); it accepts a
+The gallery lives at
+[domain-example/src/Gallery.jl](../package/domain-example/src/Gallery.jl) (the
+`Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
+domain vocabulary); the name-lookup overloads live with the global registry in
+[example/src/Examples.jl](../package/example/src/Examples.jl), and
+`using ProjecturedExample` provides all of them. It accepts a
 few keyword arguments worth knowing:
 
 | Keyword | Effect |

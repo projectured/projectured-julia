@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = []
 
 # The base of the example-package DAG that parallels the runtime DAG (see
-# plan/pending/example-package-split.md): the layer-agnostic `Example` harness
+# plan/done/example-package-split.md): the layer-agnostic `Example` harness
 # core reused by every example package above and by the test drivers. It
 # reaches SDL/Video only through the kernel backend seams, so it carries no
 # opt-in dependency.

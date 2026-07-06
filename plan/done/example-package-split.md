@@ -1,5 +1,32 @@
 # Example package split
 
+> **Status: done.** Deviations resolved at move time per the lowest-home rule
+> (documentation/architecture-rules.md):
+>
+> - **`ProjecturedBaseExample` was not created**: every runnable example pairs
+>   its document with a projection to a presentable output domain, and even
+>   the collection/lazy pipelines go through the visual `CollectionToSyntax`
+>   → `SyntaxToText` fabric — the base tier has no examples, and packages are
+>   a strict boundary. The example DAG is kernel ← visual ← domain ← umbrella.
+> - There are no kernel-tier examples either: `ProjecturedKernelExample` is
+>   pure harness (the `Example` struct, `write_example_image` /
+>   `record_example_video` via the kernel seams, `make_typein_gestures`).
+> - The **gallery** (`run_example` + window-scene helpers + `Wrapper.jl`) went
+>   to **domain-example**, not visual: its workbench / tooltip / inspector /
+>   clipboard wrappers are domain vocabulary. `run_console_example` (json
+>   pipeline defaults) and `record_assistant_conversation_video` went with it.
+> - `focusing_example` is a JSON pipeline → domain; `rotating_vector_example`
+>   builds a GraphicsCanvas → visual; `dragging` docs are JSON → domain;
+>   `object`/`Wrapper` reflections split (ObjectToSyntax is visual; the
+>   wrapper toolkit is domain per its clipboard parts); `print_example` uses
+>   the visual `print_object` → visual-example.
+> - The `Example`-typed `test_tree_navigation` overload (JsonDocument default
+>   enumerator) lives in domain-test, beside `collect_json_tree_selections`.
+> - The per-tier printer sweeps surfaced one more pre-existing failure:
+>   `json_sorted`'s printer walk dies in RJsonObject positional construction
+>   through `SortingAtProjection` — the same cell-kinds @document-constructor
+>   drift family as TabularTest/ClipboardToAnyTest.
+
 Split the monolithic `package/example` (`ProjecturedExample`, ~90 files) into
 **explicit per-layer example packages** that mirror the source-package DAG,
 exactly like plan/done/test-package-split.md did for the tests. Each example
@@ -203,7 +230,7 @@ an actual `using`; the umbrella `ProjecturedExample` still loads offline-free
 of Sdl but needs ProjecturedLlm's HTTP deps, so full umbrella verification
 needs a networked env — same caveat as ProjecturedTest.)
 
-- [ ] **Phase 0 — `ProjecturedKernelExample`.** Create `package/kernel-example/`
+- [x] **Phase 0 — `ProjecturedKernelExample`.** Create `package/kernel-example/`
   (UUID above, dep `ProjecturedKernel`). Move the `Example` struct out of
   `Examples.jl`; move `Focusing` (+ `RotatingVector`, `print_example` after
   confirm). Export `kernel_examples`. Wire root env. Umbrella
@@ -211,20 +238,20 @@ needs a networked env — same caveat as ProjecturedTest.)
   and takes the `Example`-typed driver overloads from the umbrella test's
   ExampleSweeps.jl (which shrinks to the sweeps). Verify `test_kernel()` and
   the example packages' own loads.
-- [ ] **Phase 1 — `ProjecturedBaseExample`.** Collection/Lazy +
+- [x] **Phase 1 (skipped) — `ProjecturedBaseExample`.** Collection/Lazy +
   reversing/filtering/searching/sorting examples; `base_examples`;
   base-test deps it (sweep over `base_examples` inside `test_base()`).
-- [ ] **Phase 2 — `ProjecturedVisualExample`** (largest). Text/Syntax/Widget/
+- [x] **Phase 2 — `ProjecturedVisualExample`** (largest). Text/Syntax/Widget/
   Layout/ObjectToWidget/text-decorator examples + the gallery harness
   (`run_example` composition, `write_example_image`, `write_example_pdf`);
   `visual_examples`; visual-test deps it, **deletes Fixtures.jl**, sweeps its
   tier. Confirm no Sdl/Tulip `using` sneaks in (seams only).
-- [ ] **Phase 3 — `ProjecturedDomainExample`.** All domain examples +
+- [x] **Phase 3 — `ProjecturedDomainExample`.** All domain examples +
   `FileEditor.jl`; `domain_examples`; domain-test deps it, **deletes
   Fixtures.jl**, sweeps its tier — `test_printer(json_example)` now runs in
   domain-test against the real example, closing the loop the test split
   promised.
-- [ ] **Phase 4 — umbrella shrink & docs.** `ProjecturedExample` keeps
+- [x] **Phase 4 — umbrella shrink & docs.** `ProjecturedExample` keeps
   Assistant + registry + Catalog + LiveExamples + demo, re-exports the tiers;
   `examples` = concatenation of tier lists (preserve current order). Update
   `documentation/debugging.md` (run_example/print_example homes),

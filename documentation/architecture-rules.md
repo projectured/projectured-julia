@@ -8,7 +8,7 @@ and
 [plan/done/domain-layered-architecture.md](../plan/done/domain-layered-architecture.md),
 and extended to the sibling test/example DAGs by
 [plan/done/test-package-split.md](../plan/done/test-package-split.md) and
-plan/pending/example-package-split.md.
+[plan/done/example-package-split.md](../plan/done/example-package-split.md).
 When a "where does this go?" question comes up, answer it from these rules — and if
 the rules don't answer it, extend the rules, don't improvise.
 

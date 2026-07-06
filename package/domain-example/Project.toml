@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = []
 
 # The domain tier of the example-package DAG (see
-# plan/pending/example-package-split.md): the concrete-domain examples, the
+# plan/done/example-package-split.md): the concrete-domain examples, the
 # run_example gallery (its workbench/tooltip/clipboard wrappers are domain
 # vocabulary), and the file-editor harness. SDL/Video are only reached
 # through the kernel backend seams — no opt-in dependency.
