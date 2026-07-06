@@ -1,5 +1,14 @@
 # Package triad folders
 
+> **Status: done.** Phase 0 experiment result: a named `test/Project.toml`
+> works as a nested package (`using ProjecturedKernelTest` from
+> `--project=package/kernel/test`), but a top-level `test/runtests.jl` shim
+> must NOT be added — Pkg would treat the named project as the test env and
+> fail to find its source. `Pkg.test("ProjecturedKernel")` stays a clean
+> "no test/runtests.jl" error, identical to before the move. No shims added;
+> the function-library entry points are the workflow. All four suites verified
+> from their new nested envs with unchanged red counts.
+
 Co-locate each runtime package's test and example packages **inside its own
 directory**: `package/<name>/{src, test, example}` instead of the sibling
 `package/<name>`, `package/<name>-test`, `package/<name>-example` folders the
@@ -93,16 +102,16 @@ one-line `test/runtests.jl`, which now sits at `package/<x>/test/test/runtests.j
 
 ## Phases
 
-- [ ] **Phase 0 — experiment.** In a scratch env, point `Pkg.test` at a
+- [x] **Phase 0 — experiment.** In a scratch env, point `Pkg.test` at a
   nested-layout kernel and see whether a named test/Project.toml works as
   the test env. Record the outcome here; add the top-level runtests shims
   only if it behaves.
-- [ ] **Phase 1 — move + rewire.** `git mv` the nine directories; rewrite
+- [x] **Phase 1 — move + rewire.** `git mv` the nine directories; rewrite
   `[sources]`, the root Manifest, the repo-root escapes, and `.gitignore`.
   Verify offline: `test_kernel()`, `test_base()`, `test_visual()`,
   `test_domain()` from their (new) per-package envs; the three example
   packages load; umbrella + executable sources parse.
-- [ ] **Phase 2 — docs.** Update the path mentions (CLAUDE.md, testing.md,
+- [x] **Phase 2 — docs.** Update the path mentions (CLAUDE.md, testing.md,
   architecture-rules.md, architecture.md, debugging.md); move this plan to
   plan/done/.
 

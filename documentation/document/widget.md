@@ -175,7 +175,7 @@ menu bar, and toolbar a highlight on the row under the pointer.
 The data-entry surface (Qt's `QFormLayout` / `QSpinBox` / `QListWidget` /
 `QStackedWidget`) is built from two new widgets, two layout features, and a
 validation hook. The gallery's **Forms** tab
-([example/document/Widget.jl](../../package/example/src/document/Widget.jl))
+([visual/example/src/document/Widget.jl](../../package/visual/example/src/document/Widget.jl))
 shows them together.
 
 - **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric

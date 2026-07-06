@@ -63,17 +63,31 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   seams owned below (make_backend, adapters) and bind to the narrowest package that
   has what they render (sdl/web → visual, odbc → domain's sql surface).
 
-## Sibling DAGs — every runtime package has its code, its tests, and its examples
+## The triad — every runtime package has its code, its tests, and its examples
 
-A runtime package is one third of a **triad**. For each `package/<name>` there is a
-`package/<name>-test` and (per the example split) a `package/<name>-example`; the
-three kinds form **parallel DAGs with identical shape**:
+A runtime package is one third of a **triad** that lives in **one folder**:
+`package/<name>/{src, test, example}`. The `test/` and `example/` subfolders are
+themselves full, separate packages (their own `Project.toml`, UUID, and module) —
+nesting them inside the runtime package's directory is purely organizational; a
+Julia package is defined by its `Project.toml`, not by where its directory sits.
+So `package/kernel/` holds `ProjecturedKernel` (`src/`), `ProjecturedKernelTest`
+(`test/`), and `ProjecturedKernelExample` (`example/`); the umbrella's triad is
+`package/projectured/{src, test, example}` = `Projectured` / `ProjecturedTest` /
+`ProjecturedExample`. An opt-in package grows a `test/` or `example/` the same way
+when it earns one.
+
+The three kinds form **parallel DAGs with identical shape** (the module names keep
+the `-Test` / `-Example` suffixes even though the directories are now nested):
 
 ```
 runtime:   kernel ← base ← visual ← domain ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
-tests:     kernel-test ← base-test ← visual-test ← domain-test ← ProjecturedTest
-examples:  kernel-example ← base-example ← visual-example ← domain-example ← ProjecturedExample ← ProjecturedExtrasExample
+tests:     kernel/test ← base/test ← visual/test ← domain/test ← projectured/test
+examples:  kernel/example ← visual/example ← domain/example ← projectured/example ← ProjecturedExtrasExample
 ```
+
+(There is no `base/example`: every runnable example projects through the visual
+render fabric, so the example DAG skips the base tier — see
+[plan/done/example-package-split.md](../plan/done/example-package-split.md).)
 
 - A **test package** depends on the runtime package it tests, plus the test packages
   below it (for the shared drivers and enumerators). It must never depend on a
@@ -147,7 +161,7 @@ headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
 and slice→slice edges are acyclic. The guard is implemented **once** — the shared
 `check_layering` in
-[package/kernel-test/src/layering/CheckLayering.jl](../package/kernel-test/src/layering/CheckLayering.jl)
+[package/kernel/test/src/layering/CheckLayering.jl](../package/kernel/test/src/layering/CheckLayering.jl)
 — and each test package applies it to its runtime package
 (`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
 `test_domain_layering()`), running inside `test_<tier>()`. It runs without loading

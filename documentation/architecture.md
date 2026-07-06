@@ -50,15 +50,16 @@ ProjecturEd is organized as **four packages** with strictly layered
 dependencies (`kernel ← base ← visual ← domain`). Each package's layer
 ordering — no upward `..XxxModule` imports inside a declared layer — is
 statically enforced by the shared
-[layered-architecture guard](../package/kernel-test/src/layering/CheckLayering.jl),
+[layered-architecture guard](../package/kernel/test/src/layering/CheckLayering.jl),
 applied per package by its test package (`test_kernel_layering()`, …).
 
-Each runtime package is one third of a **triad**: its code
-(`package/<name>`), its tests (`package/<name>-test`), and its examples
-(`package/<name>-example`) form parallel DAGs of identical shape, and every
-piece lives in the lowest package of its DAG whose API it hard-references
-(seam calls don't count). See
-[architecture-rules.md](architecture-rules.md#sibling-dags--every-runtime-package-has-its-code-its-tests-and-its-examples)
+Each runtime package is one third of a **triad** in one folder:
+`package/<name>/{src, test, example}` — its code, its tests
+(`ProjecturedKernelTest`, …), and its examples (`ProjecturedKernelExample`, …)
+as three separate packages under the same directory. The three kinds form
+parallel DAGs of identical shape, and every piece lives in the lowest package
+of its DAG whose API it hard-references (seam calls don't count). See
+[architecture-rules.md](architecture-rules.md#the-triad--every-runtime-package-has-its-code-its-tests-and-its-examples)
 for the rules.
 
 ```

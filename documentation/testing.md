@@ -8,27 +8,27 @@ runtime:  ProjecturedKernel ← ProjecturedBase ← ProjecturedVisual ← Projec
 tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTest ← ProjecturedDomainTest ← ProjecturedTest
 ```
 
-- [package/kernel-test](../package/kernel-test/src/ProjecturedKernelTest.jl) —
+- [package/kernel/test](../package/kernel/test/src/ProjecturedKernelTest.jl) —
   kernel unit tests + the **shared generic drivers** (`test_printer`,
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
-- [package/base-test](../package/base-test/src/ProjecturedBaseTest.jl) —
+- [package/base/test](../package/base/test/src/ProjecturedBaseTest.jl) —
   collection/copying tests + the ground-truth selection enumerators.
   Aggregator: `test_base()`.
-- [package/visual-test](../package/visual-test/src/ProjecturedVisualTest.jl) —
+- [package/visual/test](../package/visual/test/src/ProjecturedVisualTest.jl) —
   syntax/text/graphics/layout documents, text/graphics/widget projections, the
   type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
-- [package/domain-test](../package/domain-test/src/ProjecturedDomainTest.jl) —
+- [package/domain/test](../package/domain/test/src/ProjecturedDomainTest.jl) —
   json/xml/sql/tabular documents and parsers, the `*ToSyntax` projections,
   graph, and the domain-fixture-driven Console/Pdf/table/TypeReference suites.
   Aggregator: `test_domain()`.
-- [package/test](../package/test/src/ProjecturedTest.jl) — the umbrella:
+- [package/projectured/test](../package/projectured/test/src/ProjecturedTest.jl) — the umbrella:
   the all-examples sweeps and every full-stack integration suite that needs
   the editor loop or an opt-in backend (Sdl/Odbc/Tulip/Video). Aggregator:
   `test_all()`.
 
-The examples follow the same split (`package/kernel-example` — the `Example`
-harness core; `package/visual-example` / `package/domain-example` — the tier
+The examples follow the same split (`package/kernel/example` — the `Example`
+harness core; `package/visual/example` / `package/domain/example` — the tier
 example sets with `visual_examples` / `domain_examples` registry slices; the
 `ProjecturedExample` umbrella keeps the interleaved `examples` registry,
 Catalog discovery, and the LLM/video-coupled pieces). Each test package
@@ -65,7 +65,7 @@ Runs everything: the four per-layer suites (`test_kernel()`, `test_base()`,
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
-[test/src/ProjecturedTest.jl](../package/test/src/ProjecturedTest.jl)).
+[test/src/ProjecturedTest.jl](../package/projectured/test/src/ProjecturedTest.jl)).
 
 `test_all` is just a `@testset` that calls the per-layer functions in
 sequence; pick the one you actually need and skip the rest.
@@ -128,12 +128,12 @@ every test has a sibling that does the same work without wrapping it in
 
 | Helper | Location | What it does |
 |---|---|---|
-| `walk_printer_output(doc, proj)` | [kernel-test PrinterTest.jl](../package/kernel-test/src/editor/PrinterTest.jl) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
-| `walk_reader_events(doc, proj)` | [kernel-test ReaderTest.jl](../package/kernel-test/src/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
-| `walk_repl_loop(doc, proj)` | [kernel-test ReplTest.jl](../package/kernel-test/src/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
-| `explore_text_selections(doc, proj[, initial])` | [kernel-test TextNavigationTest.jl](../package/kernel-test/src/editor/TextNavigationTest.jl) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
-| `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base-test SelectionEnumeration.jl](../package/base-test/src/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
-| `walk_typein(doc, proj)` | [visual-test TypeinTest.jl](../package/visual-test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
+| `walk_printer_output(doc, proj)` | [kernel/test PrinterTest.jl](../package/kernel/test/src/editor/PrinterTest.jl) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
+| `walk_reader_events(doc, proj)` | [kernel/test ReaderTest.jl](../package/kernel/test/src/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
+| `walk_repl_loop(doc, proj)` | [kernel/test ReplTest.jl](../package/kernel/test/src/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
+| `explore_text_selections(doc, proj[, initial])` | [kernel/test TextNavigationTest.jl](../package/kernel/test/src/editor/TextNavigationTest.jl) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
+| `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../package/base/test/src/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
+| `walk_typein(doc, proj)` | [visual/test TypeinTest.jl](../package/visual/test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
 `explore_text_selections` keep their plain return values for REPL use; each also
@@ -152,7 +152,7 @@ julia> result.state_count, length(result.errors)
 ## The shared reflexive walker
 
 `_walk!` (in
-[kernel-test/src/editor/PrinterTest.jl](../package/kernel-test/src/editor/PrinterTest.jl))
+[kernel-test/src/editor/PrinterTest.jl](../package/kernel/test/src/editor/PrinterTest.jl))
 is the workhorse behind every printer-based test. It descends every field
 via `fieldnames` / `getfield`, follows every `Vector`, forces every `Cell`,
 and uses an `objectid` `Set` to break cycles. New document types are
@@ -161,7 +161,7 @@ struct.
 
 If you write a domain that stores state outside of struct fields (e.g. in a
 side table), `_walk!` will not see it; either expose it as a field or add a
-dedicated test under [test/src/document/](../package/test/src/document/).
+dedicated test under [projectured/test/src/document/](../package/projectured/test/src/document/).
 
 ## Validating the recursion contract
 
@@ -198,7 +198,7 @@ walkers rather than introducing an interface method:
   fails. This is what flags `SyntaxToText`.
 
 The harness lives in
-[package/test/src/editor/RecursionContractTest.jl](../package/test/src/editor/RecursionContractTest.jl):
+[package/projectured/test/src/editor/RecursionContractTest.jl](../package/projectured/test/src/editor/RecursionContractTest.jl):
 
 | Function | What it does |
 |---|---|
@@ -230,7 +230,7 @@ aggregator, so `Pkg.test` and the REPL functions cover the same ground.
 
 …but for iterative work the REPL functions are much faster because they
 keep the SDL backend initialised between runs (`__init__` in
-[test/src/ProjecturedTest.jl:13](../package/test/src/ProjecturedTest.jl#L13)).
+[projectured/test/src/ProjecturedTest.jl:13](../package/projectured/test/src/ProjecturedTest.jl#L13)).
 
 ## Typical workflows
 

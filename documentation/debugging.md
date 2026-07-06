@@ -27,10 +27,10 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The gallery lives at
-[domain-example/src/Gallery.jl](../package/domain-example/src/Gallery.jl) (the
+[domain/example/src/Gallery.jl](../package/domain/example/src/Gallery.jl) (the
 `Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
-[example/src/Examples.jl](../package/example/src/Examples.jl), and
+[projectured/example/src/Examples.jl](../package/projectured/example/src/Examples.jl), and
 `using ProjecturedExample` provides all of them. It accepts a
 few keyword arguments worth knowing:
 
@@ -69,7 +69,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[example/src/Examples.jl:75](../package/example/src/Examples.jl#L75). It calls
+[visual/example/src/Harness.jl](../package/visual/example/src/Harness.jl). It calls
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
@@ -264,7 +264,7 @@ julia> doc.value[]       # forces evaluation
 ```
 
 The walker used by the test suite (`_walk!` in
-[test/src/editor/PrinterTest.jl](../package/test/src/editor/PrinterTest.jl)) is a
+[kernel/test/src/editor/PrinterTest.jl](../package/kernel/test/src/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
 ## Generating all screenshots
@@ -367,7 +367,7 @@ and the `timed_event` / `timed_operation` helpers.
 
 ## Workspace fixtures
 
-Sample documents live in [example/workspace/](../package/example/workspace/)
+Sample documents live in [projectured/example/workspace/](../package/projectured/example/workspace/)
 (`contact-list.json`, `hello-world.html`, `lorem-ipsum.txt`). The examples
 that load files read from this directory; point a new example there when
 you need an on-disk fixture.
