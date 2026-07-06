@@ -96,6 +96,14 @@ include("projection/LayoutCloseoutTest.jl")
 include("projection/WidgetFormsTest.jl")
 include("projection/AnchorPointTest.jl")
 
+# ── interaction decorators (clipboard / tooltip) ─────────────────────────────
+# The clipboard copy/cut/paste projection and the tooltip decorator's
+# open/close state machine — both live in visual now and use only base/visual
+# fixtures (Primitive / Text / Screen), so this is their lowest test home.
+# (HoverProbe's tests stay in the umbrella: they wrap Json content.)
+include("projection/ClipboardToAnyTest.jl")
+include("projection/TooltipTest.jl")
+
 # ── visual-level generic drivers ─────────────────────────────────────────────
 include("editor/TypeinTest.jl")
 include("editor/ClickRoundtripTest.jl")
@@ -162,6 +170,9 @@ function test_visual()
         test_layout_closeout()
         test_widget_forms()
         test_anchor_point()
+        # interaction decorators
+        test_clipboard_to_any()
+        test_tooltip()
     end
 end
 
@@ -195,6 +206,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point
+export test_clipboard_to_any, test_tooltip
 export walk_typein, test_typein
 export test_click_roundtrip, test_text_nav_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _seg_x_at,

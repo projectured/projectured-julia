@@ -51,9 +51,6 @@ filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
 versioning/ Versioning.jl · VersioningToAny.jl
-clipboard/  Clipboard.jl · OsClipboard.jl · ClipboardToAny.jl
-tooltip/    Tooltip.jl · TooltipDecorator.jl
-inspector/  ReferenceInspector.jl · HoverProbe.jl · ReferenceInspectorToText.jl
 
 workbench/  tier 2 apps
             Workbench.jl · Workspace.jl · WorkspaceToFileSystem.jl ·

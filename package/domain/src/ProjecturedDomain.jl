@@ -137,7 +137,6 @@ const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
 const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
-include("clipboard/OsClipboard.jl")
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
 # so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book
@@ -155,7 +154,6 @@ include("sql/Sql.jl")
 include("xml/Xml.jl")
 include("filesystem/FileSystem.jl")
 include("workbench/Workspace.jl")
-include("clipboard/Clipboard.jl")
 include("versioning/Versioning.jl")
 include("graph/Graph.jl")
 include("graph/GraphLayout.jl")
@@ -172,11 +170,7 @@ include("xml/XmlParser.jl")
 include("markdown/MarkdownParser.jl")
 include("sql/SqlParser.jl")
 include("workbench/Workbench.jl")
-include("tooltip/Tooltip.jl")
-include("inspector/ReferenceInspector.jl")
-include("tooltip/TooltipDecorator.jl")
 include("gesturemap/GestureHelpDecorator.jl")
-include("clipboard/ClipboardToAny.jl")
 include("versioning/VersioningToAny.jl")
 include("json/JsonToSyntax.jl")
 include("yaml/YamlToSyntax.jl")
@@ -189,8 +183,6 @@ include("workbench/WorkspaceToFileSystem.jl")
 include("graph/GraphToGraphLayout.jl")
 include("graph/GraphLayoutToGraphics.jl")
 include("book/BookToSyntax.jl")
-include("inspector/ReferenceInspectorToText.jl")
-include("inspector/HoverProbe.jl")
 include("math/MathToSyntax.jl")
 # DocumentInsertionToSyntax before JuliaToSyntax/SqlToSyntax: it defines the
 # per-domain insertion→syntax leaves (JuliaInsertionToSyntaxLeaf, …) those

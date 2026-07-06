@@ -15,12 +15,13 @@ deliberate exception: the Screen *device* and display-size seam stay in
 the kernel (`device/ScreenDevice.jl` + `backend/Display.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
-## Slice order (8 slices)
+## Slice order (11 slices)
 
 Each slice imports only slices to its left:
 
 ```
-style → screen → graphics → layout → text → widget → syntax → backend
+style → screen → graphics → layout → text → widget → syntax →
+clipboard → tooltip → inspector → backend
 ```
 
 `LayoutToGraphics`'s Widget focus-path helpers are slated to move down into
@@ -87,6 +88,36 @@ collapsibles), `SyntaxToText.jl` (flattens to styled text — the shared
 step every domain funnels through), and the reflection bridges
 (`ObjectToSyntax`, `CollectionToSyntax`,
 `PrimitiveToSyntax`).
+
+### clipboard/ — copy/cut/paste over any content
+
+`Clipboard.jl` (the `ClipboardSlice` / `ClipboardCollection` documents),
+`OsClipboard.jl` (a stubbable shell-out seam to the host clipboard —
+`xclip`/`xsel`/`wl-*`/`pb*`, degrading gracefully when absent), and
+`ClipboardToAny.jl` (the `ClipboardSliceToAnyProjection` /
+`ClipboardCollectionToAnyProjection` copy/cut/note/paste projections,
+delegating non-clipboard gestures into the wrapped content). Domain-free:
+they wrap arbitrary `content`, so nothing here is domain-specific. Imports
+base `Primitive` + kernel gesture bindings + visual `Text` (for text-range
+copy/paste) + base `DocumentCore` (the `DocumentNothing` cut writes).
+Moved down from the domain package.
+
+### tooltip/ — hover tooltips as screen windows
+
+`Tooltip.jl` (the transparent `TooltipSource` wrapper) and
+`TooltipDecorator.jl` (`TooltipDecoratorProjection`, whose reader runs a
+show/hide state machine emitting `OpenWindowOperation` /
+`CloseWindowOperation` up to `WindowManagingProjection`). Depends on the
+`screen/` slice. Moved down from the domain package.
+
+### inspector/ — the pointer-following reference inspector
+
+`ReferenceInspector.jl` (a display document pairing a `reference` with the
+`target` it points into), `ReferenceInspectorToText.jl` (renders both the
+compact and human-readable forms via `ReferenceToText`), and `HoverProbe.jl`
+(`HoverProbeProjection`, which on idle mouse motion reverse-projects the
+pointer and drives a follower reference-inspector window). Depends on
+`screen/` + `text/` + `style/`. Moved down from the domain package.
 
 ### backend/ — the dependency-free concrete backends
 

@@ -74,15 +74,15 @@ ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         │                      serialization (BinarySerialization).
         │                      Deps: kernel + Serialization stdlib.
 ProjecturedVisual (visual/)    the rendering substrate
-        ▲                      8 slices: style → screen → graphics → layout →
-        │                      text → widget → syntax → backend (Console, Pdf).
+        ▲                      11 slices: style → screen → graphics → layout →
+        │                      text → widget → syntax → clipboard → tooltip →
+        │                      inspector → backend (Console, Pdf).
         │                      Deps: kernel + base.
 ProjecturedDomain (domain/)    concrete source domains, feature-sliced
-        ▲                      ~20 slice folders (json/xml/yaml/julia/math/
+        ▲                      ~16 slice folders (json/xml/yaml/julia/math/
         │                      markdown/book/sql/dbcatalog/database/
-        │                      graph/filesystem/formula/gesturemap/versioning/
-        │                      clipboard/tooltip/inspector + workbench/
-        │                      conversation apps) plus a shrinking
+        │                      graph/filesystem/formula/gesturemap/versioning
+        │                      + workbench/conversation apps) plus a shrinking
         │                      transitional tier (projection/serializer/,
         │                      pending seam refactors elsewhere in the chain).
         │                      Deps: kernel + base + visual + Base64 + Markdown.

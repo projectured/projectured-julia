@@ -12,7 +12,8 @@ projections, and the dependency-free backends (Console, Pdf).
 Each slice imports only slices to its left:
 
 ```
-style → screen → graphics → layout → text → widget → syntax → backend
+style → screen → graphics → layout → text → widget → syntax →
+clipboard/tooltip/inspector → backend
 ```
 
 ## Slice inventory
@@ -31,6 +32,13 @@ style → screen → graphics → layout → text → widget → syntax → back
 - **syntax/** — Syntax + its bridges (ObjectToSyntax, CollectionToSyntax,
   PrimitiveToSyntax) + SyntaxToText + InsertionToSyntax +
   NaturalProjection.
+- **clipboard/** — the ClipboardSlice/ClipboardCollection documents, the
+  OsClipboard shell-out seam, and the Clipboard*ToAny projections (copy/cut/
+  paste over any wrapped content, mirrored to the OS clipboard).
+- **tooltip/** — the TooltipSource wrapper + TooltipDecoratorProjection
+  (a show/hide state machine driving screen windows).
+- **inspector/** — the ReferenceInspector document, ReferenceInspectorToText,
+  and the HoverProbe decorator (a pointer-following reference-inspector window).
 - **backend/** — Console.jl, Pdf.jl (the dependency-free concrete backends).
 
 Kernel/base aliases below let files inside this package keep their relative
@@ -61,6 +69,7 @@ const IntentModule = ProjecturedKernel.IntentModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
+const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const KeyboardModule = ProjecturedKernel.KeyboardModule
@@ -192,7 +201,32 @@ include("syntax/ObjectToSyntax.jl")
 include("syntax/CollectionToSyntax.jl")
 include("syntax/PrimitiveToSyntax.jl")
 
-# ── Slice 8 — backend (dependency-free concrete backends) ───────────────
+# ── Slice 8 — interaction decorators (clipboard / tooltip / inspector) ───
+# Domain-independent higher-order projections that decorate an arbitrary
+# wrapped content: clipboard copy/cut/paste (mirrored to the OS clipboard),
+# hover tooltips (driving screen windows), and the hover reference inspector.
+# Moved down from the domain package — none is domain-specific: they need only
+# the base document vocabulary plus visual's Text / Screen / ReferenceToText.
+# Each slice depends on text/ (and screen/ for tooltip + inspector), both
+# already loaded above.
+#
+# clipboard/: OsClipboard (host-clipboard shell-out seam), the ClipboardSlice/
+# ClipboardCollection documents, and the Clipboard*ToAny projections.
+include("clipboard/OsClipboard.jl")
+include("clipboard/Clipboard.jl")
+include("clipboard/ClipboardToAny.jl")
+# tooltip/: the TooltipSource wrapper + its decorator projection (opens/closes
+# screen windows via WindowManagingProjection).
+include("tooltip/Tooltip.jl")
+include("tooltip/TooltipDecorator.jl")
+# inspector/: the ReferenceInspector document, its text rendering, and the
+# HoverProbe decorator that follows the pointer with a reference-inspector
+# window.
+include("inspector/ReferenceInspector.jl")
+include("inspector/ReferenceInspectorToText.jl")
+include("inspector/HoverProbe.jl")
+
+# ── Slice 9 — backend (dependency-free concrete backends) ───────────────
 # Console renders the Text domain to an ANSI terminal; Pdf exports the
 # Graphics domain as a vector PDF (SDL-free).
 include("backend/Console.jl")
