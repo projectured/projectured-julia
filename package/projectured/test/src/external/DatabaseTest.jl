@@ -21,7 +21,7 @@ function test_raw_database_result_struct()
     end
 end
 
-# ── Live-DB helpers (also used by DatabaseTabularTest) ────────────────────────
+# ── Live-DB helpers ──────────────────────────────────────────────────────────
 #
 # Test-database conventions (keep new live-DB tests consistent with these):
 #

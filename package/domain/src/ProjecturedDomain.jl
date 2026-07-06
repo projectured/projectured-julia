@@ -141,14 +141,13 @@ include("core/Document.jl")
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
 # so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book
-# independent; formula → julia; dbcatalog → sql; tabular → json) — an acyclic
+# independent; formula → julia; dbcatalog → sql) — an acyclic
 # slice DAG.
 include("json/Json.jl")
 include("yaml/Yaml.jl")
 include("gesturemap/GestureMap.jl")
 include("math/Math.jl")
 include("julia/Julia.jl")
-include("tabular/Tabular.jl")
 include("database/DatabaseInstance.jl")
 include("database/Database.jl")
 include("dbcatalog/DbCatalog.jl")

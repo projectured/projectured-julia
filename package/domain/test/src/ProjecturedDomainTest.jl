@@ -70,7 +70,6 @@ include("document/JsonTest.jl")
 include("document/JsonParserTest.jl")
 include("document/SqlParserTest.jl")
 include("document/SqlDocumentTest.jl")
-include("document/TabularTest.jl")
 include("document/SelectionEnumeration.jl")
 
 # ── projections ──────────────────────────────────────────────────────────────
@@ -116,7 +115,6 @@ function test_domain()
         test_domain_examples()
         # documents
         test_json()
-        test_tabular()
         test_json_parser()
         test_xml_parser()
         test_sql_parser()
@@ -166,7 +164,7 @@ function test_domain_examples()
 end
 
 export test_domain, test_domain_layering, test_domain_examples
-export test_json, test_tabular, test_json_parser, test_xml_parser,
+export test_json, test_json_parser, test_xml_parser,
        test_sql_parser, test_sql_document, test_sql_document_nested_select,
        test_sql_boolean_expression
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection,

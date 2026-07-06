@@ -3,8 +3,7 @@
 
 Document layer for database access. `DatabaseTable` is pure query metadata
 (no result cache); `DatabaseUpdateOperation` / `DatabaseInsertOperation` are
-the mutations the projection reader produces (evaluators in
-`DatabaseTabular.jl`).
+the mutations the projection reader produces.
 """
 module DatabaseDocumentModule
 

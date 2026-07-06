@@ -14,8 +14,7 @@ optional package extension.
 `db_query(adapter, table, ::Type{T}; ...)::T` pipelines rows directly into
 the caller-specified target type with no intermediate allocation. Each target
 type is a separate dispatch method; concrete adapters (e.g. the ODBC adapter)
-implement the methods. The `TabularGrid` target lives in the bridge module
-(`DatabaseTabular.jl`) to avoid a backend → document dependency.
+implement the methods (e.g. the `RawDatabaseResult` target).
 """
 module DatabaseModule
 

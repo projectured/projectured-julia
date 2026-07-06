@@ -134,9 +134,7 @@ include("editor/VideoTest.jl")
 include("editor/WorkbenchFileTest.jl")
 include("projection/CatalogTest.jl")
 include("external/DatabaseTest.jl")
-include("external/DatabaseTabularTest.jl")
 include("external/DbCatalogTest.jl")
-include("external/DbCatalogTabularTest.jl")
 include("external/DbCatalogSqlTest.jl")
 include("external/DbCatalogSyntaxTest.jl")
 include("serializer/SerializationTest.jl")
@@ -270,7 +268,7 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_workbench_file_keys
-export test_database_connection, test_database, test_database_no_db, test_database_tabular
-export test_db_catalog, test_db_catalog_tabular, test_db_catalog_syntax, test_db_catalog_sql
+export test_database_connection, test_database, test_database_no_db
+export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
 
 end # module ProjecturedTest
