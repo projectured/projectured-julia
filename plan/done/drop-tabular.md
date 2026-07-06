@@ -1,5 +1,16 @@
 # Drop Tabular; consolidate on base CellTable; renderer → visual; split Collection.jl
 
+> **Status: done.** Four commits: base Collection.jl split into per-type
+> fragments; the CellTable→WidgetTable renderer moved to visual/widget and made
+> domain-free (Primitive-wrapped); the obsolete Tabular domain + its two ODBC
+> TabularGrid modules + the tabular tests deleted. Note vs. the draft: the
+> trailing deep-copy/child_reference_steps methods were CellVector-specific (not
+> cross-cutting), so they went into CellVector.jl, not the aggregator. Verified
+> offline: test_base 76; visual render test 11 + layering guard; test_domain
+> errors 17→7 (TabularTest's 10 gone), zero new failures; odbc parses (native
+> ODBC load is root-env-only, as before). DatabaseUpdateOperation/InsertOperation
+> left as dormant database vocabulary (out of scope, like CellMatrix).
+
 Four coupled changes:
 1. Delete the obsolete `Tabular` document domain (`TabularGrid`/`TabularRow`/
    `TabularCell`) and its ODBC TabularGrid projections.
