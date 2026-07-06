@@ -27,8 +27,9 @@ Machine-enforced by the layered guard in
 
 ### document — the concrete engine documents
 
-- **`Collection.jl`** — `CellVector`, `CellMatrix`, `CellTable`,
-  `ListNode`: the reactive sequence and grid containers every domain
+- **`Collection.jl`** — the `CollectionModule` aggregator; one fragment file
+  per shape under `collection/` (`CellVector`, `CellMatrix`, `CellTable`,
+  `ListNode`): the reactive sequence and grid containers every domain
   reuses. Registers the seam method
   `child_reference_steps(::CellVector)` onto the kernel's
   `OperationModule` so the pre-order document walk driving
