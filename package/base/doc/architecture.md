@@ -10,9 +10,10 @@ in any single slice"*.
 ## Layers
 
 ```
-Layer 1 — document       Collection, DocumentCore, Primitive
+Layer 1 — document       Collection, DocumentCore, Primitive, Dragging
                          (concrete engine documents everything ships with)
-Layer 2 — projection     Sorting, Filtering, Searching, Copying, ReaderDefaults
+Layer 2 — projection     Sorting, Filtering, Searching, Copying, ReaderDefaults,
+                         DraggingProjection
                          (document-shaped generic projections + reader defaults)
 Layer 3 — serialization  BinarySerialization
                          (domain-independent persistence framework)
@@ -41,6 +42,13 @@ Machine-enforced by the layered guard in
   vocabulary (the empty document, the insertion placeholder, a
   reference-holding document). Depends only on the kernel document/reference
   contracts. Moved down from the domain `core/` slice, which it emptied.
+
+- **`Dragging.jl`** — `DraggingDocumentModule`: `DraggingState`, a
+  transparent wrapper marking a sub-tree as a drag-and-drop reorder region.
+  Kernel-only document contracts; the gesture interpretation lives in the
+  projection layer's `DraggingProjection`. Moved down from the domain
+  `dragging/` slice (nothing about reordering a `CellVector` is
+  domain-specific).
 
 - **`Primitive.jl`** — `PrimitiveBool`, `PrimitiveNumber`,
   `PrimitiveString`, `PrimitiveInsertion`: the editable
@@ -72,6 +80,12 @@ but are otherwise domain-agnostic:
   `read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods
   that take precedence over the kernel's catch-all via multiple
   dispatch.
+- **`DraggingProjection.jl`** — `DraggingProjection`: a higher-order
+  projection over `DraggingState` whose reader runs a press→drag→drop
+  state machine, emitting a `MoveRangeOperation` that relocates raw `Cell`s
+  within a `CellVector` (preserving element identity). Transparent printer.
+  Imports only kernel gesture/operation modules + the base document types;
+  moved down from the domain `dragging/` slice.
 
 ### serialization — the persistence frameworks
 
@@ -97,6 +111,8 @@ even though `CellModule` is not defined by any base file.
 
 - `..CellModule`, `..DocumentModule`, `..ReferenceModule`,
   `..OperationModule` (kernel).
+- `..MouseModule`, `..ModifiersModule` (kernel — the mouse gesture + modifier
+  types `DraggingProjection`'s reader dispatches on).
 - `..GestureModule` (kernel — alias only; unused now that `ScreenDocument`
   lives in `visual`, not here).
 - `..BackendModule` (kernel — alias only; the `Backend` abstract a future

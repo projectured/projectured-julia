@@ -7,8 +7,7 @@ reorder region. Actual gesture interpretation lives in `DraggingProjection`.
 module DraggingDocumentModule
 
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document
+import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
 
 export DraggingDocument

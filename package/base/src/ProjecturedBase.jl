@@ -37,7 +37,11 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
+const OperationApiModule = ProjecturedKernel.OperationModule
+const OperationRerootingModule = ProjecturedKernel.OperationModule
 const IntentModule = ProjecturedKernel.IntentModule
+const MouseModule = ProjecturedKernel.MouseModule
+const ModifiersModule = ProjecturedKernel.ModifiersModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
@@ -61,6 +65,10 @@ const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 include("document/Collection.jl")
 include("document/Primitive.jl")
 include("document/DocumentCore.jl")
+# DraggingState — a transparent drag-and-drop reorder wrapper; the gesture
+# interpretation lives in the projection layer's DraggingProjection. Moved
+# down from the domain `dragging/` slice (kernel-only document contracts).
+include("document/Dragging.jl")
 # ScreenDocument lives in package/visual (screen slice) — it travels
 # together with WindowManagingProjection, and both belong in visual per
 # the architecture rules (window things are visual, only the Screen
@@ -77,6 +85,10 @@ include("projection/Copying.jl")
 # WindowManagingProjection lives in package/visual (screen slice), alongside
 # ScreenDocument.
 include("projection/ReaderDefaults.jl")
+# DraggingProjection — a domain-independent higher-order projection adding
+# drag-and-drop reordering to a CellVector-backed content. Moved down from the
+# domain `dragging/` slice; imports only kernel + base document types.
+include("projection/DraggingProjection.jl")
 # The two compound projection aggregates import only kernel + base
 # combinators, no domain content.
 include("projection/HigherOrderCompound.jl")

@@ -54,7 +54,6 @@ versioning/ Versioning.jl · VersioningToAny.jl
 clipboard/  Clipboard.jl · OsClipboard.jl · ClipboardToAny.jl
 tooltip/    Tooltip.jl · TooltipDecorator.jl
 inspector/  ReferenceInspector.jl · HoverProbe.jl · ReferenceInspectorToText.jl
-dragging/   Dragging.jl (document) · DraggingProjection.jl (decorator)
 
 workbench/  tier 2 apps
             Workbench.jl · Workspace.jl · WorkspaceToFileSystem.jl ·
