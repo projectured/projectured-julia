@@ -60,6 +60,7 @@ const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 # seam methods onto the kernel's OperationModule generics.
 include("document/Collection.jl")
 include("document/Primitive.jl")
+include("document/DocumentCore.jl")
 # ScreenDocument lives in package/visual (screen slice) — it travels
 # together with WindowManagingProjection, and both belong in visual per
 # the architecture rules (window things are visual, only the Screen

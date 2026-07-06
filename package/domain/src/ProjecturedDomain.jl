@@ -29,6 +29,7 @@ const BackendApiModule = ProjecturedKernel.BackendModule
 const BackendModule = ProjecturedKernel.BackendModule
 const IntentModule = ProjecturedKernel.IntentModule
 const CollectionModule = ProjecturedBase.CollectionModule
+const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const DeviceApiModule = ProjecturedKernel.DeviceModule
 const DeviceModule = ProjecturedKernel.DeviceModule
@@ -137,7 +138,6 @@ const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("clipboard/OsClipboard.jl")
-include("core/Document.jl")
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
 # so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book

@@ -10,7 +10,7 @@ in any single slice"*.
 ## Layers
 
 ```
-Layer 1 — document       Collection, Primitive
+Layer 1 — document       Collection, DocumentCore, Primitive
                          (concrete engine documents everything ships with)
 Layer 2 — projection     Sorting, Filtering, Searching, Copying, ReaderDefaults
                          (document-shaped generic projections + reader defaults)
@@ -35,6 +35,12 @@ Machine-enforced by the layered guard in
   `OperationModule` so the pre-order document walk driving
   `SelectNextInsertionOperation` picks up CellVector elements without
   the kernel referencing the concrete type.
+
+- **`DocumentCore.jl`** — `DocumentBase`, `DocumentNothing`,
+  `DocumentInsertion`, `DocumentReference`: domain-independent document
+  vocabulary (the empty document, the insertion placeholder, a
+  reference-holding document). Depends only on the kernel document/reference
+  contracts. Moved down from the domain `core/` slice, which it emptied.
 
 - **`Primitive.jl`** — `PrimitiveBool`, `PrimitiveNumber`,
   `PrimitiveString`, `PrimitiveInsertion`: the editable

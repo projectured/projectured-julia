@@ -32,10 +32,6 @@ and belong together. Cross-slice edges are allowed provided they form an
 **acyclic slice DAG** (statically verified by the guard).
 
 ```
-core/                             tier 0 — shared cross-domain glue
-                                  (only Document.jl now, disappearing once
-                                  the insertion seam refactor lands)
-
 json/       Json.jl · JsonParser.jl · JsonToSyntax.jl
 xml/        Xml.jl · XmlParser.jl · XmlToSyntax.jl
 yaml/       Yaml.jl · YamlParser.jl · YamlToSyntax.jl

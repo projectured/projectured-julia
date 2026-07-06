@@ -12,8 +12,7 @@ binary `Save`/`LoadDocumentOperation` in `BinarySerializationModule`, natural
 module DocumentCoreModule
 
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document
+import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference, ReferencePath
 export DocumentBase
 

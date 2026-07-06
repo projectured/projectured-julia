@@ -68,7 +68,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      device → backend → projection → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
-        ▲                      3 layers: document (Collection, Primitive) +
+        ▲                      3 layers: document (Collection, DocumentCore, Primitive) +
         │                      projection (Sorting/Filtering/Searching/Copying/
         │                      ReaderDefaults) + serialization (BinarySerialization).
         │                      Deps: kernel + Serialization stdlib.
@@ -77,11 +77,11 @@ ProjecturedVisual (visual/)    the rendering substrate
         │                      text → widget → syntax → backend (Console, Pdf).
         │                      Deps: kernel + base.
 ProjecturedDomain (domain/)    concrete source domains, feature-sliced
-        ▲                      22 slice folders (json/xml/yaml/julia/math/
-        │                      markdown/book/sql/dbcatalog/database/tabular/
+        ▲                      ~20 slice folders (json/xml/yaml/julia/math/
+        │                      markdown/book/sql/dbcatalog/database/
         │                      graph/filesystem/formula/gesturemap/versioning/
         │                      clipboard/tooltip/inspector/dragging + workbench/
-        │                      conversation apps + core/) plus a shrinking
+        │                      conversation apps) plus a shrinking
         │                      transitional tier (projection/serializer/,
         │                      pending seam refactors elsewhere in the chain).
         │                      Deps: kernel + base + visual + Base64 + Markdown.
