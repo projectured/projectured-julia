@@ -13,6 +13,7 @@ authors = []
 ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
@@ -24,6 +25,7 @@ ProjecturedKernel = {path = "../kernel"}
 ProjecturedBase = {path = "../base"}
 ProjecturedVisual = {path = "../visual"}
 ProjecturedDomain = {path = "../domain"}
+ProjecturedDomainExample = {path = "../domain-example"}
 ProjecturedKernelTest = {path = "../kernel-test"}
 ProjecturedBaseTest = {path = "../base-test"}
 ProjecturedVisualTest = {path = "../visual-test"}

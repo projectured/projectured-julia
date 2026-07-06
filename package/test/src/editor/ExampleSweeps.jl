@@ -109,24 +109,6 @@ end
 
 # ── tree navigation ──────────────────────────────────────────────────────────
 
-# A structural tree node in the syntax domain is any SyntaxDocument — this
-# excludes the CellVector child containers and the TextString delimiter / value
-# holders, neither of which is an Alt+arrow tree-selection target.
-_is_syntax_node(n) = n isa Projectured.SyntaxDocument
-
-# Pick the projection-aware enumerator for a document whose navigable tree is
-# defined by its projection to syntax rather than by the raw input struct. Native
-# syntax trees (and anything else) fall back to the `is_node` predicate by
-# returning `nothing`. This lets `test_tree_navigation(json_example;
-# check_reaches_all=true)` work without the caller naming the enumerator.
-_default_tree_collector(::Any) = nothing
-_default_tree_collector(::Projectured.JsonDocument) = collect_json_tree_selections
-
-function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
-    collect === nothing && (collect = _default_tree_collector(example.document))
-    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node, collect=collect)
-end
-
 function test_tree_navigations()
     # Only examples whose root projects to a SyntaxNode (not a lone leaf)
     # support tree navigation — Ctrl+Alt+Home must produce a result.

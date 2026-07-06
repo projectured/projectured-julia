@@ -36,6 +36,10 @@ import ProjecturedDomain
 using ProjecturedKernelTest
 using ProjecturedBaseTest
 using ProjecturedVisualTest
+# The real domain-tier example factories and the tier's registry slice — the
+# mirrored Fixtures.jl copies are gone (plan/pending/example-package-split.md).
+using ProjecturedDomainExample
+import ProjecturedKernelTest: test_tree_navigation
 import ProjecturedVisualTest: _find_text_iomap, _pipeline_measure, _seg_x_at,
                               _path_contains_projection_ref
 
@@ -60,8 +64,6 @@ for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedD
             Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
     end
 end
-
-include("Fixtures.jl")
 
 # ── domain documents ─────────────────────────────────────────────────────────
 include("document/JsonTest.jl")
@@ -111,6 +113,7 @@ Run the whole domain suite: the static layering guard and every domain test.
 function test_domain()
     @testset "ProjecturedDomain" begin
         test_domain_layering()
+        test_domain_examples()
         # documents
         test_json()
         test_tabular()
@@ -146,7 +149,23 @@ function test_domain()
     end
 end
 
-export test_domain, test_domain_layering
+"""
+    test_domain_examples()
+
+Walk the printer over every domain-tier example (`domain_examples`) — one
+`@test` per forced reactive cell, via the generic `test_printer` driver.
+"""
+function test_domain_examples()
+    @testset "DomainExamples" begin
+        for ex in domain_examples
+            @testset "$(ex.name)" begin
+                test_printer(ex)
+            end
+        end
+    end
+end
+
+export test_domain, test_domain_layering, test_domain_examples
 export test_json, test_tabular, test_json_parser, test_xml_parser,
        test_sql_parser, test_sql_document, test_sql_document_nested_select,
        test_sql_boolean_expression
@@ -160,11 +179,5 @@ export test_clipboard_to_any, test_versioning_to_any, test_syntax_tree_selection
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference
 export test_json_content_clicks_clean, collect_json_tree_selections
-export make_json_document_example, make_json_console_projection_example,
-       make_graphics_image_projection_example,
-       make_table_document_example, make_table_projection_example,
-       make_math_table_document_example, make_math_table_projection_example,
-       make_graph_document_example, make_graph_projection_example,
-       make_mixed_projection_example
 
 end # module ProjecturedDomainTest

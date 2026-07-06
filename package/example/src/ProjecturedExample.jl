@@ -7,15 +7,20 @@ using Profile
 # variants defined here add methods to the imported functions.
 using ProjecturedKernelExample
 using ProjecturedVisualExample
+using ProjecturedDomainExample
 import ProjecturedKernelExample: Example, write_example_image, record_example_video,
                                  make_typein_gestures
 import ProjecturedVisualExample: print_example, write_example_pdf
+# `run_example(name)` / `run_example(names)` below add registry-lookup methods
+# to the gallery entry point; the tooltip/window composition helper is what
+# LiveExamples shares with the gallery.
+import ProjecturedDomainExample: run_example, _multi_window_projection
 
 # Re-export the lower example packages' entire public API so
 # `using ProjecturedExample` keeps providing every example and factory
 # unchanged — the per-name `import` form also lets this module add the
 # name-lookup method variants below.
-for _src in (ProjecturedKernelExample, ProjecturedVisualExample)
+for _src in (ProjecturedKernelExample, ProjecturedVisualExample, ProjecturedDomainExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue
@@ -35,60 +40,11 @@ using ProjecturedLlm
 
 const _EXAMPLE_DIR = @__DIR__
 
-include(joinpath(_EXAMPLE_DIR, "document", "Json.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Yaml.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Xml.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Mixed.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Book.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Markdown.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "FileSystem.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Navigator.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Conversation.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Graph.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Formula.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "DatabaseInstance.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Clipboard.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Versioning.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Dragging.jl"))
 
-include(joinpath(_EXAMPLE_DIR, "projection", "Json.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Yaml.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Table.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Graph.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Xml.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Mixed.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Book.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Markdown.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "FileSystem.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Navigator.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Workbench.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Assistant.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Conversation.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Formula.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Sql.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
-include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 
 export minimal, is_leaf_document, catalog, discover_atomic_pairs, reachability_examples
 export BRIDGES, paths, path_sequences, projection_to, runnable, catalog_domain

@@ -5,11 +5,13 @@ version = "0.1.0"
 
 [deps]
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedLlm = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 
 [sources]
+ProjecturedDomainExample = {path = "../domain-example"}
 ProjecturedVisualExample = {path = "../visual-example"}
 ProjecturedKernelExample = {path = "../kernel-example"}

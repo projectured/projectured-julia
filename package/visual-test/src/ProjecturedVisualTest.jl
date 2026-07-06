@@ -172,7 +172,7 @@ Walk the printer over every visual-tier example (`visual_examples`) — one
 function test_visual_examples()
     @testset "VisualExamples" begin
         for ex in visual_examples
-            @testset "\$(ex.name)" begin
+            @testset "$(ex.name)" begin
                 test_printer(ex)
             end
         end
