@@ -6,25 +6,30 @@
 function make_sql_table_projection_example(; measure=truetype_measure_text,
                                              pool=OdbcConnectionPool(),
                                              instance=make_database_instance_document_example())
-    # The query result cells are JSON documents; render them like the table example.
-    w2g  = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
-    json = ChainingProjection(
-        RecursiveProjection(JsonToSyntax()),
+    # The query result cells are base Primitive documents; render them through the
+    # primitive → syntax → text → graphics chain.
+    w2g       = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
+    primitive = ChainingProjection(
+        RecursiveProjection(TypeDispatchingProjection(
+            PrimitiveString => PrimitiveStringToSyntaxLeaf(),
+            PrimitiveNumber => PrimitiveNumberToSyntaxLeaf(),
+            PrimitiveBool   => PrimitiveBoolToSyntaxLeaf(),
+        )),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
     )
     table_renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         w2g.dispatch,
-        Pair{Type,Any}[JsonDocument => json],
+        Pair{Type,Any}[PrimitiveDocument => primitive],
     )))
     ChainingProjection(
         # SqlSelectStatement → CellTable (executes against the instance via the pool)
         SqlToCellTable(pool, instance),
-        # CellTable → WidgetTable
+        # CellTable → WidgetTable (cells wrapped as Primitive documents)
         CellTableToWidgetTable(),
         # WidgetTable → graphics (GridLayout positions cells; the recursion renders
-        # each JSON cell through the Json → Syntax → Text → Graphics chain).
+        # each Primitive cell through the Primitive → Syntax → Text → Graphics chain).
         table_renderer,
     )
 end
