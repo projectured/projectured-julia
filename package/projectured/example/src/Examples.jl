@@ -107,7 +107,7 @@ const SCREENSHOT_SCALE = 2
 
 function generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080, supersample=3,
                                       scale=SCREENSHOT_SCALE,
-                                      image_dir=joinpath(@__DIR__, "..", "..", "..", "asset", "image", "example"))
+                                      image_dir=joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image", "example"))
     mkpath(image_dir)
     # The default widget theme's background (slate-100); widget screenshots use
     # it so the canvas matches the themed surfaces rather than showing white.
@@ -135,12 +135,12 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
 end
 
 """
-    update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", ".."))
+    update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", "..", ".."))
 
 Inject `![...](...)` image references into the guide files and `README.md`.
 Idempotent: re-running produces no changes once images are in place.
 """
-function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", ".."))
+function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", "..", ".."))
     _update_examples_tour(joinpath(repo_root, "documentation", "examples-tour.md"))
     _update_domain_guides(joinpath(repo_root, "documentation", "document"))
     _update_readme(joinpath(repo_root, "README.md"))

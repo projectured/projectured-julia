@@ -18,9 +18,9 @@ ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernel = {path = "../kernel"}
-ProjecturedBase = {path = "../base"}
-ProjecturedVisual = {path = "../visual"}
-ProjecturedVisualExample = {path = "../visual-example"}
-ProjecturedBaseTest = {path = "../base-test"}
-ProjecturedKernelTest = {path = "../kernel-test"}
+ProjecturedKernel = {path = "../../kernel"}
+ProjecturedBase = {path = "../../base"}
+ProjecturedVisual = {path = ".."}
+ProjecturedVisualExample = {path = "../example"}
+ProjecturedBaseTest = {path = "../../base/test"}
+ProjecturedKernelTest = {path = "../../kernel/test"}

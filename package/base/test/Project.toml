@@ -14,5 +14,5 @@ ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedBase = {path = "../base"}
-ProjecturedKernelTest = {path = "../kernel-test"}
+ProjecturedBase = {path = ".."}
+ProjecturedKernelTest = {path = "../../kernel/test"}

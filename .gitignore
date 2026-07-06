@@ -15,5 +15,5 @@ asset/image/baseline-shadcn/
 # Per-package test/example env manifests — generated when running a tier's
 # suite from its own env (julia --project=package/<tier>-test); the canonical
 # dev env is the repo root project (root Manifest.toml stays tracked).
-package/*-test/Manifest.toml
-package/*-example/Manifest.toml
+package/*/test/Manifest.toml
+package/*/example/Manifest.toml

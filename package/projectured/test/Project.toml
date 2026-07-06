@@ -17,7 +17,7 @@ ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedDomainTest = {path = "../domain-test"}
-ProjecturedVisualTest = {path = "../visual-test"}
-ProjecturedBaseTest = {path = "../base-test"}
-ProjecturedKernelTest = {path = "../kernel-test"}
+ProjecturedDomainTest = {path = "../../domain/test"}
+ProjecturedVisualTest = {path = "../../visual/test"}
+ProjecturedBaseTest = {path = "../../base/test"}
+ProjecturedKernelTest = {path = "../../kernel/test"}

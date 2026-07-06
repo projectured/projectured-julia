@@ -16,7 +16,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 
 [sources]
-ProjecturedKernel = {path = "../kernel"}
-ProjecturedBase = {path = "../base"}
-ProjecturedVisual = {path = "../visual"}
-ProjecturedKernelExample = {path = "../kernel-example"}
+ProjecturedKernel = {path = "../../kernel"}
+ProjecturedBase = {path = "../../base"}
+ProjecturedVisual = {path = ".."}
+ProjecturedKernelExample = {path = "../../kernel/example"}

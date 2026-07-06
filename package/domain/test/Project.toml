@@ -21,11 +21,11 @@ ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernel = {path = "../kernel"}
-ProjecturedBase = {path = "../base"}
-ProjecturedVisual = {path = "../visual"}
-ProjecturedDomain = {path = "../domain"}
-ProjecturedDomainExample = {path = "../domain-example"}
-ProjecturedKernelTest = {path = "../kernel-test"}
-ProjecturedBaseTest = {path = "../base-test"}
-ProjecturedVisualTest = {path = "../visual-test"}
+ProjecturedKernel = {path = "../../kernel"}
+ProjecturedBase = {path = "../../base"}
+ProjecturedVisual = {path = "../../visual"}
+ProjecturedDomain = {path = ".."}
+ProjecturedDomainExample = {path = "../example"}
+ProjecturedKernelTest = {path = "../../kernel/test"}
+ProjecturedBaseTest = {path = "../../base/test"}
+ProjecturedVisualTest = {path = "../../visual/test"}

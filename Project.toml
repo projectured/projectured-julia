@@ -27,18 +27,18 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ProjecturedKernel = {path = "package/kernel"}
-ProjecturedKernelExample = {path = "package/kernel-example"}
-ProjecturedKernelTest = {path = "package/kernel-test"}
+ProjecturedKernelExample = {path = "package/kernel/example"}
+ProjecturedKernelTest = {path = "package/kernel/test"}
 ProjecturedBase = {path = "package/base"}
-ProjecturedBaseTest = {path = "package/base-test"}
+ProjecturedBaseTest = {path = "package/base/test"}
 ProjecturedDomain = {path = "package/domain"}
-ProjecturedDomainTest = {path = "package/domain-test"}
-ProjecturedDomainExample = {path = "package/domain-example"}
+ProjecturedDomainTest = {path = "package/domain/test"}
+ProjecturedDomainExample = {path = "package/domain/example"}
 ProjecturedAdaptagrams = {path = "package/adaptagrams"}
 Projectured = {path = "package/projectured"}
-ProjecturedExample = {path = "package/example"}
+ProjecturedExample = {path = "package/projectured/example"}
 ProjecturedExtrasExample = {path = "package/extras-example"}
-ProjecturedTest = {path = "package/test"}
+ProjecturedTest = {path = "package/projectured/test"}
 ProjecturedMcp = {path = "package/mcp"}
 ProjecturedLlm = {path = "package/llm"}
 ProjecturedOdbc = {path = "package/odbc"}
@@ -47,5 +47,5 @@ ProjecturedSdl = {path = "package/sdl"}
 ProjecturedTulip = {path = "package/tulip"}
 ProjecturedVideo = {path = "package/video"}
 ProjecturedVisual = {path = "package/visual"}
-ProjecturedVisualTest = {path = "package/visual-test"}
-ProjecturedVisualExample = {path = "package/visual-example"}
+ProjecturedVisualTest = {path = "package/visual/test"}
+ProjecturedVisualExample = {path = "package/visual/example"}
