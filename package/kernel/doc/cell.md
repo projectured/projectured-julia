@@ -29,8 +29,7 @@ the editor loop writes once per frame), not part of the engine, but it lives in
 the cell layer because it depends on nothing else in the kernel and every
 animated projection reads it — domain code that consumes `get_reactive_editor_time()`
 therefore imports the cell-layer TimeModule directly, without pulling in the
-editor loop. Kernel plan P1 moved `Time.jl` from `editor/` to `cell/` for this
-reason; earlier docs called it an editor concept.
+editor loop.
 
 ## CellModule — the cell kinds
 

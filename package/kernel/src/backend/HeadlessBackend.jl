@@ -1,8 +1,8 @@
 """
     HeadlessBackendModule
 
-Kernel plan P6 addition — a dependency-free in-memory backend and scripted
-event source that the kernel editor loop can drive without any real device.
+A dependency-free in-memory backend and scripted event source that the
+kernel editor loop can drive without any real device.
 
 Purpose:
 - CI: the editor loop tests do not need SDL to be installed.

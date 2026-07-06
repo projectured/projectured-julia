@@ -5,11 +5,10 @@ Mirrors the kernel / base / domain guards: fragment-aware include walker,
 alias-name collector (so `..CellModule` etc. resolve to the ProjecturedKernel
 alias declared at the top of `ProjecturedVisual.jl`), topo check.
 
-`LAYERS` will grow as slices land: `["style"]` at Q1's first sub-commit,
-extending to `["style","screen","graphics","layout","text","widget","syntax","backend"]`
-by the end of Q1. Within-tier slice→slice edges (e.g. widget → layout) are
-allowed provided the slice DAG is acyclic — the plan verifies this against
-the target file inventory.
+`LAYERS` declares the visual slice order
+(`style`, `screen`, `graphics`, `layout`, `text`, `widget`, `syntax`,
+`backend`). Within-tier slice→slice edges (e.g. widget → layout) are allowed
+provided the slice DAG is acyclic.
 """
 
 using Test

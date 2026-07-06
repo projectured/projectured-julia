@@ -44,13 +44,12 @@ Four layers, bottom to top:
 
 ---
 
-## Package layout — the 4-package chain (kernel plan P0-P10 + domain plan Q0-Q5)
+## Package layout — the 4-package chain
 
-The old two-package split (kernel + domain) was restructured across the
-kernel plan (P0–P10) and the domain plan (Q0–Q5) into **four packages** with
-strictly layered dependencies. Each package carries its own static
-[layered-architecture guard](../package/kernel/test/runtests.jl) that
-statically enforces its layer ordering — no upward `..XxxModule` imports
+ProjecturEd is organized as **four packages** with strictly layered
+dependencies (`kernel ← base ← visual ← domain`). Each package carries its
+own static [layered-architecture guard](../package/kernel/test/runtests.jl)
+that statically enforces its layer ordering — no upward `..XxxModule` imports
 inside a declared layer.
 
 ```
@@ -73,8 +72,8 @@ ProjecturedDomain (domain/)    concrete source domains, feature-sliced
         │                      graph/filesystem/formula/gesturemap/versioning/
         │                      clipboard/tooltip/inspector/dragging + workbench/
         │                      conversation apps + core/) plus a shrinking
-        │                      transitional tier (projection/serializer/ pending
-        │                      D1/D4/D5 seam refactors).
+        │                      transitional tier (projection/serializer/,
+        │                      pending seam refactors elsewhere in the chain).
         │                      Deps: kernel + base + visual + Base64 + Markdown.
 Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
                                as a single flat public API.
@@ -116,8 +115,8 @@ querying** lives in `Odbc`. Likewise the agent *registry and tools* are
 kernel-resident (in the agent layer); only the MCP transport and the
 Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
-> Per-file paths cited in the module inventory below sometimes reflect the
-> pre-restructure single-package tree; the code now lives across the four
+> Per-file paths cited in the module inventory below sometimes reflect an
+> older single-package layout; the code now lives across the four
 > packages per the mapping above. A quick reference:
 > — Collection.jl → base/src/document/Collection.jl
 > — Primitive.jl → base/src/document/Primitive.jl

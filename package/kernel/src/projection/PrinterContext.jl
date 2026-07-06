@@ -27,9 +27,8 @@ export PrinterContext, make_child_context, with_available_size,
 Downward-flowing per-invocation context for `print_document`.
 
 - `reference` — `ReferencePath` describing where the current input sits
-  relative to the document root (replaces the old 4th argument). Tree
-  depth is `length(reference)` — derive it on demand rather than caching
-  a redundant field.
+  relative to the document root. Tree depth is `length(reference)` — derive
+  it on demand rather than caching a redundant field.
 - `available_width` / `available_height` — the parent-allocated space, as
   reactive cells (or `nothing` if unbounded). Promoted to typed fields
   because layout is a universal concern; using `Cell` (rather than a

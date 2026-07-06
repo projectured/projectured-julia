@@ -10,11 +10,10 @@ propagates paths recursively, writing each suffix into the matching child
 document's selection cell so every node in the tree always holds the sub-path
 relevant to its own subtree.
 
-Merged in kernel plan P3 from `ReferenceModule` (types + values),
-`ReferenceCaseModule` (the `@reference_case` pattern-matching DSL), and
-`ReferenceBuilderModule` (the `@reference` / `@step` construction DSL). The
-three modules were only ever imported together and their separation just
-multiplied import headers.
+The reference types/values, the `@reference_case` pattern-matching DSL, and
+the `@reference` / `@step` construction DSL are one module, because the three
+are only ever imported together and separating them just multiplied import
+headers.
 
 The module lives in three fragments that share this namespace:
 

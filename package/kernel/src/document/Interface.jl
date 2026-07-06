@@ -3,8 +3,8 @@
 # (get/clear/set/with), and the domain-facing `read_gesture` seam. Declaring the
 # generics here (as `function foo end`) decouples the declarations from the
 # implementations, which land in `Document.jl` for the shared machinery, in
-# `common/Operation.jl` for the default clear/set (folded in by P4), and in each
-# concrete document type. Included by `DocumentModule.jl`; shares its namespace.
+# `common/Operation.jl` for the default clear/set, and in each concrete
+# document type. Included by `DocumentModule.jl`; shares its namespace.
 
 """
     Document

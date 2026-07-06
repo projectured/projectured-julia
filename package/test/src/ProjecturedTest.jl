@@ -30,10 +30,9 @@ function __init__()
     initialize_backend!(make_backend(:sdl))
 end
 
-# Live-DB fixture helpers used by the opt-in `external/` catalog tests. They used
-# to be re-exported from the example package's `document/Database.jl`; that code
-# moved to the opt-in `ProjecturedExtrasExample` (which pulls the native shim), so
-# the helpers are defined here directly to keep ProjecturedTest free of that
+# Live-DB fixture helpers used by the opt-in `external/` catalog tests. Defined
+# here directly (rather than re-exported from the example package) to keep
+# ProjecturedTest free of the `ProjecturedExtrasExample` / native-shim
 # dependency. `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
 # `using ProjecturedOdbc` above.
 function setup_persons_table(adapter)
@@ -47,7 +46,6 @@ function teardown_persons_table(adapter)
 end
 
 include("common/GestureBindingTest.jl")
-# test_reference_builder migrated to package/kernel/test/reference/ (P3)
 include("reference/TypeReferenceTest.jl")
 include("device/EventCaseTest.jl")
 include("backend/ConsoleBackendTest.jl")
@@ -241,8 +239,8 @@ end
 
 function test_all()
     @testset "Projectured" begin
-    # test_cell + test_reference_builder migrated to package/kernel/test/;
-    # run with `Pkg.test("ProjecturedKernel"; test_args=["cell","reference"])`.
+    # test_cell + test_reference_builder live in package/kernel/test/; run
+    # with `Pkg.test("ProjecturedKernel"; test_args=["cell","reference"])`.
     test_type_reference()
     test_event_case()
     test_gesture_binding()

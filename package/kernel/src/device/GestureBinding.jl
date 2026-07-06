@@ -34,11 +34,10 @@ defaults of Stage 2). The JSON authoring set is ported onto it in
 projection combinators they mirror.
 """
 # Fragment of `GestureModule` — reified gesture→operation bindings, the
-# `@gestures` DSL, and the `read_gesture` catch-all interpreter. Merged into
-# GestureModule alongside `EventCase.jl` in kernel plan P5 (R4): what used
-# to be a cross-module private edge (this file importing `_parse_rule` /
-# `EvPat` / … from `EventCaseModule`) is now a same-namespace reference,
-# since both files are fragments of the aggregator.
+# `@gestures` DSL, and the `read_gesture` catch-all interpreter. This file
+# imports `_parse_rule` / `EvPat` / … from `EventCaseModule` as a
+# same-namespace reference, since both files are fragments of the
+# aggregator.
 
 # ─────────────────────────────────────────────────────────────────────────
 # Gesture patterns
@@ -304,15 +303,12 @@ end
 # with no registered gestures get `nothing` (empty table), exactly as the old default.
 read_gesture(doc::Document, event) = read_document_gesture(doc, event)
 
-# R3 (kernel plan P8, completed 2026-07-06) — the three Projection-typed
-# gesture-seam methods (get_projection_gesture_bindings,
-# read_projection_gesture, and collect_gesture_bindings(::Projection, …))
-# moved up to projection/GestureBindings.jl (ProjectionGestureBindingsModule).
-# They dispatch on `::Projection`, so they belong in the projection layer;
-# keeping them here required importing Projection down from
-# api/ProjectionApi.jl, an upward edge. Any file that used to import them
-# from `..GestureBindingModule` (now `..GestureModule`) retargets to
-# `..ProjectionGestureBindingsModule`.
+# The three Projection-typed gesture-seam methods (get_projection_gesture_bindings,
+# read_projection_gesture, and collect_gesture_bindings(::Projection, …)) live in
+# projection/GestureBindings.jl (ProjectionGestureBindingsModule). They dispatch on
+# `::Projection`, so they belong in the projection layer; keeping them here would
+# require importing Projection down from api/ProjectionApi.jl, an upward edge. Any
+# file that imports them should reference `..ProjectionGestureBindingsModule`.
 
 """
     get_applicable_gesture_bindings(doc, bindings) -> Vector{GestureBinding}

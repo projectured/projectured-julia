@@ -12,22 +12,22 @@ this document is **only about the kernel**.
 system, the reference/operation/IO-map machinery, the projection algebra
 (higher-order combinators + generic projections), the input-device abstraction,
 the editor read-eval-print loop, and the agent control surface. **No concrete
-documents** live here — Collection / Primitive / ScreenDocument moved to the
-`ProjecturedBase` package at plan phase P8. The kernel now has **zero
+documents** live here — Collection and Primitive live in the `ProjecturedBase`
+package, and ScreenDocument in `ProjecturedVisual`. The kernel now has **zero
 concrete-document imports**. **No backends** either (except the dependency-free
 in-memory `HeadlessBackend` used by editor tests). **No runtime dependencies** —
 `using ProjecturedKernel` precompiles and loads on its own.
 
-## Layered structure (kernel plan P0–P10, 2026-07-05)
+## Layered structure
 
-Kernel plan P0 through P10 restructured the package around a strict layered
-architecture with per-layer guards, docs, and tests:
+The package is organized around a strict layered architecture with per-layer
+guards, docs, and tests:
 
 ```
 Layer 1 — cell/       cells + performance counter + the editor clock
 Layer 2 — document/   the Document contract + @document + Cell-struct codegen
 Layer 3 — reference/  reference paths + @reference / @reference_case DSLs
-Layer 4 — operation/  Operation + evaluate_operation + R1 traversal + R2 reroot
+Layer 4 — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 5 — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
 Layer 6 — backend/    Backend + Display + HeadlessBackend
 Layer 7 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + 12 combinators
@@ -35,12 +35,10 @@ Layer 8 — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
 Layer 9 — editor/     the run_editor! loop + Playback
 ```
 
-Every kernel file lives under a declared layer folder (`api/` and `common/`
-still hold ProjectionApi/IoMapApi/Intent/IoMap/Projection.jl — the projection
-consolidation is a deferred cosmetic pass). The **layered guard** in
+Every kernel file lives under a declared layer folder. The **layered guard** in
 [test/runtests.jl](../test/runtests.jl) statically parses `import ..XxxModule`
-lines and asserts every dep points to the same or a lower layer; the plan
-phase per-layer runners (`test/<layer>/`) exercise each layer against its
+lines and asserts every dep points to the same or a lower layer; the
+per-layer runners (`test/<layer>/`) exercise each layer against its
 own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
@@ -118,10 +116,10 @@ interface** a third party implements to extend ProjecturEd (a new `Backend`,
 `Device`, agent server, domain `Document`, or `Projection`). It is kept **pure**:
 abstract types + generic function *declarations* (`function f end`) + docstrings —
 **no** concrete types, algorithms, factory registries, or mutable globals.
-(Implementations that used to sit here now live in their impl modules: the
+(Implementations live in their own impl modules: the
 `splice_*` text helpers and default `evaluate_operation` methods in
 `OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`
-in `common/` — they are data vehicles that cross the seam, not interfaces to
+— they are data vehicles that cross the seam, not interfaces to
 implement.) The stateless factory seams `make_backend(kind)` /
 `make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own
 registration entry. An interface is its functions, not just its type, so api
@@ -155,20 +153,19 @@ constraint (every module precedes its users), not a specific linearization.
 
 ## Folder layout
 
-The kernel is mid-migration from a `common/` grab-bag toward one folder per layer
-(see [plan/pending/kernel-cleanup.md](../../../plan/pending/kernel-cleanup.md)).
-Current shape:
+Each layer lives in its own folder under [src/](../src/):
 
 | Folder | Holds |
 | --- | --- |
-| `reactive/` | the reactive engine layer — `Reactive` (Cell), `PerformanceCounter` (see [reactive.md](reactive.md)) |
-| `api/` | the pure interface/SPI tier (tier B) |
-| `reference/` | reference paths, `@reference`, `@reference_case` |
-| `device/` | Modifiers, Keyboard, Mouse, EventCase, ScreenDevice |
-| `document/` | Collection, Primitive, ScreenDocument (the engine's own vocabulary) |
-| `common/` | remaining cross-layer impl (Intent, Document, IoMap, Operation, GestureBinding, Projection defaults) — being dissolved into per-layer folders |
-| `projection/` | the projection algebra (`higherorder/`, `generic/`) |
-| `editor/` | EditorTime (the animation clock), PrinterContext, GestureRecognizer, ToolRegistry, Llm, Mcp, Editor |
+| `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](reactive.md)) |
+| `document/` | the Document contract (`Interface.jl` + `Document.jl`) |
+| `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
+| `operation/` | the Operation contract, the built-in operations, rerooting |
+| `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
+| `backend/` | Backend, Display, HeadlessBackend |
+| `projection/` | the projection interface (ProjectionApi, IoMapApi, Intent, IoMap, Projection, ProjectionTemplate) plus the `higherorder/` and `generic/` combinators |
+| `agent/` | Agent, Llm, ToolRegistry, Mcp |
+| `editor/` | Editor (the `run_editor!` loop), Playback |
 
 ## How the kernel is consumed
 

@@ -1,8 +1,7 @@
 """
-`OperationModule` — the R1 open `child_reference_steps` traversal seam. Kernel
-plan P4: verifies the default fieldnames-walk enumerates a document's children
-and that a test-local override can name children differently (the seam
-pressure).
+`OperationModule` — the open `child_reference_steps` traversal seam. Verifies
+the default fieldnames-walk enumerates a document's children and that a
+test-local override can name children differently (the seam pressure).
 """
 
 using Test
@@ -27,7 +26,7 @@ end
     selection::Reference
 end
 
-# The R1 seam pressure — a test-local document type registers its own
+# The seam pressure — a test-local document type registers its own
 # `child_reference_steps` method so its children are addressed by index rather
 # than by field name.
 ProjecturedKernel.OperationModule.child_reference_steps(node::ToyList) =

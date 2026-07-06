@@ -139,8 +139,8 @@ Julia type of the node the path lands on (the **terminal** node's type); it is
 between items lands on no child node). A whole-element (`∅`) selection of a typed
 node carries that node's type here.
 
-This is the folded form of what used to be a trailing `TypeReference` checkpoint:
-the type is a field of the terminal node, not a separate step.
+The type is a field of the terminal node, not a separate trailing
+`TypeReference` checkpoint step.
 """
 struct EmptyReferencePath <: ReferencePath
     type::Any
@@ -166,12 +166,11 @@ Julia type of the node you are standing on *at this node* — i.e. the type the
 `@reference` skeleton, or a generic two-arg construction); `annotate_reference_types`
 fills it in against a document.
 
-This is the folded form of the old interleaved `TypeReference` checkpoint: the
-type that used to sit in a separate checkpoint *step* before `head` now lives in
-this node's `type` field. A step's *end* type is its `tail` node's `type`, so a
-`FieldReference` needs no second checkpoint — the boundary type is stored once, on
-the downstream node, and serves both as this step's result and the next step's
-source.
+The node type is stored *on the node* rather than in a separate interleaved
+`TypeReference` checkpoint step before `head`. A step's *end* type is its `tail`
+node's `type`, so a `FieldReference` needs no second checkpoint — the boundary
+type is stored once, on the downstream node, and serves both as this step's
+result and the next step's source.
 
 # Example
 
@@ -537,8 +536,9 @@ function evaluate_reference(document, path::ConcreteReferencePath)
     # Folded checkpoint: this node records the type of the document it stands on.
     path.type === nothing || document isa path.type ||
         throw(ReferenceTypeMismatch(path.type, typeof(document)))
-    # Transitional tolerance: a stray `TypeReference` *step* (from a not-yet-migrated
-    # `@reference ::T` literal) is non-navigating — assert and continue on the same node.
+    # Tolerance for an unfolded `TypeReference` *step* (produced before path
+    # construction folds it into the node's type field): non-navigating —
+    # assert and continue on the same node.
     if step isa TypeReference
         document isa step.type ||
             throw(ReferenceTypeMismatch(step.type, typeof(document)))
@@ -657,8 +657,8 @@ end
 function annotate_reference_types(document, path::ConcreteReferencePath)
     step = path.head
     rest = path.tail
-    # Transitional tolerance: a stray `TypeReference` *step* from a not-yet-migrated
-    # literal is non-navigating — drop it and continue folding on the same node.
+    # Tolerance for an unfolded `TypeReference` *step*: non-navigating —
+    # drop it and continue folding on the same node.
     if step isa TypeReference
         return annotate_reference_types(document, rest)
     end

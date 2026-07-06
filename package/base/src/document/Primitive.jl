@@ -228,7 +228,7 @@ function Base.setindex!(s::PrimitiveString, ch::AbstractChar, i::Integer)
     return ch
 end
 
-# R2 (kernel plan P4) — Primitive's own methods for the open `reroot_operation`
+# Primitive's own methods for the open `reroot_operation`
 # generic. Both operation types carry a reference field named `reference` (as
 # opposed to `path` on ReplaceSelectionOperation), so their reroot forms
 # prepend the container's steps onto that reference. Every path-bearing

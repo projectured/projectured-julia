@@ -1,9 +1,9 @@
 """
-`CollectionModule` — the reactive sequence container `CellVector`. Migrated
-into base at kernel plan P8. Exercises the R1 seam method: base registers
-`child_reference_steps(::CellVector)` onto the kernel's `OperationModule`
-generic, which the operation-layer test then validates through the default
-fieldnames-walk. Here we cover the container's basic protocol.
+`CollectionModule` — the reactive sequence container `CellVector`. Exercises
+the seam method: base registers `child_reference_steps(::CellVector)` onto
+the kernel's `OperationModule` generic, which the operation-layer test then
+validates through the default fieldnames-walk. Here we cover the container's
+basic protocol.
 """
 
 using Test

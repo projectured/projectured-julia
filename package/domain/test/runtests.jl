@@ -11,11 +11,11 @@ Extensions specific to the domain package:
 - Alias-name recognition mirrors base's — every
   `const XxxModule = ProjecturedKernel.XxxModule` (or ProjecturedBase.…)
   at the top of `ProjecturedDomain.jl` is a valid dep target.
-- `LAYERS` will grow into slice folders at Q3 (`json`, `sql`, `graph`, …),
-  with slice→slice edges allowed *within* the source-slice tier when
-  acyclic (a slice DAG check the kernel/base guards do not need). Q0
-  starts with the guard skeleton on an empty declared-layers list; the
-  moves that populate it land at Q3.
+- `LAYERS` is meant to grow to cover the domain's slice folders (`json`,
+  `sql`, `graph`, …), with slice→slice edges allowed *within* the
+  source-slice tier when acyclic (a slice DAG check the kernel/base
+  guards do not need). It is currently an empty declared-layers list, so
+  no slice ordering is enforced yet.
 """
 
 using Test
@@ -24,12 +24,9 @@ const DOMAIN_SRC = normpath(joinpath(@__DIR__, "..", "src"))
 const TOP_FILE   = joinpath(DOMAIN_SRC, "ProjecturedDomain.jl")
 const DOT        = Symbol(".")
 
-# Domain-specific transitional exemption: everything under
-# `src/document/`, `src/projection/`, `src/parser/`, `src/serializer/`,
-# `src/backend/`, `src/editor/`, `src/external/`, `src/layout/` still
-# lives in the flat-by-kind layout that predates Q3. Once Q3 moves each
-# file into its slice folder, these folders disappear and the exemption
-# list along with them.
+# Domain source is fully organized into slice folders, so this exemption
+# list is currently empty. It stays here for any folder that still needs
+# a short-lived exemption from the layer-index check.
 const LAYER_EXEMPT_FILES = Set{String}()
 const LAYERS = String[]
 
@@ -201,8 +198,7 @@ function run_slice_tests(slices, filter)
     end
 end
 
-# Q4 scaffold (2026-07-06): the per-slice folders below hold stub runners
-# that will be filled as per-domain tests migrate from ProjecturedTest.
+# The per-slice folders below hold stub runners for per-domain tests.
 const SLICES = String[
     "json", "xml", "yaml", "julia", "math", "markdown", "book", "sql",
     # More slice runners land as tests migrate.

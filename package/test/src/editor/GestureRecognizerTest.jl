@@ -2,9 +2,9 @@
 # test/src/editor/GestureRecognizerTest.jl
 #
 # Unit tests for the event → gesture recogniser. These exercise the click
-# synthesis (MouseDown + MouseUp → MousePress) that used to live, untested,
-# inside the SDL backend. A scripted `source` and an injectable clock make
-# recognition fully deterministic without SDL.
+# synthesis (MouseDown + MouseUp → MousePress) independently of the SDL
+# backend. A scripted `source` and an injectable clock make recognition
+# fully deterministic without SDL.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using Projectured

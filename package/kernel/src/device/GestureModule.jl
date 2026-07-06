@@ -11,19 +11,17 @@ namespace:
   data type, the `@gestures` DSL, and the catch-all `read_gesture(::Document, …)`
   interpreter that walks the reified table.
 
-Merged in kernel plan P5 (R4): the two used to be separate modules, but
 GestureBinding.jl imports EventCase.jl's private parser internals
-(`_parse_rule`, `EvPat`, …) — a documented cross-module private edge that
-becomes a plain same-namespace reference once both files are fragments.
+(`_parse_rule`, `EvPat`, …); since both files are fragments of this
+module, that import is a plain same-namespace reference rather than a
+cross-module private edge.
 
-Also owns the **rehomed `EventEnvelope`** (R5). Previously declared in
-`ScreenDocumentModule`, `EventEnvelope` wraps every backend event with the
-id of the window it came from — data the editor loop, the gesture
-recognizer, and the envelope-unwrapping projection all interpret. Moving
-its declaration here means those consumers stop importing a concrete
-document type (`ScreenDocument`) just to name it, which was the last real
-kernel→ScreenDocument edge. Window *events/ops* (WindowResize,
-OpenWindowOperation, …) stay with ScreenDocument in base at P7.
+Also owns `EventEnvelope`, which wraps every backend event with the id of
+the window it came from — data the editor loop, the gesture recognizer,
+and the envelope-unwrapping projection all interpret. Declaring it here
+means those consumers don't need to import a concrete document type
+(`ScreenDocument`) just to name it. Window *events/ops* (WindowResize,
+OpenWindowOperation, …) stay with ScreenDocument in base.
 """
 module GestureModule
 
@@ -34,11 +32,9 @@ import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ModifiersModule: Modifiers
 import ..DocumentModule: Document, read_gesture
-# R3 (kernel plan P8, completed 2026-07-06) — the upward
-# `import ..ProjectionApiModule: Projection` is gone. The three
-# Projection-typed seam methods moved up to
+# The three Projection-typed seam methods live in
 # projection/GestureBindings.jl (ProjectionGestureBindingsModule); this
-# module no longer references the Projection type.
+# module does not reference the Projection type.
 
 export var"@event_case",
        # from GestureBinding.jl
@@ -49,25 +45,23 @@ export var"@event_case",
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings,
        read_document_gesture, read_node_gesture,
-       # get_projection_gesture_bindings, read_projection_gesture,
-       # collect_gesture_bindings moved to ProjectionGestureBindingsModule (R3).
+       # get_projection_gesture_bindings, read_projection_gesture, and
+       # collect_gesture_bindings live in ProjectionGestureBindingsModule.
        get_applicable_gesture_bindings,
        is_help_gesture, var"@gestures", var"@gesture_set",
-       # rehomed from ScreenDocumentModule (R5)
        EventEnvelope
 
-# R5 — the rehomed `EventEnvelope`. Wraps an input event with the id of the
-# window it came from; used by the editor loop, the gesture recognizer, and
-# the envelope-unwrapping projection.
+# `EventEnvelope` wraps an input event with the id of the window it came
+# from; used by the editor loop, the gesture recognizer, and the
+# envelope-unwrapping projection.
 """
     EventEnvelope(window_id::Symbol, event)
 
 Wraps an input event with the id of the window it came from. This is the
 protocol type that flows between the backend event source, the gesture
 recognizer, and the projection pipeline — everything downstream of the raw
-backend polling. Moved here from `ScreenDocumentModule` in kernel plan P5
-(R5) so the editor and gesture layers don't depend on a concrete document
-type just to name it.
+backend polling. It lives here (not in `ScreenDocumentModule`) so the editor
+and gesture layers don't depend on a concrete document type just to name it.
 """
 struct EventEnvelope
     window_id::Symbol

@@ -88,7 +88,7 @@ function test_serialization()
                 # Exporting the re-imported document is a fixed point for domains
                 # whose parser is whitespace-insensitive (JSON/SQL/Julia). XML's
                 # parser captures inter-element whitespace as text, so its text is
-                # only best-effort stable (D2) — we just require it re-imports.
+                # only best-effort stable — we just require it re-imports.
                 if text_stable
                     @test document_to_text(imported) == read(p, String)
                 else

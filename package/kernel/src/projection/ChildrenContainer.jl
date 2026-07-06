@@ -1,13 +1,11 @@
 """
     ChildrenContainerModule
 
-D5 seam (kernel plan Q2, completed 2026-07-06). Open generics for
-constructing the *children container* every `@projection_template` rule
-holds. Before D5, `ProjectionTemplate` lived in domain and constructed
-`CellVector(...)` directly (a base type imported down from the concrete
-document layer); D5 dissolves that upward reference by declaring the
-generics here and letting base's `Collection.jl` register the
-`CellVector` implementations.
+Open generics for constructing the *children container* every
+`@projection_template` rule holds. `ProjectionTemplate` lives in the kernel
+and must not name `CellVector` (a base type) directly; declaring the generics
+here and letting base's `Collection.jl` register the `CellVector`
+implementations keeps that upward reference out of the kernel.
 
 The `type()` seam returns the concrete container type — used by
 `@projection_template`'s wiring code to emit `TypeReference(T)` markers
@@ -22,7 +20,7 @@ Base's `document/Collection.jl` adds:
     children_container_type() = CellVector
 
 The kernel's toy-document tests can supply a toy container to keep the
-seam honest — the pressure the plan calls out.
+seam honest.
 """
 module ChildrenContainerModule
 

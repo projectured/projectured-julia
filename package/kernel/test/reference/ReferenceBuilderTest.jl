@@ -1,10 +1,8 @@
 """
 `ReferenceModule` — the `@reference` / `@step` construction DSL and the
-`@reference_case` pattern-matching DSL. Migrated from
-`ProjecturedTest/reference/ReferenceBuilderTest.jl` in kernel plan P3; the
-three former modules (Reference / ReferenceCase / ReferenceBuilder) are now
-one `ReferenceModule`, so this whole suite lives directly on the reference
-layer's test folder.
+`@reference_case` pattern-matching DSL. The reference types and both DSLs are
+one `ReferenceModule`, so this whole suite lives on the reference layer's
+test folder.
 """
 
 using Test

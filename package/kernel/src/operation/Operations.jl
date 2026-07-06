@@ -1,5 +1,5 @@
 # Fragment of `OperationModule` — the built-in operations, the selection
-# propagation (clear/set/update), the splice helpers, and the R1
+# propagation (clear/set/update), the splice helpers, and the
 # `child_reference_steps` traversal seam (open generic; base's Collection.jl
 # adds the `CellVector` method, others fall through to the default
 # fieldnames-walk). The `Operation` supertype + `evaluate_operation` +
@@ -172,13 +172,6 @@ end
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
     update_selection!(editor.document, op.path)
 end
-
-# ReplaceDocumentOperation was folded into ReplaceReferencedValueOperation + a trailing
-# ReplaceSelectionOperation, bundled by `replace_document` (below). It replaced the
-# document at `path` (rooted at editor.document) with a new `document`, then moved
-# the editor selection to `path ⧺ document.selection` so the cursor landed inside
-# the new value. See plan/done/consolidate-operations-replace.md (step 3).
-
 
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).
@@ -383,7 +376,7 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     return
 end
 
-# R1: `child_reference_steps(node)` — open traversal seam. Returns an
+# `child_reference_steps(node)` — open traversal seam. Returns an
 # iterable of `(step, child)` pairs naming each direct child of `node`
 # reachable by a single reference step. The default walks `fieldnames`
 # (FieldReference per field, skipping `selection`); base's Collection.jl
@@ -392,7 +385,7 @@ end
 """
     child_reference_steps(node) -> iterable of (step, child) pairs
 
-Open R1 traversal seam. The default enumerates struct fields as
+Open traversal seam. The default enumerates struct fields as
 `FieldReference` steps, skipping `selection` and any field whose (unwrapped)
 value is not a `Document`. Override for container documents whose children
 are addressed by index (`CellVector`), by position, etc.

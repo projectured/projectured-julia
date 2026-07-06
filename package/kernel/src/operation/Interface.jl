@@ -1,8 +1,8 @@
 # Fragment of `OperationModule` — the operation contract: the `Operation`
 # abstract supertype, the `evaluate_operation` generic, and
 # `invalidate_projection!` (a duck-typed seam the editor loop overrides).
-# The concrete operations, splice helpers, and the R1 `child_reference_steps`
-# traversal seam live in `Operations.jl`; the R2 open `reroot_operation`
+# The concrete operations, splice helpers, and the `child_reference_steps`
+# traversal seam live in `Operations.jl`; the open `reroot_operation`
 # generic lives in `Rerooting.jl`.
 
 """

@@ -9,8 +9,7 @@ Rule (statically enforced by the top-level layer guard): tests under
 Higher-layer references are a static error.
 
 Files:
-- `CellTest.jl`               — the reactive engine + typed/Mutable/Immutable kinds
-                                (migrated from ProjecturedTest/common/CellTest.jl).
+- `CellTest.jl`               — the reactive engine + typed/Mutable/Immutable kinds.
 - `PerformanceCounterTest.jl` — the process-global counter store.
 - `TimeTest.jl`               — the sample/subscribe split on the editor clock.
 """

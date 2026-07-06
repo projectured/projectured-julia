@@ -5,8 +5,7 @@ Runnable via `Pkg.test("ProjecturedKernel"; test_args=["reference"])` or
 directly: `julia --project=. package/kernel/test/reference/runtests.jl`.
 
 Files:
-- `ReferenceBuilderTest.jl` — the @reference / @step / @reference_case DSLs
-                              (migrated from ProjecturedTest).
+- `ReferenceBuilderTest.jl` — the @reference / @step / @reference_case DSLs.
 - `ReferenceEvalTest.jl`    — evaluate_reference on a test-local ToyBranch tree.
 """
 

@@ -512,12 +512,11 @@ end
 # `RuleIoMap` machinery. Opaque leaves map `∅↔∅` (mirroring the old generic
 # default); the collection / fixed nodes delegate each recursive child through its
 # stored child IoMap (School A), like JsonToSyntax. The composite/statement nodes
-# that used to be hand-written `ChildrenIoMap` printers now use the general node
-# markers: a keyword/bracket header is a nested `SyntaxNode` sub-node (F1), a
-# function-name-coloured callee is `project(:callee; as=…)` (F3), and a
-# variable-length child list (Range's `step`, Return's `value`, Try's optional
-# `catch`/`finally`) is a reactive marker thunk (F2). See
-# plan/done/projection-template-node-markers.md.
+# use the general node markers: a keyword/bracket header is a nested
+# `SyntaxNode` sub-node (F1), a function-name-coloured callee is
+# `project(:callee; as=…)` (F3), and a variable-length child list (Range's
+# `step`, Return's `value`, Try's optional `catch`/`finally`) is a reactive
+# marker thunk (F2).
 #
 # Independently, the leaves are still *opaque* (no `bound(…)` marker), so a cursor
 # does NOT descend into a leaf's own text: an identifier/number/string edits at

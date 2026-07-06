@@ -1,7 +1,6 @@
 """
 `PerformanceCounterModule` — the process-global counter store the reactive
-engine bumps inline. New in kernel plan P1 (there was no test for it before,
-even though CellModule mutates it on the hot path).
+engine bumps inline (CellModule mutates it on the hot path).
 """
 
 using Test

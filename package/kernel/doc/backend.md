@@ -14,11 +14,7 @@ Display.jl          (DisplayModule)         — display-size query + provider in
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
 
-Kernel plan P6 renamed `BackendApiModule` → `BackendModule` and moved
-`Display` from `device/` (a rendering concept, not an input-device one) into
-`backend/`, plus added `HeadlessBackend`.
-
-## BackendModule (renamed from BackendApiModule)
+## BackendModule
 
 Declares `Backend <: Any` and the batch generics `initialize_backend!`,
 `quit_backend!`, `measure_text`, `write_image`, `record_video`,
@@ -30,14 +26,14 @@ their own `::MyBackend` type and register `make_backend(::Val{kind})`.
 No document is imported here. The batch I/O generics are duck-typed on the
 `document` argument, so the layer stays document-free at layer 6.
 
-## DisplayModule (moved from device/)
+## DisplayModule
 
 Display-size query with a process-global provider indirection. The SDL
 backend registers a provider; without one, a fixed SDL-free default is
 returned so headless callers still get a sensible size. Belongs in the
 backend layer — displays are what backends render to.
 
-## HeadlessBackendModule (new)
+## HeadlessBackendModule
 
 A dependency-free in-memory backend with a scripted event source:
 

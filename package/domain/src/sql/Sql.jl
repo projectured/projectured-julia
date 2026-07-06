@@ -309,7 +309,7 @@ end
 # (Rule C: single CellVector + defaulted siblings), which wraps into a CellVector
 # and fills the `selection` default — so no hand-written ctor is needed here.
 
-# ── Convenience constructors restored (deleted by 58be127) ──────────────────────
+# ── Convenience constructors ─────────────────────────────────────────────────
 # The `@document` macro regenerates the untyped positional / keyword forms, but
 # not these typed-conversion, varargs, mixed-arity, and CellVector-wrapping forms
 # that consumers rely on. Ctor location is independent of struct location, so they

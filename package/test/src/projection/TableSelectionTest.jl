@@ -2,8 +2,7 @@
 # test/src/projection/TableSelectionTest.jl
 #
 # Whole cell / row / column / table selection in the WidgetTable → Graphics
-# renderer (the single table abstraction; bands ported from the old
-# TableToGraphics).
+# renderer (the single table abstraction).
 #
 # A whole-element selection is *not* a distinct reference step: it is just a
 # path terminating AT the element, i.e. `∅`. The table renderer — the one place

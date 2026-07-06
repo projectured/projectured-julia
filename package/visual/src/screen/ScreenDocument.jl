@@ -31,10 +31,8 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationModule: Operation, evaluate_operation
 
-# Kernel plan P5 (R5): EventEnvelope moved to GestureModule and is re-exported
-# from here for now to keep existing importers resolving. It leaves this export
-# list entirely at P10 (or earlier if the remaining ScreenDocument importers
-# get retargeted).
+# `EventEnvelope` lives in GestureModule and is re-exported from here to
+# keep existing importers resolving.
 import ..GestureModule: EventEnvelope
 export EventEnvelope, WindowClose, WindowResize, WindowDefocus, OpenWindowOperation,
        OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
@@ -125,8 +123,8 @@ function WindowDocument(; id::Symbol = :main,
                    Cell(nothing))
 end
 
-# EventEnvelope moved to GestureModule in kernel plan P5 (R5); still exported
-# from this module via the import at the top.
+# `EventEnvelope` lives in GestureModule; still exported from this module
+# via the import at the top.
 
 # ── WindowClose ────────────────────────────────────────────────────
 

@@ -21,58 +21,50 @@ GestureModule.jl         (GestureModule)      — aggregator (owns rehomed Event
 GestureRecognizer.jl     (GestureRecognizerModule) — MousePress + KeyChord synthesis
 ```
 
-Kernel plan P5 restructured this layer around three refactors:
+## DeviceModule
 
-## DeviceApiModule → DeviceModule (P5 rename)
+`DeviceModule` (`device/Device.jl`) declares the abstract *Device* type and
+the batch I/O generics `write_to_devices` / `read_from_devices`. Here, the
+"interface + implementation" split that would otherwise justify a separate
+pure-stub module is handled by fragments sharing one module namespace
+instead. `ProjecturedDomain` keeps `DeviceApiModule` as an alias for
+`DeviceModule` so opt-in packages depending on the old name keep resolving.
 
-The old `api/DeviceApi.jl`'s `DeviceApiModule` — the *Device* abstract type and
-the batch I/O generics `write_to_devices` / `read_from_devices` — was renamed to
-`DeviceModule` and moved into `device/Device.jl`. The `api/` tier's remaining
-files are being dissolved into their owning layers phase by phase; the
-"interface + implementation" split that used to justify the tier is now
-handled by fragments sharing a module namespace. `ProjecturedDomain` keeps
-`DeviceApiModule` as an alias so opt-in packages keep resolving.
+## GestureModule
 
-## R4 — GestureModule merge
+`GestureModule` aggregates two fragments that are only ever imported
+together: the `EventCase` fragment (`device/EventCase.jl`) declares the
+`@event_case` dispatch-table macro and its pattern parser; the
+`GestureBinding` fragment (`device/GestureBinding.jl`) defines the reified
+`GestureBinding` data type, the `@gestures` DSL, and the catch-all
+`read_gesture(::Document, …)` interpreter. `GestureBinding` reaches into
+`EventCase`'s private parser internals (`_parse_rule`, `EvPat`, …) — a
+documented cross-module private edge that sharing one module namespace turns
+into a plain same-namespace reference. The `@gestures` DSL and `@event_case`
+DSL share the same parser without any private cross-module import; generated
+`@gestures` expansions emit `GestureModule.get_document_gesture_bindings_own`.
 
-`EventCaseModule` (`device/EventCase.jl`) declared the `@event_case`
-dispatch-table macro and its pattern parser. `GestureBindingModule`
-(`common/GestureBinding.jl`) defined the reified `GestureBinding` data type,
-the `@gestures` DSL, and the catch-all `read_gesture(::Document, …)` interpreter.
-The two were only ever imported together, and `GestureBindingModule` reached
-into `EventCaseModule`'s private parser internals (`_parse_rule`, `EvPat`, …)
-— a documented cross-module private edge.
-
-R4 merges both files into fragments of one `GestureModule`. The private edge
-becomes a plain same-namespace reference; the `@gestures` DSL and
-`@event_case` DSL share the same parser without any private cross-module
-import. Generated code that used `GestureBindingModule.get_document_gesture_bindings_own`
-in `@gestures` expansions now emits `GestureModule.…`.
-
-## R5 — EventEnvelope rehome
+## EventEnvelope
 
 `EventEnvelope` wraps every backend event with the id of the window it came
-from. Before P5 it lived in `ScreenDocumentModule` — a **concrete document**
-— but was imported by the editor loop, the gesture recognizer, and the
-envelope-unwrapping projection. That was the last real kernel→ScreenDocument
-edge in the engine; a plain struct declaration for a protocol type has no
-business living inside a concrete document.
-
-R5 moves the declaration into `GestureModule` (beside its consumers).
+from. It lives in `GestureModule`, not in the concrete `ScreenDocumentModule`
+document, because it is a protocol type consumed by the editor loop, the
+gesture recognizer, and the envelope-unwrapping projection — a plain struct
+declaration for a protocol type has no business living inside a concrete
+document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 `ScreenDocumentModule` re-exports the name via an `import ..GestureModule:
-EventEnvelope` block, so existing importers still resolve during transition;
-they retarget to `..GestureModule` phase by phase. Window *events/ops*
-(`WindowClose`, `WindowResize`, `OpenWindowOperation`, `CloseWindowOperation`,
-`ResizeWindowOperation`) stay with `ScreenDocument` in base at P7 — those
-*are* concrete document types, and belong with the document.
+EventEnvelope` block, so existing importers resolve either way. Window
+*events/ops* (`WindowClose`, `WindowResize`, `OpenWindowOperation`,
+`CloseWindowOperation`, `ResizeWindowOperation`) stay with `ScreenDocument` in
+`visual` — those *are* concrete document types, and belong with the document.
 
-## GestureRecognizer moved into device/
+## GestureRecognizer
 
-`editor/GestureRecognizer.jl` synthesises `MousePress` from a MouseDown/MouseUp
-pair within a click threshold and `KeyChord` from a KeyDown sequence — a
-pure function of device events plus `EventEnvelope`, with no editor or
-document coupling. Moved to `device/GestureRecognizer.jl` in P5 so its
-location matches its dependencies.
+`GestureRecognizer.jl` (`device/GestureRecognizer.jl`) synthesises
+`MousePress` from a MouseDown/MouseUp pair within a click threshold and
+`KeyChord` from a KeyDown sequence — a pure function of device events plus
+`EventEnvelope`, with no editor or document coupling; its location in
+`device/` matches its dependencies.
 
 ## Downward edges
 
@@ -81,6 +73,6 @@ location matches its dependencies.
   Document is opaque payload here, `read_gesture` gets the catch-all method).
 - `..ProjectionApiModule: Projection` — a documented downward private seam
   the GestureBinding fragment uses for its projection-collector fallback.
-  Removed when P8 folds the projection API into the projection layer.
+  Removed once the projection API folds into the projection layer.
 
 That is the full import surface. No backend, no editor, no operation.

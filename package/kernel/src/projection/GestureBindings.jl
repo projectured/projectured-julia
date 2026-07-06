@@ -1,17 +1,14 @@
 """
     ProjectionGestureBindingsModule
 
-R3 completion of kernel plan P8 (2026-07-06). The three
-projection-typed gesture-seam methods —
+The three projection-typed gesture-seam methods —
 `get_projection_gesture_bindings`, `read_projection_gesture`, and the
-default `collect_gesture_bindings(p::Projection, …)` — moved up here from
-`device/GestureBinding.jl`. Before R3, they lived in the device layer's
-`GestureBindingModule` (now `GestureModule`) even though their
-`::Projection` dispatch targets a higher layer; GestureModule imported
-`Projection` from `..ProjectionApiModule` for that purpose. R3 dissolves
-that upward private edge by moving the methods themselves up to the
-projection layer beside their type; the reified GestureBinding container
-and the document-typed methods stay in `GestureModule`.
+default `collect_gesture_bindings(p::Projection, …)`. They dispatch on
+`::Projection`, so they live here in the projection layer beside their type;
+keeping them in the device layer's `GestureModule` would force it to import
+`Projection` from `..ProjectionApiModule`, an upward edge. The reified
+GestureBinding container and the document-typed methods stay in
+`GestureModule`.
 """
 module ProjectionGestureBindingsModule
 

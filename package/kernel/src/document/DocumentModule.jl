@@ -2,11 +2,9 @@
     DocumentModule
 
 Layer 2 of the kernel — the **document contract** every concrete document
-subtypes and every projection consumes. Merged in kernel plan P2 from the
-former `DocumentApiModule` (`api/DocumentApi.jl`, the interface) and
-`DocumentModule` (`common/Document.jl`, the machinery); one module now,
-because the two were only ever imported together and their separation just
-multiplied import headers.
+subtypes and every projection consumes. The interface and the machinery are
+one module, because the two are only ever imported together and separating
+them just multiplied import headers.
 
 The module lives in two fragments that share this namespace:
 
@@ -20,9 +18,8 @@ The module lives in two fragments that share this namespace:
   protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
   `sync_document!` that reactive syncing and rehydration ride on.
 
-Concrete documents (Collection, Primitive, ScreenDocument) still live under
-`document/` for now; they leave the kernel entirely at plan phase P7 (base
-package).
+The concrete documents (Collection, Primitive, ScreenDocument) live in the
+base and visual packages, not the kernel.
 
 The two contracts every concrete document must satisfy:
 

@@ -7,7 +7,7 @@ The rendering substrate — layered between `ProjecturedBase` and
 render-target documents (Graphics, Layout, Text, Widget, Syntax) with their
 projections, and the dependency-free backends (Console, Pdf).
 
-## Slice order (per plan/pending/domain-layered-architecture.md)
+## Slice order
 
 Each slice imports only slices to its left:
 
@@ -15,21 +15,15 @@ Each slice imports only slices to its left:
 style → screen → graphics → layout → text → widget → syntax → backend
 ```
 
-Machine-verified in the plan with one refactor (V1): LayoutToGraphics's
-Widget focus-path helpers move down into `layout/` as open generics; widget/
-adds its methods beside its types. After V1 the ordering has zero
-violations.
-
-## Slice inventory (target — populated across Q1)
+## Slice inventory
 
 - **style/** — Color, Font, Geometry, Image, StyleText, StyleStroke: pure
-  value types every visual thing shares. **Landing in the first Q1
-  sub-commit.**
-- **screen/** — ScreenDocument (windows + window events/ops, arrives from
-  base at Q1) + WindowManaging + ScreenToScreen: the window model.
+  value types every visual thing shares.
+- **screen/** — ScreenDocument (windows + window events/ops) + WindowManaging +
+  ScreenToScreen: the window model.
 - **graphics/** — Graphics + GraphicsCaching: the retained drawing target.
 - **layout/** — Layout + ConstraintSolver + LayoutToGraphics +
-  CollectionToLayout + the V1 focus-path generics: spatial arrangement.
+  CollectionToLayout: spatial arrangement.
 - **text/** — Text + its projections/decorators + PrimitiveToText +
   ReferenceToText.
 - **widget/** — Widget + its projections + ObjectToWidget + hover/config/popup
@@ -47,16 +41,18 @@ module ProjecturedVisual
 using ProjecturedKernel
 using ProjecturedBase
 
-# ── Kernel + base submodule aliases (populate as slices land) ─────────────
+# ── Kernel + base submodule aliases ────────────────────────────────────────
+# Some aliases carry a second, deprecated name (e.g. DocumentApiModule,
+# BackendApiModule) so files that still use it keep resolving to the canonical
+# module.
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
-# Legacy name: kernel plan P2 merged DocumentApiModule into DocumentModule.
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
 const GestureModule = ProjecturedKernel.GestureModule
 const BackendModule = ProjecturedKernel.BackendModule
-const BackendApiModule = ProjecturedKernel.BackendModule           # P6 rename
+const BackendApiModule = ProjecturedKernel.BackendModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
@@ -65,23 +61,18 @@ const IntentModule = ProjecturedKernel.IntentModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
-# ScreenDocumentModule is now local to this package (screen slice); no alias.
+# ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
-# Kernel modules that visual files still name by their pre-P5/P8 aliases —
-# ProjecturedDomain already normalises these into the merged locations; we
-# repeat them here so files with old-style imports keep resolving inside
-# ProjecturedVisual too.
 const KeyboardModule = ProjecturedKernel.KeyboardModule
 const MouseModule = ProjecturedKernel.MouseModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
-const EventCaseModule = ProjecturedKernel.GestureModule           # R4 merge
-const GestureBindingModule = ProjecturedKernel.GestureModule       # R4 merge
-# R3 completion (2026-07-06): Projection-typed seam methods moved out.
+const EventCaseModule = ProjecturedKernel.GestureModule
+const GestureBindingModule = ProjecturedKernel.GestureModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
-const OperationApiModule = ProjecturedKernel.OperationModule       # P4 merge
-const OperationRerootingModule = ProjecturedKernel.OperationModule # P4 merge
-const ReferenceCaseModule = ProjecturedKernel.ReferenceModule      # P3 merge
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule   # P3 merge
+const OperationApiModule = ProjecturedKernel.OperationModule
+const OperationRerootingModule = ProjecturedKernel.OperationModule
+const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
+const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
 const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 const PredicateDispatchingProjectionModule = ProjecturedKernel.PredicateDispatchingProjectionModule
@@ -96,22 +87,21 @@ const ReversingProjectionModule = ProjecturedKernel.ReversingProjectionModule
 const ConstantProjectionModule = ProjecturedKernel.ConstantProjectionModule
 const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const DisplayModule = ProjecturedKernel.DisplayModule
-const DeviceApiModule = ProjecturedKernel.DeviceModule             # P5 rename
+const DeviceApiModule = ProjecturedKernel.DeviceModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const TimeModule = ProjecturedKernel.TimeModule
 const LlmModule = ProjecturedKernel.LlmModule
 const McpModule = ProjecturedKernel.McpModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
-const AgentApiModule = ProjecturedKernel.AgentModule                # P9 rename
+const AgentApiModule = ProjecturedKernel.AgentModule
 const AgentModule = ProjecturedKernel.AgentModule
 # Base's document-shaped projections used by visual bridges (Sorting is
-# imported from CollectionToSyntax indirectly, but exposing it costs
-# nothing).
+# imported from CollectionToSyntax indirectly, but exposing it costs nothing).
 const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
 const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
-# WindowManagingProjectionModule is now local to this package (screen slice); no alias.
+# WindowManagingProjectionModule is local to this package (screen slice); no alias.
 
 # ── Slice 1 — style (pure value types every visual thing shares) ─────────
 # Load order: Color and Font first (no forward references); Geometry, Image,
@@ -128,15 +118,14 @@ include("style/StyleText.jl")
 # ScreenDocument holds a list of WindowDocument (windows + their events/ops).
 # WindowManagingProjection wraps a projection that consumes ScreenDocument
 # input, applying open/close/resize/defocus operations lifted from below.
-# Moved from `package/base` at Q2 — window things are visual per the
-# architecture rules (only the Screen device and display-size seam stay in
-# the kernel, as the interface the editor writes to). The couple travels
-# together: WindowManaging references ScreenDocument's types.
+# Window things are visual per the architecture rules (only the Screen device
+# and display-size seam stay in the kernel, as the interface the editor writes
+# to). The couple travels together: WindowManaging references ScreenDocument's
+# types.
 include("screen/ScreenDocument.jl")
 include("screen/WindowManaging.jl")
-# Q2 (2026-07-06): ScreenToScreen (identity projection over the window
-# tree) moved down from domain/projection/primitive/ — imports only
-# visual (screen) + kernel/base, no domain content.
+# ScreenToScreen: an identity projection over the window tree; imports only
+# visual (screen) + kernel/base.
 include("screen/ScreenToScreen.jl")
 
 # ── Slice 3 — graphics (retained drawing target) ─────────────────────────
@@ -148,15 +137,10 @@ include("graphics/GraphicsCaching.jl")
 # ── Slice 4 — layout (spatial arrangement) ───────────────────────────────
 # Layout is the container domain; ConstraintSolver is the layout algebra;
 # LayoutToGraphics renders a laid-out tree onto a canvas; CollectionToLayout
-# bridges a base CellVector into a layout container.
+# bridges a base CellVector into a layout container. LayoutToGraphics is
+# deferred to load after widget/ (see below).
 include("layout/Layout.jl")
 include("layout/ConstraintSolver.jl")
-# LayoutToGraphics loads *after* widget/ because it still imports
-# WidgetModule's focus-path helpers (first_focusable_path, last_focusable_path,
-# _next_focusable_in). The V1 refactor from the domain plan moves those
-# helpers into layout/ as open generics with widget/ adding methods beside its
-# types; until then this transitional reorder keeps the guard green without a
-# semantic change.
 include("layout/CollectionToLayout.jl")
 
 # ── Slice 5 — text (styled text + its renderings) ────────────────────────
@@ -185,12 +169,10 @@ include("text/ReferenceToText.jl")
 # Cell-field structs. The decorators (WidgetHoverTracking,
 # ProjectionConfiguring, WidgetPopupResolver) transform a widget tree.
 include("widget/Widget.jl")
-# LayoutToGraphics + WidgetToGraphics — moved to load right after Widget
-# so downstream widget files (TextToWidget, WidgetPopupResolver) that
-# import WidgetToGraphics resolve. LayoutToGraphics still imports Widget
-# focus-path helpers (the V1 refactor from the domain plan will move those
-# helpers into layout/ as open generics; widget/ adds methods beside its
-# types); until V1 lands the order here is transitional.
+# LayoutToGraphics loads after widget/ because it imports WidgetModule's
+# focus-path helpers (first_focusable_path, last_focusable_path,
+# _next_focusable_in), so it precedes the widget files that import it
+# (TextToWidget, WidgetPopupResolver).
 include("layout/LayoutToGraphics.jl")
 include("widget/WidgetToGraphics.jl")
 include("widget/TextToWidget.jl")
@@ -217,8 +199,5 @@ include("syntax/PrimitiveToSyntax.jl")
 # Graphics domain as a vector PDF (SDL-free).
 include("backend/Console.jl")
 include("backend/Pdf.jl")
-
-# Slice 2 (screen — ScreenDocument + WindowManaging move down from base)
-# is the last remaining Q1 relocation.
 
 end # module ProjecturedVisual

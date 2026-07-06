@@ -1,8 +1,7 @@
 """
 `ReferenceModule` — the `@reference` builder and `evaluate_reference` walked
-over a test-local `ToyNode` tree. Kernel plan P3: kernel tests use ONLY toy
-documents so the reference interface stands on its own without any concrete
-engine document.
+over a test-local `ToyNode` tree. Kernel tests use ONLY toy documents so the
+reference interface stands on its own without any concrete engine document.
 """
 
 using Test

@@ -74,9 +74,9 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
 - **The seam pattern** (how frameworks stay below their users): the lower layer
   declares open generics (or a small registry); higher layers add methods **in the
   files they already have** — multiple dispatch *is* the registration; a couple of
-  methods never earns a new file. Precedents: operation traversal and rerooting
-  (kernel R1/R2), reader defaults (R6), insertion (D1), serialization (D4), the
-  projection template's children container (D5), layout focus-paths (V1).
+  methods never earns a new file. Precedents: operation traversal and rerooting,
+  reader defaults, insertion, serialization, the projection template's children
+  container, layout focus-paths.
 - **Lower layers may *mention* higher concepts only as opaque payloads** — an untyped
   field the lower layer never interprets (`ProjectionReference.projection::Any`,
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.

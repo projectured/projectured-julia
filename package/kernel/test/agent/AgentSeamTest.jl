@@ -1,6 +1,5 @@
 """
-`AgentModule` — the agent control-surface seam. Kernel plan P9: renamed
-from `AgentApiModule` and moved from `api/` into `agent/`.
+`AgentModule` — the agent control-surface seam.
 """
 
 using Test

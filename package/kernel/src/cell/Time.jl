@@ -11,8 +11,7 @@ An application-level clock layered *on top of* the pure Cell engine (it depends
 on `Cell`), not part of the engine itself. Lives beside `CellModule` in the
 cell layer because it depends on nothing else in the kernel and every animated
 projection reads it — domain code can `import ..TimeModule` directly, without
-pulling in the editor loop that drives it (kernel plan P1: previously under
-`editor/`).
+pulling in the editor loop that drives it.
 
 Two ways to read it, named so intent is obvious:
   • `get_reactive_editor_time()` — SUBSCRIBE. A tracked read; the calling cell becomes

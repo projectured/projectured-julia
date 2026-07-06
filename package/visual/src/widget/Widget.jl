@@ -1510,8 +1510,7 @@ layout iomap ("layout is just layout").
   `nothing`). Empty vector ⇒ no row-header strip.
 - `rows::CellVector` — the body; each entry is a `CellVector` of `Document` cells
   (row-major). Field names `rows` / `column_headers` / `row_headers` are the
-  public reference vocabulary for selection (mirroring the old `TableToGraphics`
-  `rows[r]` / `columns[c]` bands).
+  public reference vocabulary for selection.
 - `column_count::Int` — number of columns.
 - `padding::Int` — inner padding (px) between a cell's border and its content.
 - `border_width::Int` — hairline rule / border width (px).

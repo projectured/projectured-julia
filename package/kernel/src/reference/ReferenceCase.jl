@@ -1,9 +1,8 @@
 # Fragment of `ReferenceModule` — the `@reference_case` pattern-matching DSL,
 # the destructuring counterpart of the `@reference` construction DSL
 # (`ReferenceBuilder.jl`). Both DSLs are siblings that share the reference-type
-# vocabulary from `Reference.jl` and live in the same module now (before P3
-# these were `ReferenceCaseModule` and `ReferenceBuilderModule` — modules that
-# were only ever imported together).
+# vocabulary from `Reference.jl` and live in the same module, since they are
+# only ever imported together.
 
 """
     when(pattern, condition)
@@ -512,7 +511,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # pattern keeps matching whatever path reaches it (folded with any node type,
     # a plain skeleton, or a skip-bound recursion tail). Matching the rest stays on
     # the SAME path for a folded node (the type is a field, consuming no step) and
-    # advances past a transitional `TypeReference` *step* if one is present. (An
+    # advances past an unfolded `TypeReference` *step* if one is present. (An
     # enforcing `<: T` gate here wrongly rejects re-rooted child selections whose
     # folded node type differs from the documented one.)
     if steps[1] isa PSType
@@ -570,8 +569,8 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     end
 
     # A leading `::T` is a non-navigating, optional, *tolerant* type assertion
-    # (same as in `_gen_path_match`): it never fails a match, advancing past a
-    # transitional `TypeReference` *step* if present, else matching on the same path.
+    # (same as in `_gen_path_match`): it never fails a match, advancing past an
+    # unfolded `TypeReference` *step* if present, else matching on the same path.
     if steps[1] isa PSType
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)

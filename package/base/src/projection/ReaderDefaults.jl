@@ -1,15 +1,14 @@
 """
     ReaderDefaultsModule
 
-R6 fragment of the projection layer's reader defaults — the
-Primitive-operation branches split out of `kernel/common/Projection.jl` at
-P8. `read_intent` is an open generic; the kernel default handles the
-Primitive-free operation types (ReplaceSelection, ReplaceReferencedValue,
-Compound, ToggleCollapse, SelectNextInsertion, etc.) and this module adds
-the two Primitive-op methods beside the types they interpret. Multiple
-dispatch: these more-specific `read_intent(::Projection, iomap, ::Replace…RangeOperation)`
-methods take precedence over the kernel's catch-all `read_intent(p, iomap, operation)`
-that was previously an if-elseif chain.
+Fragment of the projection layer's reader defaults — the Primitive-operation
+branches of `read_intent`. `read_intent` is an open generic; the kernel
+default handles the Primitive-free operation types (ReplaceSelection,
+ReplaceReferencedValue, Compound, ToggleCollapse, SelectNextInsertion, etc.)
+and this module adds the two Primitive-op methods beside the types they
+interpret. Multiple dispatch: these more-specific
+`read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods take
+precedence over the kernel's catch-all `read_intent(p, iomap, operation)`.
 """
 module ReaderDefaultsModule
 
@@ -31,10 +30,10 @@ function read_intent(projection::Projection, iomap, operation::ReplaceNumberRang
     return ReplaceNumberRangeOperation(input_ref, operation.replacement)
 end
 
-# D5 (Q2, 2026-07-06) — the value-edit retype for ProjectionTemplate's
-# RuleIoMap. Moved out of `kernel/projection/ProjectionTemplate.jl` because
-# it references `ReplaceStringRangeOperation` (a base/Primitive type) that
-# the kernel cannot import.
+# The value-edit retype for ProjectionTemplate's RuleIoMap lives here (not
+# in `kernel/projection/ProjectionTemplate.jl`) because it references
+# `ReplaceStringRangeOperation` (a base/Primitive type) that the kernel
+# cannot import.
 function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
     w = iomap.wiring
     # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`,

@@ -4,7 +4,7 @@ Layer 4 of the kernel — **changing documents**. An operation is the reified
 edit the reader side of the projection pipeline produces and
 `evaluate_operation` applies. The layer holds the abstract `Operation`
 supertype, the built-in concrete operations, the selection propagation, the
-splice helpers, and — new in P4 — the **two open seams** every path-bearing
+splice helpers, and the **two open seams** every path-bearing
 operation or container document extends.
 
 The layer lives in [src/operation/](../src/operation/), inside one aggregator
@@ -20,19 +20,17 @@ OperationModule.jl        (OperationModule)             — the aggregator
         │                        SelectNextInsertion, Adjust*, Quit,
         │                        ToggleCollapse), splice helpers, selection
         │                        propagation (clear/set/update), and the
-        │                        R1 child_reference_steps seam
-        └─ Rerooting.jl        — reroot_reference + the R2 open
+        │                        open child_reference_steps seam
+        └─ Rerooting.jl        — reroot_reference + the open
                                  reroot_operation seam with its base methods
 ```
 
-Kernel plan P4 merged the former `OperationApiModule` (`api/OperationApi.jl`),
-`OperationModule` (`common/Operation.jl`), and `OperationRerootingModule`
-(`common/OperationRerooting.jl`) — three modules only ever imported together.
-The three files remain as fragments sharing this namespace.
+The three files share one namespace because they are only ever imported
+together.
 
-## R1 — the open `child_reference_steps(node)` traversal seam
+## The open `child_reference_steps(node)` traversal seam
 
-Before P4, `SelectNextInsertionOperation`'s pre-order document walk was hard-coded:
+Without this seam, `SelectNextInsertionOperation`'s pre-order document walk would have to hard-code each container type:
 
 ```julia
 function _preorder_documents!(node, ...)
@@ -47,16 +45,15 @@ function _preorder_documents!(node, ...)
         ...
 ```
 
-The `isa CellVector` branch was the smell — an operation-layer file
-hard-referencing a concrete document type. R1 dissolves it into an open
-generic:
+The `isa CellVector` branch is the smell — an operation-layer file
+hard-referencing a concrete document type. The open generic form dissolves it:
 
 ```julia
 function child_reference_steps end                # declaration in Operations.jl
 
 child_reference_steps(node) = [(FieldReference(...), val), ...]   # default (fieldnames)
 
-# in document/Collection.jl (moves to base at P7):
+# in base's Collection.jl:
 child_reference_steps(node::CellVector) = [(RangeReference(i-1, i), node[i]), ...]
 ```
 
@@ -68,9 +65,9 @@ type definition. The default handles ordinary structs.
 method — the exact pressure that keeps the seam honest. If a fresh test-local
 type couldn't drive the walk, the seam wouldn't be open.
 
-## R2 — the open `reroot_operation(op, steps)` generic
+## The open `reroot_operation(op, steps)` generic
 
-Before P4, `reroot_operation` was a closed if-chain:
+Without this seam, `reroot_operation` would be a closed if-chain:
 
 ```julia
 function reroot_operation(op, steps)
@@ -86,8 +83,8 @@ end
 ```
 
 The `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` branches
-imported `PrimitiveModule` from a lower kernel layer — a wrong-direction edge.
-R2 converts it to an open generic, with the base methods in
+would import `PrimitiveModule` from a lower kernel layer — a wrong-direction
+edge. The open generic form avoids it, with the base methods in
 `Rerooting.jl`:
 
 ```julia
@@ -99,8 +96,8 @@ reroot_operation(op::ReplaceReferencedValueOperation, steps) = ...
 reroot_operation(op::CompoundOperation, steps) = ...
 ```
 
-The `Primitive` methods now live in `document/Primitive.jl` beside the
-operation type declarations (they leave with Primitive for base at P7):
+The `Primitive` methods live in `document/Primitive.jl` beside the
+operation type declarations:
 
 ```julia
 # document/Primitive.jl:

@@ -7,9 +7,7 @@ and a reference document.
 
 The load/save/import/export document operations live with the serializers:
 binary `Save`/`LoadDocumentOperation` in `BinarySerializationModule`, natural
-`Export`/`ImportDocumentOperation` in `NaturalFormatModule`. (They previously sat
-here as an incomplete, non-functional port that read a `content` field no
-document type carried; that stub has been replaced by the working serializers.)
+`Export`/`ImportDocumentOperation` in `NaturalFormatModule`.
 """
 module DocumentCoreModule
 

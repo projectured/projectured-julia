@@ -1,9 +1,9 @@
 """
 `CellModule` — the reactive engine and the two non-reactive cell kinds.
 
-Migrated from ProjecturedTest/common/CellTest.jl in kernel plan P1 so the cell
-layer is exercised entirely from ProjecturedKernel — no domain vocabulary is
-in scope, which is exactly the pressure that keeps `cell/` dependency-free.
+The cell layer is exercised entirely from ProjecturedKernel — no domain
+vocabulary is in scope, which is exactly the pressure that keeps `cell/`
+dependency-free.
 """
 
 using Test

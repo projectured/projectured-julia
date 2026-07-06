@@ -2,7 +2,7 @@
 # test/src/projection/TableNavigationTest.jl
 #
 # Grid navigation gestures for the WidgetTable → Graphics renderer (the single
-# table abstraction; navigation ported from the old TableToGraphics).
+# table abstraction).
 #
 # explore_table_selections(document, projection)
 #   BFS over the tree-selection states reachable from Ctrl+Alt+Home (whole

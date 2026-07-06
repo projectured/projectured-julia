@@ -416,7 +416,7 @@ forward mapping, shifting a coordinate image by the child's laid-out offset.
 _children_forward(iomap::_LayoutChildrenIoMap, reference) =
     _forward_descend(iomap.child_iomaps[]::Vector, "children", reference)
 
-# ── Per-cell helpers (extracted to avoid begin/end inside comprehensions) ──
+# ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
 function _hl_child_x_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
     Cell(function ()

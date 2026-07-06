@@ -28,8 +28,8 @@ documents — no adapter or engine change.
 module ProjectionTemplateModule
 
 import ..CellModule: Cell
-# D5 seam (Q2, 2026-07-06) — ProjectionTemplate no longer names CellVector
-# directly. `make_children_container(...)` builds the container (base's
+# ProjectionTemplate does not name CellVector directly.
+# `make_children_container(...)` builds the container (base's
 # Collection.jl registers Vector/Function methods on CellVector);
 # `children_container_type()` returns the concrete type for TypeReference
 # markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
@@ -47,10 +47,10 @@ import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldRefere
                           fold_reference_types, strip_reference_types
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-# D5 seam (Q2, 2026-07-06) — the single
+# The single
 # `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
-# method moved to base beside the R6 reader defaults so this file is
-# Primitive-free. (Its recursive-projection sibling remained here since it
+# method lives in base beside the reader defaults so this file stays
+# Primitive-free. (Its recursive-projection sibling stays here since it
 # uses no base type — it dispatches on RecursiveProjection + the
 # base-registered method.)
 import ..DocumentModule: Document, read_gesture
@@ -197,7 +197,7 @@ end
 
 # A whole-element selection typed `::T`: the folded terminal carrying T.
 _typed(T) = EmptyReferencePath(T)
-# Build a path from `steps...` (which may include transitional `TypeReference`
+# Build a path from `steps...` (which may include unfolded `TypeReference`
 # checkpoint steps), then fold those checkpoints into node types so the result is
 # the canonical folded form `@reference`/`@reference_case` produce.
 _path(steps...) = begin
@@ -1298,9 +1298,9 @@ end
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
 
-# D5 (Q2, 2026-07-06): the value-edit retype method
+# The value-edit retype method
 # `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
-# moved to `package/base/src/projection/ReaderDefaults.jl` beside the R6
+# lives in `package/base/src/projection/ReaderDefaults.jl` beside the
 # reader defaults — it references `ReplaceStringRangeOperation` (a
 # base/Primitive type) that the kernel cannot name. Base imports
 # `RuleIoMap` + `AtomicWiring` from this module to preserve the same
@@ -1322,9 +1322,9 @@ end
 # concrete-typed method per op (not a Union, which would still tie with the
 # `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
 # read into its child projection.
-# D5 (Q2, 2026-07-06): the recursive disambiguation for
-# ReplaceStringRangeOperation moved to base/projection/ReaderDefaults.jl
-# for the same reason (it names a base type).
+# The recursive disambiguation for ReplaceStringRangeOperation lives in
+# base/projection/ReaderDefaults.jl for the same reason (it names a base
+# type).
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
 

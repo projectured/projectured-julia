@@ -1,9 +1,9 @@
 """
 `DocumentModule` — the document contract, exercised through a test-local
-`ToyNode` type. Kernel plan P2: kernel tests must use ONLY toy documents/
-projections defined test-locally, so the concrete engine documents (Collection,
-Primitive, ScreenDocument) cannot leak in as fixtures — the resulting pressure
-is what keeps the interface sufficient.
+`ToyNode` type. Kernel tests must use ONLY toy documents/projections defined
+test-locally, so the concrete engine documents (Collection, Primitive,
+ScreenDocument) cannot leak in as fixtures — the resulting pressure is what
+keeps the interface sufficient.
 
 Covers:
 - `@document` field auto-wrapping in Cells,

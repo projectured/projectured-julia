@@ -568,7 +568,7 @@ function sync_document!(shadow::CellVector, source::CellVector)
     shadow
 end
 
-# R1 (kernel plan P4) — the CellVector method for `child_reference_steps`:
+# The CellVector method for `child_reference_steps`:
 # elements are addressed by `RangeReference(i-1, i)`, so the pre-order
 # document walk driving `SelectNextInsertionOperation` picks them up. The
 # default fieldnames-walk (in `operation/Operations.jl`) still applies to
@@ -584,10 +584,10 @@ function child_reference_steps(node::CellVector)
     pairs
 end
 
-# D5 seam (Q2, 2026-07-06) — CellVector methods for the kernel's
-# children-container generics. The kernel's `ProjectionTemplate` uses
-# these instead of naming `CellVector` directly so its file can live at
-# the kernel projection layer without importing a base document type.
+# CellVector methods for the kernel's children-container generics. The
+# kernel's `ProjectionTemplate` uses these instead of naming `CellVector`
+# directly so its file can live at the kernel projection layer without
+# importing a base document type.
 import ..ChildrenContainerModule: make_children_container, children_container_type
 
 make_children_container(cells::Vector) = CellVector(cells)

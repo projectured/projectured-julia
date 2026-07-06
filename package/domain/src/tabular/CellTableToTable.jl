@@ -35,7 +35,7 @@ _to_doc(v)                 = JsonString(string(v))
 
 struct CellTableToWidgetTable <: Projection end
 
-# Backwards-compatible alias (the projection was renamed from CellTableToTable).
+# Backwards-compatible alias for callers using the deprecated name.
 const CellTableToTable = CellTableToWidgetTable
 
 function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx)

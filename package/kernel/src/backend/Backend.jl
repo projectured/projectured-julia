@@ -11,9 +11,6 @@ code can name a capability (measure text, write an image, …) without
 referencing any concrete backend at load time. A generic that isn't
 implemented because its backend package isn't loaded raises a `MethodError`
 (or, for the `make_backend` factory seam, a helpful error).
-
-Renamed from `BackendApiModule` in kernel plan P6; the old name lives on as
-an alias in `ProjecturedDomain`.
 """
 module BackendModule
 

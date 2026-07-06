@@ -1,6 +1,5 @@
 """
-`TimeModule` — the one global editor clock. New in kernel plan P1 (Time.jl
-lived under editor/ before; there was no dedicated test).
+`TimeModule` — the one global editor clock.
 
 Confirms the sample/subscribe split: `get_editor_time()` reads without
 registering a dependency, `get_reactive_editor_time()` registers and re-runs

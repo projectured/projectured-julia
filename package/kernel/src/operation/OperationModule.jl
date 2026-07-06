@@ -11,27 +11,25 @@ supertype and the `evaluate_operation` / `invalidate_projection!` generics
 `splice_*` text-edit helpers, and the two open seams the container
 projections and higher documents extend:
 
-- **R1** — `child_reference_steps(node)` (in `Operations.jl`): the open
+- `child_reference_steps(node)` (in `Operations.jl`): the open
   traversal seam driving `SelectNextInsertionOperation`'s pre-order
   document walk. The default enumerates `fieldnames` as `FieldReference`
   steps; base's `Collection.jl` adds the `CellVector` method that yields
   `RangeReference(i-1, i)` per element. A new container document adds a
   method.
 
-- **R2** — `reroot_operation(op, steps)` (in `Rerooting.jl`): the open
+- `reroot_operation(op, steps)` (in `Rerooting.jl`): the open
   reroot generic every path-bearing operation must add a method for.
   Base methods here for `Nothing`, catch-all,
   `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, and
   `CompoundOperation`; `document/Primitive.jl` adds
   `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation` (they
-  leave with Primitive for base at P7).
+  leave with Primitive for base).
 
-Merged in kernel plan P4 from `OperationApiModule` (`api/OperationApi.jl`,
-the interface), `OperationModule` (`common/Operation.jl`, the operations
-and traversal), and `OperationRerootingModule`
-(`common/OperationRerooting.jl`, the reroot seam) — three modules only
-ever imported together. The three files remain as fragments sharing this
-namespace.
+This module aggregates three fragments — the interface (`Interface.jl`),
+the concrete operations and traversal (`Operations.jl`), and the reroot
+seam (`Rerooting.jl`) — since they are only ever imported together. The
+three files remain as fragments sharing this namespace.
 
 `evaluate_operation` is duck-typed on `editor`: nothing in the layer
 references a concrete editor type, so it loads well before the editor loop
@@ -60,7 +58,7 @@ export Operation, evaluate_operation, invalidate_projection!,
        reroot_reference, reroot_operation
 
 include("Interface.jl")   # Operation + evaluate_operation + invalidate_projection!
-include("Operations.jl")  # concrete ops, splice helpers, R1 seam
-include("Rerooting.jl")   # R2 seam + reroot_reference
+include("Operations.jl")  # concrete ops, splice helpers, traversal seam
+include("Rerooting.jl")   # reroot seam + reroot_reference
 
 end # module

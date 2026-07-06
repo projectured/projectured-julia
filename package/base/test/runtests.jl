@@ -8,10 +8,8 @@ own+fragment imports, that every on-disk `.jl` file is reached exactly
 once, and that declared layers respect their index. Runs in ~1s without
 loading the package.
 
-`LAYERS` will grow as content lands here at P8/Q2 — starting empty at P7
-since the package is a skeleton. The tests exercise the guard machinery
-against the empty include list; per-layer runners will be added under
-`test/<layer>/` as layers gain content.
+`LAYERS` declares the base package's layer order (`document`, `projection`,
+`serialization`); per-layer runners live under `test/<layer>/`.
 """
 
 using Test

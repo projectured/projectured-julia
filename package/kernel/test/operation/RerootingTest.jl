@@ -1,9 +1,9 @@
 """
-`OperationModule` — the R2 open `reroot_operation` seam. Kernel plan P4:
-verifies the base methods land here (Nothing, catch-all,
-ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation)
-and that a **test-local** path-bearing operation can register its own reroot
-method — that is exactly the seam pressure that keeps R2 honest.
+`OperationModule` — the open `reroot_operation` seam. Verifies the base
+methods land here (Nothing, catch-all, ReplaceSelectionOperation,
+ReplaceReferencedValueOperation, CompoundOperation) and that a
+**test-local** path-bearing operation can register its own reroot
+method — that is exactly the seam pressure that keeps the generic honest.
 """
 
 using Test
@@ -12,7 +12,7 @@ using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ReferenceModule
 
 # A test-local path-bearing operation: registering a `reroot_operation` method
-# for it below is exactly the R2 seam pressure that keeps the generic open.
+# for it below is exactly the seam pressure that keeps the generic open.
 struct ToyPathOp <: Operation
     reference::ReferencePath
 end

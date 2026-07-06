@@ -1,6 +1,5 @@
 """
-Kernel layered-architecture guard rail
-(plan/pending/kernel-layered-architecture.md, phase P0).
+Kernel layered-architecture guard rail.
 
 `package/kernel/src/ProjecturedKernel.jl` is a hand-maintained topological sort:
 each top-level `include("…")` must appear *after* the files defining every
@@ -37,10 +36,10 @@ const DOT        = Symbol(".")
 const LAYERS = String["cell", "document", "reference", "operation", "device", "backend",
                        "projection", "agent", "editor"]
 
-# Kernel plan P8 moved the concrete documents (Collection/Primitive/
-# ScreenDocument) and the 5 doc-shaped projections out to ProjecturedBase,
-# so the transitional exemption list is now empty. The list stays here for
-# future phases that need short-lived exemptions.
+# The concrete documents (Collection/Primitive/ScreenDocument) and the 5
+# doc-shaped projections live in ProjecturedBase, so this exemption list is
+# currently empty. It stays here for future phases that need short-lived
+# exemptions.
 const LAYER_EXEMPT_FILES = Set{String}()
 
 # ── AST helpers ────────────────────────────────────────────────────────────

@@ -23,10 +23,9 @@ Each slice imports only slices to its left:
 style → screen → graphics → layout → text → widget → syntax → backend
 ```
 
-Machine-verified in the plan with one refactor (**V1**):
-`LayoutToGraphics`'s Widget focus-path helpers move down into `layout/`
-as open generics; widget/ adds methods beside its types. Until V1 lands,
-LayoutToGraphics + WidgetToGraphics are transitionally reordered in the
+`LayoutToGraphics`'s Widget focus-path helpers are slated to move down into
+`layout/` as open generics, with widget/ adding methods beside its types.
+Until that lands, LayoutToGraphics + WidgetToGraphics are reordered in the
 include list (loaded after Widget); this is order-only, not a semantic
 change.
 
@@ -45,14 +44,13 @@ the slice.
 `ScreenDocument.jl` (multi-window document holding `WindowDocument`s +
 window events/ops), `WindowManaging.jl` (the higher-order projection
 that wraps a projection over ScreenDocument input to lift open/close/
-resize/defocus operations up from below). Both moved down from base at
-Q2. The couple travels together: WindowManaging references
-ScreenDocument's types.
+resize/defocus operations up from below). The couple travels together:
+WindowManaging references ScreenDocument's types.
 
 `EventEnvelope` (which wraps every event with a window id) does **not**
-live here — it moved to the kernel's `GestureModule` at kernel plan P5
-(R5), because it is a protocol type consumed by the editor loop and
-gesture recognizer, not a document concept.
+live here — it lives in the kernel's `GestureModule`, because it is a
+protocol type consumed by the editor loop and gesture recognizer, not a
+document concept.
 
 ### graphics/ — the retained drawing target
 

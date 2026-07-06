@@ -27,9 +27,9 @@ stateful component the editor owns and drives once per input event.
 
 A gesture is *only* a combination of events — it carries no intent. The
 recogniser never decides what a click or a chord *means*; that is each projection
-reader's job. This used to be done (for clicks) inside the SDL backend; moving it
-here makes recognition backend-agnostic and unit-testable without SDL, and gives
-composite gestures a single home.
+reader's job. Recognising here (rather than inside a backend) makes it
+backend-agnostic and unit-testable without SDL, and gives composite gestures a
+single home.
 
 ## Contract
 
@@ -49,16 +49,15 @@ module GestureRecognizerModule
 
 import ..MouseModule: MouseDown, MouseUp, MousePress
 import ..KeyboardModule: KeyDown, KeyChord
-# Kernel plan P5 (R5): EventEnvelope is now on the device layer beside its
-# consumers, not in ScreenDocumentModule.
+# `EventEnvelope` lives on the device layer beside its consumers, not in
+# ScreenDocumentModule.
 import ..GestureModule: EventEnvelope
 
 export GestureRecognizer, recognize_gesture!, pop_gesture!
 
 # Click recognition window: a MouseUp counts as a click (synthesises a
 # `MousePress`) when it lands within this many pixels of the preceding MouseDown
-# for the same button, within this many seconds. These mirror the thresholds the
-# SDL backend previously used.
+# for the same button, within this many seconds.
 const CLICK_MAX_DISPLACEMENT = 5
 const CLICK_MAX_DURATION = 0.3
 

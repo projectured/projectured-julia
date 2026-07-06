@@ -1,4 +1,4 @@
-# Fragment of `OperationModule` — the R2 open `reroot_operation` seam.
+# Fragment of `OperationModule` — the open `reroot_operation` seam.
 # Reference/operation *re-rooting* helpers shared by container projections:
 # a container that routes an event into one of its children gets back an
 # operation whose reference is rooted in the *child's* output domain; to
@@ -7,13 +7,13 @@
 # lift powers the recursive gesture reader — see
 # `documentation/projection-system.md`.
 #
-# `reroot_operation` used to be a closed `if op isa …` chain that hardcoded
-# `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, both defined
-# in `document/Primitive.jl`. R2 makes it an *open* generic: the base
-# methods (Nothing, catch-all, ReplaceSelectionOperation,
+# `reroot_operation` is an *open* generic rather than a closed `if op isa …`
+# chain, because `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`
+# are defined in `document/Primitive.jl`, which stays in base alongside
+# Primitive itself — the kernel cannot hardcode a dependency on them. The
+# base methods (Nothing, catch-all, ReplaceSelectionOperation,
 # ReplaceReferencedValueOperation, CompoundOperation) live here; the
-# Primitive-op methods live in `document/Primitive.jl` (they leave for base
-# with Primitive at P7).
+# Primitive-op methods live in `document/Primitive.jl`.
 #
 # INVARIANT: a new path-bearing operation type must add a `reroot_operation`
 # method. Missing methods fall through to the catch-all and are returned

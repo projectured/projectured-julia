@@ -31,7 +31,7 @@ click-to-position.
 
 The selection is shown as inverse-video span colors, baked into the spans by the
 `SelectionInverting` projection at the end of the console pipeline (the backend
-itself no longer resolves the selection or emits a reverse-video attribute).
+itself does not resolve the selection or emit a reverse-video attribute).
 """
 module ConsoleBackendModule
 

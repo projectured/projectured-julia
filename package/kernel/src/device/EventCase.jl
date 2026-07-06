@@ -59,25 +59,22 @@ Rules are tried top to bottom; the first match wins. If no rule matches the
 expression evaluates to `nothing`.
 """
 # Fragment of `GestureModule` — the @event_case dispatch-table macro and
-# its parser. Merged with GestureBinding.jl into one module in kernel plan
-# P5 (R4): GestureBinding.jl reuses this fragment's parser internals
-# (`_parse_rule`, `EvPat`, …), which used to be a documented cross-module
-# private edge; both files being fragments of GestureModule removes it.
+# its parser. GestureBinding.jl reuses this fragment's parser internals
+# (`_parse_rule`, `EvPat`, …); both files being fragments of the same
+# GestureModule keeps that reuse an in-module concern rather than a
+# cross-module private edge.
 
 # ------------------------------------------------------------
 # NOTE — deliberately-shared parser internals
 #
 # The private names below (`_EVENT_TYPES`, `EvPat`/`EvWild`/`EvBind`/`EvLit`/
-# `EvInterp`, and `_parse_rule`) are imported by `GestureBindingModule`
-# (common/GestureBinding.jl): the `@gestures` pattern parser reuses this
-# `@event_case` rule parser rather than duplicating it. They are intentionally
-# NOT exported — the `Projectured` umbrella mechanically re-exports every
-# exported name of every kernel submodule, so exporting these internals would
-# push them into the public flat API, which is worse than a private import.
-# The private-import seam is temporary: EventCase and GestureBinding are one
-# feature (event pattern matching) split across two files, and Phase 2 of the
-# kernel cleanup (plan/pending/kernel-cleanup.md) merges them into a single
-# gesture module, at which point the cross-module import disappears.
+# `EvInterp`, and `_parse_rule`) are reused by `GestureBinding.jl`: the
+# `@gestures` pattern parser rides on this `@event_case` rule parser rather
+# than duplicating it. Since both files are fragments of `GestureModule`, this
+# is an in-namespace reference, not a cross-module import. The names are
+# intentionally NOT exported — the `Projectured` umbrella mechanically
+# re-exports every exported name of every kernel submodule, so exporting these
+# internals would push them into the public flat API.
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------

@@ -46,7 +46,7 @@ using Projectured: with_available_size, GraphicsCanvas
 import Projectured.CellModule: Cell
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
-# next round of SSE events) now lives in `Projectured.LlmModule` so examples can
+# next round of SSE events) lives in `Projectured.LlmModule` so examples can
 # reuse it; imported above. The `_tool_use_script` / `_final_text_script` builders
 # below produce the same event-vector shape it consumes.
 

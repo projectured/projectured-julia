@@ -14,10 +14,8 @@ agent server only through these generics, so it never names a concrete server
 type — letting the implementation move into an optional extension whose type
 cannot be referenced at load time.
 
-Renamed from `AgentApiModule` in kernel plan P9; the old name lives on as an
-alias in `ProjecturedDomain`. The three other agent-layer modules
-(`LlmModule`, `McpModule`, `ToolRegistryModule`) moved out of `editor/`
-into this folder at the same phase, matching their layer position in the DAG.
+The agent layer also holds `LlmModule`, `McpModule`, and
+`ToolRegistryModule`, matching their layer position in the DAG.
 """
 module AgentModule
 

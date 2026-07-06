@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # test/src/editor/PrinterLocalityTest.jl
 #
-# Printer *locality* measurement (Phase 1 of plan/pending/printer-locality.md).
+# Printer *locality* measurement.
 #
 # A printer should produce the smallest possible change in its output for any
 # given change in its input: a minimal input edit must invalidate a minimal set

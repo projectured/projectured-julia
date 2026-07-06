@@ -1,6 +1,6 @@
 """
-`GestureModule` — the merged @event_case + gesture-binding module and the
-rehomed EventEnvelope. Kernel plan P5 (R4 + R5).
+`GestureModule` — the @event_case macro, the gesture-binding machinery, and
+`EventEnvelope`.
 """
 
 using Test

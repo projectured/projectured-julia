@@ -308,9 +308,9 @@ end
 
 # Fallback viewport / track extents used only when a widget carries no `size`
 # *and* its parent allocated no `available_*` extent (isolated rendering). Named
-# here so the value is stated once — in particular the scroll bar's track size
-# was previously duplicated between its printer and its hit-test reader (a drift
-# risk); both now read these.
+# here so the value is stated once — the scroll bar's track size is read by
+# both its printer and its hit-test reader, so a single source avoids a drift
+# risk between the two.
 const _SCROLL_FALLBACK_WIDTH  = 400   # WidgetScrollPane / ScrollViewport viewport
 const _SCROLL_FALLBACK_HEIGHT = 300
 const _SCROLLBAR_FALLBACK_LENGTH    = 200  # scroll bar track (long axis)
@@ -777,7 +777,7 @@ function _retarget_op(p, iomap, op)
     end
 end
 
-# Reference/operation re-rooting now lives in `OperationRerootingModule`
+# Reference/operation re-rooting lives in `OperationRerootingModule`
 # (`reroot_operation` / `reroot_reference`) — shared with the layout
 # container readers so the prepend logic is defined once.
 
@@ -4344,8 +4344,7 @@ end
 # uniformly-padded cells while reusing GridLayout for the actual positioning.
 #
 # Selection. Field names `rows` / `column_headers` / `row_headers` are the public
-# reference vocabulary (ported from the old TableToGraphics `rows[r]`/`columns[c]`
-# bands). A whole-element selection is a path terminating at the element (`∅`);
+# reference vocabulary. A whole-element selection is a path terminating at the element (`∅`);
 # the renderer — the one place with the grid geometry — turns a 1-D handle into a
 # 2-D highlight band. An in-cell cursor (`rows[r][c].…`) descends into the cell's
 # own sub-pipeline and is drawn there.
@@ -4479,7 +4478,7 @@ function _wt_geometry(gim::GridLayoutIoMap, grid_rows::Int, grid_cols::Int,
                has_rh, has_ch, col_x, row_y, total_w, total_h, bw, pad, grid_off)
 end
 
-# ── Selection-shape recognition (ported from TableToGraphics) ────────────────
+# ── Selection-shape recognition ───────────────────────────────────────────────
 # `.<field>[index]∅` → (field_name, 1-based index), else nothing.
 function _wt_field_element_terminal(sel)
     # Selections are canonical (carry TypeReference checkpoints); skip them
@@ -4778,9 +4777,9 @@ function _wt_grid_ref_to_table(reference, geom::WTGeometry)
 end
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
-# Gesture-aware reader, ported from TableToGraphics. Left clicks resolve here
-# (header/corner → row/column/table; Alt+click promotes a data cell to a whole
-# cell; a plain click routes into the cell content). Keyboard grid navigation
+# Gesture-aware reader. Left clicks resolve here (header/corner → row/column/
+# table; Alt+click promotes a data cell to a whole cell; a plain click routes
+# into the cell content). Keyboard grid navigation
 # (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
 # live table. Everything else falls through to per-cell editing via the grid.
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
@@ -4931,7 +4930,7 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
 end
 
-# Keyboard grid navigation (ported from TableToGraphics, adapted to rows[r][c]).
+# Keyboard grid navigation, addressed via rows[r][c].
 function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown, geom::WTGeometry)
     nrows, ncols = geom.nrows, geom.ncols
     (nrows == 0 || ncols == 0) && return nothing

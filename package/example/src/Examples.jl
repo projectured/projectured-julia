@@ -213,7 +213,7 @@ own projection by **reference path** (so two examples with the same
 content type — e.g. both JSON, both wrapped in `WidgetScrollPane` —
 still each render through their own pipeline).
 
-Examples no longer carry a pre-set selection. Pass `selection` (a
+Examples carry no pre-set selection. Pass `selection` (a
 reference path, e.g. `@reference entries[1].value.value{2}`) to seed the
 initial selection; it is applied to the first example's bare domain
 document and then lifted to a screen-rooted path (see below). When

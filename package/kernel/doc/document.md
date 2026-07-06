@@ -21,19 +21,17 @@ DocumentModule.jl        (DocumentModule)              — the aggregator
                             snapshot, hydrate, sync_document!)
 ```
 
-Kernel plan P2 merged the former `DocumentApiModule` (`api/DocumentApi.jl`)
-into `DocumentModule` — the two were only ever imported together and their
-separation just multiplied import headers. The interface + machinery still
-live in separate files for readability, but as **fragments** (0-module files
-sharing the aggregator's namespace), not separate modules; there is no API
-boundary between them.
+The interface and machinery are only ever imported together, so they share
+one `DocumentModule` namespace instead of being separate modules — a
+separation would just multiply import headers. They still live in separate
+files for readability, but as **fragments** (0-module files sharing the
+aggregator's namespace), not separate modules; there is no API boundary
+between them.
 
-The concrete engine documents that used to live here in the same folder —
-`Collection`, `Primitive`, `ScreenDocument` — remain physically under
-`src/document/` for now but leave the kernel entirely at plan phase P7, when
-the `base` package is created. The **document layer is the contract**;
-concrete documents belong in `base`. Everything in the layer besides
-`DocumentModule.jl`/`Interface.jl`/`Document.jl` is transitional.
+Concrete engine documents do not live in this layer: `Collection` and
+`Primitive` live in `base`, `ScreenDocument` in `visual`. The **document
+layer is the contract**; concrete documents belong to the packages built on
+top of it.
 
 ## The two contracts every concrete document must satisfy
 
@@ -54,8 +52,8 @@ concrete documents belong in `base`. Everything in the layer besides
 The four functions declared in `Interface.jl` — `get_selection`,
 `clear_selection!`, `set_selection!`, `with_selection` — form the selection
 contract. `clear_selection!` and `set_selection!` are open generics with the
-generic default supplied by `common/Operation.jl` (folded into `OperationModule`
-at P4); concrete documents rarely override them. `with_selection` is the
+generic default supplied by `OperationModule`; concrete documents rarely
+override them. `with_selection` is the
 one-expression build-and-select form (used by examples, fixtures, clipboard
 payloads, and the gesture→replace builders). `get_selection` reads through
 the conventional `selection` field.
@@ -63,10 +61,9 @@ the conventional `selection` field.
 `read_gesture(document, gesture) -> Union{Operation, Nothing}` is the
 projection-independent half of a domain's reader: it maps a backend-agnostic
 gesture to an operation expressed against `document`'s own reference
-vocabulary. The catch-all implementation on `::Document` lives in
-`common/GestureBinding.jl` (folds into the device layer at P5) — it walks the
-reified `@gestures` table, so a domain authored with `@gestures` needs no
-hand-written `read_gesture`.
+vocabulary. The catch-all implementation on `::Document` lives in the device
+layer's `GestureModule` — it walks the reified `@gestures` table, so a domain
+authored with `@gestures` needs no hand-written `read_gesture`.
 
 ## The shared machinery
 
@@ -94,7 +91,7 @@ hand-written `read_gesture`.
 
 ## Downward private seam
 
-`IoMapModule` (`common/IoMap.jl`, projection layer) imports the private
+`IoMapModule` (`projection/IoMap.jl`, projection layer) imports the private
 `_cell_autowrap_ctor` and `_cell_property_accessors` from here. Both macros
 share Cell-struct codegen; splitting the helpers into a third module just for
 that would be worse than the edge. This is a **documented downward private

@@ -23,10 +23,9 @@ delegate through the stored child IoMap, never re-walk by document type).
 The display flag is a `Cell`, and each projection's `output` is a derived cell over
 it. Flipping the flag is a plain reactive cell write: the reactive
 `ChainingProjection` re-pulls the changed output and re-prints only the downstream
-stages, so the view switches with **no `editor.iomap` drop**. (Earlier this swap
-required nulling `editor.iomap`; reactive composition makes that unnecessary.)
+stages, so the view switches with **no `editor.iomap` drop**.
 
-## OS-clipboard bridge (the Lisp `#+nil` `xclip` branch, now ported)
+## OS-clipboard bridge (corresponds to the Lisp `#+nil` `xclip` branch)
 
 `ClipboardSliceToAnyProjection` takes optional `to_text` / `from_text` converters.
 When set, copy/cut/note mirror the copied sub-document out to the OS clipboard (via a

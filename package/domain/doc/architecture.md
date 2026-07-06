@@ -22,7 +22,7 @@ Deps: `ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`, plus
 (`sdl`, `web`, `odbc`, `video`) depend on this package, not the other way
 around.
 
-## Feature slices (domain plan Q3)
+## Feature slices
 
 The package is organised as **feature slices** — each folder groups a
 document with its parser, its `XToSyntax` bridge, and any related
@@ -33,8 +33,8 @@ and belong together. Cross-slice edges are allowed provided they form an
 
 ```
 core/                             tier 0 — shared cross-domain glue
-                                  (only Document.jl now, disappearing when
-                                  D1 lands the insertion seam refactor)
+                                  (only Document.jl now, disappearing once
+                                  the insertion seam refactor lands)
 
 json/       Json.jl · JsonParser.jl · JsonToSyntax.jl
 xml/        Xml.jl · XmlParser.jl · XmlToSyntax.jl
@@ -48,7 +48,7 @@ dbcatalog/  DbCatalog.jl · DbCatalogToSql.jl · DbCatalogToSyntax.jl
                                   (→ sql slice, sideways OK)
 database/   Database.jl · DatabaseAdapters.jl
                                   (adapter layer odbc plugs into)
-tabular/    Tabular.jl · CellTableToTable.jl (→ json slice — D2 finding)
+tabular/    Tabular.jl · CellTableToTable.jl (→ json slice)
 graph/      Graph.jl · GraphLayout.jl · GraphLayoutEngine.jl ·
             GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
@@ -68,28 +68,29 @@ conversation/
             ConversationToWidget.jl · ConversationEditor.jl
 ```
 
-Plus **three transitional tiers** waiting on the Q2 framework seams:
+Plus **three transitional tiers**, held here until their framework seams
+land elsewhere:
 
 - `projection/` — `ProjectionTemplate.jl` and `compound/{Generic,HigherOrder}.jl`.
-  Land at kernel and base respectively when D5 completes (adds a
-  children-container seam so kernel-side ProjectionTemplate no longer
-  references `CellVector` by name).
+  Land at kernel and base respectively once a children-container seam is
+  added so kernel-side ProjectionTemplate no longer
+  references `CellVector` by name.
 - `serializer/` — `NaturalFormat.jl`, `DocumentFile.jl`. Land at
-  `base/serialization/` when D4's framework/registration split makes the
+  `base/serialization/` once the framework/registration split turns the
   hardcoded per-format tables into per-slice registrations.
 - `projection/primitive/` — `DocumentInsertionToSyntax.jl`,
   `NaturalProjection.jl`, `ScreenToScreen.jl`. Land at `visual/syntax/`
-  and `base/document/` respectively when D1's insertion seam moves the
+  and `base/document/` respectively once the insertion seam moves the
   insertion document down and the generic renderings up.
 
 ## Slice DAG (cross-slice edges within the source tier)
 
-Only three cross-slice edges exist and they form a DAG (verified in Q0):
+Only three cross-slice edges exist and they form a DAG:
 
 - `formula → julia` — Formula uses JuliaModule types for its expressions
 - `dbcatalog → sql` — DbCatalog renders through SqlToSyntax
 - `tabular → json` — CellTableToTable renders json values in cells
-  (**D2 finding**: kept; removing would require a shared primitive-cell
+  (kept; removing would require a shared primitive-cell
   type, larger surgery than the edge)
 
 Everything else is within-slice or points at a lower package
@@ -109,11 +110,11 @@ Everything else is within-slice or points at a lower package
   the app level.
 - **A file does NOT belong in domain** if it targets no specific source
   domain — Sorting, Filtering, ObjectToWidget, etc. are generic and
-  belong in base or visual (they moved there at P8/Q1).
+  belong in base or visual.
 
 ## Testing
 
-Per-slice tests will migrate to `test/<slice>/` at Q4. Until then, the
+Per-slice tests will migrate to `test/<slice>/`. Until then, the
 integration tests continue to run through `ProjecturedTest`. The
 `ProjecturedTest` package houses cross-package pipeline round-trips
 (printer/reader/text-navigation walks) that need the umbrella load.

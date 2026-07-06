@@ -85,7 +85,7 @@ _json_native(j::JsonBool)   = j.value
 _json_native(j::JsonNumber) = j.value
 _json_native(j::JsonString) = String(j.value)
 _json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
-# Iterate the `entries` collection field directly: JsonObject no longer forwards
+# Iterate the `entries` collection field directly: JsonObject does not forward
 # `length` (collection-fold), which the Dict constructor needs to presize the
 # generator, so building the Dict straight off `j` throws.
 _json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) for e in j.entries)
@@ -916,7 +916,7 @@ code blocks are peeled out at the source level so a ```julia / ```json / ```xml 
 `XmlElement` / `YamlDocument`; every run of prose between and around the fences
 (headings, lists, **bold**, `code`, links, …) is parsed by the project's own
 `markdownparse` into a real `MarkdownRoot`. So the assistant's markdown becomes a
-genuine projectured document rather than the flat text it used to degrade to. A
+genuine projectured document rather than flat text. A
 fenced block whose language is unknown or that fails to parse falls back to fenced
 text; a ```markdown block is parsed to `MarkdownRoot` like prose. Nothing here
 throws — a malformed block never breaks the turn.

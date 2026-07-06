@@ -26,12 +26,11 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
                                  (compact surface syntax for building paths)
 ```
 
-Kernel plan P3 merged the former `ReferenceModule` (types + values),
-`ReferenceCaseModule` (`@reference_case`), and `ReferenceBuilderModule`
-(`@reference` / `@step`) into one `ReferenceModule`. The three modules were
-only ever imported together; the split just multiplied import headers. They
-still live in separate files for readability, but as **fragments** (0-module
-files sharing the aggregator's namespace), not separate modules.
+The three fragments are only ever imported together, so they share one
+`ReferenceModule` namespace instead of being separate modules — splitting
+them would just multiply import headers. They still live in separate files
+for readability, but as **fragments** (0-module files sharing the
+aggregator's namespace), not separate modules.
 
 ## Step kinds
 

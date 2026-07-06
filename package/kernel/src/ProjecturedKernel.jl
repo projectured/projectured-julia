@@ -21,55 +21,44 @@ module ProjecturedKernel
 # The include list is a hand-maintained topological sort: every file appears
 # after the modules named in its `import ..XxxModule` headers. The sections
 # below group the files by architectural layer; within a section, order still
-# obeys those dependency edges. Only ProjectionApiModule (api/ProjectionApi.jl) is
-# structurally load-bearing among the api stubs.
+# obeys those dependency edges.
 
 # ── Cell layer (layer 1 — the DAG's dependency-free base) ──────────────────
 # PerformanceCounter (leaf) before the cells, whose reactive kind bumps its
 # `_perf` on the hot path. CellModule is the aggregator; it includes the base
 # type and the three kind files (AbstractCell/ReactiveCell/MutableCell/ImmutableCell).
 # Time is the one global animation clock, a single `Cell` built on the engine
-# above — it belongs beside cells (P1), not with the editor loop that drives it.
+# above — it belongs beside cells, not with the editor loop that drives it.
 include("cell/PerformanceCounter.jl")
 include("cell/CellModule.jl")
 include("cell/Time.jl")
 
 # ── API — abstract types + `function foo end` stubs ────────────────────────
-# Remaining interface modules (Document/Operation/Backend/Device/Projection/
-# IoMap/Agent) are being folded into their owning layers phase by phase; the
-# separate api/ tier will disappear at P10. DocumentApi merged into
-# DocumentModule at P2.
+# ProjectionApi and IoMapApi declare abstract types and open generics up front
+# so lower layers can add methods without a dependency cycle.
 include("projection/ProjectionApi.jl")
 include("projection/IoMapApi.jl")
 
 # ── Document layer (layer 2 — the contract) ────────────────────────────────
 # The Document abstract type, the selection generics, the shared @document
 # machinery. DocumentModule.jl is the aggregator; it includes Interface.jl
-# (the contract fragment) then Document.jl (the machinery fragment). Merged
-# at P2 from the old api/DocumentApi.jl + common/Document.jl.
+# (the contract fragment) then Document.jl (the machinery fragment).
 include("document/DocumentModule.jl")
 
 # ── References, operations ─────────────────────────────────────────────────
-# Reference machinery + operation layer with R1/R2 open seams. Concrete
-# documents (Collection, Primitive, ScreenDocument) and the five
-# document-shaped projections (Sorting, Filtering, Searching, Copying,
-# WindowManaging) moved to package/base at P8; their R1/R2 methods register
-# from there. R6 also completed: the Primitive-op branches of the default
-# read_intent moved to base/projection/ReaderDefaults.jl beside the ops they
-# interpret. The kernel is now free of any concrete document.
+# Reference machinery and the operation layer. These declare open seams
+# (generics) that `package/base` extends for its concrete documents and
+# document-shaped projections; the kernel itself carries no concrete document.
 include("projection/Intent.jl")
 include("projection/IoMap.jl")
 include("reference/ReferenceModule.jl")
 include("operation/OperationModule.jl")
 
 # ── Device layer (layer 5 — input devices, events, gestures) ───────────────
-# The DeviceModule interface (renamed from DeviceApiModule at P5), the
-# modifier/keyboard/mouse event types, and the merged GestureModule (R4: the
-# @event_case macro + parser and the reified GestureBinding/@gestures DSL,
-# formerly two separate modules whose only tie was a documented private edge).
-# GestureModule also owns the rehomed EventEnvelope (R5) — moved out of
-# ScreenDocumentModule so the editor and gesture layers no longer depend on a
-# concrete document type. Display is a dependency-free leaf.
+# The DeviceModule interface, the modifier/keyboard/mouse event types, and
+# GestureModule (the @event_case macro + parser and the reified
+# GestureBinding/@gestures DSL). GestureModule owns EventEnvelope, so the
+# editor and gesture layers don't depend on a concrete document type.
 include("device/Device.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
@@ -77,31 +66,25 @@ include("device/Mouse.jl")
 include("device/GestureModule.jl")
 
 # ── Backend layer (layer 6 — rendering targets, independent of device) ─────
-# BackendModule (renamed from BackendApiModule at P6) declares the abstract
-# Backend, the batch generics (initialize_backend!, quit_backend!, measure_text,
-# write_image, record_video, render_canvas, decode_image, get_pointer_position),
-# and the make_backend factory seam. DisplayModule holds the display-size query
-# with a provider indirection — a rendering concept, moved from device/ at P6.
+# BackendModule declares the abstract Backend, the batch generics
+# (initialize_backend!, quit_backend!, measure_text, write_image, record_video,
+# render_canvas, decode_image, get_pointer_position), and the make_backend
+# factory seam. DisplayModule holds the display-size query with a provider
+# indirection.
 include("backend/Backend.jl")
 include("backend/Display.jl")
 include("backend/HeadlessBackend.jl")
 
-# Kernel plan P8: ScreenDocument moved to package/base beside Collection and
-# Primitive alongside the projection split (its WindowManagingProjection
-# consumer also moved to base/projection/, so the couple stayed together).
-
 # ── Projection infrastructure & algebra ────────────────────────────────────
 # PrinterContext (Reactive + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections, so it leads here.
-# Then the higher-order combinators and the generic projections; Preserving
-# precedes Reversing/Sorting, which build on it.
+# Then the higher-order combinators and the generic projections.
 include("projection/PrinterContext.jl")
-# D5 seam (Q2, 2026-07-06) — open generics for the children container
-# ProjectionTemplate uses; base's Collection.jl adds CellVector methods.
+# Open generics for the children container ProjectionTemplate uses; base's
+# Collection.jl adds the CellVector methods.
 include("projection/ChildrenContainer.jl")
-# R3 (kernel plan P8, completed 2026-07-06) — must load before the
-# combinators (Chaining/Nesting/Recursive/TypeDispatching) that import
-# collect_gesture_bindings from it.
+# Must load before the combinators (Chaining/Nesting/Recursive/TypeDispatching)
+# that import collect_gesture_bindings from it.
 include("projection/GestureBindings.jl")
 include("projection/higherorder/Chaining.jl")
 include("projection/higherorder/TypeDispatching.jl")
@@ -115,8 +98,6 @@ include("projection/generic/Identity.jl")
 include("projection/generic/Reversing.jl")
 include("projection/generic/Constant.jl")
 include("projection/generic/Focusing.jl")
-# The 5 document-shaped projections (Sorting, Filtering, Searching, Copying,
-# WindowManaging) moved to package/base at P8.
 
 # ── Projection defaults & the `@projection` macro ──────────────────────────
 # ProjectionModule holds the four-generic fallbacks and the `@projection`
@@ -124,37 +105,30 @@ include("projection/generic/Focusing.jl")
 # it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
 include("projection/Projection.jl")
 
-# ── ProjectionTemplate (Q2/D5, 2026-07-06) ─────────────────────────────────
-# The builder-and-walk projection-template engine every XToSyntax uses.
-# Moved down from domain at Q2/D5 because it is projection machinery, not
-# per-domain content. Two base leaks were seamed out:
-#   (a) constructive CellVector(...) sites use the D5 children-container
-#       generic (make_children_container / children_container_type);
-#       base's Collection.jl registers CellVector methods.
-#   (b) the ReplaceStringRangeOperation read_intent method moved to
-#       base/projection/ReaderDefaults.jl beside the R6 defaults.
+# ── ProjectionTemplate ─────────────────────────────────────────────────────
+# The builder-and-walk projection-template engine every XToSyntax uses. It is
+# projection machinery, not per-domain content. It keeps two base seams open:
+#   (a) constructive CellVector(...) sites go through the children-container
+#       generic (make_children_container / children_container_type); base's
+#       Collection.jl registers the CellVector methods.
+#   (b) the ReplaceStringRangeOperation read_intent method lives in
+#       base/projection/ReaderDefaults.jl beside the primitive-op defaults.
 include("projection/ProjectionTemplate.jl")
 
-# R3 note: projection/GestureBindings.jl is loaded above (before the
-# higher-order combinators that import from it).
-
 # ── Agent layer (layer 8 — the AI control surface, side-stack) ─────────────
-# AgentModule (renamed from AgentApiModule at P9) declares the make_agent_server
-# / start_agent_server! / stop_agent_server! seam the editor loop reaches
-# through. Llm, ToolRegistry, Mcp are the dependency-free client seams the
-# real transports (opt-in ProjecturedLlm / ProjecturedMcp packages)
-# implement against. The whole agent stack lives in agent/ now (moved from
-# editor/ at P9), matching its position in the DAG.
+# AgentModule declares the make_agent_server / start_agent_server! /
+# stop_agent_server! seam the editor loop reaches through. Llm, ToolRegistry,
+# Mcp are the dependency-free client seams the real transports (opt-in
+# ProjecturedLlm / ProjecturedMcp packages) implement against.
 include("agent/Agent.jl")
 include("agent/Llm.jl")
 include("agent/ToolRegistry.jl")
 include("agent/Mcp.jl")
 
 # ── Editor ─────────────────────────────────────────────────────────────────
-# The read-eval-print loop. GestureRecognizer was moved into device/ at P5
-# (it operates on device event types and the rehomed EventEnvelope; no
-# document coupling). ScreenDevice loads late because it references WindowQuit
-# from ScreenDocumentModule. TimeModule now lives in the cell layer (P1).
+# The read-eval-print loop. GestureRecognizer lives in device/ (it operates on
+# device event types and EventEnvelope; no document coupling). ScreenDevice
+# loads late because it references WindowQuit from ScreenDocumentModule.
 include("device/ScreenDevice.jl")
 include("device/GestureRecognizer.jl")
 include("editor/Editor.jl")

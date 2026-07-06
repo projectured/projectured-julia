@@ -1,7 +1,7 @@
 """
-`HeadlessBackendModule` — the dependency-free in-memory backend introduced by
-kernel plan P6. Exercises the `make_backend` factory registration, the
-lifecycle no-ops, and the write/read/measure I/O paths.
+`HeadlessBackendModule` — the dependency-free in-memory backend. Exercises
+the `make_backend` factory registration, the lifecycle no-ops, and the
+write/read/measure I/O paths.
 """
 
 using Test

@@ -13,7 +13,7 @@ in any single slice"*.
 Layer 1 — document       Collection, Primitive
                          (concrete engine documents everything ships with)
 Layer 2 — projection     Sorting, Filtering, Searching, Copying, ReaderDefaults
-                         (document-shaped generic projections + R6 defaults)
+                         (document-shaped generic projections + reader defaults)
 Layer 3 — serialization  BinarySerialization
                          (domain-independent persistence framework)
 ```
@@ -29,7 +29,7 @@ Machine-enforced by the layered guard in
 
 - **`Collection.jl`** — `CellVector`, `CellMatrix`, `CellTable`,
   `ListNode`: the reactive sequence and grid containers every domain
-  reuses. Registers the R1 seam method
+  reuses. Registers the seam method
   `child_reference_steps(::CellVector)` onto the kernel's
   `OperationModule` so the pre-order document walk driving
   `SelectNextInsertionOperation` picks up CellVector elements without
@@ -39,13 +39,13 @@ Machine-enforced by the layered guard in
   `PrimitiveString`, `PrimitiveInsertion`: the editable
   domain-independent scalar documents with selection + identity. Owns
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, the two
-  splice-range operations, and registers their R2 `reroot_operation`
+  splice-range operations, and registers their `reroot_operation`
   methods onto the kernel's OperationModule.
 
-`ScreenDocument.jl` used to live here but moved to `visual/screen/` at
-Q2 — the couple `ScreenDocument ↔ WindowManagingProjection` belongs in
-visual per the architecture rules (window things are visual; only the
-Screen device and display-size seam stay in the kernel).
+`ScreenDocument.jl` does not live here — the couple `ScreenDocument ↔
+WindowManagingProjection` belongs in `visual/screen/` per the architecture
+rules (window things are visual; only the Screen device and display-size
+seam stay in the kernel).
 
 ### projection — the document-shaped generic projections
 
@@ -60,9 +60,8 @@ but are otherwise domain-agnostic:
   field matches a Regex.
 - **`Copying.jl`** — `CopyingProjection`: domain-independent deep copy
   with iomaps; the workhorse most compound projections build on.
-- **`ReaderDefaults.jl`** (R6) — the Primitive-op branches of the
-  default `read_intent` that split out of `kernel/common/Projection.jl`
-  at P8. Adds more-specific
+- **`ReaderDefaults.jl`** — the Primitive-op branches of the
+  default `read_intent`. Adds more-specific
   `read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods
   that take precedence over the kernel's catch-all via multiple
   dispatch.
@@ -72,9 +71,9 @@ but are otherwise domain-agnostic:
 - **`BinarySerialization.jl`** — exact, lossless binary persistence via
   Julia's `Serialization` stdlib. The one customization: a `Cell`
   serializes as **just its value**, pruning the reactive graph at every
-  cell boundary. Kernel-only imports; moved as-is at Q2 (D4).
+  cell boundary. Kernel-only imports.
 
-Landing at Q2 (D4 seam completion): `NaturalFormat.jl` (framework +
+Planned additions to this layer: `NaturalFormat.jl` (framework +
 per-slice format registry) and `DocumentFile.jl` (extension-dispatched
 entry point). See the plan file for scope.
 
@@ -91,9 +90,9 @@ even though `CellModule` is not defined by any base file.
 
 - `..CellModule`, `..DocumentModule`, `..ReferenceModule`,
   `..OperationModule` (kernel).
-- `..GestureModule` (kernel — for `EventEnvelope` when it was here;
-  no longer needed since Q2 moved ScreenDocument out).
-- `..BackendModule` (kernel — for the `Backend` abstract that Q2's
-  serialization framework might target; currently unused).
+- `..GestureModule` (kernel — alias only; unused now that `ScreenDocument`
+  lives in `visual`, not here).
+- `..BackendModule` (kernel — alias only; the `Backend` abstract a future
+  serialization framework might target, currently unused).
 
 That's the whole import surface. No visual, no domain.

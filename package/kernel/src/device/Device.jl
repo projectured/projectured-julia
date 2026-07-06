@@ -8,9 +8,6 @@ own backend type (e.g. `write_to_devices(::SomeBackend, devices, doc)`). The
 interface itself names no backend type, so `Device` does not depend on
 `Backend` — the two abstractions are independent siblings, and only a
 concrete implementation binds them together.
-
-Renamed from `DeviceApiModule` in kernel plan P5; the old name lives on as an
-alias in `ProjecturedDomain`.
 """
 module DeviceModule
 

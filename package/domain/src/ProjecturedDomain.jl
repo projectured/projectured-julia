@@ -16,46 +16,30 @@ submodule of `ProjecturedDomain`, `..CellModule` resolves through the
 module ProjecturedDomain
 
 using ProjecturedKernel
-# ProjecturedBase — kernel plan P7/P8: concrete engine documents +
-# document-shaped projections.
+# ProjecturedBase — concrete engine documents + document-shaped projections.
 using ProjecturedBase
-# ProjecturedVisual — domain plan Q1: style/graphics/layout/text/widget/
-# syntax/backend slices. Aliases below repoint moved modules to
-# ProjecturedVisual so unmoved domain files keep resolving.
+# ProjecturedVisual — style/graphics/layout/text/widget/syntax/backend slices.
 using ProjecturedVisual
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
-# Kernel plan P6: BackendApiModule renamed to BackendModule; the old name
-# lives on as an alias.
+# Some aliases carry a second, deprecated name (e.g. BackendApiModule) so files
+# that still reference it keep resolving to the canonical module.
 const BackendApiModule = ProjecturedKernel.BackendModule
 const BackendModule = ProjecturedKernel.BackendModule
 const IntentModule = ProjecturedKernel.IntentModule
-# Kernel plan P8 moved the concrete documents + doc-shaped projections to
-# ProjecturedBase. Aliases repoint here so existing domain files (66
-# importers of CollectionModule alone) keep resolving.
 const CollectionModule = ProjecturedBase.CollectionModule
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
-# Kernel plan P5: DeviceApiModule renamed to DeviceModule; the old name is
-# still available here for domain/opt-in files.
 const DeviceApiModule = ProjecturedKernel.DeviceModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const DisplayModule = ProjecturedKernel.DisplayModule
-# Kernel plan P2 merged DocumentApiModule into DocumentModule; the old name
-# stays here as an alias so existing domain/opt-in files keep resolving.
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const TimeModule = ProjecturedKernel.TimeModule
-# Kernel plan P5 (R4): EventCaseModule + GestureBindingModule merged into
-# GestureModule; the old names live on as aliases.
 const EventCaseModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureModule
 const GestureModule = ProjecturedKernel.GestureModule
-# Kernel plan P8 (R3, completed 2026-07-06): the Projection-typed seam
-# methods moved out to their own projection-layer module.
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
-# Q2/D5 (2026-07-06): ProjectionTemplate moved to package/kernel
-# (projection/ProjectionTemplate.jl); the old name lives on as an alias.
 const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
@@ -63,15 +47,11 @@ const KeyboardModule = ProjecturedKernel.KeyboardModule
 const PlaybackModule = ProjecturedKernel.PlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule
 const McpModule = ProjecturedKernel.McpModule
-# Kernel plan P9 renamed AgentApiModule to AgentModule; the old name is
-# still available here for backward compatibility.
 const AgentApiModule = ProjecturedKernel.AgentModule
 const AgentModule = ProjecturedKernel.AgentModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
 const MouseModule = ProjecturedKernel.MouseModule
 const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
-# Kernel plan P4 merged OperationApi/Operation/Rerooting into OperationModule;
-# the old names live on as aliases so existing domain/opt-in files keep resolving.
 const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
@@ -84,8 +64,6 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CellModule = ProjecturedKernel.CellModule
 const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
-# Kernel plan P3 merged ReferenceCase/Builder into ReferenceModule; the old
-# names stay as aliases so existing domain/opt-in files keep resolving.
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
@@ -98,18 +76,14 @@ const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
 const WindowManagingProjectionModule = ProjecturedVisual.WindowManagingProjectionModule
 const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
-# Q2 (2026-07-06): compound aggregates moved to package/base.
 const HigherOrderCompoundModule = ProjecturedBase.HigherOrderCompoundModule
 const GenericCompoundModule = ProjecturedBase.GenericCompoundModule
-# Serialization slice (Q2/D4)
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
 const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingProjectionModule = ProjecturedKernel.TypeDispatchingProjectionModule
 
-# ── Visual aliases (domain plan Q1 — style slice) ─────────────────────────
-# Files moved into ProjecturedVisual; the old names live on here so unmoved
-# domain files (~30 importers of ColorModule alone) keep resolving.
-# Style slice (Q1 sub-commit 1)
+# ── Visual submodule aliases ───────────────────────────────────────────────
+# Style
 const ColorModule = ProjecturedVisual.ColorModule
 const FontModule = ProjecturedVisual.FontModule
 const GeometryModule = ProjecturedVisual.GeometryModule
@@ -117,19 +91,19 @@ const ImageModule = ProjecturedVisual.ImageModule
 const StyleStrokeModule = ProjecturedVisual.StyleStrokeModule
 const StyleTextModule = ProjecturedVisual.StyleTextModule
 
-# Graphics slice (Q1 sub-commit 2). Note: actual on-disk module names do NOT
-# have the "Projection" suffix except where the visual file itself does — the
-# aliases below match the module names in each visual file's `module …` line.
+# Graphics. Note: the on-disk module names do NOT carry the "Projection" suffix
+# except where the visual file itself does — the aliases match the module names
+# in each visual file's `module …` line.
 const GraphicsModule = ProjecturedVisual.GraphicsModule
 const GraphicsCachingModule = ProjecturedVisual.GraphicsCachingModule
 
-# Layout slice (Q1 sub-commit 2)
+# Layout
 const LayoutModule = ProjecturedVisual.LayoutModule
 const ConstraintSolverModule = ProjecturedVisual.ConstraintSolverModule
 const LayoutToGraphicsModule = ProjecturedVisual.LayoutToGraphicsModule
 const CollectionToLayoutModule = ProjecturedVisual.CollectionToLayoutModule
 
-# Text slice (Q1 sub-commit 2)
+# Text
 const TextModule = ProjecturedVisual.TextModule
 const TextToGraphicsModule = ProjecturedVisual.TextToGraphicsModule
 const TextToStringModule = ProjecturedVisual.TextToStringModule
@@ -142,7 +116,7 @@ const SelectionInvertingModule = ProjecturedVisual.SelectionInvertingModule
 const PrimitiveToTextModule = ProjecturedVisual.PrimitiveToTextModule
 const ReferenceToTextModule = ProjecturedVisual.ReferenceToTextModule
 
-# Widget slice (Q1 sub-commit 2)
+# Widget
 const WidgetModule = ProjecturedVisual.WidgetModule
 const WidgetToGraphicsModule = ProjecturedVisual.WidgetToGraphicsModule
 const TextToWidgetModule = ProjecturedVisual.TextToWidgetModule
@@ -151,7 +125,7 @@ const WidgetHoverTrackingProjectionModule = ProjecturedVisual.WidgetHoverTrackin
 const ProjectionConfiguringProjectionModule = ProjecturedVisual.ProjectionConfiguringProjectionModule
 const WidgetPopupResolverProjectionModule = ProjecturedVisual.WidgetPopupResolverProjectionModule
 
-# Syntax slice (Q1 sub-commit 2)
+# Syntax
 const SyntaxModule = ProjecturedVisual.SyntaxModule
 const SyntaxToTextModule = ProjecturedVisual.SyntaxToTextModule
 const SyntaxToWidgetModule = ProjecturedVisual.SyntaxToWidgetModule
@@ -159,27 +133,18 @@ const ObjectToSyntaxModule = ProjecturedVisual.ObjectToSyntaxModule
 const CollectionToSyntaxModule = ProjecturedVisual.CollectionToSyntaxModule
 const PrimitiveToSyntaxModule = ProjecturedVisual.PrimitiveToSyntaxModule
 
-# Backend slice (Q1 sub-commit 3)
+# Backend
 const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
 const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 include("clipboard/OsClipboard.jl")
 include("core/Document.jl")
-# Q1 sub-commit 2: Text/Syntax/Graphics moved to package/visual (text/syntax/
-# graphics slices). Style + Image already moved in sub-commit 1. Available
-# via the visual aliases at the top of this file.
-# ── Q3 slice folders (source slices) ─────────────────────────────────────
-# Each source slice groups a document + its parser + its XToSyntax bridge
-# in one folder. Includes are ordered so any cross-slice edges (e.g.
-# formula→julia, dbcatalog→sql) are satisfied — the plan verifies these
-# form an acyclic slice DAG.
-# ── Q3 slice-folder includes ─────────────────────────────────────────────
-# Each source slice groups a document + its parser + its XToSyntax bridge
-# in one folder. Load order: document/parser/toSyntax within each slice;
-# slices ordered by the acyclic slice DAG the plan verifies
-# (json/xml/yaml/julia/math/markdown/book independent; formula → julia;
-# dbcatalog → sql; tabular → json).
+# Each source slice groups a document + its parser + its XToSyntax bridge in one
+# folder. Load order: document/parser/toSyntax within each slice; slices ordered
+# so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book
+# independent; formula → julia; dbcatalog → sql; tabular → json) — an acyclic
+# slice DAG.
 include("json/Json.jl")
 include("yaml/Yaml.jl")
 include("gesturemap/GestureMap.jl")
@@ -215,13 +180,9 @@ include("inspector/ReferenceInspector.jl")
 include("dragging/Dragging.jl")
 include("tooltip/TooltipDecorator.jl")
 include("gesturemap/GestureHelpDecorator.jl")
-# Q2 (2026-07-06): ScreenToScreen moved to package/visual (screen slice).
 include("clipboard/ClipboardToAny.jl")
 include("versioning/VersioningToAny.jl")
 include("dragging/DraggingProjection.jl")
-# Q2/D5 (2026-07-06): ProjectionTemplate moved to package/kernel
-# (projection/ProjectionTemplate.jl). Aliased below so domain files that
-# import ..ProjectionTemplateModule keep resolving.
 include("json/JsonToSyntax.jl")
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
@@ -252,9 +213,6 @@ include("workbench/WorkbenchToWidget.jl")
 include("insertion/NaturalProjection.jl")
 include("naturalformat/NaturalFormat.jl")
 include("naturalformat/DocumentFile.jl")
-# Q2 (2026-07-06): compound/HigherOrder + compound/Generic moved to
-# package/base (base/projection/HigherOrderCompound.jl +
-# base/projection/GenericCompound.jl). No domain content.
 include("database/DatabaseAdapters.jl")
 include("conversation/ConversationEditor.jl")
 include("workbench/WorkbenchAssistant.jl")

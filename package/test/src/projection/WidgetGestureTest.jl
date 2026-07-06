@@ -41,7 +41,7 @@ _bproj() = ChainingProjection(
     iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
     @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
-    # Right-click — previously `nothing` — now fires the custom binding.
+    # Right-click fires the custom binding.
     op = read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers()))
     @test op isa InvokeWidgetActionOperation && op.widget === btn
     evaluate_operation(_WidgetGestureMockEditor(btn), op)

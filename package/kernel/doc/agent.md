@@ -15,13 +15,7 @@ ToolRegistry.jl  (ToolRegistryModule) — in-process registry of Tools + Resourc
 Mcp.jl           (McpModule)          — MCP server skeleton + doc-introspection tools
 ```
 
-Kernel plan P9 renamed `AgentApiModule` → `AgentModule` (dropping the `Api`
-suffix as the other layers have) and moved the four files from `editor/`
-into `agent/` — matching their layer position in the DAG. The editor loop
-was importing them from a lower-numbered folder even though the DAG had
-`editor → agent` (via the `make_agent_server` seam), which was misleading.
-
-## AgentModule (renamed from AgentApiModule)
+## AgentModule
 
 The `Backend`-style seam: `make_agent_server(kind::Symbol, editor; kwargs...)`
 dispatches on `Val(kind)`; concrete servers register `Val{:mcp}` etc. in

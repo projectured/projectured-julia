@@ -21,10 +21,8 @@
 #      often it is called, and forces the result so the lazy child cells run.
 #      A node whose input has projectable children MUST call the spy at least
 #      once; a projection that flattens its subtree (ignores `recursion`) never
-#      does — which is exactly how `SyntaxNodeToText`/`SyntaxListToText` used to
-#      break the contract. The delegation refactor
-#      (plan/done/syntaxtotext-delegation.md) fixed them, so there are no known
-#      flatteners left and every probed node is now a plain `@test`.
+#      does. There are no known flatteners, so every probed node is a plain
+#      `@test`.
 #
 #   2. Reference reachability + round-trip.  For every content caret enumerated
 #      from the document, `map_reference_forward` must yield an image (the
@@ -67,10 +65,9 @@ function _should_delegate(input)
     false
 end
 
-# No known flatteners remain: `SyntaxNodeToText` / `SyntaxListToText` were the last
-# two and the delegation refactor (plan/done/syntaxtotext-delegation.md) fixed them,
-# so every probed node projection is now asserted with a plain `@test`. Kept as a
-# hook: add a name here to record a *new* flattener as `@test_broken` until fixed.
+# No known flatteners exist, so every probed node projection is asserted with a
+# plain `@test`. Kept as a hook: add a name here to record a *new* flattener as
+# `@test_broken` until fixed.
 _is_known_flattener(p) = nameof(typeof(p)) in ()
 
 # Collect every IoMap reachable from `iomap`, forcing cells along the way, so we

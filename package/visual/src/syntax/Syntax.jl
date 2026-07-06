@@ -268,7 +268,7 @@ SyntaxLeaf(value::AbstractString; kwargs...) = SyntaxLeaf(TextString(value); kwa
 SyntaxLeaf(f::Function; kwargs...) =
     SyntaxLeaf(TextString(f, font_ubuntu_monospace_regular_20, color_default); kwargs...)
 
-# Positional delimiter forms retained for callers not yet migrated to keywords.
+# Positional delimiter forms, kept for callers that use them instead of keywords.
 SyntaxLeaf(open::TextString, close::TextString, value::TextString) =
     SyntaxLeaf(open, close, value, 0, false, nothing)
 
@@ -324,7 +324,7 @@ SyntaxNode(children; open=TextString(""), close=TextString(""), sep=TextString("
     SyntaxNode(_text(open), _text(close), _text(sep), _children(children),
                indentation, collapsed, selection)
 
-# Positional delimiter forms retained for callers not yet migrated to keywords.
+# Positional delimiter forms, kept for callers that use them instead of keywords.
 SyntaxNode(open::TextString, close::TextString, sep::TextString,
       children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
     SyntaxNode(open, close, sep, CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
