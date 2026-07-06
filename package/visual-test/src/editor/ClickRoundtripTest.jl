@@ -174,9 +174,6 @@ function test_click_roundtrip(label, document, projection)
     end
 end
 
-# The `Example`-typed overload and the sweep (`test_click_roundtrips`) live in
-# the `ProjecturedTest` umbrella, which owns the example registry.
-
 # ── Keyboard nav invariants ────────────────────────────────────────────────
 
 """
@@ -231,3 +228,10 @@ end
 # The `Example`-typed overload and the sweep (`test_text_nav_invariants_all`)
 # live in the `ProjecturedTest` umbrella; the JSON content-click checks live
 # beside the JSON domain (JsonContentClicksTest.jl, → domain-test in phase 3).
+
+# The `Example`-typed overloads; the sweeps stay in the umbrella.
+test_click_roundtrip(example::Example) =
+    test_click_roundtrip(example.name, example.document, example.projection)
+
+test_text_nav_invariants(example::Example) =
+    test_text_nav_invariants(example.name, example.document, example.projection)

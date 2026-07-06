@@ -1,5 +1,5 @@
-using Projectured.DocumentModule: Document
-using Projectured.ReferenceModule: Reference
+using ProjecturedKernel.DocumentModule: Document
+using ProjecturedKernel.ReferenceModule: Reference
 
 @document struct Address
     street::String

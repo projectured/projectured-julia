@@ -178,14 +178,6 @@ end
 
 # ── typein ───────────────────────────────────────────────────────────────────
 
-# Build fresh document / projection instances. `walk_typein` mutates the
-# document (it types characters into every string), and in `test_all` this runs
-# after the other reader/repl tests which share the global `example.document`;
-# starting from a pristine document keeps the exact-string assertions reliable.
-function test_typein(example::Example)
-    test_typein(example.name, example.make_document(), example.make_projection())
-end
-
 function test_typeins()
     @testset "Typeins" begin
         # The walk builds input-domain cursor targets by field/index name and
@@ -205,9 +197,6 @@ function test_typeins()
 end
 
 # ── click roundtrip ──────────────────────────────────────────────────────────
-
-test_click_roundtrip(example::Example) =
-    test_click_roundtrip(example.name, example.document, example.projection)
 
 """
     test_click_roundtrips()
@@ -252,9 +241,6 @@ end
 
 
 # ── keyboard nav invariants ──────────────────────────────────────────────────
-
-test_text_nav_invariants(example::Example) =
-    test_text_nav_invariants(example.name, example.document, example.projection)
 
 function test_text_nav_invariants_all()
     @testset "TextNavInvariants" begin

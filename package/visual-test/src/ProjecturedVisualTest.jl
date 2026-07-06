@@ -28,6 +28,9 @@ import ProjecturedBase
 import ProjecturedVisual
 using ProjecturedKernelTest
 using ProjecturedBaseTest
+# The real visual-tier example factories and the tier's registry slice — the
+# mirrored Fixtures.jl copies are gone (plan/pending/example-package-split.md).
+using ProjecturedVisualExample
 import ProjecturedBaseTest: _text_leaf_length
 
 # The tests below were written against the flat `Projectured` namespace. Build
@@ -53,8 +56,6 @@ for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
 end
 
 # ── visual documents ─────────────────────────────────────────────────────────
-include("Fixtures.jl")
-
 include("document/SyntaxTest.jl")
 include("document/TextTest.jl")
 include("document/GraphicsTest.jl")
@@ -115,11 +116,13 @@ end
 """
     test_visual()
 
-Run the whole visual suite: the static layering guard and every visual test.
+Run the whole visual suite: the static layering guard, every visual test, and
+the printer walk over the tier's own examples.
 """
 function test_visual()
     @testset "ProjecturedVisual" begin
         test_visual_layering()
+        test_visual_examples()
         # documents
         test_syntax()
         test_text()
@@ -160,7 +163,23 @@ function test_visual()
     end
 end
 
-export test_visual, test_visual_layering
+"""
+    test_visual_examples()
+
+Walk the printer over every visual-tier example (`visual_examples`) — one
+`@test` per forced reactive cell, via the generic `test_printer` driver.
+"""
+function test_visual_examples()
+    @testset "VisualExamples" begin
+        for ex in visual_examples
+            @testset "\$(ex.name)" begin
+                test_printer(ex)
+            end
+        end
+    end
+end
+
+export test_visual, test_visual_layering, test_visual_examples
 export test_syntax, test_text, test_graphics, test_affine_transform,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive

@@ -6,8 +6,23 @@ using Profile
 # points) lives at the bottom of the example-package DAG; the name-lookup
 # variants defined here add methods to the imported functions.
 using ProjecturedKernelExample
+using ProjecturedVisualExample
 import ProjecturedKernelExample: Example, write_example_image, record_example_video,
                                  make_typein_gestures
+import ProjecturedVisualExample: print_example, write_example_pdf
+
+# Re-export the lower example packages' entire public API so
+# `using ProjecturedExample` keeps providing every example and factory
+# unchanged — the per-name `import` form also lets this module add the
+# name-lookup method variants below.
+for _src in (ProjecturedKernelExample, ProjecturedVisualExample)
+    _srcname = nameof(_src)
+    for _n in names(_src)
+        _n === _srcname && continue
+        Core.eval(@__MODULE__, Expr(:import, Expr(:(:), Expr(:., _srcname), Expr(:., _n))))
+        Core.eval(@__MODULE__, Expr(:export, _n))
+    end
+end
 # Loaded for its side effect: registers `stream_turn(::AnthropicLlm, …)` on the
 # kernel LLM seam so the assistant example can use a real Claude model when
 # ANTHROPIC_API_KEY is set (otherwise the agent loop falls back to FakeLlm).
@@ -25,34 +40,20 @@ include(joinpath(_EXAMPLE_DIR, "document", "Yaml.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Xml.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Mixed.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Syntax.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Text.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Object.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "ObjectToWidget.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "LineNumbering.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "TextToString.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "WordWrapping.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "TextFiltering.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "TextHighlighting.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Widget.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Book.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Markdown.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "FileSystem.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Navigator.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Collection.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Conversation.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Table.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Graph.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Wrapper.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "DatabaseInstance.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "document", "Clipboard.jl"))
@@ -66,43 +67,24 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Graph.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Xml.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Mixed.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Syntax.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Text.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Object.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "ObjectToWidget.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "LineNumbering.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "TextToString.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "WordWrapping.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "TextFiltering.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "TextHighlighting.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Widget.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Layout.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Book.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Markdown.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "FileSystem.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Navigator.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Collection.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Reversing.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Filtering.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Searching.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Sorting.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Workbench.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Assistant.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Conversation.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Lazy.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Math.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Julia.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Formula.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Wrapper.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Primitive.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Sql.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
 include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
 
-include(joinpath(_EXAMPLE_DIR, "document", "RotatingVector.jl"))
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))

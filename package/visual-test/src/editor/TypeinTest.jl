@@ -264,5 +264,13 @@ function test_typein(label, document, projection)
     end
 end
 
-# The `Example`-typed overload and the sweep (`test_typeins`) live in the
-# `ProjecturedTest` umbrella, which owns the example registry.
+
+# The `Example`-typed overload; the sweep (`test_typeins`) stays in the
+# umbrella, which owns the example registry.
+# Build fresh document / projection instances. `walk_typein` mutates the
+# document (it types characters into every string), and in `test_all` this runs
+# after the other reader/repl tests which share the global `example.document`;
+# starting from a pristine document keeps the exact-string assertions reliable.
+function test_typein(example::Example)
+    test_typein(example.name, example.make_document(), example.make_projection())
+end

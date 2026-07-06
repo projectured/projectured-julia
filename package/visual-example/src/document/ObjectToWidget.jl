@@ -1,6 +1,6 @@
-using Projectured.DocumentModule: Document
-using Projectured.DocumentModule: @document
-using Projectured.ReferenceModule: Reference
+using ProjecturedKernel.DocumentModule: Document
+using ProjecturedKernel.DocumentModule: @document
+using ProjecturedKernel.ReferenceModule: Reference
 
 # A small settings object whose scalar Cell fields ObjectToWidget reflects into
 # an editable widget form: the String becomes an editable text field, each Bool

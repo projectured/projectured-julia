@@ -761,7 +761,7 @@ uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["Profile", "Projectured", "ProjecturedKernelExample", "ProjecturedLlm"]
+deps = ["Profile", "Projectured", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedVisualExample"]
 path = "package/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
@@ -849,8 +849,14 @@ path = "package/visual"
 uuid = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 version = "0.1.0"
 
+[[deps.ProjecturedVisualExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual"]
+path = "package/visual-example"
+uuid = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+version = "0.1.0"
+
 [[deps.ProjecturedVisualTest]]
-deps = ["ProjecturedBase", "ProjecturedBaseTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedVisual", "Test"]
+deps = ["ProjecturedBase", "ProjecturedBaseTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedVisual", "ProjecturedVisualExample", "Test"]
 path = "package/visual-test"
 uuid = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 version = "0.1.0"

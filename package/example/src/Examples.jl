@@ -11,69 +11,12 @@ const yaml_example           = Example("yaml",           make_yaml_document_exam
 const xml_example            = Example("xml",            make_xml_document_example,            make_xml_projection_example)
 const mixed_example          = Example("mixed",          make_mixed_document_example,          make_mixed_projection_example)
 const natural_example        = Example("natural",        make_natural_document_example,        make_natural_projection_example)
-const syntax_example         = Example("syntax",         make_syntax_document_example,         make_syntax_projection_example)
-const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
-const plain_text_example     = Example("plain_text",     make_plain_text_document_example,     make_plain_text_projection_example)
-const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
-const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
-const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
-const nested_object_to_widget_example = Example("nested_object_to_widget", make_nested_object_to_widget_document_example, make_object_to_widget_projection_example)
-const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
-const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
-const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
-const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
-const widget_example         = Example("widget",         make_widget_document_example,         make_widget_projection_example)
-const widget_label_example       = Example("widget_label",       make_widget_label_document_example,       make_widget_projection_example)
-const widget_text_example        = Example("widget_text",        make_widget_text_document_example,        make_widget_text_projection_example)
-const widget_checkbox_example    = Example("widget_checkbox",    make_widget_checkbox_document_example,    make_widget_projection_example)
-const widget_button_example      = Example("widget_button",      make_widget_button_document_example,      make_widget_projection_example)
-const widget_button_action_example = Example("widget_button_action", make_widget_button_action_document_example, make_widget_projection_example)
-const widget_button_image_example  = Example("widget_button_image",  make_widget_button_image_document_example,  make_widget_projection_example)
-const widget_tooltip_example     = Example("widget_tooltip",     make_widget_tooltip_document_example,     make_widget_projection_example)
-const widget_menu_item_example   = Example("widget_menu_item",   make_widget_menu_item_document_example,   make_widget_projection_example)
-const widget_menu_example        = Example("widget_menu",        make_widget_menu_document_example,        make_widget_projection_example)
-const widget_toolbar_example     = Example("widget_toolbar",     make_widget_toolbar_document_example,     make_widget_projection_example)
-const widget_composite_example   = Example("widget_composite",   make_widget_composite_document_example,   make_widget_projection_example)
-const widget_title_pane_example  = Example("widget_title_pane",  make_widget_title_pane_document_example,  make_widget_projection_example)
-const widget_split_pane_example  = Example("widget_split_pane",  make_widget_split_pane_document_example,  make_widget_projection_example)
-const widget_scroll_bar_example  = Example("widget_scroll_bar",  make_widget_scroll_bar_document_example,  make_widget_projection_example)
-const widget_scroll_pane_example = Example("widget_scroll_pane", make_widget_scroll_pane_document_example, make_widget_projection_example)
-const widget_transform_pane_example = Example("widget_transform_pane", make_widget_transform_pane_document_example, make_widget_projection_example)
-const widget_shell_example       = Example("widget_shell",       make_widget_shell_document_example,       make_widget_projection_example)
-const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
-const widget_badge_example       = Example("widget_badge",       make_widget_badge_document_example,       make_widget_projection_example)
-const widget_separator_example   = Example("widget_separator",   make_widget_separator_document_example,   make_widget_projection_example)
-const widget_card_example        = Example("widget_card",        make_widget_card_document_example,        make_widget_projection_example)
-const widget_switch_example      = Example("widget_switch",      make_widget_switch_document_example,      make_widget_projection_example)
-const widget_progress_example    = Example("widget_progress",    make_widget_progress_document_example,    make_widget_projection_example)
-const widget_slider_example      = Example("widget_slider",      make_widget_slider_document_example,      make_widget_projection_example)
-const widget_radio_group_example = Example("widget_radio_group", make_widget_radio_group_document_example, make_widget_projection_example)
-const widget_avatar_example      = Example("widget_avatar",      make_widget_avatar_document_example,      make_widget_projection_example)
-const widget_alert_example       = Example("widget_alert",       make_widget_alert_document_example,       make_widget_projection_example)
-const widget_skeleton_example    = Example("widget_skeleton",    make_widget_skeleton_document_example,    make_widget_projection_example)
-const widget_toggle_example      = Example("widget_toggle",      make_widget_toggle_document_example,      make_widget_projection_example)
-const widget_toggle_group_example = Example("widget_toggle_group", make_widget_toggle_group_document_example, make_widget_projection_example)
-const widget_select_example      = Example("widget_select",      make_widget_select_document_example,      make_widget_projection_example)
-const widget_textarea_example    = Example("widget_textarea",    make_widget_textarea_document_example,    make_widget_projection_example)
-const widget_accordion_example   = Example("widget_accordion",   make_widget_accordion_document_example,   make_widget_projection_example)
-const widget_table_example       = Example("widget_table",       make_widget_table_document_example,       make_widget_projection_example)
-const widget_tree_example        = Example("widget_tree",        make_widget_tree_document_example,        make_widget_projection_example)
-const widget_disabled_example    = Example("widget_disabled",    make_widget_disabled_document_example,    make_widget_projection_example)
-const widget_focus_example       = Example("widget_focus",       make_widget_focus_document_example,       make_widget_projection_example)
-const widget_popup_example       = Example("widget_popup",       make_widget_popup_document_example,       make_widget_popup_projection_example)
-const layout_example         = Example("layout",         make_layout_document_example,         make_layout_projection_example)
-const constraint_layout_example = Example("constraint_layout", make_constraint_layout_document_example, make_constraint_layout_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
 const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
 const filesystem_widget_example = Example("filesystem_widget", make_filesystem_document_example, make_filesystem_widget_projection_example)
 const navigator_example      = Example("navigator",      make_navigator_document_example,      make_navigator_projection_example)
-const collection_example     = Example("collection",     make_collection_document_example,     make_collection_projection_example)
-const reversing_example      = Example("reversing",      make_collection_document_example,     make_reversing_projection_example)
-const filtering_example      = Example("filtering",      make_collection_document_example,     make_filtering_projection_example)
-const searching_example      = Example("searching",      make_collection_document_example,     make_searching_projection_example)
-const sorting_example        = Example("sorting",        make_collection_document_example,     make_sorting_projection_example)
 const focusing_example       = Example("focusing",       make_focusing_document_example,       make_focusing_projection_example)
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
@@ -85,12 +28,9 @@ const workbench_example      = Example("workbench",      make_workbench_document
 # test_repls), which walk a document exhaustively, would never terminate and would
 # exhaust memory. Use them directly (e.g. `run_example(lazy_example)`); do not add
 # them to `examples`.
-const lazy_example           = Example("lazy",           make_lazy_document_example,           make_lazy_projection_example)
-const lazy_bidirectional_example = Example("lazy_bidirectional", make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example)
 const math_example           = Example("math",           make_math_document_example,           make_math_projection_example)
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
-const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=283)
 const conversation_example   = Example("conversation",   make_conversation_document_example,   make_conversation_projection_example; render_width=1200, render_height=600)
 const conversation_widget_example = Example("conversation_widget", make_conversation_document_example, make_conversation_widget_projection_example; render_width=1200, render_height=700)
@@ -130,7 +70,6 @@ const formula_example        = Example("formula",         make_formula_document_
 # `run_example(versioning_example)`.
 const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
 
-const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, IdentityProjection)
 
 const examples = [
     json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example,
@@ -618,12 +557,6 @@ function run_example(names::Vector{<:AbstractString}; kwargs...)
     run_example(selected; kwargs...)
 end
 
-function print_example(example::Example)
-    iomap = print_document(example.projection, example.document)
-    output = iomap.output
-    println(print_object(output isa Cell ? output[] : output; open_delimiter="{", close_delimiter="}"))
-end
-
 function print_example(name="json")
     idx = findfirst(ex -> ex.name == name, examples)
     if idx === nothing
@@ -685,20 +618,6 @@ function write_example_image(name="json", filename=tempname()*".bmp"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
     write_example_image(examples[idx], filename; kwargs...)
-end
-
-# Render an example to a vector PDF. Reuses the example's own (SDL-measured)
-# projection for layout parity with the on-screen / `write_image` view; unlike
-# `write_image`, `write_pdf` does not initialize SDL itself, so we bring it up
-# here for the projection's `truetype_measure_text`.
-function write_example_pdf(example::Example, filename;
-                           width=nothing, height=nothing,
-                           max_width=1800, max_height=1200, kwargs...)
-    initialize_backend!(make_backend(:sdl))
-    write_pdf(example.document, example.projection, filename;
-              width=width, height=height,
-              max_width=max_width, max_height=max_height,
-              measure=truetype_measure_text, kwargs...)
 end
 
 function write_example_pdf(name="json", filename=tempname()*".pdf"; kwargs...)
