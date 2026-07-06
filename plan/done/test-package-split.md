@@ -1,5 +1,37 @@
 # Test package split
 
+> **Status: done.** All five phases implemented. Classification deviations,
+> resolved at move time per the lowest-home rule (the plan's design principle 1):
+>
+> - `TypeReferenceTest` builds JSON fixtures → domain-test (plan guessed kernel).
+> - `SelectionInvertingTest`, `ProjectionConfiguringTest`, `PrimitiveTest` use
+>   visual vocabulary (SelectionInverting/ProjectionConfiguring projections,
+>   PrimitiveStringToSyntaxLeaf) → visual-test (plan guessed base).
+> - `ClipboardToAnyTest` / `VersioningToAnyTest`: the Clipboard/Versioning
+>   projections live in domain → domain-test (plan guessed base).
+> - `SerializationTest` drives ProjecturedExample fixtures + domain parsers →
+>   stays in the umbrella (plan guessed base).
+> - `ConsoleBackendTest` / `PdfTest` / `TableSelectionTest` drive JSON/tabular
+>   pipelines → domain-test (plan guessed visual).
+> - `ProjectionTemplateTest` needs only visual vocabulary → visual-test
+>   (plan guessed domain); `FocusingTest` is kernel-only → kernel-test.
+> - The type-in and click-roundtrip drivers walk TextToGraphics output, so
+>   their generic bodies live in visual-test, not kernel-test; the JSON
+>   content-click checks live in domain-test.
+> - Widget/layout/json/table/graph fixture factories the moved tests need are
+>   mirrored from ProjecturedExample into each test package's `Fixtures.jl`
+>   (the future-phase example split makes this a no-op swap).
+>
+> Known pre-existing failures surfaced by running the suites (identical under
+> plain `using Projectured`, i.e. not caused by the split): SyntaxToTextTest's
+> flat-position round-trip (`_pos_to_selection` was deleted by the School-A
+> refactor), ProjectionConfiguringTest's end-to-end suites (never ran — dead
+> `ProjectionApiModule.Intent` name, fixed to `IntentModule.Intent`, which
+> exposed behavioral drift), TabularTest + ClipboardToAnyTest (@document
+> constructor drift from the cell-kinds refactor), XmlToSyntax attribute
+> escaping, SqlToSyntax INSERT/UPDATE reference round-trip, and
+> TableSelection highlight-band geometry.
+
 Replace the monolithic `package/test` (`ProjecturedTest`, 102 files) with a set of
 **explicit test packages** that mirror the source-package DAG. Each test package
 depends on the runtime package it tests plus `Test`, and reuses the generic test
@@ -122,7 +154,7 @@ aggregator → **delete the old copy** (umbrella and/or `package/*/test/`) → r
 `test_<layer>()` from the root env **and** confirm the umbrella still loads → commit.
 (Memory: precompile-green ≠ loads — verify with an actual `using`.)
 
-- [ ] **Phase 0 — `ProjecturedKernelTest`.** Create `package/kernel-test/`
+- [x] **Phase 0 — `ProjecturedKernelTest`.** Create `package/kernel-test/`
   (Project.toml with the UUID above, deps `ProjecturedKernel` + `Test`). Move the
   generic driver bodies out of the umbrella's `editor/{PrinterTest,ReaderTest,ReplTest,
   TextNavigationTest,SyntaxTreeNavigationTest,TypeinTest,ClickRoundtripTest}.jl` into
@@ -132,20 +164,20 @@ aggregator → **delete the old copy** (umbrella and/or `package/*/test/`) → r
   and kernel's `[extras]`/`[targets]`. Point the umbrella at `using ProjecturedKernelTest`
   (drop moved driver bodies; keep `Example` overloads + sweeps). Verify `test_kernel()`
   and umbrella load.
-- [ ] **Phase 1 — `ProjecturedBaseTest`.** `package/base-test/` (deps `ProjecturedBase`,
+- [x] **Phase 1 — `ProjecturedBaseTest`.** `package/base-test/` (deps `ProjecturedBase`,
   `ProjecturedKernelTest`, `Test`). Move `PrimitiveTest`, reconcile `CollectionTest`,
   `SerializationTest`, generic projections; `test_base()` (calls `check_layering` on
   base src). Delete `package/base/test/` + umbrella copies.
-- [ ] **Phase 2 — `ProjecturedVisualTest`** (largest). `package/visual-test/` (deps
+- [x] **Phase 2 — `ProjecturedVisualTest`** (largest). `package/visual-test/` (deps
   `ProjecturedVisual`, `ProjecturedBaseTest`, `Test`). Move docs + Console/Pdf/DirtyRect
   backends + text/graphics/widget projection tests on local fixtures + kernel drivers;
   `test_visual()`. Delete `package/visual/test/` + umbrella copies.
-- [ ] **Phase 3 — `ProjecturedDomainTest`.** `package/domain-test/` (deps
+- [x] **Phase 3 — `ProjecturedDomainTest`.** `package/domain-test/` (deps
   `ProjecturedDomain`, `ProjecturedVisualTest`, `Test`). Move json/xml/sql docs +
   parsers + `*_to_syntax` + graph; build the domain examples here and drive them with
   `test_printer(json_example)`; `test_domain()`. Delete `package/domain/test/` + umbrella
   copies.
-- [ ] **Phase 4 — umbrella shrink & docs.** `ProjecturedTest` deps the four `*Test`
+- [x] **Phase 4 — umbrella shrink & docs.** `ProjecturedTest` deps the four `*Test`
   packages + runtime stack; `test_all()` = `test_kernel();test_base();test_visual();
   test_domain();` + the remaining integration tests. Keep `Example`-typed overloads.
   Update `CLAUDE.md` "Testing a change" + `documentation/testing.md` for the new

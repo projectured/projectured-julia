@@ -49,6 +49,10 @@ import ProjecturedVisualTest: test_projection_template_hygiene,
                               test_click_roundtrip, test_text_nav_invariants,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
                               _seg_x_at, _path_contains_projection_ref
+import ProjecturedKernelTest: test_kernel
+import ProjecturedBaseTest: test_base
+import ProjecturedVisualTest: test_visual
+import ProjecturedDomainTest: test_domain
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               test_text_navigation, test_tree_navigation,
                               collect_text_selections, collect_tree_selections,
@@ -137,103 +141,64 @@ include("external/DbCatalogSqlTest.jl")
 include("external/DbCatalogSyntaxTest.jl")
 include("serializer/SerializationTest.jl")
 
+"""
+    test_documents()
+
+Umbrella-only document suites — the per-layer document tests now run inside
+`test_kernel()` / `test_base()` / `test_visual()` / `test_domain()`.
+"""
 function test_documents()
     @testset "Documents" begin
-        test_json()
-        test_syntax()
-        test_text()
-        test_graphics()
-        test_affine_transform()
-        test_graphics_layout()
-        test_layout_allocator()
-        test_layout_constraint_helpers()
-        test_constraint_solver()
-        test_collection()
-        test_tabular()
-        test_primitive()
-        test_json_parser()
-        test_xml_parser()
-        test_sql_parser()
-        test_sql_document()
-        test_serialization()
+        test_constraint_solver()     # Tulip-backed LP constraint layout
+        test_serialization()         # round-trips the ProjecturedExample fixtures
     end
 end
 
+"""
+    test_projections()
+
+Umbrella-only projection suites (example/editor/SDL-coupled) — the per-layer
+projection tests now run inside `test_visual()` / `test_domain()`.
+"""
 function test_projections()
     @testset "Projections" begin
-        test_projection_template_hygiene()
         test_template_structural_locality()
         test_graphics_structural_locality()
-        test_json_to_syntax()
-        test_json_to_syntax_reader()
-        test_json_gesture_collection()
         test_gesture_map()
         test_gesture_help()
-        test_formula_to_syntax()
-        test_sql_to_syntax()
-        test_sql_to_syntax_selection()
-        test_sql_insert_update_selection()
-        test_sql_ddl()
-        test_sql_ddl_selection()
         test_db_catalog_sql()
-        test_xml_to_syntax()
-        test_xml_to_syntax_reader()
-        test_syntax_to_text()
-        test_syntax_tree_selection()
-        test_filesystem_to_syntax()
-        test_table_selection()
-        test_graph()
-        test_primitive_to_text()
-        test_text_to_graphics()
-        test_word_wrapping()
-        test_text_filtering()
-        test_text_highlighting()
-        test_selection_inverting()
-        test_object_to_widget()
-        test_projection_configuring()
-        test_widget_text_editing()
-        test_widget_button_behavior()
-        test_widget_gestures()
-        test_widget_select_dropdown()
-        test_widget_menu()
-        test_widget_context_menu()
-        test_widget_dialog()
-        test_widget_action()
-        test_widget_icon()
-        test_widget_tree()
-        test_widget_toolbar()
-        test_widget_table()
-        test_layout_closeout()
-        test_widget_forms()
         test_widget_popup_example()
-        test_copying_projection()
-        test_clipboard_to_any()
-        test_versioning_to_any()
         test_tooltip()
         test_reference_inspector_text()
         test_hover_probe()
         test_hover_probe_pipeline()
         test_split_pane_drag()
         test_workbench_tab_click()
-        test_widget_transform_pane()
         test_dragging()
-        test_anchor_point()
         test_write_image()
         test_record_video()
-        test_write_pdf()
         test_dirty_rect()
     end
 end
 
+"""
+    test_all()
+
+The full suite: the four per-layer test packages
+(`test_kernel`/`test_base`/`test_visual`/`test_domain`), then the umbrella's
+full-stack integration tests (examples, editor loop, SDL/Tulip/Video-coupled
+suites, live-DB-optional checks).
+"""
 function test_all()
     @testset "Projectured" begin
-    # test_cell + test_reference_builder live in package/kernel/test/; run
-    # with `Pkg.test("ProjecturedKernel"; test_args=["cell","reference"])`.
-    test_type_reference()
-    test_event_case()
-    test_gesture_binding()
-    test_focusing()
-    test_console_backend()
+    # The per-layer suites (kernel unit tests, base/visual/domain documents and
+    # projections, the four layering guards).
+    test_kernel()
+    test_base()
+    test_visual()
+    test_domain()
+    # Umbrella integration: everything below needs the example registry, the
+    # editor loop, or an opt-in backend package (Sdl/Tulip/Odbc/Video).
     test_gesture_recognizer()
     test_documents()
     test_projections()
@@ -277,6 +242,7 @@ function test_table()
 end
 
 export test_all
+export test_kernel, test_base, test_visual, test_domain
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_tabular, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene

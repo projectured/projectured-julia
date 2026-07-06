@@ -1,8 +1,37 @@
 # Testing in the REPL
 
-The test suite is structured as a regular Julia package
-([test/src/ProjecturedTest.jl](../package/test/src/ProjecturedTest.jl)) whose
-top-level functions are *all callable directly from the REPL*. There is no
+The test suite is a DAG of **test packages** that parallels the runtime
+package DAG (see [plan/done/test-package-split.md](../plan/done/test-package-split.md)):
+
+```
+runtime:  ProjecturedKernel ← ProjecturedBase ← ProjecturedVisual ← ProjecturedDomain ← Projectured ← {Example, Sdl, …}
+tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTest ← ProjecturedDomainTest ← ProjecturedTest
+```
+
+- [package/kernel-test](../package/kernel-test/src/ProjecturedKernelTest.jl) —
+  kernel unit tests + the **shared generic drivers** (`test_printer`,
+  `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
+  static `check_layering` guard. Aggregator: `test_kernel()`.
+- [package/base-test](../package/base-test/src/ProjecturedBaseTest.jl) —
+  collection/copying tests + the ground-truth selection enumerators.
+  Aggregator: `test_base()`.
+- [package/visual-test](../package/visual-test/src/ProjecturedVisualTest.jl) —
+  syntax/text/graphics/layout documents, text/graphics/widget projections, the
+  type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
+- [package/domain-test](../package/domain-test/src/ProjecturedDomainTest.jl) —
+  json/xml/sql/tabular documents and parsers, the `*ToSyntax` projections,
+  graph, and the domain-fixture-driven Console/Pdf/table/TypeReference suites.
+  Aggregator: `test_domain()`.
+- [package/test](../package/test/src/ProjecturedTest.jl) — the umbrella:
+  the `Example`-typed driver overloads, the all-examples sweeps, and every
+  full-stack integration suite that needs the editor loop or an opt-in
+  backend (Sdl/Odbc/Tulip/Video). Aggregator: `test_all()`.
+
+Each test package only depends on the runtime package it tests (plus the test
+packages below it), so `test_kernel()`…`test_domain()` run without SDL, ODBC,
+or any other opt-in dependency installed.
+
+Every top-level function is *callable directly from the REPL*. There is no
 hidden runner: anything `test_all` does is something you can do one piece
 at a time.
 
@@ -21,10 +50,11 @@ julia> using Projectured, ProjecturedExample, ProjecturedTest
 julia> test_all()
 ```
 
-Runs everything: cells, per-domain document tests, projection tests,
-printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
-mouse-click / click-round-trip tests (`test_mouse_clicks()` /
-`test_click_roundtrips()` are called by `test_all` — see
+Runs everything: the four per-layer suites (`test_kernel()`, `test_base()`,
+`test_visual()`, `test_domain()` — each includes its package's static
+layered-architecture guard) followed by the umbrella integration tests
+(printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
+mouse-click / click-round-trip sweeps — see
 [test/src/ProjecturedTest.jl](../package/test/src/ProjecturedTest.jl)).
 
 `test_all` is just a `@testset` that calls the per-layer functions in
@@ -34,11 +64,13 @@ sequence; pick the one you actually need and skip the rest.
 
 | Function | What it covers |
 |---|---|
-| `test_cell()` | The reactive cell primitive. |
-| `test_documents()` | Aggregates the per-domain document tests below. |
-| `test_json()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_graphics_layout()`, `test_collection()` | Domain-specific document tests in [test/src/document/](../package/test/src/document/). |
-| `test_projections()` | Aggregates the projection-to-projection tests. |
-| `test_json_to_syntax()`, `test_syntax_to_text()`, `test_text_to_graphics()`, `test_copying_projection()` | Pipeline-stage tests in [test/src/projection/](../package/test/src/projection/). |
+| `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
+| `test_base()` | `test_collection()`, `test_copying_projection()`, the base layering guard. |
+| `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard. |
+| `test_domain()` | `test_json()`, `test_json_to_syntax()`, the xml/sql/formula/filesystem projections, parsers, graph, Console/Pdf backends, the domain layering guard. |
+| `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
+| `test_documents()` | The umbrella-only document suites (`test_constraint_solver()` — Tulip, `test_serialization()` — example fixtures). |
+| `test_projections()` | The umbrella-only projection suites (example/editor/SDL-coupled: tooltip, hover, dragging, write_image, …). |
 | `test_printers()` | Runs `test_printer` over every entry in `examples`. |
 | `test_readers()` | Runs `test_reader` over every example. |
 | `test_text_navigations()` | Runs `test_text_navigation` (text-caret BFS, no-error sweep) over every example. |
@@ -86,12 +118,12 @@ every test has a sibling that does the same work without wrapping it in
 
 | Helper | Location | What it does |
 |---|---|---|
-| `walk_printer_output(doc, proj)` | [PrinterTest.jl:115](../package/test/src/editor/PrinterTest.jl#L115) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
-| `walk_reader_events(doc, proj)` | [ReaderTest.jl:51](../package/test/src/editor/ReaderTest.jl#L51) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
-| `walk_repl_loop(doc, proj)` | [ReplTest.jl:27](../package/test/src/editor/ReplTest.jl#L27) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
-| `explore_text_selections(doc, proj[, initial])` | [TextNavigationTest.jl:24](../package/test/src/editor/TextNavigationTest.jl#L24) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
-| `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [SelectionEnumeration.jl](../package/test/src/editor/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
-| `walk_typein(doc, proj)` | [TypeinTest.jl](../package/test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
+| `walk_printer_output(doc, proj)` | [kernel-test PrinterTest.jl](../package/kernel-test/src/editor/PrinterTest.jl) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
+| `walk_reader_events(doc, proj)` | [kernel-test ReaderTest.jl](../package/kernel-test/src/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
+| `walk_repl_loop(doc, proj)` | [kernel-test ReplTest.jl](../package/kernel-test/src/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
+| `explore_text_selections(doc, proj[, initial])` | [kernel-test TextNavigationTest.jl](../package/kernel-test/src/editor/TextNavigationTest.jl) | BFS over reachable text-caret selection states using navigation keys. Returns `(state_count, errors, visited)`. |
+| `collect_text_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base-test SelectionEnumeration.jl](../package/base-test/src/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all carets / all whole-element nodes), for the completeness suites to check against. |
+| `walk_typein(doc, proj)` | [visual-test TypeinTest.jl](../package/visual-test/src/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
 `explore_text_selections` keep their plain return values for REPL use; each also
@@ -110,7 +142,7 @@ julia> result.state_count, length(result.errors)
 ## The shared reflexive walker
 
 `_walk!` (in
-[test/src/editor/PrinterTest.jl:45](../package/test/src/editor/PrinterTest.jl#L45))
+[kernel-test/src/editor/PrinterTest.jl](../package/kernel-test/src/editor/PrinterTest.jl))
 is the workhorse behind every printer-based test. It descends every field
 via `fieldnames` / `getfield`, follows every `Vector`, forces every `Cell`,
 and uses an `objectid` `Set` to break cycles. New document types are
@@ -180,8 +212,11 @@ The standard `Pkg` workflow also works and is what CI uses:
 
 ```julia
 julia> using Pkg
-julia> Pkg.test("ProjecturedTest")
+julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedBaseTest / ProjecturedVisualTest / ProjecturedDomainTest
 ```
+
+Each test package ships a one-line `test/runtests.jl` that calls its
+aggregator, so `Pkg.test` and the REPL functions cover the same ground.
 
 …but for iterative work the REPL functions are much faster because they
 keep the SDL backend initialised between runs (`__init__` in
@@ -197,6 +232,9 @@ keep the SDL backend initialised between runs (`__init__` in
 - **Changed a projection.** `walk_printer_output` and `walk_repl_loop`
   against the affected example give you a fast failure surface; the latter
   also catches reader/operation mismatches.
+- **Changed the kernel/base/visual/domain source layering.** The per-package
+  layering guards (`test_kernel_layering()`, `test_base_layering()`, …) parse
+  the real `import ..XxxModule` headers and re-check the include order in ~1s.
 - **Suspected reactive bug.** `test_cell()` first, then
   `walk_printer_output` (which forces every reachable cell) on the
   affected example.
