@@ -27,7 +27,7 @@ import ProjecturedExample: Example, run_example, run_console_example, run_web_ex
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_graph_document_example, make_graph_projection_example,
                            make_table_projection_example, make_mixed_projection_example,
-                           make_syntax_widget_graphics, make_database_instance_document_example,
+                           make_database_instance_document_example,
                            make_sql_document_example,
                            make_constraint_layout_document_example, make_constraint_layout_projection_example
 

@@ -119,7 +119,6 @@ const ReferenceToTextModule = ProjecturedVisual.ReferenceToTextModule
 # Widget
 const WidgetModule = ProjecturedVisual.WidgetModule
 const WidgetToGraphicsModule = ProjecturedVisual.WidgetToGraphicsModule
-const TextToWidgetModule = ProjecturedVisual.TextToWidgetModule
 const ObjectToWidgetModule = ProjecturedVisual.ObjectToWidgetModule
 const WidgetHoverTrackingProjectionModule = ProjecturedVisual.WidgetHoverTrackingProjectionModule
 const ProjectionConfiguringProjectionModule = ProjecturedVisual.ProjectionConfiguringProjectionModule
@@ -128,7 +127,6 @@ const WidgetPopupResolverProjectionModule = ProjecturedVisual.WidgetPopupResolve
 # Syntax
 const SyntaxModule = ProjecturedVisual.SyntaxModule
 const SyntaxToTextModule = ProjecturedVisual.SyntaxToTextModule
-const SyntaxToWidgetModule = ProjecturedVisual.SyntaxToWidgetModule
 const ObjectToSyntaxModule = ProjecturedVisual.ObjectToSyntaxModule
 const CollectionToSyntaxModule = ProjecturedVisual.CollectionToSyntaxModule
 const PrimitiveToSyntaxModule = ProjecturedVisual.PrimitiveToSyntaxModule

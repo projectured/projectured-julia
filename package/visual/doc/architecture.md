@@ -75,8 +75,8 @@ bridges (`PrimitiveToText`, `ReferenceToText`).
 ### widget/ — the UI widget system
 
 `Widget.jl` (the widget domain: labels/buttons/panes/menus/dropdowns/…),
-`WidgetToGraphics.jl` (the big canvas renderer), `TextToWidget.jl` (text
-→ editable widget), `ObjectToWidget.jl` (reflection-driven form),
+`WidgetToGraphics.jl` (the big canvas renderer), `ObjectToWidget.jl`
+(reflection-driven form),
 `WidgetHoverTracking.jl`, `ProjectionConfiguring.jl`,
 `WidgetPopupResolver.jl` (decorators).
 
@@ -84,8 +84,8 @@ bridges (`PrimitiveToText`, `ReferenceToText`).
 
 `Syntax.jl` (the tree domain: leaves/nodes/delimiters/indentation/
 collapsibles), `SyntaxToText.jl` (flattens to styled text — the shared
-step every domain funnels through), `SyntaxToWidget.jl`, and the
-reflection bridges (`ObjectToSyntax`, `CollectionToSyntax`,
+step every domain funnels through), and the reflection bridges
+(`ObjectToSyntax`, `CollectionToSyntax`,
 `PrimitiveToSyntax`).
 
 ### backend/ — the dependency-free concrete backends

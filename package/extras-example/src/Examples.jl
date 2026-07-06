@@ -8,8 +8,6 @@
 # Live-database catalog examples (ODBC).
 const dbcatalog_example                = Example("dbcatalog",                make_dbcatalog_document_example,         make_dbcatalog_projection_example)
 const dvdrental_catalog_example        = Example("dvdrental_catalog",        make_dvdrental_catalog_document_example, make_dbcatalog_projection_example)
-const dbcatalog_widget_example         = Example("dbcatalog_widget",         make_dbcatalog_document_example,         make_dbcatalog_widget_projection_example)
-const dvdrental_catalog_widget_example = Example("dvdrental_catalog_widget",  make_dvdrental_catalog_document_example, make_dbcatalog_widget_projection_example)
 
 # Fully-walked catalog views — kept OUT of the `examples` sweep below (each forces
 # a column query for every table, hammering the live database). Run directly.
@@ -36,8 +34,6 @@ const dvdrental_relationship_example   = Example("dvdrental_relationship",
 const examples = [
     dbcatalog_example,
     dvdrental_catalog_example,
-    dbcatalog_widget_example,
-    dvdrental_catalog_widget_example,
     sql_table_example,
     graph_adaptagrams_example,
     constraint_layout_tulip_example,
@@ -47,13 +43,13 @@ export make_dbcatalog_document_example, make_dvdrental_catalog_document_example,
        make_dvdrental_dbcatalog_document_example, explore_dbcatalog!,
        make_dvdrental_relationship_graph_document_example,
        make_database_adapter_example, setup_persons_table, teardown_persons_table
-export make_dbcatalog_projection_example, make_dbcatalog_widget_projection_example,
-       make_dvdrental_dbcatalog_projection_example, make_dvdrental_dbcatalog_widget_projection_example,
+export make_dbcatalog_projection_example,
+       make_dvdrental_dbcatalog_projection_example,
        make_dvdrental_object_projection_example,
        make_sql_table_projection_example,
        make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example,
        make_constraint_layout_tulip_projection_example
-export dbcatalog_example, dvdrental_catalog_example, dbcatalog_widget_example, dvdrental_catalog_widget_example,
+export dbcatalog_example, dvdrental_catalog_example,
        dvdrental_object_example,
        sql_table_example, graph_adaptagrams_example, dvdrental_relationship_example,
        constraint_layout_tulip_example, examples

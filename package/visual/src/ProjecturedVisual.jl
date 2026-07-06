@@ -29,7 +29,7 @@ style → screen → graphics → layout → text → widget → syntax → back
 - **widget/** — Widget + its projections + ObjectToWidget + hover/config/popup
   decorators.
 - **syntax/** — Syntax + its bridges (ObjectToSyntax, CollectionToSyntax,
-  PrimitiveToSyntax) + SyntaxToText + SyntaxToWidget + InsertionToSyntax +
+  PrimitiveToSyntax) + SyntaxToText + InsertionToSyntax +
   NaturalProjection.
 - **backend/** — Console.jl, Pdf.jl (the dependency-free concrete backends).
 
@@ -164,18 +164,17 @@ include("text/ReferenceToText.jl")
 
 # ── Slice 6 — widget (UI widget system) ──────────────────────────────────
 # Widget is the widget domain (labels, buttons, panes, menus, dropdowns…).
-# WidgetToGraphics is the big canvas renderer; TextToWidget promotes text
-# to an editable widget; ObjectToWidget is the reflection-driven form for
+# WidgetToGraphics is the big canvas renderer; ObjectToWidget is the
+# reflection-driven form for
 # Cell-field structs. The decorators (WidgetHoverTracking,
 # ProjectionConfiguring, WidgetPopupResolver) transform a widget tree.
 include("widget/Widget.jl")
 # LayoutToGraphics loads after widget/ because it imports WidgetModule's
 # focus-path helpers (first_focusable_path, last_focusable_path,
 # _next_focusable_in), so it precedes the widget files that import it
-# (TextToWidget, WidgetPopupResolver).
+# (WidgetPopupResolver).
 include("layout/LayoutToGraphics.jl")
 include("widget/WidgetToGraphics.jl")
-include("widget/TextToWidget.jl")
 include("widget/ObjectToWidget.jl")
 include("widget/WidgetHoverTracking.jl")
 include("widget/ProjectionConfiguring.jl")
@@ -183,13 +182,11 @@ include("widget/WidgetPopupResolver.jl")
 
 # ── Slice 7 — syntax (tree presentation, target of every source domain) ─
 # Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.
-# SyntaxToText flattens a syntax tree to styled text; SyntaxToWidget
-# projects it as widget forms. The bridges (ObjectToSyntax,
+# SyntaxToText flattens a syntax tree to styled text. The bridges (ObjectToSyntax,
 # CollectionToSyntax, PrimitiveToSyntax) are what every source domain
 # eventually funnels through.
 include("syntax/Syntax.jl")
 include("syntax/SyntaxToText.jl")
-include("syntax/SyntaxToWidget.jl")
 include("syntax/ObjectToSyntax.jl")
 include("syntax/CollectionToSyntax.jl")
 include("syntax/PrimitiveToSyntax.jl")

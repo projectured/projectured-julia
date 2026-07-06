@@ -26,8 +26,7 @@ stored on the output `WidgetCard.collapsed` cell (like `WidgetScrollPane`'s scro
 offset): the card's `title`/`content` are reactive `CellVector`s that read
 `card.collapsed`, so a header click — which `WidgetCardToGraphicsCanvas` turns into
 `ToggleCollapseOperation(card)`, flipped by the default operation handler —
-re-renders the chevron and shows/hides the body, mirroring how `SyntaxToWidget`
-drives collapse from `node.collapsed`.
+re-renders the chevron and shows/hides the body.
 
 **Editing.** Controls edit the *object's own* cells. A checkbox click or a text
 edit is matched (by control identity, or by the top-level grid row) and converted

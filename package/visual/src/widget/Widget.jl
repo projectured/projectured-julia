@@ -1177,9 +1177,8 @@ content body and an optional footer, stacked vertically.
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 header click emits `ToggleCollapseOperation(card)`, whose default handler flips
 this cell. Producers that want a collapsible card read `card.collapsed` from the
-reactive `title`/`content` they build (chevron glyph, empty body when collapsed),
-the way `SyntaxToWidget` drives collapse from `node.collapsed`. Cards left at the
-default `collapsed=false` render exactly as before.
+reactive `title`/`content` they build (chevron glyph, empty body when collapsed).
+Cards left at the default `collapsed=false` render exactly as before.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D

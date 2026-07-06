@@ -30,34 +30,6 @@ function make_json_console_projection_example()
     )
 end
 
-# ── Widget-based pipeline: Domain → Syntax → Widget → Graphics ──────────────
-#
-# Shared final step for the widget path: a recursive dispatch that renders both
-# the widget/layout chrome (WidgetToGraphics + the layout canvases) and the
-# embedded `TextText` leaf content (TextToGraphics) in one pass — the
-# widgets-for-structure / text-for-content composition (mirrors the
-# conversation_widget inner dispatch).
-function make_syntax_widget_graphics(; measure=truetype_measure_text)
-    font = font_ubuntu_monospace_regular_20
-    w2g  = WidgetToGraphics(font; measure=measure)
-    RecursiveProjection(TypeDispatchingProjection(vcat(
-        w2g.dispatch,
-        Pair{Type,Any}[
-            HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
-            VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
-            TextText         => TextToGraphics(measure=measure),
-        ],
-    )))
-end
-
-function make_json_widget_projection_example(; measure=truetype_measure_text)
-    ChainingProjection(
-        RecursiveProjection(JsonToSyntax()),
-        RecursiveProjection(SyntaxToWidget()),
-        make_syntax_widget_graphics(measure=measure),
-    )
-end
-
 function make_json_sorted_projection_example(; measure=truetype_measure_text)
     ChainingProjection(
         SortingAtProjection(@reference(windows[1].content.entries), x -> x.key),

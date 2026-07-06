@@ -47,28 +47,3 @@ function make_dvdrental_object_projection_example(; measure=truetype_measure_tex
     )
 end
 
-# ── Widget-based pipeline: Domain → Syntax → Widget → Graphics ──────────────
-#
-# `SyntaxToWidget` turns each indented catalog level (RDBMS, Schema, Table) into
-# a collapsible `WidgetCard` and each leaf (column name, type) into embedded
-# `TextText`, rendered by the shared widget+text graphics dispatch
-# (`make_syntax_widget_graphics`, defined in the Json projection example). This
-# replaces the old `TextToWidget` + `WidgetAndTextToGraphics` single-wrapper path.
-
-function make_dbcatalog_widget_projection_example(; measure=truetype_measure_text,
-                                                    pool=OdbcConnectionPool())
-    ChainingProjection(
-        DatabaseInstanceToDbCatalog(pool),
-        RecursiveProjection(DbCatalogToSyntax()),
-        RecursiveProjection(SyntaxToWidget(marker_eligible = dbcatalog_marker_eligible)),
-        make_syntax_widget_graphics(measure=measure),
-    )
-end
-
-function make_dvdrental_dbcatalog_widget_projection_example(; measure=truetype_measure_text)
-    ChainingProjection(
-        RecursiveProjection(DbCatalogToSyntax()),
-        RecursiveProjection(SyntaxToWidget(marker_eligible = dbcatalog_marker_eligible)),
-        make_syntax_widget_graphics(measure=measure),
-    )
-end
