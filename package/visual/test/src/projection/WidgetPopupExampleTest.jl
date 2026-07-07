@@ -7,7 +7,8 @@
 # HoverProbe pipeline test (an `EventEnvelope` routed in grows the screen's window
 # list).
 
-using Projectured: EventEnvelope, Intent
+using ProjecturedKernel.GestureModule: EventEnvelope
+using ProjecturedKernel.IntentModule: Intent
 
 function test_widget_popup_example()
 @testset "widget_popup example (window route)" begin

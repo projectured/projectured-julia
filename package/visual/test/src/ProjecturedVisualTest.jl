@@ -103,10 +103,17 @@ include("projection/AnchorPointTest.jl")
 # (HoverProbe's tests stay in the umbrella: they wrap Json content.)
 include("projection/ClipboardToAnyTest.jl")
 include("projection/TooltipTest.jl")
+# Widget/screen route decorators exercised on visual example fixtures
+# (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
+include("projection/SplitPaneDragTest.jl")
+include("projection/WidgetPopupExampleTest.jl")
 
 # ── visual-level generic drivers ─────────────────────────────────────────────
 include("editor/TypeinTest.jl")
 include("editor/ClickRoundtripTest.jl")
+# Collapse/expand round-trip over the syntax example (reuses ClickRoundtripTest's
+# _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
+include("editor/CollapseRoundtripTest.jl")
 
 """
     test_visual_layering()
@@ -173,6 +180,10 @@ function test_visual()
         # interaction decorators
         test_clipboard_to_any()
         test_tooltip()
+        test_split_pane_drag()
+        test_widget_popup_example()
+        # generic drivers over visual examples
+        test_collapse_roundtrip()
     end
 end
 
@@ -206,7 +217,8 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point
-export test_clipboard_to_any, test_tooltip
+export test_clipboard_to_any, test_tooltip, test_split_pane_drag,
+       test_widget_popup_example, test_collapse_roundtrip
 export walk_typein, test_typein
 export test_click_roundtrip, test_text_nav_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _seg_x_at,

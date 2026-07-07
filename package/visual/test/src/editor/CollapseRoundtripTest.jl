@@ -11,11 +11,9 @@
 #     folds back on a second press. Keyboard navigation (Ctrl+Home) landing on
 #     the marker must NOT toggle.
 #
-# Reuses `_find_text_iomap` from ClickRoundtripTest.jl (same module).
+# Reuses `_find_text_iomap` from ClickRoundtripTest.jl (same module). Names
+# resolve through the ProjecturedVisualTest flat namespace + ProjecturedVisualExample.
 # ═══════════════════════════════════════════════════════════════════════════
-
-using Projectured
-using ProjecturedExample
 
 # Centre of a rendered segment whose text equals `glyph`, as an (x, y) click.
 function _glyph_click(coords, glyph::AbstractString)

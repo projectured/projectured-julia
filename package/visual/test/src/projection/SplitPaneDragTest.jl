@@ -100,7 +100,7 @@ end
     # dragged size instead of redistributing back to the weighted preference.
     iomap2 = print_document(proj, nothing, doc, ctx)
     xs = [Int(e.x[]) for e in iomap2.output.elements
-          if e isa Projectured.GraphicsModule.GraphicsCanvas]
+          if e isa GraphicsModule.GraphicsCanvas]
     @test length(xs) == 2
     @test xs[1] == 0
     @test 379 <= xs[2] <= 381   # second child starts right after the 380px slot
