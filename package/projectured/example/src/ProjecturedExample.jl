@@ -44,7 +44,8 @@ const _EXAMPLE_DIR = @__DIR__
 
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
-include(joinpath(_EXAMPLE_DIR, "LiveExamples.jl"))
+# LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
+# real SDL window / record via ProjecturedVideo).
 
 export minimal, is_leaf_document, catalog, discover_atomic_pairs, reachability_examples
 export BRIDGES, paths, path_sequences, projection_to, runnable, catalog_domain
@@ -126,7 +127,6 @@ export make_text_configuring_projection
 export Example, examples, run_example, run_console_example, run_web_example, print_example, write_example_image, write_example_pdf, record_example_video, make_typein_gestures
 export make_json_console_projection_example
 export record_assistant_conversation_video
-export LiveExample, live_examples, play_live_example, record_live_example, timed_event, timed_operation, timed_await
 export json_typein_live, json_select_and_edit_live, json_insert_live, json_build_live, json_build_example
 export generate_example_screenshots, update_guide_screenshots
 export json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example

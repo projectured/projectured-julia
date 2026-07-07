@@ -1,0 +1,16 @@
+name = "ProjecturedSdlExample"
+uuid = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
+version = "0.1.0"
+authors = []
+
+# The SDL opt-in example package: the LiveExample timelines that either play in a
+# real SDL window (play_live_example) or record to MP4 (record_live_example via
+# ProjecturedVideo). Needs native SDL2 (+ FFMPEG for recording), so it precompiles
+# only where those are installed. Resolves through the root env, reusing the
+# ProjecturedExample harness + examples.
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"

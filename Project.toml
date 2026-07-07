@@ -18,6 +18,7 @@ ProjecturedMcp = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSdlExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedSdlTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
@@ -53,6 +54,7 @@ ProjecturedOdbc = {path = "package/odbc"}
 ProjecturedOdbcTest = {path = "package/odbc/test"}
 ProjecturedWeb = {path = "package/web"}
 ProjecturedSdl = {path = "package/sdl"}
+ProjecturedSdlExample = {path = "package/sdl/example"}
 ProjecturedSdlTest = {path = "package/sdl/test"}
 ProjecturedTulip = {path = "package/tulip"}
 ProjecturedTulipTest = {path = "package/tulip/test"}

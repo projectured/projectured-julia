@@ -19,23 +19,37 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
   syntax/text/graphics/layout documents, text/graphics/widget projections, the
   type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
 - [package/domain/test](../package/domain/test/src/ProjecturedDomainTest.jl) —
-  json/xml/sql/tabular documents and parsers, the `*ToSyntax` projections,
-  graph, and the domain-fixture-driven Console/Pdf/table/TypeReference suites.
-  Aggregator: `test_domain()`.
+  json/xml/sql documents and parsers, the `*ToSyntax` projections, graph, the
+  domain-fixture-driven Console/Pdf/table/TypeReference suites, and the
+  domain-coupled projection/editor tests (GestureMap/GestureHelp, DbCatalog→Sql,
+  HoverProbe/ReferenceInspector, Dragging, Serialization, Mcp, Conversation,
+  JuliaTypein, Workbench, …). Aggregator: `test_domain()`.
+- The **opt-in** runtime packages each have their own test package, so a suite
+  that needs a native backend lives with the backend it exercises (not in the
+  umbrella): [package/sdl/test](../package/sdl/test) (`test_sdl()` — DirtyRect,
+  write_image), [package/tulip/test](../package/tulip/test) (`test_tulip()` —
+  the LP constraint solver), [package/video/test](../package/video/test)
+  (`test_video()` — record_video), and [package/odbc/test](../package/odbc/test)
+  (`test_odbc()` — the live-DB adapter + DbCatalog suites). Like the opt-in
+  example packages they resolve through the root env and precompile only where
+  the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
 - [package/projectured/test](../package/projectured/test/src/ProjecturedTest.jl) — the umbrella:
-  the all-examples sweeps and every full-stack integration suite that needs
-  the editor loop or an opt-in backend (Sdl/Odbc/Tulip/Video). Aggregator:
-  `test_all()`.
+  only the genuinely **cross-tier** suites that sweep the interleaved `examples`
+  / `catalog` aggregate (`ExampleSweeps`, `ExampleTest`, `CatalogTest`,
+  `RecursionContract`, `MouseClick`, `PrinterLocality`). It `using`s every tier
+  and opt-in test package so `test_all()` still orchestrates the whole suite.
 
 The examples follow the same split (`package/kernel/example` — the `Example`
 harness core; `package/visual/example` / `package/domain/example` — the tier
 example sets with `visual_examples` / `domain_examples` registry slices; the
-`ProjecturedExample` umbrella keeps the interleaved `examples` registry,
-Catalog discovery, and the LLM/video-coupled pieces). Each test package
-depends on its example package: the `Example`-typed driver overloads live
-beside the drivers, and `test_visual()` / `test_domain()` run a printer sweep
-over their own tier's examples (`test_visual_examples()` /
-`test_domain_examples()`).
+opt-in example packages — `package/odbc/example`, `package/tulip/example`,
+`package/adaptagrams/example`, and `package/sdl/example` (the `LiveExample`
+window/record timelines) — hold the examples that need a native dependency; the
+`ProjecturedExample` umbrella keeps the interleaved `examples` registry and
+Catalog discovery). Each test package depends on its example package: the
+`Example`-typed driver overloads live beside the drivers, and `test_visual()` /
+`test_domain()` run a printer sweep over their own tier's examples
+(`test_visual_examples()` / `test_domain_examples()`).
 
 Each test package only depends on the runtime package it tests (plus the test
 packages below it), so `test_kernel()`…`test_domain()` run without SDL, ODBC,
