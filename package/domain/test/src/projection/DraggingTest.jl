@@ -30,7 +30,7 @@ _elem_path(i) = ConcreteReferencePath(FieldReference("elements"),
 # stub resolves a synthetic MousePress via `hit` (a `gesture -> op` function).
 function _drag_setup(content, hit)
     proj  = DraggingProjection()
-    state = DraggingState(content; threshold=5)
+    state = DraggingState(content, 5)
     inner = _StubInner(_CoordStub(hit), nothing)
     iomap = DraggingProjectionIoMap(proj, state, nothing, inner)
     (proj, iomap)
@@ -47,7 +47,6 @@ function test_dragging()
          g.x == 300 ? ReplaceSelectionOperation(_elem_path(4)) : nothing) : nothing
 
     @testset "press → drag → drop reorders the collection" begin
-        try
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30), JsonNumber(40))
         c2 = get_cell_at(content.elements, 2)
         proj, iomap = _drag_setup(content, _hit_2_or_4)
@@ -69,14 +68,9 @@ function test_dragging()
         evaluate_operation(nothing, op)
         @test [Int(content.elements[i].value) for i in 1:4] == [10, 30, 20, 40]
         @test get_cell_at(content.elements, 3) === c2          # cell identity preserved
-        catch e
-            # @broken: pre-existing drift; testset setup / _drag_setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
     end
 
     @testset "sub-threshold press-release is a click, not a drag" begin
-        try
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
         proj, iomap = _drag_setup(content, _hit_2_or_4)
 
@@ -88,14 +82,9 @@ function test_dragging()
         @test op === nothing
         @test proj.state.phase === :idle
         @test [Int(content.elements[i].value) for i in 1:3] == [10, 20, 30]
-        catch e
-            # @broken: pre-existing drift; testset setup / _drag_setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
     end
 
     @testset "drop on an unresolvable target yields no move" begin
-        try
         content = JsonArray(JsonNumber(10), JsonNumber(20))
         # Grab resolves (x=100 → element 2), but the drop point (x=999) hits nothing.
         hit(g) = g isa MousePress && g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) : nothing
@@ -106,22 +95,17 @@ function test_dragging()
         op = _feed(proj, iomap, MouseUp(:left, 999, 100, Modifiers()))
         @test !(op isa MoveRangeOperation)
         @test [Int(content.elements[i].value) for i in 1:2] == [10, 20]
-        catch e
-            # @broken: pre-existing drift; testset setup / _drag_setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
     end
 
     # End-to-end through the real json → syntax → text → graphics pipeline: the
     # grab/drop points are resolved by the actual graphics-layer hit-test (no
     # stub). The array renders one element per line at y = 24/48/72, x ≈ 24.
     @testset "real pipeline: drag an array element to reorder" begin
-        try
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
         c1 = get_cell_at(content.elements, 1)
         inner = print_document(make_json_projection_example(), content)
         proj  = DraggingProjection()
-        iomap = DraggingProjectionIoMap(proj, DraggingState(content; threshold=5),
+        iomap = DraggingProjectionIoMap(proj, DraggingState(content, 5),
                                         inner.output, inner)
 
         @test _feed(proj, iomap, MouseDown(:left, 24, 24, Modifiers())) === nothing   # grab element 1
@@ -135,10 +119,6 @@ function test_dragging()
         evaluate_operation(nothing, op)
         @test [Int(content.elements[i].value) for i in 1:3] == [20, 10, 30]
         @test get_cell_at(content.elements, 2) === c1                                     # identity preserved
-        catch e
-            # @broken: pre-existing drift; testset setup / _drag_setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
     end
 
 end
