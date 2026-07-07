@@ -16,19 +16,11 @@
 #      routes nested-hole input and reroots the resulting edits.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
-using Projectured: JuliaInsertion, JuliaFunction, JuliaIdentifier, JuliaInteger, JuliaBlock,
-                   JuliaIf, JuliaBinaryOp, JuliaCall, Document,
-                   SelectNextInsertionOperation, evaluate_operation, evaluate_reference,
-                   set_selection!, with_selection, strip_reference_types,
-                   ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
-                   RecursiveProjection, JuliaToSyntax, print_document, read_intent,
-                   KeyPress, KeyDown, Modifiers
-using Projectured.CellModule: Cell
-using ProjecturedExample: make_julia_document_example
+using ProjecturedKernel.CellModule: Cell
+using ProjecturedDomainExample: make_julia_document_example
 
-const _JT_M      = Projectured.DocumentInsertionToSyntaxModule
-const _jt_reroot = Projectured.OperationModule.reroot_operation
+const _JT_M      = DocumentInsertionToSyntaxModule
+const _jt_reroot = OperationModule.reroot_operation
 
 # `value{0}` — an empty hole's own char cursor.
 _jt_v0() = ConcreteReferencePath(FieldReference("value"),

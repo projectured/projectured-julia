@@ -18,10 +18,6 @@
 # fit the column, a mouse wheel over the strip scrolls it horizontally so the hidden
 # tabs become reachable.
 
-using Projectured: WorkbenchToWidget, RecursiveProjection, ReplaceSelectionOperation,
-    ReplaceReferencedValueOperation, evaluate_operation, ConcreteReferencePath, FieldReference,
-    RangeReference, GraphicsText, GraphicsCanvas, GraphicsViewport, MousePress, MouseScroll,
-    Modifiers, Intent, PrinterContext, EmptyReferencePath, KeyPress, ComposerInputOperation
 
 # The 1-based active tab index encoded in a tabbed pane's forward-projected
 # `:selection` (shape `selector_element_pairs[i].<rest>`); 0 when no tab is selected
@@ -38,7 +34,7 @@ end
 
 # Force a Cell; descend a graphics tree gathering (abs_x, abs_y, text) for every
 # GraphicsText (the tab strip lives inside a clipping GraphicsViewport).
-_force(x) = x isa Projectured.Cell ? x[] : x
+_force(x) = x isa Cell ? x[] : x
 function _collect_texts!(acc, node, ox, oy)
     node = _force(node)
     node === nothing && return
@@ -119,7 +115,7 @@ end
     # re-forced after each write, mirrors the editor (the WidgetTabbedPane carrying
     # `tab_scroll` is transient output, rebuilt by a fresh print).
     ctx = PrinterContext(EmptyReferencePath(),
-                         Projectured.Cell(1280), Projectured.Cell(1000), Dict{Symbol,Any}())
+                         Cell(1280), Cell(1000), Dict{Symbol,Any}())
     iomap = print_document(proj, nothing, doc, ctx)
 
     # Click a tab label on the current (re-forced) iomap; true iff it selects an editor.

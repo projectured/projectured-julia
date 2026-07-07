@@ -5,16 +5,8 @@
 # WorkbenchEditorToWidgetScrollPane actually lights up @gestures WorkbenchEditor.
 
 using Test
-using Projectured
-using ProjecturedExample
-using ProjecturedExample: make_workbench_document, make_workbench_projection,
+using ProjecturedDomainExample: make_workbench_document, make_workbench_projection,
                           _build_window_scene, _multi_window_projection
-using Projectured: jsonparse, print_document, read_intent, evaluate_operation,
-                   Intent, EventEnvelope, KeyDown, Modifiers,
-                   SaveWorkbenchEditorOperation, ReloadWorkbenchEditorOperation,
-                   read_document_file, write_document_file, new_document_for,
-                   JsonInsertion, XmlInsertion, SqlInsertion, JuliaInsertion,
-                   JsonObject, DocumentNothing
 
 # evaluate_operation is duck-typed on editor.{document,iomap}.
 mutable struct _WBFakeEditor; document::Any; iomap::Any; end

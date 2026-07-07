@@ -14,15 +14,7 @@
 # ProjecturedTest module scope; included after it).
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
-using ProjecturedExample
-using Projectured: ReplaceSelectionOperation, OpenWindowOperation,
-                    ReferenceInspector, HoverProbeProjection, ReferenceInspectorToText,
-                    NestingProjection, IdentityProjection, ChainingProjection,
-                    WordWrapping, TextToGraphics, GraphicsCanvas, truetype_measure_text,
-                    is_reference_equal, MouseMove, MousePress, Modifiers,
-                    ScreenDocument, WindowDocument, EventEnvelope, Intent
-using Projectured.TextModule: TextText, TextString
+using ProjecturedVisual.TextModule: TextText, TextString
 
 _inspector_text(ref, target) =
     print_document(ReferenceInspectorToText(),
@@ -45,7 +37,7 @@ ReferenceInspector renders to a labelled two-section TextText.
 """
 function test_reference_inspector_text()
     @testset "ReferenceInspectorToText" begin
-        ex = examples[findfirst(e -> e.name == "json", examples)]
+        ex = json_example
         doc = ex.document
         ref = ReferencePath(FieldReference("entries"), ElementReference(1))
 
@@ -96,7 +88,7 @@ click reference; a real click still selects.
 """
 function test_hover_probe()
     @testset "HoverProbe" begin
-        ex = examples[findfirst(e -> e.name == "json", examples)]
+        ex = json_example
         doc = ex.document
         proj = ex.projection
 
@@ -155,7 +147,7 @@ End-to-end through the real `_multi_window_projection_inspector` pipeline: an
 """
 function test_hover_probe_pipeline()
     @testset "HoverProbe pipeline" begin
-        ex = examples[findfirst(e -> e.name == "json", examples)]
+        ex = json_example
         doc = ex.document
         proj = ex.projection
 
@@ -180,7 +172,7 @@ function test_hover_probe_pipeline()
                                x = 100, y = 100, width = 1200, height = 600,
                                content = doc)
         screen = ScreenDocument([win])
-        composed = ProjecturedExample._multi_window_projection_inspector(
+        composed = ProjecturedDomainExample._multi_window_projection_inspector(
                        [proj]; pointer = () -> (50, 60))
         iomap = print_document(composed, screen)
 

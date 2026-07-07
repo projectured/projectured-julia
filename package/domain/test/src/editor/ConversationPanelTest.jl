@@ -2,9 +2,6 @@
 # Submitting the draft turn (ENTER on a text typein → SubmitDraftTurnOperation)
 # pushes it into the conversation, resets the draft in place, and streams a reply.
 
-using Projectured: WorkbenchAssistant, FakeLlm, PrimitiveString, TextText,
-                   ComposerInputOperation, SubmitDraftTurnOperation, evaluate_operation,
-                   print_document, read_intent, KeyPress, KeyDown, Modifiers
 
 function _panel_wait_idle!(a; timeout_seconds = 3.0)
     deadline = time() + timeout_seconds
@@ -20,7 +17,7 @@ function test_assistant_composer_panel()
             a = WorkbenchAssistant(; llm = FakeLlm("ok"))
             proj = make_assistant_projection_example()
             iom = print_document(proj, a)
-            @test iom.output isa Projectured.GraphicsCanvas
+            @test iom.output isa GraphicsCanvas
             @test read_intent(proj, iom, KeyPress('h')) isa ComposerInputOperation
             @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
         end

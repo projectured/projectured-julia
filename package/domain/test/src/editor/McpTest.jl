@@ -1,16 +1,7 @@
 using Test
-using Projectured.McpModule
-using Projectured.ToolRegistryModule: call_tool, list_tools, list_resources
-using Projectured.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
-using Projectured: WorkbenchAssistant, evaluate_operation, ConcreteReferencePath,
-                   FieldReference, RangeReference, EmptyReferencePath, TypeReference,
-                   strip_reference_types, FakeLlm,
-                   WorkbenchWorkbench, WorkbenchPage, WorkbenchNavigator, WorkbenchEditor,
-                   Workspace,
-                   JsonString, JsonNull, JsonNumber, JsonObject, jsonparse, evaluate_reference,
-                   print_object, search_references, search_objects,
-                   ReplaceSelectionOperation,
-                   WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
+using ProjecturedKernel.McpModule
+using ProjecturedKernel.ToolRegistryModule: call_tool, list_tools, list_resources
+using ProjecturedDomain.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -462,7 +453,7 @@ function test_workbench_editor_reference()
         @test occursin("true", _eval_result(exec))
         @test !exec.is_error
 
-        a.input.value = "editor.document isa Projectured.WorkbenchAssistant"
+        a.input.value = "editor.document isa WorkbenchAssistant"
         a.input.selection = ConcreteReferencePath(
             FieldReference("value"),
             ConcreteReferencePath(RangeReference(0, length(a.input.value)),

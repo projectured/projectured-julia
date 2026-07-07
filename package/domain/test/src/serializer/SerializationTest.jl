@@ -4,15 +4,7 @@
 # plus the four editor operations and the format guards.
 
 using Test
-using Projectured
-using Projectured: save_document, load_document, import_document, export_document,
-                   SaveDocumentOperation, LoadDocumentOperation,
-                   ImportDocumentOperation, ExportDocumentOperation,
-                   document_to_text, evaluate_operation, print_document,
-                   set_selection!, jsonparse, xmlparse, sqlparse, juliaparse,
-                   JsonObject, XmlElement, SqlSelectStatement, JuliaFunction
-using Projectured: var"@reference"
-using ProjecturedExample: json_example, xml_example, sql_syntax_example, julia_example
+using ProjecturedDomainExample: json_example, xml_example, sql_syntax_example, julia_example
 
 # evaluate_operation is duck-typed on editor.{document,iomap}; a mutable stand-in
 # is enough to exercise the operations without a backend.
@@ -33,7 +25,7 @@ function test_serialization()
                 @test isfile(p1)
 
                 loaded = load_document(p1)
-                @test loaded isa Projectured.Document
+                @test loaded isa Document
                 @test typeof(loaded) === typeof(doc)
 
                 # Fixed point: re-saving the loaded document reproduces the bytes,

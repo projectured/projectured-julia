@@ -25,28 +25,14 @@
 # composite's `elements` *without* re-running `print_document`.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured: KeyPress, KeyDown, Modifiers
-using Projectured: PrimitiveDocument, PrimitiveToSyntax, SyntaxToText,
-                   TextToGraphics, ConversationToWidget, WorkbenchToWidget,
-                   VerticalLayout
-using Projectured: ConcreteReferencePath, FieldReference, RangeReference,
-                   EmptyReferencePath
-using Projectured: Llm, FakeLlm, ScriptedLlm,
-                   make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
-using Projectured: ComposerInputOperation, SubmitDraftTurnOperation, SubmitProseOperation
-using Projectured.McpModule: register_default_tools_and_resources!
-using Projectured.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
+using ProjecturedKernel.McpModule: register_default_tools_and_resources!
+using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result
-using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
-                   EvaluatorForm, TextText, TextString, JuliaIdentifier, WidgetCard,
-                   MousePress, ToggleCollapseOperation, ConversationThinking,
-                   MarkdownDocument
-import Projectured.LlmModule: stream_turn
-using Projectured: with_available_size, GraphicsCanvas
-import Projectured.CellModule: Cell
+import ProjecturedKernel.LlmModule: stream_turn
+import ProjecturedKernel.CellModule: Cell
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
-# next round of SSE events) lives in `Projectured.LlmModule` so examples can
+# next round of SSE events) lives in `LlmModule` so examples can
 # reuse it; imported above. The `_tool_use_script` / `_final_text_script` builders
 # below produce the same event-vector shape it consumes.
 
@@ -275,13 +261,13 @@ function _canvas_max_absright(node, ax = 0)
 end
 
 function _render_conversation_widget(doc, ctx)
-    proj = ProjecturedExample.make_conversation_widget_projection_example(
+    proj = ProjecturedDomainExample.make_conversation_widget_projection_example(
         measure = (t, _f) -> (length(t) * 10, 20))
     print_document(proj, proj, doc, ctx).output
 end
 
 function _all_expanded_conversation()
-    doc = ProjecturedExample.make_conversation_document_example()
+    doc = ProjecturedDomainExample.make_conversation_document_example()
     for t in doc.turns
         t.collapsed = false
         for p in t.parts
@@ -295,7 +281,7 @@ function _mvp_test_collapse_containment()
     @testset "collapse layout: no balloon + body containment" begin
         # Stage 2 — collapsing a part does not widen any card.
         out_default  = _render_conversation_widget(
-            ProjecturedExample.make_conversation_document_example(), PrinterContext())
+            ProjecturedDomainExample.make_conversation_document_example(), PrinterContext())
         out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
         @test _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
 
@@ -305,7 +291,7 @@ function _mvp_test_collapse_containment()
                     with_available_size(PrinterContext(); width = Cell(760)),
                     with_available_size(PrinterContext(); width = Cell(1200)))
             out = _render_conversation_widget(
-                ProjecturedExample.make_conversation_document_example(), ctx)
+                ProjecturedDomainExample.make_conversation_document_example(), ctx)
             @test _canvas_max_absright(out) <= Int(out.w)
         end
     end
@@ -367,8 +353,8 @@ end
 function _mvp_test_collapse_click()
     @testset "collapse on header click" begin
         fake_measure(_text, _font) = (length(_text) * 10, 20)
-        doc  = ProjecturedExample.make_conversation_document_example()
-        proj = ProjecturedExample.make_conversation_widget_projection_example(measure = fake_measure)
+        doc  = ProjecturedDomainExample.make_conversation_document_example()
+        proj = ProjecturedDomainExample.make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())
 
         # Resolve both header clicks from the *same* fresh projection (a toggle

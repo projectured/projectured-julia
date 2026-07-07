@@ -113,7 +113,7 @@ function test_gesture_help()
     # (the type seam + content decoration) against drift.
     @testset "F1 opens a help window through the real editor pipeline" begin
         arr = mkarr()
-        composed = ProjecturedExample._multi_window_projection([make_json_projection_example()])
+        composed = ProjecturedDomainExample._multi_window_projection([make_json_projection_example()])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 

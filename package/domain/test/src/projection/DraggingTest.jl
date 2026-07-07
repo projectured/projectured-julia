@@ -10,16 +10,12 @@
 # reference, so the DraggingProjection logic is exercised end-to-end without the
 # full pixel pipeline.
 
-using Projectured: MoveRangeOperation, DraggingProjection, DraggingProjectionIoMap, DraggingState,
-                   ReplaceSelectionOperation, JsonArray, JsonNumber,
-                   Intent, Projection, print_document, read_intent, evaluate_operation, Operation, get_cell_at,
-                   MouseDown, MouseUp, MouseMove, MousePress, Modifiers
 
 # Stub inner projection: `f(gesture) -> op` plays the graphics-layer hit-test.
 struct _CoordStub <: Projection
     f::Any
 end
-Projectured.read_intent(p::_CoordStub, recursion, change::Intent, iomap) =
+ProjectionApiModule.read_intent(p::_CoordStub, recursion, change::Intent, iomap) =
     Intent(change.gesture, p.f(change.gesture))
 
 struct _StubInner

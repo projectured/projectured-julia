@@ -90,6 +90,28 @@ include("backend/PdfTest.jl")
 include("reference/TypeReferenceTest.jl")
 include("editor/JsonContentClicksTest.jl")
 
+# ── moved down from the umbrella: tests whose fixtures are domain documents ───
+# (JSON/Julia/SQL/DbCatalog/Workbench/Conversation/GestureMap). Each drives a
+# domain projection or the domain-coupled editor loop; none needs an opt-in
+# package. Their example factories live in ProjecturedDomainExample.
+include("editor/AssistantMvpTest.jl")
+include("editor/ConversationPanelTest.jl")
+include("editor/ConversationParsingTest.jl")
+include("editor/ConversationSerializationTest.jl")
+include("editor/JuliaTypeinTest.jl")
+include("editor/McpTest.jl")
+include("editor/WorkbenchFileTest.jl")
+include("external/DbCatalogSqlTest.jl")
+include("projection/ConversationEditorTest.jl")
+include("projection/DocumentInsertionTest.jl")
+include("projection/DraggingTest.jl")
+include("projection/GestureHelpTest.jl")
+include("projection/GestureMapTest.jl")
+include("projection/HoverProbeTest.jl")
+include("projection/TableNavigationTest.jl")
+include("projection/WorkbenchTabClickTest.jl")
+include("serializer/SerializationTest.jl")
+
 """
     test_domain_layering()
 
@@ -142,6 +164,26 @@ function test_domain()
         test_type_reference()
         test_json_content_clicks_clean("json fixture",
             make_json_document_example(), make_graphics_image_projection_example())
+        # ── moved down from the umbrella (domain-fixture tests) ──────────────
+        test_gesture_map()
+        test_gesture_help()
+        test_db_catalog_sql()
+        test_reference_inspector_text()
+        test_hover_probe()
+        test_hover_probe_pipeline()
+        test_workbench_tab_click()
+        test_dragging()
+        test_serialization()
+        test_mcp_tools()
+        test_conversation_serialization()
+        test_parse_markdown_blocks()
+        test_document_insertion()
+        test_julia_typein()
+        test_conversation_editor()
+        test_assistant_composer_panel()
+        test_assistant_mvp()
+        test_workbench_file_keys()
+        test_table_navigation()
     end
 end
 
@@ -175,5 +217,13 @@ export test_versioning_to_any, test_syntax_tree_selection,
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference
 export test_json_content_clicks_clean, collect_json_tree_selections
+# moved down from the umbrella
+export test_gesture_map, test_gesture_help, test_db_catalog_sql,
+       test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline,
+       test_workbench_tab_click, test_dragging, test_serialization, test_mcp_tools,
+       test_mcp_resources, test_conversation_serialization, test_parse_markdown_blocks,
+       test_document_insertion, test_julia_typein, test_conversation_editor,
+       test_assistant_composer_panel, test_assistant_mvp, test_workbench_file_keys,
+       test_table_navigation
 
 end # module ProjecturedDomainTest

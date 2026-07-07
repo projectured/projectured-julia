@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # Tests for DbCatalogToSql projection. Pure construction — no live DB needed.
 # Each DbCatalog document type projects directly to SQL DDL documents:

@@ -5,10 +5,6 @@
 # **bold** / inline `code` become structure, not flat text); unknown/malformed fenced
 # blocks fall back to fenced text.
 
-using Projectured: parse_markdown_blocks, ConversationPart,
-                   TextText, JuliaDocument, JsonDocument, XmlDocument,
-                   MarkdownDocument, MarkdownHeading, MarkdownParagraph,
-                   MarkdownCode, MarkdownStrong
 
 function _cp_flat(t::TextText)
     io = IOBuffer()

@@ -2,14 +2,6 @@
 # typing a domain name into a DocumentInsertion and committing it to that
 # domain's document/insertion, and committing Julia source via JuliaInsertion.
 
-using Projectured: DocumentInsertion, JuliaInsertion, JsonInsertion, JuliaDocument,
-                   SqlInsertion, SqlInsertionToSyntaxLeaf, SqlStatement,
-                   DocumentNothing, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
-                   default_factory, default_completion,
-                   print_document, read_intent, evaluate_operation,
-                   ReplaceReferencedValueOperation, CompoundOperation, ReplaceStringRangeOperation,
-                   KeyPress, KeyDown, Modifiers,
-                   ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
 
 # A `replace_document(path, doc)` fold expands to a CompoundOperation whose first
 # member is the ReplaceReferencedValueOperation that writes `doc`.

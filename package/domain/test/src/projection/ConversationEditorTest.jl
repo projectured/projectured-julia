@@ -2,18 +2,6 @@
 # the gesture→operation reader and the part-growing operations that turn a draft
 # `ConversationTurn` into a finished sequence of parts.
 
-using Projectured: ConversationTurn, ConversationPart, PrimitiveString, TextText,
-                   DocumentInsertion, JuliaInsertion, JuliaDocument, EvaluatorForm,
-                   ConversationComposerToWidget, ConversationDraft,
-                   ComposerInputOperation, ComposerBackspaceOperation,
-                   ComposerNewlineOperation, ComposerInsertPartOperation,
-                   ComposerCommitChooserOperation, ComposerCommitSourceOperation,
-                   ComposerEvaluateOperation, ComposerRevertOperation,
-                   ComposerSubmitOperation,
-                   print_document, read_intent, evaluate_operation,
-                   get_projection_gesture_bindings,
-                   KeyPress, KeyDown
-using Projectured: Modifiers
 
 # Flatten a TextText to its rendered string.
 function _ce_flatten(t::TextText)

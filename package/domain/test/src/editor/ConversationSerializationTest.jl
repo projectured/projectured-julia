@@ -3,11 +3,6 @@
 # array (roles, message count, per-block shape, multi-part → one message) and that
 # structured parts serialize as fenced source via their print chain.
 
-using Projectured: ConversationConversation, ConversationTurn, ConversationPart,
-                   ConversationThinking, thinking_part,
-                   TextText, TextString, EvaluatorForm, JuliaIdentifier,
-                   juliaparse, jsonparse, xmlparse, result_text,
-                   build_messages, conversation_to_string
 
 function test_conversation_serialization()
     @testset "Conversation serialization (Stage 4)" begin
