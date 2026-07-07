@@ -75,13 +75,17 @@ end
 
 # `attrs` and `children` are both `CellVector`, so the macro can't tell an
 # attribute vector from a child vector; these disambiguate by element type.
-XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}) =
+# The `<:` covariance matters — after the `@document` refactor, callers pass
+# `[XmlAttribute(...)]` which is `Vector{RXmlAttribute}`, and `Vector{XmlAttribute}`
+# (invariant) would silently miss it and fall through to the `<:XmlDocument`
+# overload, routing attrs into the children slot.
+XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}) =
     XmlElement(tag, attrs, XmlDocument[])
 
 XmlElement(tag::AbstractString, children::Vector{<:XmlDocument}) =
     XmlElement(tag, XmlAttribute[], children)
 
-XmlElement(tag::AbstractString, attrs::Vector{XmlAttribute}, children::Vector{<:XmlDocument}) =
+XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{<:XmlDocument}) =
     XmlElement(tag, CellVector(attrs), CellVector(children))
 
 # attributes as a name-keyed map

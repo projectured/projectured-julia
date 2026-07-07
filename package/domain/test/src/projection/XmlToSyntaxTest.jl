@@ -10,8 +10,7 @@ el = XmlElement("a", [XmlAttribute("href", "x")], XmlDocument[XmlText("hi")])
 @test render(print_document(x2s, el).output) == "<a href=\"x\">hi</a>"
 
 # attribute values are XML-escaped
-# @broken: pre-existing drift; XmlAttribute escaping path throws or diverges
-@test_broken render(print_document(x2s, XmlElement("x", [XmlAttribute("k", "a\"b")])).output) ==
+@test render(print_document(x2s, XmlElement("x", [XmlAttribute("k", "a\"b")])).output) ==
       "<x k=\"a&quot;b\"></x>"
 
 # incremental: a tag rename propagates to both the open and close tags
