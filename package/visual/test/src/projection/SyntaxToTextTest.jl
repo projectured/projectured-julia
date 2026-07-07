@@ -40,18 +40,26 @@ end # @testset "SyntaxToText"
 
 @testset "SyntaxToText flat-position round-trip" begin
 
-# Walk every flat character offset of a hand-built SyntaxNode and verify
-# that _pos_to_selection ∘ _syntax_to_flat = identity. This guarantees that
-# clicking on any character of the rendered text resolves to a selection
-# whose forward map lands back on the same character.
+# Walk every flat character offset of a hand-built SyntaxNode and verify that
+# mapping the corresponding text-domain flat reference back through
+# `map_reference_backward` yields a selection whose forward map (`_syntax_to_flat`)
+# lands back on the same character. This guarantees that clicking on any
+# character of the rendered text resolves to a selection whose forward map
+# lands back on the same character. (The delegation refactor removed the
+# self-contained `_pos_to_selection` helper; its job now lives inside
+# `map_reference_backward`, which reads flat positions as a bare `{k}` ref.)
 let
 _S2T = SyntaxToTextModule
 
+_pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
+    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+
 _check_roundtrip = function (label, node, p)
+    iomap = print_document(RecursiveProjection(SyntaxToText()), node)
     flat_len = _S2T._subtree_len(node, p, 0)
     @testset "$label" begin
         for k in 0:flat_len
-            sel = _S2T._pos_to_selection(node, k, p, 0)
+            sel = _pos_to_selection(iomap, k)
             flat_back = _S2T._syntax_to_flat(node, sel, p, 0)
             @test flat_back == k
         end
@@ -129,19 +137,24 @@ iomap_e = print_document(pipe_on, empty_node)
 
 # Offset shift: the marker adds exactly its length to the subtree, the marker
 # range maps to a projection-introduced position, and the round-trip identity
-# `_pos_to_selection ∘ _syntax_to_flat` still holds with the marker on.
+# `map_reference_backward ∘ _syntax_to_flat` still holds with the marker on.
 @test _S2T._subtree_len(node, p_on, 0) == _S2T._subtree_len(node, p_off, 0) + 1
 
-sel0 = _S2T._pos_to_selection(node, 0, p_on, 0)
-@test sel0.head isa _S2T.ProjectionReference
+_pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
+    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+
+iomap_pon = print_document(pipe_on, node)
+
+sel0 = _pos_to_selection(iomap_pon, 0)
+@test sel0.head isa ProjectionReference
 
 # Position 1 (just past the one-char marker) is the open delimiter.
-sel1 = _S2T._pos_to_selection(node, 1, p_on, 0)
-@test sel1.head isa _S2T.FieldReference && sel1.head.name == "open"
+sel1 = _pos_to_selection(iomap_pon, 1)
+@test sel1.head isa FieldReference && sel1.head.name == "open"
 
 flat_len = _S2T._subtree_len(node, p_on, 0)
 for k in 0:flat_len
-    sel = _S2T._pos_to_selection(node, k, p_on, 0)
+    sel = _pos_to_selection(iomap_pon, k)
     @test _S2T._syntax_to_flat(node, sel, p_on, 0) == k
 end
 end # let
@@ -171,13 +184,17 @@ collapsed = join(s.content for s in print_document(pipe, node).output.elements)
 @test collapsed == "[…]"
 
 # Flat-position round-trip holds while collapsed.
+_pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
+    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+
+iomap_c = print_document(pipe, node)   # node.collapsed = true above
 flat_len = _S2T._subtree_len(node, p, 0)
 for k in 0:flat_len
-    sel = _S2T._pos_to_selection(node, k, p, 0)
+    sel = _pos_to_selection(iomap_c, k)
     @test _S2T._syntax_to_flat(node, sel, p, 0) == k
 end
 # The ellipsis (position after the open delimiter) has no source coordinate.
-@test _S2T._pos_to_selection(node, 1, p, 0).head isa _S2T.ProjectionReference
+@test _pos_to_selection(iomap_c, 1).head isa ProjectionReference
 # `.children[i]…` input references have no image while collapsed.
 @test _S2T._syntax_to_flat(node, (@reference children[1].value{0}), p, 0) == -1
 
