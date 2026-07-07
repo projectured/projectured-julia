@@ -1,0 +1,14 @@
+name = "ProjecturedTulipTest"
+uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
+version = "0.1.0"
+authors = []
+
+# Test package for the opt-in ProjecturedTulip solver: the LP-backed constraint
+# layout (TulipConstraintSolver). Needs the Tulip/Adaptagrams native shim, so it
+# precompiles/runs only where that is installed. Resolves through the root env.
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

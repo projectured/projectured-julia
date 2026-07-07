@@ -10,10 +10,14 @@ ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 ProjecturedDomainTest = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSdlTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
+ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -21,3 +25,7 @@ ProjecturedDomainTest = {path = "../../domain/test"}
 ProjecturedVisualTest = {path = "../../visual/test"}
 ProjecturedBaseTest = {path = "../../base/test"}
 ProjecturedKernelTest = {path = "../../kernel/test"}
+ProjecturedSdlTest = {path = "../../sdl/test"}
+ProjecturedTulipTest = {path = "../../tulip/test"}
+ProjecturedVideoTest = {path = "../../video/test"}
+ProjecturedOdbcTest = {path = "../../odbc/test"}

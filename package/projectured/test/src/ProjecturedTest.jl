@@ -74,6 +74,16 @@ using ProjecturedOdbc
 # Opt into the Tulip solver package so ConstraintSolverTest can construct a
 # TulipConstraintSolver and exercise the LP-backed constraint layout.
 using ProjecturedTulip
+# The opt-in tests themselves now live in per-package test packages (their src
+# moved down with the runtime they exercise). The umbrella `using`s them so its
+# integration entry points (`test_all`, `test_documents`, `test_projections`)
+# keep orchestrating the opt-in suites: test_dirty_rect / test_write_image (Sdl),
+# test_constraint_solver (Tulip), test_record_video (Video), and the DB suites
+# (Odbc) all resolve through these.
+using ProjecturedSdlTest
+using ProjecturedTulipTest
+using ProjecturedVideoTest
+using ProjecturedOdbcTest
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
                    TextRectangularReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,
@@ -88,37 +98,12 @@ function __init__()
     initialize_backend!(make_backend(:sdl))
 end
 
-# Live-DB fixture helpers used by the opt-in `external/` catalog tests. Defined
-# here directly (rather than re-exported from the example package) to keep
-# ProjecturedTest free of the opt-in example packages / native-shim
-# dependency. `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
-# `using ProjecturedOdbc` above.
-function setup_persons_table(adapter)
-    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
-    db_execute_raw(adapter, "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
-    db_insert!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
-end
-
-function teardown_persons_table(adapter)
-    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
-end
-
-include("document/ConstraintSolverTest.jl")
-include("projection/GraphicsToFileTest.jl")
-include("backend/DirtyRectTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/ExampleSweeps.jl")
 include("editor/PrinterLocalityTest.jl")
 include("editor/RecursionContractTest.jl")
 include("editor/MouseClickTest.jl")
-include("editor/VideoTest.jl")
 include("projection/CatalogTest.jl")
-include("external/DatabaseTest.jl")
-include("external/DbCatalogTest.jl")
-# DbCatalogSyntaxTest's entry point opens a live DB adapter (skip-guarded), so it
-# stays here with the other Odbc-coupled external/ tests; its static-fixture
-# subtests are exercised via that entry point.
-include("external/DbCatalogSyntaxTest.jl")
 
 """
     test_documents()
