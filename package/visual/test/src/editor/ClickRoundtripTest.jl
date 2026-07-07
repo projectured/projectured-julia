@@ -23,9 +23,16 @@ using ProjecturedVisual.TextToGraphicsModule: TextToGraphicsIoMap, SegCoord
 
 function _find_text_iomap(io)
     io isa TextToGraphicsIoMap && return io
+    # ChainingProjectionIoMap.step_iomaps is a Vector{Cell{IoMap}}; unwrap each.
     if hasfield(typeof(io), :step_iomaps)
         for s in io.step_iomaps
-            r = _find_text_iomap(s); r !== nothing && return r
+            r = _find_text_iomap(s isa Cell ? s[] : s); r !== nothing && return r
+        end
+    end
+    # SyntaxNodeToTextIoMap keeps its expanded children as Cell{Vector{IoMap}}.
+    if hasfield(typeof(io), :child_iomaps)
+        for c in (io.child_iomaps isa Cell ? io.child_iomaps[] : io.child_iomaps)
+            r = _find_text_iomap(c isa Cell ? c[] : c); r !== nothing && return r
         end
     end
     hasfield(typeof(io), :inner_iomap) && return _find_text_iomap(io.inner_iomap)
