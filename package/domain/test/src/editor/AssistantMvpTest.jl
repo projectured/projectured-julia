@@ -27,7 +27,8 @@
 
 using ProjecturedKernel.McpModule: register_default_tools_and_resources!
 using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
-                                            _eval_code, _eval_result
+                                            _eval_code, _eval_result, _doc_source,
+                                            _eval_form_doc
 import ProjecturedKernel.LlmModule: stream_turn
 import ProjecturedKernel.CellModule: Cell
 
@@ -472,8 +473,15 @@ function _mvp_test_scripted_builders()
         @test reply.role === :assistant
         @test any(p -> p.content isa ConversationThinking, reply.parts)
         ef = first(p.content for p in reply.parts if p.content isa EvaluatorForm)
-        # @broken: pre-existing drift; ScriptedLlm code round-trip lost/altered
-        @test_broken _eval_code(ef) == code                       # survived the JSON round-trip
+        # The tool payload is `juliaparse`d into a JuliaDocument and re-rendered
+        # for display, which normalizes user whitespace/operator spacing (e.g.
+        # `1+1` -> `1 + 1`, multi-statement input becomes an indented block).
+        # Fidelity is up to the parse/render round-trip: the tool code that
+        # arrived matches what the *same* pipeline would produce for the same
+        # input string, i.e. no data was lost between the JSON payload and the
+        # EvaluatorForm's document (a genuine drop would produce a *different*
+        # normalized string, not the identity round-trip we see here).
+        @test _eval_code(ef) == _doc_source(_eval_form_doc(code))
         @test occursin("n=42", _eval_result(ef))           # the code actually ran
         @test _text_to_string(reply.parts[end].content) == "Done."
     end
@@ -515,8 +523,9 @@ function _mvp_test_tool_use_roundtrip()
         @test length(msgs[2].parts) == 2
         ef = msgs[2].parts[1].content
         @test ef isa EvaluatorForm
-        # @broken: pre-existing drift; ScriptedLlm tool-use round-trip code payload
-        @test_broken _eval_code(ef)   == "1+1"
+        # Round-trip is stable modulo the parse/render normalizer; see the
+        # scripted-builders test above for the fuller explanation.
+        @test _eval_code(ef) == _doc_source(_eval_form_doc("1+1"))
         @test ef.tool_use_id   == "tu_1"
         # An `execute_julia_code` result is primary content — expanded by default.
         @test msgs[2].parts[1].collapsed == false
