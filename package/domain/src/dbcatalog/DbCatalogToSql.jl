@@ -105,7 +105,7 @@ function print_document(p::DbCatalogSchemaToSql, recursion, schema::DbCatalogSch
     for (i, table) in enumerate(schema.tables)
         push!(stmts, _recurse(recursion, table_ctx, table, i))
     end
-    SimpleIoMap(p, schema, SqlStatementList(CellVector(stmts)))
+    SimpleIoMap(p, schema, SqlStatementList(stmts))
 end
 
 map_reference_forward(::DbCatalogSchemaToSql, iomap, ref) = nothing
@@ -118,7 +118,7 @@ struct DbCatalogDatabaseToSql <: Projection end
 
 function print_document(p::DbCatalogDatabaseToSql, recursion, db::DbCatalogDatabase, ctx)
     stmts = _flatten_statements(recursion, ctx, db.schemas)
-    SimpleIoMap(p, db, SqlStatementList(CellVector(stmts)))
+    SimpleIoMap(p, db, SqlStatementList(stmts))
 end
 
 map_reference_forward(::DbCatalogDatabaseToSql, iomap, ref) = nothing
@@ -131,7 +131,7 @@ struct DbCatalogRdbmsToSql <: Projection end
 
 function print_document(p::DbCatalogRdbmsToSql, recursion, rdbms::DbCatalogRdbms, ctx)
     stmts = _flatten_statements(recursion, ctx, rdbms.databases)
-    SimpleIoMap(p, rdbms, SqlStatementList(CellVector(stmts)))
+    SimpleIoMap(p, rdbms, SqlStatementList(stmts))
 end
 
 map_reference_forward(::DbCatalogRdbmsToSql, iomap, ref) = nothing
