@@ -1,5 +1,52 @@
 # Mark all currently-failing test assertions with `@test_broken`
 
+## Status (2026-07-07)
+
+- ✅ Phase 1 — Baseline captured.
+- ✅ Phase 2 — Domain sweep (26 markers). `test_domain()` clean: 134644 Pass / 26 Broken / 0 Fail / 0 Error.
+- ✅ Phase 5 — Convention documented in `documentation/testing.md`.
+- ✅ Phase 6 — `CLAUDE.md` nudge added.
+- 🟡 Phase 3 — Umbrella sweep **partial** (Option B from discussion):
+  - Stack-overflow examples in `test_repls()` — `focusing`, `xml` — `@test_skip`'d (real runtime infinite recursion, not test drift).
+  - Fanout-sweep broken-lists (`test_printers`, `test_readers`, `test_repls`, `test_text_navigations`) for `json_sorted`, `sql_update_syntax`, and the 8 TextNavigation examples — **deferred**. See "Deferred" below.
+- 🟡 Phase 4 — Opt-in sweep **partial**:
+  - `test_sdl()` 30/30 clean; `test_tulip()` 14/14 clean.
+  - `test_video()` VideoTest.jl 2 testsets wrapped → `@test_broken`.
+  - `test_odbc()` 102 Pass / 7 Broken / 0 Fail / 0 Error — live-DB paths wrapped, T5 show-string markers added, cleanup FK errors swallowed.
+- ⏸ Phase 7 (plan retirement) — **blocked** on Deferred items below.
+
+The plan stays in `plan/pending/` until Phases 3/4 are complete for the
+umbrella.
+
+## Deferred (Option B tail)
+
+The umbrella `test_all()` still surfaces unmarked failures because each of
+these four umbrella sweeps fans a single failing example over its whole
+example registry:
+
+- `test_printers()` — `json_sorted` fails once (already handled in
+  `test_domain_examples()`, but this sweep runs it again).
+- `test_readers()` — `json_sorted` fails once.
+- `test_repls()` — `json_sorted`, `sql_update_syntax` still fail (the
+  stack-overflow-inducing `focusing` / `xml` are skipped).
+- `test_text_navigations()` — 8 examples fail at `TextNavigationTest.jl:146`:
+  `json_sorted`, `natural`, `line_numbering`, `filesystem`, `navigator`,
+  `rotating_vector`, `conversation`, `conversation_editor`.
+
+Each needs a per-example broken-list in the sweep loop (same pattern used
+in `test_domain_examples()`), or a driver-level `broken=true` keyword.
+Estimated scope: ~4 short blocks + a shared broken-list constant, ~1
+session.
+
+Also deferred:
+
+- `McpTest.jl:553` — `@test occursin("2", result)` on JsonArray indexing.
+  Passes in domain env, fails in umbrella env — the test's `execute_julia_code`
+  scratch namespace differs between the two. Needs either a robust
+  assertion or an env-aware marker.
+
+## Purpose
+
 Establish the invariant that **every known failure is annotated**, so an
 unmarked `Fail` or `Error` in the summary is always a regression.
 
