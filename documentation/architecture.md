@@ -50,16 +50,16 @@ ProjecturEd is organized as **four packages** with strictly layered
 dependencies (`kernel ← base ← visual ← domain`). Each package's layer
 ordering — no upward `..XxxModule` imports inside a declared layer — is
 statically enforced by the shared
-[layered-architecture guard](../package/kernel/test/src/layering/CheckLayering.jl),
+[layered-architecture guard](../package/kernel/test/layering/CheckLayering.jl),
 applied per package by its test package (`test_kernel_layering()`, …).
 
-Each runtime package is one third of a **triad** in one folder:
-`package/<name>/{src, test, example}` — its code, its tests
+Each main package is one third of a **triad** in one folder:
+`package/<name>/{main, test, example}` — its code, its tests
 (`ProjecturedKernelTest`, …), and its examples (`ProjecturedKernelExample`, …)
 as three separate packages under the same directory. The three kinds form
 parallel DAGs of identical shape, and every piece lives in the lowest package
 of its DAG whose API it hard-references (seam calls don't count). See
-[architecture-rules.md](architecture-rules.md#the-triad--every-runtime-package-has-its-code-its-tests-and-its-examples)
+[architecture-rules.md](architecture-rules.md#the-triad--every-main-package-has-its-code-its-tests-and-its-examples)
 for the rules.
 
 ```
@@ -129,11 +129,11 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 > Per-file paths cited in the module inventory below sometimes reflect an
 > older single-package layout; the code now lives across the four
 > packages per the mapping above. A quick reference:
-> — Collection.jl → base/src/document/Collection.jl
-> — Primitive.jl → base/src/document/Primitive.jl
-> — ScreenDocument.jl → visual/src/screen/ScreenDocument.jl
-> — Widget.jl / Graphics.jl / Layout.jl / Text.jl / Syntax.jl / Color.jl / Font.jl → visual/src/<slice>/
-> — Json.jl / Xml.jl / Sql.jl / Julia.jl / … → domain/src/<slice>/
+> — Collection.jl → base/main/document/Collection.jl
+> — Primitive.jl → base/main/document/Primitive.jl
+> — ScreenDocument.jl → visual/main/screen/ScreenDocument.jl
+> — Widget.jl / Graphics.jl / Layout.jl / Text.jl / Syntax.jl / Color.jl / Font.jl → visual/main/<slice>/
+> — Json.jl / Xml.jl / Sql.jl / Julia.jl / … → domain/main/<slice>/
 
 ---
 

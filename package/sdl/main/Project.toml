@@ -1,0 +1,16 @@
+name = "ProjecturedSdl"
+uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedSdl.jl"
+
+[deps]
+ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+
+[sources]
+ProjecturedDomain = {path = "../../domain/main"}
+
+[compat]
+SDL2_jll = "2.32.10"

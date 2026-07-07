@@ -2,6 +2,7 @@ name = "ProjecturedSdlTest"
 uuid = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedSdlTest.jl"
 
 # Test package for the opt-in ProjecturedSdl backend: the dirty-rect diff and
 # the GraphicsCanvas -> image-file path (write_image). Needs native SDL2, so it

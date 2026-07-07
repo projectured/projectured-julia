@@ -2,6 +2,7 @@ name = "ProjecturedTulipTest"
 uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedTulipTest.jl"
 
 # Test package for the opt-in ProjecturedTulip solver: the LP-backed constraint
 # layout (TulipConstraintSolver). Needs the Tulip/Adaptagrams native shim, so it

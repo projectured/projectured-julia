@@ -6,7 +6,7 @@ implementation. The layer carries the abstract `Backend` type, the batch
 generics, the display-size seam, and the dependency-free `HeadlessBackend`
 that CI and documentation examples run against.
 
-The layer lives in [src/backend/](../src/backend/):
+The layer lives in [main/backend/](../main/backend/):
 
 ```
 Backend.jl          (BackendModule)         — Backend abstract + generics + make_backend factory

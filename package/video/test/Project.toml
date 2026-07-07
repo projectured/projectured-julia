@@ -2,6 +2,7 @@ name = "ProjecturedVideoTest"
 uuid = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedVideoTest.jl"
 
 # Test package for the opt-in ProjecturedVideo package: record_video over an
 # example timeline. Needs FFMPEG, so it precompiles/runs only where that is

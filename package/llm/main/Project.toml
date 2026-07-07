@@ -1,0 +1,17 @@
+name = "ProjecturedLlm"
+uuid = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedLlm.jl"
+
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+
+[compat]
+HTTP = "1.11.0"
+JSON3 = "1.14.3"

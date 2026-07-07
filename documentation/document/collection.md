@@ -4,7 +4,7 @@
 
 The collection domain provides four generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
-[program/src/document/Collection.jl](../../package/kernel/src/document/Collection.jl)
+[package/kernel/main/document/Collection.jl](../../package/base/main/document/Collection.jl)
 and subtype `Document` so they participate in the selection mechanism. This guide
 covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
 (2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.

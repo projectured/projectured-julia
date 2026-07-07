@@ -18,7 +18,7 @@ cd "$(dirname "$0")"
 
 echo "Regenerating projectured executable (workbench; json/xml/sql/julia; SDL) — logging to build.log ..."
 
-julia --project=. -e '
+julia --project=main -e '
     include("Builder.jl")
     using .ProjecturedBuilder
     build_executable(; domain=:json,

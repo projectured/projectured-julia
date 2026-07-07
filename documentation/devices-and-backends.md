@@ -9,8 +9,8 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[api/BackendApi.jl](../package/kernel/src/api/BackendApi.jl) and
-[api/DeviceApi.jl](../package/kernel/src/api/DeviceApi.jl). There are three backends: the
+[backend/Backend.jl](../package/kernel/main/backend/Backend.jl) and
+[device/Device.jl](../package/kernel/main/device/Device.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).
@@ -72,7 +72,7 @@ There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
 
 ### SdlBackend
 
-`SdlBackend` (in [backend/Sdl.jl](../package/sdl/src/Sdl.jl)) implements
+`SdlBackend` (in [backend/Sdl.jl](../package/sdl/main/ProjecturedSdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
 - A font measurement cache shared across all windows.
@@ -85,7 +85,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [backend/Console.jl](../package/domain/src/backend/Console.jl))
+`ConsoleBackend` (in [backend/Console.jl](../package/visual/main/backend/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextText` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -103,7 +103,7 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
   an `EventEnvelope(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
   envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
-  ([projection/higherorder/EnvelopeUnwrapping.jl](../package/kernel/src/projection/higherorder/EnvelopeUnwrapping.jl))
+  ([projection/higherorder/EnvelopeUnwrapping.jl](../package/kernel/main/projection/higherorder/EnvelopeUnwrapping.jl))
   — that strips the `EventEnvelope` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
 - **Limitation:** character-level text editing (cursor left/right, insertion,
@@ -115,7 +115,7 @@ Run it with `run_console_example()` (one-shot) or
 `run_console_example(interactive=true)` (read-eval-print loop).
 ## Web backend
 
-`WebBackend` ([backend/Web.jl](../package/web/src/Web.jl)) runs the editor
+`WebBackend` ([backend/Web.jl](../package/web/main/ProjecturedWeb.jl)) runs the editor
 inside an HTTP + WebSocket server and moves the **final rendering step into the
 browser**. The Julia process keeps the document, projection pipeline, reactive
 cells, and the read-eval-print loop; a connected JavaScript client
@@ -133,7 +133,7 @@ keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 ```julia
 run_web_example("json")          # serve on http://127.0.0.1:8080
 run_web_example("json"; port=9000)
-run_web_example(["json", "xml"]) # main window in-tab; the rest as popups
+run_web_example(["json", "xml"]) # default window in-tab; the rest as popups
 ```
 
 Then open `http://127.0.0.1:8080`: the **primary** (first) `WindowDocument`
@@ -218,13 +218,13 @@ and selected explicitly.
 
 The backends above (`SdlBackend`, `ConsoleBackend`, `WebBackend`) are
 *interactive* — they drive live output and input devices. Output-only file
-export lives alongside them under `program/src/backend/` but does **not** subtype
+export lives alongside the backend layer but does **not** subtype
 `Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
 file:
 
-- **`write_image`** ([backend/Sdl.jl](../package/sdl/src/Sdl.jl)) rasterizes a
+- **`write_image`** ([backend/Sdl.jl](../package/sdl/main/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([backend/Pdf.jl](../package/domain/src/backend/Pdf.jl)) walks the same
+- **`write_pdf`** ([backend/Pdf.jl](../package/visual/main/backend/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
@@ -247,7 +247,7 @@ itself never sees the backend type.
 
 ## Adding a new device
 
-1. Subtype `Device` in `program/src/device/`.
+1. Subtype `Device` in `package/kernel/main/device/`.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
 3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
@@ -257,7 +257,7 @@ itself never sees the backend type.
 
 ## Adding a new backend
 
-1. Subtype `Backend` in `program/src/backend/`.
+1. Subtype `Backend` (defined in `package/kernel/main/backend/`) in your backend package.
 2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`, `measure_text`) and the
    `Device` I/O functions (`read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
@@ -267,7 +267,7 @@ itself never sees the backend type.
 The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
 is the contract that keeps backends interchangeable.
 
-[backend/Web.jl](../package/web/src/Web.jl) is a worked second example: it
+[backend/Web.jl](../package/web/main/ProjecturedWeb.jl) is a worked second example: it
 adds a whole new transport (HTTP + WebSocket, with the renderer living in a
 browser) yet touches no projection or domain code, precisely because it speaks
 the same event vocabulary and consumes the same `ScreenDocument` output as the

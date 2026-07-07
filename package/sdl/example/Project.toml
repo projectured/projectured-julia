@@ -2,6 +2,7 @@ name = "ProjecturedSdlExample"
 uuid = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedSdlExample.jl"
 
 # The SDL opt-in example package: the LiveExample timelines that either play in a
 # real SDL window (play_live_example) or record to MP4 (record_live_example via

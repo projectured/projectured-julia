@@ -2,6 +2,7 @@ name = "ProjecturedTulipExample"
 uuid = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedTulipExample.jl"
 
 # The Tulip opt-in example package: the LP-solved constraint-layout example
 # (`constraint_layout_tulip`), reusing the engine-free constraint-layout

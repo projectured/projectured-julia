@@ -27,10 +27,10 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The gallery lives at
-[domain/example/src/Gallery.jl](../package/domain/example/src/Gallery.jl) (the
+[domain/example/Gallery.jl](../package/domain/example/Gallery.jl) (the
 `Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
-[projectured/example/src/Examples.jl](../package/projectured/example/src/Examples.jl), and
+[projectured/example/Examples.jl](../package/projectured/example/Examples.jl), and
 `using ProjecturedExample` provides all of them. It accepts a
 few keyword arguments worth knowing:
 
@@ -69,7 +69,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[visual/example/src/Harness.jl](../package/visual/example/src/Harness.jl). It calls
+[visual/example/Harness.jl](../package/visual/example/Harness.jl). It calls
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
@@ -105,7 +105,7 @@ julia> print_document(proj, doc)                   # reprint after the edit
 ```
 
 This is exactly the read-eval-print loop from
-[program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), peeled
+[package/kernel/main/editor/Editor.jl](../package/kernel/main/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
 ## Searching the pipeline state (iomaps)
@@ -195,7 +195,7 @@ When you want to see *what reads what* — how a single event propagates down
 through the projection stack — point logging at the four projection interface
 generic functions (`read_intent`, `print_document`,
 `map_reference_forward`, `map_reference_backward`). These are declared in
-[program/src/api/ProjectionApi.jl](../package/kernel/src/api/ProjectionApi.jl) and each
+[package/kernel/main/api/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and each
 projection adds its own method; the recursion happens peer-to-peer (a
 projection's `read_intent` calls `read_intent` on its children
 directly), so to see the whole tree you must instrument the generic function
@@ -264,7 +264,7 @@ julia> doc.value[]       # forces evaluation
 ```
 
 The walker used by the test suite (`_walk!` in
-[kernel/test/src/editor/PrinterTest.jl](../package/kernel/test/src/editor/PrinterTest.jl)) is a
+[kernel/test/editor/PrinterTest.jl](../package/kernel/test/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
 ## Generating all screenshots

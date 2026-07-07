@@ -42,7 +42,7 @@ per-layer runners (`test/<layer>/`) exercise each layer against its
 own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
-The package is one flat include list in [src/ProjecturedKernel.jl](../src/ProjecturedKernel.jl):
+The package is one flat include list in [main/ProjecturedKernel.jl](../main/ProjecturedKernel.jl):
 ~50 files, each defining exactly one module. Those modules form a **single acyclic
 dependency DAG**, machine-checked by the include-order guard (see below).
 
@@ -138,7 +138,7 @@ asserts every relative `..XxxModule` import resolves to a module defined by an
 module is defined once. Run it with:
 
 ```
-julia --project=package/kernel package/kernel/test/runtests.jl
+julia --project=package/kernel/test package/kernel/test/runtests.jl
 ```
 
 Depth ≠ include index. Layering each module by its *longest path from a source*
@@ -153,11 +153,11 @@ constraint (every module precedes its users), not a specific linearization.
 
 ## Folder layout
 
-Each layer lives in its own folder under [src/](../src/):
+Each layer lives in its own folder under [main/](../main/):
 
 | Folder | Holds |
 | --- | --- |
-| `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](reactive.md)) |
+| `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](cell.md)) |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl`) |
 | `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |

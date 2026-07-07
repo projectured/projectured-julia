@@ -2,6 +2,7 @@ name = "ProjecturedVisualExample"
 uuid = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedVisualExample.jl"
 
 # The visual tier of the example-package DAG (see
 # plan/done/example-package-split.md): syntax/text documents, the widget
@@ -16,7 +17,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 
 [sources]
-ProjecturedKernel = {path = "../../kernel"}
-ProjecturedBase = {path = "../../base"}
-ProjecturedVisual = {path = ".."}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../main"}
 ProjecturedKernelExample = {path = "../../kernel/example"}

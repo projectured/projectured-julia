@@ -121,7 +121,7 @@ struct field names *are* its public reference vocabulary**: `.value`, `.entries`
 `.children` work because those are literally field names. This is a deliberate,
 load-bearing design choice — it means renaming a field is a breaking change to
 every stored selection and every projection. (See the `Document` contract in
-[api/DocumentApi.jl](../package/kernel/src/api/DocumentApi.jl).)
+[document/Interface.jl](../package/kernel/main/document/Interface.jl).)
 
 Every document node carries its own `selection` field — the *suffix* of the
 full selection path that starts at that node. This distributed storage means

@@ -36,7 +36,7 @@ build_executable(; app_name="json-editor", domain=:json, workbench=false,
 build_executable(BuildSpec(; domain=:json); compile=false)
 ```
 
-`build_executable` (1) generates [`src/AppConfig.jl`](src/) — the baked
+`build_executable` (1) generates [`main/AppConfig.jl`](main/) — the baked
 configuration constants plus the `using` line(s) for exactly the compiled-in
 backends; (2) develops the local Projectured packages it needs by path (so they
 resolve without a registry); and (3) runs `create_app`.
@@ -55,8 +55,8 @@ resolve without a registry); and (3) runs `create_app`.
 | `width`, `height` | `nothing` | fixed window size (defaults to the display size) |
 | `mcp` | `false` | start an MCP server alongside the editor loop |
 
-The generated `src/AppConfig.jl` is git-ignored; the checked-in
-[`src/AppConfig.default.jl`](src/AppConfig.default.jl) (the v1 spec) is the fallback
+The generated `main/AppConfig.jl` is git-ignored; the checked-in
+[`main/AppConfig.default.jl`](main/AppConfig.default.jl) (the v1 spec) is the fallback
 used when no build has run yet.
 
 ## Running the produced binary
@@ -82,9 +82,9 @@ compiled-in backends; on a baked build `--backend` is rejected.
 executable/
 ├── Build.jl                  # thin entry: calls build_executable() (default spec)
 ├── Builder.jl                # ProjecturedBuilder: BuildSpec + build_executable
-├── Project.toml              # package configuration / dependencies
 ├── README.md                 # this file
-├── src/
+├── main/
+│   ├── Project.toml              # package configuration / dependencies
 │   ├── ProjecturedExecutable.jl  # generic, AppConfig-driven entry module (julia_main)
 │   ├── AppConfig.default.jl      # checked-in default config (v1 spec) — the fallback
 │   ├── AppConfig.jl              # GENERATED per build (git-ignored)

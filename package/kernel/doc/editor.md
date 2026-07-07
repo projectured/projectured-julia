@@ -5,7 +5,7 @@ lower layer into the frame-by-frame drive: read from the device, evaluate the
 gesture into an operation, apply the operation to the document, print the
 document through the projection, tick the clock.
 
-The layer lives in [src/editor/](../src/editor/):
+The layer lives in [main/editor/](../main/editor/):
 
 ```
 Editor.jl    (EditorModule)    — the run_editor! loop and Editor struct

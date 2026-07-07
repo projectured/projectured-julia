@@ -2,6 +2,7 @@ name = "ProjecturedOdbcExample"
 uuid = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedOdbcExample.jl"
 
 # The ODBC opt-in example package: the live-database catalog / SQL-table
 # examples (need a reachable PostgreSQL + ProjecturedOdbc). Reuses the

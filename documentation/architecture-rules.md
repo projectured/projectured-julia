@@ -63,24 +63,26 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   seams owned below (make_backend, adapters) and bind to the narrowest package that
   has what they render (sdl/web → visual, odbc → domain's sql surface).
 
-## The triad — every runtime package has its code, its tests, and its examples
+## The triad — every main package has its code, its tests, and its examples
 
-A runtime package is one third of a **triad** that lives in **one folder**:
-`package/<name>/{src, test, example}`. The `test/` and `example/` subfolders are
-themselves full, separate packages (their own `Project.toml`, UUID, and module) —
-nesting them inside the runtime package's directory is purely organizational; a
+A main package is one third of a **triad** that lives in **one folder**:
+`package/<name>/{main, test, example}`. The three subfolders are three sibling
+packages of equal standing (each with its own `Project.toml`, UUID, and module);
+`package/<name>/` itself is a plain grouping folder with no project file — a
 Julia package is defined by its `Project.toml`, not by where its directory sits.
-So `package/kernel/` holds `ProjecturedKernel` (`src/`), `ProjecturedKernelTest`
+Each package's code sits directly next to its `Project.toml` (no `main/` level:
+the `entryfile` key in each `Project.toml` names the entry module file).
+So `package/kernel/` holds `ProjecturedKernel` (`main/`), `ProjecturedKernelTest`
 (`test/`), and `ProjecturedKernelExample` (`example/`); the umbrella's triad is
-`package/projectured/{src, test, example}` = `Projectured` / `ProjecturedTest` /
+`package/projectured/{main, test, example}` = `Projectured` / `ProjecturedTest` /
 `ProjecturedExample`. An opt-in package grows a `test/` or `example/` the same way
 when it earns one.
 
 The three kinds form **parallel DAGs with identical shape** (the module names keep
-the `-Test` / `-Example` suffixes even though the directories are now nested):
+the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-runtime:   kernel ← base ← visual ← domain ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
+main:      kernel ← base ← visual ← domain ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
 tests:     kernel/test ← base/test ← visual/test ← domain/test ← projectured/test
 examples:  kernel/example ← visual/example ← domain/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```
@@ -101,13 +103,13 @@ DB-derived, its layout native), so `adaptagrams/example` depends on
 `odbc/example` for that document — the lowest-home rule applied to a genuinely
 cross-engine example, keeping each projection source file whole.
 
-- A **test package** depends on the runtime package it tests, plus the test packages
+- A **test package** depends on the main package it tests, plus the test packages
   below it (for the shared drivers and enumerators). It must never depend on a
-  runtime package *above* its own tier.
-- An **example package** depends on the runtime package whose vocabulary its
+  main package *above* its own tier.
+- An **example package** depends on the main package whose vocabulary its
   examples use, plus the example packages below it (for the `Example` harness).
 - **Test packages may depend on example packages** of their own tier or below
-  (fixtures); never the other way around — examples are runtime artifacts, tests
+  (fixtures); never the other way around — examples are main-package artifacts, tests
   observe them.
 - The **umbrellas** (`ProjecturedTest`, `ProjecturedExample`) keep only what is
   genuinely cross-cutting (the all-examples registry and sweeps, cross-domain
@@ -168,13 +170,13 @@ Open generics declared low and extended high (`collect_text_selections`,
 
 ## Enforcement
 
-Every runtime package has a static guard that parses the real `import ..Module`
+Every main package has a static guard that parses the real `import ..Module`
 headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
 and slice→slice edges are acyclic. The guard is implemented **once** — the shared
 `check_layering` in
-[package/kernel/test/src/layering/CheckLayering.jl](../package/kernel/test/src/layering/CheckLayering.jl)
-— and each test package applies it to its runtime package
+[package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
+— and each test package applies it to its main package
 (`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
 `test_domain_layering()`), running inside `test_<tier>()`. It runs without loading
 the package (~1s) and is the reason the rules stay true after the refactors that

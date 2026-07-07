@@ -7,15 +7,15 @@ the downstream domains are ordinary, non-versioned documents and every existing
 projection pipeline works unchanged.
 
 It is structurally the same pattern as the clipboard
-([`ClipboardModule`](../../package/domain/src/document/Clipboard.jl) +
-[`ClipboardToAny.jl`](../../package/domain/src/projection/primitive/ClipboardToAny.jl)):
+([`ClipboardModule`](../../package/visual/main/clipboard/Clipboard.jl) +
+[`ClipboardToAny.jl`](../../package/visual/main/clipboard/ClipboardToAny.jl)):
 a wrapper document holding a payload, and a projection that decides which child
 becomes the output and re-roots edits back into that child.
 
 ## Documents — `VersioningModule`
 
 Two levels, defined in
-[`program/src/document/Versioning.jl`](../../package/domain/src/document/Versioning.jl):
+[`package/domain/main/versioning/Versioning.jl`](../../package/domain/main/versioning/Versioning.jl):
 
 - **`VersionedObject`** — the container that *has versions*: a `versions`
   `CellVector` of `ObjectVersion`s (newest-first by convention) plus the active
@@ -56,7 +56,7 @@ matches. New modes are new subtypes with zero changes to the projection.
 
 ## Elimination projection — `VersioningToAnyProjection`
 
-[`program/src/projection/primitive/VersioningToAny.jl`](../../package/domain/src/projection/primitive/VersioningToAny.jl)
+[`package/domain/main/projection/primitive/VersioningToAny.jl`](../../package/domain/main/versioning/VersioningToAny.jl)
 is the direct analogue of `ClipboardSliceToAnyProjection`:
 
 - **Printer** — `(idx, version) = select_version(input)`, recurse into
@@ -93,7 +93,7 @@ display toggle, drops `editor.iomap` to force a rebuild on the new criterion
   (`versioning_example`) — a `VersionedObject` over a `JsonObject` with three
   `ObjectVersion`s. Like `clipboard_example`, it is kept out of the enumeration
   registry; run it directly, e.g. `test_printer(versioning_example)`.
-- Tests: `test/src/projection/VersioningToAnyTest.jl` (`test_versioning_to_any`)
+- Tests: `test/projection/VersioningToAnyTest.jl` (`test_versioning_to_any`)
   covers `select_version` per criterion, the printer under Latest vs Index, the
   empty/no-match → `DocumentNothing` case, reference peel/prepend, reader
   re-rooting, the version-management gestures, and versioned-in-versioned

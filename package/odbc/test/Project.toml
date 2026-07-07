@@ -2,6 +2,7 @@ name = "ProjecturedOdbcTest"
 uuid = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedOdbcTest.jl"
 
 # Test package for the opt-in ProjecturedOdbc adapter: the live-database adapter,
 # connection pool, and DbCatalog projections. Needs a reachable database + ODBC

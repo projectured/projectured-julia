@@ -8,7 +8,7 @@ thin entry point that builds the **default** configuration — a JSON file edito
 with the SDL backend baked in. To build a different editor, call `build_executable`
 directly from the REPL, e.g.:
 
-    julia --project=package/executable -e '
+    julia --project=package/executable/main -e '
         include("package/executable/Builder.jl");
         using .ProjecturedBuilder;
         build_executable(; app_name="json-editor", domain=:json, backends=[:sdl])'
