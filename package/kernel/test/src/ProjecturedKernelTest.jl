@@ -61,6 +61,7 @@ include("operation/TraversalTest.jl")
 include("device/GestureModuleTest.jl")
 include("device/EventCaseTest.jl")
 include("device/GestureBindingTest.jl")
+include("device/GestureRecognizerTest.jl")
 include("backend/HeadlessBackendTest.jl")
 include("agent/AgentSeamTest.jl")
 
@@ -109,6 +110,7 @@ function test_kernel()
         test_gesture_module()
         test_event_case()
         test_gesture_binding()
+        test_gesture_recognizer()
         test_headless_backend()
         test_agent_seam()
         test_focusing()
@@ -122,7 +124,7 @@ export check_layering, test_layering_checkers
 export test_cell, test_performance_counter, test_time, test_document_contract,
        test_reference_builder, test_reference_eval, test_rerooting,
        test_traversal, test_gesture_module, test_event_case,
-       test_gesture_binding, test_headless_backend, test_agent_seam,
+       test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
        test_focusing
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,

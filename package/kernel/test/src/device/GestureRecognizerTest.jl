@@ -1,16 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# test/src/editor/GestureRecognizerTest.jl
+# test/src/device/GestureRecognizerTest.jl
 #
 # Unit tests for the event → gesture recogniser. These exercise the click
 # synthesis (MouseDown + MouseUp → MousePress) independently of the SDL
 # backend. A scripted `source` and an injectable clock make recognition
-# fully deterministic without SDL.
+# fully deterministic without SDL. GestureRecognizer is a kernel device type
+# (no document coupling), so this is its lowest test home.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
-using Projectured: GestureRecognizer, recognize_gesture!, pop_gesture!
-using Projectured: EventEnvelope, MouseDown, MouseUp, MousePress, MouseMove,
-                   MouseScroll, KeyDown, KeyPress, KeyChord, Modifiers
+using Test
+using ProjecturedKernel
+using ProjecturedKernel.GestureRecognizerModule: GestureRecognizer, recognize_gesture!, pop_gesture!
+using ProjecturedKernel.GestureModule: EventEnvelope
+using ProjecturedKernel.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+using ProjecturedKernel.KeyboardModule: KeyDown, KeyPress, KeyChord
+using ProjecturedKernel.ModifiersModule: Modifiers
 
 # A controllable clock: returns whatever `t[]` currently holds.
 _mk_clock(t::Ref{Float64}) = () -> t[]
