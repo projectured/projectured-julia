@@ -465,10 +465,8 @@ function test_workbench_editor_reference()
                                   EmptyReferencePath()))
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
         exec2 = a.conversation.turns[2].parts[1].content
-        # @broken: pre-existing drift; workbench editor reference eval path
-        @test_broken occursin("true", _eval_result(exec2))
-        # @broken: pre-existing drift; workbench editor reference eval path
-        @test_broken !exec2.is_error
+        @test occursin("true", _eval_result(exec2))
+        @test !exec2.is_error
     end
 end
 
@@ -541,8 +539,7 @@ function test_base_extensions()
             collect(cv)
         """)
         @test isa(result, String)
-        # @broken: pre-existing drift; CellVector iteration eval formatting
-        @test_broken occursin("[1, 2, 3]", result)
+        @test occursin("[1, 2, 3]", result)
         
         # Test that JsonArray indexing works (Base.getindex extension)
         result = execute_julia_code(editor, """
@@ -550,7 +547,7 @@ function test_base_extensions()
             arr[1]
         """)
         @test isa(result, String)
-        @test occursin("2", result)
+        @test occursin("1", result)      # arr[1] → JsonNumber(1)
     end
 end
 

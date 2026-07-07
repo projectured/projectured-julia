@@ -57,20 +57,49 @@ get_last_evaluated_value() = LAST_VALUE[]
 
 # The umbrella `Projectured` package (loaded but not a dependency of the kernel —
 # that would be circular) re-exports both kernel and domain names. Prefer it so
-# scratch code can reach domain types (`JsonArray`, `WorkbenchAssistant`, …);
-# fall back to this kernel package when only the kernel is loaded.
-function _projectured_umbrella()
-    for (id, m) in Base.loaded_modules
-        id.name == "Projectured" && return m
+# scratch code can reach every domain type (`JsonArray`, `WorkbenchAssistant`,
+# `CellVector`, …). If the `Projectured` umbrella is loaded it already flat-
+# re-exports every kernel/base/visual/domain submodule, so `using .Projectured`
+# suffices. In per-layer test envs (domain / visual / base / kernel) the
+# umbrella is absent — walk whichever source packages ARE loaded and flat-
+# re-export each of their submodules into the scratch module ourselves, so
+# the same `WorkbenchAssistant`/`JsonArray`/`CellVector` names resolve.
+const _SOURCE_PREFERENCE = ("Projectured", "ProjecturedDomain", "ProjecturedVisual",
+                            "ProjecturedBase", "ProjecturedKernel")
+
+function _flat_reexport!(m::Module, source::Module)
+    srcname = nameof(source)
+    for n in names(source; all = true)
+        isdefined(source, n) || continue
+        sub = getfield(source, n)
+        (sub isa Module && sub !== source && parentmodule(sub) === source) || continue
+        syms = [s for s in names(sub) if s !== nameof(sub) && isdefined(sub, s)]
+        isempty(syms) && continue
+        Core.eval(m, Expr(:using, Expr(:(:),
+            Expr(:., srcname, n), (Expr(:., s) for s in syms)...)))
     end
-    parentmodule(@__MODULE__)
 end
 
 function _scratch_module()
     if !isassigned(_SCRATCH)
         m = Module(:AssistantScratch)
-        Core.eval(m, :(const Projectured = $(_projectured_umbrella())))
-        Core.eval(m, :(using .Projectured))
+        # Which sources are actually loaded? (`Projectured` first if present.)
+        loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
+        srcs = Module[]
+        for name in _SOURCE_PREFERENCE
+            haskey(loaded, name) && push!(srcs, loaded[name])
+        end
+        isempty(srcs) && push!(srcs, parentmodule(@__MODULE__))
+        # Bind each source under its own name, so qualified access still works.
+        for src in srcs
+            Core.eval(m, :(const $(nameof(src)) = $src))
+        end
+        # Alias the highest-preference one as `Projectured` for legacy code.
+        Core.eval(m, :(const Projectured = $(srcs[1])))
+        # Flat re-export every submodule of each source (mirrors the umbrella).
+        for src in srcs
+            _flat_reexport!(m, src)
+        end
         _SCRATCH[] = m
     end
     _SCRATCH[]
