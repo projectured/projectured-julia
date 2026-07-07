@@ -49,5 +49,14 @@ end
     selection::Reference = nothing
 end
 
+# Concise `show` for the five catalog document types. The @document macro's
+# default lists every field (host / port / CellVector spew) which is unusable
+# in the REPL and useless in stack traces. These variants render only the
+# identifying scalar(s), matching the T5 expectations.
+Base.show(io::IO, r::DbCatalogRdbms)    = print(io, "DbCatalogRdbms(", r.host, ":", r.port, ")")
+Base.show(io::IO, d::DbCatalogDatabase) = print(io, "DbCatalogDatabase(", d.name, ")")
+Base.show(io::IO, s::DbCatalogSchema)   = print(io, "DbCatalogSchema(", s.name, ")")
+Base.show(io::IO, t::DbCatalogTable)    = print(io, "DbCatalogTable(", t.name, ")")
+Base.show(io::IO, c::DbCatalogColumn)   = print(io, "DbCatalogColumn(", c.name, "::", c.data_type, ")")
 
 end # module

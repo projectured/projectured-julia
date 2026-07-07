@@ -54,20 +54,15 @@ end
 function test_db_catalog_document_show()
     @testset "T5 — document show (simple)" begin
         rdbms = DbCatalogRdbms("localhost", 5432, CellVector())
-        # @broken: pre-existing drift; DbCatalogRdbms show output differs from expected
-        @test_broken sprint(show, rdbms) == "DbCatalogRdbms(localhost:5432)"
+        @test sprint(show, rdbms) == "DbCatalogRdbms(localhost:5432)"
         db = DbCatalogDatabase("mydb", CellVector())
-        # @broken: pre-existing drift; DbCatalogDatabase show output differs
-        @test_broken sprint(show, db) == "DbCatalogDatabase(mydb)"
+        @test sprint(show, db) == "DbCatalogDatabase(mydb)"
         schema = DbCatalogSchema("public", CellVector())
-        # @broken: pre-existing drift; DbCatalogSchema show output differs
-        @test_broken sprint(show, schema) == "DbCatalogSchema(public)"
+        @test sprint(show, schema) == "DbCatalogSchema(public)"
         table = DbCatalogTable("persons", CellVector())
-        # @broken: pre-existing drift; DbCatalogTable show output differs
-        @test_broken sprint(show, table) == "DbCatalogTable(persons)"
+        @test sprint(show, table) == "DbCatalogTable(persons)"
         col = DbCatalogColumn("name", "text")
-        # @broken: pre-existing drift; DbCatalogColumn show output differs
-        @test_broken sprint(show, col) == "DbCatalogColumn(name::text)"
+        @test sprint(show, col) == "DbCatalogColumn(name::text)"
     end
 end
 
