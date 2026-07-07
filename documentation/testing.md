@@ -270,3 +270,114 @@ keep the SDL backend initialised between runs (`__init__` in
 See [the debugging guide](debugging.md) for the matching REPL helpers
 (`run_example`, `print_example`) that let you reproduce a failure
 interactively before reaching for the test functions.
+
+## Marking known-failing tests
+
+**Invariant:** every currently-failing assertion is marked with
+`@test_broken`. An unmarked `Fail` or `Error` in a suite summary is
+unambiguously a regression — no bisection, no snapshot files, no counts.
+Julia's `Test` stdlib partitions the summary into `Pass / Fail / Error /
+Broken` columns for free.
+
+### Marker format
+
+```julia
+# @broken: <one-line reason>[; plan/<slug>.md]
+@test_broken <expr>
+```
+
+`grep -rn "@broken:" package/*/test/src/` enumerates every marked test
+with its reason. Every `@test_broken` must have a `# @broken:` comment on
+the line above — a bare marker with no context is not acceptable.
+
+### Which pattern to use
+
+- **Assertion-level Fail or Error inside `@test`** — convert `@test`
+  to `@test_broken`. Julia catches thrown exceptions and reports them as
+  `Broken` in the summary, so this handles both `Fail`s and most `Error`s.
+- **Testset-setup Error** ("Got exception outside of a @test") — the
+  throw happens *before* an `@test` runs. Wrap the testset body in
+  `try/catch`, and emit `@test_broken (@warn "..."; false)` on catch:
+
+  ```julia
+  @testset "..." begin
+      try
+      # normal test body with @tests
+      catch e
+          # @broken: pre-existing drift; testset setup throws
+          @test_broken (@warn "setup threw: $e"; false)
+      end
+  end
+  ```
+
+  Only the catch branch fires when the setup actually throws. If someday
+  the setup starts working, the catch is skipped and normal assertions
+  run — no ceremony to undo.
+- **Loop with mixed pass/fail iterations** — check the outcome and
+  branch:
+
+  ```julia
+  for path in paths
+      back = map_reference_backward(p, iomap, forward(path))
+      if back == path
+          @test back == path
+      else
+          # @broken: <reason>; some iterations still drift
+          @test_broken back == path
+      end
+  end
+  ```
+
+- **Sweep over examples with one broken example** — filter in the
+  sweep loop and emit `@test_broken` for the broken example only:
+
+  ```julia
+  for ex in domain_examples
+      @testset "$(ex.name)" begin
+          if ex.name == "json_sorted"
+              # @broken: <reason>
+              @test_broken (print_document(ex.projection, ex.document); true)
+          else
+              test_printer(ex)
+          end
+      end
+  end
+  ```
+
+- **`@test_skip` — the escape hatch.** Use only when running the code
+  would crash the runner (stack overflow, infinite loop, corrupts
+  subsequent tests). `@test_broken` catches thrown exceptions, but only
+  after they're thrown; if throwing is destructive, `@test_skip` is
+  safer. Skipped tests never run and can rot silently, so this is a last
+  resort.
+
+### `@test_broken` semantics you should know
+
+- If the expression evaluates `false` or **throws**, it registers as
+  `Broken`.
+- If the expression evaluates `true`, it registers as
+  `Error: Unexpected Pass` — the automatic signal to promote the
+  marker back to `@test`. **Do not ignore this message; it means the
+  underlying issue is fixed and the marker should come off.**
+- The `Broken` count is shown in a separate column of every summary, so
+  the shape "N Pass / M Fail / K Error / L Broken" always has an obvious
+  regression signal (`M + K` should be 0).
+
+### Adding a new marker
+
+1. Write a one-line reason. If a plan exists, link it. If the root cause
+   is unknown, say so honestly ("pre-existing drift; no investigation
+   yet") rather than inventing.
+2. Verify locally that the relevant `test_*()` aggregator exits with
+   `Fail == 0`, `Error == 0`.
+3. If the marker fires unexpectedly on a passing iteration (`Error:
+   Unexpected Pass`), narrow the marker's scope — see the loop pattern.
+
+### Removing a marker
+
+When a bug is fixed, `@test_broken` reports `Error: Unexpected Pass`. To
+un-mark:
+
+1. Change `@test_broken` back to `@test`.
+2. Delete the `# @broken:` comment.
+3. Confirm the assertion now passes cleanly.
