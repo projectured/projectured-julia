@@ -24,6 +24,7 @@ import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
+import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 export WordWrapping, WordWrappingIoMap, WrapSeg
@@ -310,9 +311,11 @@ function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStrin
     nothing
 end
 
-# Forward arbitrary events upstream (KeyDown / KeyPress / etc.) so projections
-# above WordWrapping keep getting a chance at them.
-read_intent(::WordWrapping, ::WordWrappingIoMap, op) = op
+# Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
+# MousePress) falls through to the base `Projection.read_intent`, which delegates
+# via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
+# gesture back as if it were an operation, breaking upstream chain dispatch.
+read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

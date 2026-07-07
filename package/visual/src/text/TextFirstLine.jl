@@ -32,6 +32,7 @@ import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
+import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 
@@ -160,9 +161,11 @@ function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStr
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-# Forward arbitrary events (KeyDown / KeyPress / …) upstream so projections above
-# keep getting a chance at them.
-read_intent(::TextFirstLine, ::TextFirstLineIoMap, op) = op
+# Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
+# MousePress) falls through to the base `Projection.read_intent`, which delegates
+# via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
+# gesture back as if it were an operation, breaking upstream chain dispatch.
+read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
 
 # ── Path helpers (mirrors WordWrapping) ───────────────────────────────────────
 

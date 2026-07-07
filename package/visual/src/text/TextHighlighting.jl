@@ -25,6 +25,7 @@ import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
+import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 export TextHighlighting, TextHighlightingIoMap, HighlightSeg
@@ -255,8 +256,10 @@ function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::Repl
     nothing
 end
 
-# Forward arbitrary events upstream (KeyDown / KeyPress / etc.).
-read_intent(::TextHighlighting, ::TextHighlightingIoMap, op) = op
+# Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
+# unchanged; a raw gesture (KeyPress/KeyDown/MousePress) falls through to the
+# base `Projection.read_intent` which delegates via `read_gesture(input, evt)`.
+read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 
