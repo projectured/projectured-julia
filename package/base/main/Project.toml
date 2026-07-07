@@ -1,0 +1,19 @@
+name = "ProjecturedBase"
+uuid = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedBase.jl"
+
+# ProjecturedBase depends only on ProjecturedKernel: the concrete engine
+# documents (Collection, Primitive, ScreenDocument) and, from P8, the
+# document-shaped generic projections. Layered between kernel and domain in
+# the plan/done/kernel-layered-architecture.md dependency chain:
+#   kernel → base → domain → umbrella
+# opt-in packages (sdl/web/odbc/…) still depend on domain, not base.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}

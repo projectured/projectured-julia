@@ -738,25 +738,25 @@ version = "1.11.0"
 
 [[deps.Projectured]]
 deps = ["ProjecturedBase", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedVisual"]
-path = "package/projectured"
+path = "package/projectured/main"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedAdaptagrams]]
 deps = ["Libdl", "ProjecturedDomain"]
-path = "package/adaptagrams"
+path = "package/adaptagrams/main"
 uuid = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 version = "0.1.0"
 
 [[deps.ProjecturedBase]]
 deps = ["ProjecturedKernel", "Serialization"]
-path = "package/base"
+path = "package/base/main"
 uuid = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
 deps = ["Base64", "Markdown", "ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual", "Serialization"]
-path = "package/domain"
+path = "package/domain/main"
 uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
@@ -786,7 +786,7 @@ version = "0.1.0"
 
 
 [[deps.ProjecturedKernel]]
-path = "package/kernel"
+path = "package/kernel/main"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
@@ -822,25 +822,25 @@ version = "0.1.0"
 
 [[deps.ProjecturedLlm]]
 deps = ["HTTP", "JSON3", "ProjecturedKernel"]
-path = "package/llm"
+path = "package/llm/main"
 uuid = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 version = "0.1.0"
 
 [[deps.ProjecturedMcp]]
 deps = ["ModelContextProtocol", "ProjecturedKernel"]
-path = "package/mcp"
+path = "package/mcp/main"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
 
 [[deps.ProjecturedOdbc]]
 deps = ["DBInterface", "ODBC", "ProjecturedDomain", "Tables"]
-path = "package/odbc"
+path = "package/odbc/main"
 uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
 
 [[deps.ProjecturedSdl]]
 deps = ["ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
-path = "package/sdl"
+path = "package/sdl/main"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
 
@@ -852,19 +852,19 @@ version = "0.1.0"
 
 [[deps.ProjecturedTulip]]
 deps = ["MathOptInterface", "ProjecturedDomain", "Tulip"]
-path = "package/tulip"
+path = "package/tulip/main"
 uuid = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 version = "0.1.0"
 
 [[deps.ProjecturedVideo]]
 deps = ["FFMPEG", "ProjecturedDomain", "ProjecturedSdl"]
-path = "package/video"
+path = "package/video/main"
 uuid = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 version = "0.1.0"
 
 [[deps.ProjecturedVisual]]
 deps = ["ProjecturedBase", "ProjecturedKernel"]
-path = "package/visual"
+path = "package/visual/main"
 uuid = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 version = "0.1.0"
 
@@ -882,7 +882,7 @@ version = "0.1.0"
 
 [[deps.ProjecturedWeb]]
 deps = ["Base64", "HTTP", "JSON3", "ProjecturedDomain"]
-path = "package/web"
+path = "package/web/main"
 uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"
 

@@ -1,0 +1,14 @@
+name = "ProjecturedTulip"
+uuid = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedTulip.jl"
+
+[deps]
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
+
+[compat]
+MathOptInterface = "1"
+Tulip = "0.9"

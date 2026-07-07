@@ -6,7 +6,7 @@ of the editor loop itself: the editor reaches this layer only through
 by the editor and the real transports live in optional opt-in packages
 (`ProjecturedLlm`, `ProjecturedMcp`).
 
-The layer lives in [src/agent/](../src/agent/):
+The layer lives in [main/agent/](../main/agent/):
 
 ```
 Agent.jl         (AgentModule)        — make_agent_server + start/stop generics

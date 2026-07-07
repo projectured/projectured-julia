@@ -2,6 +2,7 @@ name = "ProjecturedAdaptagramsExample"
 uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedAdaptagramsExample.jl"
 
 # The Adaptagrams opt-in example package: the native-graph-layout examples
 # (`graph_adaptagrams` and the `dvdrental_relationship` entity-relationship

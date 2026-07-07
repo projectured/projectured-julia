@@ -3,7 +3,7 @@
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
 that responds to user input. The implementation lives in
-[program/src/editor/Editor.jl](../package/kernel/src/editor/Editor.jl), whose `run_editor!`
+[package/kernel/main/editor/Editor.jl](../package/kernel/main/editor/Editor.jl), whose `run_editor!`
 function is the entry point.
 
 ## The Editor struct
@@ -187,7 +187,7 @@ In the example layer this is wired up for you — see `play_live_example` and
 
 When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
 launches it on `http://127.0.0.1:9876/mcp` (see
-[program/src/editor/Mcp.jl](../package/kernel/src/editor/Mcp.jl)). The server
+[package/kernel/main/editor/Mcp.jl](../package/kernel/main/agent/Mcp.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 

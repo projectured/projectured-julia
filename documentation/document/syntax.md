@@ -70,7 +70,7 @@ node.indentation = 2     # override indentation depth
 
 The syntax tree's keyboard navigation is entirely geometry-free — it walks the
 `SyntaxNode` tree and its selection paths — so it lives on the document:
-`read_gesture(::SyntaxNode, gesture)` ([document/Syntax.jl](../../package/domain/src/document/Syntax.jl))
+`read_gesture(::SyntaxNode, gesture)` ([syntax/Syntax.jl](../../package/visual/main/syntax/Syntax.jl))
 maps an input gesture to a `ReplaceSelectionOperation` on the tree:
 
 - `Ctrl+Alt+Home` → select the root node (`∅`)

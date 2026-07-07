@@ -79,7 +79,7 @@ entry point). See the plan file for scope.
 
 ## Alias preamble
 
-Files under this package's `src/` folders reference kernel modules via
+Files under this package's `main/` folders reference kernel modules via
 relative `..XxxModule` imports (e.g. `import ..CellModule: Cell`). Those
 resolve through the `const CellModule = ProjecturedKernel.CellModule`
 declarations at the top of `ProjecturedBase.jl`. The base guard's

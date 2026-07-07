@@ -5,7 +5,7 @@ of typed steps addressing one location inside a document tree. This page is
 the layer's structural overview; the hands-on "how do references work" guide
 is in [documentation/editor/reference.md](../../../documentation/editor/reference.md).
 
-The layer lives in [src/reference/](../src/reference/), inside one aggregator
+The layer lives in [main/reference/](../main/reference/), inside one aggregator
 module (`ReferenceModule`) split across three fragments that share its
 namespace:
 

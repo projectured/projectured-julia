@@ -6,7 +6,7 @@
 # which backend(s) compiled in and whether the choice is exposed at runtime).
 # `build_executable` turns a spec into a binary:
 #
-#   1. generate `src/AppConfig.jl` — the baked configuration constants plus the
+#   1. generate `main/AppConfig.jl` — the baked configuration constants plus the
 #      `using` line(s) for exactly the compiled-in backends;
 #   2. develop the local packages the app needs (the meta-package, the examples,
 #      and each baked backend) so they resolve regardless of a stale Manifest;
@@ -30,8 +30,8 @@ export BuildSpec, build_executable, render_app_config, write_app_config
 # lives in the domain package (re-exported by `Projectured`), so it needs no extra
 # develop and has no entry here.
 const BACKEND_LOCALS = Dict{Symbol,Tuple{String,String}}(
-    :sdl => ("ProjecturedSdl", "sdl"),
-    :web => ("ProjecturedWeb", "web"),
+    :sdl => ("ProjecturedSdl", "sdl/main"),
+    :web => ("ProjecturedWeb", "web/main"),
 )
 const KNOWN_BACKENDS = Set{Symbol}([:sdl, :web, :console])
 
@@ -40,7 +40,7 @@ const KNOWN_BACKENDS = Set{Symbol}([:sdl, :web, :console])
 # its own `[sources]`, but `example` depends on `llm` and declares no `[sources]`
 # of its own, so `llm` must be developed explicitly too. Backends are added on top
 # from `spec.backends`.
-const LOCAL_CORE_PACKAGES = ["projectured", "example", "llm"]
+const LOCAL_CORE_PACKAGES = ["projectured/main", "projectured/example", "llm/main"]
 
 # ── BuildSpec ────────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ _opt(x) = x === nothing ? "nothing" : repr(x)
 """
     render_app_config(spec::BuildSpec) -> String
 
-The source text of the generated `src/AppConfig.jl`: the backend `using` line(s)
+The source text of the generated `main/AppConfig.jl`: the backend `using` line(s)
 for exactly the compiled-in backends, followed by the baked `APP_*` constants the
 app's `julia_main` reads. Pure — no filesystem or Pkg side effects.
 """
@@ -153,7 +153,7 @@ end
 """
     write_app_config(spec::BuildSpec, path) -> path
 
-Write [`render_app_config`](@ref) to `path` (the generated `src/AppConfig.jl`).
+Write [`render_app_config`](@ref) to `path` (the generated `main/AppConfig.jl`).
 """
 function write_app_config(spec::BuildSpec, path::AbstractString)
     write(path, render_app_config(spec))
@@ -167,7 +167,7 @@ end
                      compile=true, force=true) -> path
     build_executable(; kwargs...)   # builds a BuildSpec from keyword args first
 
-Generate `src/AppConfig.jl` from `spec` and, when `compile=true`, compile the
+Generate `main/AppConfig.jl` from `spec` and, when `compile=true`, compile the
 native executable with PackageCompiler. With `compile=false` only the config is
 generated (returns the AppConfig path) — useful for testing generation without the
 multi-minute build. Returns the output directory when compiling.
@@ -175,16 +175,16 @@ multi-minute build. Returns the output directory when compiling.
 function build_executable(spec::BuildSpec; exe_dir::AbstractString=@__DIR__,
                           output::AbstractString=joinpath(exe_dir, "build"),
                           compile::Bool=true, force::Bool=true)
-    config_path = joinpath(exe_dir, "src", "AppConfig.jl")
+    config_path = joinpath(exe_dir, "main", "AppConfig.jl")
     write_app_config(spec, config_path)
     @info "build_executable: wrote $config_path"
     compile || return config_path
 
     package_dir = normpath(joinpath(exe_dir, ".."))
-    Pkg.activate(exe_dir)
+    Pkg.activate(joinpath(exe_dir, "main"))
     # Develop the local packages this app needs by path, so they resolve even when
     # the committed Manifest is stale: the core packages (meta-package + examples +
-    # their local deps) and each baked backend (e.g. ProjecturedSdl → package/sdl).
+    # their local deps) and each baked backend (e.g. ProjecturedSdl → package/sdl/main).
     local_specs = Pkg.PackageSpec[
         Pkg.PackageSpec(path = joinpath(package_dir, p)) for p in LOCAL_CORE_PACKAGES
     ]
@@ -202,8 +202,8 @@ function build_executable(spec::BuildSpec; exe_dir::AbstractString=@__DIR__,
 
     @eval import PackageCompiler
     @info "build_executable: compiling :$(spec.app_name) (domain=:$(spec.domain), backends=$(Tuple(spec.backends))) — this takes several minutes"
-    Base.invokelatest(PackageCompiler.create_app, exe_dir, output;
-        precompile_execution_file = joinpath(exe_dir, "src", "Precompile.jl"),
+    Base.invokelatest(PackageCompiler.create_app, joinpath(exe_dir, "main"), output;
+        precompile_execution_file = joinpath(exe_dir, "main", "Precompile.jl"),
         executables = [spec.app_name => "julia_main"],
         force = force)
     @info "build_executable: done → $(joinpath(output, "bin", spec.app_name))"

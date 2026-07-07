@@ -4,7 +4,7 @@ Layer 5 of the kernel — **input devices, events, and gestures**. Independent
 sibling of the backend layer; the two abstractions only come together in a
 concrete implementation.
 
-The layer lives in [src/device/](../src/device/) as a set of small modules
+The layer lives in [main/device/](../main/device/) as a set of small modules
 plus one aggregator (`GestureModule`) covering the gesture machinery:
 
 ```

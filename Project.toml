@@ -28,28 +28,28 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernel = {path = "package/kernel"}
+ProjecturedKernel = {path = "package/kernel/main"}
 ProjecturedKernelExample = {path = "package/kernel/example"}
 ProjecturedKernelTest = {path = "package/kernel/test"}
-ProjecturedBase = {path = "package/base"}
+ProjecturedBase = {path = "package/base/main"}
 ProjecturedBaseTest = {path = "package/base/test"}
-ProjecturedDomain = {path = "package/domain"}
+ProjecturedDomain = {path = "package/domain/main"}
 ProjecturedDomainTest = {path = "package/domain/test"}
 ProjecturedDomainExample = {path = "package/domain/example"}
-ProjecturedAdaptagrams = {path = "package/adaptagrams"}
-Projectured = {path = "package/projectured"}
+ProjecturedAdaptagrams = {path = "package/adaptagrams/main"}
+Projectured = {path = "package/projectured/main"}
 ProjecturedExample = {path = "package/projectured/example"}
 ProjecturedOdbcExample = {path = "package/odbc/example"}
 ProjecturedAdaptagramsExample = {path = "package/adaptagrams/example"}
 ProjecturedTulipExample = {path = "package/tulip/example"}
 ProjecturedTest = {path = "package/projectured/test"}
-ProjecturedMcp = {path = "package/mcp"}
-ProjecturedLlm = {path = "package/llm"}
-ProjecturedOdbc = {path = "package/odbc"}
-ProjecturedWeb = {path = "package/web"}
-ProjecturedSdl = {path = "package/sdl"}
-ProjecturedTulip = {path = "package/tulip"}
-ProjecturedVideo = {path = "package/video"}
-ProjecturedVisual = {path = "package/visual"}
+ProjecturedMcp = {path = "package/mcp/main"}
+ProjecturedLlm = {path = "package/llm/main"}
+ProjecturedOdbc = {path = "package/odbc/main"}
+ProjecturedWeb = {path = "package/web/main"}
+ProjecturedSdl = {path = "package/sdl/main"}
+ProjecturedTulip = {path = "package/tulip/main"}
+ProjecturedVideo = {path = "package/video/main"}
+ProjecturedVisual = {path = "package/visual/main"}
 ProjecturedVisualTest = {path = "package/visual/test"}
 ProjecturedVisualExample = {path = "package/visual/example"}

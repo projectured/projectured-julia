@@ -45,7 +45,7 @@ fragment directly. Either way the run is recorded in the conversation as a
 re-readable code execution.
 
 The conversation is a real ProjecturEd domain
-([Conversation.jl](package/domain/src/document/Conversation.jl)): messages, streaming
+([Conversation.jl](package/domain/main/conversation/Conversation.jl)): messages, streaming
 response blocks, and code executions are all structured documents, projected and
 selectable like everything else. The editor edits its own AI session with the
 same machinery it uses to edit your data.
@@ -54,13 +54,13 @@ Under the hood:
 
 - The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
   `Projectured` preloaded and `editor` bound — its handler lives in
-  [Mcp.jl](package/kernel/src/editor/Mcp.jl).
+  [Mcp.jl](package/kernel/main/agent/Mcp.jl).
 - Before writing code, the AI reads the editor's own guides, modules, classes,
   and functions, exposed as resources, so it works from real signatures
-  ([Mcp.jl](package/kernel/src/editor/Mcp.jl)).
+  ([Mcp.jl](package/kernel/main/agent/Mcp.jl)).
 - The in-editor assistant and an external **MCP server** (`127.0.0.1:9876/mcp`)
   share one tool registry
-  ([ToolRegistry.jl](package/kernel/src/editor/ToolRegistry.jl)), so an external MCP
+  ([ToolRegistry.jl](package/kernel/main/agent/ToolRegistry.jl)), so an external MCP
   client can drive the editor too.
 - The assistant uses Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY`
   is set, and a deterministic offline backend otherwise, so the example runs
@@ -209,13 +209,13 @@ and the [testing guide](documentation/testing.md) for running the test suite.
 
 | Path | Contents |
 |---|---|
-| [program/src/](package/) | Core `Projectured` package — API, documents, projections, references, editor, devices, backends |
-| [example/src/](package/example/src/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_example_image` helpers |
-| [example/workspace/](package/example/workspace/) | On-disk fixtures used by examples |
-| [test/src/](package/test/src/) | `ProjecturedTest` package — `test_all` and every per-layer helper |
+| [package/](package/) | One folder per package triad: `main/` (the code), `test/`, and `example/` as three sibling packages — API, documents, projections, references, editor, devices, backends |
+| [package/projectured/example/](package/projectured/example/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_example_image` helpers |
+| [package/projectured/example/workspace/](package/projectured/example/workspace/) | On-disk fixtures used by examples |
+| [package/projectured/test/](package/projectured/test/) | `ProjecturedTest` package — `test_all` and every per-layer helper |
 | [documentation/](documentation/) | All architecture and topic guides — see [the guide index](documentation/README.md) for the reading-order index |
-| [executable/](package/executable/) | Build configuration for a standalone executable |
-| [font/](asset/font/), [image/](asset/image/) | Bundled assets and screenshots |
+| [package/executable/](package/executable/) | Build configuration for a standalone executable |
+| [asset/font/](asset/font/), [asset/image/](asset/image/) | Bundled assets and screenshots |
 | [plan/](plan/) | Design notes and work-in-progress plans |
 
 ## Guides

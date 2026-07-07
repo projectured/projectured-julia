@@ -6,7 +6,7 @@ overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
 [documentation/concepts.md](../../../documentation/concepts.md).
 
-The layer lives in [src/document/](../src/document/), inside one aggregator
+The layer lives in [main/document/](../main/document/), inside one aggregator
 module (`DocumentModule`) split across two fragments that share its namespace:
 
 ```

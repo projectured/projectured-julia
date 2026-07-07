@@ -7,38 +7,47 @@ style expectations, and how to submit a change.
 
 ## Prerequisites
 
-- Julia 1.10+
+- Julia 1.11+ (the `Project.toml` files use `[sources]` and `entryfile`)
 - SDL2 and SDL_ttf (`apt install libsdl2-dev libsdl2-ttf-dev` on Debian/Ubuntu)
+  — only for the SDL backend; the test suite runs without them
 - Git
 
 ## Project structure
 
 ```
-program/    → core Projectured package (Julia module)
-example/    → ProjecturedExample package (examples + REPL helpers)
-test/       → ProjecturedTest package (test suite)
-guide/      → all documentation
-plan/       → design notes and work-in-progress plans (internal)
-font/       → bundled font assets
-image/      → screenshots and UI icons
+package/        → one folder per package triad (see below)
+documentation/  → all documentation
+plan/           → design notes and work-in-progress plans (internal)
+asset/          → bundled fonts, screenshots, and UI icons
 ```
 
-Each of `program/`, `example/`, and `test/` is its own Julia project with its
-own `Project.toml`. They are linked by path dependencies.
+Every package under `package/<name>/` is a **triad** of up to three sibling
+Julia packages in one grouping folder (which itself has no `Project.toml`):
+
+```
+package/kernel/
+├── main/       → ProjecturedKernel        (the main package: the code)
+├── test/       → ProjecturedKernelTest    (its test suite)
+└── example/    → ProjecturedKernelExample (its examples)
+```
+
+Each subfolder holds its own `Project.toml` with its code directly beside it
+(no `src/` level — the `entryfile` key names the entry module file). The
+packages are linked by `[sources]` path dependencies. See
+[documentation/architecture-rules.md](documentation/architecture-rules.md) for
+the main/test/example DAGs and the rules that keep them parallel.
 
 ## Running the tests
 
 ```julia
-julia --project=test
+julia --project=package/projectured/test
 using ProjecturedTest
-test_all()          # full suite (~30 s)
+test_all()          # full suite
 
-# Or individual layers:
-test_printers()
-test_readers()
-test_text_navigations()
-test_repls()
-test_mcp_tools()
+# Or the narrowest scope that covers your change (preferred):
+test_kernel()       # one main package's suite (also: test_base(), test_visual(), test_domain())
+test_json()         # one domain
+test_printer(json_example)  # one example
 ```
 
 See [documentation/testing.md](documentation/testing.md) for the full list of per-layer
@@ -91,7 +100,7 @@ Every new projection needs:
 3. An example (so `run_example("my_domain")` works).
 
 Use `@testset "Name" begin ... end` wrapped in a `function test_my_feature()`
-function, following the existing pattern in `test/src/projection/`.
+function, following the existing pattern in `package/domain/test/projection/`.
 
 ### No unrelated formatting changes
 
@@ -102,11 +111,13 @@ makes review harder.
 
 1. Fork the repository and create a branch.
 2. Make your changes. Follow the style guidelines above.
-3. Run the test suite (`test_all()`) and confirm it passes.
+3. Run the narrowest test that covers the change (see
+   [documentation/testing.md](documentation/testing.md)) and confirm it passes.
 4. If you added a domain or projection, add a corresponding test file and
-   register it in `test/src/ProjecturedTest.jl`.
-5. Update the relevant guide in `guide/document/` or `guide/` if the change
-   affects documented behaviour.
+   register it in the test package of the lowest main-package tier that can
+   express it (usually `package/domain/test/ProjecturedDomainTest.jl`).
+5. Update the relevant guide in `documentation/` if the change affects
+   documented behaviour.
 6. Open a pull request. The description should explain *what* changed and
    *why*; link to the relevant `plan/` document if one exists.
 
@@ -115,18 +126,22 @@ makes review harder.
 A full walkthrough is in [documentation/tutorial-new-domain.md](documentation/tutorial-new-domain.md).
 The short version:
 
-- [ ] `program/src/document/MyDomain.jl` — define document types with `@document`,
-      `selection::Reference`, and any domain-specific operations.
-- [ ] Include in `program/src/Projectured.jl` and add `using` + `export` lines.
-- [ ] `program/src/projection/primitive/MyDomainToSyntax.jl` — `projection_print`
-      methods for each document type.
+- [ ] `package/domain/main/document/MyDomain.jl` — define document types with
+      `@document`, `selection::Reference`, and any domain-specific operations.
+- [ ] Include in `package/domain/main/ProjecturedDomain.jl` and add `using` +
+      `export` lines.
+- [ ] `package/domain/main/projection/primitive/MyDomainToSyntax.jl` —
+      `projection_print` methods for each document type.
 - [ ] `projection_read` methods for each printer.
-- [ ] `example/src/document/MyDomain.jl` — `make_my_domain_document_example()`.
-- [ ] `example/src/projection/MyDomain.jl` — `make_my_domain_projection_example()`.
-- [ ] Register in `example/src/Examples.jl` and `example/src/ProjecturedExample.jl`.
-- [ ] `test/src/projection/MyDomainTest.jl` — printer + reader tests.
-- [ ] Register in `test/src/ProjecturedTest.jl`.
-- [ ] Update `guide/document/my-domain.md`.
+- [ ] `package/domain/example/document/MyDomain.jl` —
+      `make_my_domain_document_example()`.
+- [ ] `package/domain/example/projection/MyDomain.jl` —
+      `make_my_domain_projection_example()`.
+- [ ] Register in `package/domain/example/Examples.jl` and
+      `package/domain/example/ProjecturedDomainExample.jl`.
+- [ ] `package/domain/test/projection/MyDomainTest.jl` — printer + reader tests.
+- [ ] Register in `package/domain/test/ProjecturedDomainTest.jl`.
+- [ ] Update `documentation/document/my-domain.md`.
 
 ## Contact
 

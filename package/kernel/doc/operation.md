@@ -7,7 +7,7 @@ supertype, the built-in concrete operations, the selection propagation, the
 splice helpers, and the **two open seams** every path-bearing
 operation or container document extends.
 
-The layer lives in [src/operation/](../src/operation/), inside one aggregator
+The layer lives in [main/operation/](../main/operation/), inside one aggregator
 module (`OperationModule`) split across three fragments:
 
 ```

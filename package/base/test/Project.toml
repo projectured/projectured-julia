@@ -2,9 +2,10 @@ name = "ProjecturedBaseTest"
 uuid = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 version = "0.1.0"
 authors = []
+entryfile = "ProjecturedBaseTest.jl"
 
 # Test package for ProjecturedBase — second tier of the test-package DAG
-# (see plan/pending/test-package-split.md). Reuses the generic drivers from
+# (see plan/done/test-package-split.md). Reuses the generic drivers from
 # ProjecturedKernelTest and extends its ground-truth selection enumerators
 # with the CellVector-aware document walk.
 
@@ -14,5 +15,5 @@ ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedBase = {path = ".."}
+ProjecturedBase = {path = "../main"}
 ProjecturedKernelTest = {path = "../../kernel/test"}

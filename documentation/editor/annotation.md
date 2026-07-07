@@ -4,7 +4,7 @@
 > design. None of the types or functions below (`Annotation`,
 > `AnnotationBindingDirect`, `AnnotationBindingReferencePath`,
 > `AnnotationRegistry`, `get_annotation_registry`, …) currently exist anywhere in
-> `program/`, `example/`, or `test/`. Treat everything here as a future design
+> any package under `package/`. Treat everything here as a future design
 > sketch, not as an API you can call today.
 
 The Annotation domain provides a generic system for decorating any document element with annotations. Annotations live in a global reactive registry separate from the documents they annotate — no modification to existing document types is required.

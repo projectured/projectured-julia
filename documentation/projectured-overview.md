@@ -165,7 +165,7 @@ The assistant isn't bolted on — it's part of the architecture.
 - The **chat itself is a document** (`Conversation` domain): messages and
   executed code blocks are structured, selectable, editable data.
 
-<span class="muted">program/src/editor/Mcp.jl · ToolRegistry.jl · document/Conversation.jl</span>
+<span class="muted">package/kernel/main/agent/Mcp.jl · ToolRegistry.jl · document/Conversation.jl</span>
 
 ---
 
@@ -357,7 +357,7 @@ Batteries included.
 Each is a real domain with structured types and operations — and any one
 can be **embedded inside any other**.
 
-<span class="muted">program/src/document/*.jl</span>
+<span class="muted">package/*/main/document/*.jl</span>
 
 ---
 

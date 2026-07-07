@@ -1,7 +1,9 @@
 # Higher-Order Projections
 
 Higher-order projections compose other projections. Each one lives in its own
-module under `program/src/projection/higherorder/` and implements
+module under its package's projection folder (the generic combinators in
+`package/kernel/main/projection/higherorder/`, the document-shaped ones in
+`package/base/main/projection/`) and implements
 `print_document`, `read_intent`, and the two reference-mapping
 functions. They never touch any specific domain — their argument is always
 some other projection.
@@ -202,7 +204,7 @@ identity.
 
 ## Compound combinators
 
-[compound/HigherOrder.jl](../package/domain/src/projection/compound/HigherOrder.jl)
+[projection/HigherOrderCompound.jl](../package/base/main/projection/HigherOrderCompound.jl)
 defines `ApplyAtProjection`, the most useful combinator built on top:
 
 ```julia

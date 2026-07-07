@@ -18,7 +18,7 @@ Each step links to the relevant guide for deeper context.
 
 ## Step 1: Define the document types
 
-Create `program/src/document/Bookmark.jl`:
+Create `package/domain/main/document/Bookmark.jl`:
 
 ```julia
 """
@@ -101,7 +101,7 @@ end # module
   `entries` by `getfield`, so these names *are* the domain's reference
   vocabulary — choose them deliberately; renaming one later breaks stored
   references. (See the `Document` contract in
-  [api/DocumentApi.jl](../package/kernel/src/api/DocumentApi.jl).)
+  [document/Interface.jl](../package/kernel/main/document/Interface.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
 - See [reactive cells](reactive-cells.md) and [macros](macros.md)
@@ -111,7 +111,7 @@ end # module
 
 ## Step 2: Register the domain in `Projectured.jl`
 
-In `program/src/Projectured.jl`, add after the other document includes:
+In `package/domain/main/ProjecturedDomain.jl`, add after the other document includes:
 
 ```julia
 include("document/Bookmark.jl")
@@ -134,7 +134,7 @@ export BookmarkDocument, BookmarkInsertion, BookmarkEntry, BookmarkList
 
 ## Step 3: Write the projection (printer)
 
-Create `program/src/projection/primitive/BookmarkToSyntax.jl`:
+Create `package/domain/main/projection/primitive/BookmarkToSyntax.jl`:
 
 ```julia
 """
@@ -369,7 +369,7 @@ export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 
 ## Step 5: Add an example
 
-Create `example/src/document/Bookmark.jl`:
+Create `example/document/Bookmark.jl`:
 
 ```julia
 function make_bookmark_document_example()
@@ -384,7 +384,7 @@ function make_bookmark_document_example()
 end
 ```
 
-Create `example/src/projection/Bookmark.jl`:
+Create `example/projection/Bookmark.jl`:
 
 ```julia
 function make_bookmark_projection_example(; measure=sdl_measure_text)
@@ -396,7 +396,7 @@ function make_bookmark_projection_example(; measure=sdl_measure_text)
 end
 ```
 
-In `example/src/ProjecturedExample.jl`, add:
+In `example/ProjecturedExample.jl`, add:
 
 ```julia
 include(joinpath(_EXAMPLE_DIR, "document", "Bookmark.jl"))
@@ -404,7 +404,7 @@ include(joinpath(_EXAMPLE_DIR, "projection", "Bookmark.jl"))
 export make_bookmark_document_example, make_bookmark_projection_example
 ```
 
-In `example/src/Examples.jl`, add:
+In `example/Examples.jl`, add:
 
 ```julia
 const bookmark_example = Example("bookmark",
@@ -417,7 +417,7 @@ And add `bookmark_example` to the `examples` vector.
 
 ## Step 6: Write a test
 
-Create `test/src/projection/BookmarkToSyntaxTest.jl`:
+Create `test/projection/BookmarkToSyntaxTest.jl`:
 
 ```julia
 function test_bookmark_to_syntax()
@@ -455,7 +455,7 @@ end
 end # test_bookmark_to_syntax
 ```
 
-In `test/src/ProjecturedTest.jl`:
+In `test/ProjecturedTest.jl`:
 
 ```julia
 include("projection/BookmarkToSyntaxTest.jl")

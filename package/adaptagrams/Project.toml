@@ -1,8 +1,0 @@
-name = "ProjecturedAdaptagrams"
-uuid = "c86b9063-147e-43d0-b3a0-65343fae9a66"
-version = "0.1.0"
-authors = []
-
-[deps]
-Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
-ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
