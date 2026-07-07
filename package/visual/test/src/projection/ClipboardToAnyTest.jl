@@ -23,8 +23,8 @@ ctrl_shift = Modifiers(ctrl=true, shift=true)
     @test cp.value == "hi"                                   # copy unaffected
 
     # Nested document + CellVector are cloned, selection is reset.
-    coll = ClipboardCollection(PrimitiveString("root");
-                               elements=[PrimitiveString("a"), PrimitiveString("b")])
+    coll = ClipboardCollection(PrimitiveString("root"),
+                               [PrimitiveString("a"), PrimitiveString("b")])
     coll.selection = cpath(FieldReference("content"))
     cc = copy_document(coll)
     @test length(cc.elements) == 2
@@ -37,7 +37,7 @@ end
 @testset "slice printer display toggle" begin
     content = PrimitiveString("hello")
     stored  = PrimitiveString("stored")
-    slice = ClipboardSlice(content; slice=stored)
+    slice = ClipboardSlice(content, stored)
 
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
@@ -116,7 +116,7 @@ end
 @testset "slice reader paste" begin
     content = PrimitiveString("hello")
     stored  = PrimitiveString("stored")
-    slice = ClipboardSlice(content; slice=stored)
+    slice = ClipboardSlice(content, stored)
     slice.selection = cpath(FieldReference("content"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
@@ -151,7 +151,7 @@ end
 
 @testset "collection printer display toggle" begin
     content = PrimitiveString("root")
-    coll = ClipboardCollection(content; elements=[PrimitiveString("a"), PrimitiveString("b")])
+    coll = ClipboardCollection(content, [PrimitiveString("a"), PrimitiveString("b")])
 
     p = ClipboardCollectionToAnyProjection()
     iomap = print_document(p, IdentityProjection(), coll, PrinterContext())
@@ -174,7 +174,7 @@ end
 
 @testset "collection reader gestures" begin
     content = PrimitiveString("root")
-    coll = ClipboardCollection(content; elements=[PrimitiveString("a"), PrimitiveString("b")])
+    coll = ClipboardCollection(content, [PrimitiveString("a"), PrimitiveString("b")])
     p = ClipboardCollectionToAnyProjection()
     iomap = print_document(p, IdentityProjection(), coll, PrinterContext())
 
@@ -281,7 +281,7 @@ end
         mkslice(; stored=nothing) = begin
             content = TextText(TextString("hello world"))
             content.selection = trange
-            s = ClipboardSlice(content; slice=stored)
+            s = ClipboardSlice(content, stored)
             s.selection = ConcreteReferencePath(FieldReference("content"), trange)
             s
         end
