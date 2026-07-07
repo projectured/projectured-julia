@@ -775,25 +775,25 @@ end
 
 function map_reference_forward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference ::SyntaxNode
+        ∅ => @reference()
         proj(^(p), _) => reference
-        ::SqlSelectItem.expression.rest... => begin
+        expression.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(inner)
+            @reference children[1].^(inner)
         end
     end
 end
 
 function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference ::SqlSelectItem
-        ::SyntaxNode.children[1].rest... => begin
+        ∅ => @reference()
+        children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SqlSelectItem.expression.^(inner)
+            @reference expression.^(inner)
         end
     end
 end

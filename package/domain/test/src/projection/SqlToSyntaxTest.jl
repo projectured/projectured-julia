@@ -109,16 +109,7 @@ function test_sql_insert_update_selection()
                               FieldReference("expression"), FieldReference("left")))
             fwd = map_reference_forward(up, uiomap, path)
             @test fwd !== nothing
-            back = map_reference_backward(up, uiomap, fwd)
-            if back == path
-                @test back == path
-            else
-                # @broken: pre-existing UPDATE selection round-trip drift for one
-                # of the four paths (the where_clause left-operand, per the failure
-                # log). Marker fires only for the specific failing iteration; the
-                # three passing paths still Pass normally.
-                @test_broken back == path
-            end
+            @test map_reference_backward(up, uiomap, fwd) == path
         end
     end
 end
