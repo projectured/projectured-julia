@@ -3,7 +3,7 @@
 > **⛔ OBSOLETE (2026-06-23):** This design direction is dead. It is a follow-up
 > to `master-detail-document.md` (v1), which was itself ruled obsolete — the
 > master/detail feature took the `ComponentMasterDetail` route instead (see
-> `package/domain/src/document/Component.jl` and `plan/pending/component-document.md`).
+> `package/domain/main/component/Component.jl` and `plan/pending/component-document.md`).
 > The `MasterDetail*`-typed architecture this plan extends (the `detail_target`
 > resolver, `MasterDetailToWidget` projection, dual-key detail cache) is not being
 > pursued, so the editable-detail upgrade described here no longer applies. Moved
@@ -21,7 +21,7 @@
 > `MasterDetail.jl` document, no `MasterDetailToWidget.jl` projection, and no
 > `detail_target`/`editable` predicate anywhere under `package/*/src/` (grep for
 > `MasterDetail`/`detail_target` finds only these plan files plus the unrelated
-> `package/domain/src/document/Component.jl`). The generic infrastructure this
+> `package/domain/main/component/Component.jl`). The generic infrastructure this
 > plan *cites* does exist — `FocusingProjection`, `map_reference_backward`,
 > `_concat_path`/`_strip_prefix`, `ReplaceFocusPartOperation` live in
 > `package/kernel/src/projection/generic/Focusing.jl` (lines 33-125) — but those

@@ -12,7 +12,7 @@
 > `master_projection`, `detail_projection`, `detail_target` returns matches only in
 > this file and the follow-up `master-detail-editable.md`. Instead, a different
 > master/detail design was implemented: `ComponentMasterDetail`
-> (`package/domain/src/document/Component.jl:62`, in `ComponentModule`), a simpler
+> (`package/domain/main/component/Component.jl`, in `ComponentModule`), a simpler
 > document with fields `master` / `detail` / `selected_item` / `master_title` /
 > `detail_title` / `split_ratio` / `selection` — it has **no** `DetailCache`
 > (dual `by_id`/`by_path` memo), **no** `orientation` field, **no** `detail_target`
@@ -153,7 +153,7 @@ MasterDetail stays domain-agnostic: it never names `DbCatalog` or `FileSystem`.
 (glob `**/MasterDetail*.jl` → none) and there is no `MasterDetailModule` /
 `MasterDetailMasterDetail` / `DetailCache` / `DetailEntry` anywhere. The
 master/detail document that *was* built is `ComponentMasterDetail` in
-`package/domain/src/document/Component.jl:62` (a different, cache-less design).
+`package/domain/main/component/Component.jl` (a different, cache-less design).
 
 `module MasterDetailModule`, included in `program/src/Projectured.jl` near the
 other high-level domains (Workbench/Workspace).

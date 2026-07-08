@@ -140,8 +140,8 @@ const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
-# so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book
-# independent; formula → julia; dbcatalog → sql) — an acyclic
+# so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book/
+# component independent; formula → julia; dbcatalog → sql) — an acyclic
 # slice DAG.
 include("json/Json.jl")
 include("yaml/Yaml.jl")
@@ -154,6 +154,7 @@ include("dbcatalog/DbCatalog.jl")
 include("sql/Sql.jl")
 include("xml/Xml.jl")
 include("filesystem/FileSystem.jl")
+include("component/Component.jl")
 include("workbench/Workspace.jl")
 include("versioning/Versioning.jl")
 include("graph/Graph.jl")
