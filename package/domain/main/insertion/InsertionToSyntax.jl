@@ -36,7 +36,9 @@ module DocumentInsertionToSyntaxModule
 
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..DocumentApiModule: Document, with_selection
+import ..DocumentApiModule: Document, with_selection, read_gesture
+import ..KeyboardModule: KeyPress, KeyDown
+import ..MouseModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainSupportModule
 import ..DomainSupportModule: insertion_root, nothing_document, insertion_names,
@@ -295,8 +297,18 @@ function _insertion_delete(ins, dir::Symbol)
     new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
 end
 
-read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =
-    read_projection_gesture(p, iomap, event)
+# The projection's own table first (buffer editing / commit / cancel / Tab);
+# when every binding declines — e.g. a printable char with no value cursor —
+# fall through to the input document's own gesture table, exactly like the
+# generic `read_intent` leaf default this method shadows. That keeps the
+# whole-selection authoring gestures firing on the domain insertions
+# (`@gestures JsonDocument`'s `"`/`[`/`{`/digit type-to-replace, …).
+function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event)
+    op = read_projection_gesture(p, iomap, event)
+    op !== nothing && return op
+    event isa Union{KeyPress, KeyDown, MousePress} && iomap.input isa Document ?
+        read_gesture(iomap.input, event) : nothing
+end
 
 # ── Name → document: reflection over the type tree ────────────────────────────
 #
