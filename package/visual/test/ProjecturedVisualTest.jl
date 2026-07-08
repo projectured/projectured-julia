@@ -10,8 +10,13 @@ plan/pending/test-package-split.md). It hosts:
 - the visual-level generic drivers: the type-in explorer (`walk_typein`,
   `test_typein`) and the click-roundtrip / nav-invariant drivers (they walk
   `TextToGraphics` output, so this is their lowest home);
+- the navigation presets over `ProjecturedKernelTest`'s generic
+  `explore_selections` driver: `test_position_navigation` (character / word /
+  line position gestures) and `test_tree_navigation` (Alt+arrow structural
+  gestures) — both gesture vocabularies are handled by visual-tier readers,
+  so this is their lowest home;
 - the `TextString` method of `ProjecturedBaseTest._text_leaf_length`, making
-  `collect_text_selections` see document-domain text leaves.
+  `collect_position_selections` see document-domain text leaves.
 
 Everything is aggregated by `test_visual()`; the layering guard is
 `test_visual_layering()` (via `ProjecturedKernelTest.check_layering`).
@@ -109,6 +114,7 @@ include("projection/SplitPaneDragTest.jl")
 include("projection/WidgetPopupExampleTest.jl")
 
 # ── visual-level generic drivers ─────────────────────────────────────────────
+include("editor/NavigationPresets.jl")
 include("editor/TypeinTest.jl")
 include("editor/ClickRoundtripTest.jl")
 # Collapse/expand round-trip over the syntax example (reuses ClickRoundtripTest's
@@ -219,6 +225,9 @@ export test_object_to_widget, test_projection_configuring,
        test_layout_closeout, test_widget_forms, test_anchor_point
 export test_clipboard_to_any, test_tooltip, test_split_pane_drag,
        test_widget_popup_example, test_collapse_roundtrip
+export POSITION_NAV_KEYS, POSITION_SEED_GESTURE, TREE_NAV_KEYS, TREE_SEED_GESTURE,
+       explore_position_selections, test_position_navigation,
+       explore_tree_selections, test_tree_navigation
 export walk_typein, test_typein
 export test_click_roundtrip, test_text_nav_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _seg_x_at,

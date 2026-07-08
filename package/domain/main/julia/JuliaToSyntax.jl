@@ -526,7 +526,7 @@ end
 # (`function`, `(`, `)`, `==`, `if`, `end`, …) that have no Julia pre-image; that
 # is the still-deferred follow-up (the High finding in
 # plan/pending/consistency-report.md, §D — the source of the 28 unreached
-# `…name{k}` carets in `test_text_navigation(julia_example; check_reaches_all=true)`).
+# `…name{k}` carets in `test_position_navigation(julia_example; check_reaches_all=true)`).
 
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 

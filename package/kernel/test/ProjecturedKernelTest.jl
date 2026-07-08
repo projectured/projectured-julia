@@ -9,20 +9,23 @@ plan/pending/test-package-split.md). It hosts:
   `test_reference_builder`, …), aggregated by `test_kernel()`;
 - the **shared generic test drivers** reused by every higher test package and
   the `ProjecturedTest` umbrella: `test_printer` / `test_reader` / `test_repl`
-  (label + document + projection forms), the navigation explorers
-  (`explore_text_selections`, `explore_tree_selections`), the reflexive cell
-  walker (`_walk!`, `WalkStatus`), and the event battery
-  (`_ALL_READER_EVENTS`);
+  (label + document + projection forms), the generic navigation explorer
+  (`explore_selections` / `test_navigation`, parameterized by gesture set and
+  seed), the reflexive cell walker (`_walk!`, `WalkStatus`), and the event
+  battery (`_ALL_READER_EVENTS`);
 - the static `check_layering` guard shared by all four main packages'
   layered-architecture tests.
 
 The drivers only call kernel API (`print_document`, `read_intent`,
 `evaluate_operation`, `clear_selection!`) plus `Test`, so they live here at the
-bottom of the DAG. Ground-truth selection enumerators (`collect_text_selections`,
-`collect_tree_selections`) are declared here as open generics; their
-implementations live in the test package of the lowest main-package tier that can
-express them (base for the generic walk, visual for `TextString` leaves,
-domain for JSON trees).
+bottom of the DAG. The navigation driver carries no domain vocabulary: its
+gesture presets (`test_position_navigation`, `test_tree_navigation`) live in
+`ProjecturedVisualTest`, whose readers own those gesture vocabularies, and the
+ground-truth selection enumerators (`collect_position_selections`,
+`collect_tree_selections`) live in `ProjecturedBaseTest`, the lowest tier whose
+document walk can express them (visual extends them for `TextString` leaves,
+domain for JSON trees); the driver receives the enumerator as its `collect`
+argument.
 
 Like the umbrella, this is a **function library**: `using ProjecturedKernelTest`
 from the repo-root environment, then call `test_kernel()` or any individual
@@ -70,8 +73,7 @@ include("editor/FocusingTest.jl")
 include("editor/PrinterTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
-include("editor/TextNavigationTest.jl")
-include("editor/SyntaxTreeNavigationTest.jl")
+include("editor/NavigationTest.jl")
 
 """
     test_kernel_layering()
@@ -131,8 +133,6 @@ export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,
        _ALL_READER_EVENTS, walk_reader_events, test_reader,
        walk_repl_loop, test_repl,
-       explore_text_selections, test_text_navigation,
-       explore_tree_selections, test_tree_navigation,
-       collect_text_selections, collect_tree_selections, _assert_reaches_all
+       explore_selections, test_navigation, _assert_reaches_all
 
 end # module ProjecturedKernelTest

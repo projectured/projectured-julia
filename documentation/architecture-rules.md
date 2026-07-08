@@ -140,8 +140,15 @@ The generic drivers follow the same rule from the other side: a driver written
 against only kernel API (`test_printer(label, document, projection)`,
 `walk_repl_loop`) sits at the bottom and is reused by every tier above; tier-typed
 overloads (`test_printer(::Example)`) sit wherever their argument type lives.
-Open generics declared low and extended high (`collect_text_selections`,
-`_text_leaf_length`) bridge the tiers without inverting the DAG.
+Open generics declared low and extended high (`_text_leaf_length`) bridge the
+tiers without inverting the DAG. Where a driver needs tier-specific behavior
+wholesale — the navigation gesture sets and their ground-truth enumerators — it
+takes them as arguments instead: the generic `explore_selections` /
+`test_navigation` driver sits in the kernel test package, its presets
+(`test_position_navigation`, `test_tree_navigation`) in the visual test package
+whose readers own those gesture vocabularies, and the enumerators
+(`collect_position_selections`, `collect_tree_selections`) in the base test
+package whose document walk can express them.
 
 ## Placement rules for individual pieces
 

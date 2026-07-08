@@ -3,7 +3,7 @@ function test_example(example::Example)
     test_printer(example)
     test_reader(example)
     test_repl(example)
-    test_text_navigation(example)
+    test_position_navigation(example)
     test_typein(example)
 end
 end

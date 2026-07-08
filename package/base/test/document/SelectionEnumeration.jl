@@ -2,13 +2,14 @@
 # base-test/document/SelectionEnumeration.jl
 #
 # Ground-truth enumeration of the possible selections in a document, derived
-# directly from the document tree (not from navigation). The navigation suites
-# (TextNavigationTest.jl, SyntaxTreeNavigationTest.jl) compare these against the
-# states their BFS actually reaches.
+# directly from the document tree (not from navigation). The navigation presets
+# (ProjecturedVisualTest's test_position_navigation / test_tree_navigation, over
+# ProjecturedKernelTest's generic explore_selections driver) compare these
+# against the states their BFS actually reaches.
 #
-# collect_text_selections(document) -> Vector{ReferencePath}
-#   Every text caret: for each navigable String leaf of length n, the cursors
-#   {0}…{n} (PositionReference). Numeric leaves are skipped (phase 1).
+# collect_position_selections(document) -> Vector{ReferencePath}
+#   Every position selection: for each navigable String leaf of length n, the
+#   cursors {0}…{n} (PositionReference). Numeric leaves are skipped (phase 1).
 #
 # collect_tree_selections(document; is_node) -> Vector{ReferencePath}
 #   Every whole-element (∅) selection: the path terminating at each node for
@@ -85,16 +86,18 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
     end
 end
 
-# `collect_text_selections` / `collect_tree_selections` extend the open
-# generics declared beside the navigation drivers in ProjecturedKernelTest.
+# `collect_position_selections` / `collect_tree_selections` are owned here —
+# the lowest test tier whose document walk can express them; the generic
+# navigation driver in ProjecturedKernelTest receives them as its `collect`
+# argument (wired up by the ProjecturedVisualTest presets).
 """
-    collect_text_selections(document) -> Vector{ReferencePath}
+    collect_position_selections(document) -> Vector{ReferencePath}
 
-Every navigable text caret in `document`: for each String leaf of length `n`,
-the cursors `{0}…{n}` (PositionReference). Numeric leaves are skipped (phase 1).
-Candidates are filtered through the document-aware `is_valid_reference`.
+Every navigable position selection in `document`: for each String leaf of
+length `n`, the cursors `{0}…{n}` (PositionReference) — in the text domain
+these are the carets. Numeric leaves are skipped (phase 1).
 """
-function collect_text_selections(document)
+function collect_position_selections(document)
     results = ReferencePath[]
     on_node = (_n, _p) -> nothing
     on_text = (field_path, charcount) -> begin

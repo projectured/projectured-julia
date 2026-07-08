@@ -1,11 +1,11 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # test/editor/ExampleSweeps.jl
 #
-# The `Example`-typed overloads of the generic drivers (which live in
-# `ProjecturedKernelTest`) plus the all-examples sweeps. They stay in the
+# The all-examples sweeps over the generic drivers (`ProjecturedKernelTest`)
+# and the navigation presets (`ProjecturedVisualTest`). They stay in the
 # umbrella because only the umbrella depends on `ProjecturedExample` — the
 # generic `(label, document, projection)` driver forms are layer-agnostic and
-# imported from `ProjecturedKernelTest` (see plan/pending/test-package-split.md).
+# imported from the lower test packages (see plan/done/test-package-split.md).
 # ═══════════════════════════════════════════════════════════════════════════
 
 # ── printer ──────────────────────────────────────────────────────────────────
@@ -56,8 +56,8 @@ end
 
 # ── text navigation ──────────────────────────────────────────────────────────
 
-function test_text_navigations()
-    @testset "TextNavigation" begin
+function test_position_navigations()
+    @testset "PositionNavigation" begin
         for example in examples
             # Skip widget / layout examples, workbench, and assistant — the
             # widget-to-graphics layer doesn't route keyboard events to its
@@ -86,7 +86,7 @@ function test_text_navigations()
                              "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
-                test_text_navigation(example)
+                test_position_navigation(example)
             end
         end
     end
@@ -106,13 +106,13 @@ end
 #     TextString over-reaches. (`json` / `text` don't hit this: their delimiters,
 #     e.g. JSON quotes, are projection-added and absent from the input document.)
 #     `syntax` is covered structurally by the tree-navigation completeness suite.
-const _text_navigation_complete_examples = ["text", "json"]
+const _position_navigation_complete_examples = ["text", "json"]
 
-function test_text_navigations_complete()
-    @testset "TextNavigationComplete" begin
+function test_position_navigations_complete()
+    @testset "PositionNavigationComplete" begin
         for example in examples
-            example.name in _text_navigation_complete_examples || continue
-            test_text_navigation(example; check_reaches_all=true)
+            example.name in _position_navigation_complete_examples || continue
+            test_position_navigation(example; check_reaches_all=true)
         end
     end
 end
@@ -132,7 +132,7 @@ function test_tree_navigations()
             @testset "$(example.name)" begin
                 result = explore_tree_selections(example.document, example.projection)
                 if result.state_count == 0 && !isempty(result.errors) &&
-                   occursin("Ctrl+Alt+Home", result.errors[1])
+                   occursin("seed gesture", result.errors[1])
                     @info "[$(example.name)] skipped — no tree navigation support"
                 else
                     for e in result.errors

@@ -148,7 +148,7 @@ function test_sql_to_syntax_selection()
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure))
 
-    test_text_navigation("SqlToSyntax nested", doc, proj)
+    test_position_navigation("SqlToSyntax nested", doc, proj)
 end
 
 function test_sql_ddl()

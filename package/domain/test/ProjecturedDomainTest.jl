@@ -39,7 +39,7 @@ using ProjecturedVisualTest
 # The real domain-tier example factories and the tier's registry slice — the
 # mirrored Fixtures.jl copies are gone (plan/done/example-package-split.md).
 using ProjecturedDomainExample
-import ProjecturedKernelTest: test_tree_navigation
+import ProjecturedVisualTest: test_tree_navigation
 import ProjecturedVisualTest: _find_text_iomap, _pipeline_measure, _seg_x_at,
                               _path_contains_projection_ref
 

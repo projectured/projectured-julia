@@ -10,10 +10,12 @@ plan/pending/test-package-split.md). It hosts:
 - the static layering guard for base (`test_base_layering`, via
   `ProjecturedKernelTest.check_layering`);
 - the **generic document-walk selection enumerators**: the CellVector-aware
-  `_walk_document` and the base methods of the `collect_text_selections` /
-  `collect_tree_selections` generics declared in `ProjecturedKernelTest`.
-  Higher test packages extend `_text_leaf_length` (visual: `TextString`
-  leaves) and add projection-aware enumerators (domain: JSON trees).
+  `_walk_document` and the ground-truth enumerators
+  `collect_position_selections` / `collect_tree_selections` consumed by the
+  navigation presets in `ProjecturedVisualTest` (over the generic
+  `explore_selections` driver in `ProjecturedKernelTest`). Higher test
+  packages extend `_text_leaf_length` (visual: `TextString` leaves) and add
+  projection-aware enumerators (domain: JSON trees).
 
 Like the umbrella, this is a **function library**: `using ProjecturedBaseTest`
 from the repo-root environment, then call `test_base()` or any individual
@@ -24,7 +26,6 @@ module ProjecturedBaseTest
 using Test
 import ProjecturedBase
 using ProjecturedKernelTest
-import ProjecturedKernelTest: collect_text_selections, collect_tree_selections
 using ProjecturedBase.CellModule
 using ProjecturedBase.DocumentModule
 using ProjecturedBase.ReferenceModule
@@ -67,6 +68,6 @@ end
 
 export test_base, test_base_layering
 export test_collection, test_copying_projection
-export _text_leaf_length, _walk_document, collect_text_selections, collect_tree_selections
+export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 
 end # module ProjecturedBaseTest

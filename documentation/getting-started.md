@@ -87,8 +87,8 @@ using ProjecturedTest
 test_all()          # full suite
 test_printers()     # printer round-trips only
 test_readers()      # reader round-trips only
-test_text_navigations()          # text-caret navigation, no-error sweep
-test_text_navigations_complete() # + reaches every enumerated caret (curated)
+test_position_navigations()          # position (caret) navigation, no-error sweep
+test_position_navigations_complete() # + reaches every enumerated position (curated)
 ```
 
 See [the testing guide](testing.md) for all per-layer helpers.

@@ -32,7 +32,7 @@ const graph_example          = Example("graph",          make_graph_document_exa
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
-# the enumeration-based suites (test_printers / test_readers / test_text_navigations /
+# the enumeration-based suites (test_printers / test_readers / test_position_navigations /
 # test_repls), which walk a document exhaustively, would never terminate and would
 # exhaust memory. Use them directly (e.g. `run_example(lazy_example)`); do not add
 # them to `examples`.
@@ -56,12 +56,12 @@ const dragging_example       = Example("dragging",        make_dragging_document
 # (like `lazy_example`). The internal clipboard is stateful: its document is a
 # `ClipboardSlice` and its projection carries a mutable display flag. The
 # enumeration-based suites (test_printers / test_readers / test_repls /
-# test_text_navigations) and `test_example` run every sub-test on one *shared*
+# test_position_navigations) and `test_example` run every sub-test on one *shared*
 # document instance in sequence, so the destructive no-selection `test_repl`
 # sweep collapses the small wrapped content before navigation runs (a Ctrl+Home
 # seed then finds no caret). Each suite passes on a *fresh* document — run them
 # individually, e.g. `test_printer(clipboard_example)` / `test_reader(...)` /
-# `test_repl(...)` / `test_text_navigation(...)`. Use it interactively with
+# `test_repl(...)` / `test_position_navigation(...)`. Use it interactively with
 # `run_example(clipboard_example)`; the selection-driven copy/cut/paste flow it
 # exists to demonstrate is unaffected.
 const clipboard_example      = Example("clipboard",       make_clipboard_document_example,      make_clipboard_projection_example)
@@ -70,11 +70,11 @@ const formula_example        = Example("formula",         make_formula_document_
 # (like `clipboard_example`). The version-elimination projection selects one of
 # several `ObjectVersion`s by criterion and re-roots edits under
 # `versions[idx].value`; the enumeration-based suites (test_printers /
-# test_readers / test_repls / test_text_navigations) run every sub-test on one
+# test_readers / test_repls / test_position_navigations) run every sub-test on one
 # *shared* document instance, so a destructive sweep on the eliminated view can
 # leave a later sub-test without a caret. Each suite passes on a *fresh*
 # document — run them individually, e.g. `test_printer(versioning_example)` /
-# `test_reader(...)` / `test_text_navigation(...)`. Use it interactively with
+# `test_reader(...)` / `test_position_navigation(...)`. Use it interactively with
 # `run_example(versioning_example)`.
 const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
 

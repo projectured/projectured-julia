@@ -54,13 +54,15 @@ import ProjecturedBaseTest: test_base
 import ProjecturedVisualTest: test_visual
 import ProjecturedDomainTest: test_domain
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
-                              test_text_navigation, test_tree_navigation,
-                              collect_text_selections, collect_tree_selections,
-                              explore_text_selections, explore_tree_selections,
+                              explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
                               test_event_case, test_gesture_binding, test_focusing,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
+import ProjecturedBaseTest: collect_position_selections, collect_tree_selections
+# The navigation presets over the generic driver (position + tree gesture sets).
+import ProjecturedVisualTest: test_position_navigation, test_tree_navigation,
+                              explore_position_selections, explore_tree_selections
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
 # The library itself is SDL-optional; the test package opts in.
@@ -168,8 +170,8 @@ function test_all()
     test_projections()
     test_printers()
     test_readers()
-    test_text_navigations()
-    test_text_navigations_complete()
+    test_position_navigations()
+    test_position_navigations_complete()
     test_repls()
     test_typeins()
     test_mcp_tools()
@@ -214,12 +216,12 @@ export AtomicFixture, test_atomic_render, test_atomic_fixtures
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard_to_any, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_workbench_tab_click, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_graph
-export test_examples, test_text_navigations, test_text_navigations_complete
-export test_printer, test_printers, test_example, test_text_navigation
+export test_examples, test_position_navigations, test_position_navigations_complete
+export test_printer, test_printers, test_example, test_position_navigation
 export printer_locality_report, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
 export explore_structural_locality, report_structural_locality, test_template_structural_locality, test_graphics_structural_locality
 export explore_value_locality, test_value_locality, test_value_localities
-export explore_text_selections, collect_text_selections, collect_tree_selections, collect_json_tree_selections
+export explore_position_selections, collect_position_selections, collect_tree_selections, collect_json_tree_selections
 export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop

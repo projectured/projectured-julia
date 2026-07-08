@@ -234,7 +234,7 @@ active-tab cell, as false positives.)
 """
 function explore_selection_locality(document, projection; onstate=nothing)
     errors = String[]
-    carets = collect_text_selections(document)
+    carets = collect_position_selections(document)
     for target in carets
         r = printer_locality_report(document, projection, doc -> update_selection!(doc, target))
         msgs = String[]

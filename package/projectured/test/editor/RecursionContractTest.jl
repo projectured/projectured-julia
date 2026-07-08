@@ -12,7 +12,7 @@
 # This harness is the *external* validation the contract calls for: it drives
 # the existing four functions over example pipelines and adds NO new
 # per-projection generic function. It reuses `_walk!` (PrinterTest.jl),
-# `collect_text_selections` (SelectionEnumeration.jl), and `strip_reference_types`.
+# `collect_position_selections` (SelectionEnumeration.jl), and `strip_reference_types`.
 #
 # Two checks:
 #
@@ -153,7 +153,7 @@ end
 """
     walk_reference_roundtrip(document, projection) -> errors::Vector{String}
 
-For every caret in `collect_text_selections(document)`, map it forward through
+For every caret in `collect_position_selections(document)`, map it forward through
 the top projection and assert it has an image (reachability), then map that
 image back and assert it equals the original (round-trip, modulo TypeReference
 checkpoints). Errors are returned as strings for REPL use.
@@ -167,7 +167,7 @@ function walk_reference_roundtrip(document, projection)
         push!(errors, "print_document threw: $e")
         return errors
     end
-    for ref in collect_text_selections(document)
+    for ref in collect_position_selections(document)
         fwd = try
             map_reference_forward(projection, iomap, ref)
         catch e

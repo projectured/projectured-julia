@@ -44,7 +44,7 @@ function test_record_video()
         proj = make_json_projection_example()
         # A text caret so the keypress has somewhere to type; without a selection
         # the reader yields no operation and typein would be a silent no-op.
-        caret = first(collect_text_selections(doc))
+        caret = first(collect_position_selections(doc))
         before = evaluate_reference(doc, caret)
         filename = tempname() * ".mp4"
         ok = try
@@ -78,7 +78,7 @@ function test_record_video()
         # the next event reads against the updated state.
         doc  = make_json_document_example()
         proj = make_json_projection_example()
-        caret = first(collect_text_selections(doc))
+        caret = first(collect_position_selections(doc))
         filename = tempname() * ".mp4"
         timeline = [
             (operation = ReplaceSelectionOperation(caret), hold = 0.2),
