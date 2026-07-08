@@ -109,9 +109,9 @@ forwarded unchanged; all other operation types return `nothing`.
 """
 function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
-    # stay in sync with `OperationRerootingModule.prepend_steps_to_op`. A new
-    # path-bearing operation missing from either is silently passed through with
-    # its reference left in the wrong domain. See documentation/operations.md.
+    # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
+    # A new path-bearing operation missing from either is silently passed through
+    # with its reference left in the wrong domain. See documentation/operations.md.
     if operation isa Union{KeyPress, KeyDown, MousePress}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
