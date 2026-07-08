@@ -23,6 +23,7 @@ export StyleColor, make_style_color,
        color_solarized_background_light, color_solarized_background_lighter,
        color_solarized_content_darker, color_solarized_content_dark,
        color_solarized_content_light, color_solarized_content_lighter,
+       color_completion_hint,
        color_pastel_turquoise, color_pastel_green_sea,
        color_pastel_emerland, color_pastel_nephritis,
        color_pastel_peter_river, color_pastel_belize_hole,
@@ -120,6 +121,11 @@ const color_solarized_content_darker      = _color(88, 110, 117)
 const color_solarized_content_dark        = _color(101, 123, 131)
 const color_solarized_content_light       = _color(131, 148, 150)
 const color_solarized_content_lighter     = _color(147, 161, 161)
+
+# The pale-green completion hint: what accepting the completion would append
+# after the typed (solid green) characters of an insertion — translucent
+# solarized green so typed and hinted text read as one family at two weights.
+const color_completion_hint               = StyleColor(133 / 255, 153 / 255, 0 / 255, 128 / 255)
 
 # ── Pastel pairs ──────────────────────────────────────────────────────────────
 

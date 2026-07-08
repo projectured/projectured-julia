@@ -118,6 +118,44 @@ function test_document_insertion()
             end
         end
 
+        @testset "rendered completion feedback" begin
+            proj = DocumentInsertionToSyntaxLeaf()
+            ins = DocumentInsertion("")
+            ins.selection = _ins_vpath(0)
+            iom = print_document(proj, proj, ins, nothing)
+            node = iom.output
+            # Structure: node open/close carry the label, the inner leaf the
+            # typed value (reactive colour) and the pale continuation hint.
+            @test node isa SyntaxNode
+            @test node.open.content == "Insert a new "
+            @test node.close.content == " here"
+            leaf = node.children[1]
+            @test leaf isa SyntaxLeaf
+            # Empty buffer: neutral colour, no hint.
+            @test leaf.value.font_color == color_default
+            @test leaf.close.content == ""
+            # Ambiguous prefix: green typed text, no hint (Tab-only LCP).
+            ins.value = "jso"
+            @test leaf.value.font_color == color_solarized_green
+            @test leaf.close.content == ""
+            # Unambiguous prefix: green + the continuation hint, pale green.
+            ins.value = "json str"
+            @test leaf.value.font_color == color_solarized_green
+            @test leaf.close.content == "ing"
+            @test leaf.close.font_color == color_completion_hint
+            # Dead end: red, no hint.
+            ins.value = "zzz"
+            @test leaf.value.font_color == color_solarized_red
+            @test leaf.close.content == ""
+            # The value cursor round-trips through children[1].
+            fwd = map_reference_forward(proj, iom, _ins_vpath(2))
+            @test fwd !== nothing
+            back = map_reference_backward(proj, iom, fwd)
+            @test ReferenceModule.is_reference_equal_ignoring_types(back, _ins_vpath(2))
+            # The node selection follows the insertion's own cursor.
+            @test string(node.selection) == ".children[1].value{0}"
+        end
+
         @testset "type domain name -> domain insertion" begin
             ins = DocumentInsertion("juli")
             ins.selection = _ins_vpath(4)

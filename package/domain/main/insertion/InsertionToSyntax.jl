@@ -42,25 +42,26 @@ import ..SqlDocumentModule: SqlInsertion
 import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..SqlParserModule: sqlparse
-import ..SyntaxModule: SyntaxLeaf
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath, ProjectionReference
+                          ElementReference, EmptyReferencePath, ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, var"@gestures"
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
-import ..ColorModule: color_solarized_gray, color_solarized_green, color_default, StyleColor
+import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
+                      color_completion_hint, color_default, StyleColor
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
        SqlInsertionToSyntaxLeaf, default_factory, default_completion,
-       julia_completion, julia_scaffold
+       name_completion, julia_completion, julia_scaffold
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -68,39 +69,107 @@ struct InsertionToSyntaxLeaf <: Projection
     prefix::String
     suffix::String
     commit::Any            # (value::String) -> Union{Document,Nothing}
-    # The label (prefix/suffix) and the editable value share a font but are
-    # coloured distinctly, so each is its own StyleText.
+    completion::Any        # (ins) -> (state::Symbol, continuation::String)
+    # The label (prefix/suffix), the editable value, and the completion hint
+    # share a font but are coloured distinctly, so each is its own StyleText.
+    # The value's colour is only the *neutral* (`:empty`) colour — a non-empty
+    # buffer is coloured live by its completion state (green/red).
     label::StyleText
     value::StyleText
+    hint::StyleText
 end
 
 InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
+                      completion = name_completion,
                       label = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray),
-                      value = StyleText(font_ubuntu_monospace_regular_20, color_default)) =
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, label, value)
+                      value = StyleText(font_ubuntu_monospace_regular_20, color_default),
+                      hint  = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint)) =
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, label, value, hint)
 
-# ── Selection mapping (value{k} identity, mirrors PrimitiveStringToSyntaxLeaf) ─
+# ── Completion policies ───────────────────────────────────────────────────────
+#
+# A policy maps the insertion to `(state, continuation)`:
+#   :empty       — blank buffer, neutral colour, no hint;
+#   :invalid     — cannot commit (red);
+#   :ambiguous   — several candidates (green, no hint; Tab still partial-completes);
+#   :unambiguous — one candidate (green + the pale continuation hint).
+
+"""
+    name_completion(ins) -> (state, continuation)
+
+The default policy: name completion over the reflected candidates of the
+insertion's own domain (`insertion_root(typeof(ins))`). Per spec the
+continuation is rendered only when the prefix is unambiguous.
+"""
+function name_completion(ins)
+    c = complete_insertion(insertion_root(typeof(ins)), something(ins.value, ""))
+    (c.state, c.state === :unambiguous ? c.continuation : "")
+end
+
+# Source insertions (SQL, and Julia's non-keyword branch) are committable when
+# the buffer parses: green = complete source, red = not (yet) parseable.
+_parse_completion(parser) = ins -> begin
+    value = something(ins.value, "")
+    isempty(strip(value)) && return (:empty, "")
+    parsed = try parser(value); true catch; false end
+    (parsed ? :unambiguous : :invalid, "")
+end
+
+# state → typed-text colour; the neutral colour comes from the projection.
+_typed_color(p, state::Symbol) =
+    state === :invalid ? color_solarized_red :
+    state === :empty   ? p.value.color      : color_solarized_green
+
+# ── Selection mapping ─────────────────────────────────────────────────────────
+#
+# The output is a SyntaxNode (label delimiters) wrapping one SyntaxLeaf (typed
+# value + hint), so the `value{k}` char cursor maps through `children[1]`.
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        value{k} => begin
+            inner = @reference ::SyntaxLeaf.value::TextString{k}
+            @reference ::SyntaxNode.children[1].^(inner)
+        end
     end
 end
 
 function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference value{k}
+        ::SyntaxNode.children[1].leaf_path... => @reference_case leaf_path begin
+            ::SyntaxLeaf.value{k} => @reference value{k}
+        end
     end
 end
 
 # ── Printer ──────────────────────────────────────────────────────────────────
+#
+# `prefix · value · ⟨continuation⟩ · suffix` — the value's colour and the
+# continuation's content are computed cells over `ins.value`, so the
+# commitability feedback updates per keystroke with no re-print.
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
-    SimpleIoMap(p, ins, SyntaxLeaf(
-        TextString(() -> something(ins.value, ""), p.value);
+    typed = TextString(Cell(() -> something(ins.value, "")),
+                       Cell(p.value.font),
+                       Cell(() -> _typed_color(p, p.completion(ins)[1])),
+                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    hint = TextString(Cell(() -> p.completion(ins)[2]),
+                      Cell(p.hint.font), Cell(p.hint.color),
+                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    # The inner leaf's selection is the insertion's own (`value{k}` is the
+    # leaf-local grammar too); the node routes it through `children[1]`.
+    leaf = SyntaxLeaf(typed; close=hint, selection=getfield(ins, :selection))
+    node_selection = Cell(() -> begin
+        path = getfield(ins, :selection)[]
+        path isa ConcreteReferencePath || return nothing
+        path.head isa ProjectionReference && return path
+        ConcreteReferencePath(FieldReference("children"),
+            ConcreteReferencePath(ElementReference(1), path))
+    end)
+    SimpleIoMap(p, ins, SyntaxNode(SyntaxDocument[leaf];
         open=TextString(p.prefix, p.label),
         close=TextString(p.suffix, p.label),
-        selection=getfield(ins, :selection)))
+        selection=node_selection))
 end
 
 # ── Value-edit helpers (mirror PrimitiveStringToSyntaxLeaf) ────────────────────
@@ -124,8 +193,12 @@ _value_path(range::RangeReference) =
 # ── Reader ───────────────────────────────────────────────────────────────────
 
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    # A caret in the rendered value span backward-maps to the value cursor; a
+    # caret on the label/hint spans becomes an introduced caret on the whole
+    # insertion; a raw input-vocabulary `value{k}` op passes through.
+    mapped = map_reference_backward(p, iomap, op.path)
+    mapped !== nothing && return ReplaceSelectionOperation(mapped)
     path = op.path
-    path = path
     path isa ConcreteReferencePath || return nothing
     h = path.head
     h isa FieldReference || return nothing
@@ -328,9 +401,11 @@ DocumentInsertionToSyntaxLeaf() =
 """
     SqlInsertionToSyntaxLeaf()
 
-A SQL source insertion, committing `value` via `sqlparse`.
+A SQL source insertion, committing `value` via `sqlparse`; the buffer is
+green when it parses as a complete statement, red otherwise.
 """
-SqlInsertionToSyntaxLeaf() = InsertionToSyntaxLeaf(_sql_commit)
+SqlInsertionToSyntaxLeaf() =
+    InsertionToSyntaxLeaf(_sql_commit; completion = _parse_completion(sqlparse))
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 #
@@ -355,7 +430,7 @@ end
 
 JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(
     StyleText(font_ubuntu_monospace_regular_20, color_default),
-    StyleText(font_ubuntu_monospace_regular_20, color_solarized_green))
+    StyleText(font_ubuntu_monospace_regular_20, color_completion_hint))
 
 # `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
 function map_reference_forward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
