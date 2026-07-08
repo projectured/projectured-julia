@@ -25,9 +25,9 @@ A component:
 
 ### ComponentMasterDetail (document only)
 
-**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/domain/src/document/Component.jl:62` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered at `package/domain/src/ProjecturedDomain.jl:88` (`include("document/Component.jl")`), placed after Widget/Layout (lines 83–84) and before Workbench (line 97), exactly as described.
+**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/domain/main/component/Component.jl` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered in `package/domain/main/ProjecturedDomain.jl` (`include("component/Component.jl")`), placed with the document slices, before Workbench. (The document was dropped during the repository history restart and salvaged back from the `claude/kernel-layered-architecture-sb10gx` branch on 2026-07-08.)
 
-**File**: [Component.jl](../../program/src/document/Component.jl)
+**File**: [Component.jl](../../package/domain/main/component/Component.jl)
 
 A two-pane component: master (tree/list) on the left, detail (inspector/form) on the right. Selecting an item in the master pane reactively updates the detail pane.
 
@@ -39,13 +39,13 @@ Fields:
 - `detail_title::String` — title for the right pane
 - `split_ratio::Float64` — fraction of width for the master pane (0.0–1.0)
 
-Registered in [ProjecturEd.jl](../../program/src/ProjecturEd.jl) after Widget/Layout and before Workbench.
+Registered in [ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain.jl) with the document slices, before Workbench.
 
 ## TODO
 
 ### ComponentMasterDetail projection
 
-**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/domain/src/document/Component.jl:13`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
+**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/domain/main/component/Component.jl`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
 
 Create `ComponentToWidget` projection that maps `ComponentMasterDetail` to:
 ```
