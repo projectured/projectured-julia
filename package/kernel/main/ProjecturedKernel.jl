@@ -19,121 +19,22 @@ re-exported by the `Projectured` umbrella.
 """
 module ProjecturedKernel
 
-# The include list is a hand-maintained topological sort: every file appears
-# after the modules named in its `import ..XxxModule` headers. The sections
-# below group the files by architectural layer; within a section, order still
-# obeys those dependency edges.
-
-# ── Cell layer (layer 1 — the DAG's dependency-free base) ──────────────────
-# PerformanceCounter (leaf) before the cells, whose reactive kind bumps its
-# `_perf` on the hot path. CellModule is the aggregator; it includes the base
-# type and the three kind files (AbstractCell/ReactiveCell/MutableCell/ImmutableCell).
-# Time is the one global animation clock, a single `Cell` built on the engine
-# above — it belongs beside cells, not with the editor loop that drives it.
-include("cell/PerformanceCounter.jl")
-include("cell/CellModule.jl")
-include("cell/Time.jl")
-
-# ── Document layer (layer 2 — the contract) ────────────────────────────────
-# The Document abstract type, the selection generics, the shared @document
-# machinery. DocumentModule.jl is the aggregator; it includes Interface.jl
-# (the contract fragment) then Document.jl (the machinery fragment).
-include("document/DocumentModule.jl")
-
-# ── Reference and operation layers (layers 3–4) ────────────────────────────
-# Reference machinery and the operation layer. These declare open seams
-# (generics) that `package/base` extends for its concrete documents and
-# document-shaped projections; the kernel itself carries no concrete document.
-include("reference/ReferenceModule.jl")
-include("operation/OperationModule.jl")
-
-# ── Device layer (layer 5 — input devices, events, gestures) ───────────────
-# The DeviceModule interface, the modifier/keyboard/mouse event types, and
-# GestureModule (the @event_case macro + parser and the reified
-# GestureBinding/@gestures DSL). GestureModule owns EventEnvelope, so the
-# editor and gesture layers don't depend on a concrete document type.
-# ScreenDevice (Screen + WindowQuit, both defined here) and GestureRecognizer
-# (device event types + EventEnvelope only) close the layer.
-include("device/Device.jl")
-include("device/Modifiers.jl")
-include("device/Keyboard.jl")
-include("device/Mouse.jl")
-include("device/GestureModule.jl")
-include("device/ScreenDevice.jl")
-include("device/GestureRecognizer.jl")
-
-# ── Backend layer (layer 6 — rendering targets, independent of device) ─────
-# BackendModule declares the abstract Backend, the batch generics
-# (initialize_backend!, quit_backend!, measure_text, write_image, record_video,
-# render_canvas, decode_image, get_pointer_position), and the make_backend
-# factory seam. DisplayModule holds the display-size query with a provider
-# indirection.
-include("backend/Backend.jl")
-include("backend/Display.jl")
-include("backend/HeadlessBackend.jl")
-
-# ── Projection layer (layer 7 — interface, infrastructure & algebra) ───────
-# The interface stubs lead the section: ProjectionApi and IoMapApi declare the
-# abstract types and open generics (the four projection functions, IoMap) that
-# everything below implements; Intent is the reader-side protocol data type;
-# IoMapModule holds the shared concrete IO maps. Nothing below this layer
-# imports any of them — `package/base` extends the generics through the fully
-# loaded kernel, so they need no earlier position in the include list.
-include("projection/ProjectionApi.jl")
-include("projection/IoMapApi.jl")
-include("projection/Intent.jl")
-include("projection/IoMap.jl")
-# PrinterContext (Reactive + Reference only) is projection-layer infrastructure
-# consumed by ProjectionModule and the generic projections.
-include("projection/PrinterContext.jl")
-# Open generics for the children container ProjectionTemplate uses; base's
-# Collection.jl adds the CellVector methods.
-include("projection/ChildrenContainer.jl")
-# Must load before the combinators (Chaining/Nesting/Recursive/TypeDispatching)
-# that import collect_gesture_bindings from it.
-include("projection/GestureBindings.jl")
-include("projection/higherorder/Chaining.jl")
-include("projection/higherorder/TypeDispatching.jl")
-include("projection/higherorder/Recursive.jl")
-include("projection/higherorder/Switching.jl")
-include("projection/higherorder/PredicateDispatching.jl")
-include("projection/higherorder/ReferenceDispatching.jl")
-include("projection/higherorder/Nesting.jl")
-include("projection/higherorder/EnvelopeUnwrapping.jl")
-include("projection/generic/Identity.jl")
-include("projection/generic/Reversing.jl")
-include("projection/generic/Constant.jl")
-include("projection/generic/Focusing.jl")
-
-# ── Projection defaults & the `@projection` macro ──────────────────────────
-# ProjectionModule holds the four-generic fallbacks and the `@projection`
-# macro. Nothing in the kernel imports it, so it loads after the whole algebra;
-# it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
-include("projection/Projection.jl")
-
-# ── ProjectionTemplate ─────────────────────────────────────────────────────
-# The builder-and-walk projection-template engine every XToSyntax uses. It is
-# projection machinery, not per-domain content. It keeps two base seams open:
-#   (a) constructive CellVector(...) sites go through the children-container
-#       generic (make_children_container / children_container_type); base's
-#       Collection.jl registers the CellVector methods.
-#   (b) the ReplaceStringRangeOperation read_intent method lives in
-#       base/projection/ReaderDefaults.jl beside the primitive-op defaults.
-include("projection/ProjectionTemplate.jl")
-
-# ── Agent layer (layer 8 — the AI control surface, side-stack) ─────────────
-# AgentModule declares the make_agent_server / start_agent_server! /
-# stop_agent_server! seam the editor loop reaches through. Llm, ToolRegistry,
-# Mcp are the dependency-free client seams the real transports (opt-in
-# ProjecturedLlm / ProjecturedMcp packages) implement against.
-include("agent/Agent.jl")
-include("agent/Llm.jl")
-include("agent/ToolRegistry.jl")
-include("agent/Mcp.jl")
-
-# ── Editor layer (layer 9 — the read-eval-print loop) ──────────────────────
-include("editor/Editor.jl")
-# Scripted live playback builds on the editor loop, so it loads last.
-include("editor/Playback.jl")
+# The package is nine architectural layers, one folder each, included
+# bottom-to-top below. Each layer folder keeps its own ordered include list in
+# a `<Name>Layer.jl` *fragment* (a 0-module file sharing this module's
+# namespace), so this file reads as the layer diagram and each layer file as
+# that layer's table of contents. The include tree remains one hand-maintained
+# topological sort: every file appears after the modules named in its
+# `import ..XxxModule` headers, and a layer only imports layers at or below
+# its own index — both enforced statically by `test_kernel_layering()`.
+include("cell/CellLayer.jl")             # layer 1 — the reactive cell engine
+include("document/DocumentLayer.jl")     # layer 2 — the document contract
+include("reference/ReferenceLayer.jl")   # layer 3 — reference machinery
+include("operation/OperationLayer.jl")   # layer 4 — reified edits
+include("device/DeviceLayer.jl")         # layer 5 — input devices, events, gestures
+include("backend/BackendLayer.jl")       # layer 6 — rendering-target seam
+include("projection/ProjectionLayer.jl") # layer 7 — projection interface & algebra
+include("agent/AgentLayer.jl")           # layer 8 — the AI control surface
+include("editor/EditorLayer.jl")         # layer 9 — the read-eval-print loop
 
 end # module ProjecturedKernel

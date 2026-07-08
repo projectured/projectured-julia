@@ -11,16 +11,19 @@
 # it references too early.
 #
 # The walker is **fragment-aware**: a `Module.jl` aggregator can `include(…)`
-# 0-module *fragment* files that share its namespace. Every `include(...)` is
-# followed recursively from the top file, each fragment's imports are collected
-# under its nearest module-defining ancestor, and the checks assert:
+# 0-module *fragment* files that share its namespace, and the top package file
+# can `include(…)` per-layer fragment files (`cell/CellLayer.jl`, …) whose
+# own includes are the layer's module files, in order. Every `include(...)` is
+# followed recursively from the top file, each module-body fragment's imports
+# are collected under its nearest module-defining ancestor, and the checks
+# assert:
 #
 # 1. every on-disk `.jl` file is reached by the include tree exactly once,
-# 2. every top-level include names a module defined by exactly one file,
-# 3. the top-level include list is a valid topological order over the union of
-#    own+fragment imports (a `const Xxx = OtherPackage.Xxx` alias at the top of
-#    the package file satisfies a `..Xxx` dep — that is how base/visual/domain
-#    re-export the lower packages' modules),
+# 2. every module file reached names a module defined by exactly one file,
+# 3. the include order over the module files is a valid topological order over
+#    the union of own+fragment imports (a `const Xxx = OtherPackage.Xxx` alias
+#    at the top of the package file satisfies a `..Xxx` dep — that is how
+#    base/visual/domain re-export the lower packages' modules),
 # 4. for files that live under a declared `layers` folder, every `..XxxModule`
 #    dep resolves to a module whose file also lives under a layers folder of
 #    index ≤ the importer's (non-layers folders are exempt during transition).
@@ -66,13 +69,14 @@ end
 """
 Return the direct relative-module imports and the ordered list of `include(...)`
 paths appearing at the top level of `body_expr`. Statements are considered
-top-level within the passed expression (a module body, or a bare fragment body).
+top-level within the passed expression: a module body (`:block`) or a bare
+fragment body (`Meta.parseall` yields `:toplevel`).
 """
 function collect_edges(body_expr)
     imports = Symbol[]
     includes = String[]
     stmts = body_expr isa Expr ?
-        (body_expr.head === :block ? body_expr.args : (body_expr,)) :
+        (body_expr.head in (:block, :toplevel) ? body_expr.args : (body_expr,)) :
         ()
     for stmt in stmts
         stmt isa Expr || continue
@@ -99,22 +103,27 @@ Walk the include tree rooted at `top_file`, recursively following each
 - `reached::Vector{String}` — every file reached (relpath to `src_root`), in
   visit order; used to check every on-disk file is included exactly once.
 - `entries::Vector{Tuple{String,Symbol,Vector{Symbol}}}` — one entry per
-  **top-level** include in `top_file`: `(rel_path, module_name, agg_deps)`,
-  where `agg_deps` is the union of that module's own `import ..X`s and every
-  fragment file it (transitively) includes.
+  **module file** reached, in include order: `(rel_path, module_name,
+  agg_deps)`, where `agg_deps` is the union of that module's own
+  `import ..X`s and every fragment file it (transitively) includes.
 
 A file whose AST defines exactly one `module` is a *module file*; its
 `agg_deps` includes descendant fragments' imports. A file with zero `module`s
-is a *fragment*: its imports are folded into the nearest module ancestor's
-`agg_deps`. A file with 2+ modules is an error.
+is a *fragment*: below a module file its imports are folded into that
+module's `agg_deps`; reached straight from the top file it is a *layer
+fragment* — its includes are the layer's module files, and it may not carry
+relative imports of its own (there is no module to attach them to). A file
+with 2+ modules is an error, as is a module file included inside another
+module file.
 """
 function walk_includes(top_file, src_root)
     reached = String[]
     entries = Tuple{String, Symbol, Vector{Symbol}}[]
 
-    # Recursively collect the module-symbol deps that belong to the nearest
-    # *module* ancestor of `file`.
-    function descend(file)
+    # Descend into `file`. `in_module` says whether a module-file ancestor
+    # encloses it; returns the relative imports to fold into that ancestor
+    # (always empty for module files, which emit an entry instead).
+    function descend(file, in_module)
         rel = relpath(file, src_root)
         push!(reached, rel)
         ast = parse_file(file)
@@ -122,19 +131,25 @@ function walk_includes(top_file, src_root)
         if length(mods) > 1
             error("$rel defines $(length(mods)) modules; expected 0 (fragment) or 1 (module)")
         end
+        if length(mods) == 1 && in_module
+            error("$rel defines a module but is included inside another module file")
+        end
         body = length(mods) == 1 ? mods[1].args[3] : ast
         imports, includes = collect_edges(body)
+        if length(mods) == 0 && !in_module && !isempty(imports)
+            error("$rel is a layer fragment with relative imports; only module files may import ..Xxx")
+        end
         # Recurse into includes, aggregating fragment imports upward.
         for inc in includes
             child_path = joinpath(dirname(file), inc)
             isfile(child_path) || error("$rel includes \"$inc\" but the file does not exist")
-            child_imports = descend(child_path)
-            append!(imports, child_imports)
+            append!(imports, descend(child_path, in_module || length(mods) == 1))
         end
         if length(mods) == 1
             # Module file: emit an entry, but do not propagate deps upward.
             name = mods[1].args[2]::Symbol
-            (nothing, name, unique(imports))
+            push!(entries, (rel, name, unique(imports)))
+            Symbol[]
         else
             # Fragment: propagate imports to the enclosing module.
             unique(imports)
@@ -142,7 +157,8 @@ function walk_includes(top_file, src_root)
     end
 
     # The top file itself is `module ProjecturedXxx ... end`. No entry is
-    # emitted for it, but one is emitted per top-level include.
+    # emitted for it; each top-level include is either a module file (one
+    # entry) or a layer fragment (one entry per module file it includes).
     push!(reached, relpath(top_file, src_root))
     top_ast = parse_file(top_file)
     top_mods = collect_exprs(e -> e.head === :module, top_ast)
@@ -153,11 +169,7 @@ function walk_includes(top_file, src_root)
     for inc in top_includes
         child_path = joinpath(dirname(top_file), inc)
         isfile(child_path) || error("top include \"$inc\" not found on disk")
-        child_rel = relpath(child_path, src_root)
-        result = descend(child_path)
-        result isa Tuple || error("$child_rel is a fragment — top-level includes must define a module")
-        _, name, deps = result
-        push!(entries, (child_rel, name, deps))
+        descend(child_path, false)
     end
     reached, entries
 end
@@ -270,8 +282,9 @@ a `@testset`:
 
 1. every on-disk `.jl` file under `src_root` is reached by `top_file`'s
    include tree exactly once,
-2. each top-level include defines exactly one uniquely-named module,
-3. the include list is a valid topological order over the real
+2. every module is defined by exactly one file (top-level includes may be
+   module files or per-layer fragments listing the layer's module files),
+3. the module files' include order is a valid topological order over the real
    `import ..XxxModule` edges (module aliases to lower packages are exempt),
 4. declared `layers` respect their index (skipped when `layers` is empty).
 """
@@ -335,9 +348,53 @@ end
 """
     test_layering_checkers()
 
-Self-tests for `topo_errors` / `layer_errors` on synthetic entry lists.
+Self-tests for `topo_errors` / `layer_errors` on synthetic entry lists, and
+for the `walk_includes` walker on a synthetic package tree.
 """
 function test_layering_checkers()
+    @testset "walk_includes handles module files and layer fragments" begin
+        mktempdir() do root
+            # Top module includes one module file directly and one layer
+            # fragment whose includes are the layer's module files, in order.
+            mkpath(joinpath(root, "cell"))
+            mkpath(joinpath(root, "document"))
+            write(joinpath(root, "Top.jl"), """
+                module Top
+                include("cell/A.jl")
+                include("document/DocumentLayer.jl")
+                end
+                """)
+            write(joinpath(root, "cell/A.jl"), "module A\nend\n")
+            write(joinpath(root, "document/DocumentLayer.jl"), """
+                include("B.jl")
+                include("C.jl")
+                """)
+            write(joinpath(root, "document/B.jl"), "module B\nimport ..A\ninclude(\"BFragment.jl\")\nend\n")
+            write(joinpath(root, "document/BFragment.jl"), "import ..A\nusing ..C\n")
+            write(joinpath(root, "document/C.jl"), "module C\nend\n")
+
+            reached, entries = walk_includes(joinpath(root, "Top.jl"), root)
+            # Every file reached exactly once, layer fragment included.
+            @test sort(reached) == sort(["Top.jl", "cell/A.jl",
+                                         "document/DocumentLayer.jl", "document/B.jl",
+                                         "document/BFragment.jl", "document/C.jl"])
+            # One entry per module file, in include order; the fragment's
+            # imports fold into its enclosing module's deps.
+            @test [(m, sort(d)) for (_, m, d) in entries] ==
+                  [(:A, Symbol[]), (:B, [:A, :C]), (:C, Symbol[])]
+            # B imports ..C, which the layer fragment includes later.
+            @test length(topo_errors(entries)) == 1
+
+            # A layer fragment carrying its own relative import is an error.
+            write(joinpath(root, "document/DocumentLayer.jl"), """
+                import ..A
+                include("B.jl")
+                include("C.jl")
+                """)
+            @test_throws ErrorException walk_includes(joinpath(root, "Top.jl"), root)
+        end
+    end
+
     @testset "topo_errors detects a forward edge" begin
         # A depends on B but is ordered first ⇒ one error naming A→B.
         bad  = [("a.jl", :A, [:B]), ("b.jl", :B, Symbol[])]

@@ -42,9 +42,12 @@ per-layer runners (`test/<layer>/`) exercise each layer against its
 own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
-The package is one flat include list in [main/ProjecturedKernel.jl](../main/ProjecturedKernel.jl):
-~50 files, each defining exactly one module. Those modules form a **single acyclic
-dependency DAG**, machine-checked by the include-order guard (see below).
+The package file [main/ProjecturedKernel.jl](../main/ProjecturedKernel.jl) includes
+one **layer fragment per layer folder** (`cell/CellLayer.jl`, …,
+`editor/EditorLayer.jl`), bottom-to-top; each layer fragment holds its layer's
+ordered include list (~50 module files total, each defining exactly one module).
+Those modules form a **single acyclic dependency DAG**, machine-checked by the
+include-order guard (see below).
 
 ## Layer diagram — what depends on what
 
@@ -128,8 +131,9 @@ modules are expected to grow accessor/behaviour operations (e.g. the
 
 ## Load order and the include-order guard
 
-The include list is a hand-maintained **topological sort**: every file appears
-after the modules named in its `import ..XxxModule` headers. Julia enforces this
+The include tree — the layer fragments in order, and each fragment's own include
+list — is a hand-maintained **topological sort**: every file appears after the
+modules named in its `import ..XxxModule` headers. Julia enforces this
 only implicitly (an out-of-order include throws `UndefVarError` deep in
 precompilation), so [test/runtests.jl](../test/runtests.jl) enforces it
 **statically, without loading the package** (~0.4 s): it parses each file's AST and
