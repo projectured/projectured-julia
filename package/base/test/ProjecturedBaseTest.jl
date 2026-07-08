@@ -47,7 +47,9 @@ Static layered-architecture guard for `ProjecturedBase` (see
 `ProjecturedKernelTest.check_layering`).
 """
 function test_base_layering()
-    main = normpath(pkgdir(ProjecturedBase))
+    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedBase.jl
+    # is not under a src/), so derive the package root from `pathof`.
+    main = normpath(dirname(pathof(ProjecturedBase)))
     check_layering(main, joinpath(main, "ProjecturedBase.jl");
                    name = "base",
                    layers = ["document", "projection", "serialization"])

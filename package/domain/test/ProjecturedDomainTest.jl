@@ -121,7 +121,9 @@ slice folders whose ordering is enforced by the topological include-order
 check; no layer indices are declared.
 """
 function test_domain_layering()
-    main = normpath(pkgdir(ProjecturedDomain))
+    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedDomain.jl
+    # is not under a src/), so derive the package root from `pathof`.
+    main = normpath(dirname(pathof(ProjecturedDomain)))
     check_layering(main, joinpath(main, "ProjecturedDomain.jl"); name = "domain")
 end
 

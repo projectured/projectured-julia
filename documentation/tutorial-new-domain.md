@@ -49,6 +49,11 @@ abstract type BookmarkDocument <: Document end
 # parses arbitrary Julia; a JsonInsertion builds JSON values). That is why the
 # Insertion type is per-domain rather than shared, even though the struct looks
 # generic here.
+#
+# NOTE: the abstract root, this insertion, a `BookmarkNothing` placeholder,
+# the Insert-key gesture and the insertion traits can all be generated from
+# one line — `@domain Bookmark` (see documentation/macros.md, "`@domain`").
+# They are spelled out here so the tutorial shows what the macro expands to.
 
 @document struct BookmarkInsertion <: BookmarkDocument
     value::Any

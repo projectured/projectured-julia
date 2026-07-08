@@ -103,6 +103,41 @@ projection layer does this often, e.g. to make the `selection` field of a
 Since the stem is immutable, such sharing must be established at
 construction time — a field's cell object can never be swapped afterwards.
 
+## `@domain`
+
+```julia
+@domain Json
+```
+
+One line generates a document domain's **insertion kit**: the abstract root
+(`JsonDocument <: Document`, exported), the empty placeholder
+(`@document struct JsonNothing`), the typed-name insertion buffer
+(`@document struct JsonInsertion` with `value::String = ""` plus the
+`JsonInsertion("…")` convenience constructor), the **Insert-key gesture**
+that turns the placeholder into the insertion (cursor in the buffer), and the
+**insertion traits** the completion machinery dispatches on —
+`domain_prefix`, `domain_insertion`, `insertion_root`, `nothing_document`,
+`insertion_document`, the lowercase domain name as the insertion's alias, and
+the placeholder's `insertable` opt-out.
+
+Each `root = X` / `nothing = X` / `insertion = X` option **adopts** an
+existing type instead of generating one (only its traits and gestures are
+emitted); the adopted type must already be defined at the call site — e.g.
+`@domain Julia root = JuliaDocument nothing = JuliaNothing insertion =
+JuliaInsertion`, because `JuliaNothing` doubles as the parsed `nothing`
+literal.
+
+What the completion machinery then gives the domain for free: the reflected
+candidate list (`insertion_candidates(JsonDocument)`, every insertable
+concrete subtype — zero-arg constructible or with a `make_insertion_document`
+method), derived names (`JsonString` / `json string`, prefix-free inside the
+domain), live completion + commitability colouring in the shared insertion
+leaf, Enter-commit of unambiguous prefixes, Tab completion, and the
+Insert ⇄ Escape loop between placeholder and insertion. Not generated
+(layering): the two projection-table lines in the domain's `ToSyntax`
+(`XInsertion => DomainInsertionToSyntaxLeaf(XDocument)` via the domain's
+`XInsertionToSyntaxLeaf()` delegate, `XNothing => NothingToSyntaxLeaf()`).
+
 ## `@projection`
 
 ```julia

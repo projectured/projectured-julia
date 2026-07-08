@@ -2,26 +2,35 @@
     DocumentInsertionToSyntaxModule
 
 The insert-by-typing mechanism, ported from the Common Lisp ProjecturEd
-`document-to-syntax.lisp`.
+`document-to-syntax.lisp` — now with the live completion hint and green/red
+commitability colouring.
 
-`InsertionToSyntaxLeaf(commit; prefix, suffix)` projects any document with an
-editable `value::String` (e.g. `DocumentInsertion`, `JuliaInsertion`) to a
-`SyntaxLeaf` rendered as `prefix · value · suffix`. The reader edits `value`
-character-by-character and, on **Enter**, calls `commit(value)`:
+`InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` projects any
+document with an editable `value::String` to a `SyntaxNode` rendered as
+`prefix · value · ⟨continuation⟩ · suffix`. The reader edits `value`
+character-by-character; the value's colour and the pale continuation are
+computed cells driven by the `completion` policy (see `name_completion`):
 
-- `DocumentInsertion` uses `default_factory` — typing a domain name
-  (`julia`, `json`, `xml`, `text`) + Enter commits to that domain's document /
-  insertion.
-- `JuliaInsertion` commits Julia source via `juliaparse` → a `JuliaDocument`.
+- **green** typed text — the buffer names a candidate (or parses, for source
+  insertions); with an **unambiguous** prefix the rest of the name renders as
+  the **pale-green continuation**;
+- **red** — no completion is possible;
+- **Tab** accepts the continuation (the longest-common-prefix *partial*
+  completion when ambiguous);
+- **Enter** calls `commit(value)` — for name insertions that is
+  `resolve_insertion` + `make_insertion_document` over the insertion's domain
+  root, so an unambiguous prefix commits too;
+- **Escape** aborts to the domain's own placeholder (`nothing_document`), the
+  inverse of the placeholder's Insert gesture.
 
-So the chain is *domain-independent insertion → domain-specific insertion →
-enter the domain's source*, exactly as in the Lisp editor. Commit emits a
-`ReplaceDocumentOperation` rooted at the insertion (enclosing projections reroot
-it); **Escape** aborts to `DocumentNothing`.
-
-Not yet ported: the live completion hint + green/red commitability colouring
-(`default_completion` computes the suffix; wiring it into the rendered leaf is a
-follow-up).
+The candidates, names (`JsonString` / `json string`, prefix-free inside a
+domain scope), and constructors all come from `DomainSupportModule`'s
+reflection — nothing here is a table. The chain is *domain-independent
+insertion (`DocumentInsertion`) → domain-specific insertion
+(`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*, exactly as in
+the Lisp editor; `JuliaInsertion` additionally commits arbitrary source via
+`juliaparse` (keyword prefixes expand to hole scaffolds), `SqlInsertion` via
+`sqlparse`.
 """
 module DocumentInsertionToSyntaxModule
 

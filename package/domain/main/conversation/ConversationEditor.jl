@@ -49,7 +49,10 @@ import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
-import ..ColorModule: color_default, color_solarized_gray, color_slate_600
+import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
+                      color_solarized_red, color_completion_hint, color_slate_600
+import ..DomainSupportModule: resolve_insertion, make_insertion_document
+import ..DocumentInsertionToSyntaxModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
 import ..KeyboardModule: KeyDown, KeyPress
@@ -231,15 +234,15 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
     nothing
 end
 
-# Kind keyword → the domain insertion the chooser grows into. Each is an editable
-# insertion you then type a source into (and, later, drive structurally — e.g. a
-# `JsonInsertion` turning into a `JsonArray` on `[`). Julia additionally parses +
-# evaluates today; JSON/XML source parsing lands with the Stage-5 parsers.
+# Kind keyword → the domain insertion the chooser grows into, resolved over the
+# reflected candidates (exact name/alias or unambiguous prefix — `juli⏎` works),
+# filtered to the kinds the composer can actually parse/evaluate today. Each is
+# an editable insertion you then type a source into.
+_composer_kind(T) = T in (JuliaInsertion, JsonInsertion, XmlInsertion)
 function _composer_factory(name::AbstractString)
-    n = lowercase(strip(name))
-    n == "julia" ? JuliaInsertion("") :
-    n == "json"  ? JsonInsertion()    :
-    n == "xml"   ? XmlInsertion()     : nothing
+    T = resolve_insertion(Document, name)
+    (T === nothing || !_composer_kind(T)) && return nothing
+    make_insertion_document(T)
 end
 
 function evaluate_operation(editor, op::ComposerCommitChooserOperation)
@@ -423,9 +426,19 @@ end
 const _INS_PREFIX = "Insert a new "
 const _INS_SUFFIX = " here"
 function _editable_body(c::DocumentInsertion)
+    # The value span carries the live commitability colour (green = names a
+    # type, red = dead end, neutral while empty) and is followed by the pale
+    # completion hint span — the same feedback the syntax-leaf insertion shows.
+    value_span = TextString(() -> _value(c), _FONT, color_default)
+    set_function!(getfield(value_span, :font_color), function ()
+        state = name_completion(c).state
+        state === :invalid ? color_solarized_red :
+        state === :empty   ? color_default      : color_solarized_green
+    end)
     body = TextText([
         TextString(_INS_PREFIX, _FONT, color_solarized_gray),
-        TextString(() -> _value(c), _FONT, color_default),
+        value_span,
+        TextString(() -> name_completion(c).hint, _FONT, color_completion_hint),
         TextString(_INS_SUFFIX, _FONT, color_solarized_gray),
     ])
     # While the value is empty, anchor the caret to the end of the (non-empty)

@@ -84,7 +84,9 @@ file reached exactly once, and files under a declared layer folder may only
 import from layers of index ≤ their own.
 """
 function test_kernel_layering()
-    main = normpath(pkgdir(ProjecturedKernel))
+    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
+    # is not under a src/), so derive the package root from `pathof`.
+    main = normpath(dirname(pathof(ProjecturedKernel)))
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
                    layers = ["cell", "document", "reference", "operation", "device",

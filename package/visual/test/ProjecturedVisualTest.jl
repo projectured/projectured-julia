@@ -131,7 +131,9 @@ is what the topological include-order check enforces; no layer indices are
 declared.
 """
 function test_visual_layering()
-    main = normpath(pkgdir(ProjecturedVisual))
+    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedVisual.jl
+    # is not under a src/), so derive the package root from `pathof`.
+    main = normpath(dirname(pathof(ProjecturedVisual)))
     check_layering(main, joinpath(main, "ProjecturedVisual.jl"); name = "visual")
 end
 
