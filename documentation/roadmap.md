@@ -4,7 +4,7 @@ This document distils the development priorities for ProjecturEd into three
 horizons. The detailed design notes and open questions for each item live in
 [the further development plan](../plan/tentative/further-development.md).
 
-The ordering principle: **deepen the vertical slice first** (make editing
+The ordering principle: **deepen the end-to-end path first** (make editing
 actually work end-to-end), **then widen** (more domains, more layouts, more
 backends), **then distribute** (network, collaboration, external data).
 

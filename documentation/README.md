@@ -25,8 +25,9 @@ mental model before diving into code.
 You want to add a domain, a projection, a backend, or extend an existing one.
 
 1. [Concepts](concepts.md) — start here if you haven't already.
-2. [Architecture](architecture.md) — layer diagram, full module inventory,
-   pipeline status.
+2. [Architecture](architecture.md) — the package chain, layer/slice structure,
+   full module inventory, pipeline status. See [Terminology](terminology.md)
+   for the division vocabulary (package / layer / slice / module).
 3. [Reactive cells](reactive-cells.md) — `Cell`, dependency tracking, lazy
    invalidation. Everything assumes you understand this.
 4. [Macros](macros.md) — `@document`, `@projection`, `@iomap` and why field
@@ -38,7 +39,7 @@ You want to add a domain, a projection, a backend, or extend an existing one.
    write a test.
 7. [Design decisions](design-decisions.md) — rationale for key choices.
 
-Then read the guide for the domain or subsystem you are touching:
+Then read the guide for the domain or area you are touching:
 
 - Higher-order projections: [higher-order projections guide](higher-order-projections.md)
 - Generic projections: [generic projections guide](generic-projections.md)
@@ -79,14 +80,16 @@ Read it first; it will point you here and to the specific guides you need.
 |---|---|
 | [Getting started](getting-started.md) | Setup and REPL helpers |
 | [Debugging](debugging.md) | REPL debugging: print_example, write_example_image, forcing cells |
-| [Testing](testing.md) | test_all and per-layer test helpers |
+| [Testing](testing.md) | test_all and per-package test helpers |
 | [Tutorial: new domain](tutorial-new-domain.md) | Step-by-step: add a new domain |
 
 ### Architecture
 
 | Guide | Contents |
 |---|---|
-| [Architecture](architecture.md) | Layer diagram, module inventory, pipeline status |
+| [Terminology](terminology.md) | The division vocabulary: package, layer, slice, module |
+| [Architecture](architecture.md) | Package chain, layer/slice structure, module inventory, pipeline status |
+| [Architecture rules](architecture-rules.md) | Decision rules: when to create a package, layer, slice, or module, and where code belongs |
 | [Design decisions](design-decisions.md) | Rationale for key architectural choices |
 | [Design overview](design.md) | ← redirects to the three split documents above |
 

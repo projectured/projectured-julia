@@ -1,7 +1,7 @@
 # Design Decisions
 
 This document explains the *why* behind ProjecturEd's key architectural
-choices. For the *what* (module inventory, layer diagram) see the
+choices. For the *what* (module inventory, package/layer/slice structure) see the
 [architecture guide](architecture.md). For the full reference/selection mechanism
 see the [selection deep dive](selection-deep-dive.md).
 
@@ -187,4 +187,4 @@ frame pays to recompute the whole subtree that reads it. See
 | Projections | CLOS generic functions | Lightweight structs + `print_document` dispatch |
 | Selection cells | Shared by reference | Shared by reference (same approach) |
 | `ProjectionReference` | Different mechanism | `ProjectionReference` step in path |
-| Scope | Dozens of domains | Complete vertical slice + expanding |
+| Scope | Dozens of domains | Complete end-to-end path + expanding |

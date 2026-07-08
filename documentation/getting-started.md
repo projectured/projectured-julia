@@ -30,7 +30,7 @@ run_example()                        # JSON example (default)
 run_example("widget")                # widget form example
 run_example("json"; workbench=true)  # wrap any example in the IDE shell
 run_example("json"; scrolling=true)  # wrap in a scrollable viewport
-run_example("json"; caching=true)    # enable GraphicsCaching layer
+run_example("json"; caching=true)    # enable the GraphicsCaching projection
 ```
 
 Press **Escape** to close the SDL window.
@@ -91,7 +91,7 @@ test_position_navigations()          # position (caret) navigation, no-error swe
 test_position_navigations_complete() # + reaches every enumerated position (curated)
 ```
 
-See [the testing guide](testing.md) for all per-layer helpers.
+See [the testing guide](testing.md) for all per-package helpers.
 
 ## For AI assistants using MCP
 

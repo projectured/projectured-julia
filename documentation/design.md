@@ -3,7 +3,7 @@
 This document was previously a single 810-line architecture + reference guide.
 It has been split into three focused documents so each can be read independently:
 
-- **[Architecture](architecture.md)** — layer diagram, module inventory,
+- **[Architecture](architecture.md)** — package/layer/slice structure, module inventory,
   projection pipeline status, and mapping to the original Common Lisp
   ProjecturEd. Read this for *what the code is*.
 

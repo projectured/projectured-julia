@@ -4,12 +4,12 @@ A Julia reimplementation of [ProjecturEd](https://github.com/projectured/project
 
 ## Before working in this repo
 
-Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor layering that the code assumes you understand.
+Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module) is defined in [documentation/terminology.md](documentation/terminology.md) — use those terms exactly.
 
 The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
 
 1. [documentation/concepts.md](documentation/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
-2. [documentation/architecture.md](documentation/architecture.md) — layer diagram and module inventory.
+2. [documentation/architecture.md](documentation/architecture.md) — the package chain, layer/slice structure, and module inventory.
 3. [documentation/reactive-cells.md](documentation/reactive-cells.md) — the pull-based reactive cell system that powers incrementality.
 4. [documentation/macros.md](documentation/macros.md) — `@document`, `@projection`, `@iomap`.
 5. [documentation/projection-system.md](documentation/projection-system.md) — the four interface functions and the printer/reader pair.
@@ -43,7 +43,7 @@ Pick the narrowest scope that exercises your change:
 - The reactive primitive only: `test_cell()`.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 
-Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the per-package aggregators (`test_kernel()` / `test_base()` / `test_visual()` / `test_domain()`), the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_position_navigations()` / `test_repls()`), and rarely `test_all()` (which runs the four per-package suites plus the umbrella integration tests), when you specifically want a broad sweep after the targeted test already passes. See [documentation/testing.md](documentation/testing.md) for the full table of test functions and which layer each one covers.
+Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the per-package aggregators (`test_kernel()` / `test_base()` / `test_visual()` / `test_domain()`), the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_position_navigations()` / `test_repls()`), and rarely `test_all()` (which runs the four per-package suites plus the umbrella integration tests), when you specifically want a broad sweep after the targeted test already passes. See [documentation/testing.md](documentation/testing.md) for the full table of test functions and which package each one covers.
 
 Always narrow down tests to the smallest reasonable scope — never default to `test_all()`, it is slow. Prefer single-example or single-domain test functions as described in the "Testing a change" section above.
 

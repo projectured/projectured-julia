@@ -1,6 +1,7 @@
 # Architecture rules — how the code is divided and where things belong
 
-The decision rules behind the package/layer/module/file structure. They apply to the
+The decision rules behind the package/layer/slice/module structure (the terms
+are defined precisely in [terminology.md](terminology.md)). They apply to the
 codebase as it exists today (the opt-in packages already obey them); the structure
 was established by
 [plan/done/kernel-layered-architecture.md](../plan/done/kernel-layered-architecture.md)
@@ -15,17 +16,22 @@ the rules don't answer it, extend the rules, don't improvise.
 ## The four levels of division
 
 Each level answers to a different criterion. "Should X be a package?" is really four
-questions, one per level:
+questions, one per level ([terminology.md](terminology.md) defines the terms):
 
 | Level | Is a boundary of | Create one when | Cost |
 | --- | --- | --- | --- |
 | **Package** | dependencies and consumers | a new **external dependency**, or a **distinct consumer set** wants the code *without* the rest | Project.toml, resolver slot, alias plumbing in every dependent — strict criterion, not aesthetic |
-| **Layer** (folder in a package) | direction of dependency | code sits at a distinct height: layer N imports only layers ≤ N | a folder + a guard entry — cheap |
+| **Layer** | direction of dependency | code sits at a distinct height: layer N imports only layers ≤ N | a folder + a guard entry — cheap |
+| **Slice** | feature membership within one layer | the instances of a layer are features that grow in number; slice→slice edges must stay acyclic | a folder + a guard entry — cheap |
 | **Module** | namespace / import surface | it is a seam others import or implement against **by name** (module names are de-facto public API via the umbrella re-export) | every import header that names it; merge modules only ever imported together |
-| **File** | readability only | a module grows; *fragments* share their aggregator's namespace at zero API cost | none — never let file layout imply an API boundary the module doesn't enforce |
 
-A **feature slice** is a layer that groups by *feature* (a document with its parser,
-projections, tests) instead of by *kind*. Slice when the instances are the features
+(A **file** is below all four levels — a readability boundary only: *fragments*
+share their aggregator's namespace at zero API cost, and file layout must never
+imply an API boundary the module doesn't enforce.)
+
+A **slice** is a *vertical* split of a single layer: where layers stack code by
+dependency height, slices split one layer side by side by feature (a document with
+its parser, projections, tests). Slice when the instances are the features
 and grow in number (domain, visual); keep by-concept layers where the kind is itself
 the feature (the kernel). General form: **organize by the axis along which the code
 grows and changes; keep the other axis as a naming convention** (`*Parser.jl`,
@@ -63,9 +69,9 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   the Screen *device* and display-size seam stay in the kernel, because they are the
   interface the editor writes to, not the graphics themselves.
 - **domain** — pure feature slices (json, sql, graph, …: each a document + parser +
-  projections + tests) plus the application slices (workbench, conversation) on top.
-  No shared tiers: anything two slices need is a framework and belongs in base (or
-  visual, if it renders).
+  projections + tests) plus the application slices (workbench, conversation) in the
+  layer above. No shared layers between them: anything two slices need is a
+  framework and belongs in base (or visual, if it renders).
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
   web=HTTP, odbc=ODBC, tulip=C++ solver, llm/mcp=protocol clients). They implement
   seams owned below (make_backend, adapters) and bind to the narrowest package that
@@ -96,7 +102,7 @@ examples:  kernel/example ← visual/example ← domain/example ← projectured/
 ```
 
 (There is no `base/example`: every runnable example projects through the visual
-render fabric, so the example DAG skips the base tier — see
+render fabric, so the example DAG skips the base package — see
 [plan/done/example-package-split.md](../plan/done/example-package-split.md).)
 
 The example DAG's leaves are the **opt-in example packages** — one per engine,
@@ -113,10 +119,11 @@ cross-engine example, keeping each projection source file whole.
 
 - A **test package** depends on the main package it tests, plus the test packages
   below it (for the shared drivers and enumerators). It must never depend on a
-  main package *above* its own tier.
+  main package *above* its own position in the chain.
 - An **example package** depends on the main package whose vocabulary its
   examples use, plus the example packages below it (for the `Example` harness).
-- **Test packages may depend on example packages** of their own tier or below
+- **Test packages may depend on example packages** at or below their own
+  position in the chain
   (fixtures); never the other way around — examples are main-package artifacts, tests
   observe them.
 - The **umbrellas** (`ProjecturedTest`, `ProjecturedExample`) keep only what is
@@ -124,8 +131,8 @@ cross-engine example, keeping each projection source file whole.
   discovery) or coupled to an opt-in package (SDL rendering, live DB, LLM, video).
   Everything else sinks.
 
-This is what keeps every tier runnable in a minimal environment: `test_kernel()`
-through `test_domain()` (and the per-tier example factories) work in an env with
+This is what keeps every package runnable in a minimal environment: `test_kernel()`
+through `test_domain()` (and the per-package example factories) work in an env with
 none of the opt-in native/network dependencies installed.
 
 **The lowest-home rule.** Any piece of code — source, test, example, or harness —
@@ -136,20 +143,21 @@ clarifications that decide most disputes:
   `make_backend(:sdl)` or recording via the `record_video` seam creates no
   dependency — the opt-in package registers the method when loaded. Only a `using`
   / `import` of a package, or naming its types/functions directly, anchors code to
-  a tier. This is why the example gallery can live in the visual tier while
+  a package. This is why the example gallery can live in the visual package while
   rendering through SDL at runtime.
 - **The fixture decides, not the machinery.** A test (or example) that exercises
-  low-tier machinery *through* a higher-tier fixture belongs to the fixture's tier:
-  a Pdf-backend test driven by a JSON pipeline is a domain-tier test, even though
-  the Pdf backend is visual. Classification tables in plans are guesses; the
+  a lower package's machinery *through* a higher package's fixture belongs to the
+  fixture's package: a Pdf-backend test driven by a JSON pipeline is a domain test,
+  even though the Pdf backend is visual. Classification tables in plans are guesses; the
   vocabulary check at move time is the authority.
 
 The generic drivers follow the same rule from the other side: a driver written
 against only kernel API (`test_printer(label, document, projection)`,
-`walk_repl_loop`) sits at the bottom and is reused by every tier above; tier-typed
-overloads (`test_printer(::Example)`) sit wherever their argument type lives.
+`walk_repl_loop`) sits at the bottom and is reused by every package above; overloads
+typed on a higher package's types (`test_printer(::Example)`) sit wherever their
+argument type lives.
 Open generics declared low and extended high (`_text_leaf_length`) bridge the
-tiers without inverting the DAG. Where a driver needs tier-specific behavior
+packages without inverting the DAG. Where a driver needs package-specific behavior
 wholesale — the navigation gesture sets and their ground-truth enumerators — it
 takes them as arguments instead: the generic `explore_selections` /
 `test_navigation` driver sits in the kernel test package, its presets
@@ -161,7 +169,7 @@ package whose document walk can express them.
 ## Placement rules for individual pieces
 
 - **Projection placement invariant** (machine-checked by the guards):
-  `home(projection) ≥ max(tier(input), tier(output), tier(every other import))`.
+  `home(projection) ≥ max(package(input), package(output), package(every other import))`.
   Canonical home = the more-specific side: `JsonToSyntax` → json slice,
   `SyntaxToText` → visual, `ObjectToSyntax` → visual (generic input, visual output).
   It works because pipelines flow *specific → generic*; a reverse-direction
@@ -178,7 +186,7 @@ package whose document walk can express them.
 - **Lower layers may *mention* higher concepts only as opaque payloads** — an untyped
   field the lower layer never interprets (`ProjectionReference.projection::Any`,
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.
-- **Interfaces live with their concept, not in an api/ tier.** Each layer's interface
+- **Interfaces live with their concept, not in an api/ layer.** Each layer's interface
   is its first file(s); implementations depend downward onto it.
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
@@ -193,6 +201,6 @@ and slice→slice edges are acyclic. The guard is implemented **once** — the s
 [package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
 — and each test package applies it to its main package
 (`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
-`test_domain_layering()`), running inside `test_<tier>()`. It runs without loading
+`test_domain_layering()`), running inside `test_<package>()`. It runs without loading
 the package (~1s) and is the reason the rules stay true after the refactors that
 established them.

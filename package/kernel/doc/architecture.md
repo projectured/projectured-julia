@@ -49,10 +49,12 @@ ordered include list (~50 module files total, each defining exactly one module).
 Those modules form a **single acyclic dependency DAG**, machine-checked by the
 include-order guard (see below).
 
-## Layer diagram — what depends on what
+## Dependency diagram — what depends on what
 
-Grouped by role, top = highest level. **Every arrow points *down*: "depends on".**
-The API-stub tier (B) is the cycle-breaker: implementation tiers depend downward
+Grouped by role into lettered **bands** (A–H), top = highest. The bands are a
+coarser view than the nine layers above — a diagram grouping, not the layer
+structure itself. **Every arrow points *down*: "depends on".**
+The API-stub band (B) is the cycle-breaker: implementation bands depend downward
 onto the abstract stubs, never up. The editor reaches the agent surface only
 through the `AgentApiModule` *stub* (a `make_agent_server(:mcp, …)` factory seam), so
 it does **not** depend on `Mcp`/`Llm` — which is why the agent surface hangs off to
@@ -63,7 +65,7 @@ the side.
  H │  EDITOR      EditorModule  ·  ScreenDeviceModule(device)  ·          │  run_editor!/play_live!
    │              GestureRecognizerModule                           │
    └───┬───────────────────────────────┬─────────────────┬─────────┘
-       │ (pulls in nearly every tier)  │                 │ via AgentApiModule stub
+       │ (pulls in nearly every band)  │                 │ via AgentApiModule stub
        │                               │                 ▼
        │                               │      ┌───────────────────────────┐
        │                               │    G │ AGENT SURFACE             │
@@ -98,23 +100,23 @@ the side.
                                     ▼
    ┌──────────────────────────────────────────────────────────────┐
  A │  REACTIVE ENGINE     PerformanceCounter → Reactive            │
-   │  (reactive/, layer A — the DAG's dependency-free base)         │
+   │  (reactive/, band A — the DAG's dependency-free base)          │
    └──────────────────────────────────────────────────────────────┘
 ```
 
 Four modules carry almost all the fan-in (a consolidation must keep them cheap to
 import); everything else is depended on ≤7 times:
 
-| Hub | Tier | Depended on by |
+| Hub | Band | Depended on by |
 | --- | --- | --- |
 | `ProjectionApiModule` | B | ~20 modules |
 | `CellModule` | A | ~19 |
 | `ReferenceModule` | C | ~17 |
 | `IoMapApiModule` | B | ~12 |
 
-## The API tier is the extension SPI
+## The API band is the extension SPI
 
-Tier B is not just an internal decoupling seam — it is the **service-provider
+Band B is not just an internal decoupling seam — it is the **service-provider
 interface** a third party implements to extend ProjecturEd (a new `Backend`,
 `Device`, agent server, domain `Document`, or `Projection`). It is kept **pure**:
 abstract types + generic function *declarations* (`function f end`) + docstrings —

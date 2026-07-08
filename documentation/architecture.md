@@ -1,13 +1,15 @@
 # Architecture
 
-This document covers the layer diagram, the module inventory, and the
-projection pipeline status. For design rationale see the
+This document covers the conceptual pipeline, the package layout, the module
+inventory, and the projection pipeline status. The division vocabulary
+(package / layer / slice / module) is defined in [terminology.md](terminology.md).
+For design rationale see the
 [design decisions guide](design-decisions.md). For the full reference/selection
 mechanism see the [selection deep dive](selection-deep-dive.md).
 
 ---
 
-## Layer diagram
+## Conceptual pipeline
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -33,9 +35,12 @@ mechanism see the [selection deep dive](selection-deep-dive.md).
                     └─────────────────────────────────────────────────────┘
 ```
 
-Four layers, bottom to top:
+Four conceptual stages, bottom to top. (These stages span packages — they are
+*not* layers in the [terminology.md](terminology.md) sense, which are ordered
+strata *inside* a package; the packages and their internal layers/slices are
+described in the next section.)
 
-| Layer | Modules | Role |
+| Stage | Modules | Role |
 |---|---|---|
 | 0 — Reactive engine | `Reactive.jl` | `Cell` type, dependency tracking, lazy invalidation |
 | 1 — Domain modules | `document/*.jl` | Document/operation types per problem area |
@@ -74,16 +79,17 @@ ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         │                      serialization (BinarySerialization).
         │                      Deps: kernel + Serialization stdlib.
 ProjecturedVisual (visual/)    the rendering substrate
-        ▲                      11 slices: style → screen → graphics → layout →
-        │                      text → widget → syntax → clipboard → tooltip →
-        │                      inspector → backend (Console, Pdf).
+        ▲                      11 slices (acyclic DAG; include order: style,
+        │                      screen, graphics, layout, text, widget, syntax,
+        │                      clipboard, tooltip, inspector, backend
+        │                      (Console, Pdf)).
         │                      Deps: kernel + base.
 ProjecturedDomain (domain/)    concrete source domains, feature-sliced
         ▲                      ~16 slice folders (json/xml/yaml/julia/math/
         │                      markdown/book/sql/dbcatalog/database/
         │                      graph/filesystem/formula/gesturemap/versioning
         │                      + workbench/conversation apps) plus a shrinking
-        │                      transitional tier (projection/serializer/,
+        │                      transitional layer (projection/serializer/,
         │                      pending seam refactors elsewhere in the chain).
         │                      Deps: kernel + base + visual + Base64 + Markdown.
 Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
@@ -99,10 +105,13 @@ Opt-in packages (depend on the above; loaded only when you `using` them):
 ```
 
 The four-level division rule: **package** = external dependency or consumer
-boundary; **layer** (folder inside a package) = direction-of-dependency
-boundary; **module** = namespace/import surface; **file** = readability
-boundary only. Fragments (0-module files that share their aggregator's
+boundary; **layer** = direction-of-dependency boundary inside a package
+(layers depend only on lower layers); **slice** = vertical split of a single
+layer by feature (slice→slice edges must stay acyclic); **module** =
+namespace/import surface. Files sit below all four levels as readability
+boundaries only: fragments (0-module files that share their aggregator's
 namespace) let a module split across files with zero API cost. See
+[terminology.md](terminology.md) for the definitions and
 [architecture-rules.md](architecture-rules.md) for the durable division
 rules.
 
@@ -139,7 +148,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 ## Module inventory
 
-### Layer 0 — Reactive Cell Engine
+### Stage 0 — Reactive Cell Engine
 
 **`Reactive.jl`**
 
@@ -153,7 +162,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 - **Performance counters:** `get_performance_counters()` / `reset_performance_counters!()` expose
   per-frame read/compute/write tallies.
 
-### Layer 1 — Domain modules (`document/`)
+### Stage 1 — Domain modules (`document/`)
 
 | Module | Types |
 |---|---|
@@ -175,7 +184,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `Dragging.jl` | `DraggingState` — transparent wrapper marking a sub-tree as drag-and-drop reorderable (paired with `DraggingProjection`) |
 | `Font.jl`, `Color.jl`, `Geometry.jl`, `Image.jl`, `Clipboard.jl` | Supporting types |
 
-### Layer 2 — Projection modules (`projection/`)
+### Stage 2 — Projection modules (`projection/`)
 
 Every projection below — primitive, generic, or higher-order — implements the same
 four-function interface (`print_document`, `read_intent`,
@@ -238,7 +247,7 @@ composes with any higher-order projection.
 | `TableToGraphics` | `Table` → `Graphics` (direct) |
 | `WidgetToGraphics` | `Widget` → `Graphics` |
 | `WorkbenchToWidget` | `Workbench` → `Widget` |
-| `GraphicsCaching` | `Graphics` → `Graphics` (caching layer) |
+| `GraphicsCaching` | `Graphics` → `Graphics` (caching projection) |
 | `LineNumbering` | `Text` → `Text` (domain-preserving) |
 | `WordWrapping` | `Text` → `Text` (domain-preserving) |
 | `PrimitiveToText` | `Primitive` → `Text` |
@@ -256,7 +265,7 @@ composes with any higher-order projection.
 | `DatabaseTableToTabularGrid` | `DatabaseTable` → `TabularGrid` |
 | `DbCatalogToSyntax` | `DbCatalog` → `Syntax` |
 
-### Layer 3 — Editor and backend
+### Stage 3 — Editor and backend
 
 | Module | Role |
 |---|---|

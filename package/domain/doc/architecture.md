@@ -43,7 +43,7 @@ sql/        Sql.jl · SqlParser.jl · SqlToSyntax.jl
 dbcatalog/  DbCatalog.jl · DbCatalogToSql.jl · DbCatalogToSyntax.jl
                                   (→ sql slice, sideways OK)
 database/   Database.jl · DatabaseAdapters.jl
-                                  (adapter layer odbc plugs into)
+                                  (the adapter seam odbc plugs into)
 tabular/    Tabular.jl · CellTableToTable.jl (→ json slice)
 graph/      Graph.jl · GraphLayout.jl · GraphLayoutEngine.jl ·
             GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
@@ -52,7 +52,7 @@ formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
 versioning/ Versioning.jl · VersioningToAny.jl
 
-workbench/  tier 2 apps
+workbench/  apps layer (above the source slices)
             Workbench.jl · Workspace.jl · WorkspaceToFileSystem.jl ·
             WorkbenchToWidget.jl · WorkbenchFile.jl · WorkbenchAssistant.jl
 conversation/
@@ -60,7 +60,7 @@ conversation/
             ConversationToWidget.jl · ConversationEditor.jl
 ```
 
-Plus **three transitional tiers**, held here until their framework seams
+Plus **three transitional folders**, held here until their framework seams
 land elsewhere:
 
 - `projection/` — `ProjectionTemplate.jl` and `compound/{Generic,HigherOrder}.jl`.
@@ -75,7 +75,7 @@ land elsewhere:
   and `base/document/` respectively once the insertion seam moves the
   insertion document down and the generic renderings up.
 
-## Slice DAG (cross-slice edges within the source tier)
+## Slice DAG (cross-slice edges within the source layer)
 
 Only three cross-slice edges exist and they form a DAG:
 
@@ -95,7 +95,7 @@ Everything else is within-slice or points at a lower package
   for that domain. If it names two domains, it belongs with the more
   specific one (the edge-ownership rule: `JsonToSyntax → json/`; a
   generic bridge like `ObjectToSyntax` belongs in visual, not domain).
-- **A file belongs in the apps tier** (`workbench/`, `conversation/`) if
+- **A file belongs in the apps layer** (`workbench/`, `conversation/`) if
   it *composes* multiple source slices — Workbench pulls in
   Text/Conversation/Workspace and drives the IDE shell; Conversation is
   its own domain but couples heavily to Julia/parsers/Mcp so it lives at

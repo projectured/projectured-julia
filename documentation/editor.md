@@ -158,7 +158,7 @@ to the screen root and fail. `op_prefix` (a `ReferencePath`) closes the gap:
 `op_prefix = @reference windows[1].content` when the example sits in window 1;
 leave it empty (the default) for an unwrapped, single-document pipeline.
 
-In the example layer this is wired up for you — see `play_live_example` and
+In the example packages this is wired up for you — see `play_live_example` and
 `LiveExample` in [the live-examples debugging section](debugging.md#live-examples-scripted-sessions-on-a-real-window).
 
 ## Devices and backends

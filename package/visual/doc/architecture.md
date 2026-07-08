@@ -15,9 +15,10 @@ deliberate exception: the Screen *device* and display-size seam stay in
 the kernel (`device/ScreenDevice.jl` + `backend/Display.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
-## Slice order (11 slices)
+## The 11 slices and their include order
 
-Each slice imports only slices to its left:
+The slices form an acyclic dependency DAG; the include list below is a
+topological order of it — each slice imports only slices listed before it:
 
 ```
 style → screen → graphics → layout → text → widget → syntax →

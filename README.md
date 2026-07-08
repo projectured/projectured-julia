@@ -212,7 +212,7 @@ and the [testing guide](documentation/testing.md) for running the test suite.
 | [package/](package/) | One folder per package triad: `main/` (the code), `test/`, and `example/` as three sibling packages — API, documents, projections, references, editor, devices, backends |
 | [package/projectured/example/](package/projectured/example/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_example_image` helpers |
 | [package/projectured/example/workspace/](package/projectured/example/workspace/) | On-disk fixtures used by examples |
-| [package/projectured/test/](package/projectured/test/) | `ProjecturedTest` package — `test_all` and every per-layer helper |
+| [package/projectured/test/](package/projectured/test/) | `ProjecturedTest` package — `test_all` and every per-package helper |
 | [documentation/](documentation/) | All architecture and topic guides — see [the guide index](documentation/README.md) for the reading-order index |
 | [package/executable/](package/executable/) | Build configuration for a standalone executable |
 | [asset/font/](asset/font/), [asset/image/](asset/image/) | Bundled assets and screenshots |
@@ -230,7 +230,7 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Building something? Read next
 
-4. [Architecture](documentation/architecture.md) — layer diagram, module inventory, and the projection pipeline.
+4. [Architecture](documentation/architecture.md) — the package chain, layer/slice structure, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
 5. [Reactive cells](documentation/reactive-cells.md) — the `Cell` system that powers incrementality.
 6. [Macros](documentation/macros.md) — `@document`, `@projection`, `@iomap` macros.
 7. [Projection system](documentation/projection-system.md) — the four projection interface functions and the printer/reader pair.
@@ -255,7 +255,7 @@ Three reading tracks — pick the one that matches your goal.
 ### Working in the REPL
 
 - [Debugging](documentation/debugging.md) — `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, forcing reactive cells.
-- [Testing](documentation/testing.md) — `test_all`, per-layer helpers, walker utilities.
+- [Testing](documentation/testing.md) — `test_all`, per-package helpers, walker utilities.
 
 ## Roadmap
 

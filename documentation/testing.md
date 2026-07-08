@@ -34,21 +34,23 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
   example packages they resolve through the root env and precompile only where
   the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
 - [package/projectured/test](../package/projectured/test/ProjecturedTest.jl) — the umbrella:
-  only the genuinely **cross-tier** suites that sweep the interleaved `examples`
+  only the genuinely **cross-package** suites that sweep the interleaved `examples`
   / `catalog` aggregate (`ExampleSweeps`, `ExampleTest`, `CatalogTest`,
-  `RecursionContract`, `MouseClick`, `PrinterLocality`). It `using`s every tier
-  and opt-in test package so `test_all()` still orchestrates the whole suite.
+  `RecursionContract`, `MouseClick`, `PrinterLocality`). It `using`s every
+  main-package test package and opt-in test package so `test_all()` still
+  orchestrates the whole suite.
 
 The examples follow the same split (`package/kernel/example` — the `Example`
-harness core; `package/visual/example` / `package/domain/example` — the tier
-example sets with `visual_examples` / `domain_examples` registry slices; the
+harness core; `package/visual/example` / `package/domain/example` — the
+per-package example sets with `visual_examples` / `domain_examples` registry
+subsets; the
 opt-in example packages — `package/odbc/example`, `package/tulip/example`,
 `package/adaptagrams/example`, and `package/sdl/example` (the `LiveExample`
 window/record timelines) — hold the examples that need a native dependency; the
 `ProjecturedExample` umbrella keeps the interleaved `examples` registry and
 Catalog discovery). Each test package depends on its example package: the
 `Example`-typed driver overloads live beside the drivers, and `test_visual()` /
-`test_domain()` run a printer sweep over their own tier's examples
+`test_domain()` run a printer sweep over their own package's examples
 (`test_visual_examples()` / `test_domain_examples()`).
 
 Each test package only depends on the main package it tests (plus the test
@@ -74,24 +76,24 @@ julia> using Projectured, ProjecturedExample, ProjecturedTest
 julia> test_all()
 ```
 
-Runs everything: the four per-layer suites (`test_kernel()`, `test_base()`,
+Runs everything: the four per-package suites (`test_kernel()`, `test_base()`,
 `test_visual()`, `test_domain()` — each includes its package's static
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
 [test/ProjecturedTest.jl](../package/projectured/test/ProjecturedTest.jl)).
 
-`test_all` is just a `@testset` that calls the per-layer functions in
+`test_all` is just a `@testset` that calls the per-package functions in
 sequence; pick the one you actually need and skip the rest.
 
-## Per-layer tests
+## Per-package tests
 
 | Function | What it covers |
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
 | `test_base()` | `test_collection()`, `test_copying_projection()`, the base layering guard. |
-| `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard, and the tier's example printer sweep (`test_visual_examples()`). |
-| `test_domain()` | `test_json()`, `test_json_to_syntax()`, the xml/sql/formula/filesystem projections, parsers, graph, Console/Pdf backends, the domain layering guard, and the tier's example printer sweep (`test_domain_examples()`). |
+| `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard, and the package's example printer sweep (`test_visual_examples()`). |
+| `test_domain()` | `test_json()`, `test_json_to_syntax()`, the xml/sql/formula/filesystem projections, parsers, graph, Console/Pdf backends, the domain layering guard, and the package's example printer sweep (`test_domain_examples()`). |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_documents()` | The umbrella-only document suites (`test_constraint_solver()` — Tulip, `test_serialization()` — example fixtures). |
 | `test_projections()` | The umbrella-only projection suites (example/editor/SDL-coupled: tooltip, hover, dragging, write_image, …). |
