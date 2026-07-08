@@ -91,26 +91,26 @@ always semantically coherent.
 
 ---
 
-## Multi-backend future
+## Multi-backend architecture
 
 The platform abstraction is split in two: the `Backend` interface is
 `initialize_backend!` / `quit_backend!` / `measure_text`, and the `Device` interface is
 `write_to_device(s)` / `read_from_device(s)`. Any platform that can implement
 these is a valid backend.
 
-Near-term:
-- **Terminal backend** — `KeyPress`-compatible, renders `GraphicsCanvas` as
-  ANSI escape sequences. Enables SSH-accessible editing and CI-friendly
-  projections.
-- **Headless backend** — for testing and screenshot generation (already
-  partially available via `write_image`'s software renderer and the fully
-  SDL-free `write_pdf` vector exporter).
+Delivered:
+- **SDL backend** — native OS windows via SDL2 / SDL_ttf; the primary frontend.
+- **Terminal backend** — `ConsoleBackend`, renders the Text domain to the
+  terminal with ANSI colour and structural navigation. Enables SSH-accessible
+  editing and CI-friendly projections.
+- **Web backend** — `WebBackend`, HTTP + WebSocket with a JSON draw-list
+  rendered to a `<canvas>` client and incremental dirty-rect updates. Opens the
+  editor to browser-based workflows.
+- **Headless rendering** — `write_image`'s software renderer and the fully
+  SDL-free `write_pdf` vector exporter render projected documents to files for
+  testing and screenshot generation.
 
-Medium-term:
-- **Web backend** — HTTP + WebSocket; canvas rendering via `<canvas>` or SVG.
-  Opens the editor to browser-based workflows and collaboration.
-
-Long-term:
+Future:
 - **IDE plugin backend** — render into VS Code or JetBrains using their
   custom renderer APIs while keeping the full projection pipeline in Julia.
 

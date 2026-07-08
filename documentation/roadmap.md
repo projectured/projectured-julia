@@ -1,7 +1,8 @@
 # Roadmap
 
 This document distils the development priorities for ProjecturEd into three
-horizons. The detailed design notes and open questions for each item live in
+horizons: what has been **delivered**, what is **in progress**, and what is
+**planned**. The detailed design notes and open questions for each item live in
 [the further development plan](../plan/tentative/further-development.md).
 
 The ordering principle: **deepen the end-to-end path first** (make editing
@@ -10,118 +11,111 @@ backends), **then distribute** (network, collaboration, external data).
 
 ---
 
-## Near-term: make the editor actually edit
+## Delivered
 
-The projection pipeline is complete and bidirectional. Cursor movement works
-across all domains. What's missing is the ability to *change* a document.
+Much of the original near- and medium-term roadmap has shipped. What now works
+end to end:
 
-### 1. Character editing (`ReplaceStringRangeOperation`)
-
-Wire printable key events and backspace/delete into `evaluate_operation` for
-`JsonString`, `XmlText`, `PrimitiveString`, and any domain with text-valued
-leaf nodes. The `ReplaceStringRangeOperation` type already exists in the
-`Primitive` domain; it needs to be produced by the reader chain and evaluated
-by the editor.
-
-### 2. Mouse click-to-select
-
-`TextToGraphics` already stores `char_to_coord` (a segment table of
-`(char_start, x, y)` triples) in its IO map. The reader needs one more method:
-receive a `MousePress(x, y)` event, binary-search `char_to_coord`, and produce
-`ReplaceSelectionOperation({flat_pos})`. The rest of the reader chain already
-handles flat positions. This is the highest-impact, lowest-effort change.
-
-### 3. Structural insert / delete
-
-Add/remove elements from `JsonArray`, entries from `JsonObject`, children from
-`SyntaxNode`. Requires `insert_elements` / `delete_elements` (a `ReplaceReferencedValueOperation`
-splice) and reader-side logic that detects when the cursor is on structural whitespace
-and a structural key is pressed.
-
-### 4. Undo / redo
-
-An operation log on the `Editor` that appends each `evaluate_operation` call
-and its inverse. `Ctrl+Z` replays the inverse. Depends on the editing
-operations above having well-defined inverses.
-
-### 5. Clipboard
-
-The `Clipboard` domain exists as a stub. Wire `Ctrl+C/X/V` to
-`ClipboardCopyOperation` / `ClipboardPasteOperation`.
+- **Structural insert / delete.** Elements can be added to and removed from JSON
+  arrays, entries from JSON objects, XML elements and attributes, and syntax
+  children, via `insert_elements` / `delete_elements` (a `ReplaceReferencedValueOperation`
+  splice) driven by contextual authoring gestures.
+- **In-place authoring in structured domains.** JSON, XML, and YAML have full
+  contextual gesture sets, and character-level editing works inside strings,
+  numbers, keys, XML text and attribute values, and styled text spans, produced
+  by the reader chain and evaluated as `ReplaceStringRangeOperation`s.
+- **Type-in with live completion.** Julia and SQL are edited through a
+  parser-backed insertion cursor (`juliaparse` / `sqlparse`) with live
+  reflection-driven completion; Math, Book, and Markdown support text type-in.
+- **Clipboard.** Copy, cut, note, and paste over arbitrary wrapped content is
+  provided by the clipboard projections, with an operating-system clipboard
+  bridge when text conversion is configured.
+- **Console / terminal backend.** Renders the Text domain straight to the
+  terminal with 24-bit ANSI colour and structural navigation; run via
+  `run_console_example(interactive=true)`.
+- **Web backend.** Runs the same editor in the browser over HTTP + WebSocket,
+  shipping a JSON draw-list to a canvas client with incremental dirty-rect
+  rendering; run via `run_web_example`.
+- **Graph domain and auto-layout.** A vertex/edge/graph domain with a separate
+  layout stage; native placement and edge routing come from the opt-in
+  Adaptagrams package, with a pure-Julia fallback engine when it is absent.
+- **Document persistence.** Binary `save_document` / `load_document` (exact,
+  lossless, same-version) plus a human-readable natural-format
+  `import_document` / `export_document` path dispatched by file extension.
+- **Search.** `search_references` / `search_objects` produce selectable paths;
+  filtering, focusing, and highlighting projections and a search-input widget
+  build on them.
+- **Version history.** A versioning overlay records and deletes snapshots
+  (Ctrl+Shift+S / Ctrl+Delete) and selects a version by criterion (latest,
+  index, author, as-of, predicate).
 
 ---
 
-## Medium-term: widen the scope
+## In progress
 
-Once editing works, the natural expansions:
+Editing works end to end for the field-addressed domains; the remaining work is
+making it uniform and complete.
 
-### 6. Complete domain readers
+### 1. Character editing everywhere
 
-Most domains have printers but no readers (navigation only). Priority order:
-- **Julia** — `JuliaToSyntax` printer exists; adding the reader is the path
-  to self-hosting (editing ProjecturEd's own source code).
-- **Math** — compelling demo: edit `x + y * z` and see the AST update.
-- **XML** — wire the existing `XmlToSyntax` reader stubs.
-- **Table** — editable cells with column-header navigation.
+Character type-in and range editing are wired and tested for the field-addressed
+domains (JSON, XML, YAML, text, prose, and the type-in / insertion path). The
+target is uniform in-place character editing of every leaf value the caret can
+enter, in every domain.
 
-### 7. Terminal backend
+### 2. Mouse click-to-select everywhere
 
-Implement `Backend` over terminal I/O (ANSI escape sequences). `KeyPress` is
-already backend-agnostic; only `measure_text` and `write_to_devices` need
-new implementations. Enables SSH-accessible editing and headless CI.
+Click-to-position works where a projection records the necessary
+coordinate map (for example `TextToGraphics`'s segment table). The remaining work
+is completing click-to-select across all domains and projections.
 
-### 8. Incremental search and focus
+### 3. Undo / redo
 
-A `FocusingProjection`-based mode where typing a query narrows the visible
-document to matching subtrees. The reader maps edits back through the filter.
-Ctrl+F opens the search input; confirmations produce `ReplaceStringRangeOperation`s
-on the matching nodes.
+Version history exists through the versioning overlay, but a general operation-log
+undo/redo of arbitrary edits does not. It needs an operation log on the `Editor`
+that appends each `evaluate_operation` call and its inverse, replayed by
+`Ctrl+Z`; it depends on the editing operations having well-defined inverses.
 
-### 9. Transactional / staged editing
+### 4. Editable tables
+
+Table cells with column-header navigation, building on the existing table
+rendering.
+
+---
+
+## Planned
+
+### 5. Transactional / staged editing
 
 A `StagingProjection` that accumulates edits in a buffer without touching the
 real document. Commit applies them atomically; discard drops them. Enables
 previewing complex multi-step refactors before committing.
 
-### 10. Graph domain and graph layout
-
-A directed-graph domain where nodes hold sub-documents as content and edges
-carry relationship metadata. A graph-layout projection assigns `(x, y)` to
-each node and renders edges as `GraphicsRect` strokes. Foundation for dataflow
-diagrams, dependency graphs, and mind maps.
-
----
-
-## Long-term: distribute and integrate
-
-### 11. Web backend
-
-HTTP + WebSocket; `GraphicsCanvas` rendered via `<canvas>` or SVG. Opens the
-editor to browser-based workflows.
-
-### 12. Live collaboration
+### 6. Live collaboration
 
 Structural operations on a well-defined model are the natural substrate for
 OT (operational-transform) or CRDT-based collaboration. Each operation is
 already a typed, invertible value — the infrastructure for multi-user editing
 is mostly a transport and merge layer.
 
-### 13. External document persistence
+### 7. Runtime plugin loading
 
-Load and save documents to disk in a structured format (JSON, XML, or a
-domain-specific format). Today documents are in-memory only. Persistence needs
-a serialiser per domain plus a loader that reconstructs the reactive cell graph.
+Opt-in packages already extend the editor at its factory seams (`make_backend`,
+`make_agent_server`, and the solver / layout generics) at load time. The
+remaining goal is loading third-party domains and projections into a *running*
+editor, analogous to VS Code extensions.
 
-### 14. Self-hosting
+### 8. Annotation domain
 
-Edit ProjecturEd's own source code using the Julia domain projection, running inside
-ProjecturEd. This is the strongest validation of the architecture's generality and
-the primary long-term goal.
+Attaching typed annotations to any document through a global registry is
+described in the design ([editor/annotation.md](editor/annotation.md)) but not
+yet implemented; no annotation types or functions exist in the code today.
 
-### 15. Plugin / package system
+### 9. Self-hosting
 
-Allow third-party domains and projections to be distributed as Julia packages
-and loaded into a running editor at runtime, analogous to VS Code extensions.
+Edit ProjecturEd's own source code using the Julia domain projection, running
+inside ProjecturEd. This is the strongest validation of the architecture's
+generality and the primary long-term goal.
 
 ---
 
