@@ -38,6 +38,9 @@ You want to add a domain, a projection, a backend, or extend an existing one.
    document types, write a projection, implement the reader, add an example,
    write a test.
 7. [Design decisions](design-decisions.md) — rationale for key choices.
+8. [Architecture requirements](architecture-requirements.md) — the numbered
+   internal development requirements (AR-N) every change must respect; keep this
+   open as a checklist while you work.
 
 Then read the guide for the domain or area you are touching:
 
@@ -90,6 +93,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Terminology](terminology.md) | The division vocabulary: package, layer, slice, module |
 | [Architecture](architecture.md) | Package chain, layer/slice structure, module inventory, pipeline status |
 | [Architecture rules](architecture-rules.md) | Decision rules: when to create a package, layer, slice, or module, and where code belongs |
+| [Architecture requirements](architecture-requirements.md) | Numbered internal development requirements (AR-N): the invariants and conventions every change must respect |
 | [Design decisions](design-decisions.md) | Rationale for key architectural choices |
 | [Design overview](design.md) | ← redirects to the three split documents above |
 

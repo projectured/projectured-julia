@@ -7,6 +7,11 @@ regardless of how it is implemented and regardless of what kind of content is
 being edited. Requirements describe intended behaviour; the
 [roadmap](roadmap.md) tracks how much of it is delivered today.
 
+These are the *product* requirements (what the editor and project must do). For
+the *internal development* requirements that keep the codebase tractable — the
+invariants and conventions every change must respect — see
+[architecture-requirements.md](architecture-requirements.md).
+
 Two parts follow: the **behaviour of the editor** (what the editor must do for
 the person using it) and the **usability of the project** (what the project must
 do for the person building with or contributing to it).
