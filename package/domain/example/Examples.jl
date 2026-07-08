@@ -9,7 +9,7 @@
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
 const json_null_example      = Example("json_null",      make_json_null_document_example,      make_json_null_projection_example)
-# A bare `JsonInsertion` ("insert JSON here") under the FULL json projection, so
+# A bare `JsonInsertion` (the typed-name insertion buffer) under the FULL json projection, so
 # the placeholder can be authored into any JSON value (the leaf insertion
 # projection cannot render the replacement). Editable counterpart of the scalar
 # leaf examples; shares the shape of the non-registry `json_build_example`.

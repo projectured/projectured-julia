@@ -199,7 +199,7 @@ const json_insert_live = LiveExample("json_insert", json_example,
 # representation (multi-digit numbers reparse to Float) and the trailing
 # `"placeholder"` insertion left under the caret.
 #
-# Empty-document example: a bare `JsonInsertion` ("insert JSON here") under the full
+# Empty-document example: a bare `JsonInsertion` (the typed-name insertion buffer) under the full
 # JSON projection, whole-selected so the first `{` replaces it with an object.
 const json_build_example = Example("json_build", () -> JsonInsertion(), make_json_projection_example)
 
