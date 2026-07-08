@@ -92,9 +92,16 @@ belong in the flat API. They need no export either:
   `import ..ReferenceModule: …` statement (none of its 11 names is used).
 - `projection/generic/Reversing.jl:12` — drop `RangeReference` from the list.
 
-### 3. Promote the Cell-struct codegen seam to exported API
+### 3. Sink the Cell-struct codegen into a cell-layer macro
 
-Options considered for cluster A:
+> **Superseded by [cell-struct-macro.md](cell-struct-macro.md)** (2026-07-08):
+> the helpers move into a new exported `@cell_struct` macro (+ builder
+> functions) in the cell layer; `@document`, `@iomap`, and `@projection` build
+> on top of it. That plan also removes `@projection`'s duplicated inline copy
+> of the same codegen, which option (d) below left untouched. The options
+> analysis is kept for the record.
+
+Options originally considered for cluster A:
 
 - **(a) Fragment-merge** (the EventCase precedent): impossible —
   `DocumentModule` and `IoMapModule` live in different layers; one namespace
@@ -127,15 +134,13 @@ to the `DocumentModule` export list.
 
 ### 4. Retire the private-seam exemption from the docs
 
-- `document/DocumentModule.jl` docstring — replace the "Downward private seam"
-  paragraph with a sentence pointing at the exported codegen API.
-- `package/kernel/doc/document.md` — rewrite the "Downward private seam"
-  section as "The Cell-struct codegen API" (exported, who implements against
-  it, why the names have no `_`).
+- The `DocumentModule` docstring and `package/kernel/doc/document.md` changes
+  are covered by [cell-struct-macro.md](cell-struct-macro.md) (the seam
+  disappears rather than being re-documented).
 - `documentation/architecture-rules.md` — add the rule to the Enforcement
   section: *cross-layer imports may name only exported symbols; share private
-  helpers via same-module fragments (EventCase precedent) or promote the seam
-  to exported API (Cell-struct codegen precedent).*
+  helpers via same-module fragments (EventCase precedent) or sink the seam
+  below both users as exported API (`@cell_struct` precedent).*
 
 ### 5. Enforce it in the layering guard
 
@@ -178,10 +183,11 @@ keeps the common path honest.
       `PointReference` from `ReferenceModule`.
 - [ ] Delete the dead `ReferenceModule` import in `ReferenceDispatching.jl`;
       drop dead `RangeReference` from `Reversing.jl`.
-- [ ] Rename `_cell_*` → `cell_*` (definitions, call sites in `@document` and
-      `@iomap`), export from `DocumentModule`.
-- [ ] Docs: `DocumentModule` docstring, `kernel/doc/document.md`,
-      `documentation/architecture-rules.md`.
+- [ ] Cluster A: execute [cell-struct-macro.md](cell-struct-macro.md)
+      (`@cell_struct` in the cell layer; `@document`/`@iomap`/`@projection`
+      build on it; docs updated there).
+- [ ] Docs for this plan's remainder:
+      `documentation/architecture-rules.md` (the cross-layer export rule).
 - [ ] `check_layering` check 5 (`private_import_errors`) + self-tests; enable
       in `test_kernel_layering()`.
 - [ ] Verify: `test_kernel()`; spot-run `test_base()` / `test_visual()`.
