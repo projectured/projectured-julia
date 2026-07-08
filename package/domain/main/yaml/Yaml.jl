@@ -17,7 +17,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain"
+import ..DomainSupportModule: var"@domain", make_insertion_document
 export YamlDocument
 
 # The domain kit: `YamlDocument` (abstract root), `YamlNothing` (empty
@@ -244,15 +244,34 @@ function _mapping_tab(doc::YamlMapping)
     end
 end
 
+# ── Insertion factories ─────────────────────────────────────────────────────
+#
+# One construction per committable YAML value, with its cursor pre-placed —
+# shared by the char type-to-replace gestures below and by the typed-name
+# commit of a `YamlInsertion` / `DocumentInsertion`. `YamlNull` needs no
+# method: the zero-arg fallback already covers it.
+make_insertion_document(::Type{<:YamlBool}) =
+    with_selection(YamlBool(false), EmptyReferencePath())
+make_insertion_document(::Type{<:YamlNumber}) =
+    with_selection(YamlNumber(nothing), @reference value{0})
+make_insertion_document(::Type{<:YamlString}) =
+    with_selection(YamlString(""), @reference value{0})
+make_insertion_document(::Type{<:YamlSequence}) =
+    with_selection(YamlSequence([YamlInsertion()]), @reference elements[1])
+make_insertion_document(::Type{<:YamlMappingEntry}) =
+    with_selection(YamlMappingEntry("", YamlInsertion()), @reference key{0})
+make_insertion_document(::Type{<:YamlMapping}) =
+    with_selection(YamlMapping([YamlMappingEntry("", YamlInsertion())]), @reference entries[1].key{0})
+
 @gestures YamlDocument begin
     when(_yaml_replaceable(doc, sel))
     KeyPress('n') => "Replace with null"   => _replace(doc, with_selection(YamlNull(), EmptyReferencePath()))
-    KeyPress('f') => "Replace with false"  => _replace(doc, with_selection(YamlBool(false), EmptyReferencePath()))
+    KeyPress('f') => "Replace with false"  => _replace(doc, make_insertion_document(YamlBool))
     KeyPress('t') => "Replace with true"   => _replace(doc, with_selection(YamlBool(true), EmptyReferencePath()))
-    KeyPress('"') => "Replace with a string" => _replace(doc, with_selection(YamlString(""), @reference value{0}))
-    KeyPress('-') => "Replace with a sequence" => _replace(doc, with_selection(YamlSequence([YamlInsertion()]), @reference elements[1]))
-    KeyPress(':') => "Replace with a mapping entry" => _replace(doc, with_selection(YamlMappingEntry("", YamlInsertion()), @reference key{0}))
-    KeyPress('{') => "Replace with a mapping" => _replace(doc, with_selection(YamlMapping([YamlMappingEntry("", YamlInsertion())]), @reference entries[1].key{0}))
+    KeyPress('"') => "Replace with a string" => _replace(doc, make_insertion_document(YamlString))
+    KeyPress('-') => "Replace with a sequence" => _replace(doc, make_insertion_document(YamlSequence))
+    KeyPress(':') => "Replace with a mapping entry" => _replace(doc, make_insertion_document(YamlMappingEntry))
+    KeyPress('{') => "Replace with a mapping" => _replace(doc, make_insertion_document(YamlMapping))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" => _replace_number(doc, c)
 end
 

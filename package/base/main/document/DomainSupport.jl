@@ -119,16 +119,32 @@ make_insertion_document(::Type{T}) where {T} = T()
 
 const _MAKE_FALLBACK = which(make_insertion_document, Tuple{Type{Document}})
 
+# `hasmethod(T, Tuple{})` cannot see *required keyword arguments* — a
+# `@document` type with a non-defaulted field still has a zero-positional-arg
+# keyword constructor that throws `UndefKeywordError` (`JsonString()`). So
+# probe the constructor once; the probe only runs from the world-age-memoized
+# candidate enumeration.
+function _zero_arg_constructible(::Type{T}) where {T}
+    hasmethod(T, Tuple{}) || return false
+    try
+        T()
+        true
+    catch
+        false
+    end
+end
+
 """
     insertable(::Type{T}) -> Bool
 
-Whether `T` belongs in a completion candidate list: it has a zero-arg
-constructor or a specific `make_insertion_document` method. `@domain` opts its
-`*Nothing` placeholders out; anything else (e.g. `XmlAttribute`, which cannot
-stand alone) opts out with a one-line method.
+Whether `T` belongs in a completion candidate list: it is zero-arg
+constructible or has a specific `make_insertion_document` method. `@domain`
+opts its `*Nothing` placeholders out; anything else opts out with a one-line
+method.
 """
 insertable(::Type{T}) where {T} =
-    hasmethod(T, Tuple{}) || which(make_insertion_document, Tuple{Type{T}}) !== _MAKE_FALLBACK
+    which(make_insertion_document, Tuple{Type{T}}) !== _MAKE_FALLBACK ||
+    _zero_arg_constructible(T)
 
 # ── Candidate enumeration (reflection, world-age memoized) ────────────────────
 

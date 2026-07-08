@@ -21,7 +21,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain"
+import ..DomainSupportModule: var"@domain", make_insertion_document
 export JsonDocument, entries
 
 # The domain kit: `JsonDocument` (abstract root), `JsonNothing` (empty
@@ -245,15 +245,35 @@ function _object_tab(doc::JsonObject)
     end
 end
 
+# ── Insertion factories ─────────────────────────────────────────────────────
+#
+# One construction per committable JSON value, with its cursor pre-placed —
+# shared by the char type-to-replace gestures below and by the typed-name
+# commit of a `JsonInsertion` / `DocumentInsertion` (the completion machinery
+# resolves a name to the type, `make_insertion_document` builds the value).
+# `JsonNull` needs no method: the zero-arg fallback already covers it.
+make_insertion_document(::Type{<:JsonBool}) =
+    with_selection(JsonBool(false), EmptyReferencePath())
+make_insertion_document(::Type{<:JsonNumber}) =
+    with_selection(JsonNumber(nothing), @reference value{0})
+make_insertion_document(::Type{<:JsonString}) =
+    with_selection(JsonString(""), @reference value{0})
+make_insertion_document(::Type{<:JsonArray}) =
+    with_selection(JsonArray([JsonInsertion()]), @reference elements[1])
+make_insertion_document(::Type{<:JsonObjectEntry}) =
+    with_selection(JsonObjectEntry("", JsonInsertion()), @reference key{0})
+make_insertion_document(::Type{<:JsonObject}) =
+    with_selection(JsonObject([JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0})
+
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
     KeyPress('n') => "Replace with null"   => _replace(doc, with_selection(JsonNull(), EmptyReferencePath()))
-    KeyPress('f') => "Replace with false"  => _replace(doc, with_selection(JsonBool(false), EmptyReferencePath()))
+    KeyPress('f') => "Replace with false"  => _replace(doc, make_insertion_document(JsonBool))
     KeyPress('t') => "Replace with true"   => _replace(doc, with_selection(JsonBool(true), EmptyReferencePath()))
-    KeyPress('"') => "Replace with a string" => _replace(doc, with_selection(JsonString(""), @reference value{0}))
-    KeyPress('[') => "Replace with an array" => _replace(doc, with_selection(JsonArray([JsonInsertion()]), @reference elements[1]))
-    KeyPress(':') => "Replace with an object entry" => _replace(doc, with_selection(JsonObjectEntry("", JsonInsertion()), @reference key{0}))
-    KeyPress('{') => "Replace with an object" => _replace(doc, with_selection(JsonObject([JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0}))
+    KeyPress('"') => "Replace with a string" => _replace(doc, make_insertion_document(JsonString))
+    KeyPress('[') => "Replace with an array" => _replace(doc, make_insertion_document(JsonArray))
+    KeyPress(':') => "Replace with an object entry" => _replace(doc, make_insertion_document(JsonObjectEntry))
+    KeyPress('{') => "Replace with an object" => _replace(doc, make_insertion_document(JsonObject))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" => _replace_number(doc, c)
 end
 

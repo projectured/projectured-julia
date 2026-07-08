@@ -22,7 +22,7 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain"
+import ..DomainSupportModule: var"@domain", make_insertion_document
 export XmlDocument
 
 # The domain kit: `XmlDocument` (abstract root), `XmlNothing` (empty
@@ -107,10 +107,22 @@ end
 _xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
 _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
+# ── Insertion factories ─────────────────────────────────────────────────────
+#
+# One construction per committable XML node, with its cursor pre-placed —
+# shared by the char type-to-replace gestures below and by the typed-name
+# commit of an `XmlInsertion` / `DocumentInsertion`. `XmlAttribute` stays out
+# of the candidates automatically: it has required fields and no method here
+# (it cannot stand alone as a child).
+make_insertion_document(::Type{<:XmlText}) =
+    with_selection(XmlText(""), @reference content{0})
+make_insertion_document(::Type{<:XmlElement}) =
+    with_selection(XmlElement(""), @reference tag{0})
+
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
-    KeyPress('"') => "Replace with text"      => _xml_replace(doc, with_selection(XmlText(""), @reference content{0}))
-    KeyPress('<') => "Replace with an element" => _xml_replace(doc, with_selection(XmlElement(""), @reference tag{0}))
+    KeyPress('"') => "Replace with text"      => _xml_replace(doc, make_insertion_document(XmlText))
+    KeyPress('<') => "Replace with an element" => _xml_replace(doc, make_insertion_document(XmlElement))
 end
 
 # Append a child at the end and drop the cursor into it. `<`/`"` decline when an
