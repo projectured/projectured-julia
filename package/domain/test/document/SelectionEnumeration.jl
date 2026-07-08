@@ -19,7 +19,7 @@
 
 function _json_collect!(node, path, results)
     push!(results, path)                          # the whole element at this node
-    if node isa Projectured.JsonObject
+    if node isa JsonObject
         for i in 1:length(node.entries)
             entry = node.entries[i]
             epath = append_reference(path, FieldReference("entries"), ElementReference(i))
@@ -28,7 +28,7 @@ function _json_collect!(node, path, results)
             _json_collect!(getfield(entry, :value)[],
                            append_reference(epath, FieldReference("value")), results)
         end
-    elseif node isa Projectured.JsonArray
+    elseif node isa JsonArray
         for i in 1:length(node.elements)
             _json_collect!(node.elements[i],
                            append_reference(path, FieldReference("elements"), ElementReference(i)),
