@@ -37,7 +37,8 @@ import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, ProjectionReference, PositionReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
-import ..XmlModule: XmlInsertion, XmlText, XmlAttribute, XmlElement
+import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
@@ -61,15 +62,13 @@ end
 
 # ── XmlInsertionToSyntaxLeaf ────────────────────────────────────────────────
 #
-# An opaque placeholder leaf (no `bound`): maps `∅↔∅` only. Its `<`/`"` replace
-# gestures are declared on `XmlInsertion` in `document/Xml.jl`.
+# The shared typed-name insertion buffer, constrained to the XML candidates
+# (prefix-free: `element` → `XmlElement`, `text` → `XmlText`). The `<`/`"`
+# type-to-replace gestures on a whole-selected insertion keep working: the
+# leaf's char editing declines without a value cursor, so those keys fall
+# through to `@gestures XmlDocument` (declared in `document/Xml.jl`).
 
-@projection struct XmlInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template XmlInsertionToSyntaxLeaf XmlInsertion (p, x) ->
-    SyntaxLeaf(TextString("insert XML here", p.style))
+XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 
 # ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
 
@@ -153,6 +152,7 @@ function XmlToSyntax()
         XmlText      => XmlTextToSyntaxLeaf(),
         XmlElement   => XmlElementToSyntaxNode(),
         XmlInsertion => XmlInsertionToSyntaxLeaf(),
+        XmlNothing   => NothingToSyntaxLeaf(),
     )
 end
 

@@ -173,6 +173,11 @@ include("sql/SqlParser.jl")
 include("workbench/Workbench.jl")
 include("gesturemap/GestureHelpDecorator.jl")
 include("versioning/VersioningToAny.jl")
+# DocumentInsertionToSyntax before every domain ToSyntax: it defines the shared
+# insertion leaf (typed-name buffer with live completion), the per-domain
+# delegates (JuliaInsertionToSyntaxLeaf, …) those projections register, and the
+# shared *Nothing placeholder leaf — and it depends on no domain projection.
+include("insertion/InsertionToSyntax.jl")
 include("json/JsonToSyntax.jl")
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
@@ -185,10 +190,6 @@ include("graph/GraphToGraphLayout.jl")
 include("graph/GraphLayoutToGraphics.jl")
 include("book/BookToSyntax.jl")
 include("math/MathToSyntax.jl")
-# DocumentInsertionToSyntax before JuliaToSyntax/SqlToSyntax: it defines the
-# per-domain insertion→syntax leaves (JuliaInsertionToSyntaxLeaf, …) those
-# projections register, and it depends on none of them.
-include("insertion/InsertionToSyntax.jl")
 include("julia/JuliaToSyntax.jl")
 include("formula/FormulaToSyntax.jl")
 include("sql/SqlToSyntax.jl")

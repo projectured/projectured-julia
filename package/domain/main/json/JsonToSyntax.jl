@@ -11,7 +11,8 @@ module JsonToSyntaxModule
 import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
-import ..JsonModule: JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
+import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
@@ -35,13 +36,14 @@ end
     SyntaxLeaf(TextString("null", prj.style))
 
 # ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
+#
+# The shared typed-name insertion buffer, constrained to the JSON candidates
+# (prefix-free: `string` → `JsonString`), with the live completion hint and
+# commitability colouring. The `"`/`[`/`{`/digit type-to-replace gestures on a
+# whole-selected insertion keep working: the leaf's char editing declines
+# without a value cursor, so those keys fall through to `@gestures JsonDocument`.
 
-@projection struct JsonInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template JsonInsertionToSyntaxLeaf JsonInsertion (prj, doc) ->
-    SyntaxLeaf(TextString("insert JSON here", prj.style))
+JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument)
 
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -126,6 +128,7 @@ function JsonToSyntax()
         JsonArray       => JsonArrayToSyntaxNode(),
         JsonObject      => JsonObjectToSyntaxNode(),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
+        JsonNothing     => NothingToSyntaxLeaf(),
         JsonObjectEntry => CopyingProjection(),
         Vector{Cell}    => CopyingProjection(),
     )

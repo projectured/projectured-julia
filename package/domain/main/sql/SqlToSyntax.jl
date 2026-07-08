@@ -18,7 +18,7 @@ import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
+import ..SqlDocumentModule: SqlNothing, SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
                             SqlWhereFilterCondition,
                             SqlSelectItem, SqlAllColumns, SqlColumnReference,
                             SqlTableName, SqlColumnName,
@@ -29,7 +29,7 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
                             SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                             SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
                             SqlStatementList, SqlInsertion
-import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf, NothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -1961,6 +1961,7 @@ function SqlToSyntax()
     jt = SqlJoinTypeToSyntaxLeaf()
     TypeDispatchingProjection(
         SqlInsertion            => SqlInsertionToSyntaxLeaf(),
+        SqlNothing              => NothingToSyntaxLeaf(),
         SqlSelectStatement      => SqlSelectStatementToSyntaxNode(),
         SqlSelectClause         => SqlSelectClauseToSyntaxNode(),
         SqlFromClause           => SqlFromClauseToSyntaxNode(),

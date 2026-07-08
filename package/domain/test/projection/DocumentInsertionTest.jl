@@ -209,6 +209,54 @@ function test_document_insertion()
             @test _written_doc(read_intent(proj, iom, KeyDown(:return, Modifiers()))) isa JsonString
         end
 
+        @testset "domain-constrained insertions (prefix-free)" begin
+            # JsonInsertion: a typed-name buffer over the JSON candidates.
+            jproj = JsonInsertionToSyntaxLeaf()
+            jins = JsonInsertion()
+            jins.selection = _ins_vpath(0)
+            jiom = print_document(jproj, jproj, jins, nothing)
+            for ch in "str"
+                evaluate_operation((document = jins,), read_intent(jproj, jiom, KeyPress(ch)))
+            end
+            @test jins.value == "str"
+            # Unambiguous prefix-free hint + green, and Enter commits JsonString.
+            leaf = jiom.output.children[1]
+            @test leaf.close.content == "ing"
+            @test leaf.value.font_color == color_solarized_green
+            commit = read_intent(jproj, jiom, KeyDown(:return, Modifiers()))
+            @test _written_doc(commit) isa JsonString
+            # Escape aborts to the domain's own placeholder.
+            esc = read_intent(jproj, jiom, KeyDown(:escape, Modifiers()))
+            @test _written_doc(esc) isa JsonNothing
+            # XmlInsertion likewise: `elem` resolves to XmlElement.
+            xproj = XmlInsertionToSyntaxLeaf()
+            xins = XmlInsertion("elem")
+            xins.selection = _ins_vpath(4)
+            xiom = print_document(xproj, xproj, xins, nothing)
+            @test _written_doc(read_intent(xproj, xiom, KeyDown(:return, Modifiers()))) isa XmlElement
+            @test _written_doc(read_intent(xproj, xiom, KeyDown(:escape, Modifiers()))) isa XmlNothing
+            # The scaffold keywords are candidates too: `julia function` from
+            # the top level builds the keyword scaffold (holes + cursor).
+            @test default_factory("julia function") isa JuliaFunction
+        end
+
+        @testset "JuliaInsertion commitability colours" begin
+            jproj = JuliaInsertionToSyntaxLeaf()
+            ji = JuliaInsertion("")
+            ji.selection = _ins_vpath(0)
+            jiom = print_document(jproj, jproj, ji, nothing)
+            leaf = jiom.output
+            @test leaf.value.font_color == color_default          # empty: neutral
+            ji.value = "fun"
+            @test leaf.value.font_color == color_solarized_green  # keyword prefix
+            @test leaf.close.content == "ction"
+            @test leaf.close.font_color == color_completion_hint
+            ji.value = "n * factorial(n"
+            @test leaf.value.font_color == color_solarized_red    # incomplete source
+            ji.value = "n * factorial(n - 1)"
+            @test leaf.value.font_color == color_solarized_green  # parses
+        end
+
         @testset "JuliaInsertion commits source via juliaparse" begin
             ji = JuliaInsertion("factorial(5)")
             ji.selection = _ins_vpath(length("factorial(5)"))

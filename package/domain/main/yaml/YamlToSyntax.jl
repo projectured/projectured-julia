@@ -25,7 +25,8 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..YamlModule: YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
+import ..YamlModule: YamlDocument, YamlNothing, YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
@@ -58,13 +59,13 @@ end
     SyntaxLeaf(TextString("null", prj.style))
 
 # ── YamlInsertionToSyntaxLeaf ───────────────────────────────────────────────────
+#
+# The shared typed-name insertion buffer, constrained to the YAML candidates
+# (prefix-free: `string` → `YamlString`). The char type-to-replace gestures on
+# a whole-selected insertion keep working: the leaf declines without a value
+# cursor, so those keys fall through to `@gestures YamlDocument`.
 
-@projection struct YamlInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template YamlInsertionToSyntaxLeaf YamlInsertion (prj, doc) ->
-    SyntaxLeaf(TextString("insert YAML here", prj.style))
+YamlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(YamlDocument)
 
 # ── YamlBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -286,6 +287,7 @@ function YamlToSyntax(; style::Symbol = :block)
         YamlSequence     => sequence,
         YamlMapping      => mapping,
         YamlInsertion    => YamlInsertionToSyntaxLeaf(),
+        YamlNothing      => NothingToSyntaxLeaf(),
         YamlMappingEntry => CopyingProjection(),
         Vector{Cell}     => CopyingProjection(),
     )

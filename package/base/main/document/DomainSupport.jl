@@ -416,6 +416,10 @@ macro domain(name, opts...)
                          Expr(:(=), Expr(:(::), :value, String), ""),
                          Expr(:(=), Expr(:(::), :selection, Reference), :nothing)))
         push!(out.args, var"@document"(__source__, __module__, idef))
+        # A fully-defaulted @document struct gets no positional constructors;
+        # generate the `XInsertion("prefix")` convenience by hand.
+        push!(out.args, :($(esc(insertion_sym))(value::AbstractString) =
+            $(esc(insertion_sym))(String(value), nothing)))
         push!(out.args, esc(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__,
             "`@domain $prefix`-generated insertion: a typed-name buffer completing " *
             "over the `$root_sym` candidates (prefix-free); Enter commits, Escape " *

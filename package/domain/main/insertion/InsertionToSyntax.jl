@@ -52,16 +52,17 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, var"@gestures"
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-import ..FontModule: font_ubuntu_monospace_regular_20, StyleFont
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
 
-export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, JuliaInsertionToSyntaxLeaf,
-       SqlInsertionToSyntaxLeaf, default_factory, default_completion,
-       name_completion, julia_completion, julia_scaffold
+export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
+       JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, NothingToSyntaxLeaf,
+       default_factory, default_completion, name_completion,
+       julia_completion, julia_scaffold
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -383,6 +384,16 @@ function julia_completion(text::AbstractString)
     ""
 end
 
+# The keyword scaffolds double as insertion *candidates*: `julia function`
+# committed from a DocumentInsertion (or `function` by name inside a Julia
+# scope) builds the same scaffold-of-holes the keyword commit does.
+DomainSupportModule.make_insertion_document(::Type{<:JuliaFunction}) = julia_scaffold("function")
+DomainSupportModule.make_insertion_document(::Type{<:JuliaIf})       = julia_scaffold("if")
+DomainSupportModule.make_insertion_document(::Type{<:JuliaWhile})    = julia_scaffold("while")
+DomainSupportModule.make_insertion_document(::Type{<:JuliaFor})      = julia_scaffold("for")
+DomainSupportModule.make_insertion_document(::Type{<:JuliaBegin})    = julia_scaffold("begin")
+DomainSupportModule.make_insertion_document(::Type{<:JuliaReturn})   = julia_scaffold("return")
+
 # Commit a Julia hole: a keyword prefix expands to its scaffold; otherwise parse the
 # buffer as complete source. Partial / invalid non-keyword source can't commit.
 function _julia_commit(value::AbstractString)
@@ -418,6 +429,23 @@ DocumentInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here")
 
 """
+    DomainInsertionToSyntaxLeaf(root; prefix = "insert a ", suffix = " here")
+
+A domain-constrained insertion: the shared typed-name buffer completing over
+`root`'s reflected candidates **prefix-free** (inside a `JsonInsertion`,
+`string`/`String` names `JsonString`), committing the resolved type's
+`make_insertion_document`. The default completion policy already scopes to
+`insertion_root(typeof(ins))`, so the leaf only needs the matching commit.
+"""
+DomainInsertionToSyntaxLeaf(root::Type;
+                            prefix::AbstractString = "insert a ",
+                            suffix::AbstractString = " here") =
+    InsertionToSyntaxLeaf(value -> begin
+            T = resolve_insertion(root, value)
+            T === nothing ? nothing : make_insertion_document(T)
+        end; prefix, suffix)
+
+"""
     SqlInsertionToSyntaxLeaf()
 
 A SQL source insertion, committing `value` via `sqlparse`; the buffer is
@@ -425,6 +453,34 @@ green when it parses as a complete statement, red otherwise.
 """
 SqlInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(_sql_commit; completion = _parse_completion(sqlparse))
+
+# ── NothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
+
+# "JsonNothing" → "empty json"; the universal `DocumentNothing` → "empty document".
+function _nothing_label(doc)
+    n = String(nameof(typeof(doc)))
+    base = endswith(n, "Nothing") ? n[1:end-length("Nothing")] : n
+    isempty(base) ? "empty document" : "empty " * lowercase(base)
+end
+
+"""
+    NothingToSyntaxLeaf()
+
+The shared leaf for the `@domain` `*Nothing` placeholders: a muted italic
+`empty json` / `empty xml` label. Printer-only — raw input falls through the
+generic gesture fallback, so the placeholder's Insert binding (turn into the
+domain's insertion) fires from the document-level table.
+"""
+struct NothingToSyntaxLeaf <: Projection
+    style::StyleText
+end
+
+NothingToSyntaxLeaf() =
+    NothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
+
+print_document(p::NothingToSyntaxLeaf, recursion, doc, ctx) =
+    SimpleIoMap(p, doc, SyntaxLeaf(TextString(_nothing_label(doc), p.style);
+        selection=getfield(doc, :selection)))
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 #
@@ -464,9 +520,28 @@ function map_reference_backward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
     end
 end
 
+# Julia commitability: green when the buffer is a keyword (prefix) or parses as
+# complete source, red when it can commit neither way, neutral when empty.
+function _julia_state(value::AbstractString)
+    isempty(strip(value)) && return :empty
+    julia_scaffold(value) === nothing || return :unambiguous
+    isempty(julia_completion(value)) || return :unambiguous
+    parsed = try juliaparse(value); true catch; false end
+    parsed ? :unambiguous : :invalid
+end
+
+_julia_typed_color(p::JuliaInsertionToSyntaxLeaf, value::AbstractString) = begin
+    state = _julia_state(value)
+    state === :invalid ? color_solarized_red :
+    state === :empty   ? p.value.color      : color_solarized_green
+end
+
 function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
-    SimpleIoMap(p, ins, SyntaxLeaf(
-        TextString(() -> something(ins.value, ""), p.value);
+    typed = TextString(Cell(() -> something(ins.value, "")),
+                       Cell(p.value.font),
+                       Cell(() -> _julia_typed_color(p, something(ins.value, ""))),
+                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    SimpleIoMap(p, ins, SyntaxLeaf(typed;
         close=TextString(() -> julia_completion(something(ins.value, "")), p.completion),
         selection=getfield(ins, :selection)))
 end
