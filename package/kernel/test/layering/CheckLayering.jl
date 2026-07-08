@@ -26,7 +26,11 @@
 #    base/visual/domain re-export the lower packages' modules),
 # 4. for files that live under a declared `layers` folder, every `..XxxModule`
 #    dep resolves to a module whose file also lives under a layers folder of
-#    index ≤ the importer's (non-layers folders are exempt during transition).
+#    index ≤ the importer's (non-layers folders are exempt during transition),
+# 5. (opt-in via `check_private_imports`) every cross-layer
+#    `import ..XxxModule: sym` names only symbols the target module exports —
+#    same-layer neighbours may share internals; a plain `import ..XxxModule`
+#    is unconstrained.
 #
 # Each test package calls `check_layering` with its own src root and declared
 # layer order (`test_kernel_layering()`, `test_base_layering()`, …); this file
@@ -67,14 +71,39 @@ function relative_module(arg)
 end
 
 """
-Return the direct relative-module imports and the ordered list of `include(...)`
-paths appearing at the top level of `body_expr`. Statements are considered
-top-level within the passed expression: a module body (`:block`) or a bare
-fragment body (`Meta.parseall` yields `:toplevel`).
+For a symbol-list import argument (`import ..Mod: a, @b, c as d`), return the
+imported symbol names (`[a, @b, c]` — a rename constrains the *original* name).
+A plain-path argument (`import ..Mod`) returns an empty list, meaning the
+import is unconstrained. `var"@x"` surface syntax already parses to the symbol
+`@x`, so macro names need no extra normalization.
+"""
+function imported_symbols(arg)
+    arg isa Expr && arg.head === :(:) || return Symbol[]
+    syms = Symbol[]
+    for a in arg.args[2:end]
+        a isa Expr && a.head === :as && (a = a.args[1])
+        a isa Expr && a.head === :. && a.args[end] isa Symbol && push!(syms, a.args[end])
+    end
+    syms
+end
+
+"""
+Return `(imports, includes, sym_imports, exports)` for the statements at the
+top level of `body_expr` — a module body (`:block`) or a bare fragment body
+(`Meta.parseall` yields `:toplevel`):
+
+- `imports::Vector{Symbol}` — the referenced relative sibling modules,
+- `includes::Vector{String}` — the ordered `include(...)` paths,
+- `sym_imports::Vector{Pair{Symbol, Vector{Symbol}}}` — one pair per relative
+  import argument: `import ..Mod: a, b` → `Mod => [a, b]`; plain
+  `import ..Mod` → `Mod => []` (unconstrained),
+- `exports::Vector{Symbol}` — the names in `export` statements.
 """
 function collect_edges(body_expr)
     imports = Symbol[]
     includes = String[]
+    sym_imports = Pair{Symbol, Vector{Symbol}}[]
+    exports = Symbol[]
     stmts = body_expr isa Expr ?
         (body_expr.head in (:block, :toplevel) ? body_expr.args : (body_expr,)) :
         ()
@@ -86,11 +115,17 @@ function collect_edges(body_expr)
         elseif stmt.head in (:import, :using)
             for arg in stmt.args
                 d = relative_module(arg)
-                d === nothing || push!(imports, d)
+                d === nothing && continue
+                push!(imports, d)
+                push!(sym_imports, d => imported_symbols(arg))
+            end
+        elseif stmt.head === :export
+            for s in stmt.args
+                s isa Symbol && push!(exports, s)
             end
         end
     end
-    imports, includes
+    imports, includes, sym_imports, exports
 end
 
 # ── fragment-aware include walker ──────────────────────────────────────────
@@ -102,10 +137,13 @@ Walk the include tree rooted at `top_file`, recursively following each
 
 - `reached::Vector{String}` — every file reached (relpath to `src_root`), in
   visit order; used to check every on-disk file is included exactly once.
-- `entries::Vector{Tuple{String,Symbol,Vector{Symbol}}}` — one entry per
-  **module file** reached, in include order: `(rel_path, module_name,
-  agg_deps)`, where `agg_deps` is the union of that module's own
-  `import ..X`s and every fragment file it (transitively) includes.
+- `entries` — one entry per **module file** reached, in include order:
+  `(rel_path, module_name, agg_deps, agg_sym_imports, agg_exports)`, each
+  aggregate the union/concatenation over the module's own statements and every
+  fragment file it (transitively) includes: `agg_deps` the imported sibling
+  modules, `agg_sym_imports` the per-import symbol lists (`import ..X: a, b` →
+  `X => [a, b]`; plain `import ..X` → `X => []`, unconstrained), `agg_exports`
+  the exported names.
 
 A file whose AST defines exactly one `module` is a *module file*; its
 `agg_deps` includes descendant fragments' imports. A file with zero `module`s
@@ -118,11 +156,12 @@ module file.
 """
 function walk_includes(top_file, src_root)
     reached = String[]
-    entries = Tuple{String, Symbol, Vector{Symbol}}[]
+    entries = Tuple{String, Symbol, Vector{Symbol},
+                    Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
 
     # Descend into `file`. `in_module` says whether a module-file ancestor
-    # encloses it; returns the relative imports to fold into that ancestor
-    # (always empty for module files, which emit an entry instead).
+    # encloses it; returns the `(imports, sym_imports, exports)` to fold into
+    # that ancestor (all empty for module files, which emit an entry instead).
     function descend(file, in_module)
         rel = relpath(file, src_root)
         push!(reached, rel)
@@ -135,24 +174,28 @@ function walk_includes(top_file, src_root)
             error("$rel defines a module but is included inside another module file")
         end
         body = length(mods) == 1 ? mods[1].args[3] : ast
-        imports, includes = collect_edges(body)
+        imports, includes, sym_imports, exports = collect_edges(body)
         if length(mods) == 0 && !in_module && !isempty(imports)
             error("$rel is a layer fragment with relative imports; only module files may import ..Xxx")
         end
-        # Recurse into includes, aggregating fragment imports upward.
+        # Recurse into includes, aggregating fragment imports/exports upward.
         for inc in includes
             child_path = joinpath(dirname(file), inc)
             isfile(child_path) || error("$rel includes \"$inc\" but the file does not exist")
-            append!(imports, descend(child_path, in_module || length(mods) == 1))
+            child_imports, child_syms, child_exports =
+                descend(child_path, in_module || length(mods) == 1)
+            append!(imports, child_imports)
+            append!(sym_imports, child_syms)
+            append!(exports, child_exports)
         end
         if length(mods) == 1
             # Module file: emit an entry, but do not propagate deps upward.
             name = mods[1].args[2]::Symbol
-            push!(entries, (rel, name, unique(imports)))
-            Symbol[]
+            push!(entries, (rel, name, unique(imports), sym_imports, unique(exports)))
+            (Symbol[], Pair{Symbol, Vector{Symbol}}[], Symbol[])
         else
-            # Fragment: propagate imports to the enclosing module.
-            unique(imports)
+            # Fragment: propagate imports/exports to the enclosing module.
+            (unique(imports), sym_imports, unique(exports))
         end
     end
 
@@ -271,11 +314,61 @@ function layer_errors(entries, layers, exempt_files = Set{String}())
     errs
 end
 
+# ── private-import checker ─────────────────────────────────────────────────
+
+"""
+    private_import_errors(entries, layers, exempt_files = Set{String}()) -> Vector{String}
+
+Assert that a cross-layer `import ..XxxModule: sym` names only symbols the
+target module exports. A non-exported name is a module-internal implementation
+detail; importing one across a layer boundary couples a higher layer to a
+lower layer's internals, invisibly to both the export list and the
+module-level layer check. Exempt, mirroring `layer_errors`: same-layer
+imports (neighbours inside one layer may share internals), plain
+`import ..XxxModule` (unconstrained), importers or deps outside the declared
+`layers` folders, deps no entry defines (package aliases), and
+`exempt_files` (transitional per-file exemption).
+
+Known limitation: qualified private access (`XxxModule._name` in code or
+macro output) is not caught — today's only instances are same-module fragment
+self-references; this check keeps the common import-header path honest.
+"""
+function private_import_errors(entries, layers, exempt_files = Set{String}())
+    idx_of_layer = Dict(l => i for (i, l) in enumerate(layers))
+    mod_layer = Dict{Symbol, Union{Int, Nothing}}()
+    mod_exports = Dict{Symbol, Set{Symbol}}()
+    for (rel, mod, _, _, exports) in entries
+        mod_layer[mod] = get(idx_of_layer, layer_of(rel), nothing)
+        mod_exports[mod] = Set(exports)
+    end
+    errs = String[]
+    for (rel, mod, _, sym_imports, _) in entries
+        rel in exempt_files && continue         # transitional per-file exemption
+        my_idx = get(idx_of_layer, layer_of(rel), nothing)
+        my_idx === nothing && continue          # importer exempt (non-layers folder)
+        for (dep, syms) in sym_imports
+            isempty(syms) && continue           # plain `import ..Mod` — unconstrained
+            haskey(mod_exports, dep) || continue  # dep exempt (package alias)
+            dep_idx = mod_layer[dep]
+            dep_idx === nothing && continue     # dep exempt (non-layers folder)
+            dep_idx == my_idx && continue       # same layer — internals may be shared
+            for s in syms
+                s in mod_exports[dep] || push!(errs,
+                    "$rel ($mod, layer \"$(layers[my_idx])\") imports non-exported " *
+                    "$s from ..$dep (layer \"$(layers[dep_idx])\") — export it, or " *
+                    "share it via same-module fragments / a seam below both users")
+            end
+        end
+    end
+    errs
+end
+
 # ── the shared entry point ─────────────────────────────────────────────────
 
 """
     check_layering(src_root, top_file; name = "package",
-                   layers = String[], exempt_files = Set{String}())
+                   layers = String[], exempt_files = Set{String}(),
+                   check_private_imports = false)
 
 Run the full static layered-architecture guard for one main package inside
 a `@testset`:
@@ -286,10 +379,14 @@ a `@testset`:
    module files or per-layer fragments listing the layer's module files),
 3. the module files' include order is a valid topological order over the real
    `import ..XxxModule` edges (module aliases to lower packages are exempt),
-4. declared `layers` respect their index (skipped when `layers` is empty).
+4. declared `layers` respect their index (skipped when `layers` is empty),
+5. cross-layer symbol imports name only exported symbols (opt-in via
+   `check_private_imports = true`, requires `layers`; enable per package once
+   its imports are clean).
 """
 function check_layering(src_root, top_file; name = "package",
-                        layers = String[], exempt_files = Set{String}())
+                        layers = String[], exempt_files = Set{String}(),
+                        check_private_imports = false)
     @testset "$name layered-architecture guard" begin
         reached, entries = walk_includes(top_file, src_root)
 
@@ -340,6 +437,17 @@ function check_layering(src_root, top_file; name = "package",
                 @test isempty(errs)
             end
         end
+
+        if check_private_imports && !isempty(layers)
+            @testset "cross-layer imports name only exported symbols" begin
+                errs = private_import_errors(entries, layers, exempt_files)
+                if !isempty(errs)
+                    println(stderr, "\nCross-layer private-symbol imports:")
+                    foreach(e -> println(stderr, "  ", e), errs)
+                end
+                @test isempty(errs)
+            end
+        end
     end
 end
 
@@ -348,8 +456,9 @@ end
 """
     test_layering_checkers()
 
-Self-tests for `topo_errors` / `layer_errors` on synthetic entry lists, and
-for the `walk_includes` walker on a synthetic package tree.
+Self-tests for `topo_errors` / `layer_errors` / `private_import_errors` on
+synthetic entry lists, and for the `walk_includes` walker on a synthetic
+package tree.
 """
 function test_layering_checkers()
     @testset "walk_includes handles module files and layer fragments" begin
@@ -369,9 +478,11 @@ function test_layering_checkers()
                 include("B.jl")
                 include("C.jl")
                 """)
-            write(joinpath(root, "document/B.jl"), "module B\nimport ..A\ninclude(\"BFragment.jl\")\nend\n")
-            write(joinpath(root, "document/BFragment.jl"), "import ..A\nusing ..C\n")
-            write(joinpath(root, "document/C.jl"), "module C\nend\n")
+            write(joinpath(root, "document/B.jl"),
+                  "module B\nimport ..A: a_pub\ninclude(\"BFragment.jl\")\nexport b_pub\nend\n")
+            write(joinpath(root, "document/BFragment.jl"),
+                  "import ..A\nusing ..C: var\"@c_macro\"\nexport b_frag\n")
+            write(joinpath(root, "document/C.jl"), "module C\nexport @c_macro, c_pub\nend\n")
 
             reached, entries = walk_includes(joinpath(root, "Top.jl"), root)
             # Every file reached exactly once, layer fragment included.
@@ -382,8 +493,23 @@ function test_layering_checkers()
             # imports fold into its enclosing module's deps.
             @test [(m, sort(d)) for (_, m, d) in entries] ==
                   [(:A, Symbol[]), (:B, [:A, :C]), (:C, Symbol[])]
+            # Per-import symbol lists and exports fold in the same way; a
+            # plain `import ..A` yields an unconstrained `A => []`, and
+            # `var"@c_macro"` / `export @c_macro` both parse to `@c_macro`.
+            @test entries[2][4] == [:A => [:a_pub], :A => Symbol[],
+                                    :C => [Symbol("@c_macro")]]
+            @test entries[2][5] == [:b_pub, :b_frag]
+            @test entries[3][5] == [Symbol("@c_macro"), :c_pub]
             # B imports ..C, which the layer fragment includes later.
             @test length(topo_errors(entries)) == 1
+            # B imports a_pub across layers, but A does not export it.
+            errs = private_import_errors(entries, ["cell", "document"])
+            @test length(errs) == 1
+            @test occursin("a_pub", errs[1])
+            # Exporting a_pub from A makes the same import legal.
+            write(joinpath(root, "cell/A.jl"), "module A\nexport a_pub\nend\n")
+            _, entries_fixed = walk_includes(joinpath(root, "Top.jl"), root)
+            @test isempty(private_import_errors(entries_fixed, ["cell", "document"]))
 
             # A layer fragment carrying its own relative import is an error.
             write(joinpath(root, "document/DocumentLayer.jl"), """
@@ -442,5 +568,45 @@ function test_layering_checkers()
                   ("cell/A.jl",     :A, [:B])]
         @test length(layer_errors(upward, layers)) == 1
         @test isempty(layer_errors(upward, layers, Set(["cell/A.jl"])))
+    end
+
+    @testset "private_import_errors flags cross-layer non-exported symbols" begin
+        layers = ["cell", "document"]
+        no_syms = Pair{Symbol, Vector{Symbol}}[]
+        # document/A imports exported :pub and private :_priv from cell/B —
+        # exactly one error, naming the private symbol.
+        bad = [("cell/B.jl",     :B, Symbol[], no_syms, [:pub]),
+               ("document/A.jl", :A, [:B], [:B => [:pub, :_priv]], Symbol[])]
+        errs = private_import_errors(bad, layers)
+        @test length(errs) == 1
+        @test occursin("_priv", errs[1]) && occursin("..B", errs[1])
+
+        # Exported-names-only import is clean.
+        good = [bad[1], ("document/A.jl", :A, [:B], [:B => [:pub]], Symbol[])]
+        @test isempty(private_import_errors(good, layers))
+
+        # Same-layer neighbours may share internals.
+        same = [("cell/B.jl", :B, Symbol[], no_syms, [:pub]),
+                ("cell/A.jl", :A, [:B], [:B => [:_priv]], Symbol[])]
+        @test isempty(private_import_errors(same, layers))
+
+        # Plain `import ..B` (empty symbol list) is unconstrained.
+        plain = [bad[1], ("document/A.jl", :A, [:B], [:B => Symbol[]], Symbol[])]
+        @test isempty(private_import_errors(plain, layers))
+
+        # A dep no entry defines (package alias) is exempt.
+        alias = [("document/A.jl", :A, [:X], [:X => [:_priv]], Symbol[])]
+        @test isempty(private_import_errors(alias, layers))
+
+        # A dep in a non-layers folder is exempt, as is an importer there.
+        dep_out = [("common/B.jl",   :B, Symbol[], no_syms, Symbol[]),
+                   ("document/A.jl", :A, [:B], [:B => [:_priv]], Symbol[])]
+        @test isempty(private_import_errors(dep_out, layers))
+        importer_out = [("cell/B.jl",   :B, Symbol[], no_syms, Symbol[]),
+                        ("common/A.jl", :A, [:B], [:B => [:_priv]], Symbol[])]
+        @test isempty(private_import_errors(importer_out, layers))
+
+        # A per-file exemption suppresses the error for that importer.
+        @test isempty(private_import_errors(bad, layers, Set(["document/A.jl"])))
     end
 end

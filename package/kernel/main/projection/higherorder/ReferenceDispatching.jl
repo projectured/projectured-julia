@@ -12,9 +12,6 @@ module ReferenceDispatchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          FieldReference, RangeReference, PointReference, ProjectionReference,
-                          head, tail, is_reference_equal, is_prefix_of
 import ..IoMapApiModule: IoMap
 export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
 

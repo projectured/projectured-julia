@@ -81,8 +81,9 @@ include("editor/NavigationTest.jl")
 
 Static layered-architecture guard for `ProjecturedKernel`: the top include list
 must be a topological order over the real `import ..XxxModule` edges, every src
-file reached exactly once, and files under a declared layer folder may only
-import from layers of index ≤ their own.
+file reached exactly once, files under a declared layer folder may only
+import from layers of index ≤ their own, and cross-layer symbol imports may
+name only exported symbols.
 """
 function test_kernel_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
@@ -91,7 +92,8 @@ function test_kernel_layering()
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
                    layers = ["cell", "document", "reference", "operation", "device",
-                             "backend", "projection", "agent", "editor"])
+                             "backend", "projection", "agent", "editor"],
+                   check_private_imports = true)
 end
 
 """

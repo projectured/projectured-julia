@@ -46,8 +46,9 @@ import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
-       FunctionReference, ProjectionReference, TextRectangularReference, ReferencePath,
-       EmptyReferencePath, append_reference, concat_references, reference_steps,
+       FunctionReference, ProjectionReference, TextRectangularReference, FieldReference,
+       RangeReference, PointReference, ReferencePath,
+       EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
        evaluate_reference, is_valid_reference, collect_references, is_element_reference,
        is_position_reference, is_range_reference, is_reference_equal, is_prefix_of,
        is_reference_equal_ignoring_types, is_prefix_of_ignoring_types, ReferenceTypeMismatch,

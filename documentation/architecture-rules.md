@@ -203,7 +203,13 @@ package whose document walk can express them.
 Every main package has a static guard that parses the real `import ..Module`
 headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
-and slice→slice edges are acyclic. The guard is implemented **once** — the shared
+and slice→slice edges are acyclic. Where enabled (the kernel today;
+base/visual/domain as they come clean), it also asserts that **cross-layer
+imports name only exported symbols** — a non-exported name is a module-internal
+detail, so share a private helper via same-module fragments (the `@event_case` /
+`@gestures` parser precedent) or sink the seam below both users as exported API
+(the `@cell_struct` precedent), never lend it across a layer boundary.
+Same-layer neighbours may share internals. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
 — and each test package applies it to its main package

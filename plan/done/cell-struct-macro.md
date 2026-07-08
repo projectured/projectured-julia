@@ -9,7 +9,7 @@
 > was closed.
 >
 > Chosen resolution for "cluster A" of
-> [kernel-cross-layer-internal-imports.md](../pending/kernel-cross-layer-internal-imports.md)
+> [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md)
 > (supersedes that plan's step 3, which proposed exporting the helpers from
 > `DocumentModule` in place).
 
@@ -192,7 +192,7 @@ front-door stance.
       `test_domain()` (the three macros expand in every domain). *(Run green
       outside the implementing environment, which had no Julia binary.)*
 - [x] Update
-      [kernel-cross-layer-internal-imports.md](../pending/kernel-cross-layer-internal-imports.md):
+      [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md):
       cluster A is resolved by this plan (its step 3 and the matching
       checklist item defer here); steps 1–2 (ReferenceModule exports, dead
       imports) and 5 (guard check) are unchanged.

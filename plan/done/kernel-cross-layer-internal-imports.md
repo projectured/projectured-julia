@@ -1,9 +1,14 @@
 # Kernel — eliminate cross-layer internal-symbol imports
 
-> **Status: plan only.** Inventory audited 2026-07-08 by parsing every relative
+> **Status: DONE 2026-07-08.** Inventory audited 2026-07-08 by parsing every relative
 > `import ..XxxModule: syms` in `package/kernel/main` and checking each named
 > symbol against the target module's fragment-aware `export` list, keeping only
 > the imports whose importer and target live in *different* layer folders.
+> Executed the same day: reference vocabulary exported, dead imports deleted,
+> cluster A retired via `@cell_struct`, the rule documented in
+> `documentation/architecture-rules.md`, and `check_layering` grew check 5
+> (`private_import_errors`), enabled for the kernel via
+> `check_private_imports = true`.
 
 ## The rule
 
@@ -179,18 +184,23 @@ keeps the common path honest.
 
 ## Execution checklist
 
-- [ ] Export `ConcreteReferencePath`, `FieldReference`, `RangeReference`,
+- [x] Export `ConcreteReferencePath`, `FieldReference`, `RangeReference`,
       `PointReference` from `ReferenceModule`.
-- [ ] Delete the dead `ReferenceModule` import in `ReferenceDispatching.jl`;
+- [x] Delete the dead `ReferenceModule` import in `ReferenceDispatching.jl`;
       drop dead `RangeReference` from `Reversing.jl`.
 - [x] Cluster A: execute [cell-struct-macro.md](../done/cell-struct-macro.md)
       (`@cell_struct` in the cell layer; `@document`/`@iomap`/`@projection`
       build on it; docs updated there).
-- [ ] Docs for this plan's remainder:
-      `documentation/architecture-rules.md` (the cross-layer export rule).
-- [ ] `check_layering` check 5 (`private_import_errors`) + self-tests; enable
-      in `test_kernel_layering()`.
-- [ ] Verify: `test_kernel()`; spot-run `test_base()` / `test_visual()`.
+- [x] Docs for this plan's remainder:
+      `documentation/architecture-rules.md` (the cross-layer export rule,
+      Enforcement section).
+- [x] `check_layering` check 5 (`private_import_errors`) + self-tests; enabled
+      in `test_kernel_layering()` via `check_private_imports = true`.
+      The walker (`collect_edges` / `walk_includes`) now also carries
+      per-import symbol lists (`import ..X: a, b` → `X => [a, b]`; plain
+      `import ..X` → `X => []`, unconstrained) and fragment-aware exports.
+- [x] Verify: `test_kernel()` green (340 pass, incl. the new check + its
+      self-tests); spot-run `test_base()` / `test_visual()` green.
 
 ## Out of scope
 
