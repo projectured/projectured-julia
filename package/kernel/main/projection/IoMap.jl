@@ -8,11 +8,8 @@ own specialised IoMap struct alongside their projection type.
 """
 module IoMapModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, cell_struct_exprs
 import ..IoMapApiModule: IoMap
-# Shared Cell-struct codegen (also used by `@document`); see `common/Document.jl`.
-import ..DocumentModule: _cell_autowrap_ctor, _cell_property_accessors,
-                         _cell_kw_params, _cell_kwctor
 
 export SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
 
@@ -77,72 +74,18 @@ Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
 default is present, a keyword constructor is also generated — fields with a
 default are optional keywords, fields without one are required keywords —
 forwarding into the positional auto-wrapping constructor.
+
+This is `@cell_struct` (the cell layer's transparent-Cell struct codegen) plus
+one default: a struct without an explicit supertype gets `<: IoMap`. The
+injected `:IoMap` resolves in the caller's scope (the result is `esc`'d).
 """
 macro iomap(structdef)
     structdef.head === :struct || error("@iomap expects a struct definition")
     name_expr = structdef.args[2]
-    if name_expr isa Expr && name_expr.head === :(<:)
-        struct_name = name_expr.args[1]
-    else
-        struct_name = name_expr
+    if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :IoMap)
     end
-    body = structdef.args[3]
-    cell_fields = Symbol[]
-    defaults = Pair{Symbol, Any}[]   # field => default-value expr (declaration order)
-    for (i, ex) in enumerate(body.args)
-        if ex isa Symbol
-            push!(cell_fields, ex)
-            body.args[i] = :($(ex)::Cell)
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(cell_fields, ex.args[1])
-            ex.args[2] = :Cell
-        elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
-            # `name = v` / `name::T = v` — @kwdef-style default. Strip the default
-            # out of the (plain) struct body and remember it for the keyword ctor.
-            lhs = ex.args[1]
-            fname = lhs isa Symbol ? lhs : lhs.args[1]
-            push!(cell_fields, fname)
-            push!(defaults, fname => ex.args[2])
-            body.args[i] = :($(fname)::Cell)
-        end
-    end
-    isempty(cell_fields) && return esc(structdef)
-
-    cell_set = Set(cell_fields)
-
-    # Collect all field names/types for the auto-wrapping constructor
-    all_fields = Tuple{Symbol, Any}[]
-    for ex in body.args
-        if ex isa Symbol
-            push!(all_fields, (ex, nothing))
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(all_fields, (ex.args[1], ex.args[2]))
-        end
-    end
-
-    # Replace the default inner constructor with one that auto-wraps non-Cell
-    # values into Cell for Cell-typed fields (shared with `@document`).
-    if !isempty(all_fields)
-        push!(body.args,
-              _cell_autowrap_ctor(struct_name, [f[1] for f in all_fields], cell_set))
-    end
-
-    # getproperty / setproperty! read/write through the Cell fields (shared).
-    getprop, setprop = _cell_property_accessors(struct_name, cell_fields)
-
-    # Keyword constructor (only when ≥1 default is declared) that forwards into
-    # the positional inner ctor above, so Cell auto-wrapping is unchanged. Fields
-    # without a default become required keywords, à la `Base.@kwdef`.
-    extra = Any[]
-    if !isempty(defaults)
-        default_map = Dict(defaults)
-        field_names = [f[1] for f in all_fields]
-        push!(extra, _cell_kwctor(struct_name, field_names,
-                                  _cell_kw_params(field_names, default_map)))
-    end
-
-    return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop, extra...))
+    return esc(cell_struct_exprs(structdef))
 end
 
 end # module

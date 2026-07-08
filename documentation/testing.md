@@ -95,6 +95,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard, and the package's example printer sweep (`test_visual_examples()`). |
 | `test_domain()` | `test_json()`, `test_json_to_syntax()`, the xml/sql/formula/filesystem projections, parsers, graph, Console/Pdf backends, the domain layering guard, and the package's example printer sweep (`test_domain_examples()`). |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
+| `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_documents()` | The umbrella-only document suites (`test_constraint_solver()` — Tulip, `test_serialization()` — example fixtures). |
 | `test_projections()` | The umbrella-only projection suites (example/editor/SDL-coupled: tooltip, hover, dragging, write_image, …). |
 | `test_printers()` | Runs `test_printer` over every entry in `examples`. |

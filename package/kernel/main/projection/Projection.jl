@@ -25,7 +25,7 @@ import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
 # The ReplaceStringRangeOperation / ReplaceNumberRangeOperation branches of
 # the default read_intent live in base/projection/ReaderDefaults.jl beside
 # the Primitive document types. This module stays Primitive-free.
-import ..CellModule: Cell, AbstractCell
+import ..CellModule: AbstractCell, cell_struct_exprs
 import ..DocumentModule: snapshot
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
@@ -184,106 +184,19 @@ Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
 default is present, a keyword constructor is also generated — fields with a
 default are optional keywords, fields without one are required keywords —
 forwarding into the positional auto-wrapping constructor.
+
+This is `@cell_struct` (the cell layer's transparent-Cell struct codegen) plus
+one default: a struct without an explicit supertype gets `<: Projection`. The
+injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
+— same mechanic as `@iomap`/`IoMap`.
 """
 macro projection(structdef)
     structdef.head === :struct || error("@projection expects a struct definition")
-    # Default the supertype to `Projection` unless one is written explicitly, so
-    # `@projection struct Foo … end` means `struct Foo <: Projection … end`. An
-    # explicit supertype always wins. The injected `:Projection` resolves in the
-    # caller's scope (the result is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
     name_expr = structdef.args[2]
-    if name_expr isa Expr && name_expr.head === :(<:)
-        struct_name = name_expr.args[1]
-    else
-        struct_name = name_expr
+    if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :Projection)
     end
-    body = structdef.args[3]
-    cell_fields = Symbol[]
-    defaults = Pair{Symbol, Any}[]   # field => default-value expr (declaration order)
-    for (i, ex) in enumerate(body.args)
-        if ex isa Symbol
-            push!(cell_fields, ex)
-            body.args[i] = :($(ex)::Cell)
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(cell_fields, ex.args[1])
-            ex.args[2] = :Cell
-        elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
-            # `name = v` / `name::T = v` — @kwdef-style default. Strip the default
-            # out of the (plain) struct body and remember it for the keyword ctor.
-            lhs = ex.args[1]
-            fname = lhs isa Symbol ? lhs : lhs.args[1]
-            push!(cell_fields, fname)
-            push!(defaults, fname => ex.args[2])
-            body.args[i] = :($(fname)::Cell)
-        end
-    end
-    isempty(cell_fields) && return esc(structdef)
-
-    cell_set = Set(cell_fields)
-
-    # Collect all field names/types for the auto-wrapping constructor
-    all_fields = Tuple{Symbol, Any}[]
-    for ex in body.args
-        if ex isa Symbol
-            push!(all_fields, (ex, nothing))
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(all_fields, (ex.args[1], ex.args[2]))
-        end
-    end
-
-    # Replace the default inner constructor with one that auto-wraps
-    # non-Cell values into Cell for Cell-typed fields.
-    if !isempty(all_fields)
-        arg_names = [gensym(f[1]) for f in all_fields]
-        new_args = map(enumerate(all_fields)) do (i, (fname, ftype))
-            a = arg_names[i]
-            fname in cell_set ? :($a isa Cell ? $a : Cell($a)) : a
-        end
-        ctor = :(function $(struct_name)($(arg_names...))
-            $(Expr(:call, :new, new_args...))
-        end)
-        push!(body.args, ctor)
-    end
-
-    # Build if-elseif chain for getproperty
-    get_body = :(getfield(obj, name))
-    for fname in reverse(cell_fields)
-        get_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[]),
-                        get_body)
-    end
-    getprop = :(function Base.getproperty(obj::$(struct_name), name::Symbol)
-        $get_body
-    end)
-
-    # Build if-elseif chain for setproperty!
-    set_body = :(setfield!(obj, name, val))
-    for fname in reverse(cell_fields)
-        set_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[] = val),
-                        set_body)
-    end
-    setprop = :(function Base.setproperty!(obj::$(struct_name), name::Symbol, val)
-        $set_body
-    end)
-
-    # Keyword constructor (only when ≥1 default is declared) that forwards into
-    # the positional inner ctor above, so Cell auto-wrapping is unchanged. Fields
-    # without a default become required keywords, à la `Base.@kwdef`.
-    extra = Any[]
-    if !isempty(defaults)
-        default_map = Dict(defaults)
-        kw_params = map(all_fields) do (fname, _)
-            haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
-        end
-        kwctor = :(function $(struct_name)(; $(kw_params...))
-            $(Expr(:call, struct_name, (f[1] for f in all_fields)...))
-        end)
-        push!(extra, kwctor)
-    end
-
-    return esc(Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop, extra...))
+    return esc(cell_struct_exprs(structdef))
 end
 
 end # module

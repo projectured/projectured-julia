@@ -13,10 +13,13 @@ The module lives in two fragments that share this namespace:
   `with_selection`), and the projection-independent `read_gesture` seam. This
   is the surface every higher layer implements against.
 - [`Document.jl`](Document.jl) — the shared machinery: the generic
-  `Base.show`, the Cell-struct codegen helpers `_cell_*` (also used by
-  `@iomap`), the `@document` macro and its `@forward*` family, and the value
+  `Base.show`, the `@document` macro and its `@forward*` family, and the value
   protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
-  `sync_document!` that reactive syncing and rehydration ride on.
+  `sync_document!` that reactive syncing and rehydration ride on. `@document`
+  builds its keyword-constructor support on the cell layer's exported
+  Cell-struct codegen (`cell_kw_params` / `cell_kwctor`, beside `@cell_struct`
+  in `cell/CellStruct.jl` — the same codegen `@iomap` and `@projection`
+  delegate to wholesale).
 
 The concrete documents (Collection, Primitive, ScreenDocument) live in the
 base and visual packages, not the kernel.
@@ -29,15 +32,11 @@ The two contracts every concrete document must satisfy:
 2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")`
    in a path resolves via `getfield(document, :foo)`; renaming a struct field
    silently breaks every stored reference. Struct fields are public API.
-
-Downward private seam: `IoMapModule` imports `_cell_autowrap_ctor` and
-`_cell_property_accessors` from here — a deliberately documented private
-edge (both macros share Cell-struct codegen; splitting the helpers off just
-for that would be worse than the edge).
 """
 module DocumentModule
 
-import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell
+import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
+                     cell_kw_params, cell_kwctor
 
 export Document, get_selection, clear_selection!, set_selection!, with_selection, read_gesture,
        copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,

@@ -1,10 +1,13 @@
 # Fragment of `DocumentModule` — the shared machinery every concrete document
-# reuses: the generic `Base.show`, the Cell-struct codegen helpers `_cell_*`
-# (shared with `@iomap`), the `@document` macro and its `@forward*` family,
-# and the value protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/
-# `hydrate`/`sync_document!`. The `Document` abstract type and the selection
-# generics it references come from `Interface.jl`, which `DocumentModule.jl`
-# includes first so they are already in scope here.
+# reuses: the generic `Base.show`, the `@document` macro and its `@forward*`
+# family, and the value protocol `copy_document`/`cell_kind`/`rekind`/
+# `snapshot`/`hydrate`/`sync_document!`. The `Document` abstract type and the
+# selection generics it references come from `Interface.jl`, which
+# `DocumentModule.jl` includes first so they are already in scope here.
+# `@document` generates its own kind-parameterized stem below; the generic
+# transparent-Cell struct codegen it shares with `@iomap`/`@projection`
+# (`cell_kw_params`, `cell_kwctor`, and the `@cell_struct` macro those two
+# delegate to) lives in the cell layer — see `cell/CellStruct.jl`.
 
 """
 Maximum nesting depth printed by the generic document `show` before child
@@ -42,69 +45,6 @@ function Base.show(io::IO, x::Document)
     end
     print(io, ")")
 end
-
-# ── Shared Cell-struct codegen ──────────────────────────────────────────────
-# `@document` and `@iomap` both turn a struct whose fields are transparent
-# reactive `Cell`s into: an auto-wrapping inner constructor, `getproperty` /
-# `setproperty!` that read/write through the Cells, and (when defaults are
-# declared) a keyword constructor. Those four fragments are identical between the
-# two macros, so they live here as plain expr-builders that each macro splices
-# into its own (escaped) output. `@iomap` imports them; `@document` layers its
-# extra machinery (the immutable I-struct, Rule Y / Rule C ctors) on top.
-#
-# The symbols the builders emit (`Cell`, `new`, `getfield`, …) are spliced as
-# bare names and resolve in the *caller's* scope when the macro escapes its
-# result — exactly as when the code was inlined in each macro.
-
-# The single auto-wrapping inner constructor: `T(vals...)` wrapping each Cell-typed
-# field's value in a `Cell` unless it already is one. `field_names` is every field
-# (declaration order); `cell_set` is the subset stored as Cells.
-function _cell_autowrap_ctor(struct_name, field_names, cell_set)
-    arg_names = [gensym(f) for f in field_names]
-    new_args = map(enumerate(field_names)) do (i, fname)
-        a = arg_names[i]
-        fname in cell_set ? :($a isa Cell ? $a : Cell($a)) : a
-    end
-    :(function $(struct_name)($(arg_names...))
-        $(Expr(:call, :new, new_args...))
-    end)
-end
-
-# `getproperty` / `setproperty!` that read/write through each Cell-typed field.
-function _cell_property_accessors(struct_name, cell_fields)
-    get_body = :(getfield(obj, name))
-    for fname in reverse(cell_fields)
-        get_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[]),
-                        get_body)
-    end
-    getprop = :(function Base.getproperty(obj::$(struct_name), name::Symbol)
-        $get_body
-    end)
-
-    set_body = :(setfield!(obj, name, val))
-    for fname in reverse(cell_fields)
-        set_body = Expr(:if, :(name === $(QuoteNode(fname))),
-                        :(return getfield(obj, $(QuoteNode(fname)))[] = val),
-                        set_body)
-    end
-    setprop = :(function Base.setproperty!(obj::$(struct_name), name::Symbol, val)
-        $set_body
-    end)
-    (getprop, setprop)
-end
-
-# Keyword-constructor parameter list: a defaulted field becomes `field = default`,
-# an undefaulted one a required keyword `field` (à la `Base.@kwdef`).
-_cell_kw_params(field_names, default_map) =
-    [haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
-     for fname in field_names]
-
-# A keyword constructor for `type_name` forwarding into its positional ctor.
-_cell_kwctor(type_name, field_names, kw_params) =
-    :(function $(type_name)(; $(kw_params...))
-        $(Expr(:call, type_name, field_names...))
-    end)
 
 """
     @document struct T [<: Super] ... end
@@ -290,10 +230,10 @@ macro document(structdef)
     extra = Any[]
     if !isempty(defaults)
         default_map = Dict(defaults)
-        kw_params = _cell_kw_params(field_names, default_map)
-        push!(extra, _cell_kwctor(struct_name, field_names, kw_params))
-        push!(extra, _cell_kwctor(i_name, field_names, kw_params))
-        push!(extra, _cell_kwctor(m_name, field_names, kw_params))
+        kw_params = cell_kw_params(field_names, default_map)
+        push!(extra, cell_kwctor(struct_name, field_names, kw_params))
+        push!(extra, cell_kwctor(i_name, field_names, kw_params))
+        push!(extra, cell_kwctor(m_name, field_names, kw_params))
 
         # ── Rule Y: positional ctors that omit a trailing run of defaulted
         #    fields (the positional analog of `@kwdef`). Generated only when at

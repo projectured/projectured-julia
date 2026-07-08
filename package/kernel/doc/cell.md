@@ -51,6 +51,32 @@ Public surface: `Cell`, `set_value!`, `set_function!`, `is_up_to_date`, `peek`. 
 unchecked invariants (acyclic graph, monotone invalidation, write-driven
 propagation, pure thunks).
 
+### `@cell_struct` — the transparent-Cell struct codegen
+
+`CellStruct.jl` (a fragment of `CellModule`) defines the struct codegen every
+declarative struct macro builds on: `@cell_struct struct T [<: Super] … end`
+turns every field into a `::Cell` field and generates an **auto-wrapping inner
+constructor** (raw values wrap in `Cell(v)`, Cells pass through — this is how
+construction-time cell sharing works), **transparent accessors** (`obj.f`
+reads the cell value, `obj.f = v` writes into it; raw cells via
+`getfield(obj, :f)`), and — when a field declares a `field::T = value`
+default — a **keyword constructor** with the `Base.@kwdef` optional/required
+split. No supertype is injected; the struct keeps what the definition wrote.
+
+The macro is assembled by `cell_struct_exprs(structdef)` from four exported
+expr-builders (`cell_autowrap_ctor`, `cell_property_accessors`,
+`cell_kw_params`, `cell_kwctor`) — together they are the **composition seam
+for macro authors**: `@iomap` and `@projection` (projection layer) inject
+their default supertype and return `esc(cell_struct_exprs(structdef))`
+wholesale; `@document` (document layer) generates its own kind-parameterized
+stem and reuses only the keyword-ctor builders. The builders emit `Cell`,
+`new`, `getfield` as bare names that resolve in the delegating macro's
+*caller* scope, so a module using any of these macros needs `Cell` in scope
+and nothing else. See [macros.md](../../../documentation/macros.md).
+
+Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_autowrap_ctor`,
+`cell_property_accessors`, `cell_kw_params`, `cell_kwctor`.
+
 ## PerformanceCounterModule — instrumentation
 
 A single process-global `Dict{Symbol,Int}` of counters plus its API. The `Cell`

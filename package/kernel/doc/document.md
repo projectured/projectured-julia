@@ -73,31 +73,19 @@ authored with `@gestures` needs no hand-written `read_gesture`.
   the `:document_depth` IOContext, so nested documents do not explode. Field
   reads go through `getproperty` (unwrapping Cells); the `selection` field is
   omitted as noise.
-- **Cell-struct codegen helpers** (`_cell_autowrap_ctor`,
-  `_cell_property_accessors`, `_cell_kw_params`, `_cell_kwctor`) — the four
-  expr-builders shared by `@document` and `@iomap`. Both macros turn a struct
-  whose fields are transparent reactive `Cell`s into an auto-wrapping
-  constructor, `getproperty`/`setproperty!` that read/write through the cells,
-  and (when defaults are declared) a keyword constructor.
-- **`@document` macro** — the entry point. It layers the immutable I-struct
-  (for hydration and rekind) and the Rule Y / Rule C constructors on top of
-  the shared codegen.
+- **`@document` macro** — the entry point. It generates the kind-parameterized
+  stem (the parametric cell-typed struct, its fast-path auto-wrapping
+  constructor, the `R`/`I`/`M` kind aliases and ctors) and layers the Rule Y /
+  Rule C constructors on top; its keyword-constructor support comes from the
+  cell layer's exported Cell-struct codegen builders (`cell_kw_params`,
+  `cell_kwctor` — see the `@cell_struct` section in [cell.md](cell.md), the
+  same codegen `@iomap` and `@projection` delegate to wholesale).
 - **`@forward` / `@forward_vector` / `@forward_map`** — helpers that
   automatically forward `getproperty` from a wrapper document onto a nested
   field, for compound documents that delegate.
 - **Value protocol** — `copy_document`, `cell_kind`, `rekind`, `snapshot`,
   `hydrate`, `sync_document!`: rekind/snapshot switch a whole tree between
   cell kinds (reactive ↔ mutable ↔ immutable) for the reactive-shadow pattern.
-
-## Downward private seam
-
-`IoMapModule` (`projection/IoMap.jl`, projection layer) imports the private
-`_cell_autowrap_ctor` and `_cell_property_accessors` from here. Both macros
-share Cell-struct codegen; splitting the helpers into a third module just for
-that would be worse than the edge. This is a **documented downward private
-seam**, exempt from the "no private imports" style rule; the guard doesn't
-know about private names but the layer edge still points down (projection →
-document), so nothing else changes.
 
 ## Testing pressure
 

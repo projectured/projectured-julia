@@ -183,7 +183,7 @@ keeps the common path honest.
       `PointReference` from `ReferenceModule`.
 - [ ] Delete the dead `ReferenceModule` import in `ReferenceDispatching.jl`;
       drop dead `RangeReference` from `Reversing.jl`.
-- [ ] Cluster A: execute [cell-struct-macro.md](cell-struct-macro.md)
+- [x] Cluster A: execute [cell-struct-macro.md](cell-struct-macro.md)
       (`@cell_struct` in the cell layer; `@document`/`@iomap`/`@projection`
       build on it; docs updated there).
 - [ ] Docs for this plan's remainder:

@@ -1,6 +1,16 @@
 # `@cell_struct` — sink the transparent-Cell struct codegen to the cell layer
 
-> **Status: plan only.** Chosen resolution for "cluster A" of
+> **Status: implemented, suite run pending.** All code, test, and doc changes
+> below are in place (2026-07-08). The test suite (`test_cell_struct()` →
+> `test_kernel()` → the base/visual/domain parity sweep) could not be
+> *executed* in the implementing environment — no Julia binary, and the
+> network policy blocks fetching one — so verification was static only: the
+> layering-guard logic replayed green (include-reachability, topo order,
+> layer indices) and the cross-layer `_cell_*` import is gone. Run the
+> checklist's test item in a normal dev environment before moving this plan
+> to done.
+>
+> Chosen resolution for "cluster A" of
 > [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md)
 > (supersedes that plan's step 3, which proposed exporting the helpers from
 > `DocumentModule` in place).
@@ -151,23 +161,23 @@ front-door stance.
 
 ## Execution checklist
 
-- [ ] `cell/CellStruct.jl` (fragment of `CellModule`): move the four builders
+- [x] `cell/CellStruct.jl` (fragment of `CellModule`): move the four builders
       from `document/Document.jl`, rename `_cell_*` → `cell_*`, add
       `cell_struct_exprs` and `@cell_struct`; include from `CellModule.jl`;
       add to `CellModule`'s export list and module-docstring surface summary.
-- [ ] `projection/IoMap.jl`: `@iomap` = supertype default + delegate; replace
+- [x] `projection/IoMap.jl`: `@iomap` = supertype default + delegate; replace
       the `..DocumentModule: _cell_*` import with
       `..CellModule: cell_struct_exprs`.
-- [ ] `projection/Projection.jl`: `@projection` = supertype default +
+- [x] `projection/Projection.jl`: `@projection` = supertype default +
       delegate; delete the duplicated inline codegen; add the
       `..CellModule: cell_struct_exprs` import.
-- [ ] `document/Document.jl`: delete the four builder definitions and the
+- [x] `document/Document.jl`: delete the four builder definitions and the
       "Shared Cell-struct codegen" comment block; import
       `cell_kw_params`, `cell_kwctor` from `..CellModule`; update the
       fragment-header comment.
-- [ ] `document/DocumentModule.jl`: remove the "Downward private seam"
+- [x] `document/DocumentModule.jl`: remove the "Downward private seam"
       paragraph from the docstring.
-- [ ] Docs: `kernel/doc/cell.md` (new `@cell_struct` section: surface,
+- [x] Docs: `kernel/doc/cell.md` (new `@cell_struct` section: surface,
       builders-as-seam, who builds on it), `kernel/doc/document.md` (retire
       the "Downward private seam" section; note `@document` imports the kw
       builders from the cell layer), `documentation/macros.md` (add
@@ -175,13 +185,15 @@ front-door stance.
       `documentation/architecture-rules.md` (update the seam-pattern
       precedent list: share struct codegen by sinking it below both users,
       not by private import).
-- [ ] Tests: new kernel-test file under `test/cell/` driving `@cell_struct`
+- [x] Tests authored: `test/cell/CellStructTest.jl` driving `@cell_struct`
       directly (wrap, transparent read/write, raw-cell passthrough via
-      `getfield`, keyword ctor with and without defaults, explicit
-      supertype); then `test_cell()` and `test_kernel()`; expansion parity
-      for the heavy users via `test_base()`, `test_visual()`, `test_domain()`
-      (the three macros expand in every domain).
-- [ ] Update
+      `getfield`, keyword ctor with defaults / required keywords, explicit
+      supertype), wired into `test_kernel()` and exported.
+- [ ] Tests executed: `test_cell_struct()` and `test_kernel()`; expansion
+      parity for the heavy users via `test_base()`, `test_visual()`,
+      `test_domain()` (the three macros expand in every domain). **Blocked in
+      the implementing environment (no Julia); run before closing.**
+- [x] Update
       [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md):
       cluster A is resolved by this plan (its step 3 and the matching
       checklist item defer here); steps 1–2 (ReferenceModule exports, dead

@@ -32,6 +32,12 @@ The module exposes:
   `ImmutableCell`
 - **Functions**: `set_value!`, `set_function!`, `is_up_to_date`, `peek` (reactive
   kind only, except the shared read protocol `c[]`)
+- **Struct codegen**: `@cell_struct` — a struct of transparent Cell fields
+  (auto-wrapping ctor, read/write-through accessors, optional initial values) —
+  plus its assembler `cell_struct_exprs` and expr-builders
+  (`cell_autowrap_ctor`, `cell_property_accessors`, `cell_kw_params`,
+  `cell_kwctor`), the seam the declarative struct macros (`@document`,
+  `@iomap`, `@projection`) build on; see [`CellStruct.jl`](CellStruct.jl)
 
 The instrumentation counters (`PerformanceCounterModule`,
 `cell/PerformanceCounter.jl`, whose `_perf` dict `ReactiveCell` bumps inline on the
@@ -67,6 +73,8 @@ module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        set_value!, set_function!, is_up_to_date
+export var"@cell_struct", cell_struct_exprs,
+       cell_autowrap_ctor, cell_property_accessors, cell_kw_params, cell_kwctor
 
 # ── the base type + the three kinds (one file each) ────────────────────────
 # AbstractCell first (it also holds the cross-kind protocol fallbacks); the
@@ -75,5 +83,8 @@ include("AbstractCell.jl")
 include("ReactiveCell.jl")
 include("MutableCell.jl")
 include("ImmutableCell.jl")
+
+# ── transparent-Cell struct codegen (`@cell_struct` + its builders) ─────────
+include("CellStruct.jl")
 
 end # module

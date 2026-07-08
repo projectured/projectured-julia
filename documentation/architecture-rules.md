@@ -183,6 +183,13 @@ package whose document walk can express them.
   methods never earns a new file. Precedents: operation traversal and rerooting,
   reader defaults, insertion, serialization, the projection template's children
   container, layout focus-paths.
+- **Shared helpers sink below every user, as exported API.** When two layers need
+  the same machinery, do not lend one layer's internals to the other: either make
+  the sharers fragments of one module (the `@event_case` / `@gestures` parser,
+  in-namespace by construction) or sink the machinery to a layer at or below both
+  and export it (the transparent-Cell struct codegen: `@cell_struct` + builders in
+  the cell layer, built on by `@document`, `@iomap`, and `@projection`).
+  Cross-layer imports name exported symbols only.
 - **Lower layers may *mention* higher concepts only as opaque payloads** — an untyped
   field the lower layer never interprets (`ProjectionReference.projection::Any`,
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.

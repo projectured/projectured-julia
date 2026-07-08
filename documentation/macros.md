@@ -4,12 +4,30 @@ Three macros — `@document`, `@projection`, and `@iomap` — generate the
 boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
 [document/Document.jl](../package/kernel/main/document/Document.jl),
-[common/Projection.jl](../package/kernel/main/projection/Projection.jl), and
-[common/IoMap.jl](../package/kernel/main/projection/IoMap.jl) respectively.
+[projection/Projection.jl](../package/kernel/main/projection/Projection.jl), and
+[projection/IoMap.jl](../package/kernel/main/projection/IoMap.jl) respectively.
 
 All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
 through generated `getproperty` / `setproperty!` methods.
+
+## `@cell_struct` — the codegen the three build on
+
+The shared pattern is implemented **once, in the cell layer**:
+[cell/CellStruct.jl](../package/kernel/main/cell/CellStruct.jl) defines
+`@cell_struct struct T [<: Super] … end` — every field becomes a transparent
+`Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
+`getfield`), and `field::T = value` defaults produce the keyword constructor
+described below. It injects no supertype and carries no document, projection,
+or IoMap vocabulary.
+
+`@iomap` and `@projection` are exactly `@cell_struct` plus their default
+supertype: they inject `<: IoMap` / `<: Projection` when none is written and
+delegate to the cell layer's assembler (`cell_struct_exprs`). `@document`
+generates its own kind-parameterized stem (see below) and reuses the cell
+layer's keyword-constructor builders (`cell_kw_params`, `cell_kwctor`). Use
+`@cell_struct` directly for a transparent-Cell struct that is none of the
+three framework kinds.
 
 ## Default base supertype
 
@@ -179,8 +197,9 @@ iomap has `projection`, `input`, `output` fields).
 
 ## Default field values (`@kwdef`-style)
 
-All three macros accept `Base.@kwdef`-style defaults on fields, so you no longer
-need an outer convenience constructor whose only job is to fill in defaults:
+All three macros (and the underlying `@cell_struct`) accept `Base.@kwdef`-style
+defaults on fields, so you no longer need an outer convenience constructor whose
+only job is to fill in defaults:
 
 ```julia
 @projection struct WidgetButtonToGraphicsCanvas      # <: Projection is defaulted in
