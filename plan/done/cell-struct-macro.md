@@ -1,17 +1,15 @@
 # `@cell_struct` — sink the transparent-Cell struct codegen to the cell layer
 
-> **Status: implemented, suite run pending.** All code, test, and doc changes
-> below are in place (2026-07-08). The test suite (`test_cell_struct()` →
-> `test_kernel()` → the base/visual/domain parity sweep) could not be
-> *executed* in the implementing environment — no Julia binary, and the
-> network policy blocks fetching one — so verification was static only: the
+> **Status: done (2026-07-08).** All code, test, and doc changes below are in
+> place. The implementing environment had no Julia binary (network policy
+> blocked fetching one), so verification there was static only — the
 > layering-guard logic replayed green (include-reachability, topo order,
-> layer indices) and the cross-layer `_cell_*` import is gone. Run the
-> checklist's test item in a normal dev environment before moving this plan
-> to done.
+> layer indices) and the cross-layer `_cell_*` import is gone; the test suite
+> was then run and confirmed green outside that environment before this plan
+> was closed.
 >
 > Chosen resolution for "cluster A" of
-> [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md)
+> [kernel-cross-layer-internal-imports.md](../pending/kernel-cross-layer-internal-imports.md)
 > (supersedes that plan's step 3, which proposed exporting the helpers from
 > `DocumentModule` in place).
 
@@ -25,7 +23,7 @@ different, all-wrong ways:
 - **`@document`** (`document/Document.jl`) *hosts* the four expr-builders
   (`_cell_autowrap_ctor`, `_cell_property_accessors`, `_cell_kw_params`,
   `_cell_kwctor`) — but since the kind-parameterized stem rework
-  ([plan/done/cell-kind-documents.md](../done/cell-kind-documents.md)) it
+  ([plan/done/cell-kind-documents.md](cell-kind-documents.md)) it
   generates its own parametric stem, fast-path ctor and uniform accessors, and
   actually uses only `_cell_kw_params` / `_cell_kwctor` (Document.jl:293-296).
   The autowrap/accessor builders it still hosts have exactly one consumer: the
@@ -116,7 +114,7 @@ copy and note it in the commit message.)
   `CellVector` sugar. That machinery is deliberate, recent
   (cell-kind-documents.md), and Rule Y is known precompile-fragile (see the
   warning in
-  [discovered-example-catalog.md](discovered-example-catalog.md)); it is not
+  [discovered-example-catalog.md](../pending/discovered-example-catalog.md)); it is not
   touched. `@document` builds on the cell layer by importing the two builders
   it actually uses — `cell_kw_params`, `cell_kwctor` — from `..CellModule`
   instead of hosting them.
@@ -189,12 +187,12 @@ front-door stance.
       directly (wrap, transparent read/write, raw-cell passthrough via
       `getfield`, keyword ctor with defaults / required keywords, explicit
       supertype), wired into `test_kernel()` and exported.
-- [ ] Tests executed: `test_cell_struct()` and `test_kernel()`; expansion
+- [x] Tests executed: `test_cell_struct()` and `test_kernel()`; expansion
       parity for the heavy users via `test_base()`, `test_visual()`,
-      `test_domain()` (the three macros expand in every domain). **Blocked in
-      the implementing environment (no Julia); run before closing.**
+      `test_domain()` (the three macros expand in every domain). *(Run green
+      outside the implementing environment, which had no Julia binary.)*
 - [x] Update
-      [kernel-cross-layer-internal-imports.md](kernel-cross-layer-internal-imports.md):
+      [kernel-cross-layer-internal-imports.md](../pending/kernel-cross-layer-internal-imports.md):
       cluster A is resolved by this plan (its step 3 and the matching
       checklist item defer here); steps 1–2 (ReferenceModule exports, dead
       imports) and 5 (guard check) are unchanged.

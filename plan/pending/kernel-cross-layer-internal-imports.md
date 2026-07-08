@@ -94,7 +94,7 @@ belong in the flat API. They need no export either:
 
 ### 3. Sink the Cell-struct codegen into a cell-layer macro
 
-> **Superseded by [cell-struct-macro.md](cell-struct-macro.md)** (2026-07-08):
+> **Superseded by [cell-struct-macro.md](../done/cell-struct-macro.md)** (2026-07-08):
 > the helpers move into a new exported `@cell_struct` macro (+ builder
 > functions) in the cell layer; `@document`, `@iomap`, and `@projection` build
 > on top of it. That plan also removes `@projection`'s duplicated inline copy
@@ -135,7 +135,7 @@ to the `DocumentModule` export list.
 ### 4. Retire the private-seam exemption from the docs
 
 - The `DocumentModule` docstring and `package/kernel/doc/document.md` changes
-  are covered by [cell-struct-macro.md](cell-struct-macro.md) (the seam
+  are covered by [cell-struct-macro.md](../done/cell-struct-macro.md) (the seam
   disappears rather than being re-documented).
 - `documentation/architecture-rules.md` — add the rule to the Enforcement
   section: *cross-layer imports may name only exported symbols; share private
@@ -183,7 +183,7 @@ keeps the common path honest.
       `PointReference` from `ReferenceModule`.
 - [ ] Delete the dead `ReferenceModule` import in `ReferenceDispatching.jl`;
       drop dead `RangeReference` from `Reversing.jl`.
-- [x] Cluster A: execute [cell-struct-macro.md](cell-struct-macro.md)
+- [x] Cluster A: execute [cell-struct-macro.md](../done/cell-struct-macro.md)
       (`@cell_struct` in the cell layer; `@document`/`@iomap`/`@projection`
       build on it; docs updated there).
 - [ ] Docs for this plan's remainder:
