@@ -29,6 +29,10 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document, with_selection
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
+import ..DomainSupportModule
+import ..DomainSupportModule: insertion_root, nothing_document, insertion_names,
+                              insertion_candidates, complete_insertion, resolve_insertion,
+                              make_insertion_document
 import ..JuliaModule: JuliaInsertion, JuliaDocument,
                       JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
                       JuliaBegin, JuliaReturn, JuliaBlock
@@ -142,8 +146,12 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         GestureBinding(KeyDownPattern(:return, nothing, nothing),
             (doc, event) -> _insertion_commit(p, ins),
             (doc, sel) -> true, "Commit insertion", "insertion"),
+        # Escape aborts to the domain's own placeholder (`nothing_document`, a
+        # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
+        # Insert ⇄ Escape loop within each domain.
         GestureBinding(KeyDownPattern(:escape, nothing, nothing),
-            (doc, event) -> replace_document(EmptyReferencePath(), DocumentNothing()),
+            (doc, event) -> replace_document(EmptyReferencePath(),
+                                             nothing_document(typeof(ins))()),
             (doc, sel) -> true, "Cancel insertion", "insertion"),
         GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
             (doc, event) -> _insertion_delete(ins, :backspace),
@@ -188,43 +196,39 @@ end
 read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event) =
     read_projection_gesture(p, iomap, event)
 
-# ── Factory: name → domain document / insertion ───────────────────────────────
+# ── Name → document: reflection over the type tree ────────────────────────────
+#
+# No factory table: the candidates are `insertion_candidates(Document)` (every
+# insertable concrete document type, computed by reflection and memoized on the
+# world counter), the accepted names are derived from the type names
+# (`"JsonString"` / `"json string"`), and construction goes through
+# `make_insertion_document` dispatch. The historic short names (`"julia"`,
+# `"json"`, …) live on as `insertion_aliases` emitted by each `@domain`.
 
-const _FACTORY = Tuple{String,Function}[
-    ("julia", () -> JuliaInsertion("")),
-    ("json",  () -> JsonInsertion()),
-    ("xml",   () -> XmlInsertion()),
-    ("sql",   () -> SqlInsertion("")),
-    ("text",  () -> TextText()),
-]
+# `TextText` is a plain visual document, not an `@domain` kit, so its historic
+# `"text"` short name is a hand-written alias.
+DomainSupportModule.insertion_aliases(::Type{<:TextText}) = ["text"]
 
 """
     default_factory(name) -> Document | nothing
 
-Map a typed domain name to a fresh domain document / insertion, or `nothing`
-when `name` doesn't (yet) name a committable type.
+Map a typed name to a fresh document — an exact name/alias match or an
+unambiguous prefix of the reflected top-level candidates (`resolve_insertion`
+over `Document`), or `nothing` when `name` doesn't name a committable type.
 """
 function default_factory(name::AbstractString)
-    key = lowercase(strip(name))
-    for (k, make) in _FACTORY
-        k == key && return make()
-    end
-    nothing
+    T = resolve_insertion(Document, name)
+    T === nothing ? nothing : make_insertion_document(T)
 end
 
 """
     default_completion(name) -> String
 
-The completion suffix for a partially-typed name (e.g. `"jso"` → `"n"`), or `""`.
+The completion continuation for a partially-typed name (e.g. `"jso"` → `"n"`,
+the matching candidates' common remainder), or `""`.
 """
-function default_completion(name::AbstractString)
-    key = lowercase(strip(name))
-    isempty(key) && return ""
-    for (k, _) in _FACTORY
-        (k != key && startswith(k, key)) && return k[length(key)+1:end]
-    end
-    ""
-end
+default_completion(name::AbstractString) =
+    complete_insertion(Document, name).continuation
 
 # ── Julia keyword scaffolds + completion ───────────────────────────────────────
 #

@@ -17,20 +17,14 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
+import ..DomainSupportModule: var"@domain"
 export YamlDocument
 
-abstract type YamlDocument <: Document end
-
-# ── Insertion cursor ─────────────────────────────────────────────────────
-
-"""
-A placeholder for a YAML value being entered (the insert-by-typing cursor);
-type-to-replace swaps it for a concrete value.
-"""
-@document struct YamlInsertion <: YamlDocument
-    value::Any = nothing
-    selection::Reference = nothing
-end
+# The domain kit: `YamlDocument` (abstract root), `YamlNothing` (empty
+# placeholder, Insert turns it into the insertion), `YamlInsertion` (typed-name
+# buffer completing over the YAML candidates), the Insert gesture and the
+# insertion traits — all generated from the domain name.
+@domain Yaml
 
 # ── Scalars ──────────────────────────────────────────────────────────────
 

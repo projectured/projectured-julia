@@ -12,6 +12,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
+import ..DomainSupportModule: var"@domain"
 export JuliaDocument, _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
@@ -81,6 +82,12 @@ The literal `nothing`.
 @document struct JuliaNothing <: JuliaDocument
     selection::Reference = nothing
 end
+
+# The insertion kit adopts the existing types: `JuliaNothing` doubles as the
+# empty placeholder (it is also the parsed `nothing` literal) and
+# `JuliaInsertion` as the source/typed-name buffer — only the traits, the
+# `"julia"` alias, and the Insert gesture are generated.
+@domain Julia root = JuliaDocument nothing = JuliaNothing insertion = JuliaInsertion
 
 """
 A symbol literal (e.g. `:foo`). `name` stores the text without the leading colon.

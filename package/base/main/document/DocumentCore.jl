@@ -49,8 +49,8 @@ inserted.  `font` is the optional display font (style/font, not yet ported).
 The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
 """
 @document struct DocumentInsertion <: DocumentBase
-    value::String
-    font::Any
+    value::String = ""
+    font::Any = nothing
     selection::Reference = nothing
 end
 

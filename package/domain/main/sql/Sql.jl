@@ -12,6 +12,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
+import ..DomainSupportModule: var"@domain"
 
 export SqlDocument, SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
@@ -31,6 +32,13 @@ A placeholder for SQL source being typed; committed on Enter by parsing with
     value::String = ""
     selection::Reference = nothing
 end
+
+# The insertion kit adopts the hand-written root (it precedes `SqlStatement`,
+# which the generated root cannot) and the existing `SqlInsertion`; only
+# `SqlNothing`, the traits, the `"sql"` alias, and the Insert gesture are
+# generated.
+@domain Sql root = SqlDocument insertion = SqlInsertion
+
 abstract type SqlSelectExpression <: SqlDocument end
 abstract type SqlFromBaseItem <: SqlDocument end
 abstract type SqlJoinType <: SqlDocument end

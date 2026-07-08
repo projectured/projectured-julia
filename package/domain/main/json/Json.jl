@@ -21,20 +21,14 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
+import ..DomainSupportModule: var"@domain"
 export JsonDocument, entries
 
-abstract type JsonDocument <: Document end
-
-# ── Insertion cursor ─────────────────────────────────────────────────────
-
-"""
-A placeholder for a JSON value being entered (the insert-by-typing cursor);
-type-to-replace swaps it for a concrete value.
-"""
-@document struct JsonInsertion <: JsonDocument
-    value::Any = nothing
-    selection::Reference = nothing
-end
+# The domain kit: `JsonDocument` (abstract root), `JsonNothing` (empty
+# placeholder, Insert turns it into the insertion), `JsonInsertion` (typed-name
+# buffer completing over the JSON candidates), the Insert gesture and the
+# insertion traits — all generated from the domain name.
+@domain Json
 
 # ── Primitives ───────────────────────────────────────────────────────────
 

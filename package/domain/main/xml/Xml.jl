@@ -22,20 +22,14 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..DocumentApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
+import ..DomainSupportModule: var"@domain"
 export XmlDocument
 
-abstract type XmlDocument <: Document end
-
-# ── Insertion cursor ────────────────────────────────────────────────
-
-"""
-A placeholder for an XML node being entered (the insert-by-typing cursor);
-type-to-replace swaps it for concrete content.
-"""
-@document struct XmlInsertion <: XmlDocument
-    value::Any = nothing
-    selection::Reference = nothing
-end
+# The domain kit: `XmlDocument` (abstract root), `XmlNothing` (empty
+# placeholder, Insert turns it into the insertion), `XmlInsertion` (typed-name
+# buffer completing over the XML candidates), the Insert gesture and the
+# insertion traits — all generated from the domain name.
+@domain Xml
 
 # ── Attribute ─────────────────────────────────────────────────────────────
 
