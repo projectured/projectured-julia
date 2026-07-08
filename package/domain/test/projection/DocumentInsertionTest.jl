@@ -180,6 +180,35 @@ function test_document_insertion()
             @test _written_doc(esc) isa DocumentNothing
         end
 
+        @testset "Enter prefix-commit + Tab accept-completion" begin
+            proj = DocumentInsertionToSyntaxLeaf()
+            # Ambiguous prefix: Enter declines; Tab appends the partial
+            # (longest-common-prefix) completion the hint doesn't show.
+            ins = DocumentInsertion("jso")
+            ins.selection = _ins_vpath(3)
+            iom = print_document(proj, proj, ins, nothing)
+            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) === nothing
+            tab = read_intent(proj, iom, KeyDown(:tab, Modifiers()))
+            @test tab isa ReplaceStringRangeOperation
+            evaluate_operation((document = ins,), tab)
+            @test ins.value == "json"
+            # Fully ambiguous ("json" extends nowhere): Tab declines so the
+            # gesture keeps propagating; Enter commits the exact alias.
+            ins.selection = _ins_vpath(4)
+            @test read_intent(proj, iom, KeyDown(:tab, Modifiers())) === nothing
+            @test _written_doc(read_intent(proj, iom, KeyDown(:return, Modifiers()))) isa JsonInsertion
+            # Unambiguous prefix: Tab accepts the whole remainder; Enter
+            # commits without accepting first.
+            ins.value = "json str"
+            ins.selection = _ins_vpath(8)
+            tab2 = read_intent(proj, iom, KeyDown(:tab, Modifiers()))
+            evaluate_operation((document = ins,), tab2)
+            @test ins.value == "json string"
+            @test _written_doc(read_intent(proj, iom, KeyDown(:return, Modifiers()))) isa JsonString
+            ins.value = "json str"
+            @test _written_doc(read_intent(proj, iom, KeyDown(:return, Modifiers()))) isa JsonString
+        end
+
         @testset "JuliaInsertion commits source via juliaparse" begin
             ji = JuliaInsertion("factorial(5)")
             ji.selection = _ins_vpath(length("factorial(5)"))

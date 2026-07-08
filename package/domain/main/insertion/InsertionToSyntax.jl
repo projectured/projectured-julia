@@ -88,31 +88,34 @@ InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractStrin
 
 # ── Completion policies ───────────────────────────────────────────────────────
 #
-# A policy maps the insertion to `(state, continuation)`:
-#   :empty       — blank buffer, neutral colour, no hint;
-#   :invalid     — cannot commit (red);
-#   :ambiguous   — several candidates (green, no hint; Tab still partial-completes);
-#   :unambiguous — one candidate (green + the pale continuation hint).
+# A policy maps the insertion to `(; state, hint, extension)`:
+#   state     — :empty (neutral) / :invalid (red) / :ambiguous / :unambiguous (green);
+#   hint      — the pale continuation rendered after the typed text (per spec
+#               only when the prefix is unambiguous);
+#   extension — what Tab appends: the matching names' common remainder, which
+#               on an ambiguous prefix is the *partial* completion the hint
+#               doesn't show.
 
 """
-    name_completion(ins) -> (state, continuation)
+    name_completion(ins) -> (; state, hint, extension)
 
 The default policy: name completion over the reflected candidates of the
-insertion's own domain (`insertion_root(typeof(ins))`). Per spec the
-continuation is rendered only when the prefix is unambiguous.
+insertion's own domain (`insertion_root(typeof(ins))`).
 """
 function name_completion(ins)
     c = complete_insertion(insertion_root(typeof(ins)), something(ins.value, ""))
-    (c.state, c.state === :unambiguous ? c.continuation : "")
+    (state = c.state,
+     hint = c.state === :unambiguous ? c.continuation : "",
+     extension = c.continuation)
 end
 
-# Source insertions (SQL, and Julia's non-keyword branch) are committable when
-# the buffer parses: green = complete source, red = not (yet) parseable.
+# Source insertions (SQL) are committable when the buffer parses: green =
+# complete source, red = not (yet) parseable; there is nothing to Tab-extend.
 _parse_completion(parser) = ins -> begin
     value = something(ins.value, "")
-    isempty(strip(value)) && return (:empty, "")
+    isempty(strip(value)) && return (state = :empty, hint = "", extension = "")
     parsed = try parser(value); true catch; false end
-    (parsed ? :unambiguous : :invalid, "")
+    (state = parsed ? :unambiguous : :invalid, hint = "", extension = "")
 end
 
 # state → typed-text colour; the neutral colour comes from the projection.
@@ -151,9 +154,9 @@ end
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     typed = TextString(Cell(() -> something(ins.value, "")),
                        Cell(p.value.font),
-                       Cell(() -> _typed_color(p, p.completion(ins)[1])),
+                       Cell(() -> _typed_color(p, p.completion(ins).state)),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    hint = TextString(Cell(() -> p.completion(ins)[2]),
+    hint = TextString(Cell(() -> p.completion(ins).hint),
                       Cell(p.hint.font), Cell(p.hint.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # The inner leaf's selection is the insertion's own (`value{k}` is the
@@ -226,6 +229,12 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
             (doc, event) -> replace_document(EmptyReferencePath(),
                                              nothing_document(typeof(ins))()),
             (doc, sel) -> true, "Cancel insertion", "insertion"),
+        # Tab accepts the completion: the full remainder when unambiguous, the
+        # longest-common-prefix *partial* completion when ambiguous; declines
+        # (keeps propagating) when there is nothing to extend.
+        GestureBinding(KeyDownPattern(:tab, nothing, nothing),
+            (doc, event) -> _insertion_tab(p, ins),
+            (doc, sel) -> true, "Accept completion", "insertion"),
         GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
             (doc, event) -> _insertion_delete(ins, :backspace),
             (doc, sel) -> true, "Delete backward", "insertion"),
@@ -249,6 +258,16 @@ end
 function _insertion_commit(p::InsertionToSyntaxLeaf, ins)
     doc = p.commit(something(ins.value, ""))
     doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc)
+end
+
+# Append the completion policy's Tab extension at the end of the buffer, caret
+# after it; nothing without a value cursor or with nothing to extend.
+function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
+    _value_range(ins) === nothing && return nothing
+    extension = p.completion(ins).extension
+    isempty(extension) && return nothing
+    n = length(something(ins.value, ""))
+    ReplaceStringRangeOperation(_value_path(RangeReference(n, n)), extension)
 end
 
 # Backspace/Delete range computation; nothing at the value boundary.
