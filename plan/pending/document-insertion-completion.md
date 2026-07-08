@@ -1,11 +1,12 @@
 # DocumentInsertion — live completion, commitability colouring, Insert-key insertions
 
-**Filed:** 2026-07-08. **Steer (same day):** no registry — static candidate tables are
-enough this time; completion names are **derived automatically from type names**; the
-**Insert key** turns the `*Nothing` placeholder documents into their domain's
-insertion; domain insertions (`JsonInsertion`, `XmlInsertion`, `JuliaInsertion`) get
-the same completion behaviour **constrained to their own domain**, matched **without
-the domain prefix**.
+**Filed:** 2026-07-08. **Steer (same day):** no registry and no constant candidate
+tables — the candidate list comes from **reflection over the document type tree**
+(`subtypes`), construction from **dispatch**; completion names are **derived
+automatically from type names**; the **Insert key** turns the `*Nothing` placeholder
+documents into their domain's insertion; domain insertions (`JsonInsertion`,
+`XmlInsertion`, `JuliaInsertion`) get the same completion behaviour **constrained to
+their own domain**, matched **without the domain prefix**.
 
 **Goal:** finish the insertion type-in experience. Typing into
 `Insert a new ⟨foo⟩ here` gives live feedback against the candidate list:
@@ -13,6 +14,8 @@ the domain prefix**.
 - names are auto-derived from the document type name — both the **capitalized type
   name** (`JsonString`) and the **lowercase human-readable form** (`json string`,
   CamelCase split into words) are accepted, with no hand-maintained name lists;
+  newly defined document types appear in the completions automatically, because the
+  candidate list is *computed* from the type tree, never registered;
 - **unambiguous prefix** → the rest of the name renders as a **pale greenish
   continuation**, the typed characters turn **solid greenish**;
 - **no possible completion** → the typed characters turn **reddish**;
@@ -38,7 +41,7 @@ commitability colouring"* in
 |---|---|---|
 | `DocumentInsertion` + `DocumentNothing` | [DocumentCore.jl:25-65](../../package/base/main/document/DocumentCore.jl#L25-L65) | done |
 | char editing / Enter-commit / Escape-abort on the shared insertion leaf | [InsertionToSyntax.jl:120-189](../../package/domain/main/insertion/InsertionToSyntax.jl#L120-L189) | done |
-| name → document factory (`_FACTORY`: `julia`/`json`/`xml`/`sql`/`text`) | [InsertionToSyntax.jl:193-213](../../package/domain/main/insertion/InsertionToSyntax.jl#L193-L213) | generalize to derived-name candidate tables |
+| name → document factory (`_FACTORY`: `julia`/`json`/`xml`/`sql`/`text`) | [InsertionToSyntax.jl:193-213](../../package/domain/main/insertion/InsertionToSyntax.jl#L193-L213) | replace with reflection + dispatch |
 | completion suffix computed but **never rendered** | `default_completion` ([InsertionToSyntax.jl:220-227](../../package/domain/main/insertion/InsertionToSyntax.jl#L220-L227)) | render it |
 | pale continuation rendering precedent | `JuliaInsertionToSyntaxLeaf` (`close=TextString(() -> julia_completion(…), green)`, [InsertionToSyntax.jl:369-374](../../package/domain/main/insertion/InsertionToSyntax.jl#L369-L374)) | reuse pattern |
 | commitability colouring (green/red typed text) | nowhere | new |
@@ -49,54 +52,74 @@ commitability colouring"* in
 
 ## Design
 
-### A. Candidate tables with auto-derived names (no registry)
+### A. Reflection-based candidates (no registry, no constant tables)
 
-Stay with `const` tables in the modules that own them (like today's `_FACTORY` and
-`_JULIA_KEYWORD_SCAFFOLDS`). What changes is that a candidate is keyed by its **type**
-and its accepted names are **derived**, not listed:
+The candidate list is **computed from the document type tree**; construction and
+per-type tweaks go through **multiple dispatch**. Nothing is ever listed or
+registered, so a newly defined document type is a completion candidate the moment
+its `struct` is evaluated:
 
 ```julia
-struct InsertionCandidate
-    type_name::Symbol      # :JsonString
-    factory::Function      # () -> document with cursor pre-placed (with_selection)
-    aliases::Vector{String}# extra short names, e.g. "julia" for JuliaInsertion
-end
+# Enumeration — all transitively-concrete subtypes of a root abstract type,
+# memoized keyed on Base.get_world_counter() (a new type definition bumps the
+# world counter, so the cache invalidates itself; per keystroke it is one lookup).
+insertion_candidates(root::Type) -> Vector{Type}
 
-# derived automatically, once, at table construction:
-#   "JsonString"      (the capitalized type name)
-#   "json string"     (CamelCase → lowercase words — automatically understood)
-# and for a domain-scoped table (strip_prefix = "Json"):
-#   "String", "string"
-candidate_names(c; strip_prefix = nothing) -> Vector{String}
+# A type is a candidate iff it can actually be made:
+insertable(::Type{T}) = hasmethod(make_insertion_document, Tuple{Type{T}})
+
+# Construction — dispatch, not factory tables. The fallback covers every
+# zero-arg-constructible document; per-type methods add cursor placement and
+# scaffolds where the empty instance is not enough:
+make_insertion_document(::Type{T}) where {T} = T()          # when hasmethod(T, Tuple{})
+make_insertion_document(::Type{JsonString}) =
+    with_selection(JsonString(""), @reference value{0})
+make_insertion_document(::Type{JuliaFunction}) =            # today's keyword scaffold
+    with_selection(JuliaFunction(JuliaInsertion(), …), @reference name.value{0})
+
+# Names — derived from nameof(T), never listed:
+#   "JsonString"   (the capitalized type name)
+#   "json string"  (CamelCase → lowercase words — automatically understood)
+# and for a domain-scoped root the domain prefix is stripped:
+#   root = JsonDocument  ⇒ prefix "Json"  ⇒ "String", "string"
+insertion_names(T; root = Document) -> Vector{String}
 ```
 
-- **Top-level table** (for `DocumentInsertion`): each domain's insertion
-  (`JuliaInsertion`, `JsonInsertion`, `XmlInsertion`, `SqlInsertion`, `TextText`) with
-  today's short aliases (`"julia"`, `"json"`, …) kept as exact-commit names, **plus**
-  each domain's concrete value candidates under their full prefixed names — so
-  `JsonString` / `json string` commit a `JsonString` directly from the top level.
-- **Domain tables**: JSON — `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`,
-  `JsonArray`, `JsonObject`, `JsonObjectEntry`, matched prefix-free; the factories are
-  exactly the `with_selection(…)` constructions already used by the char gestures
+- **Top level** (`DocumentInsertion`): `root = Document`. Non-insertable
+  infrastructure documents (`SyntaxLeaf`, `TextString`, …) drop out naturally — they
+  have no zero-arg constructor and no `make_insertion_document` method; the
+  `*Nothing` and `*Insertion` placeholder conventions are excluded explicitly (they
+  are not values you insert). So `JsonString` / `json string` commits a `JsonString`
+  directly from the top level, and `json insertion` commits a `JsonInsertion`.
+- **Domain-scoped** (`JsonInsertion` → `root = JsonDocument`, `XmlInsertion` →
+  `XmlDocument`, `JuliaInsertion` → `JuliaDocument`): the same enumeration under the
+  domain's abstract type, names matched prefix-free. JSON: the
+  `make_insertion_document` methods are exactly the `with_selection(…)` constructions
+  already used by the char gestures
   ([Json.jl:256-262](../../package/domain/main/json/Json.jl#L256-L262)) — factor them
-  out so char-replace and name-commit share one source. XML — `XmlElement`, `XmlText`
-  (children context; `XmlAttribute` excluded, it cannot stand alone). Julia — the
-  existing `_JULIA_KEYWORD_SCAFFOLDS`: the unprefixed human-readable name of
-  `JuliaFunction` *is* `"function"`, so the keyword table already is the Julia
-  candidate table; it additionally gains the capitalized forms (`Function`,
-  `JuliaFunction`) via the same name derivation.
+  out so char-replace and name-commit share one source. Julia: the
+  `_JULIA_KEYWORD_SCAFFOLDS` table **dissolves into dispatch methods** — the
+  prefix-stripped name of `JuliaFunction` *is* `"function"`, `JuliaIf` is `"if"`,
+  etc., so the keyword completion falls out of the generic name derivation; the
+  zero-arg fallback additionally picks up e.g. `JuliaBreak`/`JuliaContinue` for free.
+- Where an extra short name is genuinely wanted (e.g. `"julia"` for
+  `JuliaInsertion`), it is a dispatch hook too, not a table:
+  `insertion_aliases(::Type{JuliaInsertion}) = ["julia"]` (default `String[]`).
 - Matching is case-insensitive on the derived names; the rendered continuation uses
   the candidate name's own case for the remainder while the typed characters stay
   exactly as typed.
+- `subtypes` comes from `InteractiveUtils` (stdlib); the walk is slow-ish, which is
+  why the enumeration is memoized on the world counter — recomputed only after new
+  method/type definitions, one dict lookup otherwise.
 
 ### B. Completion semantics
 
-Pure functions over a candidate table (unit-testable without any projection),
-in `InsertionToSyntax.jl`:
+Pure functions over the reflected candidate set of a root type (unit-testable
+without any projection), in `InsertionToSyntax.jl`:
 
 ```julia
-complete_insertion(candidates, typed) -> (state, continuation, matches)
-resolve_insertion(candidates, typed)  -> Union{InsertionCandidate, Nothing}
+complete_insertion(root, typed) -> (state, continuation, matches)
+resolve_insertion(root, typed)  -> Union{Type, Nothing}   # commit = make_insertion_document(it)
 ```
 
 - A name matches when `startswith(lowercase(name), lowercase(strip(typed)))`;
@@ -111,11 +134,12 @@ resolve_insertion(candidates, typed)  -> Union{InsertionCandidate, Nothing}
   - `:ambiguous` — ≥2 candidates → **green**, continuation rendered empty (per spec);
     the LCP of all matching names beyond `typed` is still computed for Tab partial
     completion.
-- `resolve_insertion`: an **exact** name/alias match wins (so `"julia"` commits
-  `JuliaInsertion` even though it is also a prefix of `julia function`, keeping
-  today's `default_factory` behaviour); otherwise the single candidate of an
-  `:unambiguous` prefix; otherwise `nothing`. `default_factory` /
-  `default_completion` become thin wrappers over the top-level table.
+- `resolve_insertion`: an **exact** name/alias match wins (so `"julia"` — via the
+  `insertion_aliases` dispatch hook — commits `JuliaInsertion` even though it is also
+  a prefix of `julia function`, keeping today's `default_factory` behaviour);
+  otherwise the single candidate of an `:unambiguous` prefix; otherwise `nothing`.
+  `default_factory` / `default_completion` become thin wrappers over
+  `resolve_insertion(Document, …)` / `complete_insertion(Document, …)`.
 
 ### C. Rendering — continuation span + reactive commitability colours
 
@@ -180,15 +204,16 @@ Unchanged from the pre-steer design, now shared by **three** leaves
 
 - **`JsonInsertion`** grows a `value::String` buffer (today `value::Any = nothing`)
   and is projected through the shared `InsertionToSyntaxLeaf` (own label, e.g.
-  `insert a ⟨…⟩ here` — replacing the static `"insert JSON here"` hint) with the JSON
-  candidate table, prefix-free matching, and the C/D behaviour. Coexistence with the
+  `insert a ⟨…⟩ here` — replacing the static `"insert JSON here"` hint) with the
+  reflected `JsonDocument` candidates, prefix-free matching, and the C/D behaviour. Coexistence with the
   existing single-char type-to-replace gestures is already arranged by
   `_json_replaceable` ([Json.jl:196-208](../../package/domain/main/json/Json.jl#L196-L208)):
   it declines on a **char cursor**, so with the caret inside the insertion's buffer,
   characters type into the buffer (`s`,`t`,`r`… with live completion), while a
   whole-node selection keeps the quick `"`/`[`/`{`/digit replaces.
-- **`XmlInsertion`** likewise, over the XML table (`element`/`Element`/`XmlElement`,
-  `text`/…).
+- **`XmlInsertion`** likewise, over the reflected `XmlDocument` candidates
+  (`element`/`Element`/`XmlElement`, `text`/…; `XmlAttribute` opts out via
+  `insertable(::Type{XmlAttribute}) = false` — it cannot stand alone as a child).
 - **`JuliaInsertion`** keeps its dual commit (keyword scaffold **or** `juliaparse` of
   a complete expression) — only the *feedback* is upgraded to the shared colour
   states: green when the buffer is a keyword prefix **or** parseable as complete
@@ -206,13 +231,18 @@ helpers rather than copy-pasting thunks.
 
 ## Steps
 
-- [ ] **A. Tables + name derivation** — `InsertionCandidate`, CamelCase→words
-      derivation, prefix stripping; top-level table replaces `_FACTORY` (aliases kept,
-      `default_factory`/`default_completion` as wrappers); JSON/XML tables with factories
-      factored out of the char-gesture table. Verify: `test_document_insertion()` green
-      unchanged, plus name-derivation unit tests (`JsonString` ⇄ `json string`).
+- [ ] **A. Reflection core** — `insertion_candidates(root)` (world-counter-memoized
+      `subtypes` walk), `insertable`, `make_insertion_document` fallback + per-type
+      methods (JSON cursors factored out of the char-gesture table; Julia scaffolds
+      migrated from `_JULIA_KEYWORD_SCAFFOLDS` to dispatch), `insertion_names` /
+      `insertion_aliases`, `_FACTORY` deleted (`default_factory`/`default_completion`
+      as wrappers). Verify: `test_document_insertion()` green, name-derivation unit
+      tests (`JsonString` ⇄ `json string`, prefix stripping), and an **audit test**
+      printing `insertion_candidates(Document)` so unwanted zero-arg types surface.
 - [ ] **B. Semantics** — `complete_insertion`/`resolve_insertion` + unit tests for the
-      four states, LCP partial completion, exact-alias-beats-ambiguity, case handling.
+      four states, LCP partial completion, exact-alias-beats-ambiguity, case handling,
+      and "defining a new `@document` type mid-test makes it completable" (the
+      world-counter memoization test).
 - [ ] **C. Rendering** — `SyntaxNode`-wrapping printer, updated reference mapping,
       reactive typed-text colour cell, `color_completion_hint` constant (adopted by the
       Julia leaf). Verify colours/continuation by inspecting printed span cells;
@@ -223,8 +253,9 @@ helpers rather than copy-pasting thunks.
 - [ ] **E. Insert key** — `JsonNothing`/`XmlNothing` documents + leaf projections;
       `@gestures` Insert on all four `*Nothing`s; Escape aborts to the matching
       `*Nothing`. Tests per domain (the `XmlToSyntaxTest` `:insert` test is the model).
-- [ ] **F. Domain insertions** — `JsonInsertion` buffer + shared leaf + JSON table;
-      `XmlInsertion` likewise; Julia colour states. Rerun `test_json()`, `test_xml()`,
+- [ ] **F. Domain insertions** — `JsonInsertion` buffer + shared leaf over the
+      reflected `JsonDocument` candidates; `XmlInsertion` likewise; Julia colour
+      states. Rerun `test_json()`, `test_xml()`,
       `test_julia_typein`, and the JSON repl example (`test_repl(json_example)`) since the
       insertion leaf changes shape.
 - [ ] **G. ConversationEditor** — chooser via `resolve_insertion` + shared colouring;
@@ -245,6 +276,17 @@ domain suites after E/F; `test_domain()` once at the end.
   projection changes; `jsonparse`, the conversation composer, and the JSON authoring
   tests all touch `JsonInsertion()`. The zero-arg constructor keeps working
   (`value = ""` default), but sweep `test_json()` + `test_json_to_syntax()`.
+- **Reflection over-admission** — the zero-arg `make_insertion_document` fallback
+  admits *every* zero-arg-constructible concrete `Document` subtype at the top level,
+  including widget/workbench/graphics documents that may not belong in a text-editing
+  completion list. The step-A audit test makes the actual list visible; noisy types
+  opt out via `insertable(::Type{Foo}) = false` (dispatch, not a table). If the
+  opt-out list grows long, flip the top-level root from `Document` to the domain
+  abstract types — still reflection, narrower tree.
+- **`subtypes` cost & staleness** — the walk needs `InteractiveUtils` and is slow, so
+  it is memoized on `Base.get_world_counter()`; any new method definition (not just
+  new types) invalidates the memo, so pathological method-definition churn recomputes
+  often. Acceptable for an editor session; measure in the REPL loop before merging.
 - **Alias vs ambiguity**: `"julia"` is an exact alias (commits `JuliaInsertion`) while
   also a prefix of other names, so it displays as ambiguous-green with no continuation
   yet commits on Enter. Accepted trade-off to preserve today's behaviour; revisit if
