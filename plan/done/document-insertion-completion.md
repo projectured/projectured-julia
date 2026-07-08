@@ -266,7 +266,7 @@ helpers rather than copy-pasting thunks.
 
 ## Steps
 
-- [ ] **A. Reflection core** — `insertion_candidates(root)` (world-counter-memoized
+- [x] **A. Reflection core** — `insertion_candidates(root)` (world-counter-memoized
       `subtypes` walk), `insertable`, `make_insertion_document` fallback + per-type
       methods (JSON cursors factored out of the char-gesture table; Julia scaffolds
       migrated from `_JULIA_KEYWORD_SCAFFOLDS` to dispatch), `insertion_names` /
@@ -274,18 +274,18 @@ helpers rather than copy-pasting thunks.
       as wrappers). Verify: `test_document_insertion()` green, name-derivation unit
       tests (`JsonString` ⇄ `json string`, prefix stripping), and an **audit test**
       printing `insertion_candidates(Document)` so unwanted zero-arg types surface.
-- [ ] **B. Semantics** — `complete_insertion`/`resolve_insertion` + unit tests for the
+- [x] **B. Semantics** — `complete_insertion`/`resolve_insertion` + unit tests for the
       four states, LCP partial completion, exact-alias-beats-ambiguity, case handling,
       and "defining a new `@document` type mid-test makes it completable" (the
       world-counter memoization test).
-- [ ] **C. Rendering** — `SyntaxNode`-wrapping printer, updated reference mapping,
+- [x] **C. Rendering** — `SyntaxNode`-wrapping printer, updated reference mapping,
       reactive typed-text colour cell, `color_completion_hint` constant (adopted by the
       Julia leaf). Verify colours/continuation by inspecting printed span cells;
       `test_text_navigation` on an insertion-bearing example.
-- [ ] **D. Gestures** — Enter via `resolve_insertion`, Tab accept-completion; tests:
+- [x] **D. Gestures** — Enter via `resolve_insertion`, Tab accept-completion; tests:
       `"jso"`+Enter commits, ambiguous/invalid declines, Tab appends and moves the caret,
       Julia Tab-to-next-hole unaffected.
-- [ ] **E. `@domain` macro** — macro in base (abstract root, `*Nothing`, `*Insertion`,
+- [x] **E. `@domain` macro** — macro in base (abstract root, `*Nothing`, `*Insertion`,
       Insert gesture, traits; `nothing =`/`insertion =` adopt-existing options,
       generated docstrings); generic Escape-to-`nothing_document` in the shared
       insertion gestures; migrate Json/Xml/Julia/Sql onto `@domain` (deleting their
@@ -295,14 +295,14 @@ helpers rather than copy-pasting thunks.
       Insert/Escape round-trip per domain (the `XmlToSyntaxTest` `:insert` test is the
       model), and each domain suite (`test_json()`, `test_xml()`, `test_sql()`) since
       the struct declarations move.
-- [ ] **F. Domain insertions** — `JsonInsertion` buffer + shared leaf over the
+- [x] **F. Domain insertions** — `JsonInsertion` buffer + shared leaf over the
       reflected `JsonDocument` candidates; `XmlInsertion` likewise; Julia colour
       states. Rerun `test_json()`, `test_xml()`,
       `test_julia_typein`, and the JSON repl example (`test_repl(json_example)`) since the
       insertion leaf changes shape.
-- [ ] **G. ConversationEditor** — chooser via `resolve_insertion` + shared colouring;
+- [x] **G. ConversationEditor** — chooser via `resolve_insertion` + shared colouring;
       rerun the conversation tests.
-- [ ] **H. Docs** — drop the "Not yet ported" note from the `InsertionToSyntax` module
+- [x] **H. Docs** — drop the "Not yet ported" note from the `InsertionToSyntax` module
       docstring; note the Insert/Escape loop and the name-derivation rule in
       `documentation/document/json.md` / `xml.md` where insertion flow is described.
 
@@ -343,3 +343,40 @@ domain suites after E/F; `test_domain()` once at the end.
 - **Ambiguous rendering**: per spec no continuation is shown on ambiguity, so LCP
   partial completion is Tab-only and invisible until pressed; rendering the LCP pale
   even when ambiguous is a flagged possible follow-up, not in scope.
+
+## Results (2026-07-08) — implemented, all four suites green
+
+All steps landed (branch `claude/document-insertion-plan-gbdfyn`, developed in a
+worktree). Final counts: kernel **302/302**, base **76/76** (including the new
+layering guard over `DomainSupport`), visual **51789 pass / 1 broken**, domain
+**132717 pass / 0 fail / 0 error / 15 broken** — every `Broken` a pre-existing
+`@test_broken` marker. `test_document_insertion` grew from 18 to **101**
+assertions (derived names, four completion states, LCP partial completion,
+reflection auto-extension via a test-local type, Insert/Escape per domain,
+rendered colours/hint read from the printed span cells, Tab/Enter gestures,
+prefix-free domain buffers, Julia colour states).
+
+Deviations / findings along the way:
+
+- **Yaml** turned out to be a full domain too — it got the same `@domain` +
+  shared-buffer treatment as Json/Xml (the plan only listed Json/Xml/Julia/Sql).
+- `hasmethod(T, Tuple{})` cannot see *required keyword arguments*
+  (`JsonString()` throws `UndefKeywordError`), so `insertable` probes the
+  zero-arg constructor once per world bump instead.
+- Stray non-domain `*Insertion` cursor types (Clipboard/Widget/Graphics/…)
+  are excluded from candidates by a trait check — a candidate whose name ends
+  in `Insertion` must be its domain's entry point
+  (`domain_insertion(insertion_root(T)) === T`).
+- The one real bug the **full sweep** caught that the targeted tests missed:
+  the shared leaf's bespoke reader shadowed the generic fall-through to
+  document gestures, silently breaking the whole-selection type-to-replace
+  (`test_json_to_syntax_reader` / `test_xml_to_syntax_reader` are the
+  coverage). Fixed by delegating to `read_gesture(input)` when every
+  projection binding declines.
+- Two pieces of pre-existing breakage had to be fixed to run anything: a
+  committed merge-conflict marker in `GestureRecognizerTest.jl` (also fixed
+  upstream meanwhile) and `pkgdir()` rejecting the flat entryfile-at-root
+  package layout in all four `test_*_layering` guards (→ `pathof`).
+- The Julia keyword-scaffold table stays (it drives `julia_completion` and the
+  Tab-to-next-hole flow) but the scaffolds are *also* `make_insertion_document`
+  methods, so `julia function` commits the scaffold from the top level.
