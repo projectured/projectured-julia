@@ -4,10 +4,11 @@
 The headless, domain-agnostic engine of ProjecturEd: the reactive cell system,
 the reference/operation/IO-map machinery, the projection algebra (higher-order
 combinators + generic projections), the input-device abstraction, the editor
-read-eval-print loop, and the agent control surface (LLM/MCP). It carries the
-foundational document *vocabulary* (`CollectionModule`, `PrimitiveModule`,
-`ScreenDocumentModule`) that the engine itself depends on, but no concrete
-domains (JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy
+read-eval-print loop, and the agent control surface (LLM/MCP). It carries no
+concrete documents at all — the foundational document *vocabulary*
+(`PrimitiveModule`, `CollectionModule`) lives in `ProjecturedBase` and
+`ScreenDocumentModule` in `ProjecturedVisual` — no concrete domains
+(JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy
 dependencies** — `using ProjecturedKernel` precompiles and loads on its own.
 The real LLM/MCP transports are standalone opt-in packages (`ProjecturedLlm`
 in `package/llm`, `ProjecturedMcp` in `package/mcp`) that depend on this
@@ -33,24 +34,16 @@ include("cell/PerformanceCounter.jl")
 include("cell/CellModule.jl")
 include("cell/Time.jl")
 
-# ── API — abstract types + `function foo end` stubs ────────────────────────
-# ProjectionApi and IoMapApi declare abstract types and open generics up front
-# so lower layers can add methods without a dependency cycle.
-include("projection/ProjectionApi.jl")
-include("projection/IoMapApi.jl")
-
 # ── Document layer (layer 2 — the contract) ────────────────────────────────
 # The Document abstract type, the selection generics, the shared @document
 # machinery. DocumentModule.jl is the aggregator; it includes Interface.jl
 # (the contract fragment) then Document.jl (the machinery fragment).
 include("document/DocumentModule.jl")
 
-# ── References, operations ─────────────────────────────────────────────────
+# ── Reference and operation layers (layers 3–4) ────────────────────────────
 # Reference machinery and the operation layer. These declare open seams
 # (generics) that `package/base` extends for its concrete documents and
 # document-shaped projections; the kernel itself carries no concrete document.
-include("projection/Intent.jl")
-include("projection/IoMap.jl")
 include("reference/ReferenceModule.jl")
 include("operation/OperationModule.jl")
 
@@ -59,11 +52,15 @@ include("operation/OperationModule.jl")
 # GestureModule (the @event_case macro + parser and the reified
 # GestureBinding/@gestures DSL). GestureModule owns EventEnvelope, so the
 # editor and gesture layers don't depend on a concrete document type.
+# ScreenDevice (Screen + WindowQuit, both defined here) and GestureRecognizer
+# (device event types + EventEnvelope only) close the layer.
 include("device/Device.jl")
 include("device/Modifiers.jl")
 include("device/Keyboard.jl")
 include("device/Mouse.jl")
 include("device/GestureModule.jl")
+include("device/ScreenDevice.jl")
+include("device/GestureRecognizer.jl")
 
 # ── Backend layer (layer 6 — rendering targets, independent of device) ─────
 # BackendModule declares the abstract Backend, the batch generics
@@ -75,10 +72,19 @@ include("backend/Backend.jl")
 include("backend/Display.jl")
 include("backend/HeadlessBackend.jl")
 
-# ── Projection infrastructure & algebra ────────────────────────────────────
+# ── Projection layer (layer 7 — interface, infrastructure & algebra) ───────
+# The interface stubs lead the section: ProjectionApi and IoMapApi declare the
+# abstract types and open generics (the four projection functions, IoMap) that
+# everything below implements; Intent is the reader-side protocol data type;
+# IoMapModule holds the shared concrete IO maps. Nothing below this layer
+# imports any of them — `package/base` extends the generics through the fully
+# loaded kernel, so they need no earlier position in the include list.
+include("projection/ProjectionApi.jl")
+include("projection/IoMapApi.jl")
+include("projection/Intent.jl")
+include("projection/IoMap.jl")
 # PrinterContext (Reactive + Reference only) is projection-layer infrastructure
-# consumed by ProjectionModule and the generic projections, so it leads here.
-# Then the higher-order combinators and the generic projections.
+# consumed by ProjectionModule and the generic projections.
 include("projection/PrinterContext.jl")
 # Open generics for the children container ProjectionTemplate uses; base's
 # Collection.jl adds the CellVector methods.
@@ -125,12 +131,7 @@ include("agent/Llm.jl")
 include("agent/ToolRegistry.jl")
 include("agent/Mcp.jl")
 
-# ── Editor ─────────────────────────────────────────────────────────────────
-# The read-eval-print loop. GestureRecognizer lives in device/ (it operates on
-# device event types and EventEnvelope; no document coupling). ScreenDevice
-# loads late because it references WindowQuit from ScreenDocumentModule.
-include("device/ScreenDevice.jl")
-include("device/GestureRecognizer.jl")
+# ── Editor layer (layer 9 — the read-eval-print loop) ──────────────────────
 include("editor/Editor.jl")
 # Scripted live playback builds on the editor loop, so it loads last.
 include("editor/Playback.jl")

@@ -195,7 +195,7 @@ When you want to see *what reads what* — how a single event propagates down
 through the projection stack — point logging at the four projection interface
 generic functions (`read_intent`, `print_document`,
 `map_reference_forward`, `map_reference_backward`). These are declared in
-[package/kernel/main/api/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and each
+[package/kernel/main/projection/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and each
 projection adds its own method; the recursion happens peer-to-peer (a
 projection's `read_intent` calls `read_intent` on its children
 directly), so to see the whole tree you must instrument the generic function

@@ -27,7 +27,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[package/kernel/main/api/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and dispatched on
+[package/kernel/main/projection/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and dispatched on
 the concrete projection struct.
 
 ## The recursion contract
@@ -134,7 +134,7 @@ reader route events by selection — see below and
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([api/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl)) —
+The reader's payload is a **`Intent`** ([projection/Intent.jl](../package/kernel/main/projection/Intent.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia

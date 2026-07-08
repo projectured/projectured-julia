@@ -2,9 +2,9 @@
     IntentModule
 
 The backward-flowing unit of the reader pipeline — the reader-side protocol data
-type `Intent`. It is a concrete data vehicle, not an interface to implement, so it
-lives in `common/` rather than the pure-interface `api/` tier; readers import
-`Intent` from here directly.
+type `Intent`. It is a concrete data vehicle, not an interface to implement —
+it lives beside the interface stubs at the head of the projection layer, and
+readers import `Intent` from here directly.
 """
 module IntentModule
 
