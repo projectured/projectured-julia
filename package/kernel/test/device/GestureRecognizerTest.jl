@@ -1,9 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════
-<<<<<<<< HEAD:package/kernel/test/device/GestureRecognizerTest.jl
 # test/device/GestureRecognizerTest.jl
-========
-# test/editor/GestureRecognizerTest.jl
->>>>>>>> claude/src-folder-structure-cleanup-d82grk:package/projectured/test/editor/GestureRecognizerTest.jl
 #
 # Unit tests for the event → gesture recogniser. These exercise the click
 # synthesis (MouseDown + MouseUp → MousePress) independently of the SDL
