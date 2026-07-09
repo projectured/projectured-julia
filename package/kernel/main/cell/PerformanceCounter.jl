@@ -24,12 +24,13 @@ using Base.ScopedValues: ScopedValue, with
 export with_performance_counters, get_performance_counters, record_performance!,
     @performance_time, @count_performance, PERFORMANCE_COUNTERS_ENABLED
 
-# Compile-time switch, seeded from the environment at precompile time. Set
-# PROJECTURED_PERFORMANCE_COUNTERS=false and recompile to compile the counters
-# out; the counter macros below then expand to `nothing`, so the reactive hot
-# path carries no instrumentation at all.
+# Compile-time switch, seeded from the environment at precompile time. Counting
+# is off by default, so a normal build carries no instrumentation: the counter
+# macros below expand to `nothing` and the reactive hot path is untouched. Set
+# PROJECTURED_PERFORMANCE_COUNTERS=true and recompile to compile the counters in
+# (e.g. to profile an edit, or to run the count-based demos/tests).
 const PERFORMANCE_COUNTERS_ENABLED =
-    get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "true") == "true"
+    get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "false") == "true"
 
 # The active counter store: a task-local dynamic binding, `nothing` outside any
 # `with_performance_counters` scope.

@@ -216,10 +216,12 @@ which is what lets many editors run in one process without their counters
 colliding (AR-45). This module loads **first** so `ReactiveCell` can import the
 bump macro.
 
-Counting is **compiled out** unless `PERFORMANCE_COUNTERS_ENABLED` (seeded at
-precompile from `PROJECTURED_PERFORMANCE_COUNTERS`, default on). When off,
-`@count_performance`, `record_performance!`, and `@performance_time` expand to
-`nothing`, so a build carries no instrumentation.
+Counting is **compiled out by default** — `PERFORMANCE_COUNTERS_ENABLED` is
+seeded at precompile from `PROJECTURED_PERFORMANCE_COUNTERS` and defaults off, so
+a normal build carries no instrumentation: `@count_performance`,
+`record_performance!`, and `@performance_time` expand to `nothing`. Set the
+environment variable to `true` and recompile to profile (or to run the
+count-based demos/tests).
 
 Public surface: `with_performance_counters(f, store=…)` (bind a store for `f`),
 `get_performance_counters()` (a copy of the active store, empty outside a scope),

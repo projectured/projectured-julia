@@ -79,12 +79,14 @@ popfirst_job!(q) = deleteat!(q, 1)
     # remaining (3.0→2.0) and the clock (0.0→1.0) — so exactly the view recomputes.
     w1 = with_performance_counters() do
         sync_document!(shadow, sim)
-        get_performance_counters()[:writes]
+        get(get_performance_counters(), :writes, 0)
     end
     @test !is_up_to_date(total_work)              # the changed job invalidated the view
     @test total_work[] == 4.0                  # 2.0 + 2.0
     @test recomputes[] == 2
-    @test w1 == 2                              # exactly the 2 changed cells (clock + remaining)
+    # Write counts are only meaningful with the counters compiled in (run with
+    # PROJECTURED_PERFORMANCE_COUNTERS=true); otherwise `w1` is 0.
+    PERFORMANCE_COUNTERS_ENABLED && @test w1 == 2   # exactly the 2 changed cells (clock + remaining)
 
     # A step that finishes the front job (dequeue) + enqueues a new one.
     step!(sim, 2.0, SimJob(3, 4.0))            # job1 remaining 2.0→0 ⇒ served; push job3
@@ -98,7 +100,7 @@ popfirst_job!(q) = deleteat!(q, 1)
     recomputes_before = recomputes[]
     idle_writes = with_performance_counters() do
         sync_document!(shadow, sim)
-        get_performance_counters()[:writes]
+        get(get_performance_counters(), :writes, 0)
     end
     @test idle_writes == 0
     total_work[]                               # force
@@ -120,7 +122,7 @@ popfirst_job!(q) = deleteat!(q, 1)
         end
         total_writes += with_performance_counters() do
             sync_document!(bshadow, bsim)
-            get_performance_counters()[:writes]
+            get(get_performance_counters(), :writes, 0)
         end
     end
     per_sync = total_writes / 100
@@ -139,7 +141,7 @@ popfirst_job!(q) = deleteat!(q, 1)
     deleteat!(fq.queue, 1)                       # dequeue the front
     front_writes = with_performance_counters() do
         sync_document!(fsh, fq)
-        get_performance_counters()[:writes]
+        get(get_performance_counters(), :writes, 0)
     end
     @printf("front dequeue of a 50-job queue: %d writes (positional = O(n))\n",
             front_writes)
