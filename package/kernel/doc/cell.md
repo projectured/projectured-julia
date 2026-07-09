@@ -186,8 +186,8 @@ default — a **keyword constructor** with the `Base.@kwdef` optional/required
 split. No supertype is injected; the struct keeps what the definition wrote.
 
 The macro is assembled by `cell_struct_exprs(structdef)` from four exported
-expr-builders (`cell_autowrap_ctor`, `cell_property_accessors`,
-`cell_kw_params`, `cell_kwctor`) — together they are the **composition seam
+expr-builders (`cell_struct_autowrap_ctor`, `cell_struct_property_accessors`,
+`cell_struct_kw_params`, `cell_struct_kwctor`) — together they are the **composition seam
 for macro authors**: `@iomap` and `@projection` (projection layer) inject
 their default supertype and return `esc(cell_struct_exprs(structdef))`
 wholesale; `@document` (document layer) generates its own kind-parameterized
@@ -197,8 +197,8 @@ stem and reuses only the keyword-ctor builders. The builders emit `Cell`,
 and nothing else. See [the macros guide](macros.md) for the full field-wrapping
 and `@document` codegen details.
 
-Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_autowrap_ctor`,
-`cell_property_accessors`, `cell_kw_params`, `cell_kwctor`.
+Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_struct_autowrap_ctor`,
+`cell_struct_property_accessors`, `cell_struct_kw_params`, `cell_struct_kwctor`.
 
 ## PerformanceCounterModule — instrumentation
 

@@ -17,7 +17,7 @@ The module lives in two fragments that share this namespace:
   protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
   `sync_document!` that reactive syncing and rehydration ride on. `@document`
   builds its keyword-constructor support on the cell layer's exported
-  Cell-struct codegen (`cell_kw_params` / `cell_kwctor`, beside `@cell_struct`
+  Cell-struct codegen (`cell_struct_kw_params` / `cell_struct_kwctor`, beside `@cell_struct`
   in `cell/CellStruct.jl` — the same codegen `@iomap` and `@projection`
   delegate to wholesale).
 - [`Forward.jl`](Forward.jl) — the `@forward*` family (`@forward`,
@@ -39,7 +39,7 @@ The two contracts every concrete document must satisfy:
 module DocumentModule
 
 import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-                     cell_kw_params, cell_kwctor
+                     cell_struct_kw_params, cell_struct_kwctor
 
 export Document, get_selection, clear_selection!, set_selection!, with_selection, read_gesture,
        copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,

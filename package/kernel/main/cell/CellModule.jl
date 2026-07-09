@@ -16,9 +16,9 @@ module CellModule
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        set_value!, set_function!, is_up_to_date
 # `@cell_struct` and its assembler `cell_struct_exprs` / keyword-ctor builders
-# `cell_kw_params` / `cell_kwctor` are the public codegen seam for macro authors;
-# `cell_autowrap_ctor` / `cell_property_accessors` stay internal to CellStruct.jl.
-export var"@cell_struct", cell_struct_exprs, cell_kw_params, cell_kwctor
+# `cell_struct_kw_params` / `cell_struct_kwctor` are the public codegen seam for macro authors;
+# `cell_struct_autowrap_ctor` / `cell_struct_property_accessors` stay internal to CellStruct.jl.
+export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_kwctor
 
 # ── the base type + the three kinds (one file each) ────────────────────────
 # AbstractCell first (it also holds the cross-kind protocol fallbacks); the

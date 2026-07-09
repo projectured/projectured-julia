@@ -80,8 +80,8 @@ authored with `@gestures` needs no hand-written `read_gesture`.
   stem (the parametric cell-typed struct, its fast-path auto-wrapping
   constructor, the `R`/`I`/`M` kind aliases and ctors) and layers the Rule Y /
   Rule C constructors on top; its keyword-constructor support comes from the
-  cell layer's exported Cell-struct codegen builders (`cell_kw_params`,
-  `cell_kwctor` — see the `@cell_struct` section in [cell.md](cell.md), the
+  cell layer's exported Cell-struct codegen builders (`cell_struct_kw_params`,
+  `cell_struct_kwctor` — see the `@cell_struct` section in [cell.md](cell.md), the
   same codegen `@iomap` and `@projection` delegate to wholesale).
 - **`@forward` / `@forward_vector` / `@forward_map`** (in `Forward.jl`) —
   helpers that automatically forward `getproperty` from a wrapper document onto

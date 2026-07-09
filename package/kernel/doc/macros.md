@@ -25,7 +25,7 @@ or IoMap vocabulary.
 supertype: they inject `<: IoMap` / `<: Projection` when none is written and
 delegate to the cell layer's assembler (`cell_struct_exprs`). `@document`
 generates its own kind-parameterized stem (see below) and reuses the cell
-layer's keyword-constructor builders (`cell_kw_params`, `cell_kwctor`). Use
+layer's keyword-constructor builders (`cell_struct_kw_params`, `cell_struct_kwctor`). Use
 `@cell_struct` directly for a transparent-Cell struct that is none of the
 three framework kinds.
 

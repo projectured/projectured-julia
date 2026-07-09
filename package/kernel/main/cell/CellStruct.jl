@@ -4,7 +4,7 @@
 # macros build on: `@iomap` and `@projection` (projection layer) inject their
 # default supertype and delegate to `cell_struct_exprs` wholesale; `@document`
 # (document layer) generates its own kind-parameterized stem and reuses only
-# the keyword-ctor builders (`cell_kw_params`, `cell_kwctor`).
+# the keyword-ctor builders (`cell_struct_kw_params`, `cell_struct_kwctor`).
 #
 # The symbols the builders emit (`Cell`, `new`, `getfield`, …) are spliced as
 # bare names and resolve in the *caller's* scope when the delegating macro
@@ -12,13 +12,13 @@
 # it) therefore need `Cell` in scope, nothing else.
 
 """
-    cell_autowrap_ctor(struct_name, field_names, cell_set) -> Expr
+    cell_struct_autowrap_ctor(struct_name, field_names, cell_set) -> Expr
 
 Build the single auto-wrapping inner constructor: `T(vals...)` wrapping each
 Cell-typed field's value in a `Cell` unless it already is one. `field_names`
 is every field (declaration order); `cell_set` is the subset stored as Cells.
 """
-function cell_autowrap_ctor(struct_name, field_names, cell_set)
+function cell_struct_autowrap_ctor(struct_name, field_names, cell_set)
     arg_names = [gensym(f) for f in field_names]
     new_args = map(enumerate(field_names)) do (i, fname)
         a = arg_names[i]
@@ -30,13 +30,13 @@ function cell_autowrap_ctor(struct_name, field_names, cell_set)
 end
 
 """
-    cell_property_accessors(struct_name, cell_fields) -> (getprop, setprop)
+    cell_struct_property_accessors(struct_name, cell_fields) -> (getprop, setprop)
 
 Build `Base.getproperty` / `Base.setproperty!` methods that read/write through
 each Cell-typed field (`obj.f` reads the cell value, `obj.f = v` writes into
 it); every other field falls through to `getfield` / `setfield!`.
 """
-function cell_property_accessors(struct_name, cell_fields)
+function cell_struct_property_accessors(struct_name, cell_fields)
     get_body = :(getfield(obj, name))
     for fname in reverse(cell_fields)
         get_body = Expr(:if, :(name === $(QuoteNode(fname))),
@@ -60,23 +60,23 @@ function cell_property_accessors(struct_name, cell_fields)
 end
 
 """
-    cell_kw_params(field_names, default_map) -> Vector
+    cell_struct_kw_params(field_names, default_map) -> Vector
 
 Build a keyword-constructor parameter list: a defaulted field becomes
 `field = default`, an undefaulted one a required keyword `field` (à la
 `Base.@kwdef`).
 """
-cell_kw_params(field_names, default_map) =
+cell_struct_kw_params(field_names, default_map) =
     [haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
      for fname in field_names]
 
 """
-    cell_kwctor(type_name, field_names, kw_params) -> Expr
+    cell_struct_kwctor(type_name, field_names, kw_params) -> Expr
 
 Build a keyword constructor for `type_name` forwarding into its positional
 constructor, so value wrapping stays defined in exactly one place.
 """
-cell_kwctor(type_name, field_names, kw_params) =
+cell_struct_kwctor(type_name, field_names, kw_params) =
     :(function $(type_name)(; $(kw_params...))
         $(Expr(:call, type_name, field_names...))
     end)
@@ -138,11 +138,11 @@ function cell_struct_exprs(structdef)
     # values into Cell for Cell-typed fields.
     if !isempty(all_fields)
         push!(body.args,
-              cell_autowrap_ctor(struct_name, [f[1] for f in all_fields], cell_set))
+              cell_struct_autowrap_ctor(struct_name, [f[1] for f in all_fields], cell_set))
     end
 
     # getproperty / setproperty! read/write through the Cell fields.
-    getprop, setprop = cell_property_accessors(struct_name, cell_fields)
+    getprop, setprop = cell_struct_property_accessors(struct_name, cell_fields)
 
     # Keyword constructor (only when ≥1 default is declared) that forwards into
     # the positional inner ctor above, so Cell auto-wrapping is unchanged. Fields
@@ -151,8 +151,8 @@ function cell_struct_exprs(structdef)
     if !isempty(defaults)
         default_map = Dict(defaults)
         field_names = [f[1] for f in all_fields]
-        push!(extra, cell_kwctor(struct_name, field_names,
-                                 cell_kw_params(field_names, default_map)))
+        push!(extra, cell_struct_kwctor(struct_name, field_names,
+                                 cell_struct_kw_params(field_names, default_map)))
     end
 
     Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop, extra...)

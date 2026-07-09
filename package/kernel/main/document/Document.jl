@@ -6,7 +6,7 @@
 # which `DocumentModule.jl` includes first so they are already in scope here.
 # `@document` generates its own kind-parameterized stem below; the generic
 # transparent-Cell struct codegen it shares with `@iomap`/`@projection`
-# (`cell_kw_params`, `cell_kwctor`, and the `@cell_struct` macro those two
+# (`cell_struct_kw_params`, `cell_struct_kwctor`, and the `@cell_struct` macro those two
 # delegate to) lives in the cell layer — see `cell/CellStruct.jl`.
 
 """
@@ -230,10 +230,10 @@ macro document(structdef)
     extra = Any[]
     if !isempty(defaults)
         default_map = Dict(defaults)
-        kw_params = cell_kw_params(field_names, default_map)
-        push!(extra, cell_kwctor(struct_name, field_names, kw_params))
-        push!(extra, cell_kwctor(i_name, field_names, kw_params))
-        push!(extra, cell_kwctor(m_name, field_names, kw_params))
+        kw_params = cell_struct_kw_params(field_names, default_map)
+        push!(extra, cell_struct_kwctor(struct_name, field_names, kw_params))
+        push!(extra, cell_struct_kwctor(i_name, field_names, kw_params))
+        push!(extra, cell_struct_kwctor(m_name, field_names, kw_params))
 
         # ── Rule Y: positional ctors that omit a trailing run of defaulted
         #    fields (the positional analog of `@kwdef`). Generated only when at
