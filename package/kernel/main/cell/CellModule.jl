@@ -14,9 +14,7 @@ This file is the aggregator (exports + include list); see
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-       set_value!, set_function!, is_up_to_date
-export var"@cell_struct", cell_struct_exprs,
-       cell_autowrap_ctor, cell_property_accessors, cell_kw_params, cell_kwctor
+       set_value!, set_function!, is_up_to_date, var"@cell_struct"
 
 # ── the base type + the three kinds (one file each) ────────────────────────
 # AbstractCell first (it also holds the cross-kind protocol fallbacks); the
