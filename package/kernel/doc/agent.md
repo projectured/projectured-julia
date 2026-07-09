@@ -11,14 +11,13 @@ The layer lives in [main/agent/](../main/agent/):
 ```
 Agent.jl         (AgentModule)        — make_agent_server + start/stop generics
 Llm.jl           (LlmModule)          — pluggable LLM backend seam (stream_turn)
-  LlmApi.jl                           — abstract Llm + stream_turn generic (the seam)
 ToolRegistry.jl  (ToolRegistryModule) — in-process registry of Tools + Resources
 Mcp.jl           (McpModule)          — MCP server skeleton + doc-introspection tools
 ```
 
-`Llm.jl` is the `LlmModule` wrapper: it declares the module and its exports, then
-`include`s the interface fragment (`LlmApi.jl`). `LlmModule` is the **seam only**
-— it defines no concrete backend:
+`Llm.jl` holds all of `LlmModule` — the abstract `Llm` supertype and the
+`stream_turn` generic. `LlmModule` is the **seam only**; it defines no concrete
+backend:
 
 - the real-network backend `AnthropicLlm` lives in the opt-in `ProjecturedLlm`
   package (`package/llm`); and

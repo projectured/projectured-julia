@@ -8,8 +8,8 @@ on_event)` — and the backend decides how to materialise the SSE event
 stream that `_handle_sse_event!` already consumes.
 
 This module is the **seam only** — the abstract `Llm` supertype and the
-`stream_turn` generic (in `LlmApi.jl`). It defines no concrete backend and
-stays dependency-free:
+`stream_turn` generic. It defines no concrete backend and stays
+dependency-free:
 
 - The real-Claude backend (`AnthropicLlm`) lives entirely in the opt-in
   `ProjecturedLlm` package (`package/llm`).
@@ -22,6 +22,26 @@ module LlmModule
 
 export Llm, stream_turn
 
-include("LlmApi.jl") # abstract Llm + stream_turn generic (the seam)
+"""
+    Llm
+
+Abstract supertype for chat backends. Each concrete subtype defines a
+method on `stream_turn` that takes the assistant's current context
+(`api_key`, `model`, `system`, prior `messages`, available `tools`) and
+emits SSE-shaped events through `on_event`. Events follow Anthropic's
+streaming spec — `message_start`, `content_block_start`,
+`content_block_delta`, `content_block_stop`, `message_delta`,
+`message_stop` — so the same event handler works for all backends.
+"""
+abstract type Llm end
+
+"""
+    stream_turn(backend, api_key, model, system, messages, tools; on_event)
+
+Drive a single chat turn. `on_event(ev::NamedTuple)` is called for each
+event; `ev` has at least `:type` (`Symbol`) and `:data` (the event
+payload). Errors propagate to the caller.
+"""
+function stream_turn end
 
 end # module
