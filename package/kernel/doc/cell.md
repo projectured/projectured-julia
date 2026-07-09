@@ -20,6 +20,8 @@ or *computed* (holds a zero-arg thunk):
 ```julia
 c = Cell(42)                      # primitive
 c = Cell(() -> upstream[] + 1)    # computed
+c = Cell(f, nothing)              # primitive holding f AS a value (a Function/Cell,
+                                  #   not a thunk — the 1-arg Cell(f) would compute it)
 ```
 
 The struct also tracks `valid`, the set of cells it reads from (`deps`), and the

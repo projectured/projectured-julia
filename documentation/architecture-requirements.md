@@ -124,10 +124,13 @@ states for placement).
 12. **A macro-wrapped field may never hold a `Cell` or a `Function` as its
     logical value.** The auto-wrapping constructor stores a `Cell` unwrapped and
     turns a `Function` into a *computed thunk* (so the field would be called, not
-    returned). If you must store a cell or callable as a value, box it (a
-    one-element tuple or wrapper struct) or use a plain hand-rolled `struct`
-    (as `SyntaxNodeToText` does). Any convenience constructor must be an *outer*
-    constructor — the macro emits the only inner one.
+    returned). To store a callable as a value, either box it (a one-element tuple
+    or wrapper struct) or hand it a primitive cell built with the explicit
+    two-arg constructor `Cell(f, nothing)` — a valid cell holding `f` as its value
+    — which the auto-wrapper passes through unwrapped (it only wraps non-`Cell`
+    values). A plain hand-rolled `struct` (as `SyntaxNodeToText` does) is the third
+    option. Any convenience constructor must be an *outer* constructor — the macro
+    emits the only inner one.
 
 13. **Do not assume two documents with equal fields are `==`.** A `@document`
     type is a `mutable struct` and keeps identity `==`/`hash`; only the immutable

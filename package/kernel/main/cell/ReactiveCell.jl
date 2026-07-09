@@ -16,8 +16,12 @@ recompute on next read.
 
     Cell(value)                    # untyped primitive cell (T = Any)
     Cell(thunk::Function)          # untyped computed cell – thunk called with zero args
+    Cell(value, nothing)           # primitive cell holding `value` as-is — the way to
+                                   #   store a Function (or Cell) AS a value, not a thunk
     ReactiveCell{T}(value)         # typed primitive cell (type-stable reads)
     ReactiveCell{T}(thunk::Function) # typed computed cell
+    ReactiveCell{T}(value, thunk)  # explicit (value, thunk): nothing ⇒ valid primitive;
+                                   #   a real thunk ⇒ invalid computed cell (recomputes on read)
 
 # Reading and writing
 
@@ -46,6 +50,15 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         c.dependents = Set{ReactiveCell}()
         return c
     end
+    # Explicit `(value, thunk)`. `thunk === nothing` builds a *valid* primitive
+    # holding `value` as-is — the clean way to store a `Function` (or a `Cell`) AS
+    # a value, since the 1-arg `Function` constructor would read it as a thunk
+    # (e.g. `Cell(f, nothing)`). A non-`nothing` thunk builds an *invalid* computed
+    # cell pre-seeded with `value`; it recomputes on first read (wiring its
+    # dependencies then), so that seed is never returned to a reader — it only
+    # avoids an undefined `value` field.
+    ReactiveCell{T}(value, thunk::Union{Nothing, Function}) where {T} =
+        new{T}(value, thunk, thunk === nothing, Set{ReactiveCell}(), Set{ReactiveCell}())
 end
 
 """
@@ -63,6 +76,9 @@ ReactiveCell(value) = ReactiveCell{Any}(value)
 
 """Computed untyped cell whose value is produced by calling `thunk()`."""
 ReactiveCell(thunk::Function) = ReactiveCell{Any}(thunk)
+
+"""Untyped cell from an explicit `(value, thunk)` — see the two-arg inner constructor."""
+ReactiveCell(value, thunk::Union{Nothing, Function}) = ReactiveCell{Any}(value, thunk)
 
 # ── per-task tracking stack ────────────────────────────────────────────────
 # While a ReactiveCell's thunk is running, that cell sits on the current task's
