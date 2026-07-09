@@ -1,15 +1,13 @@
 # Fragment of `CellModule` — the transparent-Cell struct codegen: the
 # `@cell_struct` macro, its assembler `cell_struct_exprs`, and the four
-# expr-builders they compose. This is the machinery the declarative struct
-# macros build on: `@iomap` and `@projection` (projection layer) inject their
-# default supertype and delegate to `cell_struct_exprs` wholesale; `@document`
-# (document layer) generates its own kind-parameterized stem and reuses only
-# the keyword-ctor builders (`cell_struct_kw_params`, `cell_struct_kwctor`).
+# expr-builders they compose. `cell_struct_exprs` is the composition seam a
+# macro author reuses — inject a default supertype into the struct definition,
+# delegate to it, and escape the result — while `@cell_struct` is the standalone
+# macro over it.
 #
 # The symbols the builders emit (`Cell`, `new`, `getfield`, …) are spliced as
-# bare names and resolve in the *caller's* scope when the delegating macro
-# escapes its result — callers of `@cell_struct` (and of the macros built on
-# it) therefore need `Cell` in scope, nothing else.
+# bare names and resolve in the *caller's* scope when the calling macro escapes
+# its result — a caller therefore needs `Cell` in scope, nothing else.
 
 """
     cell_struct_autowrap_ctor(struct_name, field_names, cell_set) -> Expr
@@ -89,10 +87,10 @@ every field is a `::Cell`, then return a block with the rewritten struct (its
 auto-wrapping inner constructor appended), the transparent property accessors,
 and — when at least one field declares a default — the keyword constructor.
 
-This is the composition seam for macro authors: a declarative struct macro
-(`@iomap`, `@projection`) injects its default supertype into `structdef` and
-returns `esc(cell_struct_exprs(structdef))`. The result must be escaped by the
-calling macro so the emitted bare names resolve at the expansion site.
+This is the composition seam for macro authors: a macro injects its default
+supertype into `structdef` and returns `esc(cell_struct_exprs(structdef))`. The
+result must be escaped by the calling macro so the emitted bare names resolve at
+the expansion site.
 """
 function cell_struct_exprs(structdef)
     structdef isa Expr && structdef.head === :struct ||
@@ -173,10 +171,9 @@ field (declared value types are documentation only); the macro generates:
   with a default are optional keywords, fields without one are required
   keywords — forwarding into the positional constructor.
 
-The struct keeps whatever supertype the definition declares (or none). The
-declarative struct macros build on this: `@iomap` and `@projection` are
-exactly `@cell_struct` plus a default supertype; `@document` layers the
-kind-parameterized stem on top and shares the keyword-ctor builders.
+The struct keeps whatever supertype the definition declares (or none). A macro
+that needs to compose this codegen with its own additions calls the assembler
+`cell_struct_exprs` directly rather than this macro.
 """
 macro cell_struct(structdef)
     esc(cell_struct_exprs(structdef))
