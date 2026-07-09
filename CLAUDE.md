@@ -16,7 +16,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 - **Layer 1 — cell** (`cell/`)
   - 🔒 `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
-  - ⬜ `cell/CellModule.jl`
+  - 🔒 `cell/CellModule.jl`
   - ⬜ `cell/AbstractCell.jl`
   - ⬜ `cell/ReactiveCell.jl`
   - ⬜ `cell/MutableCell.jl`
