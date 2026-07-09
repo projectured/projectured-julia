@@ -113,7 +113,13 @@ states for placement).
     annotation is preserved verbatim into the generated immutable snapshot
     (`IFoo`), where it becomes enforced. If a field can ever hold `nothing` as an
     empty sentinel, annotate it `Union{…, Nothing}`; a dishonest annotation stays
-    silent until the first `snapshot`/`IFoo(foo)` throws.
+    silent until the first `snapshot`/`IFoo(foo)` throws. Type honestly for
+    *representability*, not just for the well-formed case: a field that is too
+    tight silently forecloses an *intermediate* state the user's mental model
+    passes through on the way between two valid ones (product requirement *Every
+    intermediate state is representable*). Widen the annotation to admit the
+    transient value — including one that is ill-formed in the domain's own terms —
+    rather than assuming only fully-formed values ever occur (see AR-15).
 
 12. **A macro-wrapped field may never hold a `Cell` or a `Function` as its
     logical value.** The auto-wrapping constructor stores a `Cell` unwrapped and
@@ -143,7 +149,15 @@ states for placement).
     point is a per-domain `…Insertion` document whose reader interprets typed text
     in that domain's vocabulary. Generate the whole insertion kit with one
     `@domain X` line rather than re-implementing the root/placeholder/insertion/
-    gesture/traits per domain.
+    gesture/traits per domain. The per-domain `…Insertion` document is also what
+    makes *every intermediate state representable* (product requirement of that
+    name): as the user builds toward a well-formed value the content may pass
+    through states that are ill-formed in the domain's own terms, and the
+    insertion document — together with permissive field typing (AR-11) — is the
+    sanctioned place to hold such a transient state rather than forbidding it. Do
+    not constrain a domain's structural operations or types so tightly that a
+    reachable intermediate the user pictures has nowhere to live; the architecture
+    must permit that state to exist, one way or another.
 
 16. **Keep the edited document in its semantic domain; widgets are presentation
     only.** The source-of-truth document being edited should generally not be a
@@ -378,6 +392,26 @@ states for placement).
     reactive cell writes, `QuitEditorException`), not by reaching into private
     state; the fall-through `evaluate_operation(editor, ::Any) = nothing` lets a
     reader return anything harmlessly.
+
+69. **Design every operation to be invertible; keep its inverse well-defined.**
+    An `Operation` is the unit of change (AR-38), and reversibility rests on each
+    applied operation having a clear inverse — the change that restores the prior
+    state. General operation-log undo/redo is not yet built (it is the in-progress
+    roadmap item *Undo / redo*, which "depends on the editing operations having
+    well-defined inverses"), and structural-operation collaboration (OT/CRDT)
+    rests on the same property; so a new `Operation` type carries a *design*
+    obligation even before the log exists. Its change must have a clear inverse (a
+    value replacement inverts to writing back the prior value; a splice inverts to
+    the complementary splice), or the operation must be explicitly one an undo log
+    skips (control-flow / IO, e.g. quitting the editor). This is a silent-breakage
+    contract: an operation added per AR-39/AR-40 passes every reference-mapping
+    check while quietly having no inverse, and the omission surfaces only once undo
+    reaches it. Prefer `ReplaceReferencedValueOperation` and its splice builders
+    (AR-39), whose inverses are already well-defined, over a bespoke operation
+    whose reversal you would have to design from scratch. This requirement lives
+    with the Operations section (AR-38–41); it is numbered 69 to keep the existing
+    AR numbers stable. (Product requirements *Reversible editing* and *A history
+    that can be revisited*.)
 
 ## Editor, devices, and backends
 
