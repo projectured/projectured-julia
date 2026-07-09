@@ -1,4 +1,8 @@
-# ── Projection layer (layer 7 — interface, infrastructure & algebra) ───────
+# ── Projection layer (layer 7 — interface & infrastructure) ────────────────
+# The concrete projection algebra (the generic + higher-order combinators) is
+# domain-independent framework and lives in `package/base`; this layer keeps
+# only the interface, the IO maps, the gesture-binding machinery, the
+# `@projection` macro defaults, and the projection-template engine.
 # The ordered include list of the projection layer; a fragment of ProjecturedKernel.
 # The interface stubs lead the layer: ProjectionApi and IoMapApi declare the
 # abstract types and open generics (the four projection functions, IoMap) that
@@ -16,21 +20,11 @@ include("PrinterContext.jl")
 # Open generics for the children container ProjectionTemplate uses; base's
 # Collection.jl adds the CellVector methods.
 include("ChildrenContainer.jl")
-# Must load before the combinators (Chaining/Nesting/Recursive/TypeDispatching)
-# that import collect_gesture_bindings from it.
+# Open generics for the gesture-binding tables. The concrete generic and
+# higher-order projections that consumed `collect_gesture_bindings` are
+# domain-independent framework and now live in `package/base`'s projection
+# layer (`ProjecturedBase`); the kernel keeps only the binding machinery.
 include("GestureBindings.jl")
-include("higherorder/Chaining.jl")
-include("higherorder/TypeDispatching.jl")
-include("higherorder/Recursive.jl")
-include("higherorder/Switching.jl")
-include("higherorder/PredicateDispatching.jl")
-include("higherorder/ReferenceDispatching.jl")
-include("higherorder/Nesting.jl")
-include("higherorder/EnvelopeUnwrapping.jl")
-include("generic/Identity.jl")
-include("generic/Reversing.jl")
-include("generic/Constant.jl")
-include("generic/Focusing.jl")
 
 # ── Projection defaults & the `@projection` macro ──────────────────────────
 # ProjectionModule holds the four-generic fallbacks and the `@projection`

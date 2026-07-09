@@ -37,22 +37,21 @@ import ..ChildrenContainerModule: make_children_container, children_container_ty
 import ..IoMapApiModule: IoMap
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent, Projection,
                               print_child
-import ..IntentModule: Intent
 # Bind the module itself so `@projection_template` can emit a module-qualified
 # `ProjectionApiModule.print_document` method-definition name (see the macro).
 import ..ProjectionApiModule
-import ..RecursiveProjectionModule: RecursiveProjection
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
                           TypeReference, ProjectionReference, ReferencePath, Reference,
                           fold_reference_types, strip_reference_types
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-# The single
+# The `RuleIoMap` readers keyed on `RecursiveProjection` (the transparent
+# wrapper disambiguations) and the single
 # `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
-# method lives in base beside the reader defaults so this file stays
-# Primitive-free. (Its recursive-projection sibling stays here since it
-# uses no base type — it dispatches on RecursiveProjection + the
-# base-registered method.)
+# method all live in base beside the reader defaults: `RecursiveProjection`
+# is a base projection and `ReplaceStringRangeOperation` a base/Primitive
+# type, neither of which the kernel can name. Base imports `RuleIoMap` +
+# `AtomicWiring` from this module to preserve the same dispatch behaviour.
 import ..DocumentModule: Document, read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
 import ..OperationModule: reroot_operation
@@ -1291,20 +1290,15 @@ function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDo
     return read_gesture(input, evt)
 end
 
-# Disambiguation (mirrors the op shims below): the recursive reader above
-# (`Projection`) and the transparent `RecursiveProjection` wrapper's 3-arg reader
-# both match `(RecursiveProjection, RuleIoMap, evt)`, neither more specific. Defer
-# to the wrapper so it threads the read into its child projection.
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
-    read_intent(rp, nothing, Intent(evt), iomap).operation
-
-# The value-edit retype method
-# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
-# lives in `package/base/main/projection/ReaderDefaults.jl` beside the
-# reader defaults — it references `ReplaceStringRangeOperation` (a
-# base/Primitive type) that the kernel cannot name. Base imports
-# `RuleIoMap` + `AtomicWiring` from this module to preserve the same
-# dispatch behaviour.
+# The `KeyPress`/`KeyDown` and `ReplaceSelectionOperation` disambiguations for
+# the transparent `RecursiveProjection` wrapper over `RuleIoMap` — together with
+# the value-edit retype method
+# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)` — all
+# live in `package/base/main/projection/ReaderDefaults.jl` beside the reader
+# defaults. `RecursiveProjection` is a base projection and
+# `ReplaceStringRangeOperation` a base/Primitive type, neither of which the
+# kernel can name; base imports `RuleIoMap` + `AtomicWiring` from this module to
+# preserve the same dispatch behaviour.
 
 # Whole-element selection: map back, else (node) the position is a structural
 # introduced one with no input pre-image ⇒ wrap into this projection's own step
@@ -1315,18 +1309,6 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperat
     iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
     return ReplaceSelectionOperation(_path(ProjectionReference(p, op.path)))
 end
-
-# Disambiguation: the two generic RuleIoMap readers above (`Projection`) and the
-# transparent RecursiveProjection wrapper's `read_intent(rp, iomap, payload)`
-# both match `(RecursiveProjection, RuleIoMap, op)`, neither more specific. One
-# concrete-typed method per op (not a Union, which would still tie with the
-# `Projection`/exact-op reader on arg 3) defers to the wrapper, which threads the
-# read into its child projection.
-# The recursive disambiguation for ReplaceStringRangeOperation lives in
-# base/projection/ReaderDefaults.jl for the same reason (it names a base
-# type).
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
-    read_intent(rp, nothing, Intent(op), iomap).operation
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────
 

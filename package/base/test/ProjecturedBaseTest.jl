@@ -35,10 +35,14 @@ using ProjecturedBase.ProjectionApiModule: print_document, read_intent
 using ProjecturedBase.CollectionModule
 using ProjecturedBase.PrimitiveModule
 using ProjecturedBase.CopyingProjectionModule
+using ProjecturedBase.FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
+using ProjecturedBase.KeyboardModule: KeyDown
+using ProjecturedBase.ModifiersModule: Modifiers
 
 include("document/CollectionTest.jl")
 include("document/SelectionEnumeration.jl")
 include("projection/CopyingProjectionTest.jl")
+include("projection/FocusingTest.jl")
 
 """
     test_base_layering()
@@ -65,11 +69,12 @@ function test_base()
         test_base_layering()
         test_collection()
         test_copying_projection()
+        test_focusing()
     end
 end
 
 export test_base, test_base_layering
-export test_collection, test_copying_projection
+export test_collection, test_copying_projection, test_focusing
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 
 end # module ProjecturedBaseTest

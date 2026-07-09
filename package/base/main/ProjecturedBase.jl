@@ -41,22 +41,27 @@ const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
 const IntentModule = ProjecturedKernel.IntentModule
 const MouseModule = ProjecturedKernel.MouseModule
+const KeyboardModule = ProjecturedKernel.KeyboardModule
 const ModifiersModule = ProjecturedKernel.ModifiersModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
-const IdentityProjectionModule = ProjecturedKernel.IdentityProjectionModule
 const GestureModule = ProjecturedKernel.GestureModule
 const BackendModule = ProjecturedKernel.BackendModule
 # Kernel-side seams that base implements methods on.
 const ChildrenContainerModule = ProjecturedKernel.ChildrenContainerModule
 const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
-const RecursiveProjectionModule = ProjecturedKernel.RecursiveProjectionModule
-const ReferenceDispatchingProjectionModule = ProjecturedKernel.ReferenceDispatchingProjectionModule
-const NestingProjectionModule = ProjecturedKernel.NestingProjectionModule
+# GestureBindings stays in the kernel projection layer; the moved generic /
+# higher-order projections import `collect_gesture_bindings` from it.
+const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
+# NOTE: the concrete generic + higher-order projections (Identity, Reversing,
+# Constant, Focusing, Chaining, TypeDispatching, Recursive, Switching,
+# PredicateDispatching, ReferenceDispatching, Nesting, EnvelopeUnwrapping) are
+# now *defined* in this package's projection layer below — they are no longer
+# kernel submodules, so they must NOT be aliased here.
 
 # ── Layer 1 — document (concrete engine documents) ────────────────────────
 # Collection and Primitive: the CellVector/CellMatrix/CellTable/ListNode and
@@ -80,10 +85,32 @@ include("document/Dragging.jl")
 # the architecture rules (window things are visual, only the Screen
 # device stays in the kernel).
 
-# ── Layer 2 — projection (document-shaped generic projections) ────────────
-# The document-shaped projections + the reader defaults. Each file is
-# currently its own module; a later cosmetic pass may consolidate them into
-# a single BaseProjectionModule aggregator with fragments.
+# ── Layer 2 — projection (domain-independent projection algebra + generics) ──
+# The projection *machinery* (interface, IO maps, @projection macro, the
+# projection-template engine, gesture bindings) stays in the kernel; every
+# concrete projection is domain-independent framework and lives here.
+#
+# The generic + higher-order projections lead the layer: they depend only on
+# the kernel projection interface, and the files below (Sorting imports
+# IdentityProjection; ReaderDefaults + the compound aggregates import
+# Recursive/ReferenceDispatching/Nesting) depend on them. Among the twelve the
+# only intra-order edge is Identity → Reversing.
+include("projection/generic/Identity.jl")
+include("projection/generic/Reversing.jl")
+include("projection/generic/Constant.jl")
+include("projection/higherorder/Chaining.jl")
+include("projection/higherorder/TypeDispatching.jl")
+include("projection/higherorder/Recursive.jl")
+include("projection/higherorder/Switching.jl")
+include("projection/higherorder/PredicateDispatching.jl")
+include("projection/higherorder/ReferenceDispatching.jl")
+include("projection/higherorder/Nesting.jl")
+include("projection/higherorder/EnvelopeUnwrapping.jl")
+include("projection/generic/Focusing.jl")
+
+# ── The document-shaped generic projections + the reader defaults ──────────
+# Each file is currently its own module; a later cosmetic pass may consolidate
+# them into a single BaseProjectionModule aggregator with fragments.
 include("projection/Sorting.jl")
 include("projection/Filtering.jl")
 include("projection/Searching.jl")

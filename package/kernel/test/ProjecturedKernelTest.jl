@@ -46,7 +46,6 @@ using ProjecturedKernel.KeyboardModule
 using ProjecturedKernel.ModifiersModule
 using ProjecturedKernel.MouseModule
 using ProjecturedKernel.GestureModule
-using ProjecturedKernel.FocusingProjectionModule
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 
 # ── shared static layering guard ────────────────────────────────────────────
@@ -70,7 +69,6 @@ include("backend/HeadlessBackendTest.jl")
 include("agent/AgentSeamTest.jl")
 
 # ── generic drivers (document, projection) — reused by every layer above ────
-include("editor/FocusingTest.jl")
 include("editor/PrinterTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
@@ -121,7 +119,6 @@ function test_kernel()
         test_gesture_recognizer()
         test_headless_backend()
         test_agent_seam()
-        test_focusing()
     end
 end
 
@@ -132,8 +129,7 @@ export check_layering, test_layering_checkers
 export test_cell, test_cell_struct, test_performance_counter, test_time, test_document_contract,
        test_reference_builder, test_reference_eval, test_rerooting,
        test_traversal, test_gesture_module, test_event_case,
-       test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
-       test_focusing
+       test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,

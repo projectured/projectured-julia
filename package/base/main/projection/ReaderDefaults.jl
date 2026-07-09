@@ -15,7 +15,9 @@ module ReaderDefaultsModule
 import ProjecturedKernel.ProjectionApiModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
-import ProjecturedKernel.RecursiveProjectionModule: RecursiveProjection
+import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
+import ProjecturedKernel.KeyboardModule: KeyDown, KeyPress
+import ..RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
 function read_intent(projection::Projection, iomap, operation::ReplaceStringRangeOperation)
@@ -48,6 +50,19 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     end
     return ReplaceStringRangeOperation(new_ref, op.replacement)
 end
+
+# Disambiguations for the transparent `RecursiveProjection` wrapper over
+# `RuleIoMap`. The recursive reader in `ProjectionTemplate.jl` (`Projection`) and
+# the wrapper's 3-arg reader both match `(RecursiveProjection, RuleIoMap, …)`,
+# neither more specific — so one concrete-typed method per payload defers to the
+# wrapper, which threads the read into its child projection. These live here (not
+# in `kernel/projection/ProjectionTemplate.jl`) because they dispatch on
+# `RecursiveProjection`, a base projection the kernel cannot name.
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+    read_intent(rp, nothing, Intent(evt), iomap).operation
+
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
+    read_intent(rp, nothing, Intent(op), iomap).operation
 
 # Disambiguation for RecursiveProjection over RuleIoMap.
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =

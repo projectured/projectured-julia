@@ -9,12 +9,15 @@ this document is **only about the kernel**.
 ## What the kernel is
 
 `ProjecturedKernel` is the headless, domain-agnostic engine: the reactive cell
-system, the reference/operation/IO-map machinery, the projection algebra
-(higher-order combinators + generic projections), the input-device abstraction,
-the editor read-eval-print loop, and the agent control surface. **No concrete
-documents** live here — Collection and Primitive live in the `ProjecturedBase`
-package, and ScreenDocument in `ProjecturedVisual`. The kernel now has **zero
-concrete-document imports**. **No backends** either (except the dependency-free
+system, the reference/operation/IO-map machinery, the projection *interface and
+infrastructure* (the four generic functions, the IO maps, the `@projection`
+macro, the projection-template engine, gesture bindings), the input-device
+abstraction, the editor read-eval-print loop, and the agent control surface.
+**No concrete projections** live here — the domain-independent projection
+algebra (higher-order combinators + generic projections) lives in the
+`ProjecturedBase` package. **No concrete documents** either — Collection and
+Primitive live in `ProjecturedBase`, and ScreenDocument in `ProjecturedVisual`.
+The kernel now has **zero concrete-document imports**. **No backends** either (except the dependency-free
 in-memory `HeadlessBackend` used by editor tests). **No runtime dependencies** —
 `using ProjecturedKernel` precompiles and loads on its own.
 
@@ -30,7 +33,7 @@ Layer 3 — reference/  reference paths + @reference / @reference_case DSLs
 Layer 4 — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 5 — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
 Layer 6 — backend/    Backend + Display + HeadlessBackend
-Layer 7 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + 12 combinators
+Layer 7 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + gesture bindings (the concrete combinators live in ProjecturedBase)
 Layer 8 — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
 Layer 9 — editor/     the run_editor! loop + Playback
 ```
@@ -153,8 +156,8 @@ PerformanceCounter, Modifiers, ToolRegistry, Llm, the api stubs) → **D1** Devi
 Document, IoMap, Reactive, Mcp → **D2** Keyboard, Mouse, Reference, EditorTime →
 **D3** Collection, EventCase, Operation, Primitive, PrinterContext,
 ReferenceCase/Builder → **D4** GestureBinding, OperationRerooting, ScreenDocument,
-ProjectionModule + several generic projections → **D5** the remaining projections +
-GestureRecognizer → **D6** Editor (deepest). The guard enforces only the real
+ProjectionModule + ProjectionTemplate → **D5** GestureRecognizer → **D6** Editor
+(deepest; the concrete projection combinators now live in ProjecturedBase). The guard enforces only the real
 constraint (every module precedes its users), not a specific linearization.
 
 ## Folder layout
@@ -169,7 +172,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
 | `backend/` | Backend, Display, HeadlessBackend |
-| `projection/` | the projection interface (ProjectionApi, IoMapApi, Intent, IoMap, Projection, ProjectionTemplate) plus the `higherorder/` and `generic/` combinators |
+| `projection/` | the projection interface and infrastructure only — ProjectionApi, IoMapApi, Intent, IoMap, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
 | `agent/` | Agent, Llm, ToolRegistry, Mcp |
 | `editor/` | Editor (the `run_editor!` loop), Playback |
 

@@ -12,9 +12,13 @@ in any single slice"*.
 ```
 Layer 1 — document       Collection, DocumentCore, Primitive, Dragging
                          (concrete engine documents everything ships with)
-Layer 2 — projection     Sorting, Filtering, Searching, Copying, ReaderDefaults,
-                         DraggingProjection
-                         (document-shaped generic projections + reader defaults)
+Layer 2 — projection     generic/ (Identity, Reversing, Constant, Focusing) +
+                         higherorder/ (Chaining, TypeDispatching, Recursive,
+                         Switching, PredicateDispatching, ReferenceDispatching,
+                         Nesting, EnvelopeUnwrapping) + Sorting, Filtering,
+                         Searching, Copying, ReaderDefaults, DraggingProjection
+                         (the domain-independent projection algebra + reader
+                         defaults; the projection interface/engine stays in kernel)
 Layer 3 — serialization  BinarySerialization
                          (domain-independent persistence framework)
 ```
@@ -71,10 +75,32 @@ WindowManagingProjection` belongs in `visual/screen/` per the architecture
 rules (window things are visual; only the Screen device and display-size
 seam stay in the kernel).
 
-### projection — the document-shaped generic projections
+### projection — the domain-independent projection algebra
 
-Modules that consume/produce base document types (CellVector, Primitive)
-but are otherwise domain-agnostic:
+The projection *machinery* (the four generic functions, IO maps, the
+`@projection` macro, the projection-template engine, gesture bindings) lives in
+the kernel's projection layer. Every **concrete** projection is
+domain-independent framework and lives here.
+
+The generic + higher-order combinators lead the layer (they depend only on the
+kernel projection interface, and the document-shaped projections below build on
+them — Sorting uses `IdentityProjection`; the compound aggregates use
+`Recursive`/`ReferenceDispatching`/`Nesting`):
+
+- **`generic/`** — the generic (domain-independent-by-structure) projections:
+  `IdentityProjection`, `ReversingProjection`, `ConstantProjection`,
+  `FocusingProjection`.
+- **`higherorder/`** — the higher-order combinators: `ChainingProjection`,
+  `TypeDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`,
+  `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`,
+  `NestingProjection`, `EnvelopeUnwrappingProjection`. (Both folders moved down
+  from the kernel projection layer — they are domain-independent framework, not
+  engine. The two `RuleIoMap` disambiguations keyed on `RecursiveProjection`
+  live beside the reader defaults in `ReaderDefaults.jl`, since the kernel's
+  `ProjectionTemplate` cannot name a base projection.)
+
+The document-shaped projections consume/produce base document types (CellVector,
+Primitive) but are otherwise domain-agnostic:
 
 - **`Sorting.jl`** — `SortingProjection`: sorts collection children by
   a key.

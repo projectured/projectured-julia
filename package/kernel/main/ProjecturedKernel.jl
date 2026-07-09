@@ -2,12 +2,16 @@
     ProjecturedKernel
 
 The headless, domain-agnostic engine of ProjecturEd: the reactive cell system,
-the reference/operation/IO-map machinery, the projection algebra (higher-order
-combinators + generic projections), the input-device abstraction, the editor
-read-eval-print loop, and the agent control surface (LLM/MCP). It carries no
-concrete documents at all — the foundational document *vocabulary*
-(`PrimitiveModule`, `CollectionModule`) lives in `ProjecturedBase` and
-`ScreenDocumentModule` in `ProjecturedVisual` — no concrete domains
+the reference/operation/IO-map machinery, the projection *interface and
+infrastructure* (the four generic functions, the IO maps, the `@projection`
+macro, the projection-template engine, gesture bindings), the input-device
+abstraction, the editor read-eval-print loop, and the agent control surface
+(LLM/MCP). It carries no concrete projections — the domain-independent
+projection algebra (higher-order combinators + generic projections) lives in
+`ProjecturedBase` — and no concrete documents at all — the foundational
+document *vocabulary* (`PrimitiveModule`, `CollectionModule`) also lives in
+`ProjecturedBase` and `ScreenDocumentModule` in `ProjecturedVisual` — no
+concrete domains
 (JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy
 dependencies** — `using ProjecturedKernel` precompiles and loads on its own.
 The real LLM/MCP transports are standalone opt-in packages (`ProjecturedLlm`
