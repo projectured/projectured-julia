@@ -14,14 +14,12 @@ recompute on next read.
 
 # Construction
 
-    Cell(value)                    # untyped primitive cell (T = Any)
-    Cell(thunk::Function)          # untyped computed cell – thunk called with zero args
-    Cell(value, nothing)           # primitive cell holding `value` as-is — the way to
-                                   #   store a Function (or Cell) AS a value, not a thunk
-    ReactiveCell{T}(value)         # typed primitive cell (type-stable reads)
-    ReactiveCell{T}(thunk::Function) # typed computed cell
-    ReactiveCell{T}(value, thunk)  # explicit (value, thunk): nothing ⇒ valid primitive;
-                                   #   a real thunk ⇒ invalid computed cell (recomputes on read)
+    Cell(value)                       # untyped primitive cell (T = Any)
+    Cell(f::Function)                 # untyped computed cell – f is the thunk (zero args)
+    Cell(f::Function; as_value=true)  # primitive holding f AS a value, not a thunk
+    ReactiveCell{T}(value)            # typed primitive cell (type-stable reads)
+    ReactiveCell{T}(f::Function)      # typed computed cell (f is the thunk)
+    ReactiveCell{T}(f::Function; as_value=true) # typed primitive holding f as a value
 
 # Reading and writing
 
@@ -39,26 +37,23 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, Set{ReactiveCell}(), Set{ReactiveCell}())
-    # Computed cell: `value` starts *undefined* (a typed field cannot hold a
-    # placeholder `nothing`); `valid = false` guarantees `recompute!` assigns it
-    # before any read returns.
-    function ReactiveCell{T}(thunk::Function) where {T}
+    # A `Function` argument is the cell's *thunk* (a computed cell): `value` starts
+    # *undefined* (a typed field cannot hold a placeholder) and `valid = false`
+    # guarantees `recompute!` assigns it before any read returns. Pass
+    # `as_value = true` to instead store the function itself AS the value — a valid
+    # primitive holding `f` — the clean way to hold a callable as a value, since a
+    # bare `Cell(f)` reads `f` as a thunk.
+    function ReactiveCell{T}(f::Function; as_value::Bool = false) where {T}
+        if as_value
+            return new{T}(f, nothing, true, Set{ReactiveCell}(), Set{ReactiveCell}())
+        end
         c = new{T}()
-        c.thunk = thunk
+        c.thunk = f
         c.valid = false
         c.deps = Set{ReactiveCell}()
         c.dependents = Set{ReactiveCell}()
         return c
     end
-    # Explicit `(value, thunk)`. `thunk === nothing` builds a *valid* primitive
-    # holding `value` as-is — the clean way to store a `Function` (or a `Cell`) AS
-    # a value, since the 1-arg `Function` constructor would read it as a thunk
-    # (e.g. `Cell(f, nothing)`). A non-`nothing` thunk builds an *invalid* computed
-    # cell pre-seeded with `value`; it recomputes on first read (wiring its
-    # dependencies then), so that seed is never returned to a reader — it only
-    # avoids an undefined `value` field.
-    ReactiveCell{T}(value, thunk::Union{Nothing, Function}) where {T} =
-        new{T}(value, thunk, thunk === nothing, Set{ReactiveCell}(), Set{ReactiveCell}())
 end
 
 """
@@ -74,11 +69,11 @@ const Cell = ReactiveCell{Any}
 """Primitive untyped cell holding `value`."""
 ReactiveCell(value) = ReactiveCell{Any}(value)
 
-"""Computed untyped cell whose value is produced by calling `thunk()`."""
-ReactiveCell(thunk::Function) = ReactiveCell{Any}(thunk)
-
-"""Untyped cell from an explicit `(value, thunk)` — see the two-arg inner constructor."""
-ReactiveCell(value, thunk::Union{Nothing, Function}) = ReactiveCell{Any}(value, thunk)
+"""
+Untyped cell from a `Function`: by default `f` is the cell's thunk (a computed
+cell); with `as_value = true`, `f` is stored AS the cell's value (a primitive).
+"""
+ReactiveCell(f::Function; as_value::Bool = false) = ReactiveCell{Any}(f; as_value)
 
 # ── per-task tracking stack ────────────────────────────────────────────────
 # While a ReactiveCell's thunk is running, that cell sits on the current task's

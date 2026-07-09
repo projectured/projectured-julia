@@ -125,10 +125,9 @@ states for placement).
     logical value.** The auto-wrapping constructor stores a `Cell` unwrapped and
     turns a `Function` into a *computed thunk* (so the field would be called, not
     returned). To store a callable as a value, either box it (a one-element tuple
-    or wrapper struct) or hand it a primitive cell built with the explicit
-    two-arg constructor `Cell(f, nothing)` — a valid cell holding `f` as its value
-    — which the auto-wrapper passes through unwrapped (it only wraps non-`Cell`
-    values). A plain hand-rolled `struct` (as `SyntaxNodeToText` does) is the third
+    or wrapper struct) or hand it a primitive cell built with
+    `Cell(f; as_value = true)` — a valid cell holding `f` as its value — which the
+    auto-wrapper passes through unwrapped (it only wraps non-`Cell` values). A plain hand-rolled `struct` (as `SyntaxNodeToText` does) is the third
     option. Any convenience constructor must be an *outer* constructor — the macro
     emits the only inner one.
 
