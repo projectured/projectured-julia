@@ -2,6 +2,83 @@
 
 A Julia reimplementation of [ProjecturEd](https://github.com/projectured/projectured), a generic-purpose projectional editor. Documents are structured data (trees, ASTs, graphs) presented through bidirectional, composable projections; editing acts on the projection and is mapped back to the underlying domain.
 
+## 🔒 Sealed files — DO NOT MODIFY
+
+**Some files in this repository are *sealed*. A sealed file MUST NOT be modified by an AI in any way — no edits, no reformatting, no "while I'm here" cleanups, no incidental changes as part of a larger task — unless the user gives explicit permission for that specific file in the current conversation.** This overrides every other instruction, including a broad task that would otherwise touch a sealed file. If a change you are asked to make would require editing a sealed file, STOP and tell the user the file is sealed and ask for explicit permission before proceeding.
+
+The list below is authoritative. It is the ordered inventory of the kernel main folder (`package/kernel/main/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
+
+### `package/kernel/main/` seal status
+
+- ⬜ `ProjecturedKernel.jl` — module root, the layer diagram
+- **Layer 1 — cell** (`cell/`)
+  - ⬜ `cell/CellLayer.jl`
+  - ⬜ `cell/PerformanceCounter.jl`
+  - ⬜ `cell/CellModule.jl`
+  - ⬜ `cell/AbstractCell.jl`
+  - ⬜ `cell/ReactiveCell.jl`
+  - ⬜ `cell/MutableCell.jl`
+  - ⬜ `cell/ImmutableCell.jl`
+  - ⬜ `cell/CellStruct.jl`
+  - ⬜ `cell/Time.jl`
+- **Layer 2 — document** (`document/`)
+  - ⬜ `document/DocumentLayer.jl`
+  - ⬜ `document/DocumentModule.jl`
+  - ⬜ `document/Interface.jl`
+  - ⬜ `document/Document.jl`
+  - ⬜ `document/Forward.jl`
+- **Layer 3 — reference** (`reference/`)
+  - ⬜ `reference/ReferenceLayer.jl`
+  - ⬜ `reference/ReferenceModule.jl`
+  - ⬜ `reference/Reference.jl`
+  - ⬜ `reference/ReferenceCase.jl`
+  - ⬜ `reference/ReferenceBuilder.jl`
+- **Layer 4 — operation** (`operation/`)
+  - ⬜ `operation/OperationLayer.jl`
+  - ⬜ `operation/OperationModule.jl`
+  - ⬜ `operation/Interface.jl`
+  - ⬜ `operation/Operations.jl`
+  - ⬜ `operation/Rerooting.jl`
+- **Layer 5 — device** (`device/`)
+  - ⬜ `device/DeviceLayer.jl`
+  - ⬜ `device/Device.jl`
+  - ⬜ `device/Modifiers.jl`
+  - ⬜ `device/Keyboard.jl`
+  - ⬜ `device/Mouse.jl`
+  - ⬜ `device/GestureModule.jl`
+  - ⬜ `device/EventCase.jl`
+  - ⬜ `device/GestureBinding.jl`
+  - ⬜ `device/ScreenDevice.jl`
+  - ⬜ `device/GestureRecognizer.jl`
+- **Layer 6 — backend** (`backend/`)
+  - ⬜ `backend/BackendLayer.jl`
+  - ⬜ `backend/Backend.jl`
+  - ⬜ `backend/Display.jl`
+  - ⬜ `backend/HeadlessBackend.jl`
+- **Layer 7 — projection** (`projection/`)
+  - ⬜ `projection/ProjectionLayer.jl`
+  - ⬜ `projection/ProjectionApi.jl`
+  - ⬜ `projection/IoMapApi.jl`
+  - ⬜ `projection/Intent.jl`
+  - ⬜ `projection/IoMap.jl`
+  - ⬜ `projection/PrinterContext.jl`
+  - ⬜ `projection/ChildrenContainer.jl`
+  - ⬜ `projection/GestureBindings.jl`
+  - ⬜ `projection/Projection.jl`
+  - ⬜ `projection/ProjectionTemplate.jl`
+- **Layer 8 — agent** (`agent/`)
+  - ⬜ `agent/AgentLayer.jl`
+  - ⬜ `agent/Agent.jl`
+  - ⬜ `agent/Llm.jl`
+  - ⬜ `agent/ToolRegistry.jl`
+  - ⬜ `agent/Mcp.jl`
+- **Layer 9 — editor** (`editor/`)
+  - ⬜ `editor/EditorLayer.jl`
+  - ⬜ `editor/Editor.jl`
+  - ⬜ `editor/Playback.jl`
+
+When a file is sealed, flip its `⬜` to `🔒` in the same commit. Do not remove entries or reorder the list.
+
 ## Before working in this repo
 
 Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module) is defined in [documentation/terminology.md](documentation/terminology.md) — use those terms exactly.
