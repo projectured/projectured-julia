@@ -191,13 +191,14 @@ package whose document walk can express them.
   methods never earns a new file. Precedents: operation traversal and rerooting,
   reader defaults, insertion, serialization, the projection template's children
   container, layout focus-paths.
-- **Shared helpers sink below every user, as exported API.** When two layers need
-  the same machinery, do not lend one layer's internals to the other: either make
-  the sharers fragments of one module (the `@event_case` / `@gestures` parser,
-  in-namespace by construction) or sink the machinery to a layer at or below both
-  and export it (the transparent-Cell struct codegen: `@cell_struct` + builders in
-  the cell layer, built on by `@document`, `@iomap`, and `@projection`).
-  Cross-layer imports name exported symbols only.
+- **Shared helpers are exported API; internals never cross a module boundary.** No
+  module may `import` a name another module does not export — not across layers, and
+  not between sibling modules in the same layer. If code outside a module needs a
+  symbol, export it. To share a helper without exporting it, the sharers must be
+  fragments of one module (the `@event_case` / `@gestures` parser, in-namespace by
+  construction); otherwise sink the machinery to a module at or below both users and
+  export it (the transparent-Cell struct codegen: `@cell_struct` + builders in the
+  cell layer, built on by `@document`, `@iomap`, and `@projection`).
 - **Lower layers may *mention* higher concepts only as opaque payloads** — an untyped
   field the lower layer never interprets (`ProjectionReference.projection::Any`,
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.
@@ -224,12 +225,14 @@ Every main package has a static guard that parses the real `import ..Module`
 headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
 and slice→slice edges are acyclic. Where enabled (the kernel today;
-base/visual/domain as they come clean), it also asserts that **cross-layer
-imports name only exported symbols** — a non-exported name is a module-internal
-detail, so share a private helper via same-module fragments (the `@event_case` /
-`@gestures` parser precedent) or sink the seam below both users as exported API
-(the `@cell_struct` precedent), never lend it across a layer boundary.
-Same-layer neighbours may share internals. The guard is implemented **once** — the shared
+base/visual/domain as they come clean), it also asserts that **imports name only
+exported symbols** — a non-exported name is a module-internal detail, so share a
+private helper via same-module fragments (the `@event_case` / `@gestures` parser
+precedent) or sink the seam below both users as exported API (the `@cell_struct`
+precedent), never lend it across a module boundary. The guard enforces the
+cross-*layer* case today; the same-layer case (a sibling module reaching into a
+neighbour's internals) is the next enforcement phase, turned on per package once
+its same-layer internal imports are cleaned up. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
 — and each test package applies it to its main package

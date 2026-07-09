@@ -491,11 +491,24 @@ states for placement).
     or example, the *fixture* decides the home (a Pdf-backend test driven by a JSON
     pipeline is a domain test), not the machinery it happens to exercise.
 
-48. **Cross-layer imports name only exported symbols.** A non-exported name is a
-    module-internal detail. To share a private helper, either make the sharers
-    fragments of one module (in-namespace by construction) or sink the machinery to
-    a layer at or below both users and export it — never lend an internal across a
-    layer boundary. Same-layer neighbours may share internals.
+48. **Imports name only exported symbols — the module boundary *is* the API
+    boundary.** A non-exported name is a module-internal detail; no code outside the
+    module that defines it may `import`/`using` that name — not from a higher layer,
+    and not from a sibling module in the *same* layer. If another module needs a
+    symbol, that symbol is part of the defining module's public contract and must be
+    **exported**; reaching into an internal is the smell, never the fix. The only way
+    to share a helper without exporting it is to make the sharers **fragments of one
+    module** (same namespace by construction, so nothing is imported); otherwise sink
+    the machinery to a module at or below both users and export it. Precedents: the
+    `@event_case`/`@gestures` parser (same-module fragments); the transparent-Cell
+    struct codegen — `@cell_struct` + `cell_struct_exprs`/`cell_kw_params`/`cell_kwctor`
+    exported from the cell module, built on by `@document`/`@iomap`/`@projection`.
+    Enforcement is staged like the layer guard itself: `check_private_imports` already
+    forbids cross-*layer* internal imports; the same-layer case is enforced per
+    package once its same-layer internal imports are cleaned up. Known remaining
+    instance: `PlaybackModule` reaches into `EditorModule`'s non-exported
+    `read!`/`evaluate!`/`print!`/`perf!` — fix by making Playback a fragment of the
+    editor module, or by exporting the loop steps.
 
 49. **Frameworks sink below their users via the seam pattern; only per-domain
     methods stay above.** A lower layer declares open generics (or a small

@@ -28,9 +28,11 @@
 #    dep resolves to a module whose file also lives under a layers folder of
 #    index ≤ the importer's (non-layers folders are exempt during transition),
 # 5. (opt-in via `check_private_imports`) every cross-layer
-#    `import ..XxxModule: sym` names only symbols the target module exports —
-#    same-layer neighbours may share internals; a plain `import ..XxxModule`
-#    is unconstrained.
+#    `import ..XxxModule: sym` names only symbols the target module exports.
+#    Same-layer neighbours are still exempt here, but that is **transitional**:
+#    AR-48 forbids reaching into a sibling module's internals too, and the
+#    same-layer case is enforced per package once its imports are clean. A plain
+#    `import ..XxxModule` is unconstrained.
 #
 # Each test package calls `check_layering` with its own src root and declared
 # layer order (`test_kernel_layering()`, `test_base_layering()`, …); this file
@@ -351,7 +353,7 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
             haskey(mod_exports, dep) || continue  # dep exempt (package alias)
             dep_idx = mod_layer[dep]
             dep_idx === nothing && continue     # dep exempt (non-layers folder)
-            dep_idx == my_idx && continue       # same layer — internals may be shared
+            dep_idx == my_idx && continue       # same layer — exempt for now (transitional; AR-48 forbids this, staged per package)
             for s in syms
                 s in mod_exports[dep] || push!(errs,
                     "$rel ($mod, layer \"$(layers[my_idx])\") imports non-exported " *
