@@ -1,6 +1,5 @@
-# AbstractCell — the base type of the cell kinds, plus the cross-kind protocol
-# fallbacks. Included into `CellModule` (see CellModule.jl) before the concrete
-# kinds, which subtype it.
+# Fragment of `CellModule` — the base type of the cell kinds plus the cross-kind
+# protocol fallbacks, included before the concrete kinds, which subtype it.
 
 """
     AbstractCell{T}
