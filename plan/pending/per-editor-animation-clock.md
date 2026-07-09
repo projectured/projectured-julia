@@ -1,316 +1,231 @@
-# Per-Editor Animation Clock (multi-editor time)
+# Per-Editor Animation Clock — the clock-as-document redesign
 
-Make the animation clock a **per-editor** value instead of a single process-global
-`Cell`, so two independent editors can run in one process with independent time —
-and so a self-animating *document* (the rotating-vector example) can be **linked**
-to a specific editor's clock.
+Make animation time a **first-class document** with a **per-editor** clock, so that:
 
-Chosen approach: **Option A** — the editor owns a clock; the clock flows down to
-printers through `PrinterContext`; `run_editor!` / the `Editor` constructor take an
-**optional** clock; and self-animating document constructors take an optional clock
-so a document and its editor can share one.
+- many editors run in one process with **independent** time (AR-45),
+- **time-dependent documents**, **animated projections**, and **faster-than-real-time
+  video recording** are all first-class supported features, and
+- the process-global `_EDITOR_TIME` cell **goes away**, replaced by a per-editor
+  `Clock` plus one principled global **wall clock**.
 
-**Backward compatibility is explicitly a non-goal.** The zero-argument time API
-(`get_reactive_editor_time()`, `get_editor_time()`, `tick_editor_time!(t)`) that
-reads a hidden process-global is **removed**: every read/tick takes an explicit
-`Clock`. Call sites are updated wholesale; no compatibility shim is kept.
+This supersedes the earlier "Option A" draft (editor owns a bare `mutable struct
+Clock`, ambient `DEFAULT_CLOCK`). Two changes: the clock becomes a **document** (a
+`time::Cell` field) living in the **document layer** (`Clock.jl`, relocated out of
+the cell layer — the file is already moved as `document/Time.jl`), and the ambient
+default becomes a semantically-honest **wall clock** tracking OS time instead of an
+arbitrary default.
 
 ---
 
-## Problem
+## Why
 
-[Time.jl](../../package/kernel/src/cell/Time.jl) is a process-global singleton:
-one `const _EDITOR_TIME = Cell(0.0)`, and all three verbs (`tick_editor_time!`,
-`get_reactive_editor_time`, `get_editor_time`) operate on it. Two editors in one
-process therefore collide three ways:
+`_EDITOR_TIME` (a module-global `Cell(0.0)`) is process-global mutable state
+(AR-6/AR-45). Two editors in one process collide three ways:
 
-1. **Judder (correctness bug).** Each [`run_editor!`](../../package/kernel/src/editor/Editor.jl)
-   loop computes its own `t_start` and writes `Base.time() - t_start` every frame.
-   Two loops with different start instants write different elapsed values into the
-   *same* cell each frame → the shared time ping-pongs between origins → both
-   editors' animations stutter.
-2. **Cross-editor invalidation (waste).** Editor A's tick invalidates *every*
-   subscriber of the one cell, including editor B's animated thunks — B recomputes
-   for nothing. The "only the animated subtree recomputes" guarantee leaks across
-   editor boundaries.
-3. **No independence (capability gap).** A single cell can't have per-editor
-   pause / rate / seek, and — critically — a deterministic per-editor `seek!` for
-   headless render / tests corrupts the other editor.
+1. **Judder** — each `run_editor!` writes `Base.time() - t_start` into the one
+   shared cell every frame; two loops with different start instants fight over it.
+2. **Cross-editor invalidation** — editor A's tick invalidates *every* subscriber
+   of the one cell, including editor B's animated cells.
+3. **No determinism** — a single global cell can't be seeked per-editor for headless
+   render / tests, so faster-than-real-time recording of one editor corrupts another.
 
-(The same disease once affected [PerformanceCounter.jl](../../package/kernel/src/cell/PerformanceCounter.jl)'s
-process-global `_perf` dict; that has since been fixed — see **Deferred / related**.
-Out of scope here.)
+### Features this must enable
 
-## The crux
-
-Consumers read time with **zero arguments**, deep in the pipeline, and are two
-different kinds of caller:
-
-- **Printer thunks** — closures *built* during `print_document` but *pulled* later
-  during `write_to_devices` (e.g. [RotatingVector.jl](../../package/example/src/document/RotatingVector.jl),
-  the knob-`cx` cell in [WidgetToGraphics.jl:3474](../../package/visual/src/widget/WidgetToGraphics.jl#L3474)).
-- **Readers** — `read_intent` *samples* time at arm-time and gets `(projection, iomap, evt)`
-  — **no context** (e.g. `_switch_toggle` at [WidgetToGraphics.jl:3504](../../package/visual/src/widget/WidgetToGraphics.jl#L3504)).
-
-The printer path already has a downward-flow vehicle: [`PrinterContext`](../../package/kernel/src/projection/PrinterContext.jl)
-(`ctx`) is threaded through the entire print pipeline and is built for exactly this
-kind of ambient, per-invocation data. That is where the clock rides down. Two
-consumer shapes need different injection points:
-
-- **Projection-driven animation** (a printer with `ctx`) reads `ctx.clock` and
-  closes over it → subscribes to *its own* editor's cell → per-editor invalidation
-  falls out for free.
-- **Self-animating document** (e.g. RotatingVector, projected by `IdentityProjection`)
-  is a *document constructor* with **no `ctx`**. Its clock must be injected at
-  construction, and the document is built *before* the editor — so the linkage is:
-  create a `Clock`, pass it to the constructor **and** to `run_editor!`, so both
-  read/tick the same clock.
+1. **Time-dependent documents** — a document whose content is a function of time.
+2. **Animated projection output** — a projection that re-renders as time advances.
+3. **Faster-than-real-time video recording** — render frames by *driving the clock
+   deterministically* (seek `t = 0, 1/fps, 2/fps, …`) as fast as the machine allows,
+   not by waiting for wall time.
 
 ---
 
 ## Design
 
-### 1. A `Clock` value + an ambient default clock — `TimeModule`
-
-Replace the bare global cell with a small `Clock` value that owns its own time cell.
-Keep **one** module-level `DEFAULT_CLOCK` — not as a compatibility shim but as the
-*ambient default argument* for callers that have no editor in scope (direct
-`print_document`, `write_image` / `pure_print_document`, tests). It is frozen at
-`0.0` until something ticks or seeks it.
+### 1. `Clock` is a document with a `time` field — `document/Clock.jl`
 
 ```julia
-# package/kernel/src/cell/Time.jl
-mutable struct Clock          # mutable so pause/rate/origin fields can be added later
-    time::Cell                # Cell{Float64}; the single source of truth for THIS clock
-end
-Clock() = Clock(Cell(0.0))
-
-# the ONLY time API — every call takes an explicit clock:
-get_reactive_editor_time(clock::Clock) = clock.time[]        # SUBSCRIBE (tracked)
-get_editor_time(clock::Clock)          = peek(clock.time)    # SAMPLE   (untracked)
-tick_editor_time!(clock::Clock, t::Real) = (clock.time[] = Float64(t); nothing)
-
-const DEFAULT_CLOCK = Clock()   # ambient clock for editor-less print / export / tests
-get_default_clock() = DEFAULT_CLOCK
-```
-
-- **The zero-arg forms are deleted.** There is no hidden-global read left; a caller
-  that wants the ambient clock names it (`get_reactive_editor_time(get_default_clock())`).
-- Export `Clock`, `get_default_clock` alongside the three clock-parameterized verbs.
-- `peek(::Cell)` is already available (Time.jl uses it today for the sample read),
-  so no new engine primitive is needed.
-- **Pause / rate / seek are deferred.** `Clock` is a struct precisely so those
-  fields can land later without touching call sites; v1 ships just the time cell.
-  (`seek!(clock, t)` can be added as an alias for `tick_editor_time!` for clarity.)
-
-### 2. `PrinterContext` carries the clock — `PrinterContext.jl`
-
-Add a typed `clock` field, defaulting to the ambient default, and propagate it
-through every builder.
-
-```julia
-struct PrinterContext
-    reference::ReferencePath
-    available_width::Union{Nothing, Cell}
-    available_height::Union{Nothing, Cell}
-    clock::Clock                       # NEW — ambient animation clock for this print
-    properties::Dict{Symbol, Any}
+@document struct Clock
+    time::Float64 = 0.0        # a transparent Cell-backed field
 end
 ```
 
-- A **typed field**, not a `properties` key: the clock is a *universal* concern
-  (any animated printer may read it) and type-stability matters on the print hot
-  path — exactly the rationale already used for `available_width`/`available_height`.
-- Thread `clock` through: `PrinterContext()` and `PrinterContext(ref)` (default
-  `get_default_clock()`), both `make_child_context` overloads, `with_available_size`,
-  and `with_property`. Add a `with_clock(ctx, clock)` helper.
-- Import `Clock` from `TimeModule` (the cell layer, no kernel deps — a clean import).
+- `clock.time` reads (SUBSCRIBE, tracked); `clock.time = t` writes (invalidate
+  subscribers) — the transparent-Cell field gives both.
+- A `Clock` is a plain document: constructed, shared, linked into another document,
+  and — if wanted later — *projected* (a timeline / scrubber UI).
+- Reads named for intent:
+  - `get_reactive_time(clock)` = `clock.time` — SUBSCRIBE: the calling cell re-runs
+    each tick. Use inside an animated thunk.
+  - `get_time(clock)` = untracked sample (`peek` the field) — capture a start instant
+    without subscribing. Use to *arm* an animation.
+  - `tick!(clock, t)` / `seek!(clock, t)` = `clock.time = Float64(t)`.
 
-### 3. The `Editor` owns the clock — `Editor.jl`
+### 2. One global **wall clock** — real OS time
+
+```julia
+const WALL_CLOCK = Clock()          # advanced by a single heartbeat to Base.time()
+get_wall_clock() = WALL_CLOCK
+```
+
+- Reflects **OS wall-clock time**: one background heartbeat writes `Base.time()` into
+  it; everything else only *reads* it.
+- The ambient default for callers with no editor (direct `print_document`,
+  `write_image`, tests, editor-less documents).
+- **Why a global is acceptable here (accepted AR-45 carve-out):** the AR-45 hazard is
+  editors *writing conflicting elapsed values* into one shared cell. The wall clock
+  has exactly **one writer** (the heartbeat) and represents a **genuine singleton**
+  (there is one real time); editors only *read* it, so it never breaks their
+  independence. A shared read of a real external truth is not shared mutable *editor*
+  state. See Caveats.
+
+### 3. The `Editor` owns its clock — `editor/Editor.jl`
 
 ```julia
 mutable struct Editor
-    backend::Backend
-    document::Document
-    projection::Projection
-    devices::Vector{Device}
-    iomap::Union{IoMap, Nothing}
-    operation::Union{Operation, Nothing}
-    recognizer::GestureRecognizer
-    clock::Clock                      # NEW
+    ...
+    clock::Clock
 end
-
-# optional clock; the ambient default when unspecified (see the editor-default
-# decision under Open Questions)
-Editor(backend, document, projection, devices; clock::Clock=get_default_clock()) =
-    Editor(backend, document, projection, devices,
-           nothing, nothing, GestureRecognizer(), clock)
+Editor(...; clock::Clock = Clock()) = Editor(..., clock)   # fresh private clock per editor
 ```
 
-- **`print!` stamps the clock into the root context.** Today it calls the 2-arg
-  [`print_document(projection, input)`](../../package/kernel/src/projection/Projection.jl#L40),
-  which injects a fresh `PrinterContext()`. Change `print!` to build a root context
-  carrying `editor.clock` and call the 4-arg form:
+- **Live editor**: `run_editor!` advances `editor.clock` from OS time each frame
+  (`tick!(editor.clock, Base.time() - t_start)`) — tracks real time but
+  *independently*, so A's tick never touches B's cells.
+- **Recording editor**: the recorder advances `editor.clock` deterministically
+  (`seek!(editor.clock, frame/fps)`), decoupled from wall time — this is what makes
+  faster-than-real-time recording work.
+- Default = a fresh `Clock()` (full independence by default); editor-less contexts
+  fall back to `get_wall_clock()`.
 
-  ```julia
-  function print!(editor::Editor)
-      if editor.iomap === nothing
-          ctx = PrinterContext(EmptyReferencePath(), nothing, nothing,
-                               editor.clock, Dict{Symbol,Any}())
-          editor.iomap = print_document(editor.projection, nothing, editor.document, ctx)
-      end
-      write_to_devices(editor.backend, editor.devices, editor.iomap.output)
-  end
-  ```
+### 4. The clock rides down through `PrinterContext` — `projection/PrinterContext.jl`
 
-- **`run_editor!` advances the editor's clock**, not a global:
-  `tick_editor_time!(editor.clock, Base.time() - t_start)`.
-- **Bootstrap overload** gains an optional `clock` and threads it to `Editor`:
-  `run_editor!(backend, projection, document; clock::Clock=get_default_clock(), mcp=false, devices=…)`.
-- **Audit other tick sites.** [ProjecturedVideo.jl:146](../../package/video/src/ProjecturedVideo.jl#L146)
-  calls `tick_editor_time!(time() - anim_t0)` on the global — migrate it to advance
-  the editor's clock (thread the recorded editor's clock, or accept a `clock` arg).
-  [Playback.jl](../../package/kernel/src/editor/Playback.jl) has its own scripted
-  loop — audit whether it ticks time and, if so, advance the editor's clock.
+Add a typed `clock::Clock` field (like `available_width`), propagated through both
+constructors, both `make_child_context`, `with_available_size`, `with_property`, plus
+a `with_clock` helper. `print!` mints the root context with `editor.clock`. A
+projection-driven animation reads `ctx.clock`, closes over it, and subscribes to *its
+own* editor's clock — per-editor invalidation falls out for free.
 
-### 4. Link the rotating-vector example to an editor's clock — the acceptance target
+### 5. Document construction functions take a `clock` — the linkage
 
-Give the self-animating document constructor a `clock` parameter (defaulting to the
-ambient clock so `run_example` still works — see the harness note), and read that
-clock inside its cells:
+A self-animating document takes an optional `clock` argument and wires its cells to it:
 
 ```julia
-# package/example/src/document/RotatingVector.jl
-function make_rotating_vector_document(; clock::Clock = get_default_clock(),
-                                       w = 600, h = 600, …)
-    phase0 = get_editor_time(clock)                 # SAMPLE this clock
-    …
-    () -> round(Int32, cx + r * cos(angle(get_reactive_editor_time(clock))))  # SUBSCRIBE this clock
-    …
-end
+make_rotating_vector_document(; clock::Clock = get_wall_clock(), …)
 ```
 
-The linkage pattern — one private clock shared between a document and its editor,
-giving a fully independent animated editor:
+Link a document to a specific editor by passing the *same* `Clock` to both the
+constructor and `run_editor!`. Two independent (document, editor) pairs with two
+distinct `Clock`s animate fully independently.
 
-```julia
-clk = Clock()
-doc = make_rotating_vector_document(; clock = clk)
-run_editor!(backend, IdentityProjection(), doc; clock = clk)   # ticks clk
-```
+### 6. The three features, realized
 
-Two such pairs with two distinct `Clock`s run as **two independent** animated
-editors — different times, no cross-invalidation, independently seekable.
+- **Time-dependent documents** — the construction `clock` argument + `clock.time`
+  reads inside the document's cells.
+- **Animated projection output** — `ctx.clock` in a printer thunk.
+- **Faster-than-real-time recording** — the recording editor seeks `editor.clock`
+  frame-by-frame; `ProjecturedVideo` drives that clock instead of the old global.
 
-> **Example-harness note.** [`run_example`](../../package/example/src/Examples.jl)
-> composes **pre-built, cached** `Example.document`s into a multi-window screen, and
-> `Example` builds its document once via `make_document()` at load time. For the
-> single-editor harness the simplest correct wiring is: the harness runs the editor
-> with the ambient default clock (`run_editor!(…; clock=get_default_clock())`), and
-> self-animating example documents default their `clock` to `get_default_clock()`,
-> so the cached document and the editor share it with no per-run surgery. Linking a
-> self-animating document to a *private* clock (the two-independent-editors case) is
-> the deliberate opt-in shown above: build a fresh document with an explicit `clock`
-> and run its editor with the same one, rather than reusing the cached document.
+---
 
-### 5. Consumer audit
+## Placement
 
-Every zero-arg time read must be updated (the zero-arg API is gone). Only two files
-read the time API today:
+`Clock` lives in the **document layer** (`document/Clock.jl`), not the cell layer — a
+time value is document-model data built on `Cell`, not part of the reactive engine.
+(The file is already relocated as `document/Time.jl`; this redesign renames it
+`Clock.jl`.) `PrinterContext` (projection, layer 7) and `Editor` (layer 9) import
+`Clock` from the document layer (2) — valid downward edges. The wall clock lives with
+`Clock` in the document layer.
 
-| Consumer | Path | Action |
-|---|---|---|
-| RotatingVector (printer/subscribe, self-animating doc) | [RotatingVector.jl](../../package/example/src/document/RotatingVector.jl) | **Migrate** — `clock` param, cells read `…(clock)` (§4). |
-| WidgetSwitch knob (printer subscribe **+** reader arm) | [WidgetToGraphics.jl](../../package/visual/src/widget/WidgetToGraphics.jl) | **Migrate to `get_default_clock()` on both sides; per-editor deferred** (below). |
+---
 
-**Why WidgetSwitch stays on the default clock (per-editor deferred).** Its animation
-is *reader-armed*: `_switch_toggle` (the reader, line 3499/3513) **samples** the
-start instant, and readers receive `iomap`, not `ctx` — they cannot reach the
-editor's clock. The printer's subscribe and the reader's arm **must sample the same
-clock** (they compute `t - t0` together). The printer *has* `ctx` and could read
-`ctx.clock`, but the reader can only reach a globally-named clock, so to keep the two
-consistent, **both** read `get_default_clock()`. Consequence: WidgetSwitch animates
-only in an editor whose clock is the default clock; in an editor with a private
-clock it simply holds its final position (no wrong animation). Making reader-armed
-widgets per-editor needs the clock reachable from readers (an iomap-borne clock or a
-reader context) — a separate follow-up.
+## Caveats / accepted exceptions
+
+1. **The wall clock is a process-global** — accepted as a *principled* AR-45 carve-out:
+   one writer (the heartbeat), read-only for editors, representing the genuine
+   singleton of OS time. Record this exception at the `WALL_CLOCK` definition and in
+   AR-45. It does **not** reintroduce the cross-editor *write* conflict AR-45 targets.
+2. **Reader-armed animations stay on the wall clock (per-editor deferred).** A reader
+   (`read_intent`) receives `iomap`, not `ctx`, so it cannot reach the editor's clock.
+   The printer-subscribe and reader-arm sides of a reader-armed widget (e.g.
+   WidgetSwitch) must sample the *same* clock, so both use `get_wall_clock()`.
+   Consequence: reader-armed widgets animate only against the wall clock; in a
+   private-clock editor they hold their final position. Making them per-editor needs a
+   clock reachable from readers (an iomap-borne clock, or a reader context analogous to
+   `PrinterContext`) — a separate follow-up.
 
 ---
 
 ## Breaking changes
 
-- **Zero-arg time API removed.** `get_reactive_editor_time()`, `get_editor_time()`,
-  `tick_editor_time!(t)` no longer exist. Every call site passes an explicit `Clock`
-  (`get_default_clock()` where there is no editor). Grep confirms the only in-tree
-  readers are RotatingVector and WidgetToGraphics; the only ticker is `run_editor!`
-  plus ProjecturedVideo — all updated here.
-- **Tests that pin time** switch from `tick_editor_time!(t)` to
-  `tick_editor_time!(get_default_clock(), t)` (or seek a named clock).
-- No compatibility shim, no deprecation path — this is a clean cut.
+The zero-arg time API (`get_reactive_editor_time()`, `get_editor_time()`,
+`tick_editor_time!(t)`) is **removed**; every read/tick takes an explicit `Clock`. No
+compat shim. In-tree callers (`run_editor!`, `Playback`, `RotatingVector`,
+`WidgetToGraphics`, `ProjecturedVideo`, tests) are updated wholesale.
 
-## Determinism / tests
+## Consumer audit
 
-- Add an **independence test**: build two `Editor`s with two `Clock`s (or two
-  rotating-vector documents each linked to its own clock), `tick_editor_time!` each
-  clock to *different* values, print both, and assert (a) each animated cell reflects
-  **its own** clock and (b) ticking clock A does **not** recompute clock B's cells
-  (cross-editor incrementality). No live loop needed — direct `print!` + tick.
-- Keep a default-clock smoke test proving `run_example("rotating_vector")` still
-  animates (seek `get_default_clock()`, assert an animated coordinate changed and a
-  static sibling did not recompute).
+| Consumer | Action |
+|---|---|
+| `run_editor!` / `Playback` (kernel editor) | tick `editor.clock` instead of the global |
+| `print!` (kernel editor) | mint the root `PrinterContext` with `editor.clock` |
+| RotatingVector (example, self-animating doc) | `clock` param; cells read the clock (§5) |
+| WidgetToGraphics switch (visual, printer + reader) | both sides read `get_wall_clock()`; per-editor deferred |
+| ProjecturedVideo (video) | drive the recording editor's `clock` (seek per frame) |
+
+## Determinism / tests (acceptance criteria)
+
+- **Independence** — two editors with two `Clock`s, ticked to different values, print
+  both; assert each animated cell reflects *its own* clock and ticking A does not
+  recompute B's cells.
+- **Time-dependent document** — build a document against a clock; seek it; assert the
+  dependent field changed and a static sibling did not recompute.
+- **Animated projection** — seek an editor's clock; assert an animated coordinate in
+  its output changed.
+- **Faster-than-real-time recording** — record N frames by seeking the editor clock
+  deterministically (no `sleep`); assert wall-clock elapsed ≪ N/fps and each frame
+  reflects its seeked time.
 
 ## Implementation steps
 
-1. **`TimeModule`**: `Clock` struct, clock-parameterized verbs, `DEFAULT_CLOCK` +
-   `get_default_clock`; **delete** the zero-arg forms. Export `Clock`,
-   `get_default_clock`. Update the module docstring (per-editor + ambient default).
-2. **`PrinterContext`**: add typed `clock` field; propagate through both constructors,
-   both `make_child_context`, `with_available_size`, `with_property`; add `with_clock`.
-   Update docstring.
-3. **`Editor`**: `clock` field + optional constructor arg; `print!` mints a
-   clock-bearing root context; `run_editor!` advances `editor.clock`; bootstrap
-   overload gains optional `clock`.
-4. **Audit tick sites**: migrate [ProjecturedVideo.jl](../../package/video/src/ProjecturedVideo.jl#L146);
-   audit [Playback.jl](../../package/kernel/src/editor/Playback.jl).
-5. **Consumers**: RotatingVector → `clock` param; WidgetToGraphics printer+reader →
-   `get_default_clock()`.
-6. **Tests**: independence test + default-clock smoke test; fix any test that used a
-   zero-arg tick/read.
-7. **Docs**: `TimeModule` docstring, `PrinterContext` docstring,
-   [reactive-cells.md](../../documentation/reactive-cells.md) purity note (the clock
-   enters the graph through a `Clock`'s cell), and record the per-editor decision in
-   [animation-global-time.md](animation-global-time.md).
-
-Commit per step; do the work in a dedicated worktree.
-
-## Deferred / related
-
-- **Reader-armed widgets per-editor** (WidgetSwitch et al.): needs the clock
-  reachable from readers (iomap-borne clock, or a reader context analogous to
-  `PrinterContext`). Separate follow-up. Until then they use the default clock.
-- **`PerformanceCounterModule` was the same singleton class of bug** — **done.**
-  ([PerformanceCounter.jl](../../package/kernel/src/cell/PerformanceCounter.jl)):
-  the process-global `_perf` dict let two editors stomp each other's counters. Fixed
-  independently of this plan: rather than moving the store onto `Editor` (cells have
-  no editor handle to reach it), the counters now live in a **task-local
-  `with_performance_counters` binding** that `run_editor!` establishes per frame, and
-  the whole module is conditionally compiled (`PERFORMANCE_COUNTERS_ENABLED`).
+1. **`document/Clock.jl`** (rename from `Time.jl`): the `Clock` document + `time`
+   field; `get_reactive_time` / `get_time` / `tick!` / `seek!`; `WALL_CLOCK` +
+   `get_wall_clock` + the heartbeat; **delete** the zero-arg API. Update the
+   `DocumentLayer.jl` include name.
+2. **`PrinterContext`**: typed `clock` field; propagate through constructors /
+   child-context / with-helpers; add `with_clock`.
+3. **`Editor`**: `clock` field (fresh `Clock()` default); `print!` mints a
+   clock-bearing root context; `run_editor!` advances `editor.clock`; audit `Playback`.
+4. **Consumers**: RotatingVector → `clock` param; WidgetToGraphics printer+reader →
+   `get_wall_clock()`; ProjecturedVideo → drive the recording editor's clock.
+5. **Tests**: the four acceptance tests above; fix any test using the deleted zero-arg API.
+6. **Docs & requirements**: rewrite the `Clock` docstring and move cell.md's relocated
+   `TimeModule` section into a document-layer doc; record the wall-clock AR-45
+   carve-out in AR-45; note the reader-seam follow-up.
+7. **Seal**: once migrated and green, `document/Clock.jl` is eligible for the seal walk.
 
 ## Open questions
 
-- **Editor default clock — the real remaining decision.**
-  - *Ambient `DEFAULT_CLOCK` (proposed).* Keeps the example harness surgery-free and
-    keeps reader-armed widgets (WidgetSwitch) animating in the default editor.
-    Independence is opt-in: pass distinct `Clock`s. Two no-arg editors share the
-    ambient clock (not independent), which is acceptable because independence is the
-    deliberate case the optional argument exists for.
-  - *Fresh `Clock()` per editor.* Auto-isolates projection-driven animations across
-    editors with zero wiring — but (a) the harness must thread a per-run clock and
-    rebuild self-animating documents against it, and (b) reader-armed widgets stop
-    animating (their reader can only reach the ambient clock, which the editor no
-    longer ticks). Both costs are about the reader seam and the pre-built-document
-    harness, **not** backward compatibility.
+- **`@document` vs `@cell_struct` for `Clock`** — full document machinery
+  (snapshot / `rekind` / selection) only earns its keep if the clock is itself
+  *projected* (a timeline / scrubber). If not, `@cell_struct` is lighter. Decide when
+  the projecting-the-clock feature is scoped.
+- **Live editor: private clock vs shared wall clock** — proposed: a fresh private
+  `Clock()` per editor, ticked from OS time (full independence). Alternative: live
+  editors share the wall clock (simpler, but cross-invalidates). Proposed keeps
+  independence; revisit if a per-editor tick proves redundant with the heartbeat.
+- **Reader-seam follow-up** — the mechanism to let reader-armed widgets read a
+  per-editor clock (an iomap-borne clock, or a reader context analogous to
+  `PrinterContext`).
 
-  Proposed: ambient default now; revisit fresh-per-editor once the reader-seam
-  follow-up lands (which removes cost (b)).
-- **When `Clock` gains pause / rate / seek**: deferred; the struct is ready for it.
+## Related — already migrated (not part of this plan)
+
+The two *other* process-global offenders AR-45 named were fixed independently, as
+**task-local** state rather than per-editor, because they are per-*evaluation*, not
+per-*editor*:
+
+- `PerformanceCounterModule`'s `_perf` → a task-local `with_performance_counters`
+  binding.
+- `ReactiveCell`'s `_computing` dependency-tracking stack → task-local storage.
+
+The animation clock is genuinely per-*editor* (and must flow down to printers), which
+is why it needs this `PrinterContext`-threading approach instead.
