@@ -1,6 +1,6 @@
 # Workbench Domain
 
-<img width="1285" alt="Workbench example" src="../../image/example/workbench.png">
+<img width="1285" alt="Workbench example" src="../../../asset/image/example/workbench.png">
 
 The workbench domain models an IDE-style workspace. It is implemented in
 [package/domain/main/workbench/Workbench.jl](../../../package/domain/main/workbench/Workbench.jl)

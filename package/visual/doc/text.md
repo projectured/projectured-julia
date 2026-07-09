@@ -1,6 +1,6 @@
 # Text Domain
 
-<img width="804" alt="Text example" src="../../image/example/text.png">
+<img width="804" alt="Text example" src="../../../asset/image/example/text.png">
 
 The text domain bridges structural (syntax tree) and visual (graphics) domains. Text is stored as a flat sequence of spans, each with its own reactive style and color. Selection is a flat character offset.
 

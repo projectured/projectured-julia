@@ -26,7 +26,7 @@ Available names (see `examples` vector in `ProjecturedExample`):
 
 ## 1. JSON (`run_example("json")`)
 
-<img width="396" alt="Json example" src="../image/example/json.png">
+<img width="396" alt="Json example" src="../asset/image/example/json.png">
 
 **What it demonstrates:** The foundational pipeline — the one every other
 domain is modelled after.
@@ -57,7 +57,7 @@ delimiters (`{`, `}`, `"`, `,`).
 
 ## 2. Syntax (`run_example("syntax")`)
 
-<img width="586" alt="Syntax example" src="../image/example/syntax.png">
+<img width="586" alt="Syntax example" src="../asset/image/example/syntax.png">
 
 **What it demonstrates:** The *syntax* domain is the generic intermediate
 between semantic domains (JSON, XML, Math, Julia, …) and text. Using it
@@ -86,7 +86,7 @@ expression — and renders it as indented text.
 
 ## 3. Widget (`run_example("widget")`)
 
-<img width="1024" alt="Widget example" src="../image/example/widget.png">
+<img width="1024" alt="Widget example" src="../asset/image/example/widget.png">
 
 **What it demonstrates:** A higher-level domain — widgets — sits *above* the
 text domain and has its own projection to graphics. The `WidgetToGraphics`
@@ -116,7 +116,7 @@ controls: a text box, a checkbox, and a button.
 
 ## 4. Table (`run_example("table")`)
 
-<img width="397" alt="Table example" src="../image/example/table.png">
+<img width="397" alt="Table example" src="../asset/image/example/table.png">
 
 **What it demonstrates:** `TableToGraphics` is a *direct* projection — it skips
 the text intermediate and renders a 2-D grid directly to graphics primitives,
@@ -143,7 +143,7 @@ The example shows a small data table with headers and typed cells.
 
 ## 5. Julia AST (`run_example("julia")`)
 
-<img width="336" alt="Julia example" src="../image/example/julia.png">
+<img width="336" alt="Julia example" src="../asset/image/example/julia.png">
 
 **What it demonstrates:** Editing source code as an AST, not as text. The
 Julia domain provides types for identifiers, integers, binary operators,
@@ -173,7 +173,7 @@ nodes; the cursor understands the structure of the code.
 
 ## 6. Workbench (`run_example("workbench")`)
 
-<img width="1285" alt="Workbench example" src="../image/example/workbench.png">
+<img width="1285" alt="Workbench example" src="../asset/image/example/workbench.png">
 
 **What it demonstrates:** The full IDE shell. The workbench is a compound
 document that wraps any other document in a structured editor environment with

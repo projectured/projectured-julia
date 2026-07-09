@@ -1,6 +1,6 @@
 # XML Domain
 
-<img width="816" alt="Xml example" src="../../image/example/xml.png">
+<img width="816" alt="Xml example" src="../../../asset/image/example/xml.png">
 
 The XML domain represents XML documents as a tree of reactive nodes. Every node is a Document with reactive Cell fields. Attributes are first-class documents so the selection mechanism can descend into attribute values.
 
