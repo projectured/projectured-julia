@@ -58,9 +58,8 @@ do for the person building with or contributing to it).
    state of the content and can represent another, then it must also be able to
    represent every intermediate state the user pictures in her mental model on the
    way from the first to the second — even a state that is ill-formed in the
-   original kind of content, such as an XML document with a single `<` character
-   removed. The architecture must permit such a state to exist, one way or
-   another (for instance as content of a different kind).
+   original kind of content. The architecture must permit such a state to exist,
+   one way or another.
 
 ### Selecting, navigating, and finding
 
@@ -100,14 +99,11 @@ do for the person building with or contributing to it).
     content must be able to appear inside any other kind, in any arrangement,
     whether or not that combination has a predefined meaning. The meaning is not
     required up front: it may be supplied elsewhere, defined later, or exist only
-    in the user's mind — for example JSON embedded in Julia code, which might
-    stand for an HTTP request that returns that JSON document, with the executed
-    code itself being a projection of such a document.
+    in the user's mind.
 
 18. **Any part can be a document on its own.** Any fragment of any kind of content
-    — a single XML attribute, one Julia `if`, a lone button widget — must be able
-    to stand as a complete document in its own right, edited and presented with
-    the same capabilities as any larger whole.
+    must be able to stand as a complete document in its own right, edited and
+    presented with the same capabilities as any larger whole.
 
 ### Interaction
 
