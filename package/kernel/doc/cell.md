@@ -140,8 +140,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 ## Layer structure
 
 The layer lives in [package/kernel/main/cell/](../../../package/kernel/main/cell/):
-the instrumentation counter module, the cell module, and the animation clock,
-loaded in this order:
+the instrumentation counter module and the cell module, loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
@@ -151,9 +150,13 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         └─ ImmutableCell.jl   — read-only, zero-cost wrapper
-        │  Cell imported by ↓
-Time.jl                 (TimeModule)                  — the global editor clock
 ```
+
+The animation clock (`TimeModule`, `Time.jl`) has **moved out of the cell layer**
+to the document layer — a time value belongs with the document model, not the
+reactive engine (it is a *use* of `Cell`, not part of the engine). It is pending
+the clock-as-document redesign (renamed `Clock.jl`); see
+[plan/pending/per-editor-animation-clock.md](../../../plan/pending/per-editor-animation-clock.md).
 
 The load order is the dependency order the include-order guard checks. The
 animation clock (`TimeModule`) is a *use* of `Cell` (a single primitive cell that
@@ -236,6 +239,11 @@ binds a fresh store and reports it every frame (see
 easiest way to profile what work a particular edit triggered.
 
 ## TimeModule — the animation clock
+
+> **Moved:** this module now lives in the **document layer** (`document/Time.jl`),
+> not the cell layer, and is pending the clock-as-document redesign (renamed
+> `Clock.jl`); see [the plan](../../../plan/pending/per-editor-animation-clock.md).
+> The description below is the current, pre-redesign behavior.
 
 A single global primitive cell, `EDITOR_TIME`, holding the current logical time in
 seconds. The editor's read-eval-print loop writes it once per frame via `tick_editor_time!`; because cell

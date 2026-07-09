@@ -7,11 +7,14 @@ writes it once per frame via `tick_editor_time!`. Because cell writes invalidate
 (write-driven propagation), any computed cell that read the time is re-evaluated
 on the next pull — which is all animation needs.
 
-An application-level clock layered *on top of* the pure Cell engine (it depends
-on `Cell`), not part of the engine itself. Lives beside `CellModule` in the
-cell layer because it depends on nothing else in the kernel and every animated
-projection reads it — domain code can `import ..TimeModule` directly, without
-pulling in the editor loop that drives it.
+An application-level clock layered *on top of* the pure `Cell` engine (it depends
+only on `Cell`), not part of the engine itself.
+
+**Relocated** from the cell layer to the document layer: a time value belongs
+with the document model, not the reactive engine. This module is **deferred**
+pending the clock-as-document redesign (a global wall clock + per-editor clocks;
+the `_EDITOR_TIME` global is removed), after which it is renamed `Clock.jl`. See
+[plan/pending/per-editor-animation-clock.md](../../../../plan/pending/per-editor-animation-clock.md).
 
 Two ways to read it, named so intent is obvious:
   • `get_reactive_editor_time()` — SUBSCRIBE. A tracked read; the calling cell becomes
