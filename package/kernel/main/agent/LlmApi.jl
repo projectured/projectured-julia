@@ -1,8 +1,9 @@
 # Fragment of `LlmModule` — the LLM backend contract: the abstract `Llm`
 # supertype and the `stream_turn` generic every concrete backend adds a
-# method for. The concrete backends live one-per-file alongside this one:
-# `LlmAnthropic.jl` (`AnthropicLlm`), `LlmFake.jl` (`FakeLlm`), and
-# `LlmScripted.jl` (`ScriptedLlm` + its scripted-round builders).
+# method for. The in-process backends live one-per-file alongside this one:
+# `LlmFake.jl` (`FakeLlm`) and `LlmScripted.jl` (`ScriptedLlm` + its
+# scripted-round builders). The real-network backend (`AnthropicLlm`) lives
+# entirely in the opt-in `ProjecturedLlm` package (`package/llm`).
 
 # ═══════════════════════════════════════════════════════════════════════
 # Interface

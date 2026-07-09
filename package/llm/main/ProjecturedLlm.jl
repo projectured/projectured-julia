@@ -2,9 +2,11 @@
     Llm
 
 Opt-in package: the Anthropic Messages API client (real-Claude `Llm`).
-Depends on `ProjecturedKernel` + HTTP/JSON3; `using ProjecturedLlm` adds the
-`stream_turn(::AnthropicLlm)` method to the kernel's `LlmModule` seam. Relocated
-from the former program/src/editor/Anthropic.jl (AnthropicModule).
+Depends on `ProjecturedKernel` + HTTP/JSON3. Defines the `AnthropicLlm`
+backend (a subtype of the kernel's `LlmModule.Llm` seam) and its
+`stream_turn` method; `using ProjecturedLlm` makes both available so the
+core `WorkbenchAssistant` can discover them by reflection. Relocated from
+the former program/src/editor/Anthropic.jl (AnthropicModule).
 """
 module ProjecturedLlm
 
@@ -14,12 +16,30 @@ using ProjecturedKernel
 using HTTP
 using JSON3
 
-import ProjecturedKernel.LlmModule: AnthropicLlm, stream_turn
+import ProjecturedKernel.LlmModule: Llm, stream_turn
 
-export stream_message
+export AnthropicLlm, stream_message
 
 const _ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 const _ANTHROPIC_VERSION = "2023-06-01"
+
+"""
+    AnthropicLlm(; base_url, max_tokens)
+
+Real Claude backend. Requires `api_key` to be passed to `stream_turn`
+(typically from `ENV["ANTHROPIC_API_KEY"]`). The struct and its
+`stream_turn` method live entirely in this opt-in package; the core
+`WorkbenchAssistant` discovers them by reflection when the package is
+loaded (else it falls back to `FakeLlm`).
+"""
+struct AnthropicLlm <: Llm
+    base_url::String
+    max_tokens::Int
+end
+
+AnthropicLlm(; base_url::AbstractString = _ANTHROPIC_URL,
+               max_tokens::Integer = 4096) =
+    AnthropicLlm(String(base_url), Int(max_tokens))
 
 """
     stream_message(api_key, model, system, messages, tools; on_event,
