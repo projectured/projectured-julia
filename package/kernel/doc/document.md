@@ -7,18 +7,21 @@ selection, operation, projection) see the repo-level
 [documentation/concepts.md](../../../documentation/concepts.md).
 
 The layer lives in [main/document/](../main/document/), inside one aggregator
-module (`DocumentModule`) split across two fragments that share its namespace:
+module (`DocumentModule`) split across three fragments that share its namespace:
 
 ```
 DocumentModule.jl        (DocumentModule)              — the aggregator
         │ imports Cell (from CellModule) and exports every public name
         ├─ Interface.jl   — the contract: Document abstract type + selection
         │                   generics (get/clear/set/with) + read_gesture seam
-        └─ Document.jl    — the shared machinery: generic Base.show, the
-                            Cell-struct codegen (_cell_* helpers reused by
-                            @iomap), the @document macro + @forward*, and the
-                            value protocol (copy_document, cell_kind, rekind,
-                            snapshot, hydrate, sync_document!)
+        ├─ Document.jl    — the shared machinery: generic Base.show, the
+        │                   Cell-struct codegen (_cell_* helpers reused by
+        │                   @iomap), the @document macro, and the value protocol
+        │                   (copy_document, cell_kind, rekind, snapshot,
+        │                   hydrate, sync_document!)
+        └─ Forward.jl     — the @forward* family (@forward, @forward_vector,
+                            @forward_map): expose a nested field's protocol on a
+                            wrapper document via generated delegating methods
 ```
 
 The interface and machinery are only ever imported together, so they share
@@ -80,9 +83,9 @@ authored with `@gestures` needs no hand-written `read_gesture`.
   cell layer's exported Cell-struct codegen builders (`cell_kw_params`,
   `cell_kwctor` — see the `@cell_struct` section in [cell.md](cell.md), the
   same codegen `@iomap` and `@projection` delegate to wholesale).
-- **`@forward` / `@forward_vector` / `@forward_map`** — helpers that
-  automatically forward `getproperty` from a wrapper document onto a nested
-  field, for compound documents that delegate.
+- **`@forward` / `@forward_vector` / `@forward_map`** (in `Forward.jl`) —
+  helpers that automatically forward `getproperty` from a wrapper document onto
+  a nested field, for compound documents that delegate.
 - **Value protocol** — `copy_document`, `cell_kind`, `rekind`, `snapshot`,
   `hydrate`, `sync_document!`: rekind/snapshot switch a whole tree between
   cell kinds (reactive ↔ mutable ↔ immutable) for the reactive-shadow pattern.

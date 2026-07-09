@@ -13,13 +13,16 @@ The module lives in two fragments that share this namespace:
   `with_selection`), and the projection-independent `read_gesture` seam. This
   is the surface every higher layer implements against.
 - [`Document.jl`](Document.jl) — the shared machinery: the generic
-  `Base.show`, the `@document` macro and its `@forward*` family, and the value
+  `Base.show`, the `@document` macro, and the value
   protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
   `sync_document!` that reactive syncing and rehydration ride on. `@document`
   builds its keyword-constructor support on the cell layer's exported
   Cell-struct codegen (`cell_kw_params` / `cell_kwctor`, beside `@cell_struct`
   in `cell/CellStruct.jl` — the same codegen `@iomap` and `@projection`
   delegate to wholesale).
+- [`Forward.jl`](Forward.jl) — the `@forward*` family (`@forward`,
+  `@forward_vector`, `@forward_map`): helpers that expose a nested field's
+  protocol on a wrapper document by generating delegating methods.
 
 The concrete documents (Collection, Primitive, ScreenDocument) live in the
 base and visual packages, not the kernel.
@@ -43,8 +46,9 @@ export Document, get_selection, clear_selection!, set_selection!, with_selection
        @document, @forward, @forward_vector, @forward_map
 
 # The abstract type and selection generics first; the machinery in Document.jl
-# refers to them.
+# refers to them. Forward.jl holds the `@forward*` family, split out of Document.jl.
 include("Interface.jl")
 include("Document.jl")
+include("Forward.jl")
 
 end # module

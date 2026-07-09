@@ -164,7 +164,7 @@ Each layer lives in its own folder under [main/](../main/):
 | Folder | Holds |
 | --- | --- |
 | `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](cell.md)) |
-| `document/` | the Document contract (`Interface.jl` + `Document.jl`) |
+| `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) |
 | `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
