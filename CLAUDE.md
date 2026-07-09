@@ -22,7 +22,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
   - 🔒 `cell/CellStruct.jl`
-  - ⬜ `cell/Time.jl`
+  - ⬜ `cell/Time.jl` — **deferred**: blocked on the per-editor-clock migration (AR-45 `_EDITOR_TIME` global); see [plan/pending/per-editor-animation-clock.md](plan/pending/per-editor-animation-clock.md). Do not seal until migrated.
 - **Layer 2 — document** (`document/`)
   - ⬜ `document/DocumentLayer.jl`
   - ⬜ `document/DocumentModule.jl`
