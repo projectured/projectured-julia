@@ -1,6 +1,6 @@
-# ReactiveCell — the pull-based reactive kind and its engine. Included into
-# `CellModule` (see CellModule.jl); `AbstractCell` is already in scope. This is the
-# only cell kind that touches the performance counters, so it imports the bump macro.
+# Fragment of `CellModule` — the pull-based reactive kind and its engine.
+# `AbstractCell` is already in scope. This is the only cell kind that touches the
+# performance counters, so it imports the bump macro.
 import ..PerformanceCounterModule: @count_performance
 
 """
