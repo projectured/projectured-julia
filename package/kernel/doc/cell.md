@@ -41,7 +41,8 @@ clock uses to *sample* time rather than subscribe to it.
 
 ## Dependency tracking
 
-Tracking is automatic via a global `_computing` stack:
+Tracking is automatic via a per-task `_computing` stack (task-local, so
+concurrent evaluations never share it):
 
 1. When a computed cell starts evaluating, it pushes itself onto the stack.
 2. Every `c[]` that happens during evaluation registers an edge `observer ← c`

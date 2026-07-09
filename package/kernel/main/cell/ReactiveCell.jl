@@ -64,10 +64,14 @@ ReactiveCell(value) = ReactiveCell{Any}(value)
 """Computed untyped cell whose value is produced by calling `thunk()`."""
 ReactiveCell(thunk::Function) = ReactiveCell{Any}(thunk)
 
-# ── global tracking stack ────────────────────────────────────────────────
-# While a ReactiveCell's thunk is running, that cell sits on this stack so that
-# any ReactiveCell read during evaluation can register itself as a dependency.
-const _computing = ReactiveCell[]
+# ── per-task tracking stack ────────────────────────────────────────────────
+# While a ReactiveCell's thunk is running, that cell sits on the current task's
+# stack so any ReactiveCell read during evaluation can register itself as a
+# dependency. The stack is task-local, not a module global: concurrent
+# evaluations (e.g. separate editors on separate tasks) each get their own, so
+# their dependency tracking never crosses.
+_computing_stack() =
+    get!(() -> ReactiveCell[], task_local_storage(), :projectured_reactive_computing)::Vector{ReactiveCell}
 
 # The reactive hot path bumps the performance counters via `@count_performance`
 # (imported at the top of this file). The macro lives in `PerformanceCounterModule`
@@ -80,8 +84,9 @@ const _computing = ReactiveCell[]
 function Base.getindex(c::ReactiveCell)
     @count_performance :reads
     # register dependency if inside a computation
-    if !isempty(_computing)
-        observer = _computing[end]
+    stack = _computing_stack()
+    if !isempty(stack)
+        observer = stack[end]
         if observer !== c
             push!(c.dependents, observer)
             push!(observer.deps, c)
@@ -119,11 +124,12 @@ function recompute!(c::ReactiveCell)
     end
     empty!(c.deps)
     # evaluate thunk while tracking dependencies
-    push!(_computing, c)
+    stack = _computing_stack()
+    push!(stack, c)
     try
         c.value = _force_thunk(c.thunk)
     finally
-        pop!(_computing)
+        pop!(stack)
     end
     c.valid = true
     @count_performance :computes
