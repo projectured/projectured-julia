@@ -1,7 +1,8 @@
 """
     PerformanceCounterModule
 
-Conditionally-compiled instrumentation for the reactive engine's hot path.
+Conditionally-compiled instrumentation counters, seeded with `:reads`,
+`:computes`, `:invalidations`, `:writes`.
 
 Counting is off unless `PERFORMANCE_COUNTERS_ENABLED` is set (via the
 `PROJECTURED_PERFORMANCE_COUNTERS` environment variable, read once at precompile
@@ -11,9 +12,9 @@ expression), so a normal build carries no instrumentation at all.
 
 There is no process-global counter store. The active store is a task-local
 dynamic binding (`ScopedValue`): `with_performance_counters(f)` binds a fresh
-`Dict{Symbol,Int}` for the dynamic extent of `f`, and the cell operations that
-run inside that extent count into it. Outside any such scope the binding is
-`nothing`, so an unscoped cell operation counts nothing and shares no state —
+`Dict{Symbol,Int}` for the dynamic extent of `f`, and every `@count_performance`
+/ `record_performance!` inside that extent records into it. Outside any such
+scope the binding is `nothing`, so a bump records nothing and shares no state —
 which is what lets many editors run in one process without their counters
 colliding.
 """
@@ -26,7 +27,7 @@ export with_performance_counters, get_performance_counters, record_performance!,
 
 # Compile-time switch, seeded from the environment at precompile time. Counting
 # is off by default, so a normal build carries no instrumentation: the counter
-# macros below expand to `nothing` and the reactive hot path is untouched. Set
+# macros below expand to `nothing` and no call site is instrumented. Set
 # PROJECTURED_PERFORMANCE_COUNTERS=true and recompile to compile the counters in
 # (e.g. to profile an edit, or to run the count-based demos/tests).
 const PERFORMANCE_COUNTERS_ENABLED =
@@ -51,7 +52,7 @@ _fresh_counters() = Dict{Symbol,Int}(
 
 Bind `store` as the active counter store for the dynamic extent of `f`, run `f`,
 and return its value. Each call gets its own store (a fresh zeroed set of the
-reactive counters by default), so concurrent editors never share counters. When
+seeded counters by default), so concurrent editors never share counters. When
 counting is compiled out, `f` simply runs with no binding.
 """
 function with_performance_counters(f, store::Union{Dict{Symbol,Int},Nothing}=nothing)
