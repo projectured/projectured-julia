@@ -1,7 +1,7 @@
 """
     CellModule
 
-The cell layer: the reactive cell engine and its kinds. A cell is a typed box
+The reactive cell engine and its kinds. A cell is a typed box
 `AbstractCell{T}`; the kind decides behavior — `ReactiveCell` (pull-based
 dependency tracking; `Cell` = `ReactiveCell{Any}`), `MutableCell` (plain box, no
 reactive bookkeeping), `ImmutableCell` (read-only wrapper). Also provides
