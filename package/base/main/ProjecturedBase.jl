@@ -63,6 +63,11 @@ const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 # now *defined* in this package's projection layer below — they are no longer
 # kernel submodules, so they must NOT be aliased here.
 
+# ── Backend selection ────────────────────────────────────────────────────
+# Reflection-based `default_backend`: pick a loaded Backend subtype by type
+# name. Needs InteractiveUtils.subtypes (a base dependency, absent in kernel).
+include("backend/DefaultBackend.jl")
+
 # ── Layer 1 — document (concrete engine documents) ────────────────────────
 # Collection and Primitive: the CellVector/CellMatrix/CellTable/ListNode and
 # Bool/Number/String/Insertion document types. Each file registers its own

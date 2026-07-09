@@ -19,13 +19,14 @@ cd "$(dirname "$0")"
 echo "Regenerating projectured executable (workbench; json/xml/sql/julia; SDL) — logging to build.log ..."
 
 julia --project=main -e '
+    using ProjecturedSdl
     include("Builder.jl")
     using .ProjecturedBuilder
     build_executable(; domain=:json,
                        domains=[:json, :xml, :sql, :julia],
                        workbench=true,
                        file_backed=true,
-                       backends=[:sdl])
+                       backends=[SdlBackend])
 ' > build.log 2>&1
 
 echo "Done. Binary: build/bin/projectured"

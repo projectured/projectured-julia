@@ -9,12 +9,16 @@ live in **opt-in backend packages** that depend on this kernel; this module
 carries only the abstract type and the forward-declared generics, so generic
 code can name a capability (measure text, write an image, …) without
 referencing any concrete backend at load time. A generic that isn't
-implemented because its backend package isn't loaded raises a `MethodError`
-(or, for the `make_backend` factory seam, a helpful error).
+implemented because its backend package isn't loaded raises a `MethodError`.
+
+Backends are constructed by naming their concrete type directly (`SdlBackend()`,
+`ConsoleBackend()`); code that must pick one without depending on the backend
+package uses `ProjecturedBase.default_backend`, which resolves a loaded `Backend`
+subtype by type name via reflection.
 """
 module BackendModule
 
-export Backend, initialize_backend!, quit_backend!, measure_text, make_backend, write_image, record_video,
+export Backend, initialize_backend!, quit_backend!, measure_text, write_image, record_video,
        render_canvas, decode_image, get_pointer_position
 
 """
@@ -23,20 +27,6 @@ export Backend, initialize_backend!, quit_backend!, measure_text, make_backend, 
 Abstract supertype for all display/input backends.
 """
 abstract type Backend end
-
-"""
-    make_backend(kind::Symbol; kwargs...) -> Backend
-
-Construct a backend by symbolic `kind` (`:sdl`, `:web`, `:console`, …). Concrete
-backend modules add a method `make_backend(::Val{kind}; kwargs...)` returning the
-backend instance. This indirection lets callers select a backend without naming
-its concrete type, so a backend whose implementation lives in an optional package
-extension need not be referenced at load time. When no method is registered for
-`kind` (e.g. its optional dependency is not loaded), a helpful error is raised.
-"""
-make_backend(kind::Symbol; kwargs...) = make_backend(Val(kind); kwargs...)
-make_backend(::Val{K}; kwargs...) where {K} = error(
-    "No backend registered for :$(K). Is the package/extension that provides it loaded?")
 
 """
     initialize_backend!(backend)

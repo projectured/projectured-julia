@@ -132,10 +132,10 @@ pointer and drives a follower reference-inspector window). Depends on
 
 ### backend/ — the dependency-free concrete backends
 
-`Console.jl` (ANSI terminal backend rendering the Text domain),
-`Pdf.jl` (SDL-free vector-PDF export of the Graphics domain). Both
-register `make_backend(:console)` / `make_backend(:pdf)` factory
-methods on the kernel's `BackendModule`.
+`Console.jl` (ANSI terminal backend rendering the Text domain — construct
+`ConsoleBackend()` directly), `Pdf.jl` (SDL-free vector-PDF export of the
+Graphics domain, via `write_pdf`). `TrueType.jl` holds the SDL-free
+`truetype_measure_text` those and the web backend share.
 
 ## Alias preamble
 

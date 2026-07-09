@@ -9,7 +9,7 @@ Purpose:
 - Documentation examples: a self-contained "load and step the editor once"
   snippet.
 - Regression fixtures for the layer-6 seams: `initialize_backend!`,
-  `quit_backend!`, `measure_text`, `make_backend`, `read_from_devices`,
+  `quit_backend!`, `measure_text`, `read_from_devices`,
   `write_to_devices`.
 
 `HeadlessBackend` records every rendered document (via `write_to_devices`) into
@@ -24,7 +24,7 @@ document-free at layer 6.
 """
 module HeadlessBackendModule
 
-import ..BackendModule: Backend, initialize_backend!, quit_backend!, measure_text, make_backend
+import ..BackendModule: Backend, initialize_backend!, quit_backend!, measure_text
 import ..DeviceModule: Device, read_from_devices, write_to_devices
 
 export HeadlessBackend, rendered_output, push_event!
@@ -33,16 +33,13 @@ export HeadlessBackend, rendered_output, push_event!
     HeadlessBackend()
 
 A dependency-free backend with a rendered-document log and a scripted event
-queue. `make_backend(:headless)` returns one.
+queue.
 """
 mutable struct HeadlessBackend <: Backend
     rendered::Vector{Any}
     events::Vector{Any}
     HeadlessBackend() = new(Any[], Any[])
 end
-
-# Factory registration: `make_backend(:headless)` returns a fresh instance.
-make_backend(::Val{:headless}; kwargs...) = HeadlessBackend()
 
 # Lifecycle: both are no-ops; there is no external state to init or release.
 initialize_backend!(::HeadlessBackend) = nothing

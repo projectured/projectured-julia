@@ -16,7 +16,7 @@ module ProjecturedOdbcExample
 
 using Projectured
 using ProjecturedOdbc          # OdbcConnectionPool, OdbcDatabaseAdapter, DatabaseInstanceToDbCatalog, SqlToCellTable, db_execute_raw, db_insert!, RawDatabaseResult
-import ProjecturedExample: Example, run_example, run_console_example, run_web_example,
+import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_database_instance_document_example, make_sql_document_example
 
@@ -39,7 +39,7 @@ export make_dbcatalog_projection_example,
 export dbcatalog_example, dvdrental_catalog_example, dvdrental_object_example,
        sql_table_example, odbc_examples
 # Re-export the core runners/renderers so `using ProjecturedOdbcExample` is enough.
-export Example, run_example, run_console_example, run_web_example,
+export Example, run_example, run_console_example,
        print_example, write_example_image, write_example_pdf, record_example_video
 
 end # module ProjecturedOdbcExample

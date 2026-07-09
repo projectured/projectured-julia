@@ -13,7 +13,7 @@ plan/done/example-package-split.md). It hosts:
   vector animation;
 - the visual half of the example harness: `print_example` (console rendering
   of the projected output) and `write_example_pdf` (the dependency-free Pdf
-  backend; SDL font metrics are reached through the `make_backend` seam).
+  backend; text is measured with the SDL-free `truetype_measure_text`).
 
 The tier's registry slice is `visual_examples`; the global interleaved
 `examples` registry lives in the `ProjecturedExample` umbrella.

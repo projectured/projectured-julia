@@ -132,18 +132,19 @@ keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 #### Running it
 
 ```julia
-run_web_example("json")          # serve on http://127.0.0.1:8080
-run_web_example("json"; port=9000)
-run_web_example(["json", "xml"]) # default window in-tab; the rest as popups
+using ProjecturedWeb               # brings WebBackend into scope
+run_example("json"; backend=WebBackend())            # serve on http://127.0.0.1:8080
+run_example("json"; backend=WebBackend(port=9000))
+run_example(["json", "xml"]; backend=WebBackend())   # default window in-tab; the rest as popups
 ```
 
 Then open `http://127.0.0.1:8080`: the **primary** (first) `WindowDocument`
 renders directly in that tab immediately — no button to click. Any **additional**
 `WindowDocument`s open as their own browser popups, but on the **first
 interaction** in the tab (a click or key press), since a browser only opens
-pop-ups in response to a user gesture. `run_web_example` accepts the same keyword
-arguments as `run_example`; under the hood it is just
-`run_example(...; backend=WebBackend(...))`.
+pop-ups in response to a user gesture. Selecting the web backend is just passing
+`backend=WebBackend(...)` to `run_example`, which otherwise takes the same
+arguments; `WebBackend`'s constructor defaults `host`/`port`.
 
 #### How it satisfies the interface
 
@@ -373,7 +374,7 @@ against.
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
 ```
-Backend.jl          (BackendModule)         — Backend abstract + generics + make_backend factory
+Backend.jl          (BackendModule)         — Backend abstract + batch generics
 Display.jl          (DisplayModule)         — display-size query + provider indirection
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
@@ -382,13 +383,15 @@ HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backen
 
 Declares `Backend <: Any` and the batch generics `initialize_backend!`,
 `quit_backend!`, `measure_text`, `write_image`, `record_video`,
-`render_canvas`, `decode_image`, `get_pointer_position`, plus the
-`make_backend(kind::Symbol; kwargs...)` factory seam. `make_backend` is the
-single point where a backend is chosen by name: concrete backends (SDL, Web,
-PDF, Console, …) live in opt-in packages that add methods for their own
-`::MyBackend` type and register a `make_backend(::Val{kind})` method. This is
-the only place the factory-seam mechanism is described — other sections refer
-to specific registrations without re-explaining the seam.
+`render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
+(SDL, Web, Console, Headless, …) live in opt-in packages that subtype `Backend`
+and add methods for their own `::MyBackend` type. A backend is constructed by
+naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
+pick a backend without depending on its package uses
+[`ProjecturedBase.default_backend`](../../base/main/backend/DefaultBackend.jl),
+which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
+against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
+no per-backend registration.
 
 No document is imported here. The batch I/O generics are duck-typed on the
 `document` argument, so the layer stays document-free at layer 6.
@@ -407,9 +410,8 @@ A dependency-free in-memory backend with a scripted event source:
 - `HeadlessBackend()` records every `write_to_devices` call into `rendered`
   (log for later assertion) and pops events from a scripted queue on every
   `read_from_devices` call.
-- `make_backend(:headless)` returns a fresh instance — the factory
-  registration that lets kernel editor tests reach for the backend by name
-  without depending on any concrete backend package.
+- `HeadlessBackend()` is constructed directly — kernel editor tests use the
+  dependency-free backend without pulling in any concrete backend package.
 - `push_event!(backend, event)` enqueues an event for the next
   `read_from_devices` call.
 - `measure_text` returns a fixed `(8 * length, 16)` metric — sufficient for

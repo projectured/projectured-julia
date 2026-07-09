@@ -396,9 +396,9 @@ states for placement).
 43. **Add a backend/engine as an opt-in package behind a factory seam, not by
     coupling core code to the dependency.** Each external dependency or transport
     gets exactly one opt-in package that registers a method on a seam owned below —
-    either a symbol-keyed `Val` factory (`make_backend(:sdl)`,
-    `make_agent_server(:mcp)`, `make_database_adapter(:odbc)`, the `record_video`
-    seam) or a subtype-dispatched generic (`solve_constraint_layout(::TulipConstraintSolver)`,
+    either a symbol-keyed `Val` factory (`make_agent_server(:mcp)`,
+    `make_database_adapter(:odbc)`, the `record_video` seam) or a
+    subtype-dispatched generic (`solve_constraint_layout(::TulipConstraintSolver)`,
     `layout_graph(::AdaptagramsEngine)`, `stream_turn(::AnthropicLlm)`). Generic
     code requests capability by symbol or supertype; the
     opt-in package binds to the *narrowest* package that has what it renders and
@@ -449,8 +449,9 @@ states for placement).
 
 47. **Every piece of code lives in the lowest package of its DAG whose API it
     hard-references.** Source, test, example, and harness alike sink to their
-    lowest home. A seam call (`make_backend(:sdl)`) is not a reference; only a
-    `using`/`import` or naming a package's types/functions anchors code. For a test
+    lowest home. A seam call (`record_video(…)`, `default_backend()`) is not a
+    reference; only a `using`/`import` or naming a package's types/functions
+    anchors code. For a test
     or example, the *fixture* decides the home (a Pdf-backend test driven by a JSON
     pipeline is a domain test), not the machinery it happens to exercise.
 

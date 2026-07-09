@@ -85,7 +85,7 @@ const BRIDGES = Function[
     () -> RecursiveProjection(MarkdownToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
-    # `truetype_measure_text` (= pdf_measure_text — the same default `run_example` uses).
+    # `truetype_measure_text` (the same default `run_example` uses).
     # Output is an `RGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render
     # via `run_example` (SDL). Running this bridge exercises the font-metrics path.
     () -> ChainingProjection(WordWrapping(measure = truetype_measure_text),

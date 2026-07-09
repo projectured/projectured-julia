@@ -128,9 +128,11 @@ abstract types + generic function *declarations* (`function f end`) + docstrings
 `splice_*` text helpers and default `evaluate_operation` methods in
 `OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`
 — they are data vehicles that cross the seam, not interfaces to
-implement.) The stateless factory seams `make_backend(kind)` /
-`make_agent_server(kind)` are the one deliberate exception, kept as the SPI's own
-registration entry. An interface is its functions, not just its type, so api
+implement.) The stateless factory seam `make_agent_server(kind)` is the one
+deliberate exception, kept as the SPI's own registration entry. (Backends used
+to have such a seam too, `make_backend`; they now construct by naming the type
+directly or via `default_backend`'s reflection.) An interface is its functions,
+not just its type, so api
 modules are expected to grow accessor/behaviour operations (e.g. the
 `get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapApiModule`).
 

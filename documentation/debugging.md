@@ -48,13 +48,13 @@ If you get a stale-state bug, `run_example("foo"; reset=true)` is almost
 always the first thing to try — the `Example` struct caches one shared
 instance per example.
 
-To drive the same example from a browser instead of an SDL window, use
-`run_web_example` — it takes the same arguments and runs the editor through the
-[web backend](../package/kernel/doc/devices-and-backends.md#web-backend):
+To drive the same example from a browser instead of an SDL window, pass a
+[web backend](../package/kernel/doc/devices-and-backends.md#web-backend) to
+`run_example` (after `using ProjecturedWeb`, so `WebBackend` is in scope):
 
 ```julia
-julia> run_web_example("json")              # serve on http://127.0.0.1:8080
-julia> run_web_example("json"; port=9000)   # then open the URL; the editor appears in the tab
+julia> run_example("json"; backend=WebBackend())            # serve on http://127.0.0.1:8080
+julia> run_example("json"; backend=WebBackend(port=9000))   # then open the URL; the editor appears in the tab
 ```
 
 ## Printing without rendering

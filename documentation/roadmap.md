@@ -35,7 +35,7 @@ end to end:
   `run_console_example(interactive=true)`.
 - **Web backend.** Runs the same editor in the browser over HTTP + WebSocket,
   shipping a JSON draw-list to a canvas client with incremental dirty-rect
-  rendering; run via `run_web_example`.
+  rendering; run via `run_example(...; backend=WebBackend())` (after `using ProjecturedWeb`).
 - **Graph domain and auto-layout.** A vertex/edge/graph domain with a separate
   layout stage; native placement and edge routing come from the opt-in
   Adaptagrams package, with a pure-Julia fallback engine when it is absent.
@@ -100,8 +100,9 @@ is mostly a transport and merge layer.
 
 ### 7. Runtime plugin loading
 
-Opt-in packages already extend the editor at its factory seams (`make_backend`,
-`make_agent_server`, and the solver / layout generics) at load time. The
+Opt-in packages already extend the editor at its factory seams
+(`make_agent_server`, the solver / layout generics) and its backend generics at
+load time. The
 remaining goal is loading third-party domains and projections into a *running*
 editor, analogous to VS Code extensions.
 

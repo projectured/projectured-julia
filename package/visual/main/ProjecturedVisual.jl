@@ -119,6 +119,10 @@ const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
 # imports Color.
 include("style/Color.jl")
 include("style/Font.jl")
+# TrueType parser + SDL-free measurer (truetype_measure_text). Needs FontModule
+# (StyleFont, font_logical_size), so it follows Font.jl; the PDF/web backends and
+# the projection examples all reach their text metrics through it.
+include("style/TrueType.jl")
 include("style/Geometry.jl")
 include("style/Image.jl")
 include("style/StyleStroke.jl")

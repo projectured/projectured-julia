@@ -18,22 +18,27 @@ cd package/executable
 julia Build.jl
 ```
 
-[`Build.jl`](Build.jl) is a one-line wrapper that calls `build_executable()` with
-the default spec: **a JSON file editor with the SDL backend baked in**. Output goes
+[`Build.jl`](Build.jl) is a thin wrapper that calls `build_executable(; backends=[SdlBackend])`
+with the default spec: **a JSON file editor with the SDL backend baked in**. Output goes
 to `build/bin/projectured`, and all build output is logged to `build.log`.
 
 ### Custom builds (from the REPL)
 
+Name the backend by its real type, so load its package first (`using ProjecturedSdl`
+for `SdlBackend`, `using ProjecturedWeb` for `WebBackend`; `ConsoleBackend` comes with
+`Projectured`):
+
 ```julia
+using ProjecturedSdl                       # brings SdlBackend into scope
 include("package/executable/Builder.jl")
 using .ProjecturedBuilder
 
 # A workbench-less JSON file editor, SDL baked in, named "json-editor":
 build_executable(; app_name="json-editor", domain=:json, workbench=false,
-                   file_backed=true, backends=[:sdl])
+                   file_backed=true, backends=[SdlBackend])
 
 # Generate the config only (no multi-minute compile) — useful for inspection:
-build_executable(BuildSpec(; domain=:json); compile=false)
+build_executable(BuildSpec(; domain=:json, backends=[SdlBackend]); compile=false)
 ```
 
 `build_executable` (1) generates [`main/AppConfig.jl`](main/) — the baked
@@ -49,8 +54,8 @@ resolve without a registry); and (3) runs `create_app`.
 | `domain` | `:json` | content domain — a key in `ProjecturedExample.EDITOR_DOMAINS` |
 | `workbench` | `false` | wrap the content in the workbench shell |
 | `file_backed` | `true` | the binary takes a `FILE` argument to open/edit |
-| `backends` | `[:sdl]` | display backends compiled in (`:sdl`, `:web`, `:console`) |
-| `default_backend` | `:sdl` | backend used when none is requested at runtime |
+| `backends` | (required) | display backend **types** compiled in (`SdlBackend`, `WebBackend`, `ConsoleBackend`) |
+| `default_backend` | first of `backends` | backend type used when none is requested at runtime |
 | `expose_backend_flag` | `false` | whether the binary honors `--backend` at runtime |
 | `width`, `height` | `nothing` | fixed window size (defaults to the display size) |
 | `mcp` | `false` | start an MCP server alongside the editor loop |

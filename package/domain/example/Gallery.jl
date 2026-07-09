@@ -3,11 +3,11 @@
 # The example gallery: `run_example` opens one window per example, side by
 # side, with optional cross-domain wrappers (workbench, tooltip, inspector,
 # clipboard, introspection, text filtering/highlighting; that domain
-# vocabulary is why the gallery's lowest home is the domain tier). SDL is
-# reached only through the `make_backend(:sdl)` seam; an explicit `backend`
-# (e.g. the web backend) wins. The name-lookup entry points
-# (`run_example("json")`, `run_web_example`) live in the `ProjecturedExample`
-# umbrella, which owns the global registry.
+# vocabulary is why the gallery's lowest home is the domain tier). No backend is
+# named here: an explicit `backend` wins, otherwise `default_backend()` picks one
+# by reflection over the loaded backends (SDL when loaded). The name-lookup entry
+# point (`run_example("json")`) lives in the `ProjecturedExample` umbrella, which
+# owns the global registry.
 
 function run_example(example::Example; kwargs...)
     run_example([example]; kwargs...)
@@ -87,7 +87,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
                      tooltip=false, inspector=false, introspection=false,
                      clipboard=false, clipboard_collection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
-                     profile=false, backend=nothing, partial_render=nothing, debug_dirty=nothing)
+                     profile=false, backend=nothing)
     isempty(examples) && error("run_example: empty examples vector")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
@@ -167,11 +167,13 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         docs = tt_docs
     end
 
-    # An explicit `backend` (e.g. the WebBackend from run_web_example) wins;
-    # otherwise build the SDL backend, threading the render-control knobs.
-    # Built before composing because the inspector pipeline needs a pointer
-    # closure over the backend's global mouse position.
-    backend === nothing && (backend = make_backend(:sdl; partial_render=partial_render, debug_dirty=debug_dirty))
+    # An explicit `backend` (e.g. a WebBackend the caller constructed) wins;
+    # otherwise pick a default by reflection over the loaded backends — SDL when
+    # it is loaded (see `default_backend`). Built before composing because the
+    # inspector pipeline needs a pointer closure over the backend's global mouse
+    # position. SDL render knobs (partial_render / debug_dirty) now live on
+    # SdlBackend's constructor: pass `backend=SdlBackend(; …)` to set them.
+    backend === nothing && (backend = default_backend())
     # How deep the original (selection-bearing) document sits under `win.content`.
     content_unwrap = tooltip ? :tooltip : clipboard ? :clipboard : :plain
     # `compose(projs, backend)` — the inspector pipeline needs the backend for its
@@ -449,7 +451,7 @@ function run_console_example(; document=make_json_document_example(),
                                ansi::Bool=true, clear::Union{Bool,Nothing}=nothing,
                                interactive::Bool=false)
     if interactive
-        backend = make_backend(:console; ansi=ansi, clear=something(clear, true))
+        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, true))
         # The editor logs each operation and a perf line via @info; on a terminal
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
@@ -457,7 +459,7 @@ function run_console_example(; document=make_json_document_example(),
             run_editor!(backend, projection, document; devices=Device[Keyboard()])
         end
     else
-        backend = make_backend(:console; ansi=ansi, clear=something(clear, false))
+        backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))
         iomap = print_document(projection, document)
         output = iomap.output
         output = output isa Cell ? output[] : output

@@ -22,7 +22,7 @@ using ProjecturedSdl
 # The SDL backend must be live for the dirty-rect / write_image paths. Built in
 # __init__ (runtime, after the extension loads) rather than at precompile time.
 function __init__()
-    initialize_backend!(make_backend(:sdl))
+    initialize_backend!(SdlBackend())
 end
 
 include("backend/DirtyRectTest.jl")

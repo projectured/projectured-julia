@@ -174,7 +174,7 @@ function run_file_editor(domain::Symbol; file=nothing, workbench::Bool=false,
         width  = something(width,  sw)
         height = something(height, sh)
     end
-    backend === nothing && (backend = make_backend(:sdl))
+    backend === nothing && (backend = default_backend())
     _run_window_scene(Any[document], Any[projection], String[name];
                       width=width, height=height, backend=backend,
                       compose=(p, b) -> _multi_window_projection(p), mcp=mcp)
@@ -259,7 +259,7 @@ function warm_file_editor(domain::Symbol; workbench::Bool = false)
         # skip `write_to_devices`, so no window opens. The backend is only a field
         # here — `evaluate_operation` dispatches on the operation, not the backend —
         # so the window-free console backend is enough.
-        editor = Editor(make_backend(:console), screen, composed,
+        editor = Editor(ConsoleBackend(), screen, composed,
                         Device[Screen(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, screen)
         _force_reactive!(editor.iomap)

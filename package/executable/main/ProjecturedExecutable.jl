@@ -10,7 +10,7 @@ fixed at build time by `build_executable` (see `../Builder.jl`), which writes th
 module ProjecturedExecutable
 
 using ProjecturedExample                       # run_file_editor, build_file_editor, …
-using Projectured: make_backend, write_image
+using Projectured: write_image
 
 # Baked configuration + the backend `using` line(s). Prefer the generated
 # `AppConfig.jl` (written by `build_executable`); fall back to the checked-in
@@ -45,12 +45,12 @@ function print_help()
         end
     end
     APP_EXPOSE_BACKEND &&
-        println("  --backend KIND    display backend, one of $(APP_BACKENDS) (default: :$(APP_DEFAULT_BACKEND))")
+        println("  --backend KIND    display backend, one of $(Tuple(keys(APP_BACKENDS))) (default: :$(APP_DEFAULT_BACKEND))")
     println("  -h, --help        show this help")
     println("  -v, --version     show version")
     println()
     if APP_EXPOSE_BACKEND
-        println("Backends compiled in: $(join(APP_BACKENDS, ", "))")
+        println("Backends compiled in: $(join(keys(APP_BACKENDS), ", "))")
     else
         println("Backend: :$(APP_DEFAULT_BACKEND) (baked in)")
     end
@@ -96,8 +96,8 @@ function resolve_backend(requested)
     requested === nothing && return APP_DEFAULT_BACKEND
     APP_EXPOSE_BACKEND ||
         error("this build does not accept --backend (backend :$(APP_DEFAULT_BACKEND) is baked in)")
-    requested in APP_BACKENDS ||
-        error("backend :$(requested) is not built into this binary (available: $(APP_BACKENDS))")
+    haskey(APP_BACKENDS, requested) ||
+        error("backend :$(requested) is not built into this binary (available: $(Tuple(keys(APP_BACKENDS))))")
     requested
 end
 
@@ -124,7 +124,7 @@ function precompile_warmup()
     print_version()
     for domain in APP_DOMAINS
         doc, proj, _name = build_file_editor(domain; workbench = APP_WORKBENCH)
-        if :sdl in APP_BACKENDS
+        if haskey(APP_BACKENDS, :sdl)
             try
                 mktempdir() do d
                     write_image(doc, proj, joinpath(d, "warm.png"))
@@ -167,7 +167,7 @@ function julia_main(args::Vector{String})::Cint
         run_file_editor(resolve_domain(opts.file);
                         file      = APP_FILE_BACKED ? opts.file : nothing,
                         workbench = APP_WORKBENCH,
-                        backend   = make_backend(backend_kind),
+                        backend   = APP_BACKENDS[backend_kind](),
                         width     = APP_WIDTH,
                         height    = APP_HEIGHT,
                         mcp       = APP_MCP)

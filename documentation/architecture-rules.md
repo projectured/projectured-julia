@@ -80,8 +80,9 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   framework and belongs in base (or visual, if it renders).
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
   web=HTTP, odbc=ODBC, tulip=C++ solver, llm/mcp=protocol clients). They implement
-  seams owned below (make_backend, adapters) and bind to the narrowest package that
-  has what they render (sdl/web → visual, odbc → domain's sql surface).
+  seams owned below (the render/image/record backend generics, database adapters)
+  and bind to the narrowest package that has what they render (sdl/web → visual,
+  odbc → domain's sql surface).
 
 ## The triad — every main package has its code, its tests, and its examples
 
@@ -145,12 +146,13 @@ none of the opt-in native/network dependencies installed.
 lives in the **lowest package of its DAG whose API it hard-references**. Two
 clarifications that decide most disputes:
 
-- **Seam calls don't count as references.** Obtaining a backend via
-  `make_backend(:sdl)` or recording via the `record_video` seam creates no
-  dependency — the opt-in package registers the method when loaded. Only a `using`
-  / `import` of a package, or naming its types/functions directly, anchors code to
-  a package. This is why the example gallery can live in the visual package while
-  rendering through SDL at runtime.
+- **Seam calls don't count as references.** Recording via the `record_video`
+  seam, or picking a backend via `default_backend` (which resolves a loaded
+  `Backend` subtype by type-name reflection), creates no dependency — the opt-in
+  package registers/provides the method when loaded. Only a `using` / `import` of
+  a package, or naming its types/functions directly, anchors code to a package.
+  This is why the example gallery can live in the visual package while rendering
+  through SDL at runtime — it never names `SdlBackend`, it calls `default_backend`.
 - **The fixture decides, not the machinery.** A test (or example) that exercises
   a lower package's machinery *through* a higher package's fixture belongs to the
   fixture's package: a Pdf-backend test driven by a JSON pipeline is a domain test,

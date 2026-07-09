@@ -97,7 +97,7 @@ using Projectured: ElementReference, RangeReference, PositionReference, FieldRef
 # Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
 # than as a precompile-time const, so precompilation doesn't depend on the extension.
 function __init__()
-    initialize_backend!(make_backend(:sdl))
+    initialize_backend!(SdlBackend())
 end
 
 include("editor/ExampleTest.jl")

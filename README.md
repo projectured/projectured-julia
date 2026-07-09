@@ -157,7 +157,8 @@ projections](package/kernel/doc/higher-order-projections.md) guides for the mech
 
 All domains support **selection** and **cursor movement** end-to-end. The SDL
 backend is the primary frontend; a [web backend](package/kernel/doc/devices-and-backends.md#web-backend)
-renders the same editor in the browser (`run_web_example("json")`). The in-editor
+renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
+after `using ProjecturedWeb`). The in-editor
 AI assistant plus the MCP server are built in. Character-level manual editing is
 the next milestone (see the [Roadmap](documentation/roadmap.md)).
 
@@ -195,7 +196,7 @@ julia> run_example("assistant")       # the built-in AI conversation
 julia> run_example("widget")          # widget form example
 julia> run_example("table")           # table view
 julia> run_example("julia")           # Julia AST editor
-julia> run_web_example("json")        # same editor in the browser → http://127.0.0.1:8080
+julia> run_example("json"; backend=WebBackend())   # in the browser (after `using ProjecturedWeb`) → http://127.0.0.1:8080
 julia> print_example("syntax")        # dump a projection's output to stdout
 julia> write_example_image("json", "/tmp/snapshot.bmp")   # save to file
 ```

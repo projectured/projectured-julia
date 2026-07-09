@@ -14,7 +14,7 @@ module ProjecturedTulipExample
 
 using Projectured
 using ProjecturedTulip         # TulipConstraintSolver
-import ProjecturedExample: Example, run_example, run_console_example, run_web_example,
+import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_constraint_layout_document_example, make_constraint_layout_projection_example
 
@@ -25,7 +25,7 @@ include(joinpath(_PKG_DIR, "Examples.jl"))
 
 export make_constraint_layout_tulip_projection_example
 export constraint_layout_tulip_example, tulip_examples
-export Example, run_example, run_console_example, run_web_example,
+export Example, run_example, run_console_example,
        print_example, write_example_image, write_example_pdf, record_example_video
 
 end # module ProjecturedTulipExample

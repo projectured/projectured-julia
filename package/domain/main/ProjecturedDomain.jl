@@ -88,6 +88,7 @@ const TypeDispatchingProjectionModule = ProjecturedBase.TypeDispatchingProjectio
 # Style
 const ColorModule = ProjecturedVisual.ColorModule
 const FontModule = ProjecturedVisual.FontModule
+const TrueTypeModule = ProjecturedVisual.TrueTypeModule
 const GeometryModule = ProjecturedVisual.GeometryModule
 const ImageModule = ProjecturedVisual.ImageModule
 const StyleStrokeModule = ProjecturedVisual.StyleStrokeModule

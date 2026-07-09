@@ -133,7 +133,7 @@ dispatch, not by the name.
   reference out). The full reading of a gesture into an operation is
   distributed across the pipeline: each `read_intent` step advances it by
   one domain, and the composition of the steps is the reader.
-- **Factories are `make_*`**: `make_backend`, `make_agent_server`,
+- **Factories are `make_*`**: `make_agent_server`,
   `make_child_context`, `make_scripted_say`.
 - **Predicates start with `is_`** (`is_valid_reference`,
   `is_reference_equal`, `is_up_to_date`) or are plain verbs that read as
@@ -182,7 +182,7 @@ Two shapes are exempt from the verb-first rule, and only these:
 | `get_<stem>` / `set_<stem>!` | getter / setter | `get_selection` |
 | `with_<stem>` | derived copy | `with_property` |
 | `<verb>_<flowing unit>` | pipeline protocol | `print_document`, `read_intent` |
-| `make_<thing>` | factory | `make_backend` |
+| `make_<thing>` | factory | `make_agent_server` |
 | `is_<condition>` | predicate | `is_valid_reference` |
 | `<verb>…!` | mutates its subject | `insert_row!` |
 | `…_<qualifier>` | variant of the base name | `…_ignoring_types` |

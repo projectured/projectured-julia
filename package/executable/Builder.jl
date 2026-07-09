@@ -26,14 +26,25 @@ import Pkg
 
 export BuildSpec, build_executable, render_app_config, write_app_config
 
-# Backend symbol → (package name, local package dir under `package/`). `:console`
-# lives in the domain package (re-exported by `Projectured`), so it needs no extra
-# develop and has no entry here.
-const BACKEND_LOCALS = Dict{Symbol,Tuple{String,String}}(
-    :sdl => ("ProjecturedSdl", "sdl/main"),
-    :web => ("ProjecturedWeb", "web/main"),
-)
-const KNOWN_BACKENDS = Set{Symbol}([:sdl, :web, :console])
+# A backend is named by its real type (`SdlBackend`, `WebBackend`, `ConsoleBackend`);
+# everything the builder needs is derived from that type by reflection, so no symbol
+# registry is maintained here.
+#
+# - the friendly runtime `--backend` name: the type name minus `Backend`, lowercased
+#   (`SdlBackend` → `sdl`); this is only a CLI label, never a dispatch key;
+# - the package to `using` in the generated config: the type's parent module;
+# - the local dir to `develop` (for backends in their own opt-in package): derived
+#   from that module name by the `package/<short>/main` layout convention.
+#
+# Backends whose package the core app already pulls in (console lives in
+# `ProjecturedVisual`) need neither a `using` line nor a develop.
+const CORE_BACKEND_MODULES =
+    Set(["ProjecturedKernel", "ProjecturedBase", "ProjecturedVisual", "ProjecturedDomain"])
+
+_backend_kind(T::Type)    = Symbol(lowercase(replace(String(nameof(T)), "Backend" => "")))
+_backend_module(T::Type)  = String(nameof(parentmodule(T)))
+_backend_needs_local(T::Type) = !(_backend_module(T) in CORE_BACKEND_MODULES)
+_backend_localdir(T::Type) = lowercase(replace(_backend_module(T), "Projectured" => "")) * "/main"
 
 # Local (path) packages the app always needs, developed by path so they resolve
 # without a registry. `projectured` (the meta-package) brings `kernel`+`domain` via
@@ -46,13 +57,19 @@ const LOCAL_CORE_PACKAGES = ["projectured/main", "projectured/example", "llm/mai
 
 """
     BuildSpec(; app_name="projectured", domain=:json, domains=[domain], workbench=false,
-                file_backed=true, backends=[:sdl], default_backend=:sdl,
+                file_backed=true, backends, default_backend=first(backends),
                 expose_backend_flag=false, width=nothing, height=nothing, mcp=false)
 
 Description of the editor to bake into the executable. See
 `plan/.../executable-builder-editor-configuration.md`. The keyword constructor
-validates the spec (non-empty/known backends; `default_backend` ∈ `backends`;
+validates the spec (non-empty `backends`; `default_backend` ∈ `backends`;
 non-empty `domains` with `domain` ∈ `domains`).
+
+`backends` are real backend **types** (`SdlBackend`, `WebBackend`, `ConsoleBackend`)
+— name the type, not a coined symbol; the caller's session must have the backend
+package loaded so the type resolves. The builder derives everything else (the
+friendly `--backend` name, the `using` line, the develop path) from each type by
+reflection. `default_backend` is one of those types (defaulting to the first).
 
 `domains` is the set of content domains the binary accepts at runtime, chosen per
 file by extension (`.json`/`.xml`/`.sql`/`.jl`); `domain` is the default/fallback
@@ -65,8 +82,8 @@ struct BuildSpec
     domains::Vector{Symbol}
     workbench::Bool
     file_backed::Bool
-    backends::Vector{Symbol}
-    default_backend::Symbol
+    backends::Vector{DataType}
+    default_backend::DataType
     expose_backend_flag::Bool
     width::Union{Int,Nothing}
     height::Union{Int,Nothing}
@@ -78,14 +95,14 @@ function BuildSpec(; app_name::AbstractString="projectured",
                      domains::AbstractVector=[domain],
                      workbench::Bool=false,
                      file_backed::Bool=true,
-                     backends::AbstractVector=[:sdl],
-                     default_backend::Symbol=:sdl,
+                     backends::AbstractVector,
+                     default_backend::Type=first(backends),
                      expose_backend_flag::Bool=false,
                      width::Union{Integer,Nothing}=nothing,
                      height::Union{Integer,Nothing}=nothing,
                      mcp::Bool=false)
     spec = BuildSpec(String(app_name), domain, Symbol.(collect(domains)), workbench,
-                     file_backed, Symbol.(collect(backends)), default_backend,
+                     file_backed, DataType[b for b in backends], default_backend,
                      expose_backend_flag,
                      width === nothing ? nothing : Int(width),
                      height === nothing ? nothing : Int(height), mcp)
@@ -98,14 +115,10 @@ function validate(spec::BuildSpec)
     spec.domain in spec.domains ||
         error("BuildSpec: default domain :$(spec.domain) is not in domains $(spec.domains)")
     isempty(spec.backends) && error("BuildSpec: `backends` must not be empty")
-    known = join(sort!(collect(KNOWN_BACKENDS)), ", ")
-    for b in spec.backends
-        b in KNOWN_BACKENDS || error("BuildSpec: unknown backend :$b (known: $known)")
-    end
     spec.default_backend in spec.backends ||
-        error("BuildSpec: default_backend :$(spec.default_backend) is not in backends $(spec.backends)")
+        error("BuildSpec: default_backend $(spec.default_backend) is not in backends $(spec.backends)")
     (spec.expose_backend_flag || length(spec.backends) == 1) ||
-        @warn "BuildSpec: multiple backends baked but expose_backend_flag=false; only :$(spec.default_backend) is reachable at runtime"
+        @warn "BuildSpec: multiple backends baked but expose_backend_flag=false; only $(spec.default_backend) is reachable at runtime"
     spec
 end
 
@@ -129,10 +142,15 @@ function render_app_config(spec::BuildSpec)
         "# Bakes the chosen editor configuration + backend `using` lines into the app.",
         "# ───────────────────────────────────────────────────────────────────────────",
     ]
-    for b in spec.backends
-        haskey(BACKEND_LOCALS, b) || continue          # :console needs no `using`
-        push!(lines, "using $(BACKEND_LOCALS[b][1])")
+    for T in spec.backends
+        _backend_needs_local(T) || continue            # console's package is core
+        push!(lines, "using $(_backend_module(T))")
     end
+    # Friendly runtime name → real backend type; the app constructs the chosen type
+    # directly (no make_backend seam). The `using` line(s) above bring the types
+    # into scope. APP_DEFAULT_BACKEND stays a friendly Symbol (a `--backend` value
+    # and the key into APP_BACKENDS), so help text and error messages read naturally.
+    backend_entries = join(("$(_backend_kind(T)) = $(nameof(T))" for T in spec.backends), ", ")
     append!(lines, [
         "",
         "const APP_NAME            = $(repr(spec.app_name))",
@@ -140,8 +158,8 @@ function render_app_config(spec::BuildSpec)
         "const APP_DOMAINS         = $(repr(Tuple(spec.domains)))",
         "const APP_WORKBENCH       = $(spec.workbench)",
         "const APP_FILE_BACKED     = $(spec.file_backed)",
-        "const APP_BACKENDS        = $(repr(Tuple(spec.backends)))",
-        "const APP_DEFAULT_BACKEND = $(repr(spec.default_backend))",
+        "const APP_BACKENDS        = (; $(backend_entries))",
+        "const APP_DEFAULT_BACKEND = $(repr(_backend_kind(spec.default_backend)))",
         "const APP_EXPOSE_BACKEND  = $(spec.expose_backend_flag)",
         "const APP_WIDTH           = $(_opt(spec.width))",
         "const APP_HEIGHT          = $(_opt(spec.height))",
@@ -188,9 +206,9 @@ function build_executable(spec::BuildSpec; exe_dir::AbstractString=@__DIR__,
     local_specs = Pkg.PackageSpec[
         Pkg.PackageSpec(path = joinpath(package_dir, p)) for p in LOCAL_CORE_PACKAGES
     ]
-    for b in spec.backends
-        haskey(BACKEND_LOCALS, b) || continue
-        push!(local_specs, Pkg.PackageSpec(path = joinpath(package_dir, BACKEND_LOCALS[b][2])))
+    for T in spec.backends
+        _backend_needs_local(T) || continue
+        push!(local_specs, Pkg.PackageSpec(path = joinpath(package_dir, _backend_localdir(T))))
     end
     Pkg.develop(local_specs)
     # Julia 1.12 precompile fix (carried over from the original Build.jl).
@@ -201,7 +219,7 @@ function build_executable(spec::BuildSpec; exe_dir::AbstractString=@__DIR__,
     Pkg.instantiate()
 
     @eval import PackageCompiler
-    @info "build_executable: compiling :$(spec.app_name) (domain=:$(spec.domain), backends=$(Tuple(spec.backends))) — this takes several minutes"
+    @info "build_executable: compiling :$(spec.app_name) (domain=:$(spec.domain), backends=$(Tuple(_backend_kind.(spec.backends)))) — this takes several minutes"
     Base.invokelatest(PackageCompiler.create_app, joinpath(exe_dir, "main"), output;
         precompile_execution_file = joinpath(exe_dir, "main", "Precompile.jl"),
         executables = [spec.app_name => "julia_main"],

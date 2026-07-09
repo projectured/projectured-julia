@@ -97,8 +97,8 @@ Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
                                as a single flat public API.
 
 Opt-in packages (depend on the above; loaded only when you `using` them):
-  Sdl  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, make_backend(:sdl), write_image, record_video
-  Web  (web/)   → Domain  HTTP/JSON3                          WebBackend,  make_backend(:web); assets in web/assets/
+  Sdl  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, write_image, record_video
+  Web  (web/)   → Domain  HTTP/JSON3                          WebBackend; assets in web/assets/
   Video(video/) → Domain  FFMPEG                              record_video method on the kernel seam
   Odbc (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
   Mcp  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
@@ -136,11 +136,13 @@ live in [visual/doc/](../package/visual/doc/), [domain/doc/](../package/domain/d
 and [base/doc/](../package/base/doc/). Each package's own `doc/architecture.md`
 indexes its guides.
 
-The optional backends plug into **factory seams** owned by the kernel
-(`make_backend(kind)`, `make_agent_server(kind, …)`) or the domain
-(`make_database_adapter(kind)`): generic code requests a backend by symbol;
-the opt-in package registers the method on load and errors helpfully if it
-isn't loaded. So the SQL and DbCatalog *documents and projections* stay in
+Optional engines plug into **factory seams** owned by the kernel
+(`make_agent_server(kind, …)`) or the domain (`make_database_adapter(kind)`):
+generic code requests one by symbol and the opt-in package registers the method
+on load. Display backends use a lighter mechanism — no seam: name the type
+directly (`SdlBackend()`) where the package is a dependency, or let
+`ProjecturedBase.default_backend` pick a loaded `Backend` subtype by type-name
+reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
 `ProjecturedDomain` (they need nothing external) — only **live ODBC
 querying** lives in `Odbc`. Likewise the agent *registry and tools* are
 kernel-resident (in the agent layer); only the MCP transport and the

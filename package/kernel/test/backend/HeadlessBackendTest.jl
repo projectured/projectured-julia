@@ -1,7 +1,6 @@
 """
 `HeadlessBackendModule` — the dependency-free in-memory backend. Exercises
-the `make_backend` factory registration, the lifecycle no-ops, and the
-write/read/measure I/O paths.
+construction, the lifecycle no-ops, and the write/read/measure I/O paths.
 """
 
 using Test
@@ -12,12 +11,10 @@ using ProjecturedKernel.DeviceModule
 function test_headless_backend()
 @testset "HeadlessBackend" begin
 
-    @testset "make_backend(:headless) returns a HeadlessBackend" begin
-        b = make_backend(:headless)
+    @testset "HeadlessBackend() constructs a Backend" begin
+        b = HeadlessBackend()
         @test b isa HeadlessBackend
         @test b isa Backend
-        # Unknown kinds raise a helpful error.
-        @test_throws ErrorException make_backend(:definitely_not_registered)
     end
 
     @testset "lifecycle is a no-op" begin

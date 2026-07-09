@@ -30,6 +30,11 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
 import ..ColorModule: StyleColor
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ..FontModule: StyleFont, font_logical_size
+# The TrueType parser + SDL-free measurer moved to TrueTypeModule (it is used by
+# the web backend and every projection example too, not just PDF). The PDF writer
+# still needs the parser internals for glyph embedding and text sizing.
+import ..TrueTypeModule: TrueTypeFont, _load_ttf, glyph_id, advance_1000, ascent_px,
+                         text_width, truetype_measure_text
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
@@ -37,208 +42,10 @@ import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: EmptyReferencePath
 import ..CellModule: Cell
 
-export write_pdf, GraphicsCanvasToPdfFile, pdf_measure_text, truetype_measure_text
+export write_pdf, GraphicsCanvasToPdfFile
 
 const DEFAULT_BG = (0xfd, 0xf6, 0xe3, 0xff)
 const KAPPA = 0.5522847498307936   # circle/quarter-arc Bézier constant
-
-# ════════════════════════════════════════════════════════════════════════
-# Big-endian byte readers over a font's raw bytes (0-based offsets)
-# ════════════════════════════════════════════════════════════════════════
-
-@inline _u8(b, o)  = b[o + 1]
-@inline _u16(b, o) = (UInt16(b[o + 1]) << 8) | UInt16(b[o + 2])
-@inline _s16(b, o) = reinterpret(Int16, _u16(b, o))
-@inline _u32(b, o) = (UInt32(b[o + 1]) << 24) | (UInt32(b[o + 2]) << 16) |
-                     (UInt32(b[o + 3]) << 8)  |  UInt32(b[o + 4])
-@inline _s32(b, o) = reinterpret(Int32, _u32(b, o))
-
-# ════════════════════════════════════════════════════════════════════════
-# Minimal read-only TrueType parser
-# ════════════════════════════════════════════════════════════════════════
-
-mutable struct TrueTypeFont
-    bytes::Vector{UInt8}          # the whole file, for FontFile2
-    units_per_em::Int
-    num_glyphs::Int
-    advances::Vector{Int}         # hmtx advanceWidth per glyph (font units)
-    ascent::Int                   # hhea ascender (font units)
-    descent::Int                  # hhea descender (font units, usually negative)
-    bbox::NTuple{4,Int}           # head xMin,yMin,xMax,yMax (font units)
-    cap_height::Int               # OS/2 sCapHeight if present, else ascent
-    italic_angle::Float64
-    is_fixed_pitch::Bool
-    cmap_off::Int                 # byte offset of chosen cmap subtable, 0 if none
-    cmap_kind::Int                # 4, 12, or 0
-    gid_cache::Dict{UInt32,UInt16}
-end
-
-const _TTF_CACHE = Dict{String,TrueTypeFont}()
-
-_load_ttf(path::AbstractString) = get!(() -> _parse_ttf(read(path)), _TTF_CACHE, String(path))
-
-# Find a 4-char table tag in the SFNT directory; returns (offset, length) or (0, 0).
-function _find_table(b, tag::String)
-    ntables = _u16(b, 4)
-    for i in 0:(ntables - 1)
-        rec = 12 + 16 * i
-        if Char(b[rec + 1]) == tag[1] && Char(b[rec + 2]) == tag[2] &&
-           Char(b[rec + 3]) == tag[3] && Char(b[rec + 4]) == tag[4]
-            return (Int(_u32(b, rec + 8)), Int(_u32(b, rec + 12)))
-        end
-    end
-    (0, 0)
-end
-
-function _parse_ttf(b::Vector{UInt8})
-    head_off, _ = _find_table(b, "head")
-    maxp_off, _ = _find_table(b, "maxp")
-    hhea_off, _ = _find_table(b, "hhea")
-    hmtx_off, _ = _find_table(b, "hmtx")
-    cmap_off, _ = _find_table(b, "cmap")
-    os2_off, os2_len = _find_table(b, "OS/2")
-    post_off, post_len = _find_table(b, "post")
-
-    units = Int(_u16(b, head_off + 18))
-    bbox = (Int(_s16(b, head_off + 36)), Int(_s16(b, head_off + 38)),
-            Int(_s16(b, head_off + 40)), Int(_s16(b, head_off + 42)))
-    num_glyphs = Int(_u16(b, maxp_off + 4))
-    ascent  = Int(_s16(b, hhea_off + 4))
-    descent = Int(_s16(b, hhea_off + 6))
-    num_hm  = Int(_u16(b, hhea_off + 34))
-
-    advances = Vector{Int}(undef, num_glyphs)
-    last = 0
-    for i in 0:(num_glyphs - 1)
-        i < num_hm && (last = Int(_u16(b, hmtx_off + 4 * i)))
-        advances[i + 1] = last
-    end
-
-    cmap_sub, cmap_kind = cmap_off == 0 ? (0, 0) : _select_cmap(b, cmap_off)
-
-    cap_height = (os2_off != 0 && os2_len >= 96) ? Int(_s16(b, os2_off + 88)) : ascent
-    italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
-    is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
-
-    TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, bbox,
-                 cap_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
-                 Dict{UInt32,UInt16}())
-end
-
-# Pick the most capable Unicode cmap subtable; returns (subtable_offset, format).
-function _select_cmap(b, cmap_off)
-    ntab = Int(_u16(b, cmap_off + 2))
-    best_off = 0; best_fmt = 0; best_score = -1
-    for i in 0:(ntab - 1)
-        rec = cmap_off + 4 + 8 * i
-        plat = _u16(b, rec); enc = _u16(b, rec + 2)
-        sub = cmap_off + Int(_u32(b, rec + 4))
-        fmt = Int(_u16(b, sub))
-        score = if fmt == 12 && plat == 3 && enc == 10; 5
-                elseif fmt == 12; 4
-                elseif fmt == 4 && plat == 3 && enc == 1; 3
-                elseif fmt == 4 && plat == 0; 2
-                elseif fmt == 4; 1
-                else; 0 end
-        if score > best_score
-            best_score = score; best_off = sub; best_fmt = fmt
-        end
-    end
-    (best_off, best_fmt)
-end
-
-# cmap format 4 lookup (BMP).
-function _cmap4(b, off, c::UInt32)
-    c > 0xFFFF && return UInt16(0)
-    seg_count = Int(_u16(b, off + 6)) ÷ 2
-    end_base   = off + 14
-    start_base = end_base + 2 * seg_count + 2
-    delta_base = start_base + 2 * seg_count
-    range_base = delta_base + 2 * seg_count
-    for i in 0:(seg_count - 1)
-        endc = UInt32(_u16(b, end_base + 2 * i))
-        if c <= endc
-            startc = UInt32(_u16(b, start_base + 2 * i))
-            c < startc && return UInt16(0)
-            idr = Int(_u16(b, range_base + 2 * i))
-            if idr == 0
-                return UInt16((c + _s16(b, delta_base + 2 * i)) & 0xFFFF)
-            else
-                addr = range_base + 2 * i + idr + 2 * Int(c - startc)
-                g = _u16(b, addr)
-                g == 0 && return UInt16(0)
-                return UInt16((Int(g) + _s16(b, delta_base + 2 * i)) & 0xFFFF)
-            end
-        end
-    end
-    UInt16(0)
-end
-
-# cmap format 12 lookup (full Unicode).
-function _cmap12(b, off, c::UInt32)
-    ngroups = Int(_u32(b, off + 12))
-    base = off + 16
-    for i in 0:(ngroups - 1)
-        g = base + 12 * i
-        sc = _u32(b, g); ec = _u32(b, g + 4)
-        if sc <= c <= ec
-            return UInt16(_u32(b, g + 8) + (c - sc))
-        end
-    end
-    UInt16(0)
-end
-
-function glyph_id(f::TrueTypeFont, c::UInt32)
-    get!(f.gid_cache, c) do
-        f.cmap_kind == 12 ? _cmap12(f.bytes, f.cmap_off, c) :
-        f.cmap_kind == 4  ? _cmap4(f.bytes, f.cmap_off, c)  : UInt16(0)
-    end
-end
-glyph_id(f::TrueTypeFont, c::Char) = glyph_id(f, UInt32(c))
-
-_advance_units(f::TrueTypeFont, gid::UInt16) =
-    (Int(gid) + 1) <= length(f.advances) ? f.advances[Int(gid) + 1] : f.advances[end]
-
-advance_1000(f::TrueTypeFont, gid::UInt16) = round(Int, _advance_units(f, gid) * 1000 / f.units_per_em)
-
-function text_width(f::TrueTypeFont, size::Real, s::AbstractString)
-    total = 0
-    for c in s
-        total += _advance_units(f, glyph_id(f, UInt32(c)))
-    end
-    total * size / f.units_per_em
-end
-
-ascent_px(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
-
-"""
-    pdf_measure_text(text, font::StyleFont) -> (Int, Int)
-
-SDL-free text measurement from the embedded font's own metrics, used to size the
-page. Returns `(width, height)` in logical pixels — both `Int`, matching
-`sdl_measure_text`'s contract so the same projections can be driven without SDL.
-
-Measures at the font's *logical* (font-zoomed) size — [`font_logical_size`](@ref),
-which reads the reactive `_FONT_ZOOM` cell — exactly like `sdl_measure_text`
-(which rasterizes at `font_device_size` and divides back by `_DISPLAY_SCALE`).
-This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path,
-since `truetype_measure_text` (this alias) is the measurer the live editor wires
-into its projections. A no-op at the default zoom (`font_logical_size == size`).
-"""
-pdf_measure_text(text, font::StyleFont) =
-    (round(Int, text_width(_load_ttf(font.filename), font_logical_size(font), String(text))),
-     font_logical_size(font))
-
-"""
-    truetype_measure_text(text, font::StyleFont) -> (Int, Int)
-
-Canonical SDL-free text measurer for layout: a neutral-named alias of
-[`pdf_measure_text`]. Reads advance widths from the font's own TrueType `hmtx`
-metrics (pure Julia, no SDL/SDL_ttf), so any projection pipeline can measure text
-without SDL. Use this as the default `measure=` for projection examples; it
-matches `sdl_measure_text`'s `(width, height)` contract.
-"""
-const truetype_measure_text = pdf_measure_text
 
 # ════════════════════════════════════════════════════════════════════════
 # Number / color formatting
@@ -795,7 +602,7 @@ end
     write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
               width::Integer, height::Integer, paginate::Bool = false,
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = pdf_measure_text) -> ImageFile
+              measure = truetype_measure_text) -> ImageFile
 
 Low-level overload. Emit `canvas` as a vector PDF where each page is
 `width × height` points (1 pt == 1 logical px). Shapes become PDF paths, text
@@ -809,7 +616,7 @@ bands; `measure` is used to find the content height.
 function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
                    width::Integer, height::Integer, paginate::Bool = false,
                    background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = pdf_measure_text)
+                   measure = truetype_measure_text)
     ext = lowercase(splitext(filename)[2])
     ext == ".pdf" || error("write_pdf: unsupported format \"$ext\" (only .pdf is supported)")
 
@@ -829,7 +636,7 @@ end
               width=nothing, height=nothing, paginate::Bool = false,
               max_width::Integer = 1200, max_height::Integer = 800,
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = pdf_measure_text) -> ImageFile
+              measure = truetype_measure_text) -> ImageFile
 
 Run `print_document(projection, document)` to obtain a `GraphicsCanvas` and
 write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
@@ -861,7 +668,7 @@ function write_pdf(document, projection, filename::AbstractString;
                    max_width::Integer = 1200,
                    max_height::Integer = 800,
                    background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = pdf_measure_text)
+                   measure = truetype_measure_text)
     print_canvas = (aw, ah) -> begin
         ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
         iomap = print_document(projection, nothing, document, ctx)

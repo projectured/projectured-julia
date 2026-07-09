@@ -3,8 +3,8 @@
 
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
 rasterisation, offscreen image output). Depends on `ProjecturedDomain` +
-SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` registers
-`make_backend(:sdl)` plus the render/decode/image seam methods, and (via
+SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` provides the
+render/decode/image seam methods, and (via
 `__init__`) installs SDL as the real `get_display_size` provider. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
 primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!`)
@@ -21,7 +21,7 @@ using ProjecturedDomain
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, make_backend, write_image,
+import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, write_image,
                         render_canvas, decode_image, get_pointer_position
 import ProjecturedDomain.DisplayModule: get_display_size, set_display_size_provider!
 import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
@@ -2501,10 +2501,6 @@ function decode_image_file!(img::ImageFile)
     img.raw = result
     img
 end
-
-# Backend factory method: lets callers build the SDL backend via
-# `make_backend(:sdl; …)` without naming `SdlBackend` directly (extension-ready).
-make_backend(::Val{:sdl}; kwargs...) = SdlBackend(; kwargs...)
 
 # Image decode via the generic seam.
 decode_image(filename::AbstractString) = sdl_decode_image(filename)

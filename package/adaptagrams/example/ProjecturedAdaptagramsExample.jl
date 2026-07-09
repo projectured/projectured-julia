@@ -16,7 +16,7 @@ module ProjecturedAdaptagramsExample
 
 using Projectured
 using ProjecturedAdaptagrams   # AdaptagramsEngine
-import ProjecturedExample: Example, run_example, run_console_example, run_web_example,
+import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_graph_document_example, make_graph_projection_example,
                            make_table_projection_example, make_mixed_projection_example
@@ -29,7 +29,7 @@ include(joinpath(_PKG_DIR, "Examples.jl"))
 
 export make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example
 export graph_adaptagrams_example, dvdrental_relationship_example, adaptagrams_examples
-export Example, run_example, run_console_example, run_web_example,
+export Example, run_example, run_console_example,
        print_example, write_example_image, write_example_pdf, record_example_video
 
 end # module ProjecturedAdaptagramsExample
