@@ -48,7 +48,8 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
 
     descriptor = WorkbenchDescriptor(EmptyReferencePath())
 
-    assistant = WorkbenchAssistant()
+    # Example doc: explicit FakeLlm so the embedded assistant works offline.
+    assistant = WorkbenchAssistant(; llm = FakeLlm())
     # Place a zero-width cursor inside the input so the first KeyPress lands
     # there even before the user clicks. Once the input renders, the existing
     # mouse-click chain keeps focus in sync.

@@ -620,3 +620,20 @@ states for placement).
     durable is the document's data, not the reactive machinery or the projected
     view built over it. Transient view/UI state (hover, drag, scroll, zoom) is
     projection output and is therefore excluded from serialization by construction.
+
+68. **No test doubles live in `main` packages.** A fake, mock, stub, or any
+    canned/scripted stand-in for a real seam is test/example scaffolding: it lives
+    in a `test` or `example` package and is never defined in, exported from, or
+    named by `main` code — not even as a fallback. A `main` package defines only
+    the real seam (the abstract type + generic) the double implements; the double
+    subtypes that seam from its `test`/`example` home. Production code that finds
+    no real backend fails loudly rather than fabricating a fake, so a real user is
+    never served a faked result; offline/deterministic behaviour is opted into by
+    the example or test that wants it (it passes an explicit double). A double may
+    still be *defined* in an example package the executable bundles, but because no
+    `main` path constructs one, none is reachable at runtime in production. See the
+    "No test doubles in `main`" bullet in
+    [architecture-rules.md](architecture-rules.md). Precedent: `FakeLlm` /
+    `ScriptedLlm` moved from kernel `main` (`LlmModule`) to
+    `ProjecturedKernelExample`, and `WorkbenchAssistant` dropped its `FakeLlm`
+    fallback.

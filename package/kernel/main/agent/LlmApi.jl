@@ -1,9 +1,10 @@
 # Fragment of `LlmModule` — the LLM backend contract: the abstract `Llm`
 # supertype and the `stream_turn` generic every concrete backend adds a
-# method for. The in-process backends live one-per-file alongside this one:
-# `LlmFake.jl` (`FakeLlm`) and `LlmScripted.jl` (`ScriptedLlm` + its
-# scripted-round builders). The real-network backend (`AnthropicLlm`) lives
-# entirely in the opt-in `ProjecturedLlm` package (`package/llm`).
+# method for. This is the whole of `LlmModule`: the seam only, no concrete
+# backend. The real-network backend (`AnthropicLlm`) lives in the opt-in
+# `ProjecturedLlm` package (`package/llm`); the `FakeLlm` / `ScriptedLlm`
+# test doubles live in `ProjecturedKernelExample` (`package/kernel/example`)
+# — fakes never belong in `main`.
 
 # ═══════════════════════════════════════════════════════════════════════
 # Interface

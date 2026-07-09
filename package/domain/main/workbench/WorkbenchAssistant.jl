@@ -66,7 +66,7 @@ import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resourc
 import ..KeyboardModule: KeyPress
 import ..EventCaseModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..LlmModule: Llm, stream_turn, FakeLlm
+import ..LlmModule: Llm, stream_turn
 import ..McpModule: execute_julia_code, get_last_evaluated_value, register_default_tools_and_resources!
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDraft
@@ -640,7 +640,7 @@ _collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) =
 # entirely in the opt-in `ProjecturedLlm` package, which the core stack does not
 # depend on — so we can't name the type. Instead, if that package is loaded and
 # still exposes `AnthropicLlm`, construct one; otherwise return `nothing` and the
-# caller falls back to `FakeLlm`.
+# caller errors (production `main` never fabricates a fake backend).
 function _discover_remote_llm()
     for m in values(Base.loaded_modules)
         nameof(m) === :ProjecturedLlm || continue
@@ -652,20 +652,28 @@ end
 
 function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # The real backend's `stream_turn` errors with a clear HTTP message if the
-    # API key is empty. `FakeLlm` doesn't need one. So leave validation
-    # to the backend.
+    # API key is empty, so leave key validation to the backend.
     register_default_tools_and_resources!()
     tools = assistant_tool_schemas()
     # Resolve the backend and key now (not at construction): a `nothing` default
     # becomes the real-network backend when a key is available *and* the opt-in
-    # `ProjecturedLlm` package is loaded (discovered by reflection), else FakeLlm.
-    # Reading ENV here — rather than baking it into the precompiled document — is
-    # what lets a key exported before launch take effect. Write the resolution
-    # back so the live document reflects the real backend/key (e.g. when
-    # inspecting `a.llm`).
+    # `ProjecturedLlm` package is loaded (discovered by reflection). Reading ENV
+    # here — rather than baking it into the precompiled document — is what lets a
+    # key exported before launch take effect. No fallback is fabricated: this is
+    # production code, so it never conjures a fake backend. Tests/examples that
+    # want offline behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm`
+    # from `ProjecturedKernelExample`). Write the resolution back so the live
+    # document reflects the real backend/key (e.g. when inspecting `a.llm`).
     key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
-    remote = isempty(key) ? nothing : _discover_remote_llm()
-    llm = a.llm === nothing ? (remote === nothing ? FakeLlm() : remote) : a.llm
+    llm = a.llm
+    if llm === nothing
+        llm = isempty(key) ? nothing : _discover_remote_llm()
+        llm === nothing && error(
+            "WorkbenchAssistant: no LLM backend available. Set ANTHROPIC_API_KEY " *
+            "and load ProjecturedLlm for real Claude, or construct the assistant " *
+            "with an explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample " *
+            "in tests/examples).")
+    end
     a.llm === llm || (a.llm = llm)
     a.api_key == key || (a.api_key = key)
     turn_t0 = time()

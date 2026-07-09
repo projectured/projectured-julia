@@ -8,9 +8,10 @@ plan/done/example-package-split.md). It hosts:
 - the domain-tier `Example` instances and their factories: the concrete
   source domains (json/yaml/xml/sql/formula/math/julia/markdown/book/
   filesystem), the application examples (workbench, conversation, assistant —
-  the LLM transport stays behind the kernel agent seam; without it the agent
-  loop falls back to FakeLlm), and the cross-domain compositions (mixed
-  documents, graphs, tables, clipboard, versioning, dragging);
+  the LLM transport stays behind the kernel agent seam; the assistant examples
+  pass an explicit `FakeLlm` test double so they run offline), and the
+  cross-domain compositions (mixed documents, graphs, tables, clipboard,
+  versioning, dragging);
 - the **example gallery**: `run_example` with its workbench / tooltip /
   inspector / clipboard / introspection wrappers (domain vocabulary — the
   reason the gallery lives at this tier), `run_console_example`, and

@@ -12,18 +12,22 @@ The layer lives in [main/agent/](../main/agent/):
 Agent.jl         (AgentModule)        — make_agent_server + start/stop generics
 Llm.jl           (LlmModule)          — pluggable LLM backend seam (stream_turn)
   LlmApi.jl                           — abstract Llm + stream_turn generic (the seam)
-  LlmFake.jl                          — FakeLlm (in-process canned reply)
-  LlmScripted.jl                      — ScriptedLlm + scripted-round builders
 ToolRegistry.jl  (ToolRegistryModule) — in-process registry of Tools + Resources
 Mcp.jl           (McpModule)          — MCP server skeleton + doc-introspection tools
 ```
 
-`Llm.jl` is the `LlmModule` wrapper: it declares the module and its exports,
-then `include`s the interface fragment (`LlmApi.jl`) and one file per in-process
-backend (`LlmFake.jl`, `LlmScripted.jl`) that share its namespace. The
-real-network backend `AnthropicLlm` lives entirely in the opt-in `ProjecturedLlm`
-package (`package/llm`); the core `WorkbenchAssistant` discovers it by reflection
-when that package is loaded, so nothing in the core stack names it.
+`Llm.jl` is the `LlmModule` wrapper: it declares the module and its exports, then
+`include`s the interface fragment (`LlmApi.jl`). `LlmModule` is the **seam only**
+— it defines no concrete backend:
+
+- the real-network backend `AnthropicLlm` lives in the opt-in `ProjecturedLlm`
+  package (`package/llm`); and
+- the `FakeLlm` / `ScriptedLlm` test doubles live in `ProjecturedKernelExample`
+  (`package/kernel/example`), never in `main` — see architecture requirement #68.
+
+The core `WorkbenchAssistant` discovers the real backend by reflection when
+`ProjecturedLlm` is loaded, so nothing in the core stack names any concrete
+backend.
 
 ## AgentModule
 

@@ -30,7 +30,8 @@ Real Claude backend. Requires `api_key` to be passed to `stream_turn`
 (typically from `ENV["ANTHROPIC_API_KEY"]`). The struct and its
 `stream_turn` method live entirely in this opt-in package; the core
 `WorkbenchAssistant` discovers them by reflection when the package is
-loaded (else it falls back to `FakeLlm`).
+loaded (else, with no backend, submitting errors — production `main` never
+falls back to a fake).
 """
 struct AnthropicLlm <: Llm
     base_url::String

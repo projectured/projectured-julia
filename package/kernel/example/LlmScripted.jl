@@ -1,7 +1,9 @@
-# Fragment of `LlmModule` — the multi-round, timestamped, tool-capable
-# `ScriptedLlm` backend and its dependency-free scripted-round builders
-# (`make_scripted_turn` and the `make_scripted_think` / `make_scripted_say`
-# / `make_scripted_run` block helpers).
+# Fragment of `ProjecturedKernelExample` — the multi-round, timestamped,
+# tool-capable `ScriptedLlm` backend and its dependency-free scripted-round
+# builders (`make_scripted_turn` and the `make_scripted_think` /
+# `make_scripted_say` / `make_scripted_run` block helpers). A test double
+# for the kernel's `LlmModule.Llm` seam; it lives in the example package
+# (never in `main`) so no fake reaches a production build.
 
 # ═══════════════════════════════════════════════════════════════════════
 # ScriptedLlm — multi-round, timestamped, tool-capable

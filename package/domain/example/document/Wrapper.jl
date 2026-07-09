@@ -43,7 +43,8 @@ function make_workbench_document(document; title="untitled", filename=title)
         WorkbenchEvaluator(),
     ])
     control_page = WorkbenchPage([
-        WorkbenchAssistant(),
+        # Example doc: explicit FakeLlm so the embedded assistant works offline.
+        WorkbenchAssistant(; llm = FakeLlm()),
     ])
     WorkbenchWorkbench(nav_page, edit_page, info_page, control_page)
 end

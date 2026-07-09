@@ -203,6 +203,18 @@ package whose document walk can express them.
   is its first file(s); implementations depend downward onto it.
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
+- **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted
+  stand-in for a real seam is test/example scaffolding, so it lives in a `test`
+  or `example` package — never in a `main` package, and never named by `main`
+  code (not even as a fallback). `main` defines only the real seam the double
+  implements; the double subtypes/implements that seam from its `test`/`example`
+  home. This keeps a production build free of fakes: a fake may still be *defined*
+  in an example package the executable bundles, but no `main` code path ever
+  constructs one, so a real user can never be served a faked result. The offline
+  behaviour that used to lean on a `main` fallback moves to the example that wants
+  it (pass an explicit fake `llm`); a `main` path with no real backend fails
+  loudly instead. Precedent: `FakeLlm` / `ScriptedLlm` moved from kernel `main`
+  to `ProjecturedKernelExample`. See architecture requirement #68.
 
 ## Enforcement
 

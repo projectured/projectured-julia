@@ -1,7 +1,9 @@
-# Fragment of `LlmModule` — the in-process `FakeLlm` backend: a canned
-# reply (optionally preceded by a synthetic thinking block) streamed as
-# SSE events, no network. Useful for offline development, deterministic
-# tests, and exercising the streaming-render path.
+# Fragment of `ProjecturedKernelExample` — the in-process `FakeLlm`
+# backend: a canned reply (optionally preceded by a synthetic thinking
+# block) streamed as SSE events, no network. A test double for the kernel's
+# `LlmModule.Llm` seam; it lives in the example package (never in `main`)
+# so no fake reaches a production build. Useful for offline development,
+# deterministic tests, and exercising the streaming-render path.
 
 # ═══════════════════════════════════════════════════════════════════════
 # FakeLlm — canned reply, no network

@@ -257,14 +257,16 @@ API key (`api_key`), a `status` symbol (`:idle`, `:streaming`, `:error`,
 ...), and a pluggable `llm::Llm` that decides how submit turns are
 serviced (real Claude vs. a canned-reply fake).
 
-`llm` defaults to `nothing` and `api_key` to empty: the concrete backend
-(`AnthropicLlm` vs `FakeLlm`) and the key are resolved from
-`ENV["ANTHROPIC_API_KEY"]` **at submit time**, not here. This keeps the choice
-out of the precompiled image — documents are built eagerly into `const`s during
-precompilation (no key then), so resolving at construction would freeze
-`FakeLlm`. Resolving lazily means a key exported before launch is honoured, while
-`run_example(assistant_example)` still works offline (falls back to `FakeLlm`).
-Pass an explicit `llm` (e.g. `FakeLlm("ok")` in tests) to bypass resolution.
+`llm` defaults to `nothing` and `api_key` to empty: the backend and key are
+resolved from `ENV["ANTHROPIC_API_KEY"]` **at submit time**, not here. This keeps
+the choice out of the precompiled image — documents are built eagerly into
+`const`s during precompilation (no key then), so resolving at construction would
+freeze the wrong choice. Resolving lazily means a key exported before launch is
+honoured. When a key is set *and* the opt-in `ProjecturedLlm` package is loaded,
+the real Claude backend is discovered by reflection; otherwise submitting errors
+with a clear message. Production `main` never fabricates a fake — tests/examples
+that want offline behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm`
+from `ProjecturedKernelExample`, e.g. `FakeLlm("ok")`).
 """
 @document struct WorkbenchAssistant <: WorkbenchDocument
     conversation::ConversationConversation
