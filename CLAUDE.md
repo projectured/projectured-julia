@@ -13,7 +13,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 - ⬜ `ProjecturedKernel.jl` — module root, the layer diagram
 - **Layer 1 — cell** (`cell/`)
   - ⬜ `cell/CellLayer.jl`
-  - ⬜ `cell/PerformanceCounter.jl`
+  - 🔒 `cell/PerformanceCounter.jl`
   - ⬜ `cell/CellModule.jl`
   - ⬜ `cell/AbstractCell.jl`
   - ⬜ `cell/ReactiveCell.jl`
