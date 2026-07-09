@@ -8,7 +8,7 @@ A Julia reimplementation of [ProjecturEd](https://github.com/projectured/project
 
 The list below is authoritative. It is the ordered inventory of the kernel main folder (`package/kernel/main/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
 
-**Before sealing a file, audit it against [documentation/architecture-requirements.md](documentation/architecture-requirements.md).** Always run this check and report the result before proposing a file for sealing or moving to the next file — a file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
+**Audit a file against [documentation/architecture-requirements.md](documentation/architecture-requirements.md) the moment you introduce it as the next file — before inviting review and before offering to seal.** Present the audit result first; never say "seal as-is" or ask whether to seal until the audit has been reported. A file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
 
 ### `package/kernel/main/` seal status
 
