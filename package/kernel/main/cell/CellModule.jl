@@ -8,27 +8,22 @@ reactive bookkeeping), `ImmutableCell` (read-only wrapper). Also provides
 `@cell_struct`, which declares a struct whose fields are transparent reactive
 `Cell`s.
 
-This file is the aggregator (exports + include list); see
-[cell.md](../../doc/cell.md) for the engine, invariants, and worked examples.
+This file is the aggregator; each kind and the codegen are documented at their
+own definition, and [cell.md](../../doc/cell.md) covers the engine, invariants,
+and examples.
 """
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        set_value!, set_function!, is_up_to_date
-# `@cell_struct` and its assembler `cell_struct_exprs` / keyword-ctor builders
-# `cell_struct_kw_params` / `cell_struct_kwctor` are the public codegen seam for macro authors;
-# `cell_struct_autowrap_ctor` / `cell_struct_property_accessors` stay internal to CellStruct.jl.
+# The exported `@cell_struct` and its codegen assemblers are the public seam for
+# macro authors; CellStruct.jl's remaining builders stay internal.
 export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_kwctor
 
-# ── the base type + the three kinds (one file each) ────────────────────────
-# AbstractCell first (it also holds the cross-kind protocol fallbacks); the
-# concrete kinds subtype it.
-include("AbstractCell.jl")
+include("AbstractCell.jl")    # the base type; the kinds below subtype it
 include("ReactiveCell.jl")
 include("MutableCell.jl")
 include("ImmutableCell.jl")
-
-# ── transparent-Cell struct codegen (`@cell_struct` + its builders) ─────────
-include("CellStruct.jl")
+include("CellStruct.jl")      # transparent-Cell struct codegen (@cell_struct)
 
 end # module
