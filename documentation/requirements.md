@@ -59,9 +59,8 @@ do for the person building with or contributing to it).
    represent every intermediate state the user pictures in her mental model on the
    way from the first to the second — even a state that is ill-formed in the
    original kind of content, such as an XML document with a single `<` character
-   removed. Such a state need not be reachable through an edit that is actually
-   implemented, but the architecture must permit it to exist, one way or another
-   (for instance as content of a different kind).
+   removed. The architecture must permit such a state to exist, one way or
+   another (for instance as content of a different kind).
 
 ### Selecting, navigating, and finding
 
