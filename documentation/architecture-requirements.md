@@ -464,9 +464,11 @@ states for placement).
     projections and the machinery they call; this extends the same ban up to the
     editor loop, the devices, and the backends it drives — a backend or device that
     must hold per-connection state holds it on its own instance (one per editor),
-    never in a global registry. Migrate the two known offenders
-    (`TimeModule`'s `_EDITOR_TIME`, `PerformanceCounterModule`'s `_perf`) onto the
-    editor per the [per-editor animation clock plan](../plan/pending/per-editor-animation-clock.md).
+    never in a global registry. `PerformanceCounterModule` has been migrated off its
+    process-global `_perf` dict onto a task-local `with_performance_counters` binding
+    (each editor frame binds its own store). The remaining known offender —
+    `TimeModule`'s `_EDITOR_TIME` — is migrated onto the editor per the
+    [per-editor animation clock plan](../plan/pending/per-editor-animation-clock.md).
 
 ## Package, layer, slice, and module structure
 

@@ -9,7 +9,7 @@ real window. Extracted from Editor.jl; builds on the editor-loop primitives
 module PlaybackModule
 
 import ..EditorModule: Editor, read!, evaluate!, print!, perf!
-import ..PerformanceCounterModule: reset_performance_counters!, @performance_time
+import ..PerformanceCounterModule: with_performance_counters, @performance_time
 import ..ProjectionApiModule: read_intent
 import ..IntentModule: Intent
 import ..GestureModule: EventEnvelope
@@ -108,18 +108,19 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            reset_performance_counters!()
-            @performance_time :read_time read!(editor)
-            # When no real-input operation is pending and the next scheduled
-            # entry is due, inject it. Real input wins the frame; the scheduled
-            # entry retries on the following frame.
-            if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
-                editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
-                next += 1
+            with_performance_counters() do
+                @performance_time :read_time read!(editor)
+                # When no real-input operation is pending and the next scheduled
+                # entry is due, inject it. Real input wins the frame; the scheduled
+                # entry retries on the following frame.
+                if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
+                    editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
+                    next += 1
+                end
+                @performance_time :evaluate_time evaluate!(editor)
+                @performance_time :print_time    print!(editor)
+                perf!(editor)
             end
-            @performance_time :evaluate_time evaluate!(editor)
-            @performance_time :print_time    print!(editor)
-            perf!(editor)
             sleep(0.01)
         end
     catch e

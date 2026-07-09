@@ -37,9 +37,9 @@ process therefore collide three ways:
    pause / rate / seek, and — critically — a deterministic per-editor `seek!` for
    headless render / tests corrupts the other editor.
 
-(The same disease affects [PerformanceCounter.jl](../../package/kernel/src/cell/PerformanceCounter.jl)'s
-process-global `_perf` dict, which `run_editor!` resets each frame; see
-**Deferred / related**. Out of scope here, but the fix shape is identical.)
+(The same disease once affected [PerformanceCounter.jl](../../package/kernel/src/cell/PerformanceCounter.jl)'s
+process-global `_perf` dict; that has since been fixed — see **Deferred / related**.
+Out of scope here.)
 
 ## The crux
 
@@ -288,11 +288,13 @@ Commit per step; do the work in a dedicated worktree.
 - **Reader-armed widgets per-editor** (WidgetSwitch et al.): needs the clock
   reachable from readers (iomap-borne clock, or a reader context analogous to
   `PrinterContext`). Separate follow-up. Until then they use the default clock.
-- **`PerformanceCounterModule` is the same singleton class of bug**
+- **`PerformanceCounterModule` was the same singleton class of bug** — **done.**
   ([PerformanceCounter.jl](../../package/kernel/src/cell/PerformanceCounter.jl)):
-  the process-global `_perf` dict is reset each frame by `run_editor!`, so two
-  editors stomp each other's counters. Same fix shape (move onto `Editor`). Not in
-  scope here; worth a sibling plan.
+  the process-global `_perf` dict let two editors stomp each other's counters. Fixed
+  independently of this plan: rather than moving the store onto `Editor` (cells have
+  no editor handle to reach it), the counters now live in a **task-local
+  `with_performance_counters` binding** that `run_editor!` establishes per frame, and
+  the whole module is conditionally compiled (`PERFORMANCE_COUNTERS_ENABLED`).
 
 ## Open questions
 

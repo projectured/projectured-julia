@@ -172,8 +172,9 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
   every cell read during a computation as an upstream dependency.
 - **Invalidation:** writing a primitive cell (`c[] = v`) marks all transitive
   downstream dependents invalid; they recompute lazily on next read.
-- **Performance counters:** `get_performance_counters()` / `reset_performance_counters!()` expose
-  per-frame read/compute/write tallies.
+- **Performance counters:** `with_performance_counters()` binds a per-frame store and
+  `get_performance_counters()` reads it — per-frame read/compute/write tallies, with no
+  process-global state.
 
 ### Stage 1 — Domain modules (`document/`)
 

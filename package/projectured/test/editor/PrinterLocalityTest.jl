@@ -188,21 +188,24 @@ function printer_locality_report(document, projection, mutate!)
     _collect_locality!(output, nothing, :_, Set{UInt64}(), cells, before_objs, errors, 0;
                        sel_objects=before_sel_objs)
 
-    reset_performance_counters!()
-    try
-        mutate!(document)
-    catch e
-        push!(errors, "mutate! threw: $e")
+    # Count the reactive traffic of the mutation + re-force inside a scoped
+    # counter store (there is no process-global counter to reset).
+    invalidated, after_objs, perf = with_performance_counters() do
+        try
+            mutate!(document)
+        catch e
+            push!(errors, "mutate! threw: $e")
+        end
+
+        # Eager invalidation has run; read `.valid` only (is_up_to_date is pure) so we
+        # do not recompute anything before observing the footprint.
+        inv = LocalityCell[lc for lc in cells if !is_up_to_date(lc.cell)]
+
+        # Re-force to recompute and re-collect object identities + perf delta.
+        objs = Set{UInt64}()
+        _collect_locality!(output, nothing, :_, Set{UInt64}(), LocalityCell[], objs, errors, 0)
+        (inv, objs, get_performance_counters())
     end
-
-    # Eager invalidation has run; read `.valid` only (is_up_to_date is pure) so we
-    # do not recompute anything before observing the footprint.
-    invalidated = LocalityCell[lc for lc in cells if !is_up_to_date(lc.cell)]
-
-    # Re-force to recompute and re-collect object identities + perf delta.
-    after_objs = Set{UInt64}()
-    _collect_locality!(output, nothing, :_, Set{UInt64}(), LocalityCell[], after_objs, errors, 0)
-    perf = get_performance_counters()
 
     preserved = length(intersect(before_objs, after_objs))
     lost_set = setdiff(before_objs, after_objs)

@@ -16,7 +16,7 @@ import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..BackendModule: Backend, initialize_backend!, quit_backend!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..GestureModule: EventEnvelope
-import ..PerformanceCounterModule: get_performance_counters, reset_performance_counters!, @performance_time
+import ..PerformanceCounterModule: get_performance_counters, with_performance_counters, @performance_time, PERFORMANCE_COUNTERS_ENABLED
 import ..TimeModule: tick_editor_time!
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
@@ -176,6 +176,7 @@ Log reactive performance counters for the current frame. Only prints
 when the editor processed a non-nothing operation.
 """
 function perf!(editor::Editor)
+    PERFORMANCE_COUNTERS_ENABLED || return
     editor.operation === nothing && return
     c = get_performance_counters()
     # The per-stage timing keys are the editor's own (recorded via `@performance_time`
@@ -221,12 +222,15 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     t_start = Base.time()
     try
         while true
-            reset_performance_counters!()
-            tick_editor_time!(Base.time() - t_start)
-            @performance_time :read_time     read!(editor)
-            @performance_time :evaluate_time evaluate!(editor)
-            @performance_time :print_time    print!(editor)
-            perf!(editor)
+            # A fresh per-frame counter store, bound for this frame's dynamic
+            # extent; the cell operations below count into it and `perf!` reads it.
+            with_performance_counters() do
+                tick_editor_time!(Base.time() - t_start)
+                @performance_time :read_time     read!(editor)
+                @performance_time :evaluate_time evaluate!(editor)
+                @performance_time :print_time    print!(editor)
+                perf!(editor)
+            end
             sleep(0.01)
         end
     catch e

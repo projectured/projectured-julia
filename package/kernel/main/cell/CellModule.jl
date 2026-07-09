@@ -40,9 +40,11 @@ The module exposes:
   `@iomap`, `@projection`) build on; see [`CellStruct.jl`](CellStruct.jl)
 
 The instrumentation counters (`PerformanceCounterModule`,
-`cell/PerformanceCounter.jl`, whose `_perf` dict `ReactiveCell` bumps inline on the
-hot path) count **reactive** cell traffic only: `MutableCell`/`ImmutableCell`
-reads cost a pointer load, so they are deliberately not counted.
+`cell/PerformanceCounter.jl`, which `ReactiveCell` bumps via `@count_performance`
+on the hot path) count **reactive** cell traffic only: `MutableCell`/`ImmutableCell`
+reads cost a pointer load, so they are deliberately not counted. Counting is
+compiled out unless enabled, and there is no global store — the counts land in a
+task-local store bound by `with_performance_counters`.
 
 The one non-engine sibling that also lives in the `cell/` layer is the global
 editor clock — `TimeModule` in [`Time.jl`](Time.jl) — a single `Cell(0.0)`

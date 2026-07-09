@@ -35,11 +35,12 @@ end
 
 ```julia
 while true
-    reset_performance_counters!()
-    read!(editor)      # poll devices → read_intent → editor.operation
-    evaluate!(editor)  # evaluate_operation(editor, editor.operation)
-    print!(editor)     # print_document → editor.iomap; render to devices
-    perf!(editor)      # log reactive counters
+    with_performance_counters() do  # bind a fresh per-frame counter store
+        read!(editor)      # poll devices → read_intent → editor.operation
+        evaluate!(editor)  # evaluate_operation(editor, editor.operation)
+        print!(editor)     # print_document → editor.iomap; render to devices
+        perf!(editor)      # log reactive counters
+    end
     sleep(0.01)
 end
 ```
@@ -207,8 +208,8 @@ The server is stopped in the `finally` block of `run_editor!`.
 
 ## Performance counters
 
-Each frame the editor calls `reset_performance_counters!()` before reading input and
-`perf!()` after rendering, which logs
+Each frame the editor binds a fresh counter store with `with_performance_counters()`
+and calls `perf!()` after rendering, which logs
 
 ```
 [perf] reads=… computes=… invalidations=… writes=…

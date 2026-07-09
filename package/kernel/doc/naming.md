@@ -139,7 +139,7 @@ dispatch, not by the name.
   `is_reference_equal`, `is_up_to_date`) or are plain verbs that read as
   questions at the call site (`matches(pattern, gesture)`).
 - **Mutating functions end with `!`**: `insert_row!`, `pop_gesture!`,
-  `reset_performance_counters!`. A name ending in `!` is an action, so it
+  `record_performance!`. A name ending in `!` is an action, so it
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
 - **Qualifiers are suffixes**: `get_document_gesture_bindings_own`,

@@ -77,9 +77,10 @@ popfirst_job!(q) = deleteat!(q, 1)
 
     # Pause point: sync. Only the cells that actually changed are written — job 1's
     # remaining (3.0→2.0) and the clock (0.0→1.0) — so exactly the view recomputes.
-    reset_performance_counters!()
-    sync_document!(shadow, sim)
-    w1 = get_performance_counters()[:writes]
+    w1 = with_performance_counters() do
+        sync_document!(shadow, sim)
+        get_performance_counters()[:writes]
+    end
     @test !is_up_to_date(total_work)              # the changed job invalidated the view
     @test total_work[] == 4.0                  # 2.0 + 2.0
     @test recomputes[] == 2
@@ -94,10 +95,12 @@ popfirst_job!(q) = deleteat!(q, 1)
     @test shadow.served == 1
 
     # Idempotence: a sync with no changes writes nothing and recomputes nothing.
-    reset_performance_counters!()
     recomputes_before = recomputes[]
-    sync_document!(shadow, sim)
-    @test get_performance_counters()[:writes] == 0
+    idle_writes = with_performance_counters() do
+        sync_document!(shadow, sim)
+        get_performance_counters()[:writes]
+    end
+    @test idle_writes == 0
     total_work[]                               # force
     @test recomputes[] == recomputes_before    # stayed valid ⇒ no recompute
 
@@ -115,9 +118,10 @@ popfirst_job!(q) = deleteat!(q, 1)
         for j in rand(1:200, 3)                # 3 random jobs tick down in place
             bsim.queue[j].remaining -= 1.0
         end
-        reset_performance_counters!()
-        sync_document!(bshadow, bsim)
-        total_writes += get_performance_counters()[:writes]
+        total_writes += with_performance_counters() do
+            sync_document!(bshadow, bsim)
+            get_performance_counters()[:writes]
+        end
     end
     per_sync = total_writes / 100
     @printf("200-job queue, 100 steps, ≤3 in-place changes/step: %.1f shadow writes/sync\n",
@@ -133,10 +137,12 @@ popfirst_job!(q) = deleteat!(q, 1)
     fsh = hydrate(SimState(0.0, 0, CellVector([SimJob(i, 1.0) for i in 1:50])))
     sync_document!(fsh, fq)
     deleteat!(fq.queue, 1)                       # dequeue the front
-    reset_performance_counters!()
-    sync_document!(fsh, fq)
+    front_writes = with_performance_counters() do
+        sync_document!(fsh, fq)
+        get_performance_counters()[:writes]
+    end
     @printf("front dequeue of a 50-job queue: %d writes (positional = O(n))\n",
-            get_performance_counters()[:writes])
+            front_writes)
     @test length(fsh.queue) == 49
 end
 println("CELL KIND SIM DEMO OK")

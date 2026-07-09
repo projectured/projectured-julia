@@ -1,67 +1,113 @@
 """
     PerformanceCounterModule
 
-Lightweight instrumentation service. A single process-global `Dict{Symbol,Int}`
-of counters that callers bump inline on the hot path; the store is seeded with
-`:reads`, `:computes`, `:invalidations`, `:writes`. Externally measured
-quantities (e.g. per-stage timings) can be folded into the same store under any
-key via `record_performance!`, which creates a key on demand — so only the
-seeded counters are listed here and the service stays ignorant of what else is
-recorded.
+Conditionally-compiled instrumentation for the reactive engine's hot path.
+
+Counting is off unless `PERFORMANCE_COUNTERS_ENABLED` is set (via the
+`PROJECTURED_PERFORMANCE_COUNTERS` environment variable, read once at precompile
+time). While it is off, `@count_performance`, `record_performance!`, and
+`@performance_time` expand to `nothing` (or a bare evaluation of their
+expression), so a normal build carries no instrumentation at all.
+
+There is no process-global counter store. The active store is a task-local
+dynamic binding (`ScopedValue`): `with_performance_counters(f)` binds a fresh
+`Dict{Symbol,Int}` for the dynamic extent of `f`, and the cell operations that
+run inside that extent count into it. Outside any such scope the binding is
+`nothing`, so an unscoped cell operation counts nothing and shares no state —
+which is what lets many editors run in one process without their counters
+colliding.
 """
 module PerformanceCounterModule
 
-export get_performance_counters, reset_performance_counters!, record_performance!, @performance_time
+using Base.ScopedValues: ScopedValue, with
 
-# The shared counter store, seeded with four zeroed counters. Importers may
-# mutate it inline for hot-path increments; other quantities are folded in via
-# `record_performance!` (which creates keys on demand, so their names need not
-# be listed here).
-const _perf = Dict{Symbol,Int}(
+export with_performance_counters, get_performance_counters, record_performance!,
+    @performance_time, @count_performance, PERFORMANCE_COUNTERS_ENABLED
+
+# Compile-time switch, seeded from the environment at precompile time. Set
+# PROJECTURED_PERFORMANCE_COUNTERS=false and recompile to compile the counters
+# out; the counter macros below then expand to `nothing`, so the reactive hot
+# path carries no instrumentation at all.
+const PERFORMANCE_COUNTERS_ENABLED =
+    get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "true") == "true"
+
+# The active counter store: a task-local dynamic binding, `nothing` outside any
+# `with_performance_counters` scope.
+const _counters = ScopedValue{Union{Nothing,Dict{Symbol,Int}}}(nothing)
+
+# Add `n` to `key` in the currently-bound store; a no-op when none is bound.
+@inline function _bump!(key::Symbol, n::Integer)
+    store = _counters[]
+    store === nothing || (store[key] = get(store, key, 0) + Int(n))
+    nothing
+end
+
+_fresh_counters() = Dict{Symbol,Int}(
     :reads => 0, :computes => 0, :invalidations => 0, :writes => 0)
+
+"""
+    with_performance_counters(f, store=<fresh>) -> f()'s value
+
+Bind `store` as the active counter store for the dynamic extent of `f`, run `f`,
+and return its value. Each call gets its own store (a fresh zeroed set of the
+reactive counters by default), so concurrent editors never share counters. When
+counting is compiled out, `f` simply runs with no binding.
+"""
+function with_performance_counters(f, store::Union{Dict{Symbol,Int},Nothing}=nothing)
+    # `PERFORMANCE_COUNTERS_ENABLED` is a `const`, so this branch is constant-folded
+    # and the disabled build compiles down to `f()`.
+    PERFORMANCE_COUNTERS_ENABLED || return f()
+    with(f, _counters => (store === nothing ? _fresh_counters() : store))
+end
 
 """
     get_performance_counters() -> Dict{Symbol,Int}
 
-Return a copy of the performance counters dictionary. The seeded counters are
-`:reads`, `:computes`, `:invalidations`, and `:writes`. Keys contributed via
-`record_performance!` (e.g. per-stage timings) also appear here.
+Return a copy of the currently-bound counter store — the seeded counters
+`:reads`, `:computes`, `:invalidations`, `:writes` plus any keys folded in via
+`record_performance!` — or an empty dict when called outside a
+`with_performance_counters` scope.
 """
-get_performance_counters() = copy(_perf)
-
-"""
-    reset_performance_counters!()
-
-Reset all performance counters to zero.
-"""
-function reset_performance_counters!()
-    for k in keys(_perf)
-        _perf[k] = 0
-    end
+function get_performance_counters()
+    store = _counters[]
+    store === nothing ? Dict{Symbol,Int}() : copy(store)
 end
 
 """
     record_performance!(key::Symbol, value::Integer)
 
-Add `value` to the counter at `key`, creating it if absent. Used to fold in
-externally measured quantities (e.g. per-stage timings) alongside the seeded
-counters.
+Add `value` to the counter at `key` in the active store, creating it on demand.
+Used to fold in externally measured quantities (e.g. per-stage timings) alongside
+the seeded counters. A no-op when counting is compiled out or no scope is active.
 """
 function record_performance!(key::Symbol, value::Integer)
-    _perf[key] = get(_perf, key, 0) + Int(value)
+    PERFORMANCE_COUNTERS_ENABLED && _bump!(key, value)
+    nothing
+end
+
+"""
+    @count_performance key
+
+Bump the counter `key` by one. Used by the reactive engine on its hot path.
+Expands to `nothing` when counting is compiled out, so instrumentation adds no
+cost to a normal build.
+"""
+macro count_performance(key)
+    PERFORMANCE_COUNTERS_ENABLED ? :(_bump!($(esc(key)), 1)) : :(nothing)
 end
 
 """
     @performance_time key expr
 
-Evaluate `expr`, record the elapsed nanoseconds under `key` via
-`record_performance!`, and return the value of `expr`.
+Evaluate `expr`, record the elapsed nanoseconds under `key`, and return the value
+of `expr`. When counting is compiled out, expands to just `expr`.
 """
 macro performance_time(key, expr)
+    PERFORMANCE_COUNTERS_ENABLED || return esc(expr)
     quote
         local t = time_ns()
         local result = $(esc(expr))
-        record_performance!($(esc(key)), time_ns() - t)
+        _bump!($(esc(key)), Int(time_ns() - t))
         result
     end
 end

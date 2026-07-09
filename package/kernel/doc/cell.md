@@ -142,10 +142,10 @@ loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
-        │  _perf imported by ↓
+        │  @count_performance imported by ↓
 CellModule.jl            (CellModule)                 — the cell kinds, one file each:
         ├─ AbstractCell.jl    — the AbstractCell{T} base + shared protocol
-        ├─ ReactiveCell.jl    — the pull-based reactive engine (imports _perf)
+        ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         └─ ImmutableCell.jl   — read-only, zero-cost wrapper
         │  Cell imported by ↓
@@ -202,19 +202,31 @@ Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_autowrap_ctor`,
 
 ## PerformanceCounterModule — instrumentation
 
-A single process-global `Dict{Symbol,Int}` of counters plus its API. The `Cell`
-engine bumps the reactive counters **inline on the hot path** — `:reads`,
-`:computes`, `:invalidations`, `:writes` — and the editor folds per-stage timings
-into `:read_time`, `:evaluate_time`, `:print_time`.
+Conditionally-compiled counters of `Dict{Symbol,Int}`, with **no process-global
+store**. The `Cell` engine bumps the reactive counters — `:reads`, `:computes`,
+`:invalidations`, `:writes` — via `@count_performance` on the hot path, and the
+editor folds per-stage timings into `:read_time`, `:evaluate_time`,
+`:print_time`.
 
-Because the increments are on the hottest path (`getindex` on every cell read),
-this module loads **first** and `ReactiveCell` imports the shared `_perf` dict, so
-the increments stay a bare `Dict` write rather than a cross-module function call.
+The active store is a **task-local dynamic binding** (`ScopedValue`):
+`with_performance_counters(f)` binds a fresh dict for the dynamic extent of `f`,
+and everything that runs inside counts into it. Outside any such scope the binding
+is `nothing`, so an unscoped cell operation counts nothing and shares no state —
+which is what lets many editors run in one process without their counters
+colliding (AR-45). This module loads **first** so `ReactiveCell` can import the
+bump macro.
 
-Public surface: `get_performance_counters()` (a copy of the dict), `reset_performance_counters!()`,
-`record_performance!(key, n)` (fold in an external measurement), and `@performance_time key expr`
-(time `expr`, record the elapsed ns under `key`). The editor's read-eval-print loop
-resets and reports these every frame (see
+Counting is **compiled out** unless `PERFORMANCE_COUNTERS_ENABLED` (seeded at
+precompile from `PROJECTURED_PERFORMANCE_COUNTERS`, default on). When off,
+`@count_performance`, `record_performance!`, and `@performance_time` expand to
+`nothing`, so a build carries no instrumentation.
+
+Public surface: `with_performance_counters(f, store=…)` (bind a store for `f`),
+`get_performance_counters()` (a copy of the active store, empty outside a scope),
+`record_performance!(key, n)` (fold in an external measurement),
+`@performance_time key expr` (time `expr`, record the elapsed ns under `key`), and
+`@count_performance key` (the hot-path bump). The editor's read-eval-print loop
+binds a fresh store and reports it every frame (see
 [Editor.run_editor!](../../../package/kernel/main/editor/Editor.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 

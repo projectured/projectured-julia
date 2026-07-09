@@ -1,7 +1,7 @@
 # ReactiveCell — the pull-based reactive kind and its engine. Included into
 # `CellModule` (see CellModule.jl); `AbstractCell` is already in scope. This is the
-# only cell kind that touches the performance counters, so it imports `_perf`.
-import ..PerformanceCounterModule: _perf
+# only cell kind that touches the performance counters, so it imports the bump macro.
+import ..PerformanceCounterModule: @count_performance
 
 """
     ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)
@@ -69,15 +69,16 @@ ReactiveCell(thunk::Function) = ReactiveCell{Any}(thunk)
 # any ReactiveCell read during evaluation can register itself as a dependency.
 const _computing = ReactiveCell[]
 
-# Performance counters (`_perf`, `get_performance_counters`, `reset_performance_counters!`,
-# `record_performance!`, `@performance_time`) live in `PerformanceCounterModule`
-# (cell/PerformanceCounter.jl). `_perf` is imported at the top of this file so the
-# Cell hot path below stays a bare `Dict` write.
+# The reactive hot path bumps the performance counters via `@count_performance`
+# (imported at the top of this file). The macro lives in `PerformanceCounterModule`
+# (cell/PerformanceCounter.jl); it expands to a bump into the task-local counter
+# store when counting is compiled in, and to `nothing` when it is not — so these
+# call sites cost nothing in a normal build.
 
 # ── reading ──────────────────────────────────────────────────────────────
 
 function Base.getindex(c::ReactiveCell)
-    _perf[:reads] += 1
+    @count_performance :reads
     # register dependency if inside a computation
     if !isempty(_computing)
         observer = _computing[end]
@@ -125,7 +126,7 @@ function recompute!(c::ReactiveCell)
         pop!(_computing)
     end
     c.valid = true
-    _perf[:computes] += 1
+    @count_performance :computes
 end
 
 # ── invalidation ─────────────────────────────────────────────────────────
@@ -136,7 +137,7 @@ end
 
 function _invalidate_walk!(c::ReactiveCell)
     c.valid = false
-    _perf[:invalidations] += 1
+    @count_performance :invalidations
     for d in c.dependents
         d.valid && _invalidate_walk!(d)
     end
@@ -151,7 +152,7 @@ Set `c` to a primitive value, invalidating all downstream dependents
 (reactive kind), or store the value with no propagation (mutable kind).
 """
 function Base.setindex!(c::ReactiveCell, value)
-    _perf[:writes] += 1
+    @count_performance :writes
     _detach_upstream!(c)
     c.thunk = nothing
     c.value = value
