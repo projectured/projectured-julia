@@ -1,33 +1,29 @@
 """
     DocumentModule
 
-Layer 2 of the kernel — the **document contract** every concrete document
-subtypes and every projection consumes. The interface and the machinery are
-one module, because the two are only ever imported together and separating
-them just multiplied import headers.
+Layer 2 of the kernel — the **document contract**: the `Document` abstract type,
+the selection protocol, and the shared `@document` machinery. The interface and
+the machinery are one module, because the two are only ever imported together and
+separating them just multiplied import headers.
 
-The module lives in two fragments that share this namespace:
+The module lives in three fragments that share this namespace:
 
 - [`Interface.jl`](Interface.jl) — the `Document` abstract type, the selection
   generics (`get_selection`, `clear_selection!`, `set_selection!`,
-  `with_selection`), and the projection-independent `read_gesture` seam. This
-  is the surface every higher layer implements against.
+  `with_selection`), and the projection-independent `read_gesture` seam.
 - [`Document.jl`](Document.jl) — the shared machinery: the generic
-  `Base.show`, the `@document` macro, and the value
-  protocol `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/
-  `sync_document!` that reactive syncing and rehydration ride on. `@document`
-  builds its keyword-constructor support on the cell layer's exported
-  Cell-struct codegen (`cell_struct_kw_params` / `cell_struct_kwctor`, beside `@cell_struct`
-  in `cell/CellStruct.jl` — the same codegen `@iomap` and `@projection`
-  delegate to wholesale).
+  `Base.show`, the `@document` macro, and the value protocol
+  `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/`sync_document!`
+  that reactive syncing and rehydration ride on. `@document` builds its
+  keyword-constructor support on the cell layer's exported Cell-struct codegen
+  (`cell_struct_kw_params` / `cell_struct_kwctor`).
 - [`Forward.jl`](Forward.jl) — the `@forward*` family (`@forward`,
   `@forward_vector`, `@forward_map`): helpers that expose a nested field's
   protocol on a wrapper document by generating delegating methods.
 
-The concrete documents (Collection, Primitive, ScreenDocument) live in the
-base and visual packages, not the kernel.
+The kernel defines only this contract; it carries no concrete documents.
 
-The two contracts every concrete document must satisfy:
+The two contracts a concrete document must satisfy:
 
 1. **Selection field.** A `selection::Cell{Reference}` field tracks the
    current selection (nil or a `ReferencePath`). The `@document`-generated
