@@ -413,9 +413,30 @@ states for placement).
     use them to find unintentional recomputation (a single keypress causing
     thousands of `computes` means something reads more cells than necessary).
 
+45. **No process-global state in the editor or the machinery it drives; one
+    process must run many editors at once.** Every piece of mutable runtime state
+    an editor touches — its `document`, `selection`, `iomap`, in-flight
+    `operation`, `GestureRecognizer`, animation clock, and per-frame performance
+    counters — must live on the `Editor` instance (or on values reachable only
+    from it), never in a module-level `const` cell, `Ref`, `Dict`, or counter.
+    This is a correctness requirement, not a style preference: it is what lets one
+    Julia process host several independent editors side by side (product
+    requirement *Many editors in one process*). Process-global holds tie the
+    editors together and break that independence — two editors sharing one
+    animation-time cell write conflicting elapsed values into it every frame, so
+    both animations judder and each editor's tick cross-invalidates the other's
+    animated cells; a shared performance-counter dict has each editor overwrite the
+    other's numbers. AR-6 already forbids process-global mutable state inside
+    projections and the machinery they call; this extends the same ban up to the
+    editor loop, the devices, and the backends it drives — a backend or device that
+    must hold per-connection state holds it on its own instance (one per editor),
+    never in a global registry. Migrate the two known offenders
+    (`TimeModule`'s `_EDITOR_TIME`, `PerformanceCounterModule`'s `_perf`) onto the
+    editor per the [per-editor animation clock plan](../plan/pending/per-editor-animation-clock.md).
+
 ## Package, layer, slice, and module structure
 
-45. **Respect the package chain and the four-level division.** Dependencies flow
+46. **Respect the package chain and the four-level division.** Dependencies flow
     one way, `kernel → base → visual → domain → umbrella` (plus opt-in packages);
     create a **package** only for a new external dependency or a distinct consumer
     set, a **layer** for a distinct dependency height (a layer imports only lower
@@ -426,34 +447,34 @@ states for placement).
     [architecture-rules.md](architecture-rules.md) for the full decision
     procedure.
 
-46. **Every piece of code lives in the lowest package of its DAG whose API it
+47. **Every piece of code lives in the lowest package of its DAG whose API it
     hard-references.** Source, test, example, and harness alike sink to their
     lowest home. A seam call (`make_backend(:sdl)`) is not a reference; only a
     `using`/`import` or naming a package's types/functions anchors code. For a test
     or example, the *fixture* decides the home (a Pdf-backend test driven by a JSON
     pipeline is a domain test), not the machinery it happens to exercise.
 
-47. **Cross-layer imports name only exported symbols.** A non-exported name is a
+48. **Cross-layer imports name only exported symbols.** A non-exported name is a
     module-internal detail. To share a private helper, either make the sharers
     fragments of one module (in-namespace by construction) or sink the machinery to
     a layer at or below both users and export it — never lend an internal across a
     layer boundary. Same-layer neighbours may share internals.
 
-48. **Frameworks sink below their users via the seam pattern; only per-domain
+49. **Frameworks sink below their users via the seam pattern; only per-domain
     methods stay above.** A lower layer declares open generics (or a small
     registry); higher layers add methods *in files they already have* — multiple
     dispatch is the registration, and a couple of methods never earns a new file.
     A lower layer may *mention* a higher concept only as an opaque payload it never
     interprets; if it must *call* it, that is a seam, not a payload.
 
-49. **Honor the projection placement invariant.** `home(projection) ≥
+50. **Honor the projection placement invariant.** `home(projection) ≥
     max(package(input), package(output), package(every other import))`; the
     canonical home is the more-specific side (`JsonToSyntax` → the json slice,
     `ObjectToSyntax` → visual). Interfaces live with their concept as the layer's
     first file(s), not in a separate `api/` layer. A file nothing imports gets
     wired in or deleted before it gets a home — no orphan shapes the structure.
 
-50. **Keep the main/test/example triads parallel and minimal-environment
+51. **Keep the main/test/example triads parallel and minimal-environment
     runnable.** Each main package has sibling `test`/`example` packages forming
     DAGs of identical shape; a test package depends only on the main package it
     tests plus test/example packages at or below its position (never a main
@@ -465,14 +486,14 @@ states for placement).
 
 ## Testing and verification
 
-51. **Run the smallest test that covers the change; never default to
+52. **Run the smallest test that covers the change; never default to
     `test_all()`.** Pick the narrowest scope — a single example
     (`test_printer(json_example)`, `test_example(…)`), a single domain/stage
     (`test_json()`, `test_syntax_to_text()`), one package suite (`test_kernel()`
     …), or the cell primitive (`test_cell()`). `test_all()` is slow and floods the
     context; reach for broad sweeps only after the targeted test already passes.
 
-52. **Every currently-failing assertion is marked `@test_broken` with a
+53. **Every currently-failing assertion is marked `@test_broken` with a
     `# @broken:` reason.** An unmarked `Fail` or `Error` in a summary is
     unambiguously a regression from your change — `Fail + Error` must be zero after
     a passing run. A bare `@test_broken` with no reason comment is not acceptable;
@@ -480,7 +501,7 @@ states for placement).
     back to `@test` and delete the comment. Reserve `@test_skip` for code that
     would crash the runner.
 
-53. **New code ships with tests, registered in the lowest test package that can
+54. **New code ships with tests, registered in the lowest test package that can
     express them.** A new projection needs a printer test (output structure), a
     reader test (selection translation for one event), and an example so
     `run_example("my_domain")` works. Add the test file to the test package of the
@@ -488,7 +509,7 @@ states for placement).
     `package/domain/test`), following the existing `function test_x() … @testset
     … end` pattern.
 
-54. **Preserve the recursion contract's external validation — add no
+55. **Preserve the recursion contract's external validation — add no
     per-projection introspection method.** The contract is checked externally by a
     harness that drives the four functions over composed examples (reachability,
     round-trip, printer lockstep, and the discriminating composition-substitution
@@ -497,7 +518,7 @@ states for placement).
     the reflexive `_walk!` automatically as long as their state lives in struct
     fields — state kept in a side table needs a dedicated test.
 
-55. **Verify a change by driving the behaviour, not only by reading code.** Use
+56. **Verify a change by driving the behaviour, not only by reading code.** Use
     the walker helpers (`walk_printer_output`, `walk_repl_loop`,
     `explore_position_selections`) and the REPL reproducers (`run_example`,
     `print_example`; `reset=true` for a fresh instance) to exercise the affected
@@ -507,20 +528,20 @@ states for placement).
 
 ## Documentation, vocabulary, and process
 
-56. **Use the division vocabulary exactly — package, layer, slice, module — and
+57. **Use the division vocabulary exactly — package, layer, slice, module — and
     no synonyms.** Avoid "tier" and architectural "level"; say "package" or
     "layer"; say "per-package" (not "per-layer") for `test_kernel()`…; name a
     pipeline stage by the thing (the Syntax domain, the `syntax/` slice, the
     `SyntaxToText` projection), not "the syntax layer"; use "end-to-end path", not
     "vertical slice", for MVP scope. See [terminology.md](terminology.md).
 
-57. **Do not guess names or signatures — search for them.** Use `search_api`,
+58. **Do not guess names or signatures — search for them.** Use `search_api`,
     the `resource://modules`/`classes`/`functions` catalogues, the
     [orientation index](orientation.md), or ripgrep before naming a type or
     function; a hallucinated name is worse than an admitted gap. Property access
     already unwraps cells — write `node.field`, not `node.field[]`.
 
-58. **Keep the layering guards green and let them enforce the structure.** Every
+59. **Keep the layering guards green and let them enforce the structure.** Every
     main package has a static guard that parses the real `import ..Module` headers
     and asserts a valid topological include order, correct layer/slice membership,
     and same-or-lower-layer edges (slice acyclicity follows from the topological
@@ -531,24 +552,24 @@ states for placement).
     messages are prescriptive — they name the offending file, the module, and the
     fix — so treat those messages as part of the contract.
 
-59. **Update the guide that documents behaviour you changed, and teach concepts
+60. **Update the guide that documents behaviour you changed, and teach concepts
     before mechanisms.** A change that affects documented behaviour updates the
     relevant `documentation/` guide in the same change; the reading order in
     [README.md](../README.md) (concepts → architecture → reactive cells → macros →
     projection system → editor) and the per-topic guides must stay a coherent path
     in. Link the relevant `plan/` document when one exists.
 
-60. **Keep documentation honest, and flag aspirational designs as such.** Doc and
+61. **Keep documentation honest, and flag aspirational designs as such.** Doc and
     slide claims must be grounded in the guides and source; a design that is not
     yet implemented (e.g. the Annotation domain) must be clearly marked as a future
     sketch, not presented as callable API. When a forthcoming feature lands, update
     the corresponding guide/slide so claims stay accurate.
 
-61. **Keep diffs focused — no unrelated reformatting.** Do not reformat lines you
+62. **Keep diffs focused — no unrelated reformatting.** Do not reformat lines you
     are not logically changing; keep the diff to what the change requires so review
     stays tractable.
 
-62. **Respect the stable foundations and the roadmap ordering.** The pull-based
+63. **Respect the stable foundations and the roadmap ordering.** The pull-based
     reactive `Cell` system, bidirectional printer/reader projections,
     module-per-domain/projection, 1-based indexing, and the MCP AI bridge are
     settled design decisions — build on them rather than re-litigating them.
@@ -556,7 +577,7 @@ states for placement).
     domains, layouts, backends), then **distribute** (network, collaboration,
     external data).
 
-63. **AI edits carry the same guarantees as human edits.** An AI assistant works
+64. **AI edits carry the same guarantees as human edits.** An AI assistant works
     the document through the same operations, references, and selection machinery
     a person does — targeting the *meaning* of the content (references and
     operations on the model), never its position on screen, and it is likewise
@@ -565,7 +586,7 @@ states for placement).
     `evaluate_operation`/`search_*`, not around them, so the same invariants hold
     for both.
 
-64. **Follow the naming law — names must be guessable in both directions.** A name
+65. **Follow the naming law — names must be guessable in both directions.** A name
     tells you what kind of thing it is and what it does, and a concept tells you its
     name, without a lookup (see [kernel/doc/naming.md](../package/kernel/doc/naming.md)).
     Module name = filename + `Module`, and every exported name has exactly one owning
@@ -582,7 +603,7 @@ states for placement).
     DSL keywords (`@document`, `@projection`, `@gestures`) — the one exemption from
     verb-first.
 
-65. **Every source file opens with a module docstring stating its contract.** A
+66. **Every source file opens with a module docstring stating its contract.** A
     triple-quoted docstring at the top of each file names the module and its role
     (and any invariants it upholds) — this is a uniform, load-bearing convention
     across the codebase, not optional decoration. A fragment file that shares an
@@ -591,7 +612,7 @@ states for placement).
     can find it. Keep these docstrings accurate when you change the code they
     describe — a docstring that names a function that no longer exists is a defect.
 
-66. **Persistence crosses cell boundaries by value and never enters the reactive
+67. **Persistence crosses cell boundaries by value and never enters the reactive
     graph.** Serialization (binary and natural-format) writes a `Cell`'s *value*
     only — reading it via `getfield(c, :value)`, never `c[]`, so no spurious
     reactive dependency is registered — and never traverses a cell's `dependents`

@@ -134,65 +134,71 @@ do for the person building with or contributing to it).
     behaviour, must be able to run in different environments — for example a
     native window, a terminal, or a browser.
 
-27. **Save, reload, and interchange.** The user must be able to save their work
+27. **Many editors in one process.** A single running process must be able to
+    host several independent editors at the same time, each with its own
+    document, selection, view, and time, running and animating side by side.
+    Starting, using, or stopping one editor must have no effect on any other,
+    and one editor's activity must never disturb, slow, or corrupt another's.
+
+28. **Save, reload, and interchange.** The user must be able to save their work
     and reload it exactly as it was, and to import and export content in
     durable, human-readable forms that other tools can consume.
 
-28. **Render without a display.** The user must be able to render what they see to
+29. **Render without a display.** The user must be able to render what they see to
     durable outputs — images and print-quality documents — without needing an
     interactive display.
 
 ### AI assistance
 
-29. **AI edits with the same guarantees.** An AI assistant must be able to inspect
+30. **AI edits with the same guarantees.** An AI assistant must be able to inspect
     and change the document with the same guarantees as a person: its edits must
     likewise be unable to produce invalid content, and must target the meaning of
     the content rather than its position on screen.
 
-30. **Editing by request.** The user must be able to ask, in natural language, for
+31. **Editing by request.** The user must be able to ask, in natural language, for
     changes to the content and see them carried out.
 
 ---
 
 ## Usability of the project
 
-31. **Runs from a clean checkout.** Someone must be able to obtain the project and
+32. **Runs from a clean checkout.** Someone must be able to obtain the project and
     get a working editor running by following documented steps, with the
     prerequisites clearly stated.
 
-32. **Try it in one step.** Any provided example must be launchable with a single,
+33. **Try it in one step.** Any provided example must be launchable with a single,
     obvious command.
 
-33. **Works without a display.** A contributor must be able to inspect the
+34. **Works without a display.** A contributor must be able to inspect the
     editor's output and exercise its behaviour without a graphical display, so
     that development and automated testing do not depend on one.
 
-34. **New kinds of content are cheap to add.** A contributor must be able to add
+35. **New kinds of content are cheap to add.** A contributor must be able to add
     support for a new kind of content without changing the existing core, and
     obtain the full editing experience for it with a small, well-defined amount of
     work.
 
-35. **New presentations and interactions compose.** A contributor must be able to
+36. **New presentations and interactions compose.** A contributor must be able to
     add a new way of presenting content, a new interaction, or a new output target
     on its own, and have it work together with everything already present.
 
-36. **Change can be verified in the small.** It must be possible to verify a
+37. **Change can be verified in the small.** It must be possible to verify a
     change with a check scoped to that change, without running everything, and the
     results must clearly distinguish a genuine regression from a known, tracked
     limitation.
 
-37. **Optional capabilities are separable.** Capabilities that carry heavy or
+38. **Optional capabilities are separable.** Capabilities that carry heavy or
     external dependencies — special displays, outside data sources, native
     libraries — must be separable, so that the core can be built, run, and tested
     without them.
 
-38. **Can be delivered as an application.** The project must be able to be packaged
+39. **Can be delivered as an application.** The project must be able to be packaged
     and delivered as a standalone application.
 
-39. **Documented with a clear path in.** The project must be documented so that a
+40. **Documented with a clear path in.** The project must be documented so that a
     newcomer is taught the concepts before the mechanisms and can find the right
     guidance for a task without reading everything.
 
-40. **Predictable by convention.** The project's conventions must be stated and
+41. **Predictable by convention.** The project's conventions must be stated and
     applied consistently, so that its behaviour and its structure are predictable
     rather than surprising.
