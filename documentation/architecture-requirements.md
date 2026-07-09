@@ -687,3 +687,19 @@ states for placement).
     `ScriptedLlm` moved from kernel `main` (`LlmModule`) to
     `ProjecturedKernelExample`, and `WorkbenchAssistant` dropped its `FakeLlm`
     fallback.
+
+69. **A module's documentation describes its own contract, never its consumers.**
+    A docstring or comment must not name, enumerate, or explain the higher-layer
+    modules, macros, or callers that build on the code it documents — that is forward
+    knowledge a lower layer cannot have without inverting the dependency direction.
+    Describe what the code *is* and the contract it offers to *any* caller, as a
+    self-contained service; let each consumer's own documentation state that it builds
+    on this. This is the documentation-level companion to #48 (imports name only
+    exported symbols) and #49 (a lower layer mentions a higher concept only as an
+    opaque payload): dependencies point down in prose exactly as they do in code.
+    Citing an architectural *rationale* is still allowed — "holds no global state, so
+    one process can run many editors" (#45) names a requirement, not a consumer;
+    "the seam `@document`/`@iomap`/`@projection` build on" names consumers and is the
+    violation. Precedent: `PerformanceCounterModule` dropped its "`CellModule` imports
+    this" / "extracted from `Reactive.jl`" references, and `CellModule` dropped the
+    "declarative macros `@document`/`@iomap`/`@projection` build on this" references.
