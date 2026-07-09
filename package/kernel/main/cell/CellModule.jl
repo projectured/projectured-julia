@@ -14,7 +14,12 @@ This file is the aggregator (exports + include list); see
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-       set_value!, set_function!, is_up_to_date, var"@cell_struct"
+       set_value!, set_function!, is_up_to_date
+# `@cell_struct` and its assembler `cell_struct_exprs` / keyword-ctor builders
+# `cell_kw_params` / `cell_kwctor` are the public codegen seam the declarative
+# macros (`@document`, `@iomap`, `@projection`) build on. The remaining builders
+# (`cell_autowrap_ctor`, `cell_property_accessors`) are internal to CellStruct.jl.
+export var"@cell_struct", cell_struct_exprs, cell_kw_params, cell_kwctor
 
 # ── the base type + the three kinds (one file each) ────────────────────────
 # AbstractCell first (it also holds the cross-kind protocol fallbacks); the
