@@ -23,7 +23,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `cell/ImmutableCell.jl`
   - 🔒 `cell/CellStruct.jl`
 - **Layer 2 — document** (`document/`)
-  - ⬜ `document/DocumentLayer.jl`
+  - 🔒 `document/DocumentLayer.jl`
   - ⬜ `document/DocumentModule.jl`
   - ⬜ `document/Interface.jl`
   - ⬜ `document/Document.jl`
