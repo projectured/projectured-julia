@@ -142,13 +142,22 @@ Idempotent: re-running produces no changes once images are in place.
 """
 function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", "..", ".."))
     _update_examples_tour(joinpath(repo_root, "documentation", "examples-tour.md"))
-    _update_domain_guides(joinpath(repo_root, "documentation", "document"))
+    _update_domain_guides(repo_root)
     _update_readme(joinpath(repo_root, "README.md"))
     # Convert any remaining plain Markdown example-images (thumbnail tables, the
-    # README hero, etc.) to width-pinned <img> tags.
+    # README hero, etc.) to width-pinned <img> tags. Guides live in the top-level
+    # documentation/ tree and in each package's doc/ dir.
     md_files = String[joinpath(repo_root, "README.md")]
-    guide_dir = joinpath(repo_root, "documentation")
-    if isdir(guide_dir)
+    guide_dirs = String[joinpath(repo_root, "documentation")]
+    pkg_dir = joinpath(repo_root, "package")
+    if isdir(pkg_dir)
+        for p in readdir(pkg_dir)
+            d = joinpath(pkg_dir, p, "doc")
+            isdir(d) && push!(guide_dirs, d)
+        end
+    end
+    for guide_dir in guide_dirs
+        isdir(guide_dir) || continue
         for (root, _, files) in walkdir(guide_dir), f in files
             endswith(f, ".md") && push!(md_files, joinpath(root, f))
         end
@@ -247,27 +256,31 @@ function _update_examples_tour(path::AbstractString)
     end
 end
 
+# Per-domain guides moved out of documentation/document/ into the package that
+# owns each domain; keyed by repo-relative path so the asset link is computed at
+# the guide's real depth (see _update_domain_guides).
 const _DOMAIN_GUIDE_EXAMPLE = Dict(
-    "json.md"       => "json",
-    "xml.md"        => "xml",
-    "text.md"       => "text",
-    "syntax.md"     => "syntax",
-    "graphics.md"   => "graphics_image",
-    "widget.md"     => "widget",
-    "workbench.md"  => "workbench",
-    "collection.md" => "collection",
+    "package/domain/doc/json.md"      => "json",
+    "package/domain/doc/xml.md"       => "xml",
+    "package/visual/doc/text.md"      => "text",
+    "package/visual/doc/syntax.md"    => "syntax",
+    "package/visual/doc/graphics.md"  => "graphics_image",
+    "package/visual/doc/widget.md"    => "widget",
+    "package/domain/doc/workbench.md" => "workbench",
+    "package/base/doc/collection.md"  => "collection",
 )
 
-function _update_domain_guides(dir::AbstractString)
-    isdir(dir) || (@warn "Missing $dir"; return)
-    for (filename, example_name) in _DOMAIN_GUIDE_EXAMPLE
-        path = joinpath(dir, filename)
+function _update_domain_guides(repo_root::AbstractString)
+    for (guide_rel, example_name) in _DOMAIN_GUIDE_EXAMPLE
+        path = joinpath(repo_root, guide_rel)
         isfile(path) || continue
         lines = readlines(path; keep=false)
         heading_idx = findfirst(l -> startswith(l, "# "), lines)
         heading_idx === nothing && continue
         safe_name = replace(example_name, "_" => "-")
-        img_line = _img_embed(_example_title(example_name), "../../asset/image/example/$safe_name.png", dirname(path))
+        png_abs = joinpath(repo_root, "asset", "image", "example", "$safe_name.png")
+        img_src = relpath(png_abs, dirname(path))
+        img_line = _img_embed(_example_title(example_name), img_src, dirname(path))
         existing = findfirst(_is_image_embed, lines[1:min(end, 15)])
         new_lines = if existing !== nothing
             # Replace the existing embed in place (migrates Markdown ↔ <img>).

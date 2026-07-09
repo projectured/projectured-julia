@@ -193,7 +193,7 @@ outside `Dragging.jl`** and works for any domain whose graphics reader already
 hit-tests `MousePress`.
 
 **The move.** A completed drag emits a `MoveRangeOperation` (see
-[operations.md](operations.md)). The reader resolves each reference to a
+[operations.md](operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
 `RangeReference`; the prefix resolves to the owning collection) and stores the
 `CellVector`s **directly** in the operation — like the split-pane operations
@@ -204,7 +204,7 @@ identity.
 
 ## Compound combinators
 
-[projection/HigherOrderCompound.jl](../package/base/main/projection/HigherOrderCompound.jl)
+[projection/HigherOrderCompound.jl](../../../package/base/main/projection/HigherOrderCompound.jl)
 defines `ApplyAtProjection`, the most useful combinator built on top:
 
 ```julia

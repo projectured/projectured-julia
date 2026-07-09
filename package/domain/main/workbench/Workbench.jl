@@ -343,7 +343,7 @@ set_function!(e::WorkbenchEditor, f::Function) = (set_function!(getfield(e, :con
 # generically with `search_objects` / `search_references` (which walk through the
 # ScreenDocument → WindowDocument → … wrapping); there is deliberately no bespoke
 # imperative helper layer that re-navigates `editor.document`. See
-# documentation/editor/finding-and-selecting.md and documentation/operations.md.
+# package/kernel/doc/finding-and-selecting.md and package/kernel/doc/operation.md.
 
 # The `.elements` field path, shared by the open/close builders below.
 const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReference("elements"), EmptyReferencePath())

@@ -27,7 +27,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[package/kernel/main/projection/ProjectionApi.jl](../package/kernel/main/projection/ProjectionApi.jl) and dispatched on
+[package/kernel/main/projection/ProjectionApi.jl](../../../package/kernel/main/projection/ProjectionApi.jl) and dispatched on
 the concrete projection struct.
 
 ## The recursion contract
@@ -55,7 +55,7 @@ Two corollaries, both load-bearing:
    composition. Express all descent through the four functions everyone already
    implements. (This is also why the contract is **validated externally**, by a
    test harness that drives the four functions over composed examples — see
-   [Validating the recursion contract](testing.md#validating-the-recursion-contract) —
+   [Validating the recursion contract](../../../documentation/testing.md#validating-the-recursion-contract) —
    rather than by adding an introspection method projections would have to
    implement.)
 
@@ -80,7 +80,7 @@ School A — a worked before/after example of this contract.
 ### `print_document` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
-`IoMap` (subtype of `IoMap`, see [api/IoMapApi.jl](../package/kernel/main/projection/IoMapApi.jl))
+`IoMap` (subtype of `IoMap`, see [api/IoMapApi.jl](../../../package/kernel/main/projection/IoMapApi.jl))
 that records the input, the output, and any extra data the reader needs to
 invert the transformation.
 
@@ -92,7 +92,7 @@ The two extra arguments are essential:
   that never descends ignores it. A node projection threads it **twice** — as
   the projection to call *and* as that call's own `recursion` argument; see
   [§ Recursion across projections](#recursion-across-projections).
-- **`context`** is a [`PrinterContext`](../package/kernel/main/projection/PrinterContext.jl):
+- **`context`** is a [`PrinterContext`](../../../package/kernel/main/projection/PrinterContext.jl):
   a downward-flowing, extensible struct carrying the `reference` path from the
   editor's document root to the *current* input, plus optional layout extent
   (`available_width`/`available_height`) and an open `properties` Dict. Each
@@ -105,7 +105,7 @@ The two extra arguments are essential:
   `EmptyReferencePath()`).
 
 A two-argument convenience overload `print_document(p, input)` is defined in
-[common/Projection.jl](../package/kernel/main/projection/Projection.jl) and supplies
+[common/Projection.jl](../../../package/kernel/main/projection/Projection.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
@@ -122,7 +122,7 @@ the deferred-iomap trick (`iomap_cell = Cell(nothing)`; assign it after
 constructing the IoMap — see `CopyingProjection`). A leaf whose input and
 output selection formats are identical may instead *share* the same
 `selection::Cell` on both sides (`getfield(input, :selection)`); that shortcut
-is valid only leaf-to-leaf (see [§7 of the selection deep dive](selection-deep-dive.md)).
+is valid only leaf-to-leaf (see [§7 of the selection deep dive](selection.md)).
 
 A compound projection that introduces *structural* output nodes with no input
 counterpart (e.g. `WorkbenchToWidget`, whose shell inserts split panes around
@@ -130,11 +130,11 @@ the projected pages) wires those nodes' `selection` cells explicitly: it
 forward-projects the workbench selection and re-roots it onto each split with a
 small prefix strip. Once wired, those forward-projected selection cells let the
 reader route events by selection — see below and
-[the selection guide](editor/selection.md#forward-projecting-selection).
+[the selection guide](selection.md#forward-projecting-selection).
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([projection/Intent.jl](../package/kernel/main/projection/Intent.jl)) —
+The reader's payload is a **`Intent`** ([projection/Intent.jl](../../../package/kernel/main/projection/Intent.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
@@ -212,7 +212,7 @@ lightest touch to the most involved:
   broadcasting to every child. This is the usual desired behavior — the
   keystroke goes where the cursor is. The widget split pane and tabbed pane do
   exactly this; see
-  [the selection guide](editor/selection.md#selection-directed-event-routing).
+  [the selection guide](selection.md#selection-directed-event-routing).
 
 Whichever moves it makes, a projection returns a `Intent` carrying an operation
 in its own input domain (or a nothing-change); the operation the **top-level**
@@ -236,7 +236,7 @@ really the *projection's* business:
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
 `read_gesture(document, gesture) -> Union{Operation, Nothing}`
-([document/Interface.jl](../package/kernel/main/document/Interface.jl)): the document maps the
+([document/Interface.jl](../../../package/kernel/main/document/Interface.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
 the gesture (which also serves as "I decline this gesture so an outer layer can
@@ -287,10 +287,10 @@ This is the reader-side mirror of three things the printer side already does:
   the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
 - **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
   route a mouse gesture to the hit child and lift the returned operation with
-  `reroot_operation` ([common/OperationRerooting.jl](../package/kernel/main/operation/Rerooting.jl)).
+  `reroot_operation` ([common/OperationRerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
 
 The template engine applies the rule **automatically**: the `RuleIoMap` reader in
-[projection/ProjectionTemplate.jl](../package/kernel/main/projection/ProjectionTemplate.jl)
+[projection/ProjectionTemplate.jl](../../../package/kernel/main/projection/ProjectionTemplate.jl)
 handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
 declined — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
 by (1) finding the selected child from the node's `selection` and its
@@ -321,7 +321,7 @@ terms of these two functions, so getting them right gives you cursor
 navigation across the entire pipeline for free.
 
 The pattern-matching DSL `@reference_case` (see
-[the reference guide](editor/reference.md)) makes these methods readable:
+[the reference guide](reference.md)) makes these methods readable:
 
 ```julia
 function map_reference_backward(::JsonBoolToSyntaxLeaf, iomap, reference)
@@ -470,7 +470,7 @@ thunk, or the part of `print_document` that builds them — must be a pure
 function of its inputs *as observed by every other reactive node*. In particular
 it must never **write another cell** (`other_cell[] = v`) or mutate shared
 document state. The eager engine invalidates a written cell's consumers
-immediately (see [reactive-cells.md](reactive-cells.md)), so writing a cell from
+immediately (see [reactive-cells.md](cell.md)), so writing a cell from
 inside another cell's computation invalidates those consumers *mid-computation* —
 and graphics-domain cells *do* have consumers (e.g. `GraphicsCaching` reads them).
 That makes recomputation order-dependent and the graph inconsistent.
@@ -494,7 +494,7 @@ recursively-projected input children. The extra requirements are:
 1. **Recurse into each child** with `print_child(recursion, child, child_ctx)`
    (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
-   separate cells — see [§8 of the selection deep dive](selection-deep-dive.md)).
+   separate cells — see [§8 of the selection deep dive](selection.md)).
 3. **Project the selection reactively.** Canonically this is
    `Cell(() -> map_reference_forward(p, iomap, node.selection))` with the
    deferred-iomap trick for the not-yet-built `iomap`. The inline form shown
@@ -570,7 +570,7 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
 end
 ```
 
-See [the tutorial](tutorial-new-domain.md) for a complete worked
+See [the tutorial](../../../documentation/tutorial-new-domain.md) for a complete worked
 example with document types, example, and test.
 
 ## Recursion across projections

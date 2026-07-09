@@ -54,7 +54,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")              # vector PDF, select
 write_example_pdf("widget", "/tmp/book.pdf"; paginate=true) # flow tall content onto pages
 ```
 
-See [the graphics guide](document/graphics.md) for the `write_image` and
+See [the graphics guide](../package/visual/doc/graphics.md) for the `write_image` and
 `write_pdf` APIs.
 
 ## Inspecting document structure
@@ -76,7 +76,7 @@ ref = @reference entries[1].value.value{3}
 evaluate_reference(editor.document, ref)
 ```
 
-See [the reference guide](editor/reference.md) for the full grammar
+See [the reference guide](../package/kernel/doc/reference.md) for the full grammar
 (`.field`, `[i]`, `{k}`, `[i, j]`, `.field(expr)`, `.point(x, y)`,
 `.proj(p, sub)`).
 

@@ -131,8 +131,8 @@ which has non-obvious payoffs:
   renders the **Text** domain straight to the terminal (ANSI colors, keyboard
   navigation, no graphics step). An IDE-plugin backend could follow the same way.
 
-See the [projection system](documentation/projection-system.md) and [higher-order
-projections](documentation/higher-order-projections.md) guides for the mechanics.
+See the [projection system](package/kernel/doc/projection-system.md) and [higher-order
+projections](package/kernel/doc/higher-order-projections.md) guides for the mechanics.
 
 ---
 
@@ -156,7 +156,7 @@ projections](documentation/higher-order-projections.md) guides for the mechanics
 | **Collection** | `CellVector` (reactive indexed vector) and `ListNode` (lazy doubly-linked list) |
 
 All domains support **selection** and **cursor movement** end-to-end. The SDL
-backend is the primary frontend; a [web backend](documentation/devices-and-backends.md#web-backend)
+backend is the primary frontend; a [web backend](package/kernel/doc/devices-and-backends.md#web-backend)
 renders the same editor in the browser (`run_web_example("json")`). The in-editor
 AI assistant plus the MCP server are built in. Character-level manual editing is
 the next milestone (see the [Roadmap](documentation/roadmap.md)).
@@ -231,26 +231,26 @@ Three reading tracks — pick the one that matches your goal.
 ### Building something? Read next
 
 4. [Architecture](documentation/architecture.md) — the package chain, layer/slice structure, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
-5. [Reactive cells](documentation/reactive-cells.md) — the `Cell` system that powers incrementality.
-6. [Macros](documentation/macros.md) — `@document`, `@projection`, `@iomap` macros.
-7. [Projection system](documentation/projection-system.md) — the four projection interface functions and the printer/reader pair.
+5. [Reactive cells](package/kernel/doc/cell.md) — the `Cell` system that powers incrementality.
+6. [Macros](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap` macros.
+7. [Projection system](package/kernel/doc/projection-system.md) — the four projection interface functions and the printer/reader pair.
 8. [Tutorial: new domain](documentation/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
 
 ### Going deeper
 
-- [Higher-order projections](documentation/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
-- [Generic projections](documentation/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
-- [Operations](documentation/operations.md) — what an operation is and how the reader chain produces them.
-- [Editor](documentation/editor.md) — the REPL loop, event handling, and rendering pipeline.
-- [Reference guide](documentation/editor/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
-- [Selection guide](documentation/editor/selection.md) — how selection propagates through nested documents.
-- [Devices and backends](documentation/devices-and-backends.md) — the `Backend`/`Device` split.
+- [Higher-order projections](package/kernel/doc/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
+- [Generic projections](package/kernel/doc/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
+- [Operations](package/kernel/doc/operation.md) — what an operation is and how the reader chain produces them.
+- [Editor](package/kernel/doc/editor.md) — the REPL loop, event handling, and rendering pipeline.
+- [Reference guide](package/kernel/doc/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
+- [Selection guide](package/kernel/doc/selection.md) — how selection propagates through nested documents.
+- [Devices and backends](package/kernel/doc/devices-and-backends.md) — the `Backend`/`Device` split.
 - [Design decisions](documentation/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
-- [Selection deep dive](documentation/selection-deep-dive.md) — the full reference/selection mechanism with worked examples.
+- [Selection deep dive](package/kernel/doc/selection.md) — the full reference/selection mechanism with worked examples.
 
 ### Per-domain guides
 
-[json](documentation/document/json.md) · [xml](documentation/document/xml.md) · [text](documentation/document/text.md) · [syntax](documentation/document/syntax.md) · [graphics](documentation/document/graphics.md) · [widget](documentation/document/widget.md) · [workbench](documentation/document/workbench.md) · [collection](documentation/document/collection.md)
+[json](package/domain/doc/json.md) · [xml](package/domain/doc/xml.md) · [text](package/visual/doc/text.md) · [syntax](package/visual/doc/syntax.md) · [graphics](package/visual/doc/graphics.md) · [widget](package/visual/doc/widget.md) · [workbench](package/domain/doc/workbench.md) · [collection](package/base/doc/collection.md)
 
 ### Working in the REPL
 

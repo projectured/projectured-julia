@@ -124,7 +124,7 @@ end # @testset
     #
     # Currently broken: the widget layer routes coordless events (KeyPress/KeyDown)
     # *strictly* by selection with no "sole editable widget" fallback (see
-    # documentation/document/widget.md and `_selected_split_slot` /
+    # package/visual/doc/widget.md and `_selected_split_slot` /
     # `_selected_composite_slot`). And pcp itself consumes ReplaceSelectionOps on
     # the control slot (Case 3 in ProjectionConfiguring.jl), so the classic
     # "Tab to focus, then type" bootstrap does not persist either. Reaching this

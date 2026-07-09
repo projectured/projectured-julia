@@ -124,7 +124,7 @@ evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
 Because operations carry their own target and `evaluate_operation` is
 wrapper-agnostic, this works regardless of how the document is nested
 (`ScreenDocument` → `WindowDocument` → …). Reach for this instead of bespoke
-imperative helpers. See the [operations guide](../operations.md) for the full
+imperative helpers. See the [operations guide](operation.md) for the full
 operation catalogue and `evaluate_operation`.
 
 ## Worked example: select "Alice"
@@ -191,7 +191,7 @@ This is a **debugging / inspection** tool: the returned paths are rooted at the
 iomap (`::…IoMap.input…` / `.output…`), so — like searching `jsondoc` above —
 they are **not** selectable on the screen. It is the go-to move for "the value is
 in the document but not on screen — which stage dropped it?" and for diagnosing
-reactivity. The [debugging guide](../debugging.md#searching-the-pipeline-state-iomaps)
+reactivity. The [debugging guide](../../../documentation/debugging.md#searching-the-pipeline-state-iomaps)
 covers the workflow (reading iomap paths, `search_references` vs `search_objects`
 counts as a reactivity signal).
 
@@ -199,7 +199,7 @@ counts as a reactivity signal).
 
 - All three primitives unwrap reactive `Cell`s transparently — you do **not**
   write `node.field[]`; property access already gives the value (see
-  [macros guide](../macros.md)).
+  [macros guide](macros.md)).
 - The predicate runs in the **document (input) domain** — match on
   `JsonString` / `JsonNumber` / … document nodes, not on projected text/graphics.
 - A `String`/`Regex` query is a leaf-text shorthand; it cannot distinguish

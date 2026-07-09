@@ -1182,7 +1182,7 @@ end
 # recursive printer (`collection`/`project`) and the recursive operation reader
 # (`map_reference_backward` below), and reuses the same lift (`reroot_operation`)
 # the container projections (`WidgetToGraphics`/`LayoutToGraphics`) use. The general
-# principle is documented in documentation/projection-system.md.
+# principle is documented in package/kernel/doc/projection-system.md.
 #
 # Each level reads its own `iomap.input.selection`: `set_selection!` propagates the
 # selection down the document tree, so every focused node already holds its own

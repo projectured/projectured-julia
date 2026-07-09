@@ -1,4 +1,4 @@
-# Devices and Backends
+# Devices and backends
 
 ProjecturEd separates the **what** of I/O (a `Device`) from the **how**
 (a `Backend`). A `Device` describes a logical input or output channel; a
@@ -9,8 +9,8 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[backend/Backend.jl](../package/kernel/main/backend/Backend.jl) and
-[device/Device.jl](../package/kernel/main/device/Device.jl). There are three backends: the
+[backend/Backend.jl](../../../package/kernel/main/backend/Backend.jl) and
+[device/Device.jl](../../../package/kernel/main/device/Device.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).
@@ -72,7 +72,7 @@ There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
 
 ### SdlBackend
 
-`SdlBackend` (in [backend/Sdl.jl](../package/sdl/main/ProjecturedSdl.jl)) implements
+`SdlBackend` (in [package/sdl/main/ProjecturedSdl.jl](../../../package/sdl/main/ProjecturedSdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
 - A font measurement cache shared across all windows.
@@ -85,7 +85,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [backend/Console.jl](../package/visual/main/backend/Console.jl))
+`ConsoleBackend` (in [package/visual/main/backend/Console.jl](../../../package/visual/main/backend/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextText` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -103,7 +103,7 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
   an `EventEnvelope(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
   envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
-  ([projection/higherorder/EnvelopeUnwrapping.jl](../package/kernel/main/projection/higherorder/EnvelopeUnwrapping.jl))
+  ([projection/higherorder/EnvelopeUnwrapping.jl](../../../package/kernel/main/projection/higherorder/EnvelopeUnwrapping.jl))
   — that strips the `EventEnvelope` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
 - **Limitation:** character-level text editing (cursor left/right, insertion,
@@ -113,13 +113,14 @@ a `TextText` rather than a `ScreenDocument`. Highlights:
 
 Run it with `run_console_example()` (one-shot) or
 `run_console_example(interactive=true)` (read-eval-print loop).
-## Web backend
 
-`WebBackend` ([backend/Web.jl](../package/web/main/ProjecturedWeb.jl)) runs the editor
+### WebBackend
+
+`WebBackend` ([package/web/main/ProjecturedWeb.jl](../../../package/web/main/ProjecturedWeb.jl)) runs the editor
 inside an HTTP + WebSocket server and moves the **final rendering step into the
 browser**. The Julia process keeps the document, projection pipeline, reactive
 cells, and the read-eval-print loop; a connected JavaScript client
-([package/web/assets/](../package/web/assets/)) is a thin terminal that captures raw mouse and
+([package/web/assets/](../../../package/web/assets/)) is a thin terminal that captures raw mouse and
 keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 
 ```
@@ -128,7 +129,7 @@ keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
         └──── draw-list (full / patch) ◀── write_to_devices ◀──┘
 ```
 
-### Running it
+#### Running it
 
 ```julia
 run_web_example("json")          # serve on http://127.0.0.1:8080
@@ -144,7 +145,7 @@ pop-ups in response to a user gesture. `run_web_example` accepts the same keywor
 arguments as `run_example`; under the hood it is just
 `run_example(...; backend=WebBackend(...))`.
 
-### How it satisfies the interface
+#### How it satisfies the interface
 
 - **`measure_text` stays on the server.** The layout pipeline calls
   `measure_text` synchronously *while printing*, long before any primitive
@@ -162,7 +163,7 @@ arguments as `run_example`; under the hood it is just
   wrapped in `EventEnvelope`s on a `Channel`; the editor drains it each frame.
   MousePress synthesis and motion-while-held filtering mirror the SDL backend.
 
-### Wire protocol (JSON, both directions)
+#### Wire protocol (JSON, both directions)
 
 Server → client, one ordered message per frame:
 
@@ -186,7 +187,7 @@ Key mapping is done **on the server** (`web_key_to_symbol`, mirroring
 `sdl_keysym_to_symbol`) so the `:left`/`:char`/… vocabulary has a single source
 of truth.
 
-### Incremental rendering (dirty-rect patches)
+#### Incremental rendering (dirty-rect patches)
 
 Rather than resend a whole window on every change, a reactive **dirty-walk**
 (`_collect_canvas_dirty!` and friends) keyed on the cells' `is_up_to_date` flags
@@ -207,12 +208,18 @@ and new extent so moved/shrunk content clears its vacated pixels.
   re-projects the whole canvas (e.g. a json caret move) yields a whole-window
   patch — the same granularity SDL's dirty-rect would see.
 
-### Constraints (v1)
+#### Constraints (v1)
 
 One client per editor (a second WebSocket upgrade is rejected); JSON transport
 both directions; the SDL-texture `Ptr` image form is skipped (decoded RGBA
 buffers are sent as base64). SDL stays the default; the web backend is additive
 and selected explicitly.
+
+[package/web/main/ProjecturedWeb.jl](../../../package/web/main/ProjecturedWeb.jl) is a worked second example: it
+adds a whole new transport (HTTP + WebSocket, with the renderer living in a
+browser) yet touches no projection or domain code, precisely because it speaks
+the same event vocabulary and consumes the same `ScreenDocument` output as the
+SDL backend.
 
 ## File-export backends
 
@@ -222,15 +229,15 @@ export lives alongside the backend layer but does **not** subtype
 `Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
 file:
 
-- **`write_image`** ([backend/Sdl.jl](../package/sdl/main/ProjecturedSdl.jl)) rasterizes a
+- **`write_image`** ([package/sdl/main/ProjecturedSdl.jl](../../../package/sdl/main/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([backend/Pdf.jl](../package/visual/main/backend/Pdf.jl)) walks the same
+- **`write_pdf`** ([package/visual/main/backend/Pdf.jl](../../../package/visual/main/backend/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
   `sdl_measure_text`.
 
-See [the graphics guide](document/graphics.md) for both APIs.
+See [the graphics guide](../../../package/visual/doc/graphics.md) for both APIs.
 
 ## Projections that need the backend
 
@@ -264,11 +271,159 @@ itself never sees the backend type.
    so projection code does not need to change.
 4. Provide a `measure_text` callback for projections that need it.
 
-The fact that every event projection-level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
+The fact that every event at the projection level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
 is the contract that keeps backends interchangeable.
 
-[backend/Web.jl](../package/web/main/ProjecturedWeb.jl) is a worked second example: it
-adds a whole new transport (HTTP + WebSocket, with the renderer living in a
-browser) yet touches no projection or domain code, precisely because it speaks
-the same event vocabulary and consumes the same `ScreenDocument` output as the
-SDL backend.
+---
+
+# Internals
+
+The remainder of this guide documents the kernel-internal module structure
+behind the two abstractions: the **device layer** (layer 5) and the **backend
+layer** (layer 6). They are independent siblings — the two abstractions only
+come together in a concrete implementation.
+
+## The device layer (layer 5)
+
+Layer 5 of the kernel — **input devices, events, and gestures**.
+
+The layer lives in [main/device/](../../../package/kernel/main/device/) as a set of small modules
+plus one aggregator (`GestureModule`) covering the gesture machinery:
+
+```
+Device.jl                (DeviceModule)       — Device abstract + batch I/O generics
+Display.jl               (DisplayModule)      — display-size query + provider glue
+Modifiers.jl             (ModifiersModule)    — the Ctrl/Shift/Alt/Meta struct
+Keyboard.jl              (KeyboardModule)     — Keyboard device + key event types
+Mouse.jl                 (MouseModule)        — Mouse device + mouse event types
+ScreenDevice.jl          (ScreenDeviceModule) — Screen display device + WindowQuit
+GestureModule.jl         (GestureModule)      — aggregator (owns rehomed EventEnvelope)
+        ├─ EventCase.jl        — the @event_case macro + parser
+        └─ GestureBinding.jl   — reified GestureBinding, @gestures DSL,
+                                 read_gesture(::Document) interpreter
+GestureRecognizer.jl     (GestureRecognizerModule) — MousePress + KeyChord synthesis
+```
+
+### DeviceModule
+
+`DeviceModule` (`device/Device.jl`) declares the abstract *Device* type and
+the batch I/O generics `write_to_devices` / `read_from_devices`. Here, the
+"interface + implementation" split that would otherwise justify a separate
+pure-stub module is handled by fragments sharing one module namespace
+instead. `ProjecturedDomain` keeps `DeviceApiModule` as an alias for
+`DeviceModule` so opt-in packages depending on the old name keep resolving.
+
+### GestureModule
+
+`GestureModule` aggregates two fragments that are only ever imported
+together: the `EventCase` fragment (`device/EventCase.jl`) declares the
+`@event_case` dispatch-table macro and its pattern parser; the
+`GestureBinding` fragment (`device/GestureBinding.jl`) defines the reified
+`GestureBinding` data type, the `@gestures` DSL, and the catch-all
+`read_gesture(::Document, …)` interpreter. `GestureBinding` reaches into
+`EventCase`'s private parser internals (`_parse_rule`, `EvPat`, …) — a
+documented cross-module private edge that sharing one module namespace turns
+into a plain same-namespace reference. The `@gestures` DSL and `@event_case`
+DSL share the same parser without any private cross-module import; generated
+`@gestures` expansions emit `GestureModule.get_document_gesture_bindings_own`.
+
+### EventEnvelope
+
+`EventEnvelope` wraps every backend event with the id of the window it came
+from. It lives in `GestureModule`, not in the concrete `ScreenDocumentModule`
+document, because it is a protocol type consumed by the editor loop, the
+gesture recognizer, and the envelope-unwrapping projection — a plain struct
+declaration for a protocol type has no business living inside a concrete
+document; keeping it here means the kernel has no edge onto `ScreenDocument`.
+`ScreenDocumentModule` re-exports the name via an `import ..GestureModule:
+EventEnvelope` block, so existing importers resolve either way. Window
+*events/ops* (`WindowClose`, `WindowResize`, `OpenWindowOperation`,
+`CloseWindowOperation`, `ResizeWindowOperation`) stay with `ScreenDocument` in
+`visual` — those *are* concrete document types, and belong with the document.
+
+(This is the canonical statement of the `EventEnvelope`-placement rationale;
+other package docs defer here rather than repeat it.)
+
+### GestureRecognizer
+
+`GestureRecognizer.jl` (`device/GestureRecognizer.jl`) synthesises
+`MousePress` from a MouseDown/MouseUp pair within a click threshold and
+`KeyChord` from a KeyDown sequence — a pure function of device events plus
+`EventEnvelope`, with no editor or document coupling; its location in
+`device/` matches its dependencies.
+
+### Downward edges
+
+- `..CellModule` (Display; nothing else).
+- `..DocumentModule: Document, read_gesture` (GestureBinding fragment;
+  Document is opaque payload here, `read_gesture` gets the catch-all method).
+- `..ProjectionApiModule: Projection` — a documented downward private seam
+  the GestureBinding fragment uses for its projection-collector fallback.
+  Removed once the projection API folds into the projection layer.
+
+That is the full import surface. No backend, no editor, no operation.
+
+## The backend layer (layer 6)
+
+Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
+`Backend` type, the batch generics, the display-size seam, and the
+dependency-free `HeadlessBackend` that CI and documentation examples run
+against.
+
+The layer lives in [main/backend/](../../../package/kernel/main/backend/):
+
+```
+Backend.jl          (BackendModule)         — Backend abstract + generics + make_backend factory
+Display.jl          (DisplayModule)         — display-size query + provider indirection
+HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
+```
+
+### BackendModule
+
+Declares `Backend <: Any` and the batch generics `initialize_backend!`,
+`quit_backend!`, `measure_text`, `write_image`, `record_video`,
+`render_canvas`, `decode_image`, `get_pointer_position`, plus the
+`make_backend(kind::Symbol; kwargs...)` factory seam. `make_backend` is the
+single point where a backend is chosen by name: concrete backends (SDL, Web,
+PDF, Console, …) live in opt-in packages that add methods for their own
+`::MyBackend` type and register a `make_backend(::Val{kind})` method. This is
+the only place the factory-seam mechanism is described — other sections refer
+to specific registrations without re-explaining the seam.
+
+No document is imported here. The batch I/O generics are duck-typed on the
+`document` argument, so the layer stays document-free at layer 6.
+
+### DisplayModule
+
+Display-size query with a process-global provider indirection. The SDL
+backend registers a provider; without one, a fixed SDL-free default is
+returned so headless callers still get a sensible size. Belongs in the
+backend layer — displays are what backends render to.
+
+### HeadlessBackendModule
+
+A dependency-free in-memory backend with a scripted event source:
+
+- `HeadlessBackend()` records every `write_to_devices` call into `rendered`
+  (log for later assertion) and pops events from a scripted queue on every
+  `read_from_devices` call.
+- `make_backend(:headless)` returns a fresh instance — the factory
+  registration that lets kernel editor tests reach for the backend by name
+  without depending on any concrete backend package.
+- `push_event!(backend, event)` enqueues an event for the next
+  `read_from_devices` call.
+- `measure_text` returns a fixed `(8 * length, 16)` metric — sufficient for
+  layout tests that only care about relative sizes.
+
+The backend is deliberately **document-agnostic** — it uses only the
+abstract `Document` type (opaque payload) and the device I/O generics; no
+concrete document is imported. That is the pressure that keeps
+`backend/` layer-6 clean.
+
+### Downward edges
+
+- `..DeviceModule: Device, read_from_devices, write_to_devices` (only
+  HeadlessBackend needs this; the abstract generics don't).
+
+That is the whole import surface. No document, reference, operation,
+projection, agent, or editor.

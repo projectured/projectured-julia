@@ -137,7 +137,7 @@ delete a range of characters in a string). Most other edits — setting a field,
 swapping a value, inserting or deleting sequence elements — are the single
 generic `ReplaceReferencedValueOperation` (a slot write, with the slot named by a
 reference), often built via `replace_document` / `insert_elements` /
-`delete_elements`. See [operations.md](operations.md).
+`delete_elements`. See [operations.md](../package/kernel/doc/operation.md).
 
 Operations are produced by the reader side of the projection chain. When you
 press `→`, `TextToGraphics` (the outermost projection) recognises the key and
@@ -182,12 +182,12 @@ general rather than tied to any one domain or any one display.
   embeds one domain inside another; sorting, filtering, and focusing
   projections wrap an inner projection and modify its behaviour. The
   combinators are themselves projections, so they compose freely with each
-  other. See [higher-order projections](higher-order-projections.md) for the
+  other. See [higher-order projections](../package/kernel/doc/higher-order-projections.md) for the
   full catalogue. What makes this composition work is that each projection is a
   **single-level transform**: it renders one level and delegates every child back
   through the four core functions (via the `recursion` parameter and the stored
   child IO maps), never walking the subtree itself. That is the
-  [recursion contract](projection-system.md#the-recursion-contract), and it is why
+  [recursion contract](../package/kernel/doc/projection-system.md#the-recursion-contract), and it is why
   any domain immediately works under any higher-order projection.
 - **Abstraction** is again ordinary Julia code. A function that returns a
   fully wired `ChainingProjection(...)` configured for a particular display
@@ -225,7 +225,7 @@ that the compositional design alone could not:
 The two ideas are mutually reinforcing: the compositional design would be
 unusable without incrementality, and the incrementality would be wasted on a
 non-compositional design. Together they are what let the editor stay both
-general and fast. See [reactive cells](reactive-cells.md) for the underlying
+general and fast. See [reactive cells](../package/kernel/doc/cell.md) for the underlying
 mechanism.
 
 ---
@@ -291,8 +291,8 @@ necessary subset of the document tree.
   six concrete examples, from the simplest leaf case to a full workbench.
 - **[Getting started](getting-started.md)** — set up your environment and run
   your first example.
-- **[Reactive cells](reactive-cells.md)** — how the `Cell` system implements
+- **[Reactive cells](../package/kernel/doc/cell.md)** — how the `Cell` system implements
   the reactive incrementality described in Step 5–6 above.
-- **[Projection system](projection-system.md)** — the four interface functions
+- **[Projection system](../package/kernel/doc/projection-system.md)** — the four interface functions
   (`print_document`, `read_intent`, `map_reference_forward`,
   `map_reference_backward`) and how compound projections use them.

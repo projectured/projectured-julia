@@ -50,7 +50,7 @@ instance per example.
 
 To drive the same example from a browser instead of an SDL window, use
 `run_web_example` — it takes the same arguments and runs the editor through the
-[web backend](devices-and-backends.md#web-backend):
+[web backend](../package/kernel/doc/devices-and-backends.md#web-backend):
 
 ```julia
 julia> run_web_example("json")              # serve on http://127.0.0.1:8080
@@ -111,7 +111,7 @@ apart so you can step through it one call at a time.
 ## Searching the pipeline state (iomaps)
 
 `search_references` / `search_objects` (the content-search primitives from the
-[finding-and-selecting guide](editor/finding-and-selecting.md)) are usually run
+[finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)) are usually run
 against `editor.document`, but they walk **any** object graph — unwrapping cells,
 descending struct fields and collections. An **iomap** is exactly such a graph:
 the value `print_document` returns links a projection's *input* to its *output*
@@ -179,7 +179,7 @@ hand-stepping `print_document` layer by layer.
 > (`::…IoMap.input…` / `.output…`), so they are for **inspection only** — do
 > **not** feed them to `set_selection!` / `replace_selection!`. For a selectable
 > path, search `editor.document` instead (see the
-> [finding-and-selecting guide](editor/finding-and-selecting.md)).
+> [finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)).
 
 ## Tracing projection calls (event propagation)
 
@@ -248,14 +248,14 @@ julia> clear_selection!(doc)
 julia> set_selection!(doc, some_path)
 ```
 
-The reference DSL is documented in [the reference guide](editor/reference.md);
-see [the selection guide](editor/selection.md) for how selections propagate
+The reference DSL is documented in [the reference guide](../package/kernel/doc/reference.md);
+see [the selection guide](../package/kernel/doc/selection.md) for how selections propagate
 through nested documents.
 
 ## Forcing reactive cells
 
 Every reactive value in the system is a `Cell` (see
-[reactive cells](reactive-cells.md)). When something looks empty in the
+[reactive cells](../package/kernel/doc/cell.md)). When something looks empty in the
 REPL, it is usually because you are looking at the wrapper, not the value:
 
 ```julia

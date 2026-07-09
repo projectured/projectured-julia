@@ -4,7 +4,7 @@
 
 The JSON domain represents JSON data as a tree of reactive documents. Every JSON value is a Document with all mutable fields wrapped in reactive Cells for automatic change propagation.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../editor/reference.md#the-boundary-axis). In JSON the axis appears as array elements, object entries, *and* characters in strings/numbers; `[1]` is the first item in any of those, `{0}` the cursor before it.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../../../package/kernel/doc/reference.md#the-boundary-axis). In JSON the axis appears as array elements, object entries, *and* characters in strings/numbers; `[1]` is the first item in any of those, `{0}` the cursor before it.
 
 ## Types
 

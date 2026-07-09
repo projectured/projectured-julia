@@ -5,7 +5,8 @@ inventory, and the projection pipeline status. The division vocabulary
 (package / layer / slice / module) is defined in [terminology.md](terminology.md).
 For design rationale see the
 [design decisions guide](design-decisions.md). For the full reference/selection
-mechanism see the [selection deep dive](selection-deep-dive.md).
+mechanism see the [reference guide](../package/kernel/doc/reference.md) and
+[selection guide](../package/kernel/doc/selection.md).
 
 ---
 
@@ -115,15 +116,25 @@ namespace) let a module split across files with zero API cost. See
 [architecture-rules.md](architecture-rules.md) for the durable division
 rules.
 
-Each source package also has [`doc/`](../package/kernel/doc/) with per-layer
-guides ([cell](../package/kernel/doc/cell.md),
+Each source package also has a `doc/` directory with the per-layer / per-slice /
+per-domain reference guides that used to live at the top level. The kernel set
+([cell](../package/kernel/doc/cell.md),
+[macros](../package/kernel/doc/macros.md),
 [document](../package/kernel/doc/document.md),
 [reference](../package/kernel/doc/reference.md),
+[selection](../package/kernel/doc/selection.md),
+[finding-and-selecting](../package/kernel/doc/finding-and-selecting.md),
 [operation](../package/kernel/doc/operation.md),
-[device](../package/kernel/doc/device.md),
-[backend](../package/kernel/doc/backend.md),
+[projection-system](../package/kernel/doc/projection-system.md),
+[higher-order-projections](../package/kernel/doc/higher-order-projections.md),
+[generic-projections](../package/kernel/doc/generic-projections.md),
+[devices-and-backends](../package/kernel/doc/devices-and-backends.md),
 [agent](../package/kernel/doc/agent.md),
-[editor](../package/kernel/doc/editor.md)).
+[editor](../package/kernel/doc/editor.md),
+[naming](../package/kernel/doc/naming.md)) is the largest; the per-domain guides
+live in [visual/doc/](../package/visual/doc/), [domain/doc/](../package/domain/doc/),
+and [base/doc/](../package/base/doc/). Each package's own `doc/architecture.md`
+indexes its guides.
 
 The optional backends plug into **factory seams** owned by the kernel
 (`make_backend(kind)`, `make_agent_server(kind, …)`) or the domain
@@ -191,7 +202,7 @@ four-function interface (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) and recurses into children
 **only** by delegating to the child projection's own version of those four. No
 projection adds a fifth recursive function; that is [the recursion
-contract](projection-system.md#the-recursion-contract) and the reason any domain
+contract](../package/kernel/doc/projection-system.md#the-recursion-contract) and the reason any domain
 composes with any higher-order projection.
 
 **Higher-order** (`higherorder/`):
@@ -271,7 +282,7 @@ composes with any higher-order projection.
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](devices-and-backends.md#consolebackend)) |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
 | `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/ScreenDevice.jl` | `Screen` device; `WindowQuit` |

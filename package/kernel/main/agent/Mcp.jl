@@ -168,47 +168,82 @@ function execute_julia_code(editor, code)
 end
 
 """
+    _guide_roots() -> Vector{Tuple{String,String}}
+
+The directories scanned for guide documentation, each paired with the prefix
+prepended to the guide names found under it. The top-level `documentation/`
+tree keeps bare names (`concepts`, `getting-started`, …); each package's
+`doc/` tree is namespaced by package (`kernel/reference`, `visual/widget`, …)
+so guides live next to the code they document without name collisions.
+"""
+function _guide_roots()
+    repo = joinpath(@__DIR__, "../../../..")
+    roots = Tuple{String,String}[(joinpath(repo, "documentation"), "")]
+    pkg_dir = joinpath(repo, "package")
+    if isdir(pkg_dir)
+        for pkg in sort(readdir(pkg_dir))
+            d = joinpath(pkg_dir, pkg, "doc")
+            isdir(d) && push!(roots, (d, "$pkg/"))
+        end
+    end
+    roots
+end
+
+"""
+    _all_guides() -> Vector{Tuple{String,String}}
+
+Every guide as `(guide_name, filepath)`, across every root in `_guide_roots()`.
+"""
+function _all_guides()
+    guides = Tuple{String,String}[]
+    for (root, prefix) in _guide_roots()
+        isdir(root) || continue
+        for (dir, _, files) in walkdir(root)
+            for file in sort(files)
+                endswith(file, ".md") || continue
+                filepath = joinpath(dir, file)
+                rel = replace(filepath, root * "/" => "")
+                push!(guides, (prefix * replace(rel, ".md" => ""), filepath))
+            end
+        end
+    end
+    guides
+end
+
+"""
     list_guides() -> String
 
 List all available documentation with a one-paragraph description for each guide.
 Documentation files are markdown files containing tips and tricks for using ProjecturEd.
 """
 function list_guides()
-    doc_dir = joinpath(@__DIR__, "../../../../documentation")
-    if !isdir(doc_dir)
-        return "No guide directory found."
-    end
+    guides = _all_guides()
+    isempty(guides) && return "No guide directory found."
 
     guides_info = String[]
-    for (root, dirs, files) in walkdir(doc_dir)
-        for file in sort(files)
-            endswith(file, ".md") || continue
-            filepath = joinpath(root, file)
-            content = read(filepath, String)
-            # Extract first paragraph after title
-            lines = split(content, '\n')
-            description_lines = String[]
-            in_description = false
-            seen_heading = false
-            for line in lines
-                stripped = strip(line)
-                if isempty(stripped)
-                    if in_description
-                        break
-                    end
-                    continue
-                elseif startswith(stripped, "#")
-                    seen_heading = true
-                elseif seen_heading && !startswith(stripped, "#")
-                    in_description = true
-                    push!(description_lines, stripped)
+    for (guide_name, filepath) in guides
+        content = read(filepath, String)
+        # Extract first paragraph after title
+        lines = split(content, '\n')
+        description_lines = String[]
+        in_description = false
+        seen_heading = false
+        for line in lines
+            stripped = strip(line)
+            if isempty(stripped)
+                if in_description
+                    break
                 end
+                continue
+            elseif startswith(stripped, "#")
+                seen_heading = true
+            elseif seen_heading && !startswith(stripped, "#")
+                in_description = true
+                push!(description_lines, stripped)
             end
-            description = join(description_lines, " ")
-            relpath = replace(filepath, doc_dir * "/" => "")
-            guide_name = replace(relpath, ".md" => "")
-            push!(guides_info, "**$guide_name**: $description")
         end
+        description = join(description_lines, " ")
+        push!(guides_info, "**$guide_name**: $description")
     end
 
     if isempty(guides_info)
@@ -223,19 +258,16 @@ end
 Read the full content of a specific documentation file by name.
 """
 function read_guide(guide_name)
-    doc_dir = joinpath(@__DIR__, "../../../../documentation")
-    filepath = joinpath(doc_dir, guide_name * ".md")
-
-    if !isfile(filepath)
-        return "Documentation '$guide_name' not found."
+    for (name, filepath) in _all_guides()
+        if name == guide_name
+            try
+                return read(filepath, String)
+            catch e
+                return "Error reading documentation '$guide_name': $(e)"
+            end
+        end
     end
-
-    try
-        content = read(filepath, String)
-        content
-    catch e
-        "Error reading documentation '$guide_name': $(e)"
-    end
+    "Documentation '$guide_name' not found."
 end
 
 """
@@ -469,23 +501,14 @@ function register_default_tools_and_resources!()
         list_modules,
     ))
 
-    doc_dir = joinpath(@__DIR__, "../../../../documentation")
-    if isdir(doc_dir)
-        for (root, dirs, files) in walkdir(doc_dir)
-            for file in sort(files)
-                endswith(file, ".md") || continue
-                filepath = joinpath(root, file)
-                relpath = replace(filepath, doc_dir * "/" => "")
-                guide_name = replace(relpath, ".md" => "")
-                let gd_name = guide_name
-                    register_resource!(Resource(
-                        "resource://guide/$gd_name",
-                        "Guide: $gd_name",
-                        "Full content of the $gd_name documentation guide.",
-                        () -> read_guide(gd_name),
-                    ))
-                end
-            end
+    for (guide_name, _) in _all_guides()
+        let gd_name = guide_name
+            register_resource!(Resource(
+                "resource://guide/$gd_name",
+                "Guide: $gd_name",
+                "Full content of the $gd_name documentation guide.",
+                () -> read_guide(gd_name),
+            ))
         end
     end
 
@@ -718,33 +741,25 @@ struct _GuideSection
 end
 
 function _index_guide_sections()
-    doc_dir = joinpath(@__DIR__, "../../../../documentation")
     sections = _GuideSection[]
-    isdir(doc_dir) || return sections
-    for (root, dirs, files) in walkdir(doc_dir)
-        for file in sort(files)
-            endswith(file, ".md") || continue
-            filepath = joinpath(root, file)
-            relpath = replace(filepath, doc_dir * "/" => "")
-            guide_name = replace(relpath, ".md" => "")
-            content = read(filepath, String)
-            heading = ""
-            buf = String[]
-            for line in split(content, '\n')
-                if startswith(strip(line), "#")
-                    body = strip(join(buf, "\n"))
-                    (isempty(body) && isempty(heading)) ||
-                        push!(sections, _GuideSection(guide_name, heading, body))
-                    heading = strip(replace(line, r"^\s*#+\s*" => ""))
-                    empty!(buf)
-                else
-                    push!(buf, line)
-                end
+    for (guide_name, filepath) in _all_guides()
+        content = read(filepath, String)
+        heading = ""
+        buf = String[]
+        for line in split(content, '\n')
+            if startswith(strip(line), "#")
+                body = strip(join(buf, "\n"))
+                (isempty(body) && isempty(heading)) ||
+                    push!(sections, _GuideSection(guide_name, heading, body))
+                heading = strip(replace(line, r"^\s*#+\s*" => ""))
+                empty!(buf)
+            else
+                push!(buf, line)
             end
-            body = strip(join(buf, "\n"))
-            (isempty(body) && isempty(heading)) ||
-                push!(sections, _GuideSection(guide_name, heading, body))
         end
+        body = strip(join(buf, "\n"))
+        (isempty(body) && isempty(heading)) ||
+            push!(sections, _GuideSection(guide_name, heading, body))
     end
     sections
 end

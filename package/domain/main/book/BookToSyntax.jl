@@ -19,7 +19,7 @@ each whole projected element (BookList); see the note above each. They map
 references by peeling the one step they own (title/author/numbering structural
 rewrites) and delegating each element tail through the stored child IO maps, so
 they do not dispatch on the element types — see the "Mapping references when the
-printer recurses" section of documentation/projection-system.md.
+printer recurses" section of package/kernel/doc/projection-system.md.
 """
 module BookToSyntaxModule
 

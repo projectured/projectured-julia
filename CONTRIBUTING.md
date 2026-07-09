@@ -116,8 +116,9 @@ makes review harder.
 4. If you added a domain or projection, add a corresponding test file and
    register it in the test package of the lowest main-package tier that can
    express it (usually `package/domain/test/ProjecturedDomainTest.jl`).
-5. Update the relevant guide in `documentation/` if the change affects
-   documented behaviour.
+5. Update the relevant guide if the change affects documented behaviour —
+   cross-cutting guides live in `documentation/`, per-package/per-domain
+   reference guides in that package's `doc/` directory.
 6. Open a pull request. The description should explain *what* changed and
    *why*; link to the relevant `plan/` document if one exists.
 
@@ -141,7 +142,7 @@ The short version:
       `package/domain/example/ProjecturedDomainExample.jl`.
 - [ ] `package/domain/test/projection/MyDomainTest.jl` — printer + reader tests.
 - [ ] Register in `package/domain/test/ProjecturedDomainTest.jl`.
-- [ ] Update `documentation/document/my-domain.md`.
+- [ ] Add `package/domain/doc/my-domain.md` (per-domain guide, next to the code).
 
 ## Contact
 

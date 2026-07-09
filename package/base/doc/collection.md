@@ -1,10 +1,10 @@
-# Collection Domain
+# Collections
 
 <img width="240" alt="Collection example" src="../../image/example/collection.png">
 
 The collection domain provides four generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
-[package/kernel/main/document/Collection.jl](../../package/base/main/document/Collection.jl)
+[package/base/main/document/Collection.jl](../../../package/base/main/document/Collection.jl)
 and subtype `Document` so they participate in the selection mechanism. This guide
 covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
 (2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.
@@ -12,6 +12,32 @@ covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
 ```julia
 const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 ```
+
+## Where Collection and Primitive sit
+
+Collection is one of the two **shipped engine documents** that make up layer 1
+of the `ProjecturedBase` package — the concrete, domain-independent documents
+every domain reuses:
+
+- **Collection** — `CellVector` (reactive sequence container), `CellMatrix`,
+  `CellTable`, `ListNode`. Provides the seam method
+  `child_reference_steps(::CellVector) = [(RangeReference(i-1, i), node[i]) …]`
+  registered on the kernel's `OperationModule`, so the pre-order document
+  walk driving `SelectNextInsertionOperation` picks up `CellVector` elements
+  without the kernel referencing the concrete type.
+- **Primitive** — the editable domain-independent Bool/Number/String/Insertion
+  documents with selection and identity, plus `ReplaceStringRangeOperation`
+  / `ReplaceNumberRangeOperation` (the splice-range ops) with their
+  `reroot_operation` methods.
+
+A document type belongs in this base layer when it is shipped for reuse by
+every domain and is domain-independent — Collection and Primitive pass; see
+[architecture.md](architecture.md) for the full membership rule. Two related
+types that might look like they belong here do not: `ScreenDocument` lives in
+`visual/screen/` (window things are visual) and `EventEnvelope` lives in the
+kernel's `GestureModule` (it is a protocol type consumed by the editor loop,
+not a document). The rationale for those placements is documented in
+[devices-and-backends.md](../../../package/kernel/doc/devices-and-backends.md).
 
 ## CellVector
 

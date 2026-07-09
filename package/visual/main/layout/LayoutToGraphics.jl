@@ -263,7 +263,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         _ => begin
             # Selection-only: route the coordless event to the child the
             # selection points at, or nowhere (no broadcast fallback) — selection
-            # is authoritative. See documentation/document/widget.md.
+            # is authoritative. See package/visual/doc/widget.md.
             slot = _selected_layout_slot(iomap.input, length(entries))
             slot == 0 ? nothing :
                         _forward_layout_event_slot(entries, evt, slot)
@@ -1150,7 +1150,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
         _ => begin
             # Selection-only: route the coordless event to the child the
             # selection points at, or nowhere (no broadcast fallback) — selection
-            # is authoritative. See documentation/document/widget.md.
+            # is authoritative. See package/visual/doc/widget.md.
             slot = _selected_layout_slot(iomap.input, length(entries))
             slot == 0 ? nothing :
                         _forward_layout_event_slot(entries, evt, slot)

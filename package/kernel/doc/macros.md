@@ -3,9 +3,9 @@
 Three macros — `@document`, `@projection`, and `@iomap` — generate the
 boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
-[document/Document.jl](../package/kernel/main/document/Document.jl),
-[projection/Projection.jl](../package/kernel/main/projection/Projection.jl), and
-[projection/IoMap.jl](../package/kernel/main/projection/IoMap.jl) respectively.
+[document/Document.jl](../../../package/kernel/main/document/Document.jl),
+[projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl), and
+[projection/IoMap.jl](../../../package/kernel/main/projection/IoMap.jl) respectively.
 
 All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
@@ -14,7 +14,7 @@ through generated `getproperty` / `setproperty!` methods.
 ## `@cell_struct` — the codegen the three build on
 
 The shared pattern is implemented **once, in the cell layer**:
-[cell/CellStruct.jl](../package/kernel/main/cell/CellStruct.jl) defines
+[cell/CellStruct.jl](../../../package/kernel/main/cell/CellStruct.jl) defines
 `@cell_struct struct T [<: Super] … end` — every field becomes a transparent
 `Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
 `getfield`), and `field::T = value` defaults produce the keyword constructor
@@ -61,7 +61,7 @@ end
 
 The macro rewrites the struct into the **kind-parameterized stem**: an
 immutable struct with one cell type-parameter per field
-(see [plan/pending/cell-kind-documents.md](../plan/done/cell-kind-documents.md)):
+(see [plan/pending/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)):
 
 ```julia
 struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: JsonDocument

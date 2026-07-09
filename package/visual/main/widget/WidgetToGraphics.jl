@@ -1644,7 +1644,7 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
             # Coordless (keyboard) events route to the child the selection points
             # at, or to nothing when the selection is not inside this composite.
             # Selection is authoritative — no broadcast/first-answer fallback.
-            # See documentation/document/widget.md.
+            # See package/visual/doc/widget.md.
             slot = iomap.input isa WidgetComposite ?
                    _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
             slot == 0 ? nothing :
@@ -2355,7 +2355,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
             # forward-projected selection points at, so the keystroke reaches the
             # focused descendant. When the split carries no such selection, route
             # nowhere (return nothing) — selection is authoritative, with no
-            # try-each-slot fallback. See documentation/document/widget.md.
+            # try-each-slot fallback. See package/visual/doc/widget.md.
             slot = iomap.input isa WidgetSplitPane ?
                    _selected_split_slot(iomap.input, length(child_iomaps)) : 0
             slot == 0 ? nothing :

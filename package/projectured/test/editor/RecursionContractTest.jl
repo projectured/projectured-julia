@@ -7,7 +7,7 @@
 # child projection's own version of the same function — via the `recursion`
 # parameter (printer) and the stored child IoMaps (reader / mappers). No
 # projection may flatten a subtree itself or introduce a fifth recursive
-# function. See documentation/projection-system.md "The recursion contract".
+# function. See package/kernel/doc/projection-system.md "The recursion contract".
 #
 # This harness is the *external* validation the contract calls for: it drives
 # the existing four functions over example pipelines and adds NO new
@@ -123,7 +123,7 @@ function probe_delegation(document, projection)
         # Higher-order composers delegate to pipeline *stages*, not to a child
         # document via `recursion`, so the node-delegation contract does not apply
         # to them (they are classified higher-order, not node projections — see
-        # documentation/projection-system.md). `ChainingProjection` is the
+        # package/kernel/doc/projection-system.md). `ChainingProjection` is the
         # pipeline wrapper at the top of every curated example; probing it is a
         # false positive (the spy never sees a node recurse through the chain).
         p isa Projectured.ChainingProjection && continue

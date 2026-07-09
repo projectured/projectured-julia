@@ -17,7 +17,7 @@
 #     rather than being marked invalid).
 #
 # The reactive engine is write-driven with no equality check (see
-# documentation/reactive-cells.md), so locality is purely a property of the
+# package/kernel/doc/cell.md), so locality is purely a property of the
 # dependency graph the printer builds. We measure that graph directly.
 #
 # Dimension A — selection isolation — is the headline case the plan calls out:

@@ -6,11 +6,11 @@ The widget domain is the UI layer that sits between domain-specific projections
 and the graphics domain. Widgets describe what a user interface looks like —
 labels, buttons, panes, scrollbars — in a backend-agnostic way. The
 `WidgetToGraphics` projection (in
-[projection/primitive/WidgetToGraphics.jl](../../package/visual/main/widget/WidgetToGraphics.jl))
+[projection/primitive/WidgetToGraphics.jl](../../../package/visual/main/widget/WidgetToGraphics.jl))
 turns a tree of widgets into a `GraphicsCanvas`.
 
 The widget module is
-[package/visual/main/widget/Widget.jl](../../package/visual/main/widget/Widget.jl).
+[package/visual/main/widget/Widget.jl](../../../package/visual/main/widget/Widget.jl).
 
 ## The widget hierarchy
 
@@ -121,7 +121,7 @@ The original widgets carry seven base styling fields:
 - `padding::Inset`, `padding_color::StyleColor` — inner padding
 
 These map to nested CSS-style boxes. `Inset` (defined in
-[document/Geometry.jl](../../package/visual/main/style/Geometry.jl)) holds four
+[document/Geometry.jl](../../../package/visual/main/style/Geometry.jl)) holds four
 sides; helpers `inset_size`, `inset_top_left`, etc. compute derived values.
 The default value is `inset_default`.
 
@@ -161,7 +161,7 @@ document content — they are not serialised. The convention:
 
 A widget that needs interactive feedback copies this field-plus-cell pattern
 rather than inventing its own. Two shared helpers in
-[WidgetToGraphics.jl](../../package/visual/main/widget/WidgetToGraphics.jl)
+[WidgetToGraphics.jl](../../../package/visual/main/widget/WidgetToGraphics.jl)
 package it so a new widget opts in with two lines: `_hover_state_op(w, evt)` maps
 a `MouseEnter`/`MouseLeave` to the `hovered` write (call it from the reader), and
 `_push_hover_surface!(elems, w, enabled, …)` paints a faint themed surface behind
@@ -175,7 +175,7 @@ menu bar, and toolbar a highlight on the row under the pointer.
 The data-entry surface (Qt's `QFormLayout` / `QSpinBox` / `QListWidget` /
 `QStackedWidget`) is built from two new widgets, two layout features, and a
 validation hook. The gallery's **Forms** tab
-([visual/example/document/Widget.jl](../../package/visual/example/document/Widget.jl))
+([visual/example/document/Widget.jl](../../../package/visual/example/document/Widget.jl))
 shows them together.
 
 - **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric
@@ -196,7 +196,7 @@ shows them together.
   reproduce the previous content-sized, single-`horizontal_align` behaviour, so
   existing grids are unchanged. The field column only stretches when a parent
   seeded an `available_width`. `FormLayout` lives in
-  [layout/Layout.jl](../../package/visual/main/layout/Layout.jl) (not Widget.jl)
+  [layout/Layout.jl](../../../package/visual/main/layout/Layout.jl) (not Widget.jl)
   because layouts load before widgets — hence it takes pre-built label documents
   rather than wrapping strings itself.
 - **`StackLayout(children; active=0)`** — `active = 0` keeps the original z-stack
@@ -214,7 +214,7 @@ shows them together.
 Most widget edits are a **single-field write into a carried widget**, so the
 `WidgetToGraphics` reader emits a self-contained
 `ReplaceReferencedValueOperation(widget, "field", value)` (see
-[operations.md](../operations.md#the-generic-write-operation-replacereferencedvalue))
+[operation.md](../../../package/kernel/doc/operation.md#the-generic-write-operation-replacereferencedvalue))
 rather than a bespoke operation. Because the widget is carried by identity
 (`document !== nothing`), the write bubbles up through every container unchanged.
 
@@ -231,7 +231,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 
 The operations that remain bespoke (genuinely not single-slot writes) are defined
 alongside the widget types in
-[widget/Widget.jl](../../package/visual/main/widget/Widget.jl):
+[widget/Widget.jl](../../../package/visual/main/widget/Widget.jl):
 
 | Operation | Effect |
 |---|---|
@@ -294,7 +294,7 @@ pointer, so a button learns when the pointer enters it but never when it leaves.
 The split of responsibility is deliberate: the **generic tracker decides *when*
 the pointer crosses a boundary; each widget decides *what that means* for its
 own state.** `WidgetHoverTrackingProjection`
-([projection/higherorder/WidgetHoverTracking.jl](../../package/visual/main/widget/WidgetHoverTracking.jl))
+([projection/higherorder/WidgetHoverTracking.jl](../../../package/visual/main/widget/WidgetHoverTracking.jl))
 is transparent on print; on each `MouseMove` it:
 
 1. routes a synthetic `MouseEnter` at the pointer into the inner pipeline — the
@@ -535,7 +535,7 @@ Widgets carry a `selection::Reference` field like every other Document.
 Selection paths typically descend into `content` for leaf widgets, into
 `elements`/`selector_element_pairs` (collections) for containers, or to specific
 fields like `scroll_position` of a scroll pane. The standard rules in
-[the reference guide](../editor/reference.md) apply.
+[the reference guide](../../../package/kernel/doc/reference.md) apply.
 
 ### Keyboard routing follows the selection
 
@@ -560,5 +560,5 @@ traversal, not by a routing guess.
   through widgets only as a presentation layer; keep the source-of-truth
   document in its own semantic domain.
 
-The Workbench domain (see [the workbench guide](workbench.md)) is the largest
+The Workbench domain (see [the workbench guide](../../../package/domain/doc/workbench.md)) is the largest
 example of a widget consumer in ProjecturEd.

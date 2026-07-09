@@ -10,16 +10,18 @@ The canonical reading order for contributors is in [README.md](README.md) under 
 
 1. [documentation/concepts.md](documentation/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
 2. [documentation/architecture.md](documentation/architecture.md) — the package chain, layer/slice structure, and module inventory.
-3. [documentation/reactive-cells.md](documentation/reactive-cells.md) — the pull-based reactive cell system that powers incrementality.
-4. [documentation/macros.md](documentation/macros.md) — `@document`, `@projection`, `@iomap`.
-5. [documentation/projection-system.md](documentation/projection-system.md) — the four interface functions and the printer/reader pair.
-6. [documentation/editor.md](documentation/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
+3. [package/kernel/doc/cell.md](package/kernel/doc/cell.md) — the pull-based reactive cell system that powers incrementality.
+4. [package/kernel/doc/macros.md](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap`.
+5. [package/kernel/doc/projection-system.md](package/kernel/doc/projection-system.md) — the four interface functions and the printer/reader pair.
+6. [package/kernel/doc/editor.md](package/kernel/doc/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
 
-When touching selection/reference handling or a specific domain, also consult:
+Per-package reference guides live in each package's `doc/` directory next to the
+code they document; the cross-cutting concept/architecture/tooling guides stay in
+[documentation/](documentation/). When touching selection/reference handling or a
+specific domain, also consult:
 
-- [documentation/editor/reference.md](documentation/editor/reference.md) and [documentation/editor/selection.md](documentation/editor/selection.md) — how selections are represented and mapped through projections.
-- [documentation/selection-deep-dive.md](documentation/selection-deep-dive.md) — the full reference/selection mechanism with worked examples.
-- [documentation/document/](documentation/document/) — per-domain guides: [json.md](documentation/document/json.md), [xml.md](documentation/document/xml.md), [text.md](documentation/document/text.md), [syntax.md](documentation/document/syntax.md), [graphics.md](documentation/document/graphics.md), [widget.md](documentation/document/widget.md), [workbench.md](documentation/document/workbench.md), [collection.md](documentation/document/collection.md), [versioning.md](documentation/document/versioning.md).
+- [package/kernel/doc/reference.md](package/kernel/doc/reference.md) and [package/kernel/doc/selection.md](package/kernel/doc/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
+- Per-domain guides: [json](package/domain/doc/json.md), [xml](package/domain/doc/xml.md), [workbench](package/domain/doc/workbench.md), [versioning](package/domain/doc/versioning.md) (domain); [text](package/visual/doc/text.md), [syntax](package/visual/doc/syntax.md), [graphics](package/visual/doc/graphics.md), [widget](package/visual/doc/widget.md) (visual); [collection](package/base/doc/collection.md) (base).
 
 When iterating in the REPL or running the test suite:
 

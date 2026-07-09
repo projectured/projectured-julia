@@ -28,6 +28,15 @@ Machine-enforced by the layered guard in
 
 ### document — the concrete engine documents
 
+The how-to for the shipped collection containers (`CellVector`, `CellMatrix`,
+`CellTable`, `ListNode`) and the Primitive documents is the base
+document-layer guide, [collection.md](collection.md).
+
+**Membership test for this layer:** a document type belongs in base/document if
+it is **shipped for reuse** by every domain (not editor-loop machinery) and is
+**domain-independent** (no domain concept in its structure). Collection and
+Primitive pass; Json, Xml, etc. don't — they are per-slice domain content.
+
 - **`Collection.jl`** — the `CollectionModule` aggregator; one fragment file
   per shape under `collection/` (`CellVector`, `CellMatrix`, `CellTable`,
   `ListNode`): the reactive sequence and grid containers every domain

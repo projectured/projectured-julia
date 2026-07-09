@@ -3,7 +3,7 @@
 This document explains the *why* behind ProjecturEd's key architectural
 choices. For the *what* (module inventory, package/layer/slice structure) see the
 [architecture guide](architecture.md). For the full reference/selection mechanism
-see the [selection deep dive](selection-deep-dive.md).
+see the [selection deep dive](../package/kernel/doc/selection.md).
 
 ---
 
@@ -124,7 +124,7 @@ This optimisation is valid for *leaf-to-leaf* projections where the input and
 output selection formats are identical. For compound projections (arrays,
 objects) each child document manages its own `selection` cell and
 `set_selection!` sets them individually. See
-[Selection projection under recursion](selection-deep-dive.md#selection-projection-under-recursion).
+[Selection projection under recursion](../package/kernel/doc/selection.md#selection-projection-under-recursion).
 
 ## 8. `ProjectionReference` for projection-introduced elements
 
@@ -173,7 +173,7 @@ reason about: work is proportional to what is written and then pulled, full
 stop. The practical consequence to keep in mind is that writing a cell its own
 current value is **not** free — e.g. a printer that rewrites `selection` every
 frame pays to recompute the whole subtree that reads it. See
-[the reactive invariants](reactive-cells.md#invariants-the-engine-relies-on).
+[the reactive invariants](../package/kernel/doc/cell.md#invariants-the-engine-relies-on).
 
 ---
 

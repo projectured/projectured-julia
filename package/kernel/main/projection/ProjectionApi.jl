@@ -42,7 +42,7 @@ Two things are therefore **forbidden**:
    projection needing it with one that does not breaks at that boundary. All
    descent must ride the functions everyone already implements. (This is also why
    the contract is validated *externally*, by a harness driving these four — see
-   [documentation/testing.md](../../../documentation/testing.md) — never by adding
+   [documentation/testing.md](../../../../documentation/testing.md) — never by adding
    an interface method.)
 2. **No self-walking / flattening by child type.** A function must not recurse over
    the input (or output) subtree itself, dispatching on each child's concrete type,
@@ -51,9 +51,9 @@ Two things are therefore **forbidden**:
    a substituted projection — the "School B" anti-pattern. Delegate through the
    child IoMap / `recursion` instead ("School A").
 
-See [documentation/projection-system.md](../../../documentation/projection-system.md)
+See [package/kernel/doc/projection-system.md](../../doc/projection-system.md)
 ("The recursion contract" and "Recursion across projections") for worked recipes
-and [documentation/selection-deep-dive.md](../../../documentation/selection-deep-dive.md)
+and [package/kernel/doc/selection.md](../../doc/selection.md)
 for the selection mechanism.
 """
 module ProjectionApiModule
@@ -259,14 +259,14 @@ This is the mapper `print_document` uses to wire the output selection (see
 its docstring), so getting it right gives the forward cursor mapping for free.
 
 - Express the cases with `@reference_case` (see
-  [documentation/editor/reference.md](../../../documentation/editor/reference.md)).
+  [package/kernel/doc/reference.md](../../doc/reference.md)).
 - **Recurse in lockstep with the printer.** If `print_document` recursed into
   children, so must this: peel only the steps this projection owns, look up the
   child the peeled step selects in the **stored child IoMaps**, and delegate the
   remaining tail to that child projection's own `map_reference_forward`. Do *not*
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
-  other domains (see [documentation/projection-system.md](../../../documentation/projection-system.md)).
+  other domains (see [package/kernel/doc/projection-system.md](../../doc/projection-system.md)).
 - **The output domain may be coordinates, not only structure.** "Output
   reference" means *whatever reference addresses this projection's output
   domain*. At the bottom of a render chain that is a **coordinate** domain, where

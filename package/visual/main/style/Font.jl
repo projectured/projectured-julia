@@ -104,7 +104,7 @@ recompute_display_scale!() = (_DISPLAY_SCALE[] = _BASE_DISPLAY_SCALE[] * _USER_Z
 # display scale, layout DOES read it (`font_logical_size`), so it must be a
 # reactive `Cell` — writing it invalidates the text-layout cells that read it
 # during their thunks, which is what makes a font-zoom change relayout. A plain
-# value would leave those cached layouts stale (see documentation/reactive-cells.md).
+# value would leave those cached layouts stale (see package/kernel/doc/cell.md).
 const _FONT_ZOOM = Cell(1.0)
 
 """

@@ -2,6 +2,14 @@
 
 Three reading tracks depending on your goal.
 
+Guides come in two kinds. **Cross-cutting guides** — concepts, the whole-system
+architecture, onboarding, and the repo-wide tooling — live here in
+`documentation/`. **Per-package reference guides** live next to the code they
+document, in each package's `doc/` directory
+([kernel](../package/kernel/doc/), [base](../package/base/doc/),
+[visual](../package/visual/doc/), [domain](../package/domain/doc/)). The AI
+agent sees both sets through `list_guides` / `read_guide`.
+
 ---
 
 ## Track 1 — New here (user / evaluator)
@@ -28,12 +36,13 @@ You want to add a domain, a projection, a backend, or extend an existing one.
 2. [Architecture](architecture.md) — the package chain, layer/slice structure,
    full module inventory, pipeline status. See [Terminology](terminology.md)
    for the division vocabulary (package / layer / slice / module).
-3. [Reactive cells](reactive-cells.md) — `Cell`, dependency tracking, lazy
-   invalidation. Everything assumes you understand this.
-4. [Macros](macros.md) — `@document`, `@projection`, `@iomap` and why field
-   access looks like plain Julia even though every field is a `Cell`.
-5. [Projection system](projection-system.md) — the four interface functions,
-   the printer/reader pair, and the projection taxonomy.
+3. [Reactive cells](../package/kernel/doc/cell.md) — `Cell`, dependency
+   tracking, lazy invalidation. Everything assumes you understand this.
+4. [Macros](../package/kernel/doc/macros.md) — `@document`, `@projection`,
+   `@iomap` and why field access looks like plain Julia even though every field
+   is a `Cell`.
+5. [Projection system](../package/kernel/doc/projection-system.md) — the four
+   interface functions, the printer/reader pair, and the projection taxonomy.
 6. [Tutorial: new domain](tutorial-new-domain.md) — step-by-step: define
    document types, write a projection, implement the reader, add an example,
    write a test.
@@ -44,16 +53,15 @@ You want to add a domain, a projection, a backend, or extend an existing one.
 
 Then read the guide for the domain or area you are touching:
 
-- Higher-order projections: [higher-order projections guide](higher-order-projections.md)
-- Generic projections: [generic projections guide](generic-projections.md)
-- Operations: [operations guide](operations.md)
-- Editor loop: [editor guide](editor.md)
-- References + DSL: [reference guide](editor/reference.md)
-- Selection mechanism: [selection guide](editor/selection.md) and
-  [selection deep dive](selection-deep-dive.md)
-- Finding / selecting nodes by content: [finding-and-selecting guide](editor/finding-and-selecting.md)
-- Backends and devices: [devices and backends guide](devices-and-backends.md)
-- Per-domain: [document/](document/)
+- Higher-order projections: [higher-order projections guide](../package/kernel/doc/higher-order-projections.md)
+- Generic projections: [generic projections guide](../package/kernel/doc/generic-projections.md)
+- Operations: [operations guide](../package/kernel/doc/operation.md)
+- Editor loop: [editor guide](../package/kernel/doc/editor.md)
+- References + DSL: [reference guide](../package/kernel/doc/reference.md)
+- Selection mechanism: [selection guide](../package/kernel/doc/selection.md)
+- Finding / selecting nodes by content: [finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)
+- Backends and devices: [devices and backends guide](../package/kernel/doc/devices-and-backends.md)
+- Per-domain: [visual/doc/](../package/visual/doc/), [domain/doc/](../package/domain/doc/), [base/doc/](../package/base/doc/)
 
 ---
 
@@ -68,7 +76,7 @@ Read it first; it will point you here and to the specific guides you need.
 
 ## Full guide listing
 
-### Conceptual
+### Conceptual (top level)
 
 | Guide | Contents |
 |---|---|
@@ -77,7 +85,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Vision](vision.md) | Long-term potential, positioning, and "compared to…" |
 | [Roadmap](roadmap.md) | Near-, medium-, and long-term development priorities |
 
-### Getting started
+### Getting started (top level)
 
 | Guide | Contents |
 |---|---|
@@ -85,8 +93,9 @@ Read it first; it will point you here and to the specific guides you need.
 | [Debugging](debugging.md) | REPL debugging: print_example, write_example_image, forcing cells |
 | [Testing](testing.md) | test_all and per-package test helpers |
 | [Tutorial: new domain](tutorial-new-domain.md) | Step-by-step: add a new domain |
+| [Orientation](orientation.md) | Concept→symbol search index for navigating the code |
 
-### Architecture
+### Architecture (top level)
 
 | Guide | Contents |
 |---|---|
@@ -95,39 +104,45 @@ Read it first; it will point you here and to the specific guides you need.
 | [Architecture rules](architecture-rules.md) | Decision rules: when to create a package, layer, slice, or module, and where code belongs |
 | [Architecture requirements](architecture-requirements.md) | Numbered internal development requirements (AR-N): the invariants and conventions every change must respect |
 | [Design decisions](design-decisions.md) | Rationale for key architectural choices |
-| [Design overview](design.md) | ← redirects to the three split documents above |
+| [Requirements](requirements.md) | Implementation-independent behavior/capability spec |
 
-### The projection system
+Each package also documents its own internal structure in its `doc/architecture.md`:
+[kernel](../package/kernel/doc/architecture.md) ·
+[base](../package/base/doc/architecture.md) ·
+[visual](../package/visual/doc/architecture.md) ·
+[domain](../package/domain/doc/architecture.md).
 
-| Guide | Contents |
-|---|---|
-| [Projection system](projection-system.md) | The four interface functions and projection taxonomy |
-| [Higher-order projections](higher-order-projections.md) | Sequential, Recursive, dispatchers, Nesting, Alternative |
-| [Generic projections](generic-projections.md) | Preserving, Invariably, Copying, Sorting, Reversing, Focusing |
-| [Operations](operations.md) | Operations: what they are and how the reader produces them |
-| [Macros](macros.md) | @document, @projection, @iomap |
-| [Reactive cells](reactive-cells.md) | Cell, dependency tracking, lazy invalidation |
-
-### Editor and runtime
+### The projection system (kernel)
 
 | Guide | Contents |
 |---|---|
-| [Editor](editor.md) | REPL loop, event handling, rendering pipeline |
-| [Reference guide](editor/reference.md) | Reference paths and the @reference / @reference_case DSL |
-| [Selection guide](editor/selection.md) | How selection is stored and propagated |
-| [Finding and selecting](editor/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_objects`), resolve paths (`evaluate_reference`), select |
-| [Selection deep dive](selection-deep-dive.md) | Full reference/selection mechanism with worked examples |
-| [Devices and backends](devices-and-backends.md) | Backend/Device split, the SDL, Console, and Web backends, and how to add a new one |
+| [Projection system](../package/kernel/doc/projection-system.md) | The four interface functions, the recursion contract, and the projection taxonomy |
+| [Higher-order projections](../package/kernel/doc/higher-order-projections.md) | Chaining, Recursive, the dispatchers, Nesting, Switching |
+| [Generic projections](../package/kernel/doc/generic-projections.md) | Identity, Copying, Sorting, Reversing, Filtering, Focusing, … |
+| [Operations](../package/kernel/doc/operation.md) | Operations: what they are and how the reader produces them |
+| [Macros](../package/kernel/doc/macros.md) | @document, @projection, @iomap |
+| [Reactive cells](../package/kernel/doc/cell.md) | Cell, dependency tracking, lazy invalidation |
 
-### Per-domain
+### Editor and runtime (kernel)
 
-| Guide | Domain |
+| Guide | Contents |
 |---|---|
-| [JSON domain](document/json.md) | JSON |
-| [XML domain](document/xml.md) | XML |
-| [Text domain](document/text.md) | Text |
-| [Syntax domain](document/syntax.md) | Syntax (intermediate) |
-| [Graphics domain](document/graphics.md) | Graphics + write_image + write_pdf |
-| [Widget domain](document/widget.md) | Widgets |
-| [Workbench domain](document/workbench.md) | Workbench (IDE shell) |
-| [Collection domain](document/collection.md) | CellVector and ListNode |
+| [Editor](../package/kernel/doc/editor.md) | REPL loop, event handling, rendering pipeline |
+| [Reference guide](../package/kernel/doc/reference.md) | Reference paths and the @reference / @reference_case DSL |
+| [Selection guide](../package/kernel/doc/selection.md) | How selection is stored and propagated, incl. the recursion algorithm |
+| [Finding and selecting](../package/kernel/doc/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_objects`), resolve paths (`evaluate_reference`), select |
+| [Devices and backends](../package/kernel/doc/devices-and-backends.md) | Backend/Device split, the SDL, Console, and Web backends, and how to add a new one |
+
+### Per-domain (in the owning package)
+
+| Guide | Domain | Package |
+|---|---|---|
+| [JSON domain](../package/domain/doc/json.md) | JSON | domain |
+| [XML domain](../package/domain/doc/xml.md) | XML | domain |
+| [Workbench domain](../package/domain/doc/workbench.md) | Workbench (IDE shell) | domain |
+| [Versioning domain](../package/domain/doc/versioning.md) | Versioning overlay | domain |
+| [Text domain](../package/visual/doc/text.md) | Text | visual |
+| [Syntax domain](../package/visual/doc/syntax.md) | Syntax (intermediate) | visual |
+| [Graphics domain](../package/visual/doc/graphics.md) | Graphics + write_image + write_pdf | visual |
+| [Widget domain](../package/visual/doc/widget.md) | Widgets | visual |
+| [Collection domain](../package/base/doc/collection.md) | CellVector and ListNode | base |

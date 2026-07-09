@@ -4,7 +4,7 @@
 
 The XML domain represents XML documents as a tree of reactive nodes. Every node is a Document with reactive Cell fields. Attributes are first-class documents so the selection mechanism can descend into attribute values.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../editor/reference.md#the-boundary-axis). In XML the axis appears as child nodes, attributes, *and* characters in text content or attribute values; the same `[i]` / `{k}` syntax addresses both.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../../../package/kernel/doc/reference.md#the-boundary-axis). In XML the axis appears as child nodes, attributes, *and* characters in text content or attribute values; the same `[i]` / `{k}` syntax addresses both.
 
 ## Types
 

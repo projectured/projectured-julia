@@ -7,6 +7,15 @@ projection pipeline) see the repository-level
 [documentation/architecture.md](../../../documentation/architecture.md);
 this document is **only about domain**.
 
+## Per-slice guides
+
+Companion guides for individual domain slices live alongside this file:
+
+- [json.md](json.md) — the JSON domain
+- [xml.md](xml.md) — the XML domain
+- [workbench.md](workbench.md) — the workbench application slice
+- [versioning.md](versioning.md) — the versioning overlay
+
 ## What the domain package is
 
 `ProjecturedDomain` holds every **concrete source domain** ProjecturEd

@@ -5,7 +5,7 @@
 # forward that operation up, the container prepends the step(s) that lead
 # from itself to that child (e.g. `elements[i]`, `children[i]`). The same
 # lift powers the recursive gesture reader — see
-# `documentation/projection-system.md`.
+# `package/kernel/doc/projection-system.md`.
 #
 # `reroot_operation` is an *open* generic rather than a closed `if op isa …`
 # chain, because `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`
@@ -18,7 +18,7 @@
 # INVARIANT: a new path-bearing operation type must add a `reroot_operation`
 # method. Missing methods fall through to the catch-all and are returned
 # unchanged — the reference is not rerooted. Kept in sync with the default
-# `ProjectionModule.read_intent`; see documentation/operations.md.
+# `ProjectionModule.read_intent`; see package/kernel/doc/operation.md.
 
 """
     reroot_reference(ref, steps::Tuple) -> ReferencePath

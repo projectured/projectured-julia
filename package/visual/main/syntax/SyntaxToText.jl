@@ -5,7 +5,7 @@ Syntax → Text projection. Each `SyntaxNode` transforms only its own single lev
 marker, delimiters, separators, newline/indent decoration — and projects every
 child one level down through `recursion` (`print_child`), splicing the child's
 output element list into its own (School A; see the recursion contract in
-documentation/projection-system.md). The per-child element ranges and the child
+package/kernel/doc/projection-system.md). The per-child element ranges and the child
 IoMaps are recorded in the IoMap so the mappers and reader can peel the one
 `.children[i]` step this node owns and delegate the rest to the child's own mapper.
 """

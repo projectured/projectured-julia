@@ -186,7 +186,7 @@ dedicated test under [domain/test/document/](../package/domain/test/document/).
 The four core projection functions (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) must each be **recursive** —
 descending into children only by delegating to the child projection's own version
-of the same function. That is [the recursion contract](projection-system.md#the-recursion-contract),
+of the same function. That is [the recursion contract](../package/kernel/doc/projection-system.md#the-recursion-contract),
 and a load-bearing half of it is that **no fifth recursive function may be
 introduced** to do the descent: the four functions are the only interface every
 projection implements, so any extra recursive function would break the moment a

@@ -108,7 +108,7 @@ editor, analogous to VS Code extensions.
 ### 8. Annotation domain
 
 Attaching typed annotations to any document through a global registry is
-described in the design ([editor/annotation.md](editor/annotation.md)) but not
+described in the design ([editor/annotation.md](../plan/tentative/annotation.md)) but not
 yet implemented; no annotation types or functions exist in the code today.
 
 ### 9. Self-hosting

@@ -31,6 +31,16 @@ Until that lands, LayoutToGraphics + WidgetToGraphics are reordered in the
 include list (loaded after Widget); this is order-only, not a semantic
 change.
 
+## Per-slice guides
+
+Four of the render-target slices have their own deep-dive guides, sitting
+alongside this document in `package/visual/doc/`:
+
+- [Text domain](text.md) — styled text spans and character-offset selection.
+- [Syntax domain](syntax.md) — the generic tree presentation target.
+- [Graphics domain](graphics.md) — backend-agnostic drawing primitives.
+- [Widget domain](widget.md) — the UI widget system and its themes.
+
 ## Slice inventory
 
 ### style/ — the pure value types

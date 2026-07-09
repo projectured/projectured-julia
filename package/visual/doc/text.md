@@ -4,7 +4,7 @@
 
 The text domain bridges structural (syntax tree) and visual (graphics) domains. Text is stored as a flat sequence of spans, each with its own reactive style and color. Selection is a flat character offset.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../editor/reference.md#the-boundary-axis). In Text the axis appears as spans *and* as characters within a span; the same `[i]` / `{k}` syntax addresses both.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../../../package/kernel/doc/reference.md#the-boundary-axis). In Text the axis appears as spans *and* as characters within a span; the same `[i]` / `{k}` syntax addresses both.
 
 ## Types
 
@@ -60,7 +60,7 @@ Each span has:
 ## Gesture mapping (`read_gesture`)
 
 The geometry-free half of the Text reader lives on the document itself:
-`read_gesture(::TextText, gesture)` ([text/Text.jl](../../package/visual/main/text/Text.jl))
+`read_gesture(::TextText, gesture)` ([text/Text.jl](../../../package/visual/main/text/Text.jl))
 maps an input gesture to an operation expressed against the `TextText`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 
@@ -76,4 +76,4 @@ references (reading only `elements` and `selection`, never any pixel layout):
 (visual up/down, plain Home/End, mouse click). Any backend that renders a
 `TextText` directly — e.g. the `ConsoleBackend` — therefore gets character-level
 editing without a graphics layout pass. See
-[documentation/projection-system.md](../projection-system.md) for the full reader split.
+[projection-system.md](../../../package/kernel/doc/projection-system.md) for the full reader split.

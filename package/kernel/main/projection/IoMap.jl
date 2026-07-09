@@ -40,7 +40,7 @@ Storing the child IoMaps is what lets `map_reference_forward` /
 printer: they peel the one step the projection owns, look the child up here, and
 delegate the tail to that child's *own* mapper. That keeps the projection
 independent of the domains its children belong to (see "Mapping references when
-the printer recurses" in documentation/projection-system.md). A projection with a strict
+the printer recurses" in package/kernel/doc/projection-system.md). A projection with a strict
 positional contract and no recursion uses `SimpleIoMap` instead.
 """
 struct ChildrenIoMap <: IoMap
