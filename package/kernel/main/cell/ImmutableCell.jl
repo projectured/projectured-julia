@@ -1,5 +1,4 @@
-# ImmutableCell — the read-only, zero-cost kind. Included into `CellModule`
-# (see CellModule.jl).
+# Fragment of `CellModule` — the read-only, zero-cost cell kind.
 
 """
     ImmutableCell{T}
