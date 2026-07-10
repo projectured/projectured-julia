@@ -270,9 +270,10 @@ Base.:(==)(a::FieldReference,      b::FieldReference)      = a.name   == b.name
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 
-# Strict equality: the folded node `type` fields are significant, so an annotated
-# (canonical) path is not `==` its stripped skeleton. `is_reference_equal_ignoring_types`
-# blanks the types (via `strip_reference_types`) for cross-form comparison.
+# Strict equality: the folded node `type` fields are significant, so an
+# annotated (canonical) path is not `==` its stripped skeleton. Callers that
+# want a shape-only comparison strip both sides first
+# (`strip_reference_types(a) == strip_reference_types(b)`).
 Base.:(==)(a::EmptyReferencePath,   b::EmptyReferencePath)   = a.type === b.type
 Base.:(==)(::EmptyReferencePath,   ::ConcreteReferencePath) = false
 Base.:(==)(::ConcreteReferencePath, ::EmptyReferencePath)  = false
@@ -283,35 +284,9 @@ Base.:(==)(a::ConcreteReferencePath, b::ConcreteReferencePath) =
     is_reference_equal(a, b)
 
 Structural equality of two reference paths. **Strict**: node type fields are
-significant, so an annotated path is not equal to its stripped form. Use
-[`is_reference_equal_ignoring_types`](@ref) to compare across annotated/plain forms.
+significant, so an annotated path is not equal to its stripped form.
 """
 is_reference_equal(a::ReferencePath, b::ReferencePath) = a == b
-
-# `skip_type_checkpoints` was retired: in the folded model a node's `head` is
-# always a navigation step (the type lives in the node's `type` field), so there
-# are no interleaved checkpoint *steps* to skip past — consumers read `head`/`tail`
-# directly. Cross-form comparison ignoring node types uses
-# `is_reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`.
-
-"""
-    is_reference_equal_ignoring_types(a, b)
-
-Structural equality of two reference paths **ignoring** type checkpoints: both
-paths are stripped of their [`TypeReference`](@ref) steps before comparison, so an
-annotated (canonical) path compares equal to its plain navigation skeleton.
-"""
-is_reference_equal_ignoring_types(a::ReferencePath, b::ReferencePath) =
-    strip_reference_types(a) == strip_reference_types(b)
-
-"""
-    is_prefix_of_ignoring_types(a, b)
-
-Like [`is_prefix_of`](@ref) but ignoring type checkpoints: both paths are stripped
-before the prefix test.
-"""
-is_prefix_of_ignoring_types(a::ReferencePath, b::ReferencePath) =
-    is_prefix_of(strip_reference_types(a), strip_reference_types(b))
 
 """
     is_prefix_of(a, b)

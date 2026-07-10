@@ -151,7 +151,8 @@ function test_document_insertion()
             fwd = map_reference_forward(proj, iom, _ins_vpath(2))
             @test fwd !== nothing
             back = map_reference_backward(proj, iom, fwd)
-            @test ReferenceModule.is_reference_equal_ignoring_types(back, _ins_vpath(2))
+            @test ReferenceModule.strip_reference_types(back) ==
+                  ReferenceModule.strip_reference_types(_ins_vpath(2))
             # The node selection follows the insertion's own cursor.
             @test string(node.selection) == ".children[1].value{0}"
         end

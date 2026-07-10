@@ -527,7 +527,11 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
 
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
-        return :(ReferenceModule.is_reference_equal_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
+        # Shape-only comparison: both sides stripped of type checkpoints so a
+        # canonical path matches a plain interpolated skeleton.
+        return :((ReferenceModule.strip_reference_types($path_ex) ==
+                  ReferenceModule.strip_reference_types($expr)) ?
+                 $success : _nomatch), bound
     end
 
     p = gensym(:p)
@@ -560,7 +564,11 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
 
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
-        return :(ReferenceModule.is_prefix_of_ignoring_types($path_ex, $expr) ? $success : _nomatch), bound
+        # Shape-only prefix check: both sides stripped first.
+        return :(ReferenceModule.is_prefix_of(
+                    ReferenceModule.strip_reference_types($path_ex),
+                    ReferenceModule.strip_reference_types($expr)) ?
+                 $success : _nomatch), bound
     end
 
     # A leading `::T` is a non-navigating, optional, *tolerant* type assertion

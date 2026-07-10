@@ -63,9 +63,10 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 @test annotated.head == ElementReference(1)
 @test annotated.type === JsonArray            # the type is a node field, not a step
 
-# Ignoring-types equality treats an annotated path as equal to its skeleton,
-# while strict equality keeps them distinct.
-@test is_reference_equal_ignoring_types(annotated, plain)
+# Stripping the annotated form to its plain skeleton yields the plain form —
+# the recorded types are pure metadata over the same navigation. Strict
+# equality still keeps annotated ≠ plain.
+@test strip_reference_types(annotated) == plain
 @test !is_reference_equal(annotated, plain)
 
 # set_selection! / clear_selection! walk an annotated path exactly like the
