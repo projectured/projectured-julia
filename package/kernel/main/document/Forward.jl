@@ -1,11 +1,8 @@
 # Fragment of `DocumentModule` — the `@forward*` family: helpers that expose a
-# nested field's protocol on a wrapper document by generating delegating methods,
-# so a compound document that delegates to one field need not hand-write one
-# method per forwarded function. Split out of `Document.jl` (the `@document` macro
-# and value protocol), it shares the same `DocumentModule` namespace and is
-# included right after it — see `DocumentModule.jl`. The forwarded fields are read
-# through `getproperty`, so they see the unwrapped value of a `@document` Cell
-# field.
+# nested field's protocol on a wrapper document by generating delegating
+# methods, so a compound document that delegates to one field need not
+# hand-write one method per forwarded function. Fields are read through
+# `getproperty`, so a `@document` Cell field is seen as its unwrapped value.
 
 # Build one delegating method per function: `f(x::T, args...) =
 # f(getproperty(x, :field), args...)`. Shared by `@forward` and the presets.
@@ -54,8 +51,7 @@ const _VECTOR_PROTOCOL = [:(Base.size), :(Base.length), :(Base.isempty),
 Expose `T` as a vector over its `field` by forwarding the whole vector protocol
 (`size`/`length`/`isempty`/`firstindex`/`lastindex`/`eachindex`/`getindex`/
 `setindex!`/`iterate`/`push!`/`pop!`/`insert!`/`deleteat!`) to it. A preset of
-`@forward` for the common case where `field` (e.g. a `CellVector`) already
-implements that protocol.
+`@forward` for a wrapper whose backing `field` already implements the protocol.
 """
 macro forward_vector(T, field)
     _forward_defs(T, field, _VECTOR_PROTOCOL)
@@ -64,17 +60,18 @@ end
 """
     @forward_map T field keyfield valfield EntryCtor
 
-Expose `T` as an ordered associative map stored as `field` (a `CellVector` of
-entry documents). Generates `getindex`/`setindex!`/`haskey`/`keys`/`values`/
-`get`/`delete!` and a pair-`iterate`, all by linear scan over `field`:
+Expose `T` as an ordered associative map stored as `field` — an integer-indexed
+sequence container of entry documents. Generates `getindex`/`setindex!`/`haskey`/
+`keys`/`values`/`get`/`delete!` and a pair-`iterate`, all by linear scan over
+`field`:
 
 - `keyfield` / `valfield` — the entry's key/value fields (read via `getproperty`).
 - `EntryCtor` — called as `EntryCtor(key, value)` to build a fresh entry on insert.
 
-Unlike `@forward_vector` this is not a pure pass-through: the `CellVector` is
-integer-indexed and iterates *values*, so the keyed methods translate between a
-key and its matching entry. `setindex!` replaces the first matching entry (whole
-entry) else appends; `delete!` removes every match.
+Unlike `@forward_vector` this is not a pure pass-through: the underlying sequence
+is integer-indexed and iterates *values*, so the keyed methods translate between
+a key and its matching entry. `setindex!` replaces the first matching entry
+(whole entry) else appends; `delete!` removes every match.
 """
 macro forward_map(T, field, keyfield, valfield, ctor)
     f, k, v = QuoteNode(field), QuoteNode(keyfield), QuoteNode(valfield)
