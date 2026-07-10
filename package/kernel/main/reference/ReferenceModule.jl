@@ -59,6 +59,8 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        fold_reference_types,
        # Step-type extensibility seam:
        step_kind, evaluate_step,
+       # DSL extension seams:
+       dsl_build_step, dsl_match_step,
        # Selection generics:
        get_selection, clear_selection!, set_selection!, with_selection,
        # ReferenceCase DSL:

@@ -45,18 +45,16 @@ struct BSRange <: BuildStep
     stopexpr
 end
 
-struct BSPoint <: BuildStep
-    xexpr
-    yexpr
-end
-
-struct BSProjection <: BuildStep
-    projexpr
-    outpath::Vector{BuildStep}
-end
-
 struct BSPathSplice <: BuildStep
     expr
+end
+
+# A `.name(args...)` DSL entry whose step type is registered by dispatch on
+# `dsl_build_step(::Val{name}, escaped_args...)`. Kernel-owned entries (`.field`,
+# `.point`, `.proj`) register in this file; higher packages register their own.
+struct BSExtension <: BuildStep
+    name::Symbol
+    args::Vector{Any}
 end
 
 # A first-class type checkpoint step: `f::T` emits the steps of `f` and then a
@@ -118,9 +116,11 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
         f = ex.args[1]
 
         if f == :proj
-            # Top-level: proj(projection, subpath)
+            # Top-level: proj(projection, subpath) — dispatched through the
+            # extension seam so the concrete step type can live in the
+            # package that owns projections.
             length(ex.args) == 3 || error(".proj(projection, outpath) expects exactly two arguments: $ex")
-            push!(steps, BSProjection(ex.args[2], _parse_build_subpath(ex.args[3])))
+            push!(steps, BSExtension(:proj, Any[ex.args[2], _parse_build_subpath(ex.args[3])]))
             return steps
 
         elseif f == :(^)
@@ -145,18 +145,17 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
                 push!(steps, BSField(ex.args[2]))
                 return steps
 
-            elseif opname == :point
-                length(ex.args) == 3 || error(".point(x, y) expects exactly two arguments")
-                push!(steps, BSPoint(ex.args[2], ex.args[3]))
-                return steps
-
             elseif opname == :proj
                 length(ex.args) == 3 || error(".proj(projection, outpath) expects exactly two arguments")
-                push!(steps, BSProjection(ex.args[2], _parse_build_subpath(ex.args[3])))
+                push!(steps, BSExtension(:proj, Any[ex.args[2], _parse_build_subpath(ex.args[3])]))
                 return steps
 
             else
-                error("unsupported path operation .$opname(...) in @reference: $ex")
+                # Everything else is dispatched through the extension seam so
+                # a higher-package step type (e.g. `.point(x, y)` in visual/
+                # graphics) can register its own DSL entry at its own site.
+                push!(steps, BSExtension(opname, Any[ex.args[2:end]...]))
+                return steps
             end
         else
             error("unsupported call form in @reference: $ex")
@@ -259,10 +258,6 @@ function _gen_build_step(step::BSRange)
     return :(ReferenceModule.RangeReference(Int($(esc(step.startexpr))), Int($(esc(step.stopexpr)))))
 end
 
-function _gen_build_step(step::BSPoint)
-    return :(ReferenceModule.PointReference(Int($(esc(step.xexpr))), Int($(esc(step.yexpr)))))
-end
-
 function _gen_build_step(step::BSPathSplice)
     return esc(step.expr)
 end
@@ -271,11 +266,42 @@ function _gen_build_step(step::BSType)
     return :(ReferenceModule.TypeReference($(esc(step.typeexpr))))
 end
 
-function _gen_build_step(step::BSProjection)
-    projex = esc(step.projexpr)
-    outpathex = _gen_build_path(step.outpath)
-    return :(ReferenceModule.ProjectionReference($projex, $outpathex))
+# Extension-registered `.name(args...)` DSL entries dispatch through
+# `dsl_build_step(::Val{name}, escaped_args...)`. The `.proj` entry is
+# special-cased: its second arg is a subpath the parser already parsed
+# into a `Vector{BuildStep}`, so we lower it before dispatching.
+function _gen_build_step(step::BSExtension)
+    args = if step.name === :proj
+        Any[esc(step.args[1]), _gen_build_path(step.args[2])]
+    else
+        Any[esc(a) for a in step.args]
+    end
+    return dsl_build_step(Val(step.name), args...)
 end
+
+"""
+    dsl_build_step(::Val{name}, escaped_args...) -> Expr
+
+Return the expression that constructs the step type mapped to `.name(args...)`
+in the `@reference` DSL. `escaped_args` are `esc`'d Julia expressions ready
+to splice into the returned constructor call. Each package registers a
+`::Val{:name}` method for its own step types; the kernel registers
+`.point` (moves to visual/graphics in step 5) and `.proj` (moves to
+kernel/projection).
+"""
+function dsl_build_step end
+
+dsl_build_step(::Val{n}, args...) where {n} =
+    error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
+
+# Kernel-registered DSL entries. `.point` and `.proj` register here today;
+# in phase 5 the `.point` registration moves out of the kernel into
+# visual/graphics, and `.proj` moves into kernel/projection.
+dsl_build_step(::Val{:point}, xex, yex) =
+    :(ReferenceModule.PointReference(Int($xex), Int($yex)))
+
+dsl_build_step(::Val{:proj}, projex, outpathex) =
+    :(ReferenceModule.ProjectionReference($projex, $outpathex))
 
 # Wrap a value so it can stand in as a ReferencePath: pass paths through,
 # wrap steps into a one-element path.
@@ -418,11 +444,11 @@ function _parse_step(ex)
             if opname == :field
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument in @step: $ex")
                 return BSField(ex.args[2])
-            elseif opname == :point
-                length(ex.args) == 3 || error(".point(x, y) expects exactly two arguments in @step: $ex")
-                return BSPoint(ex.args[2], ex.args[3])
             else
-                error("unsupported single-step operation .$opname(...) in @step: $ex")
+                # Dispatch through the extension seam — a higher-package step
+                # type (e.g. `.point(x, y)` in visual/graphics) can register
+                # its own DSL entry at its own site.
+                return BSExtension(opname, Any[ex.args[2:end]...])
             end
         else
             error("unsupported call form in @step: $ex")

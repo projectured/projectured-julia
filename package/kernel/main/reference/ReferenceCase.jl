@@ -61,14 +61,13 @@ struct PSRange <: PatStep
     stoppat::PatValue
 end
 
-struct PSPoint <: PatStep
-    xpat::PatValue
-    ypat::PatValue
-end
-
-struct PSProjection <: PatStep
-    projpat::PatValue
-    outpath::Vector{PatStep}
+# A `.name(patterns...)` DSL pattern whose step type is registered by dispatch
+# on `dsl_match_step(::Val{name}, hex, argpats, rest_success, bound)`. Kernel-
+# owned entries (`.point`, `.proj`) register in this file; higher packages
+# register their own.
+struct PSExtension <: PatStep
+    name::Symbol
+    argpats::Vector{Any}   # per-arg PatValue or Vector{PatStep} (subpath)
 end
 
 struct PSWholePathBind <: PatStep
@@ -179,9 +178,10 @@ function _parse_path!(steps::Vector{PatStep}, ex)
         f = ex.args[1]
 
         if f == :proj
-            # Top-level: proj(projpat, subpath)
+            # Top-level: proj(projpat, subpath) — dispatched through the
+            # extension seam.
             length(ex.args) == 3 || error("proj(projpat, outpath) expects exactly two arguments: $ex")
-            push!(steps, PSProjection(_parse_value(ex.args[2]), _parse_subpath(ex.args[3])))
+            push!(steps, PSExtension(:proj, Any[_parse_value(ex.args[2]), _parse_subpath(ex.args[3])]))
             return steps
 
         elseif f isa Expr && f.head == :. && f.args[2] isa QuoteNode
@@ -193,18 +193,15 @@ function _parse_path!(steps::Vector{PatStep}, ex)
                 push!(steps, PSField(_parse_value(ex.args[2])))
                 return steps
 
-            elseif opname == :point
-                length(ex.args) == 3 || error(".point(x, y) expects exactly two arguments")
-                push!(steps, PSPoint(_parse_value(ex.args[2]), _parse_value(ex.args[3])))
-                return steps
-
             elseif opname == :proj
                 length(ex.args) == 3 || error(".proj(projpat, outpath) expects exactly two arguments")
-                push!(steps, PSProjection(_parse_value(ex.args[2]), _parse_subpath(ex.args[3])))
+                push!(steps, PSExtension(:proj, Any[_parse_value(ex.args[2]), _parse_subpath(ex.args[3])]))
                 return steps
 
             else
-                error("unsupported path operation .$opname(...) in pattern: $ex")
+                # Everything else is dispatched through the extension seam.
+                push!(steps, PSExtension(opname, Any[_parse_value(a) for a in ex.args[2:end]]))
+                return steps
             end
         elseif f == :(^)
             length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
@@ -459,13 +456,37 @@ function _gen_step_match(hex, tex, step::PSRange, rest_success, bound::Set{Symbo
     return ex, bound1
 end
 
-function _gen_step_match(hex, tex, step::PSPoint, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PSExtension, rest_success, bound::Set{Symbol})
+    dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound)
+end
+
+"""
+    dsl_match_step(::Val{name}, hex, argpats, rest_success, bound) -> (Expr, Set{Symbol})
+
+Return `(match_branch, updated_bound)` for a `.name(patterns...)` pattern in the
+`@reference_case` DSL. `hex` is the expression bound to the current step, and
+`argpats` is the vector of parsed patterns (each a `PatValue` for a value
+argument, or a `Vector{PatStep}` for a subpath argument). Each package
+registers a `::Val{:name}` method for its own step types; the kernel's own
+`.point` and `.proj` entries live in this file.
+
+Helpers exposed to registration callers: `_gen_value_match(expr, pat,
+rest_success, bound)` for value patterns and `_gen_path_match(path_expr,
+patsteps, success, bound)` for subpath patterns.
+"""
+function dsl_match_step end
+
+dsl_match_step(::Val{n}, hex, argpats, rest_success, bound) where {n} =
+    error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
+
+# Kernel-registered DSL entries. `.point` moves to visual/graphics in phase 5;
+# `.proj` moves to kernel/projection.
+function dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound)
+    xpat, ypat = argpats[1], argpats[2]
     xexpr = :($hex.x)
     yexpr = :($hex.y)
-
-    inner2, bound2 = _gen_value_match(yexpr, step.ypat, rest_success, bound)
-    inner1, bound1 = _gen_value_match(xexpr, step.xpat, inner2, bound2)
-
+    inner2, bound2 = _gen_value_match(yexpr, ypat, rest_success, bound)
+    inner1, bound1 = _gen_value_match(xexpr, xpat, inner2, bound2)
     ex = quote
         if $hex isa ReferenceModule.PointReference
             $inner1
@@ -476,13 +497,12 @@ function _gen_step_match(hex, tex, step::PSPoint, rest_success, bound::Set{Symbo
     return ex, bound1
 end
 
-function _gen_step_match(hex, tex, step::PSProjection, rest_success, bound::Set{Symbol})
+function dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound)
+    projpat, outpath = argpats[1], argpats[2]
     projexpr = :($hex.projection)
     outpathexpr = :($hex.output_path)
-
-    after_out, bound2 = _gen_path_match(outpathexpr, step.outpath, rest_success, bound)
-    after_proj, bound1 = _gen_value_match(projexpr, step.projpat, after_out, bound2)
-
+    after_out, bound2 = _gen_path_match(outpathexpr, outpath, rest_success, bound)
+    after_proj, bound1 = _gen_value_match(projexpr, projpat, after_out, bound2)
     ex = quote
         if $hex isa ReferenceModule.ProjectionReference
             $after_proj
