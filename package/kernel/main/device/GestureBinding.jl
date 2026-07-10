@@ -317,6 +317,9 @@ authored with [`@gestures`](@ref) needs no hand-written reader. A concrete
 `read_gesture(::SomeDoc, …)` method is more specific and still takes
 precedence; a document type with neither a method nor any registered
 gestures yields `nothing`.
+
+See [`documentation/concepts.md`](../../../../documentation/concepts.md) for
+the single-place narrative of the document editing model this seam belongs to.
 """
 function read_gesture end
 

@@ -148,6 +148,66 @@ applies the final operation to the document.
 
 ---
 
+## The document editing model — one cluster spread across layers
+
+The five ideas above are not five independent modules. They form a single
+**mutually-recursive cluster** that expresses the same object — an edit into a
+document — from five sides:
+
+- A **`Document`** is what is being edited.
+- A **`Reference`** is a path into a `Document` (both for the current selection
+  and for expressing where an edit lands).
+- An **`Operation`** is a reified edit — typically identified by the reference
+  it targets.
+- A **`gesture`** is a backend-agnostic input event (a keystroke, a mouse
+  click) — the raw thing a user does.
+- A **`projection`** turns a `Document` into an output document (the printer),
+  and a `gesture` back into an `Operation` in the model's own vocabulary (the
+  reader).
+
+Reading in a straight line — Document → Reference → Operation → gesture →
+projection — the *concepts* form a DAG (each stage names only earlier ones).
+But the *contracts* between them close the loop: an `Operation` is applied
+back to a `Document`; a `projection` reader lifts a `gesture` into an
+`Operation` against a `Document`. That closure is what makes the pieces feel
+tangled if you look at them as separate modules and clean if you look at them
+as one editing model.
+
+### Where each piece lives in the kernel
+
+The code follows the concept DAG rather than the closure — each open
+interface sinks to the lowest layer where every concept it mentions is
+already introduced (AR-47), so a reader in load order never hits an
+undefined name:
+
+| Concept | Home in the kernel | What it defines |
+|---|---|---|
+| `Document` | layer 2 — `document/Interface.jl` | the abstract supertype and the "carries a selection field" obligation. The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
+| `Reference` | layer 3 — `reference/Reference.jl` | the reference-step and reference-path types, the value protocol on them, and the `@reference` DSL. |
+| Selection generics | layer 3 — `reference/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` — the open generics that read and canonicalize a document's `selection` field. Their default implementations are the concrete edit walkers in `operation/Operations.jl` (a downward edge from layer 4 to layer 3). |
+| `Operation` | layer 4 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |
+| `gesture` and `read_gesture` | layer 5 — `device/GestureBinding.jl` | the reified gesture patterns, the `@gestures` registry, the `read_gesture(document, gesture)` open seam and its `@gestures`-driven catch-all. |
+| `projection` | layer 7 — `projection/Projection.jl` | the `Projection` abstract type, the four interface functions (`print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`), and the `@projection` macro. |
+
+The umbrella package (`Projectured`) re-exports every name from every home, so
+downstream code that writes `using Projectured` sees the cluster flat and does
+not need to know which layer any given generic sits in. Only kernel-internal
+imports and the per-package `…ApiModule` aliases in `visual/` and `domain/`
+reach for each generic in its home module.
+
+### Why the split matters
+
+The cluster's mutual recursion is real at the *contract* level, but only real
+at the *code* level for those files that name several of these concepts (the
+`Operation` fragment that implements `set_selection!`; the projection reader
+that lifts a `gesture` to an `Operation`). Every other file names only its own
+piece. Splitting the interfaces into their concept-level homes is what lets
+the layer guard stay a topological sort — each file's imports look downward
+in load order — and lets a reader introduce concepts in a fixed dependency
+order rather than in the mutually-recursive form the runtime uses them.
+
+---
+
 ## Design principles: primitives, combinations, abstractions
 
 The expressive power of any compositional system depends on three things: its

@@ -6,6 +6,10 @@
 # `document.selection` field; `clear_selection!` and `set_selection!` are open
 # generics whose default implementations that walk the reference path live
 # with the concrete edit machinery in the operation layer.
+#
+# See [`documentation/concepts.md`](../../../../documentation/concepts.md) for
+# the single-place narrative of the document editing model these generics are
+# part of.
 
 """
     get_selection(document) -> reference or nothing

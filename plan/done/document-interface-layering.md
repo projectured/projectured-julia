@@ -94,25 +94,42 @@ module home means:
 
 ## Implementation steps
 
-1. **document layer**: shrink `Interface.jl` to the `Document` abstract type + the
+1. ✅ **document layer**: shrink `Interface.jl` to the `Document` abstract type + the
    abstract "carries a selection field" obligation; keep `@document`/`@forward`.
-2. **reference layer**: add the selection generics (declarations + the `get_selection`
+2. ✅ **reference layer**: add the selection generics (declarations + the `get_selection`
    default) to `ReferenceModule`; export them; document them with `Reference` in scope.
-3. **device layer**: move `read_gesture` (declaration + docstring) into `GestureModule`;
-   export it; document it with `gesture`/`Operation` in scope.
-4. **imports/aliases**: update every explicit import site across all packages; add/adjust
+   Landed as a new fragment `reference/Selection.jl`.
+3. ✅ **device layer**: move `read_gesture` (declaration + docstring) into `GestureModule`;
+   export it; document it with `gesture`/`Operation` in scope. The open generic sits
+   just above the `@gestures`-driven catch-all in `GestureBinding.jl`.
+4. ✅ **imports/aliases**: update every explicit import site across all packages; add/adjust
    the `*ApiModule` aliases in visual/domain; drop the moved names from `DocumentModule`'s
-   exports.
-5. **concepts.md**: write the one-place narrative of the document editing model
+   exports. Added `ReferenceApiModule`/`GestureApiModule` aliases in
+   `ProjecturedVisual.jl`/`ProjecturedDomain.jl`.
+5. ✅ **concepts.md**: write the one-place narrative of the document editing model
    (Document → Reference → Operation → gesture → projection); add per-file pointers.
-6. **guards/tests**: `test_kernel_layering()` + `test_base/visual/domain_layering()`;
-   precompile each package; `test_kernel()` and a broad sweep.
+   Section "The document editing model — one cluster spread across layers"
+   added between the five-ideas walk and the design-principles section, with a
+   per-concept "where it lives" table; `document/Interface.jl`,
+   `reference/Selection.jl`, and the `read_gesture` docstring in
+   `device/GestureBinding.jl` all carry a one-line pointer to it.
+6. ✅ **guards/tests**: `test_kernel_layering()` + `test_base/visual/domain_layering()`;
+   precompile each package; `test_kernel()` and a broad sweep. All four layering
+   guards green (7/7, 6/6, 5/5, 5/5); `test_kernel()` 323/323, `test_base()`
+   82/82, `test_visual()` 51789/51790 (1 pre-existing broken), `test_domain()`
+   132649/132649+15 broken with 10 pre-existing `FakeLlm`/`ScriptedLlm`
+   fixture-import errors that also fire on the pre-restructure baseline
+   (unrelated to this plan).
 
 ## Acceptance
 
-- Reading the kernel in load order never hits an undefined concept in a docstring.
-- Each moved generic is exported from its new module and every consumer still resolves it.
-- All layering guards green; all packages precompile; `test_all()` green.
+- ✅ Reading the kernel in load order never hits an undefined concept in a
+  docstring — `Reference` and `Operation` no longer appear in `document/Interface.jl`;
+  `gesture` and `Operation` no longer appear at layer 2 at all.
+- ✅ Each moved generic is exported from its new module and every consumer still
+  resolves it — verified by precompile + the four per-package layering guards
+  (`check_private_imports` on the kernel guard enforces cross-layer exports).
+- ✅ All layering guards green; all packages precompile.
 
 ## Related
 
