@@ -34,14 +34,14 @@ The module lives in four fragments that share this namespace:
 The linked-list *shape* is persistent — extending a path reuses the existing
 tail rather than copying. The `@document`-backed step/path structs are
 mutable and store their dynamic values (indices, positions, the head/tail
-links) in reactive `Cell`s, so a caret move can update those cells in place
-(see `update_selection!`) without rebuilding the chain.
+links) in reactive `Cell`s, so callers can update those cells in place
+without rebuilding the chain.
 
-A **layering pattern worth documenting**: `ProjectionReference` stores its
-projection as an opaque `Any` payload — the reference layer defines only the
-step's shape and never imports `Projection`; only higher layers construct
-and interpret the payload (same pattern as `Intent`). So projection →
-reference is the only edge between them, pointing down.
+**Opaque payloads.** A step kind may carry an `Any`-typed payload the
+reference layer never interprets (`ProjectionReference` is the current
+example). The step's shape is all this module defines; the payload's
+meaning belongs to whichever layer produces and consumes it, keeping the
+reference layer's dependencies purely downward.
 """
 module ReferenceModule
 
