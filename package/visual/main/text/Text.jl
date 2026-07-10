@@ -32,7 +32,8 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, TextRectangularReference, strip_reference_types
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types
+import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!

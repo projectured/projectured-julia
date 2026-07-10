@@ -21,7 +21,8 @@ import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, TextRectangularReference, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types
+import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation

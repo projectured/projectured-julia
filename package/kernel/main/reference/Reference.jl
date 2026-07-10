@@ -178,20 +178,6 @@ end
 # call sites; the `@document` inner constructor Cell-wraps each field as needed.
 ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
 
-"""
-    TextRectangularReference(start, stop)
-
-A reference step representing an axis-aligned bounding box highlight in the
-text domain. `start` and `stop` are flat 0-based character offsets into the
-concatenated text of a `TextText`. Used by the syntax-to-text layer to
-communicate a nested child's whole-element selection as a character range
-to the text-to-graphics layer, which renders it as a translucent rectangle.
-"""
-@document struct TextRectangularReference <: ReferenceStep
-    start::Int
-    stop::Int
-end
-
 # Whole-element ("tree") selection is not a distinct reference step: it is just
 # a path that terminates *at* the element, i.e. an `EmptyReferencePath`. The one
 # node holding `∅` in its `selection` cell is the wholly-selected one; its
@@ -256,10 +242,6 @@ function Base.show(io::IO, s::TypeReference)
     print(io, "::", s.type)
 end
 
-function Base.show(io::IO, s::TextRectangularReference)
-    print(io, "▭(", s.start, ":", s.stop, ")")
-end
-
 # Short name of a recorded node type, e.g. `Foo` rather than the fully-qualified
 # `SomeModule.Foo`; falls back to `string` for non-types.
 _show_node_type(io::IO, t) = print(io, "::", t isa Type ? nameof(t) : t)
@@ -286,7 +268,6 @@ end
 Base.:(==)(a::RangeReference,      b::RangeReference)      = a.start  == b.start  && a.stop == b.stop
 Base.:(==)(a::FieldReference,      b::FieldReference)      = a.name   == b.name
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
-Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) = a.start == b.start && a.stop == b.stop
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 
 # Strict equality: the folded node `type` fields are significant, so an annotated

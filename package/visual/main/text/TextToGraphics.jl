@@ -26,7 +26,8 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanv
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, TextRectangularReference, head, tail
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, head, tail
+import ..TextRectangularReferenceModule: TextRectangularReference
 import ..PointReferenceModule: PointReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"

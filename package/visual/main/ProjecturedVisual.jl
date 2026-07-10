@@ -177,6 +177,10 @@ include("layout/CollectionToLayout.jl")
 # TextHighlighting, SelectionInverting) are Text→Text transforms;
 # PrimitiveToText and ReferenceToText are the base→text and reference→text
 # bridges.
+# TextRectangularReference — the text-domain reference step (a flat character
+# range rendered as a translucent box). Included first in the text slice so
+# every text file below can import it via `..TextRectangularReferenceModule`.
+include("text/TextRectangularReference.jl")
 include("text/Text.jl")
 include("text/TextToGraphics.jl")
 include("text/TextToString.jl")
