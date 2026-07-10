@@ -356,8 +356,9 @@ other package docs defer here rather than repeat it.)
 ### Downward edges
 
 - `..CellModule` (Display; nothing else).
-- `..DocumentModule: Document, read_gesture` (GestureBinding fragment;
-  Document is opaque payload here, `read_gesture` gets the catch-all method).
+- `..DocumentModule: Document` (GestureBinding fragment; Document is opaque
+  payload here — the seam gets its `read_gesture` catch-all method locally,
+  since the open generic now lives in this module).
 - `..ProjectionApiModule: Projection` — a documented downward private seam
   the GestureBinding fragment uses for its projection-collector fallback.
   Removed once the projection API folds into the projection layer.

@@ -31,7 +31,7 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..DocumentApiModule: read_gesture
+import ..GestureApiModule: read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
 import ..MouseModule: MousePress
 import ..EventCaseModule: var"@event_case"

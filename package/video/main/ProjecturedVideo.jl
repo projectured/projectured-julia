@@ -22,7 +22,7 @@ import ProjecturedDomain.BackendApiModule: record_video
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent
 import ProjecturedDomain.OperationApiModule: evaluate_operation
-import ProjecturedDomain.DocumentApiModule: clear_selection!, set_selection!
+import ProjecturedDomain.ReferenceApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell
 import ProjecturedDomain.TimeModule: tick_editor_time!

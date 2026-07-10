@@ -19,7 +19,7 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, Empt
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..DocumentApiModule: with_selection
+import ..ReferenceApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..DomainSupportModule: var"@domain", make_insertion_document

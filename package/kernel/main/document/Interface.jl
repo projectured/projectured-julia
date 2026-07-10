@@ -1,10 +1,14 @@
-# Fragment of `DocumentModule` — the document contract shared by every concrete
-# document type: the `Document` abstract supertype, the selection generics
-# (get/clear/set/with), and the domain-facing `read_gesture` seam. Declaring the
-# generics here (as `function foo end`) decouples the declarations from the
-# implementations, which land in `Document.jl` for the shared machinery, in
-# `common/Operation.jl` for the default clear/set, and in each concrete
-# document type. Included by `DocumentModule.jl`; shares its namespace.
+# Fragment of `DocumentModule` — the `Document` abstract supertype and the
+# minimal contract every concrete document must satisfy. The `@document` codegen
+# and value protocol land in the sibling `Document.jl` fragment; the
+# selection-path generics (`get_selection` / `clear_selection!` / `set_selection!`
+# / `with_selection`) reference `Reference`, so they live at the reference layer
+# (`reference/ReferenceModule.jl`, AR-47); the domain-facing `read_gesture`
+# seam references `gesture` and `Operation`, so it lives at the device layer
+# (`device/GestureModule.jl`). Consumers importing the whole document editing
+# model reach for each seam from its home layer; the umbrella re-exports them
+# flat. See [`documentation/concepts.md`](../../../../documentation/concepts.md)
+# for the single-place narrative of that model.
 
 """
     Document
@@ -14,10 +18,12 @@ Abstract base type for all document types.
 Two contracts bind every concrete document:
 
 1. **Selection field.** Every document must carry a `selection` field holding a
-   `Reference` (a `ReferencePath` or `nothing`) that tracks the current selection.
-   The field is stored in a `Cell`; `document.selection` reads through it (the
-   `@document`-generated `getproperty` unwraps the Cell), so [`selection`](@ref)
-   returns the path/`nothing`, not the Cell itself.
+   reference (a path or `nothing`) that tracks the current selection. The field
+   is stored in a `Cell`; `document.selection` reads through it (the
+   `@document`-generated `getproperty` unwraps the Cell), so the returned value
+   is the path/`nothing`, not the Cell itself. The generics that read, clear,
+   set, and canonicalize this field live at the reference layer, since their
+   payload is a reference path.
 
 2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in a
    selection/reference path is resolved by `getfield(document, :foo)` — so a
@@ -29,65 +35,3 @@ Two contracts bind every concrete document:
    and treat them as a stable interface, not an implementation detail.
 """
 abstract type Document end
-
-"""
-    get_selection(document) -> reference or nothing
-
-The document's current selection — a `ReferencePath` or `nothing`. Every document
-has one (the [`Document`](@ref) contract requires a `selection` field); the default
-reads that conventional field, so a concrete document gets it for free, and one that
-stores its selection differently overrides this method.
-"""
-get_selection(document::Document) = document.selection
-
-"""
-    clear_selection!(document)
-
-Clear the current selection of `document` and recursively clear the selections
-of any child documents reached by the stored path.
-"""
-function clear_selection! end
-
-"""
-    set_selection!(document, path)
-
-Propagate `path` down the document hierarchy starting at `document`. Each step
-in the path navigates to a child document and sets that child's `selection` to
-the remaining tail of the path.
-"""
-function set_selection! end
-
-"""
-    with_selection(document, path) -> document
-
-Construct-and-select: set `path` on `document` and propagate it deeply into the
-child documents it traverses (via [`set_selection!`](@ref)), returning
-`document`. The one-expression form of
-`d = SomeDocument(...); set_selection!(d, path); d` — for building a document
-literal whose cursor is fully placed (examples, fixtures, clipboard payloads, and
-the gesture→replace builders).
-"""
-function with_selection end
-
-"""
-    read_gesture(document, gesture) -> Union{Operation, Nothing}
-
-Map a backend-agnostic input gesture to an Operation expressed against
-`document` itself (i.e. against `document`'s own reference vocabulary, reading
-only `document`'s structure and `document.selection`). Returns `nothing` when
-the document does not handle the gesture, so a projection reader can fall back
-to its own geometry-dependent handling or let the gesture propagate.
-
-This is the projection-independent half of a domain's reader: any projection
-whose output (or input) is `document` can obtain navigation/editing operations
-without re-implementing them, and a backend that renders the domain directly
-(without a projection pipeline) gets them for free.
-
-The catch-all `read_gesture(::Document, gesture)` is supplied by
-`GestureBindingModule` (`common/GestureBinding.jl`): it interprets the reified
-`get_document_gesture_bindings` table for the document's type, so a domain authored with
-`@gestures` needs no hand-written reader. A concrete `read_gesture(::SomeDoc, …)`
-method is more specific and still takes precedence; a document type with neither a
-method nor any registered gestures yields `nothing`.
-"""
-function read_gesture end

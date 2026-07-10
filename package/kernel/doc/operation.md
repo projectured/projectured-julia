@@ -392,8 +392,8 @@ higher-layer type at layer 4.
 ### Downward edges
 
 - `..CellModule: Cell, AbstractCell`
-- `..DocumentModule: Document, clear_selection!, set_selection!, with_selection`
-- `..ReferenceModule: ReferencePath, …, append_reference, evaluate_reference, …`
+- `..DocumentModule: Document`
+- `..ReferenceModule: ReferencePath, …, append_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
 
 That is the whole import surface. No projection, no device, no editor. This
 is what keeps the operation layer at index 4 in the DAG.

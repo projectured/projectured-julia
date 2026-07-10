@@ -28,9 +28,9 @@ module DomainSupportModule
 
 import InteractiveUtils: subtypes
 import ..GestureModule
-import ..DocumentModule: Document, with_selection, var"@document"
+import ..DocumentModule: Document, var"@document"
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath
+                          EmptyReferencePath, with_selection
 import ..OperationModule: replace_document
 import ..GestureModule: GestureBinding, KeyDownPattern, get_document_gesture_bindings_own
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion

@@ -10,7 +10,7 @@ module PrimitiveModule
 import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
-import ..DocumentModule: clear_selection!, set_selection!
+import ..ReferenceModule: clear_selection!, set_selection!
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,

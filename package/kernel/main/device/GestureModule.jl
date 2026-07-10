@@ -31,7 +31,7 @@ import ..ModifiersModule
 import ..KeyboardModule: KeyDown, KeyUp, KeyPress
 import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ..ModifiersModule: Modifiers
-import ..DocumentModule: Document, read_gesture
+import ..DocumentModule: Document
 # The three Projection-typed seam methods live in
 # projection/GestureBindings.jl (ProjectionGestureBindingsModule); this
 # module does not reference the Projection type.
@@ -44,6 +44,7 @@ export var"@event_case",
        GestureBinding, matches, describe,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings,
+       read_gesture,
        read_document_gesture, read_node_gesture,
        # get_projection_gesture_bindings, read_projection_gesture, and
        # collect_gesture_bindings live in ProjectionGestureBindingsModule.

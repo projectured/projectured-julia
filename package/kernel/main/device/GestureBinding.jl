@@ -297,10 +297,32 @@ function read_node_gesture(node, event, selection)
     return _fire_gestures(bindings, node, selection, event)
 end
 
+"""
+    read_gesture(document, gesture) -> Union{Operation, Nothing}
+
+Map a backend-agnostic input gesture to an `Operation` expressed against
+`document` itself (i.e. against `document`'s own reference vocabulary, reading
+only `document`'s structure and `document.selection`). Returns `nothing` when
+the document does not handle the gesture, so a caller can fall back to its own
+geometry-dependent handling or let the gesture propagate.
+
+This is the projection-independent half of a domain's reader: any consumer
+whose input (or output) is `document` can obtain navigation/editing operations
+without re-implementing them, and a backend that renders the domain directly
+(without a projection pipeline) gets them for free.
+
+The catch-all `read_gesture(::Document, gesture)` below reads the reified
+`get_document_gesture_bindings` table for the document's type — so a domain
+authored with [`@gestures`](@ref) needs no hand-written reader. A concrete
+`read_gesture(::SomeDoc, …)` method is more specific and still takes
+precedence; a document type with neither a method nor any registered
+gestures yields `nothing`.
+"""
+function read_gesture end
+
 # The projection-independent reader for any `@gestures`-declared document is the
-# table interpreter. JSON, Syntax and Text are all reified onto it; a domain may
-# still add a more-specific `read_gesture(::SomeDoc, evt)` that wins. Documents
-# with no registered gestures get `nothing` (empty table), exactly as the old default.
+# table interpreter. Documents with no registered gestures get `nothing`
+# (empty table), matching the old default.
 read_gesture(doc::Document, event) = read_document_gesture(doc, event)
 
 # The three Projection-typed gesture-seam methods (get_projection_gesture_bindings,

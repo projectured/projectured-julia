@@ -52,7 +52,8 @@ import ..OperationModule: ReplaceSelectionOperation
 # is a base projection and `ReplaceStringRangeOperation` a base/Primitive
 # type, neither of which the kernel can name. Base imports `RuleIoMap` +
 # `AtomicWiring` from this module to preserve the same dispatch behaviour.
-import ..DocumentModule: Document, read_gesture
+import ..DocumentModule: Document
+import ..GestureModule: read_gesture
 import ..KeyboardModule: KeyDown, KeyPress
 import ..OperationModule: reroot_operation
 

@@ -28,7 +28,7 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..DocumentApiModule: read_gesture
+import ..GestureApiModule: read_gesture
 import ..KeyboardModule: KeyDown
 import ..EventCaseModule: var"@event_case"
 import ..MouseModule: MousePress
