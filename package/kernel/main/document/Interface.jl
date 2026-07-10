@@ -1,14 +1,10 @@
 # Fragment of `DocumentModule` — the `Document` abstract supertype and the
 # minimal contract every concrete document must satisfy. The `@document` codegen
-# and value protocol land in the sibling `Document.jl` fragment; the
-# selection-path generics (`get_selection` / `clear_selection!` / `set_selection!`
-# / `with_selection`) reference `Reference`, so they live at the reference layer
-# (`reference/ReferenceModule.jl`, AR-47); the domain-facing `read_gesture`
-# seam references `gesture` and `Operation`, so it lives at the device layer
-# (`device/GestureModule.jl`). Consumers importing the whole document editing
-# model reach for each seam from its home layer; the umbrella re-exports them
-# flat. See [`documentation/concepts.md`](../../../../documentation/concepts.md)
-# for the single-place narrative of that model.
+# and shared value protocol land in the sibling `Document.jl` fragment.
+# See [`documentation/concepts.md`](../../../../documentation/concepts.md)
+# for the single-place narrative of the document editing model — the wider
+# cluster of Reference, Operation, gesture, and projection that this contract
+# is only one piece of.
 
 """
     Document
