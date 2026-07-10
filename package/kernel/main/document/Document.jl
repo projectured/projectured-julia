@@ -17,11 +17,10 @@ Default depth-limited debug rendering for documents. Prints constructor-style
 `TypeName(field, field, …)`, reading each field through `getproperty` so the
 underlying reactive `Cell`s are unwrapped. Recursion is bounded by the
 `:document_depth` IOContext key (see [`DOCUMENT_SHOW_MAX_DEPTH`]) so deeply
-nested documents do not explode. The `selection` field, present on every
-document, is omitted as noise.
+nested documents do not explode. A field named `selection`, when present, is
+skipped as noise.
 
-This is a generic debug aid only. The *semantic* rendering of a document
-(source syntax, etc.) is produced by the projection pipeline, not by `show`.
+This is a generic debug aid only.
 """
 function Base.show(io::IO, x::Document)
     depth = get(io, :document_depth, 0)
@@ -51,11 +50,10 @@ writes real value types; the macro generates the **kind-parameterized stem**:
    field (`Foo{C1<:AbstractCell, …}`), so the *cell kind* in the fields decides
    the behavior: reactive, mutable, or immutable. Bounds are deliberately loose
    (`<: AbstractCell`, not `<: AbstractCell{T}`): `AbstractCell{T}` is invariant,
-   and machinery freely creates untyped `Cell(x)` cells (deferred selection
-   cells, `bound(…)` template markers stored in typed fields), which strict
-   bounds would reject. Declared field types are enforced by the kind ctors, not
-   the type system. `getproperty`/`setproperty!` read/write through the cells
-   uniformly for every kind.
+   and machinery freely creates untyped `Cell(x)` cells stored in typed fields,
+   which strict bounds would reject. Declared field types are enforced by the
+   kind ctors, not the type system. `getproperty`/`setproperty!` read/write
+   through the cells uniformly for every kind.
 
 2. **Auto-wrapping constructor** (bare name) — `Foo(args…)` accepts raw values
    or cells; a raw value is wrapped in `ReactiveCell{Any}` (exactly the historic
@@ -480,6 +478,6 @@ function sync_document!(shadow::Document, source::Document)
     shadow
 end
 
-# A source element rebuilt for the shadow's kind (a document is copied in that
-# kind; a plain value passes through). Shared by the CellVector reconciler.
+# A source element rebuilt for the shadow's kind: a document is copied in that
+# kind, a plain value passes through.
 _shadow_elem(K, x) = x isa Document ? copy_document(K, x) : x
