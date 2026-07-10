@@ -55,7 +55,7 @@ include("layering/CheckLayering.jl")
 include("cell/CellTest.jl")
 include("cell/CellStructTest.jl")
 include("cell/PerformanceCounterTest.jl")
-include("cell/TimeTest.jl")
+include("document/ClockTest.jl")
 include("document/DocumentContractTest.jl")
 include("reference/ReferenceBuilderTest.jl")
 include("reference/ReferenceEvalTest.jl")
@@ -107,7 +107,7 @@ function test_kernel()
         test_cell()
         test_cell_struct()
         test_performance_counter()
-        test_time()
+        test_clock()
         test_document_contract()
         test_reference_builder()
         test_reference_eval()
@@ -126,7 +126,7 @@ export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
 export check_layering, test_layering_checkers
 # kernel unit suites
-export test_cell, test_cell_struct, test_performance_counter, test_time, test_document_contract,
+export test_cell, test_cell_struct, test_performance_counter, test_clock, test_document_contract,
        test_reference_builder, test_reference_eval, test_rerooting,
        test_traversal, test_gesture_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam

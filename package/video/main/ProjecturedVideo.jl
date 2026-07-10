@@ -25,7 +25,7 @@ import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.ReferenceApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell
-import ProjecturedDomain.TimeModule: tick_editor_time!
+import ProjecturedDomain.ClockModule: Clock, seek!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
@@ -110,14 +110,18 @@ function record_video(document, projection, gestures::AbstractVector,
                       wait_for::Union{Nothing,Function} = nothing,
                       wait_timeout::Real = 5.0,
                       supersample::Integer = 2,
-                      scale::Real = 1)
+                      scale::Real = 1,
+                      clock::Clock = Clock())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_video: only .mp4 output is supported (got \"$filename\")")
 
-    # Lay out every frame at the fixed video resolution.
+    # Lay out every frame at the fixed video resolution. The recording clock
+    # rides on the printer context, so a time-animated document (whose cells
+    # subscribe to `clock`) advances deterministically frame-by-frame; a
+    # non-animated document ignores it.
     print_iomap = doc -> print_document(projection, nothing, doc,
         PrinterContext(EmptyReferencePath(), Cell(Int(width)), Cell(Int(height)),
-                       Dict{Symbol,Any}()))
+                       Dict{Symbol,Any}(), clock))
     canvas_of = iomap -> begin
         canvas = iomap.output
         canvas isa GraphicsCanvas ||
@@ -128,22 +132,19 @@ function record_video(document, projection, gestures::AbstractVector,
     off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
     tmpdir = mktempdir()
     frame = Ref(0)
-    # Wall-clock origin for the reactive editor clock. Every emitted frame ticks
-    # `get_reactive_editor_time()` to the elapsed wall time and re-prints, so an
-    # animated document (a canvas whose cells read the editor time) actually moves
-    # across the recording — including during otherwise-static hold frames.
-    anim_t0 = time()
     # Print the projection ONCE and keep the resulting canvas; every frame just
     # re-renders that same canvas. Re-rendering re-forces the reactive cells, so
     # streamed parts, typed characters, the live progress card and the animation
     # all appear incrementally — *without* re-running the whole (heavy) projection
     # per frame, which would allocate a fresh graphics tree every frame and thrash
-    # GC / memory. `tick_editor_time!` advances the editor clock so time-reading cells recompute.
-    # The projection is only re-printed if an operation swaps the whole document.
+    # GC / memory. `seek!(clock, frame/fps)` advances the recording clock so
+    # time-reading cells recompute deterministically (no wall-clock coupling —
+    # faster-than-real-time render is exactly what falls out). The projection
+    # is only re-printed if an operation swaps the whole document.
     iomap = nothing
     reprint!() = (iomap = print_iomap(document); nothing)
     emit_frames! = (n::Integer) -> for _ in 1:max(n, 0)
-        tick_editor_time!(time() - anim_t0)
+        seek!(clock, frame[] / fps)
         _emit_frames!(off, canvas_of(iomap), width, height, background, tmpdir, frame, 1)
     end
     try

@@ -17,7 +17,8 @@ import ..BackendModule: Backend, initialize_backend!, quit_backend!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..GestureModule: EventEnvelope
 import ..PerformanceCounterModule: get_performance_counters, with_performance_counters, @performance_time, PERFORMANCE_COUNTERS_ENABLED
-import ..TimeModule: tick_editor_time!
+import ..ClockModule: Clock, tick!, start_wall_clock_heartbeat!
+import ..PrinterContextModule: PrinterContext, with_clock
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
 import ..MouseModule: Mouse
@@ -30,13 +31,17 @@ import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
 export Editor, run_editor!
 
 """
-    Editor(backend, document, projection, devices)
+    Editor(backend, document, projection, devices; clock = Clock())
 
 Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
   - `document`   — the reactive document being edited
   - `projection` — the projection (or ChainingProjection)
   - `devices`    — input/output devices (e.g. window, keyboard)
+  - `clock`      — this editor's private animation clock (fresh `Clock()` by
+                   default); `run_editor!` ticks it once per frame from OS
+                   time so subscribers reanimate, independently of any other
+                   editor running in the same process.
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)
@@ -46,13 +51,14 @@ mutable struct Editor
     document::Document
     projection::Projection
     devices::Vector{Device}
+    clock::Clock
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
 end
 
-Editor(backend, document, projection, devices) =
-    Editor(backend, document, projection, devices, nothing, nothing, GestureRecognizer())
+Editor(backend, document, projection, devices; clock::Clock = Clock()) =
+    Editor(backend, document, projection, devices, clock, nothing, nothing, GestureRecognizer())
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # The default `invalidate_projection!` (in `OperationApiModule`) is a no-op; this
@@ -158,11 +164,15 @@ end
 """
     print!(editor::Editor)
 
-Project the editor's document through its projection pipeline.
+Project the editor's document through its projection pipeline. The root
+`PrinterContext` is minted with the editor's own `clock`, so animated cells
+descendants build subscribe to this editor's clock rather than a shared one.
 """
 function print!(editor::Editor)
     if editor.iomap === nothing
-        editor.iomap = print_document(editor.projection, editor.document)
+        ctx = with_clock(PrinterContext(), editor.clock)
+        editor.iomap = print_document(editor.projection, nothing,
+                                      editor.document, ctx)
     end
     write_to_devices(editor.backend, editor.devices, editor.iomap.output)
 end
@@ -215,9 +225,13 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         nothing
     end
     server === nothing || start_agent_server!(server)
-    # Advance the global animation clock once per frame. `tick_editor_time!` writes the
-    # clock cell, so any computed cell that subscribed via
-    # `get_reactive_editor_time()` is invalidated and re-evaluated on the next pull.
+    # The wall clock backs reader-armed animations that read `get_wall_clock()`
+    # (widgets whose reader has no `PrinterContext` to receive our per-editor
+    # clock). Start its heartbeat idempotently — a no-op when another editor
+    # already started it.
+    start_wall_clock_heartbeat!()
+    # Advance this editor's private animation clock once per frame; subscribers
+    # via `get_reactive_time(editor.clock)` re-evaluate on the next pull.
     # Logical time is wall-clock seconds since the loop started.
     t_start = Base.time()
     try
@@ -225,7 +239,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
-                tick_editor_time!(Base.time() - t_start)
+                tick!(editor.clock, Base.time() - t_start)
                 @performance_time :read_time     read!(editor)
                 @performance_time :evaluate_time evaluate!(editor)
                 @performance_time :print_time    print!(editor)

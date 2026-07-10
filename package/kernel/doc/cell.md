@@ -152,19 +152,15 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         └─ ImmutableCell.jl   — read-only, zero-cost wrapper
 ```
 
-The animation clock (`TimeModule`, `Time.jl`) has **moved out of the cell layer**
-to the document layer — a time value belongs with the document model, not the
-reactive engine (it is a *use* of `Cell`, not part of the engine). It is pending
-the clock-as-document redesign (renamed `Clock.jl`); see
-[plan/pending/per-editor-animation-clock.md](../../../plan/pending/per-editor-animation-clock.md).
+The animation clock (`ClockModule`, `Clock.jl`) lives in the **document
+layer** — a time value belongs with the document model, not the reactive
+engine (it is a *use* of `Cell`, not part of the engine). Each editor owns a
+private `Clock` instance, ticked from OS time in its read-eval-print loop; a
+shared `WALL_CLOCK` reflects real time for reader-armed animations that have
+no editor of their own. See the module docstring of `document/Clock.jl` for
+the full API.
 
-The load order is the dependency order the include-order guard checks. The
-animation clock (`TimeModule`) is a *use* of `Cell` (a single primitive cell that
-the editor loop writes once per frame), not part of the engine, but it lives in
-the cell layer because it depends on nothing else in the kernel and every
-animated projection reads it — domain code that consumes `get_reactive_editor_time()`
-therefore imports the cell-layer TimeModule directly, without pulling in the
-editor loop.
+The load order is the dependency order the include-order guard checks.
 
 ## CellModule — the cell kinds
 
@@ -238,29 +234,7 @@ binds a fresh store and reports it every frame (see
 [Editor.run_editor!](../../../package/kernel/main/editor/Editor.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
-## TimeModule — the animation clock
-
-> **Moved:** this module now lives in the **document layer** (`document/Time.jl`),
-> not the cell layer, and is pending the clock-as-document redesign (renamed
-> `Clock.jl`); see [the plan](../../../plan/pending/per-editor-animation-clock.md).
-> The description below is the current, pre-redesign behavior.
-
-A single global primitive cell, `EDITOR_TIME`, holding the current logical time in
-seconds. The editor's read-eval-print loop writes it once per frame via `tick_editor_time!`; because cell
-writes invalidate dependents, any computed cell that read the time is re-evaluated
-on the next pull — which is all animation needs. It is layered *on top of* `Cell`,
-so it loads **after** `CellModule`.
-
-Two reads, named so intent is obvious:
-
-- `get_reactive_editor_time()` — **subscribe**. A tracked read; the calling cell becomes
-  a dependent and re-runs every frame. Use inside an animated thunk.
-- `get_editor_time()` — **sample**. An untracked read (via `peek`) that registers no
-  dependency. Use to *arm* an animation (capture a start instant) without the
-  arming code itself re-running every frame.
-
-And `tick_editor_time!(t)` — write the current logical time, invalidating everything that
-subscribed. Driven by `Editor.run_editor!` (wall-clock) and by `ProjecturedVideo`
-(elapsed-time frames). See
-[package/example/document/RotatingVector.jl](../../../package/visual/example/document/RotatingVector.jl)
-for a worked subscribe/sample example.
+Animation clock: `ClockModule` in the document layer. See
+`document/Clock.jl` for the current API (`Clock`, `get_reactive_time`,
+`get_time`, `tick!`, `seek!`, `WALL_CLOCK`, `get_wall_clock`,
+`start_wall_clock_heartbeat!`).

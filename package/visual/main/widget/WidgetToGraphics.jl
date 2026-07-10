@@ -18,7 +18,7 @@ the content projection via the recursion argument.
 module WidgetToGraphicsModule
 
 import ..CellModule: Cell, set_function!
-import ..TimeModule: get_editor_time, get_reactive_editor_time
+import ..ClockModule: get_time, get_reactive_time, get_wall_clock
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
@@ -3467,20 +3467,24 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
                           border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
     # The knob's x is a computed cell. It reads `checked` (so it tracks the
     # logical state and snaps when there is no animation) and, while a slide is
-    # in flight, `get_reactive_editor_time()` (so it re-evaluates every frame). Once
-    # the slide is over it only *samples* the time (`get_editor_time()`), drops the
-    # time subscription, and holds the final position — settling with no
-    # registry (see plan/pending/animation-global-time.md §5).
+    # in flight, `get_reactive_time(get_wall_clock())` (so it re-evaluates every
+    # frame). Once the slide is over it only *samples* the time
+    # (`get_time(get_wall_clock())`), drops the time subscription, and holds
+    # the final position — settling with no registry. The wall clock is used
+    # on both sides because the reader (below) sees no `PrinterContext` and
+    # so can't reach the enclosing editor's private clock; a follow-up seam
+    # would let a reader receive a per-editor clock too.
+    clock = get_wall_clock()
     set_function!(getfield(knob, :cx), () -> begin
         target_x = (w.checked === true) ? right_x : left_x
         dur = w.duration
         t0  = w.anim_t0
         (dur <= 0 || isnan(t0)) && return Int32(target_x)
         t1 = t0 + dur / 1000
-        now = get_editor_time()                       # SAMPLE: decide done, no subscription
+        now = get_time(clock)                     # SAMPLE: decide done, no subscription
         now >= t1 && return Int32(target_x)       # settled → stops animating
         from_x = left_x + (right_x - left_x) * w.anim_from
-        t = get_reactive_editor_time()                # SUBSCRIBE while sliding
+        t = get_reactive_time(clock)              # SUBSCRIBE while sliding
         Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
     end)
     push!(elements, knob)
@@ -3501,7 +3505,7 @@ function _switch_toggle(w::WidgetSwitch)
     toggle = ReplaceReferencedValueOperation(w,
         ConcreteReferencePath(FieldReference("checked"), EmptyReferencePath()), new_checked)
     w.duration <= 0 && return toggle
-    now  = get_editor_time()
+    now  = get_time(get_wall_clock())
     from = _switch_fraction(w, now)
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReference("anim_from"), EmptyReferencePath()), from),

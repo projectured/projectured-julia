@@ -3,11 +3,18 @@
 # A point rotates forever on a circle while two line charts trace its
 # coordinates: the sine of the angle (the y-coordinate) aligned to the vertical
 # axis, and the cosine (the x-coordinate) aligned to the horizontal axis. Every
-# animated value is a computed cell that *subscribes* to the global editor time
-# via `get_reactive_editor_time()`; the editor's read-eval-print loop advances that time once
-# per frame (see `Editor.run_editor!`), so the cells re-evaluate and the canvas
-# redraws. The phase origin is *sampled* once at construction via `get_editor_time()`
-# so the angle starts at zero without the constructor itself becoming reactive.
+# animated value is a computed cell that *subscribes* to `clock` via
+# `get_reactive_time(clock)`; whichever caller ticks `clock` (the editor's
+# read-eval-print loop for a live editor, the recorder for a video capture)
+# advances the animation. The phase origin is *sampled* once at construction
+# via `get_time(clock)` so the angle starts at zero without the constructor
+# itself becoming reactive.
+#
+# Pass the same `Clock` to both this constructor and the editor that hosts the
+# resulting document, and the animation is tied to that editor's private clock
+# — two editors in one process animate fully independently. The default is
+# `get_wall_clock()` (the ambient wall clock), suitable for one-shot renders
+# and reader-armed contexts.
 #
 # The scene is painted in the Solarized palette (https://ethanschoonover.com/solarized/)
 # on a light base3 background: the rotation path is an *unfilled* ring, only the
@@ -26,8 +33,9 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
                                        omega = -0.5,          # angular velocity (rad/s); sign sets direction
                                        n = 260,               # samples per chart window
                                        dt = 0.02,             # angle between adjacent samples
-                                       gap = 20)              # gap between circle and charts
-    phase0 = get_editor_time()                     # SAMPLE: no subscription
+                                       gap = 20,              # gap between circle and charts
+                                       clock::Clock = get_wall_clock())
+    phase0 = get_time(clock)                       # SAMPLE: no subscription
     angle(t) = omega * (t - phase0)
 
     x_left = cx + r + gap                      # sine chart's left edge
@@ -51,14 +59,14 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
 
     # The animated elements use the cell-level positional constructor, which
     # wraps each argument in a `Cell` automatically: a function argument becomes
-    # a *computed* cell, a plain value a static one (see Reactive.jl). So the
-    # reactive fields are just thunks passed in place — no `set_function!` — and they
-    # re-evaluate each frame because they read `get_reactive_editor_time()`.
+    # a *computed* cell, a plain value a static one. So the reactive fields are
+    # just thunks passed in place — no `set_function!` — and they re-evaluate
+    # each frame because they read `get_reactive_time(clock)`.
 
     # the rotating dot — its centre (cx, cy) SUBSCRIBES to time.
     dot = GraphicsCircle(
-        () -> round(Int32, cx + r * cos(angle(get_reactive_editor_time()))),  # cx
-        () -> round(Int32, cy - r * sin(angle(get_reactive_editor_time()))),  # cy
+        () -> round(Int32, cx + r * cos(angle(get_reactive_time(clock)))),  # cx
+        () -> round(Int32, cy - r * sin(angle(get_reactive_time(clock)))),  # cy
         7,                                          # radius
         color_solarized_magenta,                    # fill (magenta)
         0,                                          # border_width — filled, no outline
@@ -70,7 +78,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # computed field.
     sin_chart = GraphicsPolyline(
         () -> begin
-            t = get_reactive_editor_time()             # SUBSCRIBE
+            t = get_reactive_time(clock)               # SUBSCRIBE
             Tuple{Int,Int}[(x_left + i,
                             round(Int, cy - r * sin(angle(t) - i * dt))) for i in 0:n]
         end,
@@ -83,7 +91,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # sits at the chart's top edge at the dot's exact cx.
     cos_chart = GraphicsPolyline(
         () -> begin
-            t = get_reactive_editor_time()             # SUBSCRIBE
+            t = get_reactive_time(clock)               # SUBSCRIBE
             Tuple{Int,Int}[(round(Int, cx + r * cos(angle(t) - i * dt)),
                             y_top + i) for i in 0:n]
         end,
