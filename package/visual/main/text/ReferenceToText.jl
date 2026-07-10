@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           ReferenceStep, RangeReference, FieldReference, ProjectionReference,
-                          PointReference, TypeReference, FunctionReference,
+                          PointReference, TypeReference,
                           is_element_reference, is_position_reference,
                           head, tail, evaluate_reference, append_reference
 import ..TextModule: TextDocument, TextText, TextString, TextNewline
@@ -118,12 +118,6 @@ end
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::TypeReference)
     push!(spans, _tok("::", p.font, color_solarized_gray))
     push!(spans, _tok(_short_type(step.type), p.font, color_solarized_orange))
-end
-
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::FunctionReference)
-    push!(spans, _tok("(", p.font, color_solarized_gray))
-    push!(spans, _tok(string(step.f), p.font, color_solarized_green))
-    push!(spans, _tok(")", p.font, color_solarized_gray))
 end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::PointReference)
@@ -266,12 +260,6 @@ function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference)
     line
 end
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::FunctionReference)
-    line = TextDocument[]
-    push!(line, _tok("the elements matching ", p.font, color_solarized_gray))
-    push!(line, _tok(string(step.f), p.font, color_solarized_green))
-    line
-end
 
 function _phrase_for(p::ReferenceToHumanReadableText, step::PointReference)
     line = TextDocument[]

@@ -66,15 +66,6 @@ is_range_reference(r::RangeReference) = r.stop > r.start + 1
 
 
 """
-    FunctionReference(f)
-
-References the element produced by applying function `f`.
-"""
-struct FunctionReference <: ReferenceStep
-    f::Any
-end
-
-"""
     FieldReference(name)
 
 References a named field of an object/record.
@@ -283,10 +274,6 @@ function Base.show(io::IO, s::RangeReference)
     end
 end
 
-function Base.show(io::IO, s::FunctionReference)
-    print(io, "(", s.f, ")")
-end
-
 function Base.show(io::IO, s::FieldReference)
     print(io, ".", s.name)
 end
@@ -328,7 +315,6 @@ end
 
 Base.:(==)(a::RangeReference,      b::RangeReference)      = a.start  == b.start  && a.stop == b.stop
 Base.:(==)(a::FieldReference,      b::FieldReference)      = a.name   == b.name
-Base.:(==)(a::FunctionReference,   b::FunctionReference)   = a.f        === b.f
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
 Base.:(==)(a::ProjectionReference, b::ProjectionReference) = a.projection === b.projection && a.output_path == b.output_path
 Base.:(==)(a::PointReference,      b::PointReference)      = a.x == b.x && a.y == b.y
@@ -517,6 +503,56 @@ function _get_field(document::AbstractDict, name)
 end
 _get_field(document, name) = _deref_cell(getfield(document, Symbol(name)))
 
+# ── Step navigation seam ──────────────────────────────────────────────────
+# Each step type registers its own behaviour by adding methods on
+# `step_kind` (classification) and `evaluate_step` (one-level navigation).
+# The three path walkers (`evaluate_reference`,
+# `get_valid_reference_prefix`, `annotate_reference_types`) all dispatch
+# through this seam — a new step type living in a higher package registers
+# its methods at its own definition site and needs no edits here.
+
+"""
+    step_kind(step) -> Symbol
+
+Classify a reference step: `:structural` (descends into a child),
+`:checkpoint` (stays on the current node, asserts an invariant), or
+`:terminal` (identifies a location but does not participate in navigation).
+The default is `:terminal` — a step type that doesn't opt in explicitly is
+treated as terminal, matching the pre-seam behaviour that non-navigating
+steps error under `evaluate_reference` and only survive
+`get_valid_reference_prefix` when they end the path.
+"""
+step_kind(::ReferenceStep) = :terminal
+
+"""
+    evaluate_step(step, document) -> child
+
+Navigate through `step`. For a `:structural` step, return the child
+document (throws on descent failure). For a `:checkpoint` step, return
+`document` unchanged after asserting the invariant (throws on mismatch).
+Not called for `:terminal` steps.
+"""
+function evaluate_step end
+
+# ── Kernel step-type methods ─────────────────────────────────────────────
+
+step_kind(::RangeReference) = :structural
+step_kind(::FieldReference) = :structural
+step_kind(::TypeReference)  = :checkpoint
+
+# element / cursor / range — element access at start+1 (cell-transparent).
+evaluate_step(step::RangeReference, document) =
+    _deref_cell(document[step.start + 1])
+
+evaluate_step(step::FieldReference, document) =
+    _get_field(document, step.name)
+
+function evaluate_step(step::TypeReference, document)
+    document isa step.type ||
+        throw(ReferenceTypeMismatch(step.type, typeof(document)))
+    document
+end
+
 """
     evaluate_reference(document, path::ReferencePath)
 
@@ -536,24 +572,10 @@ function evaluate_reference(document, path::ConcreteReferencePath)
     # Folded checkpoint: this node records the type of the document it stands on.
     path.type === nothing || document isa path.type ||
         throw(ReferenceTypeMismatch(path.type, typeof(document)))
-    # Tolerance for an unfolded `TypeReference` *step* (produced before path
-    # construction folds it into the node's type field): non-navigating —
-    # assert and continue on the same node.
-    if step isa TypeReference
-        document isa step.type ||
-            throw(ReferenceTypeMismatch(step.type, typeof(document)))
-        return evaluate_reference(document, rest)
-    end
-    child = if step isa RangeReference
-        # element / cursor / range — element access at start+1 (cell-transparent)
-        _deref_cell(document[step.start + 1])
-    elseif step isa FieldReference
-        _get_field(document, step.name)
-    elseif step isa FunctionReference
-        step.f(document)
-    else
-        error("Unsupported reference step: $(typeof(step))")
-    end
+    kind = step_kind(step)
+    kind === :terminal &&
+        error("Cannot evaluate through terminal-only reference step: $(typeof(step))")
+    child = evaluate_step(step, document)
     evaluate_reference(child, rest)
 end
 
@@ -581,31 +603,28 @@ function get_valid_reference_prefix(document, path::ConcreteReferencePath)
     path.type === nothing || document isa path.type || return EmptyReferencePath()
     step = path.head
     rest = path.tail
-    if step isa TypeReference
-        # Transitional tolerance for a stray checkpoint *step*.
-        document isa step.type || return EmptyReferencePath()
+    kind = step_kind(step)
+    if kind === :terminal
+        # Terminal-only steps (no document navigation) survive only when this is
+        # the last step of the path; otherwise the trailing structure has no
+        # meaning to walk further and is truncated.
+        return rest isa EmptyReferencePath ? path :
+               ConcreteReferencePath(path.type, step, EmptyReferencePath())
+    end
+    if kind === :checkpoint
+        # Assert on the current node; a mismatch truncates.
+        try
+            evaluate_step(step, document)
+        catch
+            return EmptyReferencePath()
+        end
         return get_valid_reference_prefix(document, rest)
     end
-    # structural step: try to descend one level
+    # :structural — try to descend one level. `getindex` on a range step is
+    # allowed to throw (out-of-range, non-indexable container without a length
+    # method) and simply truncates.
     child = try
-        if step isa RangeReference
-            idx = step.start + 1
-            # Probe the index via getindex rather than `length(document)`: some
-            # container documents support indexing but do not forward `length`.
-            # An out-of-range / unindexable access throws and is caught below,
-            # truncating the path.
-            idx < 1 && return EmptyReferencePath()
-            _deref_cell(document[idx])
-        elseif step isa FieldReference
-            _has_field(document, step.name) || return EmptyReferencePath()
-            _get_field(document, step.name)
-        elseif step isa FunctionReference
-            step.f(document)
-        else
-            # steps with no document navigation (Point/Projection/Text…) are
-            # terminal-ish; keep them only if they are the last step.
-            return rest isa EmptyReferencePath ? path : ConcreteReferencePath(path.type, step, EmptyReferencePath())
-        end
+        evaluate_step(step, document)
     catch
         return EmptyReferencePath()
     end
@@ -657,35 +676,21 @@ end
 function annotate_reference_types(document, path::ConcreteReferencePath)
     step = path.head
     rest = path.tail
-    # Tolerance for an unfolded `TypeReference` *step*: non-navigating —
-    # drop it and continue folding on the same node.
-    if step isa TypeReference
-        return annotate_reference_types(document, rest)
-    end
+    # Checkpoint steps get folded away — this node's type replaces the
+    # standalone assertion.
+    step_kind(step) === :checkpoint && return annotate_reference_types(document, rest)
     nodetype = _node_type(document)
-    child = try
-        if step isa RangeReference
-            # A zero-width position is a cursor *between* items (a text caret or
-            # an insertion point), not a descent into an item — it is terminal,
-            # so the node it would reach is left untyped. Element/range steps
-            # descend into item start+1. Probe via getindex, not length, so
-            # container documents that index but do not forward `length` still
-            # annotate their element types.
-            if is_position_reference(step)
-                nothing
-            else
-                idx = step.start + 1
-                idx < 1 ? nothing : _deref_cell(document[idx])
-            end
-        elseif step isa FieldReference
-            _has_field(document, step.name) ? _get_field(document, step.name) : nothing
-        elseif step isa FunctionReference
-            step.f(document)
-        else
+    # A zero-width position is a cursor *between* items, not a descent into
+    # one — leave the node it would reach untyped. Otherwise, ask the step
+    # to descend; a throw or `nothing` means no child to annotate.
+    child = if step isa RangeReference && is_position_reference(step)
+        nothing
+    else
+        try
+            evaluate_step(step, document)
+        catch
             nothing
         end
-    catch
-        nothing
     end
     annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)
     ConcreteReferencePath(nodetype, step, annotated_rest)

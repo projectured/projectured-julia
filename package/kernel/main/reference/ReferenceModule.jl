@@ -3,7 +3,7 @@
 
 Layer 3 of the kernel — **paths into documents**. A reference is a linked list
 of typed steps (`RangeReference`, `FieldReference`, `TypeReference`,
-`FunctionReference`, `ProjectionReference`, `PointReference`, …), forming a
+`ProjectionReference`, `PointReference`, …), forming a
 `ReferencePath` (an `EmptyReferencePath` or a `ConcreteReferencePath`) that
 addresses one location inside a document tree. The selection generics
 (`get_selection` / `clear_selection!` / `set_selection!` / `with_selection`)
@@ -49,7 +49,7 @@ import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: Document, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
-       FunctionReference, ProjectionReference, TextRectangularReference, FieldReference,
+       ProjectionReference, TextRectangularReference, FieldReference,
        RangeReference, PointReference, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
        evaluate_reference, is_valid_reference, collect_references, is_element_reference,
@@ -57,6 +57,8 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        is_reference_equal_ignoring_types, is_prefix_of_ignoring_types, ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types,
+       # Step-type extensibility seam:
+       step_kind, evaluate_step,
        # Selection generics:
        get_selection, clear_selection!, set_selection!, with_selection,
        # ReferenceCase DSL:
