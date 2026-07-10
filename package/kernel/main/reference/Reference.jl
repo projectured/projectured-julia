@@ -89,7 +89,7 @@ The match rule is `node isa type`. Checkpoints are normally created from
 `typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
 the assertion holds exactly; recording an abstract supertype is also tolerated.
 """
-struct TypeReference <: ReferenceStep
+@document struct TypeReference <: ReferenceStep
     type::Any
 end
 
@@ -133,11 +133,9 @@ node carries that node's type here.
 The type is a field of the terminal node, not a separate trailing
 `TypeReference` checkpoint step.
 """
-struct EmptyReferencePath <: ReferencePath
-    type::Any
+@document struct EmptyReferencePath <: ReferencePath
+    type::Any = nothing
 end
-
-EmptyReferencePath() = EmptyReferencePath(nothing)
 
 """
     Reference
@@ -188,7 +186,7 @@ example, a delimiter that exists in the output but has no direct counterpart
 in the input domain. The `output_path` describes where within the projection's
 output the reference points.
 """
-struct ProjectionReference <: ReferenceStep
+@document struct ProjectionReference <: ReferenceStep
     projection::Any
     output_path::ReferencePath
 end
@@ -213,7 +211,7 @@ concatenated text of a `TextText`. Used by the syntax-to-text layer to
 communicate a nested child's whole-element selection as a character range
 to the text-to-graphics layer, which renders it as a translucent rectangle.
 """
-struct TextRectangularReference <: ReferenceStep
+@document struct TextRectangularReference <: ReferenceStep
     start::Int
     stop::Int
 end
