@@ -24,8 +24,8 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `cell/CellStruct.jl`
 - **Layer 2 — document** (`document/`)
   - 🔒 `document/DocumentLayer.jl`
-  - ⬜ `document/DocumentModule.jl`
-  - ⬜ `document/Interface.jl`
+  - ⬜ `document/DocumentModule.jl` — **deferred**: its exports change under the interface-layering split; see [plan/pending/document-interface-layering.md](plan/pending/document-interface-layering.md)
+  - ⬜ `document/Interface.jl` — **deferred**: its selection generics / `read_gesture` redistribute to the reference/device layers; see [plan/pending/document-interface-layering.md](plan/pending/document-interface-layering.md)
   - ⬜ `document/Document.jl`
   - ⬜ `document/Forward.jl`
   - ⬜ `document/Time.jl` — relocated here from the cell layer; **deferred**, blocked on the clock-as-document redesign (removes the AR-45 `_EDITOR_TIME` global) and renamed `Clock.jl` on implementation; see [plan/pending/per-editor-animation-clock.md](plan/pending/per-editor-animation-clock.md). Do not seal until migrated.
