@@ -3,8 +3,9 @@
 
 The animation clock, modelled as a `Clock` document with a reactive `time`
 field. Every `Clock` instance is independent: writing one instance's `time`
-invalidates only its own subscribers, so many editors in one process each
-carry their own clock without cross-invalidation.
+invalidates only its own subscribers, so a process holding many concurrent
+clocks never cross-invalidates them — the property that lets many editors run
+side by side without their animation graphs colliding.
 
 Two ways to read a clock, named for intent:
 
@@ -18,16 +19,15 @@ Two ways to read a clock, named for intent:
     the arming code itself re-running every frame.
 
 A single wall clock — `WALL_CLOCK`, exposed by `get_wall_clock()` — tracks OS
-time. It is the ambient default for callers with no editor of their own
-(headless rendering, one-shot writes, reader-armed widgets). One background
-task (`start_wall_clock_heartbeat!`) writes `Base.time()` into it on an
-interval; every other consumer only reads. A shared read of one real external
-truth is a principled AR-45 carve-out — no two editors ever *write*
-conflicting elapsed values into it.
+time. It is the ambient default for one-shot renders and any context that
+holds no clock of its own to subscribe against. One background task
+(`start_wall_clock_heartbeat!`) writes `Base.time()` into it on an interval;
+every other consumer only reads. A shared read of one real external truth is
+a principled AR-45 carve-out — nothing else ever *writes* conflicting elapsed
+values into it.
 """
 module ClockModule
 
-import ..CellModule: Cell
 import ..DocumentModule: @document, Document
 
 export Clock, get_reactive_time, get_time, tick!, seek!,
@@ -84,16 +84,17 @@ seek!(clock::Clock, t::Real) = tick!(clock, t)
 
 The one process-wide clock reflecting OS time. Advanced by
 [`start_wall_clock_heartbeat!`](@ref); read via
-[`get_wall_clock`](@ref). Every other clock in the process is a fresh
-per-editor / per-document instance.
+[`get_wall_clock`](@ref). Every other clock in the process is an
+independent instance carrying its own subscribers.
 """
 const WALL_CLOCK = Clock()
 
 """
     get_wall_clock() -> Clock
 
-The ambient wall-clock instance. Reader-armed animations and one-shot
-render paths that have no editor of their own read from it.
+The ambient wall-clock instance. Callers holding no clock of their own —
+one-shot renders, contexts that can't reach an enclosing clock — subscribe
+to it here.
 """
 get_wall_clock() = WALL_CLOCK
 
