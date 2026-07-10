@@ -67,7 +67,8 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, is_element_reference, PointReference
+                          ElementReference, EmptyReferencePath, is_element_reference
+import ..PointReferenceModule: PointReference
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_available_size

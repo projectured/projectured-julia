@@ -27,7 +27,8 @@ import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference, PointReference, head, tail
+                          FieldReference, RangeReference, ElementReference, head, tail
+import ..PointReferenceModule: PointReference
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation

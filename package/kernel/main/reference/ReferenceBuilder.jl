@@ -294,10 +294,10 @@ function dsl_build_step end
 dsl_build_step(::Val{n}, args...) where {n} =
     error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
 
-# Kernel-registered DSL entries. `.point` moves out of the kernel into
-# visual/graphics later (its registration lives with PointReference).
-dsl_build_step(::Val{:point}, xex, yex) =
-    :(ReferenceModule.PointReference(Int($xex), Int($yex)))
+# No kernel-registered `.name(...)` DSL entries — the cross-package step
+# types (`.point`, `.proj`, …) register their own `dsl_build_step` at the
+# package that owns them. The kernel keeps only the built-in navigation and
+# `::T` type-checkpoint syntax.
 
 # Wrap a value so it can stand in as a ReferencePath: pass paths through,
 # wrap steps into a one-element path.

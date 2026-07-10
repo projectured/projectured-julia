@@ -35,7 +35,8 @@ import ..MouseModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventCaseModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, PointReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..PointReferenceModule: PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..KeyboardModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this

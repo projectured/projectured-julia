@@ -179,17 +179,6 @@ end
 ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
 
 """
-    PointReference(x, y)
-
-References a point within the current element by pixel coordinates relative
-to that element's origin.
-"""
-@document struct PointReference <: ReferenceStep
-    x::Int
-    y::Int
-end
-
-"""
     TextRectangularReference(start, stop)
 
 A reference step representing an axis-aligned bounding box highlight in the
@@ -267,10 +256,6 @@ function Base.show(io::IO, s::TypeReference)
     print(io, "::", s.type)
 end
 
-function Base.show(io::IO, s::PointReference)
-    print(io, "@(", s.x, ",", s.y, ")")
-end
-
 function Base.show(io::IO, s::TextRectangularReference)
     print(io, "▭(", s.start, ":", s.stop, ")")
 end
@@ -301,7 +286,6 @@ end
 Base.:(==)(a::RangeReference,      b::RangeReference)      = a.start  == b.start  && a.stop == b.stop
 Base.:(==)(a::FieldReference,      b::FieldReference)      = a.name   == b.name
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
-Base.:(==)(a::PointReference,      b::PointReference)      = a.x == b.x && a.y == b.y
 Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) = a.start == b.start && a.stop == b.stop
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false
 

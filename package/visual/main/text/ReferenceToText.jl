@@ -25,9 +25,10 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           ReferenceStep, RangeReference, FieldReference,
-                          PointReference, TypeReference,
+                          TypeReference,
                           is_element_reference, is_position_reference,
                           head, tail, evaluate_reference, append_reference
+import ..PointReferenceModule: PointReference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..TextModule: TextDocument, TextText, TextString, TextNewline
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20

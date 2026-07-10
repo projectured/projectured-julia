@@ -51,7 +51,7 @@ import ..DocumentModule: Document, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        TextRectangularReference, FieldReference,
-       RangeReference, PointReference, ReferencePath,
+       RangeReference, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
        evaluate_reference, is_valid_reference, collect_references, is_element_reference,
        is_position_reference, is_range_reference, is_reference_equal, is_prefix_of,

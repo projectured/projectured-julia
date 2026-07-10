@@ -60,6 +60,8 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ReferenceApiModule = ProjecturedKernel.ReferenceModule
 const ProjectionReferenceModule = ProjecturedKernel.ProjectionReferenceModule
 const ProjectionReferenceApiModule = ProjecturedKernel.ProjectionReferenceModule
+# PointReferenceModule is defined locally by this package's graphics slice
+# (`include("graphics/PointReference.jl")` below).
 const OperationModule = ProjecturedKernel.OperationModule
 const GestureModule = ProjecturedKernel.GestureModule
 const GestureApiModule = ProjecturedKernel.GestureModule
@@ -142,6 +144,13 @@ include("style/StyleText.jl")
 # types.
 include("screen/ScreenDocument.jl")
 include("screen/WindowManaging.jl")
+# PointReference is the graphics-domain reference step (pixel coordinates
+# relative to an element); it registers its own `.point(x, y)` DSL entries
+# with the kernel's reference DSL. Loaded here — before ScreenToScreen — so
+# that ScreenToScreen can `import ..PointReferenceModule: PointReference`.
+# (PointReference depends only on DocumentModule + ReferenceModule, both
+# kernel constants already in scope; no graphics types are needed.)
+include("graphics/PointReference.jl")
 # ScreenToScreen: an identity projection over the window tree; imports only
 # visual (screen) + kernel/base.
 include("screen/ScreenToScreen.jl")

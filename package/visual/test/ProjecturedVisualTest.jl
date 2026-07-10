@@ -61,6 +61,7 @@ for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
 end
 
 # ── visual documents ─────────────────────────────────────────────────────────
+include("document/PointReferenceTest.jl")
 include("document/SyntaxTest.jl")
 include("document/TextTest.jl")
 include("document/GraphicsTest.jl")
@@ -148,6 +149,7 @@ function test_visual()
         test_visual_layering()
         test_visual_examples()
         # documents
+        test_point_reference()
         test_syntax()
         test_text()
         test_graphics()
@@ -212,6 +214,7 @@ function test_visual_examples()
 end
 
 export test_visual, test_visual_layering, test_visual_examples
+export test_point_reference
 export test_syntax, test_text, test_graphics, test_affine_transform,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive

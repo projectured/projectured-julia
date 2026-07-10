@@ -85,7 +85,7 @@ end
 @test (@step xs[4]) == ElementReference(4)
 @test (@step xs{3}) == PositionReference(3)
 @test (@step xs{1:5}) == RangeReference(1, 5)
-@test (@step c.point(2, 3)) == PointReference(2, 3)
+# `@step c.point(2, 3)` moved to the visual test suite alongside PointReference.
 
 # ── @reference_case range pattern ───────────────────────────────────────
 

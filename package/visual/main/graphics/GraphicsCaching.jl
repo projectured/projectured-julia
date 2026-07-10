@@ -24,7 +24,8 @@ import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
 import ..IdentityProjectionModule: IdentityProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, PointReference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference
+import ..PointReferenceModule: PointReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..MouseModule: MousePress
 export GraphicsCanvasToGraphicsImage, GraphicsCaching

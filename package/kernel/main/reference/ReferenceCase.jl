@@ -484,25 +484,9 @@ function dsl_match_step end
 dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
     error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
 
-# Kernel-registered DSL entries. `.point` moves out of the kernel into
-# visual/graphics later; `.proj` already moved to kernel/projection with
-# ProjectionReference (see `projection/ProjectionReference.jl`).
-function dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound,
-                        gen_value_match, gen_path_match)
-    xpat, ypat = argpats[1], argpats[2]
-    xexpr = :($hex.x)
-    yexpr = :($hex.y)
-    inner2, bound2 = gen_value_match(yexpr, ypat, rest_success, bound)
-    inner1, bound1 = gen_value_match(xexpr, xpat, inner2, bound2)
-    ex = quote
-        if $hex isa ReferenceModule.PointReference
-            $inner1
-        else
-            _nomatch
-        end
-    end
-    return ex, bound1
-end
+# No kernel-registered `.name(...)` DSL entries — the cross-package step
+# types (`.point`, `.proj`, …) register their own `dsl_match_step` at the
+# package that owns them.
 
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
     # Folded references expose a navigation step directly as `head` (the type is a
