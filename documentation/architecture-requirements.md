@@ -694,7 +694,7 @@ states for placement).
     `ProjecturedKernelExample`, and `WorkbenchAssistant` dropped its `FakeLlm`
     fallback.
 
-69. **A module's documentation describes its own contract, never its consumers.**
+70. **A module's documentation describes its own contract, never its consumers.**
     A docstring or comment must not name, enumerate, or explain the higher-layer
     modules, macros, or callers that build on the code it documents — that is forward
     knowledge a lower layer cannot have without inverting the dependency direction.
@@ -723,7 +723,7 @@ states for placement).
     supplies the default" names a consumer and is the violation. The
     carve-out applies only to a *seam file* (one whose job is to declare
     the open interface) and only to the *concepts* the seam bridges;
-    everything else in AR-69 still holds. Prefer redistributing the seam
+    everything else in AR-70 still holds. Prefer redistributing the seam
     to the lowest layer where every concept it names is already
     introduced (AR-47): once every concept sits at or below the seam, the
     forward-concept references become backward, not forward, and the

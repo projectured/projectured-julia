@@ -133,7 +133,7 @@ module home means:
 
 ## Related
 
-- Pairs with the AR-69 seam carve-out: an interface/seam file may name the *concepts*
+- Pairs with the AR-70 seam carve-out: an interface/seam file may name the *concepts*
   it bridges (as forward pointers) but not the specific higher-*package* modules that
   implement it. After this split, each seam sits at the layer of its concepts, so even
   the concept references become backward, not forward.
