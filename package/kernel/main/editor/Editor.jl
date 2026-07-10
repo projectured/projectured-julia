@@ -17,7 +17,7 @@ import ..BackendModule: Backend, initialize_backend!, quit_backend!
 import ..ScreenDeviceModule: Screen, WindowQuit
 import ..GestureModule: EventEnvelope
 import ..PerformanceCounterModule: get_performance_counters, with_performance_counters, @performance_time, PERFORMANCE_COUNTERS_ENABLED
-import ..ClockModule: Clock, tick!, start_wall_clock_heartbeat!
+import ..ClockModule: Clock, tick!
 import ..PrinterContextModule: PrinterContext, with_clock
 import ..DocumentModule: Document
 import ..KeyboardModule: Keyboard, KeyDown
@@ -225,11 +225,6 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         nothing
     end
     server === nothing || start_agent_server!(server)
-    # The wall clock backs reader-armed animations that read `get_wall_clock()`
-    # (widgets whose reader has no `PrinterContext` to receive our per-editor
-    # clock). Start its heartbeat idempotently — a no-op when another editor
-    # already started it.
-    start_wall_clock_heartbeat!()
     # Advance this editor's private animation clock once per frame; subscribers
     # via `get_reactive_time(editor.clock)` re-evaluate on the next pull.
     # Logical time is wall-clock seconds since the loop started.

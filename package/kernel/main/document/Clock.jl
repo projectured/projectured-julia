@@ -18,20 +18,18 @@ Two ways to read a clock, named for intent:
     dependency. Use to *arm* an animation (capture a start instant) without
     the arming code itself re-running every frame.
 
-A single wall clock — `WALL_CLOCK`, exposed by `get_wall_clock()` — tracks OS
-time. It is the ambient default for one-shot renders and any context that
-holds no clock of its own to subscribe against. One background task
-(`start_wall_clock_heartbeat!`) writes `Base.time()` into it on an interval;
-every other consumer only reads. A shared read of one real external truth is
-a principled AR-45 carve-out — nothing else ever *writes* conflicting elapsed
-values into it.
+A single wall clock — exposed by `get_wall_clock()` — tracks OS time. It is
+the ambient default for one-shot renders and any context that holds no clock
+of its own to subscribe against. One background task started at module load
+writes `Base.time()` into it on an interval; every other consumer only
+reads. A shared read of one real external truth is a principled AR-45
+carve-out — nothing else ever *writes* conflicting elapsed values into it.
 """
 module ClockModule
 
 import ..DocumentModule: @document, Document
 
-export Clock, get_reactive_time, get_time, tick!, seek!,
-       WALL_CLOCK, get_wall_clock, start_wall_clock_heartbeat!
+export Clock, get_reactive_time, get_time, tick!, seek!, get_wall_clock
 
 """
     Clock(; time = 0.0) -> Clock
@@ -79,15 +77,9 @@ name is used at recording / test call sites where the semantics are
 """
 seek!(clock::Clock, t::Real) = tick!(clock, t)
 
-"""
-    WALL_CLOCK :: Clock
-
-The one process-wide clock reflecting OS time. Advanced by
-[`start_wall_clock_heartbeat!`](@ref); read via
-[`get_wall_clock`](@ref). Every other clock in the process is an
-independent instance carrying its own subscribers.
-"""
-const WALL_CLOCK = Clock()
+# The one process-wide clock reflecting OS time — the singleton `get_wall_clock`
+# returns. Not exported; the accessor is the public entry point.
+const _WALL_CLOCK = Clock()
 
 """
     get_wall_clock() -> Clock
@@ -96,36 +88,38 @@ The ambient wall-clock instance. Callers holding no clock of their own —
 one-shot renders, contexts that can't reach an enclosing clock — subscribe
 to it here.
 """
-get_wall_clock() = WALL_CLOCK
+get_wall_clock() = _WALL_CLOCK
 
-# The wall-clock heartbeat: one task, started lazily by
-# `start_wall_clock_heartbeat!`, writing `Base.time() - t_start` into
-# `WALL_CLOCK.time` on an interval. Guarded by a lock so concurrent starts
-# leave exactly one live task.
+# The wall-clock heartbeat: one task, started once at module load, writing
+# `Base.time() - t_start` into `_WALL_CLOCK.time` on an interval. Guarded by a
+# lock so re-entering `__init__` after a process fork or manual reload leaves
+# exactly one live task.
+const _HEARTBEAT_INTERVAL = 0.01
 const _HEARTBEAT_TASK = Ref{Union{Nothing,Task}}(nothing)
 const _HEARTBEAT_LOCK = ReentrantLock()
 
-"""
-    start_wall_clock_heartbeat!(interval = 0.01) -> nothing
-
-Ensure the wall-clock heartbeat is running. Idempotent: a second call while
-a heartbeat task is alive is a no-op. `interval` is the wake period in seconds
-between ticks. The heartbeat is the one writer of `WALL_CLOCK` — every other
-consumer only reads.
-"""
-function start_wall_clock_heartbeat!(interval::Real = 0.01)
+function _start_wall_clock_heartbeat!()
     lock(_HEARTBEAT_LOCK) do
         current = _HEARTBEAT_TASK[]
         (current !== nothing && !istaskdone(current)) && return
         t_start = Base.time()
         _HEARTBEAT_TASK[] = @async begin
             while true
-                tick!(WALL_CLOCK, Base.time() - t_start)
-                sleep(interval)
+                tick!(_WALL_CLOCK, Base.time() - t_start)
+                sleep(_HEARTBEAT_INTERVAL)
             end
         end
     end
     nothing
+end
+
+# Runs at first `using ClockModule` in every process (including precompile-child
+# processes that load us as a dependency). The `jl_generating_output` guard
+# skips the heartbeat during precompile: an @async that never terminates
+# would keep the precompile child alive past its work and hang the build.
+function __init__()
+    ccall(:jl_generating_output, Cint, ()) == 0 || return
+    _start_wall_clock_heartbeat!()
 end
 
 end # module
