@@ -1,12 +1,8 @@
-# Fragment of `DocumentModule` — the shared machinery every concrete document
-# reuses: the generic `Base.show`, the `@document` macro, and the value
-# protocol (`copy_document`, `sync_document!`). The `@forward*` family lives
-# in the sibling `Forward.jl` fragment. The `Document` abstract type comes
-# from `Interface.jl`, which `DocumentModule.jl` includes first so it is
-# already in scope here. `@document` generates its own kind-parameterized stem
-# below; the generic transparent-Cell struct codegen it builds on
-# (`cell_struct_kw_params`, `cell_struct_kwctor`, `@cell_struct`) lives in the
-# cell layer — see `cell/CellStruct.jl`.
+# Fragment of `DocumentModule` — the shared machinery: the generic
+# `Base.show`, the `@document` macro, and the value protocol
+# (`copy_document`, `sync_document!`). Builds on the transparent-Cell struct
+# codegen from the cell layer (`cell_struct_kw_params`, `cell_struct_kwctor`)
+# imported at the module head.
 
 """
 Maximum nesting depth printed by the generic document `show` before child
@@ -49,8 +45,7 @@ end
     @document struct T [<: Super] ... end
 
 Annotate a Document struct whose fields are transparent cells. The programmer
-writes real value types; the macro generates the **kind-parameterized stem**
-(see plan/pending/cell-kind-documents.md):
+writes real value types; the macro generates the **kind-parameterized stem**:
 
 1. **Immutable parametric struct** (same name) — one cell type-parameter per
    field (`Foo{C1<:AbstractCell, …}`), so the *cell kind* in the fields decides
@@ -96,16 +91,14 @@ default is present, the macro also generates:
 
 Since the stem is immutable, a node's field *cells* can never be swapped after
 construction (`setfield!` is gone); all mutation flows through the cells, and
-construction-time cell sharing replaces retargeting (see ProjectionTemplate's
-`_with_selection`).
+construction-time cell sharing replaces field-level retargeting.
 """
 macro document(structdef)
     structdef.head === :struct || error("@document expects a struct definition")
     # Default the supertype to `Document` unless one is written explicitly, so
-    # `@document struct Foo … end` means `struct Foo <: Document … end`. A domain
-    # abstract supertype (`<: JsonDocument`, …) or any explicit `<: …` always
-    # wins. The injected `:Document` resolves in the caller's scope (the result
-    # is `esc`'d) — same mechanic as `@iomap`/`IoMap`.
+    # `@document struct Foo … end` means `struct Foo <: Document … end`. Any
+    # explicit `<: SomeSuper` always wins. The injected `:Document` resolves in
+    # the caller's scope (the result is `esc`'d).
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))
         name_expr = Expr(:(<:), name_expr, :Document)
@@ -160,11 +153,10 @@ macro document(structdef)
 
     # ── Auto-wrapping inner constructor (the ONLY inner constructor) ──────────
     # Raw values wrap in `ReactiveCell{Any}` — the historic untyped `Cell`, so the
-    # bare name keeps today's semantics exactly (template markers, `nothing`
-    # defaults, shared wider-typed cells all keep working). Cells pass through,
-    # which is also how the kind ctors and `copy_document` construct every other
-    # kind. Hand-written convenience ctors stay outer and call `Foo(values…)` as
-    # before.
+    # bare name keeps the untyped-cell semantics (bare `nothing` defaults and
+    # shared wider-typed cells keep working). Cells pass through, which is how
+    # the kind ctors and `copy_document` construct every other kind. Hand-written
+    # convenience ctors stay outer and call `Foo(values…)` as before.
     #
     # `new{…}` needs the cell types as parameters; computing them via `typeof` is
     # a runtime `apply_type` per construction (~2.5× build cost, measured on the
@@ -313,21 +305,16 @@ macro document(structdef)
 end
 
 # ── Deep copy of document subtrees ─────────────────────────────────────────
-# The Julia counterpart of Lisp's `deep-copy`, for anywhere a document subtree
-# must be cloned independently of the original (copy/paste, version snapshots,
-# a mutable-kind rebuild for a simulator, an immutable-kind snapshot for
-# serialization, …). Unlike `Base.deepcopy` it understands the `@document`
-# Cell-wrapped field convention, allocates **fresh** `Cell`s so the copy is
-# independent of the original's reactive graph, and offers a two-arity surface:
+# The Julia counterpart of Lisp's `deep-copy`. Unlike `Base.deepcopy` it
+# understands the `@document` Cell-wrapped field convention and allocates
+# fresh `Cell`s, so the copy is independent of the original's reactive graph.
+# Two arities:
 #
 #   copy_document(doc)     -> Document              # preserve every cell's kind
 #   copy_document(K, doc)  -> Document              # rebuild every cell as kind K
 #
-# Both keep the source's selection; call `clear_selection!(copy)` afterward if
-# a fresh cursor is required (the clipboard/version-snapshot pattern). The
-# walk is generic over structure — struct fields (`fieldnames`), Vector
-# elements, and per-slot cells inside a Vector are all traversed uniformly —
-# so no concrete document type needs its own override.
+# The walk is generic over structure — struct fields (`fieldnames`), Vector
+# elements, and per-slot cells inside a Vector are all traversed uniformly.
 
 """
     copy_document(value)                     -> value
@@ -339,9 +326,7 @@ Deep-copy `value`, allocating fresh `Cell`s and fresh containers so the result
 shares no mutable state with the source. Cell kinds are preserved: each field
 cell in a `@document` node is cloned as the same kind, and per-slot cells
 inside a Vector are cloned as the same kind. Plain immutable leaves (strings,
-numbers, symbols, reference paths) pass through unchanged. The source's
-selection is kept — callers that want a reset call
-[`clear_selection!`](@ref) on the returned document.
+numbers, symbols) pass through unchanged.
 """
 copy_document(value) = value
 
@@ -382,11 +367,10 @@ reactive target uses `Any` (parity with the historic untyped `Cell`); the
 mutable/immutable targets use each field's **declared** type when the value
 conforms — so a fully-conforming node inhabits the `MFoo`/`IFoo` alias — and
 fall back to the value's own type otherwise. The fallback is load-bearing:
-the reactive kind stores every field as `Any`, so a nominally `StyleColor`
-field may actually hold `nothing`; a typed `ImmutableCell{StyleColor}(nothing)`
+the reactive kind stores every field as `Any`, so a nominally typed field
+may actually hold `nothing`; a typed cell like `ImmutableCell{SomeType}(nothing)`
 would be unconstructable, so that field lands on `ImmutableCell{Nothing}`
-instead (still type-stable, just off the alias). The source's selection is
-kept.
+instead (still type-stable, just off the alias).
 """
 copy_document(::Type{<:AbstractCell}, value) = value
 
@@ -452,12 +436,12 @@ end
 _value_type(::AbstractCell{T}) where {T} = T
 
 # ── Shadow sync ────────────────────────────────────────────────────────────
-# The double-buffer pattern (plan/pending/cell-kind-documents.md, Phase 7): a
-# simulator mutates a MutableCell-kind document freely (zero reactive overhead
-# per event, no observable intermediate states), then at a pause point
-# `sync_document!` diff-copies it into a shadow tree that feeds the projection
-# pipeline. The two trees have the same field-for-field shape (generated from
-# one `@document` declaration), which is what lets the sync be one generic walk.
+# The double-buffer pattern: mutate a MutableCell-kind document freely (zero
+# reactive overhead per event, no observable intermediate states); at a pause
+# point diff-copy it into a ReactiveCell-kind shadow, writing a shadow cell
+# only when its value changed so the reactive graph sees a minimal set of
+# invalidations. Both trees are the same document type (generated from one
+# `@document` declaration), which is what lets the sync be one generic walk.
 
 # Same document type ignoring cell kind (compare the UnionAll wrappers).
 _same_wrapper(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
@@ -471,8 +455,7 @@ cell **only when its value changed** — so the downstream graph sees a
 writable kind (`ReactiveCell` or `MutableCell`); `source` may be any kind.
 Recurses structurally: a child document is synced in place when it is the
 same type, else replaced by a fresh copy in the shadow's kind; a leaf field
-is written only on `!isequal`. `CollectionModule` adds the `CellVector`
-element reconciler.
+is written only on `!isequal`.
 
 The result is a consistent view of `source` after each sync; between syncs
 the source is unobserved and pays nothing for observation.
