@@ -41,8 +41,9 @@ import ..ProjectionApiModule: map_reference_forward, map_reference_backward, rea
 # `ProjectionApiModule.print_document` method-definition name (see the macro).
 import ..ProjectionApiModule
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
-                          TypeReference, ProjectionReference, ReferencePath, Reference,
+                          TypeReference, ReferencePath, Reference,
                           fold_reference_types, strip_reference_types
+import ..ProjectionReferenceModule: ProjectionReference
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 # The `RuleIoMap` readers keyed on `RecursiveProjection` (the transparent

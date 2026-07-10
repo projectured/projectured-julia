@@ -15,7 +15,8 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_map
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, ProjectionReference, evaluate_reference
+import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation

@@ -457,55 +457,46 @@ function _gen_step_match(hex, tex, step::PSRange, rest_success, bound::Set{Symbo
 end
 
 function _gen_step_match(hex, tex, step::PSExtension, rest_success, bound::Set{Symbol})
-    dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound)
+    dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound,
+                   _gen_value_match, _gen_path_match)
 end
 
 """
-    dsl_match_step(::Val{name}, hex, argpats, rest_success, bound) -> (Expr, Set{Symbol})
+    dsl_match_step(::Val{name}, hex, argpats, rest_success, bound,
+                   gen_value_match, gen_path_match) -> (Expr, Set{Symbol})
 
 Return `(match_branch, updated_bound)` for a `.name(patterns...)` pattern in the
 `@reference_case` DSL. `hex` is the expression bound to the current step, and
 `argpats` is the vector of parsed patterns (each a `PatValue` for a value
-argument, or a `Vector{PatStep}` for a subpath argument). Each package
-registers a `::Val{:name}` method for its own step types; the kernel's own
-`.point` and `.proj` entries live in this file.
+argument, or a `Vector{PatStep}` for a subpath argument). `gen_value_match`
+and `gen_path_match` are helper callbacks the caller passes in so extension
+methods can generate value/path patterns without reaching into kernel
+internals: their signatures are
 
-Helpers exposed to registration callers: `_gen_value_match(expr, pat,
-rest_success, bound)` for value patterns and `_gen_path_match(path_expr,
-patsteps, success, bound)` for subpath patterns.
+    gen_value_match(expr, pat, rest_success, bound) -> (Expr, Set{Symbol})
+    gen_path_match(path_expr, patsteps, success, bound) -> (Expr, Set{Symbol})
+
+Each package registers a `::Val{:name}` method for its own step types; the
+kernel's own `.point` and `.proj` entries live in this file.
 """
 function dsl_match_step end
 
-dsl_match_step(::Val{n}, hex, argpats, rest_success, bound) where {n} =
+dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
     error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
 
-# Kernel-registered DSL entries. `.point` moves to visual/graphics in phase 5;
-# `.proj` moves to kernel/projection.
-function dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound)
+# Kernel-registered DSL entries. `.point` moves out of the kernel into
+# visual/graphics later; `.proj` already moved to kernel/projection with
+# ProjectionReference (see `projection/ProjectionReference.jl`).
+function dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound,
+                        gen_value_match, gen_path_match)
     xpat, ypat = argpats[1], argpats[2]
     xexpr = :($hex.x)
     yexpr = :($hex.y)
-    inner2, bound2 = _gen_value_match(yexpr, ypat, rest_success, bound)
-    inner1, bound1 = _gen_value_match(xexpr, xpat, inner2, bound2)
+    inner2, bound2 = gen_value_match(yexpr, ypat, rest_success, bound)
+    inner1, bound1 = gen_value_match(xexpr, xpat, inner2, bound2)
     ex = quote
         if $hex isa ReferenceModule.PointReference
             $inner1
-        else
-            _nomatch
-        end
-    end
-    return ex, bound1
-end
-
-function dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound)
-    projpat, outpath = argpats[1], argpats[2]
-    projexpr = :($hex.projection)
-    outpathexpr = :($hex.output_path)
-    after_out, bound2 = _gen_path_match(outpathexpr, outpath, rest_success, bound)
-    after_proj, bound1 = _gen_value_match(projexpr, projpat, after_out, bound2)
-    ex = quote
-        if $hex isa ReferenceModule.ProjectionReference
-            $after_proj
         else
             _nomatch
         end

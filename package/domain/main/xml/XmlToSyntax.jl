@@ -34,7 +34,8 @@ module XmlToSyntaxModule
 import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReferencePath, ProjectionReference, PositionReference
+import ..ReferenceModule: ConcreteReferencePath, PositionReference
+import ..ProjectionReferenceModule: ProjectionReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement

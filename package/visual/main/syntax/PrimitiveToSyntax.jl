@@ -134,7 +134,7 @@ end
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference
 import ..PrinterContextModule: make_child_context
 
 """

@@ -10,6 +10,10 @@
 # IoMapModule holds the shared concrete IO maps. Nothing below this layer
 # imports any of them — `package/base` extends the generics through the fully
 # loaded kernel, so they need no earlier position in the include list.
+# ProjectionReference — a reference step whose payload is a projection.
+# Small, self-contained; needs only DocumentModule and ReferenceModule, so
+# loads first in the layer.
+include("ProjectionReference.jl")
 include("ProjectionApi.jl")
 include("IoMapApi.jl")
 include("Intent.jl")

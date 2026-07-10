@@ -49,7 +49,8 @@ import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, ElementReference,
-                          ProjectionReference, EmptyReferencePath
+                          EmptyReferencePath
+import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation

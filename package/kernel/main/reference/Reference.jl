@@ -179,19 +179,6 @@ end
 ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
 
 """
-    ProjectionReference(projection, output_path)
-
-A reference step that points to an element introduced by a projection — for
-example, a delimiter that exists in the output but has no direct counterpart
-in the input domain. The `output_path` describes where within the projection's
-output the reference points.
-"""
-@document struct ProjectionReference <: ReferenceStep
-    projection::Any
-    output_path::ReferencePath
-end
-
-"""
     PointReference(x, y)
 
 References a point within the current element by pixel coordinates relative
@@ -314,7 +301,6 @@ end
 Base.:(==)(a::RangeReference,      b::RangeReference)      = a.start  == b.start  && a.stop == b.stop
 Base.:(==)(a::FieldReference,      b::FieldReference)      = a.name   == b.name
 Base.:(==)(a::TypeReference,       b::TypeReference)       = a.type     === b.type
-Base.:(==)(a::ProjectionReference, b::ProjectionReference) = a.projection === b.projection && a.output_path == b.output_path
 Base.:(==)(a::PointReference,      b::PointReference)      = a.x == b.x && a.y == b.y
 Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) = a.start == b.start && a.stop == b.stop
 Base.:(==)(::ReferenceStep,        ::ReferenceStep)        = false

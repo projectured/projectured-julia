@@ -40,7 +40,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
                            ElementReference, PositionReference, RangeReference,
-                           FieldReference, ProjectionReference, append_reference
+                           FieldReference, append_reference
+import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context

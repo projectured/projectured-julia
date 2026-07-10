@@ -22,8 +22,9 @@ import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
-                          PositionReference, ProjectionReference, ReferencePath,
+                          PositionReference, ReferencePath,
                           EmptyReferencePath, append_reference, is_element_reference
+import ..ProjectionReferenceModule: ProjectionReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
