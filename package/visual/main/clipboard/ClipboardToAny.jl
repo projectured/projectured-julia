@@ -49,6 +49,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
+import ..ReferenceModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..TextModule: TextText, TextString, text_selection_substring, text_insert_op
 import ..CollectionModule: CellVector
@@ -378,8 +379,10 @@ function _clipboard_copy(p, input)
     (p.text && input.content isa TextText) && return _text_clipboard_copy(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
+    payload = copy_document(obj)
+    clear_selection!(payload)                  # clipboard payload carries no cursor
     ops = Any[
-        replace_document(_field_path("slice"), copy_document(obj)),
+        replace_document(_field_path("slice"), payload),
         ReplaceSelectionOperation(sel),
     ]
     _maybe_os_mirror!(ops, p, obj)
@@ -453,8 +456,10 @@ function _clipboard_paste_copy(p, input)
             ReplaceSelectionOperation(sel),
         ])
     end
+    fresh = copy_document(slice)
+    clear_selection!(fresh)                    # pasted content starts with no cursor
     CompoundOperation(Any[
-        replace_document(sel, copy_document(slice)),
+        replace_document(sel, fresh),
         ReplaceSelectionOperation(sel),
     ])
 end

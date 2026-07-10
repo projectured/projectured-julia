@@ -358,7 +358,7 @@ _with_selection(node, sel::Cell) =
 # this (not the concrete kind-specialized `typeof`) so the reference paths they
 # build carry the same bare names the `@reference` macro and
 # `annotate_reference_types` use — the `.type === .type` reference comparisons
-# then hold across an input and its snapshot/hydrate of a different cell kind.
+# then hold across an input and a kind-converted copy of it.
 _dtype(x) = Base.typename(typeof(x)).wrapper
 
 function _atomic_print(p, doc, out)

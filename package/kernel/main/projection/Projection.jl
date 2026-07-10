@@ -25,8 +25,8 @@ import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
 # The ReplaceStringRangeOperation / ReplaceNumberRangeOperation branches of
 # the default read_intent live in base/projection/ReaderDefaults.jl beside
 # the Primitive document types. This module stays Primitive-free.
-import ..CellModule: AbstractCell, cell_struct_exprs
-import ..DocumentModule: snapshot
+import ..CellModule: AbstractCell, ImmutableCell, cell_struct_exprs
+import ..DocumentModule: copy_document
 import ..ReferenceModule: EmptyReferencePath
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: var"@reference_case"
@@ -54,7 +54,7 @@ pure_print(projection, input) =
 
 # Snapshot the forced output of a projection to the immutable kind, when it is a
 # document; non-document outputs (a String, a graphics value) pass through.
-_pure_snapshot(x) = x isa Document ? snapshot(x) : x
+_pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
 _force_output(o) = o isa AbstractCell ? o[] : o
 
 # Total fallback for any projection without a specialized pure interpreter: run

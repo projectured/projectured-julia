@@ -22,14 +22,15 @@ ctrl_shift = Modifiers(ctrl=true, shift=true)
     orig.value = "bye"
     @test cp.value == "hi"                                   # copy unaffected
 
-    # Nested document + CellVector are cloned, selection is reset.
+    # Nested document + CellVector are cloned; selection is preserved (call
+    # `clear_selection!` explicitly to reset).
     coll = ClipboardCollection(PrimitiveString("root"),
                                [PrimitiveString("a"), PrimitiveString("b")])
     coll.selection = cpath(FieldReference("content"))
     cc = copy_document(coll)
     @test length(cc.elements) == 2
     @test cc.elements[1].value == "a"
-    @test cc.selection === nothing                           # selection reset
+    @test cc.selection !== nothing                           # selection preserved
     coll.elements[1].value = "X"
     @test cc.elements[1].value == "a"                        # independent
 end

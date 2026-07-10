@@ -48,6 +48,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
+import ..ReferenceApiModule: clear_selection!
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
 import ..CollectionModule: CellVector
@@ -190,7 +191,9 @@ _field_path(name::AbstractString) =
 function _create_version(iomap::VersioningToAnyProjectionIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing
-    snapshot = ObjectVersion(copy_document(version.value))
+    saved_value = copy_document(version.value)
+    clear_selection!(saved_value)               # a saved version carries no cursor
+    snapshot = ObjectVersion(saved_value)
     insert_elements(_field_path("versions"), 0, Any[snapshot])
 end
 

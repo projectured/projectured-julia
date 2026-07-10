@@ -3,9 +3,8 @@
 
 Layer 2 of the kernel — the **document contract**: the `Document` abstract
 type, the `@document`/`@forward*` codegen macros, and the shared value
-protocol every concrete document reuses (`copy_document`, `cell_kind`,
-`rekind`, `snapshot`, `hydrate`, `sync_document!`). The kernel defines only
-this contract; it carries no concrete documents.
+protocol every concrete document reuses (`copy_document`, `sync_document!`).
+The kernel defines only this contract; it carries no concrete documents.
 
 Three fragments share this namespace, each documented at its own definition:
 [`Interface.jl`](Interface.jl) (the `Document` type + selection-field
@@ -18,8 +17,7 @@ module DocumentModule
 import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
                      cell_struct_kw_params, cell_struct_kwctor
 
-export Document,
-       copy_document, cell_kind, rekind, snapshot, hydrate, sync_document!,
+export Document, copy_document, sync_document!,
        @document, @forward, @forward_vector, @forward_map
 
 # Interface.jl first — the machinery in Document.jl and Forward.jl refers to

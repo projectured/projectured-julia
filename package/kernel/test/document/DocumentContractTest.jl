@@ -9,7 +9,7 @@ Covers:
 - `@document` field auto-wrapping in Cells,
 - `getproperty` unwraps stored Cells,
 - selection contract: get/clear/set/with produce and propagate paths,
-- `snapshot` / `copy_document` / `rekind` round-trip a document tree.
+- `copy_document` round-trips a document tree (same kind and kind-converting).
 """
 
 using Test
@@ -67,16 +67,16 @@ function test_document_contract()
         @test get_selection(n.child) === nothing
     end
 
-    @testset "snapshot and copy_document round-trip a document tree" begin
+    @testset "copy_document round-trips a document tree" begin
         leaf = ToyNode("leaf", nothing, nothing)
         root = ToyNode("root", leaf, nothing)
-        # `snapshot` returns an immutable-kind form of the same document.
-        snap = snapshot(root)
+        # `copy_document(K, doc)` returns a kind-converted form of the tree.
+        snap = copy_document(ImmutableCell, root)
         @test snap isa ToyNode
         @test snap.label == "root"
         @test snap.child.label == "leaf"
-        # `copy_document` produces an independent, mutable copy that reads back
-        # equal at every level.
+        # `copy_document(doc)` produces an independent copy preserving the
+        # source's kind that reads back equal at every level.
         clone = copy_document(root)
         @test clone !== root
         @test clone.label == "root"

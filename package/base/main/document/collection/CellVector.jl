@@ -183,31 +183,37 @@ Base.reverse(cv::CellVector) = begin
     _rebuild_with(cv, slots)
 end
 
-# ── CellVector: deep copy / rekind / sync / reference steps ────────────────
+# ── CellVector: deep copy / sync / reference steps ────────────────────────
 # ── Deep copy ──────────────────────────────────────────────────────────────
-# `CellVector`-specific case of `DocumentModule.copy_document` (the generic and
-# `Document` methods live in `Document.jl`). The generic `Document` path would
-# shallow-share `elements`' inner `Cell`s, so clone each element into a fresh
-# `Cell`; `selection` resets to `nothing` via the `CellVector` constructor.
+# `CellVector`-specific cases of `DocumentModule.copy_document`. The generic
+# `Document` path would share the `elements`' inner slot `Cell`s (the fallback
+# `copy_document(::Vector) = [copy_document(x) for x in v]` returns each cell
+# unchanged when the vector is non-`Vector{Cell}`, and slot-cell kind against
+# the enclosing CellVector's kind convention is the storage decision this
+# override makes explicit).
+
+# Same-kind deep copy: preserve the storage shape of the source's `elements`
+# field, cloning each slot cell (reactive convention) or each raw value
+# (immutable/mutable convention) into a fresh Cell/value; the outer field cells
+# are rebuilt of the same kind by `_rebuild_with`.
 function copy_document(cv::CellVector)
     elems = _plain(cv)
     slots = elems isa Vector{Cell} ? Cell[Cell(copy_document(c[])) for c in elems] :
                                      Any[copy_document(x) for x in elems]
-    _rebuild_with(cv, slots)   # same field-cell kinds; selection reset
+    _rebuild_with(cv, slots)   # same field-cell kinds
 end
 
-# `CellVector`-specific case of `DocumentModule.rekind`, for the same reason as
-# `copy_document` above: the generic `Document` walk would share the elements'
-# slot `Cell`s with the original. The target storage follows the kind convention:
-# reactive → per-element slot Cells, immutable/mutable → plain value vector.
-function rekind(::Type{K}, cv::CellVector) where {K<:AbstractCell}
-    vals = Any[rekind(K, x) for x in cv]
+# Kind-converting deep copy: the target storage follows the kind convention —
+# reactive → per-element slot Cells (via `CellVector(items)`), immutable/mutable
+# → plain value vector wrapped in an outer typed cell.
+function copy_document(::Type{K}, cv::CellVector) where {K<:AbstractCell}
+    vals = Any[copy_document(K, x) for x in cv]
     K === ReactiveCell ? CellVector(vals) :
         CellVector(K{Vector}(vals), K{Reference}(nothing))
 end
 
 # `CellVector`-specific case of `DocumentModule.sync_document!`: reconcile the
-# reactive `shadow`'s elements against `source` positionally. A slot whose source
+# writable `shadow`'s elements against `source` positionally. A slot whose source
 # element is the same document type is synced *in place* (its own inner cells,
 # minimally); a changed-type or changed-value slot is rewritten; a longer source
 # appends (fires the structure cell once), a shorter one trims from the end.
@@ -218,17 +224,18 @@ end
 # syncs) would make that minimal too, and is the natural refinement if profiling a
 # front-heavy queue demands it.
 function sync_document!(shadow::CellVector, source::CellVector)
+    K = _document_cell_kind(shadow)
     ns, nc = length(source), length(shadow)
     for i in 1:min(ns, nc)
         s, c = source[i], shadow[i]
         if s isa Document && c isa Document && _same_wrapper(c, s)
             sync_document!(c, s)                      # recurse into the slot's document
         else
-            isequal(c, s) || (shadow[i] = _shadow_elem(s))   # value/type change ⇒ rewrite slot
+            isequal(c, s) || (shadow[i] = _shadow_elem(K, s))   # value/type change ⇒ rewrite slot
         end
     end
     for i in (nc + 1):ns
-        push!(shadow, _shadow_elem(source[i]))        # enqueue
+        push!(shadow, _shadow_elem(K, source[i]))     # enqueue
     end
     for _ in 1:(nc - ns)
         pop!(shadow)                                  # trim surplus

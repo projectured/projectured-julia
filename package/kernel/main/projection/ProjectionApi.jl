@@ -167,7 +167,7 @@ repeatedly (multi-page layout, serialization).
 
 Higher-order projections (Sequential / Recursive / TypeDispatching) thread it so a
 whole *pipeline* is pure; every concrete projection falls back to a snapshot of the
-reactive output (`snapshot(print_document(...).output[])`) — slower (it builds the
+reactive output (`copy_document(ImmutableCell, print_document(...).output[])`) — slower (it builds the
 reactive machinery first, then copies), but total, so `pure_print` works end-to-end
 for any pipeline. A genuinely fast per-projection interpreter is future work,
 justified only where a profile shows it pays (most render-stage projections are

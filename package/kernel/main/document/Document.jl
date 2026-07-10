@@ -1,13 +1,12 @@
 # Fragment of `DocumentModule` — the shared machinery every concrete document
-# reuses: the generic `Base.show`, the `@document` macro, and the value protocol
-# `copy_document`/`cell_kind`/`rekind`/`snapshot`/`hydrate`/`sync_document!`. The
-# `@forward*` family lives in the sibling `Forward.jl` fragment. The `Document`
-# abstract type and the selection generics it references come from `Interface.jl`,
-# which `DocumentModule.jl` includes first so they are already in scope here.
-# `@document` generates its own kind-parameterized stem below; the generic
-# transparent-Cell struct codegen it shares with `@iomap`/`@projection`
-# (`cell_struct_kw_params`, `cell_struct_kwctor`, and the `@cell_struct` macro those two
-# delegate to) lives in the cell layer — see `cell/CellStruct.jl`.
+# reuses: the generic `Base.show`, the `@document` macro, and the value
+# protocol (`copy_document`, `sync_document!`). The `@forward*` family lives
+# in the sibling `Forward.jl` fragment. The `Document` abstract type comes
+# from `Interface.jl`, which `DocumentModule.jl` includes first so it is
+# already in scope here. `@document` generates its own kind-parameterized stem
+# below; the generic transparent-Cell struct codegen it builds on
+# (`cell_struct_kw_params`, `cell_struct_kwctor`, `@cell_struct`) lives in the
+# cell layer — see `cell/CellStruct.jl`.
 
 """
 Maximum nesting depth printed by the generic document `show` before child
@@ -72,8 +71,7 @@ writes real value types; the macro generates the **kind-parameterized stem**
    builds), `IFoo` (`ImmutableCell{declared-type}`), `MFoo`
    (`MutableCell{declared-type}`), plus value-accepting ctors `IFoo(args…)` /
    `MFoo(args…)` that wrap raw values in their kind's typed cells. Convert a
-   whole subtree with [`rekind`](@ref) / [`snapshot`](@ref) / [`hydrate`](@ref);
-   query a node's kind with [`cell_kind`](@ref).
+   whole subtree between kinds with [`copy_document`](@ref)`(K, doc)`.
 
 Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
 default is present, the macro also generates:
@@ -164,17 +162,17 @@ macro document(structdef)
     # Raw values wrap in `ReactiveCell{Any}` — the historic untyped `Cell`, so the
     # bare name keeps today's semantics exactly (template markers, `nothing`
     # defaults, shared wider-typed cells all keep working). Cells pass through,
-    # which is also how the kind ctors, `rekind` and `copy_document` construct
-    # every other kind. Hand-written convenience ctors stay outer and call
-    # `Foo(values…)` as before.
+    # which is also how the kind ctors and `copy_document` construct every other
+    # kind. Hand-written convenience ctors stay outer and call `Foo(values…)` as
+    # before.
     #
     # `new{…}` needs the cell types as parameters; computing them via `typeof` is
     # a runtime `apply_type` per construction (~2.5× build cost, measured on the
     # JSON bench). Two fast paths with *constant* parameters cover the dominant
     # cases: all args already `ReactiveCell{Any}` (machinery reconstruction,
-    # `copy_document`, cell-sharing ctors) and no arg a cell at all (parsers,
-    # bulk building). Only genuinely mixed/typed-cell construction (kind ctors,
-    # `rekind`) pays the generic path.
+    # cell-sharing ctors, same-kind `copy_document`) and no arg a cell at all
+    # (parsers, bulk building). Only genuinely mixed/typed-cell construction
+    # (kind ctors, `copy_document(K, …)`) pays the generic path.
     arg_names = [gensym(f) for f in field_names]
     rc_any = fill(ReactiveCell{Any}, n)
     all_rc  = mapreduce(a -> :($a isa $(ReactiveCell{Any})), (x, y) -> :($x && $y), arg_names)
@@ -218,9 +216,9 @@ macro document(structdef)
     i_ctor = kind_ctor(i_name, ImmutableCell)
     m_ctor = kind_ctor(m_name, MutableCell)
 
-    # Declared value types, for `rekind`'s typed I/M targets. The method is added
-    # through the function object's singleton type — a spliced object is not a
-    # valid method-definition *name*, but `(::typeof(f))(…)` is.
+    # Declared value types, for `copy_document(K, …)`'s typed I/M targets. The
+    # method is added through the function object's singleton type — a spliced
+    # object is not a valid method-definition *name*, but `(::typeof(f))(…)` is.
     dvt = :((::typeof($(_declared_value_types)))(::Type{<:$(struct_name)}) = ($(Tvals...),))
 
     # ── Keyword constructors (only when ≥1 default is declared) ────────
@@ -316,31 +314,46 @@ end
 
 # ── Deep copy of document subtrees ─────────────────────────────────────────
 # The Julia counterpart of Lisp's `deep-copy`, for anywhere a document subtree
-# must be cloned independently of the original (copy/paste, snapshots, …). Unlike
-# `Base.deepcopy` it understands the `@document` Cell-wrapped field convention,
-# allocates **fresh** `Cell`s so the copy is independent of the original's reactive
-# graph, and **resets** the copy's `selection` to `nothing` rather than duplicating
-# the original's selection path.
+# must be cloned independently of the original (copy/paste, version snapshots,
+# a mutable-kind rebuild for a simulator, an immutable-kind snapshot for
+# serialization, …). Unlike `Base.deepcopy` it understands the `@document`
+# Cell-wrapped field convention, allocates **fresh** `Cell`s so the copy is
+# independent of the original's reactive graph, and offers a two-arity surface:
 #
-# The `CellVector`-specific method lives in `CollectionModule` (`Collection.jl`),
-# where `CellVector` is defined — it loads after this module, so it extends this
-# `copy_document` there rather than here.
+#   copy_document(doc)     -> Document              # preserve every cell's kind
+#   copy_document(K, doc)  -> Document              # rebuild every cell as kind K
+#
+# Both keep the source's selection; call `clear_selection!(copy)` afterward if
+# a fresh cursor is required (the clipboard/version-snapshot pattern). The
+# walk is generic over structure — struct fields (`fieldnames`), Vector
+# elements, and per-slot cells inside a Vector are all traversed uniformly —
+# so no concrete document type needs its own override.
 
 """
-    copy_document(value)
+    copy_document(value)                     -> value
+    copy_document(v::AbstractVector)         -> Vector
+    copy_document(c::AbstractCell)           -> AbstractCell
+    copy_document(doc::Document)             -> Document
 
-Recursively clone `value`. For a `Document` each **Cell-backed** field is cloned
-into a fresh `Cell`, except `selection`, which is reset to `nothing` (the copy
-starts with no selection). A non-Cell field (a hand-written Document that stores a
-plain value) is cloned **in place**, keeping its representation rather than being
-re-wrapped in a `Cell`. Plain immutable leaves (strings, numbers, symbols,
-reference paths) are returned as-is. `CollectionModule` adds a `CellVector` method
-that clones each element into a fresh `Cell`.
-
-The result shares **no** `Cell` with the original, so mutating the original's
-reactive graph after copying leaves the copy untouched.
+Deep-copy `value`, allocating fresh `Cell`s and fresh containers so the result
+shares no mutable state with the source. Cell kinds are preserved: each field
+cell in a `@document` node is cloned as the same kind, and per-slot cells
+inside a Vector are cloned as the same kind. Plain immutable leaves (strings,
+numbers, symbols, reference paths) pass through unchanged. The source's
+selection is kept — callers that want a reset call
+[`clear_selection!`](@ref) on the returned document.
 """
 copy_document(value) = value
+
+# Vector: struct-with-integer-fields. Recurse per element; a `Vector{Cell}`'s
+# slot cells dispatch to the `AbstractCell` method and are cloned per-slot, so
+# the caller-visible shape (per-slot cells vs. plain values) is preserved.
+copy_document(v::AbstractVector) = [copy_document(x) for x in v]
+
+# Cell: fresh cell of the same kind + declared value type, holding the copied
+# inner value. Used by the Vector walk for slot cells; the Document walk
+# handles struct-field cells directly so it can consult declared field types.
+copy_document(c::AbstractCell) = _same_cell(c, copy_document(c[]))
 
 function copy_document(doc::Document)
     T = typeof(doc)
@@ -348,14 +361,57 @@ function copy_document(doc::Document)
     args = Any[]
     for nm in fieldnames(T)
         raw = getfield(doc, nm)
-        if nm === :selection
-            # Reset the selection; keep the field's cell kind and value type (a
-            # hand-written plain field stays plain).
-            push!(args, raw isa AbstractCell ? _same_cell(raw, nothing) : nothing)
-        elseif raw isa AbstractCell
-            push!(args, _same_cell(raw, copy_document(raw[])))  # fresh cell → independent graph
+        if raw isa AbstractCell
+            push!(args, _same_cell(raw, copy_document(raw[])))
         else
-            push!(args, copy_document(raw))                     # non-cell field: keep it raw
+            push!(args, copy_document(raw))
+        end
+    end
+    base(args...)
+end
+
+"""
+    copy_document(K, value)                  -> value
+    copy_document(K, v::AbstractVector)      -> Vector
+    copy_document(K, c::AbstractCell)        -> K{…}
+    copy_document(K, doc::Document)          -> Document
+
+The kind-converting variant. Every cell in the copy is rebuilt as kind `K`
+(`ReactiveCell` / `MutableCell` / `ImmutableCell`). Cell value types: the
+reactive target uses `Any` (parity with the historic untyped `Cell`); the
+mutable/immutable targets use each field's **declared** type when the value
+conforms — so a fully-conforming node inhabits the `MFoo`/`IFoo` alias — and
+fall back to the value's own type otherwise. The fallback is load-bearing:
+the reactive kind stores every field as `Any`, so a nominally `StyleColor`
+field may actually hold `nothing`; a typed `ImmutableCell{StyleColor}(nothing)`
+would be unconstructable, so that field lands on `ImmutableCell{Nothing}`
+instead (still type-stable, just off the alias). The source's selection is
+kept.
+"""
+copy_document(::Type{<:AbstractCell}, value) = value
+
+copy_document(K::Type{<:AbstractCell}, v::AbstractVector) =
+    [copy_document(K, x) for x in v]
+
+function copy_document(K::Type{<:AbstractCell}, c::AbstractCell)
+    v = copy_document(K, c[])
+    Tv = K === ReactiveCell ? Any : typeof(v)
+    K{Tv}(v)
+end
+
+function copy_document(K::Type{<:AbstractCell}, doc::Document)
+    T = typeof(doc)
+    base = Base.typename(T).wrapper
+    Ts = _declared_value_types(base)
+    args = Any[]
+    for (i, nm) in enumerate(fieldnames(T))
+        raw = getfield(doc, nm)
+        if raw isa AbstractCell
+            v = copy_document(K, raw[])
+            Tv = _kinded_value_type(K, Ts, i, v)
+            push!(args, K{Tv}(v))
+        else
+            push!(args, copy_document(K, raw))
         end
     end
     base(args...)
@@ -364,74 +420,29 @@ end
 # A fresh cell of the same kind and value type as `c`, holding `v`.
 _same_cell(c::AbstractCell{T}, v) where {T} = _cell_kind_of(typeof(c)){T}(v)
 
-# ── Cell kinds on documents ─────────────────────────────────────────────────
-
 _cell_kind_of(::Type{<:ReactiveCell})  = ReactiveCell
 _cell_kind_of(::Type{<:MutableCell})   = MutableCell
 _cell_kind_of(::Type{<:ImmutableCell}) = ImmutableCell
 
-"""
-    cell_kind(doc) -> ReactiveCell | MutableCell | ImmutableCell | nothing
-
-The cell kind of a `@document` node, read off its first field's cell.
-`nothing` for a hand-written document with plain fields. Nodes are normally
-kind-uniform (the ctors build them that way); an ad-hoc mixed node reports the
-kind of its first field.
-"""
-function cell_kind(doc::Document)
+# Read a document's cell kind off its first Cell-backed field. Used internally
+# by `sync_document!` to pick the right target kind for elements it rebuilds
+# on the shadow side; hand-written documents with plain fields report
+# `nothing`.
+function _document_cell_kind(doc::Document)
     isempty(fieldnames(typeof(doc))) && return nothing
     c = getfield(doc, 1)
     c isa AbstractCell ? _cell_kind_of(typeof(c)) : nothing
 end
 
 # Declared field value types of a `@document` type, emitted by the macro; the
-# fallback covers hand-written documents (rekind then keeps each source cell's
-# own value type).
+# fallback covers hand-written documents (the kind-variant then falls back to
+# each source cell's own value type).
 _declared_value_types(::Type) = nothing
 
-"""
-    rekind(K, doc) -> Document
-
-Recursively rebuild `doc` with every cell replaced by a cell of kind `K`
-(`ReactiveCell` / `MutableCell` / `ImmutableCell`). Value types: the reactive
-target uses `Any` (the historic untyped `Cell`, and what all machinery-built
-cells are); the mutable/immutable targets use each field's **declared** type when
-the current value conforms — so a fully-conforming node inhabits the `MFoo` /
-`IFoo` alias — but fall back to the *value's own* type otherwise. The fallback is
-load-bearing: the reactive kind stores every field as `Any`, so a nominally
-`StyleColor` field may actually hold `nothing` (an unset optional); a typed
-`ImmutableCell{StyleColor}(nothing)` would be unconstructable, so that field lands
-on `ImmutableCell{Nothing}` instead (still type-stable, just off the alias). Cell
-*values* (including the current selection) are carried over; the result shares no
-cell with the original. `CollectionModule` adds the `CellVector` method.
-
-    snapshot(doc) ≡ rekind(ImmutableCell, doc)
-    hydrate(doc)  ≡ rekind(ReactiveCell, doc)
-"""
-rekind(::Type{K}, v) where {K<:AbstractCell} = v
-
-function rekind(::Type{K}, doc::Document) where {K<:AbstractCell}
-    T = typeof(doc)
-    base = Base.typename(T).wrapper
-    Ts = _declared_value_types(base)
-    args = Any[]
-    for (i, nm) in enumerate(fieldnames(T))
-        raw = getfield(doc, nm)
-        if raw isa AbstractCell
-            v = rekind(K, raw[])
-            Tv = _rekind_value_type(K, Ts, i, v)
-            push!(args, K{Tv}(v))
-        else
-            push!(args, rekind(K, raw))
-        end
-    end
-    base(args...)
-end
-
-# The value type for a rekinded field cell: `Any` for the reactive kind (parity
-# with the untyped `Cell`); otherwise the declared type when `v` conforms, else
-# `v`'s own concrete type (see `rekind`'s note on off-declared-type values).
-function _rekind_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
+# The value type for a kinded field cell: `Any` for the reactive kind (parity
+# with the untyped `Cell`); otherwise the declared type when `v` conforms,
+# else `v`'s own concrete type.
+function _kinded_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
     K === ReactiveCell && return Any
     Ts === nothing && return typeof(v)
     Td = Ts[i]
@@ -440,19 +451,13 @@ end
 
 _value_type(::AbstractCell{T}) where {T} = T
 
-"""Rebuild `doc` as the immutable kind (`rekind(ImmutableCell, doc)`)."""
-snapshot(doc::Document) = rekind(ImmutableCell, doc)
-
-"""Rebuild `doc` as the reactive kind (`rekind(ReactiveCell, doc)`)."""
-hydrate(doc::Document) = rekind(ReactiveCell, doc)
-
-# ── M→R shadow sync ─────────────────────────────────────────────────────────
+# ── Shadow sync ────────────────────────────────────────────────────────────
 # The double-buffer pattern (plan/pending/cell-kind-documents.md, Phase 7): a
-# simulator mutates a MutableCell-kind document freely (zero reactive overhead per
-# event, no observable intermediate states), then at a pause point `sync_document!`
-# diff-copies it into a shadow ReactiveCell-kind tree that feeds the projection
-# pipeline. The two trees have the same field-for-field shape (generated from one
-# `@document` declaration), which is exactly what lets the sync be one generic walk.
+# simulator mutates a MutableCell-kind document freely (zero reactive overhead
+# per event, no observable intermediate states), then at a pause point
+# `sync_document!` diff-copies it into a shadow tree that feeds the projection
+# pipeline. The two trees have the same field-for-field shape (generated from
+# one `@document` declaration), which is what lets the sync be one generic walk.
 
 # Same document type ignoring cell kind (compare the UnionAll wrappers).
 _same_wrapper(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
@@ -460,27 +465,30 @@ _same_wrapper(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(
 """
     sync_document!(shadow, source) -> shadow
 
-Update the reactive `shadow` document to match `source` (typically a mutable-kind
-simulation state), writing a shadow cell **only when its value changed** — so the
-reactive graph downstream sees a *minimal* invalidation set, not a wholesale
-rebuild. Recurses structurally: a child document is synced in place when it is the
-same type, else replaced (`hydrate`d fresh); a leaf field is written only on
-`!isequal`. `CollectionModule` adds the `CellVector` element reconciler.
+Update the writable `shadow` document to match `source`, writing a shadow
+cell **only when its value changed** — so the downstream graph sees a
+*minimal* invalidation set, not a wholesale rebuild. `shadow` may be any
+writable kind (`ReactiveCell` or `MutableCell`); `source` may be any kind.
+Recurses structurally: a child document is synced in place when it is the
+same type, else replaced by a fresh copy in the shadow's kind; a leaf field
+is written only on `!isequal`. `CollectionModule` adds the `CellVector`
+element reconciler.
 
-The result is a consistent reactive view of `source` after each sync; between syncs
-the simulator owns `source` alone and pays nothing for observation.
+The result is a consistent view of `source` after each sync; between syncs
+the source is unobserved and pays nothing for observation.
 """
 function sync_document!(shadow::Document, source::Document)
     _same_wrapper(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
+    K = _document_cell_kind(shadow)
     for nm in fieldnames(typeof(source))
         sv  = getproperty(source, nm)
         cur = getproperty(shadow, nm)
         if sv isa Document
             if cur isa Document && _same_wrapper(cur, sv)
-                sync_document!(cur, sv)                 # recurse in place
+                sync_document!(cur, sv)                       # recurse in place
             else
-                setproperty!(shadow, nm, hydrate(sv))   # type changed ⇒ rebuild reactive
+                setproperty!(shadow, nm, copy_document(K, sv)) # type changed ⇒ rebuild in shadow's kind
             end
         else
             isequal(cur, sv) || setproperty!(shadow, nm, sv)   # leaf: write iff changed
@@ -489,6 +497,6 @@ function sync_document!(shadow::Document, source::Document)
     shadow
 end
 
-# A source element rebuilt for the reactive shadow (a document is hydrated fresh; a
-# plain value passes through). Shared by the CellVector reconciler.
-_shadow_elem(x) = x isa Document ? hydrate(x) : x
+# A source element rebuilt for the shadow's kind (a document is copied in that
+# kind; a plain value passes through). Shared by the CellVector reconciler.
+_shadow_elem(K, x) = x isa Document ? copy_document(K, x) : x
