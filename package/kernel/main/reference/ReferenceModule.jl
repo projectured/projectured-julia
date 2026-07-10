@@ -37,12 +37,6 @@ tail rather than copying. The `@document`-backed step/path structs are
 mutable and store their dynamic values (indices, positions, the head/tail
 links) in reactive `Cell`s, so callers can update those cells in place
 without rebuilding the chain.
-
-**Opaque payloads.** A step kind may carry an `Any`-typed payload the
-reference layer never interprets (`ProjectionReference` is the current
-example). The step's shape is all this module defines; the payload's
-meaning belongs to whichever layer produces and consumes it, keeping the
-reference layer's dependencies purely downward.
 """
 module ReferenceModule
 
