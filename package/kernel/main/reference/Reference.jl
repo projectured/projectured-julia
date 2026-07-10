@@ -61,9 +61,6 @@ is_element_reference(r::RangeReference) = r.stop == r.start + 1
 "True when `r` encodes a cursor position (start == stop)."
 is_position_reference(r::RangeReference) = r.start == r.stop
 
-"True when `r` encodes a multi-element range (stop > start + 1)."
-is_range_reference(r::RangeReference) = r.stop > r.start + 1
-
 
 """
     FieldReference(name)
