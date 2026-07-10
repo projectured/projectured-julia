@@ -709,3 +709,22 @@ states for placement).
     violation. Precedent: `PerformanceCounterModule` dropped its "`CellModule` imports
     this" / "extracted from `Reactive.jl`" references, and `CellModule` dropped the
     "declarative macros `@document`/`@iomap`/`@projection` build on this" references.
+
+    **Seam carve-out.** An open interface declaration is content-free by
+    construction (`function foo end`, no signature): its *docstring* is what
+    describes the contract, and a contract's meaning is the shape of the
+    values that flow through it. So an interface/seam file may name the
+    **concepts** it bridges as forward pointers — the *kinds* of value on
+    each side of the seam (a `gesture`, an `Operation`, a projection's
+    output domain) — but not the specific higher-package modules,
+    macros, or methods that implement it. "Maps a gesture to an
+    `Operation` expressed against `document`'s reference vocabulary" names
+    concepts; "the `@gestures` catch-all in `GestureBindingModule`
+    supplies the default" names a consumer and is the violation. The
+    carve-out applies only to a *seam file* (one whose job is to declare
+    the open interface) and only to the *concepts* the seam bridges;
+    everything else in AR-69 still holds. Prefer redistributing the seam
+    to the lowest layer where every concept it names is already
+    introduced (AR-47): once every concept sits at or below the seam, the
+    forward-concept references become backward, not forward, and the
+    carve-out is unnecessary.
