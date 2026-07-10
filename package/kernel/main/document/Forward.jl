@@ -29,9 +29,7 @@ emits
     Base.getindex(x::Wrapper, args...; kw...)  = Base.getindex(x.items, args...; kw...)
 
 so a wrapper type can expose its field's protocol (e.g. a backing vector's
-interface) without hand-writing one method per function. The field is read
-through `getproperty`, so it sees the unwrapped value of a `@document` Cell
-field.
+interface) without hand-writing one method per function.
 """
 macro forward(T, field, fns)
     (fns isa Expr && fns.head === :vect) ||
