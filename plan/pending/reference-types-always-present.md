@@ -152,8 +152,20 @@ The last step is a review checkpoint (user approves before I mark sealed).
    - odbc: ~12 sites.
    - sdl: ~6 sites.
    - visual: ~54 sites.
-   - domain: ~298 sites, batched by domain slice. JSON attempted and
-     reverted pending 3b; it is the golden template once 3b lands.
+   - domain: ~298 sites, batched by domain slice — ✅. Migrated: json, xml,
+     yaml, sql, formula, graph, book, markdown, insertion, workbench. Verified
+     already-typed / no migration needed: filesystem, math, dbcatalog.
+     Convention settled during migration (matches SQL): **construction-side
+     `@reference` rebuilds carry a single leading `::T` (the mapper's output
+     type forward / input type backward); intermediate index/field nodes and
+     the splice-covered tail stay untyped until the step-5 strict flip.**
+     `@reference_case` *patterns* are largely left untyped in step 4 (only
+     type-bind/assert patterns that were naturally needed got types) — full
+     strict patterns (D4-a) land with step 5. Terminal (splice-less) selection
+     constructions get the leading `::T` only where the element type is
+     heterogeneous and `CellVector`/`Document` are not imported in the slice's
+     module (e.g. `WorkbenchToWidget`'s `@reference ::WorkbenchPage.elements[idx]`);
+     step 5 adds the missing imports + full index/terminal types uniformly.
 5. **Flip DSL to strict** — one commit. `strict = true` becomes the default;
    any missed untyped nav step surfaces as a compile-time failure.
 6. **Retire** `strip_reference_types`, `annotate_reference_types`,
