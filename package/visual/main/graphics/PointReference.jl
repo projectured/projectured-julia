@@ -14,7 +14,7 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 module PointReferenceModule
 
 import ..DocumentModule: @document
-import ..ReferenceModule: ReferenceStep, step_kind, dsl_build_step, dsl_match_step
+import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step, dsl_build_step, dsl_match_step
 
 export PointReference
 
@@ -22,14 +22,21 @@ export PointReference
     PointReference(x, y)
 
 References a point within the current element by pixel coordinates
-relative to that element's origin.
+relative to that element's origin. Evaluates to the coordinate tuple
+`(x, y)` — every reference in the tree is evaluatable, and a point's
+value is the coordinate itself, independent of what happens to be at
+that coordinate in the current document.
 """
 @document struct PointReference <: ReferenceStep
     x::Int
     y::Int
 end
 
-step_kind(::PointReference) = :terminal
+step_kind(::PointReference) = :structural
+
+# Every reference descends to a value; a point step's value is its
+# coordinate pair.
+evaluate_step(step::PointReference, document) = (step.x, step.y)
 
 Base.:(==)(a::PointReference, b::PointReference) = a.x == b.x && a.y == b.y
 

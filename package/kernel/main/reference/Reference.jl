@@ -397,23 +397,25 @@ _get_field(document, name) = _deref_cell(getfield(document, Symbol(name)))
 """
     step_kind(step) -> Symbol
 
-Classify a reference step: `:structural` (descends into a child),
-`:checkpoint` (stays on the current node, asserts an invariant), or
-`:terminal` (identifies a location but does not participate in navigation).
-The default is `:terminal` — a step type that doesn't opt in explicitly is
-treated as terminal, matching the pre-seam behaviour that non-navigating
-steps error under `evaluate_reference` and only survive
-`get_valid_reference_prefix` when they end the path.
+Classify a reference step: `:structural` (descends to a child or
+synthetic value) or `:checkpoint` (stays on the current node, asserts an
+invariant). The default is `:structural` — every step must be evaluatable
+under the "types always present" invariant; a step type that doesn't opt
+into `:checkpoint` is expected to implement `evaluate_step`.
 """
-step_kind(::ReferenceStep) = :terminal
+step_kind(::ReferenceStep) = :structural
 
 """
     evaluate_step(step, document) -> child
 
-Navigate through `step`. For a `:structural` step, return the child
-document (throws on descent failure). For a `:checkpoint` step, return
-`document` unchanged after asserting the invariant (throws on mismatch).
-Not called for `:terminal` steps.
+Navigate through `step`. For a `:structural` step, return the descended
+value (throws on descent failure). Some step types descend to a document
+child (`FieldReference`, `RangeReference`); others descend to a synthetic
+value that stands in for the reference target (`PointReference` returns a
+coordinate pair, `ProjectionReference` returns the projection's output
+path, `TextRectangularReference` returns the character range). For a
+`:checkpoint` step, return `document` unchanged after asserting the
+invariant (throws on mismatch).
 """
 function evaluate_step end
 
@@ -455,9 +457,6 @@ function evaluate_reference(document, path::ConcreteReferencePath)
     # Folded checkpoint: this node records the type of the document it stands on.
     path.type === nothing || document isa path.type ||
         throw(ReferenceTypeMismatch(path.type, typeof(document)))
-    kind = step_kind(step)
-    kind === :terminal &&
-        error("Cannot evaluate through terminal-only reference step: $(typeof(step))")
     child = evaluate_step(step, document)
     evaluate_reference(child, rest)
 end
@@ -486,15 +485,7 @@ function get_valid_reference_prefix(document, path::ConcreteReferencePath)
     path.type === nothing || document isa path.type || return EmptyReferencePath()
     step = path.head
     rest = path.tail
-    kind = step_kind(step)
-    if kind === :terminal
-        # Terminal-only steps (no document navigation) survive only when this is
-        # the last step of the path; otherwise the trailing structure has no
-        # meaning to walk further and is truncated.
-        return rest isa EmptyReferencePath ? path :
-               ConcreteReferencePath(path.type, step, EmptyReferencePath())
-    end
-    if kind === :checkpoint
+    if step_kind(step) === :checkpoint
         # Assert on the current node; a mismatch truncates.
         try
             evaluate_step(step, document)

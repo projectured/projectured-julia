@@ -17,7 +17,7 @@ here alongside the type.
 module TextRectangularReferenceModule
 
 import ..DocumentModule: @document
-import ..ReferenceModule: ReferenceStep, step_kind
+import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step
 
 export TextRectangularReference
 
@@ -26,14 +26,20 @@ export TextRectangularReference
 
 A reference step representing an axis-aligned bounding-box highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
-concatenated text of a `TextText`.
+concatenated text of a `TextText`. Evaluates to the offset pair
+`(start, stop)` — every reference in the tree is evaluatable, and the
+box's value is its character range independent of what characters happen
+to sit in the current text.
 """
 @document struct TextRectangularReference <: ReferenceStep
     start::Int
     stop::Int
 end
 
-step_kind(::TextRectangularReference) = :terminal
+step_kind(::TextRectangularReference) = :structural
+
+# A rectangular text range's descended value is the range itself.
+evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
 
 Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) =
     a.start == b.start && a.stop == b.stop

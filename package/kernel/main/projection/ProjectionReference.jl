@@ -18,7 +18,7 @@ layer's `dsl_build_step` / `dsl_match_step` seams.
 module ProjectionReferenceModule
 
 import ..DocumentModule: @document
-import ..ReferenceModule: ReferenceStep, ReferencePath, step_kind,
+import ..ReferenceModule: ReferenceStep, ReferencePath, step_kind, evaluate_step,
                           dsl_build_step, dsl_match_step
 
 export ProjectionReference
@@ -28,14 +28,20 @@ export ProjectionReference
 
 A reference step that points to an element introduced by a projection.
 `output_path` describes where within the projection's output the reference
-points.
+points. Evaluates to `output_path` — the projection-introduced element is
+identified by that path in the projection's own output; every reference in
+the tree is evaluatable.
 """
 @document struct ProjectionReference <: ReferenceStep
     projection::Any
     output_path::ReferencePath
 end
 
-step_kind(::ProjectionReference) = :terminal
+step_kind(::ProjectionReference) = :structural
+
+# A projection step descends to the location the projection introduced —
+# reified as the output path within that projection's output.
+evaluate_step(step::ProjectionReference, document) = step.output_path
 
 Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
     a.projection === b.projection && a.output_path == b.output_path
