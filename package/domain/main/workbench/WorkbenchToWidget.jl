@@ -417,19 +417,19 @@ function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
                                 reference)
     @reference_case reference begin
         navigation_page.rest... => begin
-            inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath())
+            inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         editing_page.rest... => begin
-            inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath())
+            inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         information_page.rest... => begin
-            inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath())
+            inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child.^(inner)
         end
         control_page.rest... => begin
-            inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath())
+            inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[3]::LayoutConstraint.child.^(inner)
         end
     end
@@ -442,7 +442,7 @@ function map_reference_forward(::WorkbenchPageToWidgetTabbedPane,
     @reference_case reference begin
         elements[i].rest... => begin
             (1 <= i <= length(iomap.element_iomaps)) || return nothing
-            inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath())
+            inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath(WidgetDocument))
             @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(inner)
         end
     end
