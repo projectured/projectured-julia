@@ -41,8 +41,9 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
                           RangeReference, FieldReference,
                           ReferencePath, EmptyReferencePath
 import ..ProjectionReferenceModule: ProjectionReference
+import ..CollectionModule: CellVector
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..PrinterContextModule: make_child_context
 import ..JuliaToSyntaxModule: JuliaToSyntax
 
@@ -118,7 +119,7 @@ function _result_to_string(result)
 end
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
-    code_ref = make_child_context(ctx, @reference ^(ctx.reference).code)
+    code_ref = make_child_context(ctx, f, @step code)
     code_iomap = Cell(() -> print_child(recursion, f.code, code_ref))
 
     # The name leaf displays the formula name; renaming is a structural
@@ -178,7 +179,7 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
             idx === nothing && return nothing
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference ::SyntaxNode.children[idx].^(inner))
+            inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[idx].^(inner))
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -217,7 +218,7 @@ end
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
     child_iomaps = Cell(() ->
         [print_child(recursion, e.formulas[i],
-             make_child_context(ctx, @reference ^(ctx.reference).formulas[i]))
+             make_child_context(ctx, e, (@step formulas), (@step [i])))
          for i in 1:length(e.formulas)])
 
     iomap_cell = Cell(nothing)
@@ -246,7 +247,7 @@ function map_reference_forward(p::FormulaEnvironmentToSyntaxNode, iomap::Childre
             (child_i < 1 || child_i > length(ims)) && return nothing
             child = ims[child_i]
             inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference ::SyntaxNode.children[child_i].^(inner))
+            inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[child_i].^(inner))
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -261,7 +262,7 @@ function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::Childr
             (child_i < 1 || child_i > length(ims)) && return nothing
             child = ims[child_i]
             inner = map_reference_backward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference ::FormulaEnvironment.formulas[child_i].^(inner))
+            inner === nothing ? nothing : (@reference ::FormulaEnvironment.formulas::CellVector[child_i].^(inner))
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end

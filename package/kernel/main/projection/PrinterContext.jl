@@ -17,7 +17,9 @@ field set.
 module PrinterContextModule
 
 import ..CellModule: Cell
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ReferenceStep, append_reference
+import ..DocumentModule: Document
+import ..ReferenceModule: ReferencePath, EmptyReferencePath, ReferenceStep, append_reference,
+                          annotate_reference_types, concat_references
 import ..ClockModule: Clock, get_wall_clock
 
 export PrinterContext, make_child_context, with_available_size, with_clock,
@@ -87,6 +89,27 @@ function make_child_context(ctx::PrinterContext, steps::ReferenceStep...)
         ctx.available_height,
         ctx.properties,
         ctx.clock)
+end
+
+"""
+    make_child_context(ctx, current_doc, steps...) -> PrinterContext
+
+Child context whose reference is `ctx.reference` extended by `steps`, kept
+**fully typed**: the appended steps are annotated against `current_doc` (the
+document `ctx` currently points at, e.g. the `print_document` input) so every
+new node — and the terminal — records its type, then concatenated onto the
+already-typed parent reference. This preserves the strict-typing invariant
+across the print recursion (the reference-types-always-present plan), replacing
+the old `@reference ^(ctx.reference).field` splice whose appended terminal was
+left untyped. `current_doc` is any document (not a `ReferenceStep`/`ReferencePath`,
+which select the other methods).
+"""
+function make_child_context(ctx::PrinterContext, current_doc::Document,
+                            first::ReferenceStep, rest::ReferenceStep...)
+    relative = annotate_reference_types(current_doc, ReferencePath(first, rest...))
+    PrinterContext(
+        concat_references(ctx.reference, relative),
+        ctx.available_width, ctx.available_height, ctx.properties, ctx.clock)
 end
 
 """
