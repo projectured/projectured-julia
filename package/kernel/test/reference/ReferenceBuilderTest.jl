@@ -7,12 +7,23 @@ test folder.
 
 using Test
 using ProjecturedKernel.ReferenceModule
+using ProjecturedKernel.DocumentModule: @document, Document
 
 # Placeholder node types for the typed-step tests below.
 struct A end
 struct B end
 struct C end
 struct D end
+
+# Navigable toy documents for the `@reference(document, path)` annotation test.
+@document struct EvalChild
+    n::Int
+    selection::Reference = nothing
+end
+@document struct EvalDoc
+    child::EvalChild
+    selection::Reference = nothing
+end
 
 function test_reference_builder()
 @testset "ReferenceBuilder" begin
@@ -67,6 +78,15 @@ end
       ConcreteReferencePath(A, FieldReference("value"),
           ConcreteReferencePath(String, RangeReference(0, 0),
               EmptyReferencePath(Position)))
+
+# `@reference(document, path)` — a typeless skeleton annotated against a live
+# document, so the result carries the document's exact node types. Equivalent
+# to spelling every type inline, but the types are filled by the document.
+let doc = EvalDoc(EvalChild(7))
+    @test (@reference(doc, child.n)) == (@reference ::EvalDoc.child::EvalChild.n::Int)
+    # …and it evaluates to the same node the plain path reaches.
+    @test evaluate_reference(doc, @reference(doc, child.n)) == 7
+end
 
 # ── ^() splice ──────────────────────────────────────────────────────────
 

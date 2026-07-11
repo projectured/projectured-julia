@@ -253,18 +253,24 @@ end
 # commit of a `JsonInsertion` / `DocumentInsertion` (the completion machinery
 # resolves a name to the type, `make_insertion_document` builds the value).
 # `JsonNull` needs no method: the zero-arg fallback already covers it.
+# Each factory builds the document, then selects into it with the two-arg
+# `@reference(doc, path)` form — the document fills the node types, so the
+# selection is fully typed by construction with no hand-spelled `::T`.
 make_insertion_document(::Type{<:JsonBool}) =
     with_selection(JsonBool(false), EmptyReferencePath(JsonBool))
+# An empty number's value is `nothing`, which has no text position — so it is
+# selected *whole* (like `JsonBool`), not with a caret into nothing. An empty
+# string, by contrast, is `""` and does have position 0.
 make_insertion_document(::Type{<:JsonNumber}) =
-    with_selection(JsonNumber(nothing), @reference ::JsonNumber.value::Nothing{0}::Position)
+    with_selection(JsonNumber(nothing), EmptyReferencePath(JsonNumber))
 make_insertion_document(::Type{<:JsonString}) =
-    with_selection(JsonString(""), @reference ::JsonString.value::String{0}::Position)
+    let d = JsonString(""); with_selection(d, @reference(d, value{0})) end
 make_insertion_document(::Type{<:JsonArray}) =
-    with_selection(JsonArray([JsonInsertion()]), @reference ::JsonArray.elements::CellVector[1]::JsonInsertion)
+    let d = JsonArray([JsonInsertion()]); with_selection(d, @reference(d, elements[1])) end
 make_insertion_document(::Type{<:JsonObjectEntry}) =
-    with_selection(JsonObjectEntry("", JsonInsertion()), @reference ::JsonObjectEntry.key::String{0}::Position)
+    let d = JsonObjectEntry("", JsonInsertion()); with_selection(d, @reference(d, key{0})) end
 make_insertion_document(::Type{<:JsonObject}) =
-    with_selection(JsonObject([JsonObjectEntry("", JsonInsertion())]), @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.key::String{0}::Position)
+    let d = JsonObject([JsonObjectEntry("", JsonInsertion())]); with_selection(d, @reference(d, entries[1].key{0})) end
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))

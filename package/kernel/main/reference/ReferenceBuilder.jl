@@ -382,12 +382,11 @@ function _gen_concat_chain(steps::Vector{BuildStep})
 end
 
 """
-    @reference()
     @reference(path)
+    @reference(document, path)
 
-Build a `ReferencePath` from the construction DSL. `@reference()` is the empty
-path (terminates at the current node); `@reference(path)` parses a rootless chain
-of steps, left = outermost:
+Build a `ReferencePath` from the construction DSL. `@reference(path)` parses a
+rootless chain of steps, left = outermost:
 
 - `a.b`               — `FieldReference` steps (`.a` then `.b`)
 - `xs[i]`             — 1-based `ElementReference` (a single-element range)
@@ -395,12 +394,22 @@ of steps, left = outermost:
 - `.field(e)`         — a field whose name is the runtime value of `e`
 - `.point(x, y)`      — a `PointReference` at pixel `(x, y)`
 - `.proj(p, sub)`     — a `ProjectionReference` into projection `p`'s output `sub`
-- `x::T`              — a `TypeReference(T)` checkpoint after `x` (folded onto the node)
+- `x::T`              — a node type checkpoint after `x` (folded onto the node)
 - `^(expr)`           — splice a runtime `ReferencePath`/`ReferenceStep` into the literal
 
 Inside `[]`, `{}`, `field(...)`, `point(...)`, `proj(...)` the arguments are
 ordinary Julia expressions evaluated at runtime; bare symbols in *path* position
-are literal field names. See `@reference_case` for the matching counterpart.
+are literal field names.
+
+**Two ways to get a fully-typed path.** Either spell every node's type inline
+(`@reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document`),
+or hand the path a **document** and let it fill the types:
+`@reference(document, entries[1].value)` builds the plain navigation skeleton
+and annotates it against `document` (via
+[`annotate_reference_types`](@ref)), so the result carries the exact types the
+live document has at each node — no inline `::T` needed, and the types are
+correct by construction rather than by hand. Use this whenever the document is
+in scope. See `@reference_case` for the matching counterpart.
 """
 macro reference()
     return _gen_build_path(BuildStep[])
@@ -409,6 +418,12 @@ end
 macro reference(ex)
     steps = _parse_build_path(ex)
     return _gen_build_path(steps)
+end
+
+macro reference(document, ex)
+    steps = _parse_build_path(ex)
+    plain = _gen_build_path(steps)
+    return :(ReferenceModule.annotate_reference_types($(esc(document)), $plain))
 end
 
 """
