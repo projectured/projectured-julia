@@ -82,9 +82,23 @@ struct PSType <: PatStep
     typeexpr
 end
 
+# `::t` where `t` is a lowercase identifier binds the matched node's folded
+# `type` field to `t` (the pattern dual of construction, where `::t` splices
+# `t`'s runtime type value). A capitalized `::T` stays a `PSType` assertion, so
+# every existing typed pattern is unchanged.
+struct PSTypeBind <: PatStep
+    name::Symbol
+end
+
 struct PSPathInterp <: PatStep
     expr
 end
+
+# A bare identifier that begins with a lowercase letter — the bind/assert
+# discriminator for `::x` in a pattern (mirrors the value-pattern convention
+# where a bare lowercase symbol binds).
+_is_type_bind_symbol(x) =
+    x isa Symbol && (s = string(x); !isempty(s) && islowercase(first(s)))
 
 # ------------------------------------------------------------
 # Value-pattern parsing
@@ -258,15 +272,19 @@ function _parse_subpath(ex)
     return _parse_path(ex)
 end
 
-# `x::T` type suffix in a pattern: bare `T` is a checkpoint; `T{i}`/`T[i]` is read
-# as checkpoint `T` then a position/range/element step (so `value::Leaf{s:e}`
-# needs no parens).
+# A `::x` type step in a pattern: a lowercase identifier binds the node type,
+# any other form asserts it.
+_pat_type_step(x) = _is_type_bind_symbol(x) ? PSTypeBind(x) : PSType(x)
+
+# `x::T` type suffix in a pattern: bare `T` is a checkpoint (or `::t` a binder);
+# `T{i}`/`T[i]` is read as checkpoint `T` then a position/range/element step (so
+# `value::Leaf{s:e}` needs no parens).
 function _pat_type_suffix!(steps::Vector{PatStep}, T)
     if T isa Expr && T.head == :curly
-        push!(steps, PSType(T.args[1]))
+        push!(steps, _pat_type_step(T.args[1]))
         push!(steps, _braces_pat(T.args[2]))
     elseif T isa Expr && T.head == :ref
-        push!(steps, PSType(T.args[1]))
+        push!(steps, _pat_type_step(T.args[1]))
         if length(T.args) == 2
             push!(steps, PSIndex(_parse_value(T.args[2])))
         elseif length(T.args) == 3
@@ -275,22 +293,23 @@ function _pat_type_suffix!(steps::Vector{PatStep}, T)
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
     else
-        push!(steps, PSType(T))
+        push!(steps, _pat_type_step(T))
     end
 end
 
-# Leading `::X`: a bare symbol is the checkpoint; a chain like `Node.entries{s:e}`
-# is read as checkpoint `Node` then the `.entries{s:e}` steps (no parens).
+# Leading `::X`: a bare symbol is the checkpoint (or a `::t` binder); a chain
+# like `Node.entries{s:e}` is read as checkpoint `Node` then the
+# `.entries{s:e}` steps (no parens).
 function _pat_leading_type!(steps::Vector{PatStep}, X)
     if X isa Symbol
-        push!(steps, PSType(X))
+        push!(steps, _pat_type_step(X))
     else
         n = length(steps)
         _parse_path!(steps, X)
         root = steps[n + 1]
         (root isa PSField && root.namepat isa PVLiteral && root.namepat.value isa String) ||
             error("leading ::T must start with a type name: $X")
-        steps[n + 1] = PSType(Symbol(root.namepat.value))
+        steps[n + 1] = _pat_type_step(Symbol(root.namepat.value))
     end
 end
 
@@ -338,6 +357,12 @@ function _parse_rule(ex)
         # zero-step exact match (`_ref_input isa EmptyReferencePath`). This only
         # adds a writable pattern; the no-match fallthrough is still `nothing`.
         return (:exact, PatStep[], nothing, rhs)
+    elseif lhs isa Expr && lhs.head == :(::) && length(lhs.args) == 2 && lhs.args[1] === :∅
+        # `∅::t` / `∅::T` — a whole-element selection whose terminal type is
+        # bound (`::t`) or asserted (`::T`). Matches an `EmptyReferencePath`
+        # and reads its `type` field. The empty-path match falls out of the
+        # single type step operating on an EmptyReferencePath.
+        return (:exact, PatStep[_pat_type_step(lhs.args[2])], nothing, rhs)
     else
         pat = _parse_path(lhs)
         return (:exact, pat, nothing, rhs)
@@ -525,6 +550,22 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return ex, union(b1, b2)
     end
 
+    # `::t` binds the matched node's folded `type` field to `t`, then continues
+    # matching the rest on the SAME path (a folded type consumes no step, the
+    # dual of construction where `::t` splices `t`'s runtime type value). Both
+    # `ConcreteReferencePath` and `EmptyReferencePath` carry a `type` field.
+    if steps[1] isa PSTypeBind
+        name = steps[1].name
+        sp = gensym(:sp)
+        rest, b = _gen_path_match(sp, steps[2:end], success, union(bound, Set([name])))
+        ex = quote
+            let $sp = $path_ex, $(esc(name)) = $sp.type
+                $rest
+            end
+        end
+        return ex, b
+    end
+
     if length(steps) == 1 && steps[1] isa PSPathInterp
         expr = esc(steps[1].expr)
         # Shape-only comparison: both sides stripped of type checkpoints so a
@@ -588,6 +629,20 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
             end
         end
         return ex, union(b1, b2)
+    end
+
+    # `::t` binds the matched node's type, then continues the prefix match on the
+    # same path (mirrors the `_gen_path_match` binder).
+    if steps[1] isa PSTypeBind
+        name = steps[1].name
+        sp = gensym(:sp)
+        rest, b = _gen_prefix_match(sp, steps[2:end], success, union(bound, Set([name])))
+        ex = quote
+            let $sp = $path_ex, $(esc(name)) = $sp.type
+                $rest
+            end
+        end
+        return ex, b
     end
 
     p = gensym(:p)

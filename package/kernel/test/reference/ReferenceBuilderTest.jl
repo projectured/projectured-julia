@@ -121,5 +121,41 @@ let sample = @reference items{3}
     @test matched2 == (:range, 3, 3)
 end
 
+# ── @reference_case type binding (::t) ───────────────────────────────────
+# A lowercase `::t` binds the matched node's folded `type` field; a
+# capitalized `::T` stays a (tolerant) assertion. Construction's `::t` splices
+# the runtime type value, so a bound type round-trips through reconstruction.
+
+# Terminal type binding on a whole-element (∅) selection.
+let typed = ConcreteReferencePath(Int, FieldReference("value"), EmptyReferencePath(String))
+    bound_terminal = @reference_case typed begin
+        value::t => t
+    end
+    @test bound_terminal === String        # the terminal node's recorded type
+
+    bound_node = @reference_case typed begin
+        ::n.value => n
+    end
+    @test bound_node === Int                # the node the .value step descends from
+end
+
+# ∅::t binds the terminal type of a whole-element selection.
+let whole = EmptyReferencePath(Symbol)
+    got = @reference_case whole begin
+        (∅::t) => t
+        _      => :miss
+    end
+    @test got === Symbol
+end
+
+# A bound type splices back through construction (the identity-preserving
+# reconstruction pattern generic combinators use).
+let src = ConcreteReferencePath(Int, FieldReference("value"), EmptyReferencePath(String))
+    rebuilt = @reference_case src begin
+        ::a.value::b => @reference ::a.value::b
+    end
+    @test rebuilt == src                    # same path, types preserved by binding
+end
+
 end
 end # test_reference_builder
