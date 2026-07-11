@@ -74,7 +74,10 @@ for simple projections where output elements directly correspond to input elemen
 """
 function map_reference_forward(projection::Projection, iomap, reference)
     @reference_case reference begin
-        ∅ => @reference()                          # whole-element selection: identity
+        # Whole-element selection maps by identity, but the *output* whole
+        # element has the output document's type, not the input's — so the
+        # empty path is retyped against `iomap.output`.
+        ∅ => EmptyReferencePath(reference_node_type(iomap.output))
         proj(^(projection), inner) => inner
     end
 end
@@ -88,7 +91,15 @@ the projection. This works for simple projections where input elements
 directly correspond to output elements.
 """
 function map_reference_backward(projection::Projection, iomap, reference)
-    reference isa EmptyReferencePath && return @reference()
+    # A whole-element output selection maps back to a whole-element input
+    # selection, typed against the input document.
+    reference isa EmptyReferencePath &&
+        return EmptyReferencePath(reference_node_type(iomap.input))
+    # TODO(reference-types-plan step 5): type the `proj` node. The
+    # projection-introduced element has no input pre-image; its node type is
+    # the output document's, but the terminal type after a `proj` step needs
+    # the evaluate_step(ProjectionReference) value semantics pinned down first.
+    # Left untyped here; the permissive parser tolerates it until the strict flip.
     @reference proj(projection, ^(reference))
 end
 

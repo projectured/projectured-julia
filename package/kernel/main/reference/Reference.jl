@@ -518,6 +518,26 @@ is_valid_reference(document, path::ReferencePath) =
 # ── Type-checkpoint annotation ───────────────────────────────────────────
 
 """
+    reference_node_type(document) -> Type
+
+The kind-agnostic type token a reference records for `document`: the UnionAll
+wrapper of a kind-parameterized `@document` type
+(`JsonString{ImmutableCell{String},…}` → `JsonString`), or the type itself for
+a non-parametric (hand-written) document. Recording the wrapper makes the type
+kind-agnostic — a reference typed on a reactive node still `isa`-matches its
+immutable snapshot, and matches the bare names the `@reference` macro emits.
+
+Generic reference-mapping code that constructs a typed reference against a
+runtime document (rather than a statically named type) reads the type from
+here — e.g. a whole-element selection mapped across a projection carries
+`reference_node_type(output_document)`.
+"""
+reference_node_type(document) = Base.typename(typeof(document)).wrapper
+
+# Internal alias kept for the annotation walkers below.
+const _node_type = reference_node_type
+
+"""
     annotate_reference_types(document, path::ReferencePath) -> ReferencePath
 
 Return `path` with each node's `type` field **filled in** against `document`: a
@@ -532,14 +552,6 @@ re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 A zero-width position (`{k}`) is a cursor *between* items — it lands on no child
 node, so the terminal after it keeps `type === nothing`.
 """
-# The kind-agnostic name of a node's type: the UnionAll wrapper of a
-# kind-parameterized `@document` type (`JsonString{ImmutableCell{String},…}` →
-# `JsonString`), or the type itself for a non-parametric (hand-written) document.
-# Recording the wrapper makes type checkpoints kind-agnostic: a path annotated on
-# a reactive node still `isa`-matches its immutable snapshot, and matches the bare
-# names the `@reference` macro emits. `typename(T).wrapper` handles both cases.
-_node_type(document) = Base.typename(typeof(document)).wrapper
-
 function annotate_reference_types(document, ::EmptyReferencePath)
     # Whole-element / terminal node: record the type of the node it lands on.
     EmptyReferencePath(_node_type(document))
