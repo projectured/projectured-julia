@@ -60,6 +60,24 @@ is_element_reference(r::RangeReference) = r.stop == r.start + 1
 "True when `r` encodes a cursor position (start == stop)."
 is_position_reference(r::RangeReference) = r.start == r.stop
 
+"""
+    Position(index)
+
+The value a zero-width cursor step (`{k}`) evaluates to: a caret *between*
+elements at 0-based `index`, not a document node. Every reference is
+evaluatable (the types-always-present invariant), and a cursor's "empty
+something" is a `Position`. A path terminating at a cursor therefore records
+`Position` as its terminal type (`…{k}::Position`), and
+`evaluate_reference` of such a path returns `Position(k)` — a signal that the
+target is a caret, distinct from a document node reached by a structural step.
+"""
+struct Position
+    index::Int
+end
+
+Base.:(==)(a::Position, b::Position) = a.index == b.index
+Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
+
 
 """
     FieldReference(name)
@@ -425,9 +443,12 @@ step_kind(::RangeReference) = :structural
 step_kind(::FieldReference) = :structural
 step_kind(::TypeReference)  = :checkpoint
 
-# element / cursor / range — element access at start+1 (cell-transparent).
-evaluate_step(step::RangeReference, document) =
+# A zero-width cursor evaluates to a `Position` (a caret between elements); a
+# single element / range descends into the item at start+1 (cell-transparent).
+function evaluate_step(step::RangeReference, document)
+    is_position_reference(step) && return Position(step.start)
     _deref_cell(document[step.start + 1])
+end
 
 evaluate_step(step::FieldReference, document) =
     _get_field(document, step.name)
@@ -564,17 +585,13 @@ function annotate_reference_types(document, path::ConcreteReferencePath)
     # standalone assertion.
     step_kind(step) === :checkpoint && return annotate_reference_types(document, rest)
     nodetype = _node_type(document)
-    # A zero-width position is a cursor *between* items, not a descent into
-    # one — leave the node it would reach untyped. Otherwise, ask the step
-    # to descend; a throw or `nothing` means no child to annotate.
-    child = if step isa RangeReference && is_position_reference(step)
+    # Descend one step to type the rest. A zero-width cursor descends to a
+    # `Position` (so its terminal records `::Position`); a structural step that
+    # cannot be followed throws and leaves the rest untyped.
+    child = try
+        evaluate_step(step, document)
+    catch
         nothing
-    else
-        try
-            evaluate_step(step, document)
-        catch
-            nothing
-        end
     end
     annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)
     ConcreteReferencePath(nodetype, step, annotated_rest)

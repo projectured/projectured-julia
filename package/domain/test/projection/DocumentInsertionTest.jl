@@ -112,9 +112,10 @@ function test_document_insertion()
                 written = _written_doc(op)
                 @test written isa I
                 # `with_selection` decorates the cursor with type checkpoints,
-                # so compare the printed form.
+                # so compare the printed form. The cursor terminal records
+                # `::Position` (the value a zero-width caret evaluates to).
                 @test string(getfield(written, :selection)[]) ==
-                      "::$(nameof(I)).value::String{0}"
+                      "::$(nameof(I)).value::String{0}::Position"
             end
         end
 

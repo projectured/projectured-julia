@@ -117,15 +117,16 @@ hit_whole = @reference_case whole begin
 end
 @test hit_whole == :whole
 
-# ── a position is a cursor *between* items, not a descent into one ─────────
+# ── a position is a cursor *between* items, evaluating to a `Position` ──────
 
-# `{3}` is a caret between characters: it lands on no child, so the terminal is
-# left untyped — it must not claim the cursor points at a `Char`. This node
-# records the container type (String) and keeps its position step as `head`.
+# `{3}` is a caret between characters: it evaluates to a `Position`, so the
+# terminal records `::Position` (every reference is evaluatable — a cursor's
+# "empty something" is a Position, not a Char). This node records the container
+# type (String) and keeps its position step as `head`.
 pos_ann = annotate_reference_types("hello",
               ConcreteReferencePath(PositionReference(3), EmptyReferencePath()))
 @test pos_ann.type === String && is_position_reference(pos_ann.head)
-@test pos_ann.tail isa EmptyReferencePath && pos_ann.tail.type === nothing
+@test pos_ann.tail isa EmptyReferencePath && pos_ann.tail.type === Position
 @test strip_reference_types(pos_ann) ==
       ConcreteReferencePath(PositionReference(3), EmptyReferencePath())
 

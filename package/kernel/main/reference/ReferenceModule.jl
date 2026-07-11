@@ -44,7 +44,7 @@ import ..CellModule: Cell, AbstractCell
 import ..DocumentModule: Document, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
-       FieldReference,
+       FieldReference, Position,
        RangeReference, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
        evaluate_reference, is_valid_reference, collect_references, is_element_reference,
