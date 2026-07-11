@@ -24,10 +24,10 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, Position, RangeReference, FieldReference, ReferencePath, EmptyReferencePath, append_reference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
@@ -61,7 +61,7 @@ end
 
 function map_reference_backward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::MathVariable.name::String{k}
+        ::SyntaxLeaf.value{k} => @reference ::MathVariable.name::String{k}::Position
     end
 end
 
@@ -95,13 +95,13 @@ function map_reference_forward(p::MathBinaryOperationToSyntaxNode, iomap::Childr
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(inner)
+            @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
         ::MathBinaryOperation.right.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[3].^(inner)
+            @reference ::SyntaxNode.children::CellVector[3].^(inner)
         end
     end
 end
@@ -129,9 +129,8 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
 end
 
 function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
-    reference = ctx.reference
-    left_ctx  = make_child_context(ctx, @reference ^(reference).left)
-    right_ctx = make_child_context(ctx, @reference ^(reference).right)
+    left_ctx  = make_child_context(ctx, m, @step left)
+    right_ctx = make_child_context(ctx, m, @step right)
     left_iomap = Cell(() -> print_child(recursion, m.left, left_ctx))
     right_iomap = Cell(() -> print_child(recursion, m.right, right_ctx))
 
@@ -190,7 +189,7 @@ function map_reference_forward(p::MathParenthesizedToSyntaxNode, iomap::Children
             child = iomap.child_iomaps[]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(inner)
+            @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
     end
 end
@@ -208,8 +207,7 @@ function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::Childre
 end
 
 function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
-    reference = ctx.reference
-    content_ctx = make_child_context(ctx, @reference ^(reference).content)
+    content_ctx = make_child_context(ctx, m, @step content)
     content_iomap = Cell(() -> print_child(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
@@ -259,13 +257,13 @@ function map_reference_forward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoM
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(inner)
+            @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
         ::MathAssignment.value.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[3].^(inner)
+            @reference ::SyntaxNode.children::CellVector[3].^(inner)
         end
     end
 end
@@ -293,9 +291,8 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
 end
 
 function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
-    reference = ctx.reference
-    target_ctx = make_child_context(ctx, @reference ^(reference).target)
-    value_ctx  = make_child_context(ctx, @reference ^(reference).value)
+    target_ctx = make_child_context(ctx, m, @step target)
+    value_ctx  = make_child_context(ctx, m, @step value)
     target_iomap = Cell(() -> print_child(recursion, m.target, target_ctx))
     value_iomap = Cell(() -> print_child(recursion, m.value, value_ctx))
 

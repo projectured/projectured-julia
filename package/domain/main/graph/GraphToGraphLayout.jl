@@ -32,7 +32,7 @@ import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
@@ -72,8 +72,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v = graph.vertices[i]
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
-                cref = @reference ^(ctx.reference).vertices[i].content
-                push!(ims, print_child(recursion, content, make_child_context(ctx, cref)))
+                push!(ims, print_child(recursion, content, make_child_context(ctx, graph, (@step vertices), (@step [i]), (@step content))))
             else
                 push!(ims, nothing)
             end
@@ -141,7 +140,7 @@ end
 function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphLayout
-        vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts[i].vertex.^(rest))
+        vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.^(rest))
         _ => nothing
     end
 end
@@ -149,7 +148,7 @@ end
 function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphGraph
-        vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices[i].^(rest))
+        vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
         _ => nothing
     end
 end

@@ -129,17 +129,17 @@ end
 
     # A selection into the first vertex's content maps forward to a non-nothing
     # output selection (the cursor reaches the graphics layer).
-    set_selection!(g, @reference vertices[1])
+    set_selection!(g, @reference(g, vertices[1]))
     # Forward mapping of the stage-1 projection: vertices[i] ↔ vertex_layouts[i].vertex.
     stage = GraphGraphToGraphLayout(FallbackLayoutEngine())
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
     s1 = print_document(stage, content, g, _gctx())
-    fwd = map_reference_forward(stage, s1, @reference vertices[1])
+    fwd = map_reference_forward(stage, s1, @reference(g, vertices[1]))
     @test fwd !== nothing
     back = map_reference_backward(stage, s1, fwd)
     @test back !== nothing
     # `back` is now typed; compare navigation shape.
-    @test is_reference_equal(strip_reference_types(back), @reference vertices[1])
+    @test is_reference_equal(strip_reference_types(back), strip_reference_types(@reference(g, vertices[1])))
 end
 
 end # test_graph

@@ -70,6 +70,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_ita
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
 import ..StyleTextModule: StyleText
+import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
 
@@ -146,8 +147,8 @@ _typed_color(p, state::Symbol) =
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         value{k} => begin
-            inner = @reference ::SyntaxLeaf.value::TextString{k}
-            @reference ::SyntaxNode.children[1].^(inner)
+            inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
+            @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
     end
 end

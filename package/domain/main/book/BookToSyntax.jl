@@ -44,7 +44,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionRefer
                          ReferencePath, EmptyReferencePath, append_reference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
@@ -97,7 +97,7 @@ end
 
 function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
     element_iomaps = Cell(() -> [print_child(recursion, e,
-                                     make_child_context(ctx, @reference ^(ctx.reference).elements[i]))
+                                     make_child_context(ctx, b, (@step elements), (@step [i])))
                                  for (i, e) in enumerate(b.elements)])
 
     title_sel = Cell(() -> begin
@@ -272,7 +272,7 @@ end
 
 function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
     element_iomaps = Cell(() -> [print_child(recursion, e,
-                                     make_child_context(ctx, @reference ^(ctx.reference).elements{i}))
+                                     make_child_context(ctx, b, (@step elements), (@step {i})))
                                  for (i, e) in enumerate(b.elements)])
 
     # The title leaf renders "numbering  title" (when numbering is present), so a
@@ -476,7 +476,7 @@ end
 
 function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
     element_iomaps = Cell(() -> [print_child(recursion, e,
-                                     make_child_context(ctx, @reference ^(ctx.reference).elements{i}))
+                                     make_child_context(ctx, b, (@step elements), (@step {i})))
                                  for (i, e) in enumerate(b.elements)])
 
     sel = Cell(() -> begin

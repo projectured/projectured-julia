@@ -30,7 +30,7 @@ import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
@@ -81,8 +81,6 @@ struct GraphLayoutToGraphicsCanvasIoMap <: IoMap
 end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
-    reference = ctx.reference
-
     # Recurse each vertex's content into a canvas, tracking its placed origin.
     child_iomaps = Cell(() -> begin
         n = length(layout.vertex_layouts)
@@ -93,8 +91,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 v = getfield(vl, :vertex)[]
                 content = v isa GraphVertex ? getfield(v, :content)[] : nothing
                 if content !== nothing
-                    cref = @reference ^(reference).vertex_layouts[i].vertex.content
-                    cim = print_child(recursion, content, make_child_context(ctx, cref))
+                    cim = print_child(recursion, content, make_child_context(ctx, layout, (@step vertex_layouts), (@step [i]), (@step vertex), (@step content)))
                     push!(entries, (Int(vl.x), Int(vl.y), cim))
                 else
                     push!(entries, (Int(vl.x), Int(vl.y), nothing))
@@ -116,8 +113,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             e = el isa EdgeLayout ? getfield(el, :edge)[] : nothing
             label = e isa GraphEdge ? getfield(e, :label)[] : nothing
             if label !== nothing
-                lref = @reference ^(reference).edge_layouts[i].edge.label
-                push!(out, print_child(recursion, label, make_child_context(ctx, lref)))
+                push!(out, print_child(recursion, label, make_child_context(ctx, layout, (@step edge_layouts), (@step [i]), (@step edge), (@step label))))
             else
                 push!(out, nothing)
             end
@@ -224,7 +220,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.modifiers)
         op = read_intent(cim.projection, cim, local_evt)
         op isa ReplaceSelectionOperation || return nothing
-        return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts[i].vertex.content.^(op.path))
+        return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.content.^(op.path))
     end
     nothing
 end
@@ -239,7 +235,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         cim = entry[3]
         op = read_intent(cim.projection, cim, event)
         if op isa ReplaceSelectionOperation
-            return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts[i].vertex.content.^(op.path))
+            return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.content.^(op.path))
         end
     end
     nothing
