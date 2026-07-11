@@ -10,7 +10,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference, Position
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -208,7 +208,7 @@ end
 function _replace_number(doc, c)
     target = try evaluate_reference(doc, getfield(doc, :selection)[]) catch; nothing end
     target isa YamlNumber && return nothing
-    _replace(doc, with_selection(YamlNumber(parse(Int, string(c))), @reference value{1}))
+    _replace(doc, with_selection(YamlNumber(parse(Int, string(c))), @reference ::YamlNumber.value::Int{1}::Position))
 end
 
 # Append a YamlInsertion and select it whole, ready to type-to-replace. Declines
@@ -217,8 +217,8 @@ end
 function _sequence_insert(doc::YamlSequence)
     _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.elements)
-    insert_elements(@reference(elements), n, Any[YamlInsertion()],
-                    @reference elements[n + 1])
+    insert_elements(@reference(doc, elements), n, Any[YamlInsertion()],
+                    @reference ::YamlSequence.elements::CellVector[n + 1]::YamlInsertion)
 end
 
 # Append an empty entry and select its key for typing. Declines in a string
@@ -226,9 +226,9 @@ end
 function _mapping_insert(doc::YamlMapping)
     _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.entries)
-    insert_elements(@reference(entries), n,
+    insert_elements(@reference(doc, entries), n,
                     Any[YamlMappingEntry("", YamlInsertion())],
-                    @reference entries[n + 1].key{0})
+                    @reference ::YamlMapping.entries::CellVector[n + 1]::YamlMappingEntry.key::String{0}::Position)
 end
 
 # Tab moves the cursor from an entry's key to its value, selected whole.
@@ -239,7 +239,7 @@ function _mapping_tab(doc::YamlMapping)
         entries{s:e}.rest... => begin
             i = s + 1
             @reference_case rest begin
-                key.inner... => ReplaceSelectionOperation(@reference entries[i].value)
+                key.inner... => ReplaceSelectionOperation(@reference ::YamlMapping.entries::CellVector[i]::YamlMappingEntry.value::Document)
             end
         end
     end
@@ -252,17 +252,18 @@ end
 # commit of a `YamlInsertion` / `DocumentInsertion`. `YamlNull` needs no
 # method: the zero-arg fallback already covers it.
 make_insertion_document(::Type{<:YamlBool}) =
-    with_selection(YamlBool(false), EmptyReferencePath())
+    with_selection(YamlBool(false), EmptyReferencePath(YamlBool))
+# An empty number's value is `nothing` (no text position), so it selects whole.
 make_insertion_document(::Type{<:YamlNumber}) =
-    with_selection(YamlNumber(nothing), @reference value{0})
+    with_selection(YamlNumber(nothing), EmptyReferencePath(YamlNumber))
 make_insertion_document(::Type{<:YamlString}) =
-    with_selection(YamlString(""), @reference value{0})
+    let d = YamlString(""); with_selection(d, @reference(d, value{0})) end
 make_insertion_document(::Type{<:YamlSequence}) =
-    with_selection(YamlSequence([YamlInsertion()]), @reference elements[1])
+    let d = YamlSequence([YamlInsertion()]); with_selection(d, @reference(d, elements[1])) end
 make_insertion_document(::Type{<:YamlMappingEntry}) =
-    with_selection(YamlMappingEntry("", YamlInsertion()), @reference key{0})
+    let d = YamlMappingEntry("", YamlInsertion()); with_selection(d, @reference(d, key{0})) end
 make_insertion_document(::Type{<:YamlMapping}) =
-    with_selection(YamlMapping([YamlMappingEntry("", YamlInsertion())]), @reference entries[1].key{0})
+    let d = YamlMapping([YamlMappingEntry("", YamlInsertion())]); with_selection(d, @reference(d, entries[1].key{0})) end
 
 @gestures YamlDocument begin
     when(_yaml_replaceable(doc, sel))
