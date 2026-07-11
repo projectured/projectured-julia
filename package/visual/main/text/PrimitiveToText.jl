@@ -21,7 +21,7 @@ import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta,
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference,
-                          ElementReference, PositionReference, ReferencePath
+                          ElementReference, PositionReference, ReferencePath, Position
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -34,14 +34,27 @@ export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextText, Pr
 # Range selections collapse to a cursor at the range start.
 function _forward_value(reference)
     @reference_case reference begin
-        value{s:e} => @reference elements[1].content{s}
+        value{s:e} => @reference ::TextText.elements::CellVector[1]::TextString.content::String{s}::Position
     end
 end
 
 # Backward: .elements[1].content[k] on the TextText → .value[k] on the primitive.
-function _backward_value(reference)
+# Type-specific variants so the returned reference carries the leading document type.
+function _backward_bool(reference)
     @reference_case reference begin
-        elements[1].content{s:e} => @reference value{s}
+        elements[1].content{s:e} => @reference ::PrimitiveBool.value::Bool{s}::Position
+    end
+end
+
+function _backward_number(reference)
+    @reference_case reference begin
+        elements[1].content{s:e} => @reference ::PrimitiveNumber.value::Number{s}::Position
+    end
+end
+
+function _backward_string(reference)
+    @reference_case reference begin
+        elements[1].content{s:e} => @reference ::PrimitiveString.value::String{s}::Position
     end
 end
 
@@ -59,7 +72,7 @@ end
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
-    _backward_value(reference)
+    _backward_bool(reference)
 
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.style)
@@ -69,7 +82,7 @@ function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx
 end
 
 function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    input_path = _backward_value(op.path)
+    input_path = _backward_bool(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
 end
@@ -83,7 +96,7 @@ end
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
-    _backward_value(reference)
+    _backward_number(reference)
 
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.style)
@@ -93,7 +106,7 @@ function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber,
 end
 
 function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    input_path = _backward_value(op.path)
+    input_path = _backward_number(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
 end
@@ -114,7 +127,7 @@ PrimitiveStringToTextText(; style=StyleText(font_ubuntu_monospace_regular_20, co
 map_reference_forward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveStringToTextText, iomap::SimpleIoMap, reference) =
-    _backward_value(reference)
+    _backward_string(reference)
 
 function print_document(p::PrimitiveStringToTextText, recursion, s::PrimitiveString, ctx)
     value_span = TextString(() -> something(s.value, ""), p.style)
@@ -130,7 +143,7 @@ function print_document(p::PrimitiveStringToTextText, recursion, s::PrimitiveStr
 end
 
 function read_intent(p::PrimitiveStringToTextText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    input_path = _backward_value(op.path)
+    input_path = _backward_string(op.path)
     input_path === nothing && return nothing
     ReplaceSelectionOperation(input_path)
 end
@@ -148,7 +161,9 @@ function _string_value_range(s::PrimitiveString)
     inner.head
 end
 
-_string_value_path(range::RangeReference) = @reference value.^(range)
+_string_value_path(range::RangeReference) =
+    ConcreteReferencePath(PrimitiveString, FieldReference("value"),
+        ConcreteReferencePath(String, range, EmptyReferencePath(String)))
 
 # String editing is a *document-level* concern (it produces a
 # `ReplaceStringRangeOperation` in the `PrimitiveString`'s own `value[range]`

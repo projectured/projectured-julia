@@ -21,11 +21,11 @@ import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocume
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position
 import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
@@ -343,10 +343,12 @@ function _backward_zone(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, j::In
     end
     char === nothing && return @reference()        # whole element on own chrome → whole node
     c = char::Int
-    j == iomap.marker_index[] + 1 && return @reference open{c}
-    j == length(elements)         && return @reference close{c}
+    j == iomap.marker_index[] + 1 && return @reference ::SyntaxNode.open::TextString{c}::Position
+    j == length(elements)         && return @reference ::SyntaxNode.close::TextString{c}::Position
     flat = _text_elem_path_to_flat(elements, j, c)
-    return @reference proj(p, {flat})
+    return ConcreteReferencePath(SyntaxNode, ProjectionReference(p,
+               ConcreteReferencePath(Position, PositionReference(flat), EmptyReferencePath(Position))),
+               EmptyReferencePath(Position))
 end
 
 # Renders `marker? open`, children interleaved with `sep` (plus `\n`+indent when
@@ -372,7 +374,7 @@ function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
         kids = node.children
         result = IoMap[]
         for (i, child) in enumerate(kids)
-            child_ctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+            child_ctx = make_child_context(ctx, node, (@step children), (@step [i]))
             push!(result, get!(() -> print_child(recursion, child, child_ctx), child_cache, child))
         end
         seen = Set{UInt}(objectid(c) for c in kids)
@@ -1146,7 +1148,7 @@ function _click_flat_pos(iomap::SyntaxNodeToTextIoMap, path)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements[span_idx].content::String{char_idx}
+    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 # Parse a tree selection path: .elements[i]∅  (element ref without .content{k}).
 # Returns span_idx (1-based) or nothing.

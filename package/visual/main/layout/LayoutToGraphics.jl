@@ -43,7 +43,7 @@ import ..KeyboardModule: KeyDown
 # module, so layout containers can share Tab traversal with the widget readers.
 import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..PrinterContextModule: make_child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
@@ -505,7 +505,7 @@ function _hl_build(recursion, doc, ctx)
     # `available_height` cell, never `outer_h`.
     child_iomaps = Any[]
     for i in 1:n
-        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, doc, (@step children), (@step [i]))
         cctx = with_available_size(cctx; width=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -596,7 +596,7 @@ function _vl_build(recursion, doc, ctx)
     # child reads the *parent-supplied* `available_width` cell, never `outer_w`.
     child_iomaps = Any[]
     for i in 1:n
-        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, doc, (@step children), (@step [i]))
         cctx = with_available_size(cctx; height=nothing)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -802,7 +802,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             make_child_context(ctx, @reference ^(ctx.reference).children[i]))
+                             make_child_context(ctx, doc, (@step children), (@step [i])))
         push!(child_iomaps, cim)
     end
 
@@ -1006,7 +1006,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             make_child_context(ctx, @reference ^(ctx.reference).children[i]))
+                             make_child_context(ctx, doc, (@step children), (@step [i])))
         push!(child_iomaps, cim)
     end
 
@@ -1174,7 +1174,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
 
     child_iomaps = Any[]
     for i in 1:n
-        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, doc, (@step children), (@step [i]))
         cctx = with_available_size(cctx; width=nothing, height=nothing)
         cim = _recurse_child(recursion, doc.children[i], cctx)
         push!(child_iomaps, cim)
@@ -1313,7 +1313,7 @@ function _cl_build(solver, recursion, doc, ctx)
     # never see one.
     measure_iomaps = Any[]
     for i in 1:n
-        cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+        cctx = make_child_context(ctx, doc, (@step children), (@step [i]))
         cctx = with_available_size(cctx; width=nothing, height=nothing)
         push!(measure_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
@@ -1355,7 +1355,7 @@ function _cl_build(solver, recursion, doc, ctx)
         if !xset[i] && !yset[i]
             push!(final_iomaps, measure_iomaps[i])
         else
-            cctx = make_child_context(ctx, @reference ^(ctx.reference).children[i])
+            cctx = make_child_context(ctx, doc, (@step children), (@step [i]))
             cctx = with_available_size(cctx;
                                        width  = xset[i] ? sw[i] : nothing,
                                        height = yset[i] ? sh[i] : nothing)

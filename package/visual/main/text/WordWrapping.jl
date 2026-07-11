@@ -21,7 +21,7 @@ import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position
 import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -332,7 +332,7 @@ function _is_structural_ref(ref)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements[span_idx].content::String{char_idx}
+    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

@@ -29,7 +29,7 @@ import ..ColorModule: StyleColor, color_solarized_background_dark, color_solariz
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
@@ -283,7 +283,7 @@ read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference elements[span_idx].content{char_idx}
+    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

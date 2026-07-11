@@ -30,7 +30,7 @@ import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphi
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
@@ -170,7 +170,7 @@ read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
 # ── Path helpers (mirrors WordWrapping) ───────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements[span_idx].content::String{char_idx}
+    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

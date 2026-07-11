@@ -32,7 +32,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types
+import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types, Position
 import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -588,7 +588,7 @@ function _is_structural_selection(sel)
 end
 
 _build_selection_path(span_idx::Int, char_idx::Int) =
-    @reference elements[span_idx].content{char_idx}
+    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 # ── set_function! delegation ───────────────────────────────────────────────
 
