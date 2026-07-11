@@ -283,9 +283,9 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
             title{s:_}.tail... => begin
                 offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
                 adj = s + offset
-                @reference value{adj}.^(tail)
+                @reference ::SyntaxLeaf.value{adj}.^(tail)
             end
-            numbering{s:_}.tail... => @reference value{s}.^(tail)
+            numbering{s:_}.tail... => @reference ::SyntaxLeaf.value{s}.^(tail)
         end
     end)
 
