@@ -237,7 +237,7 @@ _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 function _set_input!(a::WorkbenchAssistant, s::AbstractString)
     a.input.value = String(s)
     n = length(s)
-    a.input.selection = @reference value{n}
+    a.input.selection = @reference(a.input, value{n})
     nothing
 end
 

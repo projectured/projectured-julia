@@ -53,7 +53,8 @@ import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperati
 import ..KeyboardModule: KeyDown, KeyPress
 import ..GestureApiModule: read_gesture
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
-import ..ReferenceBuilderModule: var"@reference"
+import ..CollectionModule: CellVector
+import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
@@ -166,10 +167,10 @@ end
 
 function print_document(::WorkbenchWorkbenchToWidgetShell,
                            recursion, w::WorkbenchWorkbench, ctx)
-    nav_iomap  = _recurse(recursion, w.navigation_page,  make_child_context(ctx, @reference ^(ctx.reference).navigation_page))
-    edit_iomap = _recurse(recursion, w.editing_page,     make_child_context(ctx, @reference ^(ctx.reference).editing_page))
-    info_iomap = _recurse(recursion, w.information_page, make_child_context(ctx, @reference ^(ctx.reference).information_page))
-    ctrl_iomap = _recurse(recursion, w.control_page,     make_child_context(ctx, @reference ^(ctx.reference).control_page))
+    nav_iomap  = _recurse(recursion, w.navigation_page,  make_child_context(ctx, w, @step navigation_page))
+    edit_iomap = _recurse(recursion, w.editing_page,     make_child_context(ctx, w, @step editing_page))
+    info_iomap = _recurse(recursion, w.information_page, make_child_context(ctx, w, @step information_page))
+    ctrl_iomap = _recurse(recursion, w.control_page,     make_child_context(ctx, w, @step control_page))
 
     # Placeholder filled once the IoMap is built below, so the
     # forward-projected selection cells can reference it.
@@ -235,7 +236,7 @@ end
 function print_document(::WorkbenchPageToWidgetTabbedPane,
                            recursion, page::WorkbenchPage, ctx)
     element_iomaps = Any[_recurse(recursion, page.elements[i],
-                             make_child_context(ctx, @reference ^(ctx.reference).elements[i]))
+                             make_child_context(ctx, page, (@step elements), (@step [i])))
                          for i in eachindex(page.elements)]
     pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
                 for i in eachindex(page.elements)]
@@ -296,7 +297,7 @@ end
 
 function print_document(::WorkbenchConsoleToWidgetScrollPane,
                            recursion, c::WorkbenchConsole, ctx)
-    content_iomap = _recurse(recursion, c.content, make_child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, c.content, make_child_context(ctx, c, @step content))
     scroll = WidgetScrollPane(content_iomap.output;
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, c, scroll, content_iomap)
@@ -329,7 +330,7 @@ end
 
 function print_document(::WorkbenchEvaluatorToWidgetScrollPane,
                            recursion, e::WorkbenchEvaluator, ctx)
-    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, e, @step content))
     scroll = WidgetScrollPane(content_iomap.output;
                               padding=_PAD5, padding_color=_WHITE)
     ContentIoMap(nothing, e, scroll, content_iomap)
@@ -368,7 +369,7 @@ end
 
 function print_document(::WorkbenchEditorToWidgetScrollPane,
                            recursion, e::WorkbenchEditor, ctx)
-    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, @reference ^(ctx.reference).content))
+    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, e, @step content))
     scroll = WidgetScrollPane(content_iomap.output;
                               follow_end=e.follow_end === true,
                               padding=_PAD5, padding_color=_WHITE)
@@ -417,19 +418,19 @@ function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
     @reference_case reference begin
         navigation_page.rest... => begin
             inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath())
-            @reference ::WidgetShell.content.elements[1].child.^(inner)
+            @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         editing_page.rest... => begin
             inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath())
-            @reference ::WidgetShell.content.elements[2].child.elements[1].child.^(inner)
+            @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         information_page.rest... => begin
             inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath())
-            @reference ::WidgetShell.content.elements[2].child.elements[2].child.^(inner)
+            @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child.^(inner)
         end
         control_page.rest... => begin
             inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath())
-            @reference ::WidgetShell.content.elements[3].child.^(inner)
+            @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[3]::LayoutConstraint.child.^(inner)
         end
     end
 end
@@ -442,7 +443,7 @@ function map_reference_forward(::WorkbenchPageToWidgetTabbedPane,
         elements[i].rest... => begin
             (1 <= i <= length(iomap.element_iomaps)) || return nothing
             inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath())
-            @reference ::WidgetTabbedPane.selector_element_pairs[i].^(inner)
+            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(inner)
         end
     end
 end
@@ -478,8 +479,8 @@ end
 # Assistant → vertical WidgetSplitPane(conversation | input), each a scroll pane.
 function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane, iomap, reference)
     @reference_case reference begin
-        conversation.rest... => @reference ::WidgetSplitPane.elements[1].child.content.^(rest)
-        input.rest...        => @reference ::WidgetSplitPane.elements[2].child.content.^(rest)
+        conversation.rest... => @reference ::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
+        input.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
     end
 end
 
@@ -587,7 +588,7 @@ function map_reference_backward(::WorkbenchPageToWidgetTabbedPane,
             elem_im = iomap.element_iomaps[i]
             inner = _panel_backward(elem_im, rest)
             inner === nothing && return nothing
-            @reference ::WorkbenchPage.elements[i].^(inner)
+            @reference ::WorkbenchPage.elements::CellVector[i].^(inner)
         end
     end
 end
@@ -784,7 +785,7 @@ function read_intent(p::WorkbenchPageToWidgetTabbedPane,
         # The tabbed pane's active tab is a forward projection of the page
         # selection (see print_document), so moving the document selection
         # to this element is enough — no imperative write to the widget cell.
-        return ReplaceSelectionOperation(@reference ::WorkbenchPage.elements[idx])
+        return ReplaceSelectionOperation(@reference ::WorkbenchPage.elements::CellVector[idx]::WorkbenchDocument)
     end
     _retarget_panel_op(p, iomap, op)
 end
