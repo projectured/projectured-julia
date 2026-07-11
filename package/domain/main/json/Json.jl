@@ -14,7 +14,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector, @forward_map
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference, Position
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -209,7 +209,7 @@ end
 function _replace_number(doc, c)
     target = try evaluate_reference(doc, getfield(doc, :selection)[]) catch; nothing end
     target isa JsonNumber && return nothing
-    _replace(doc, with_selection(JsonNumber(parse(Int, string(c))), @reference value{1}))
+    _replace(doc, with_selection(JsonNumber(parse(Int, string(c))), @reference ::JsonNumber.value::Int{1}::Position))
 end
 
 # Append a JsonInsertion and select it whole, ready to type-to-replace. Declines
@@ -218,8 +218,8 @@ end
 function _array_insert(doc::JsonArray)
     _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.elements)
-    insert_elements(@reference(elements), n, Any[JsonInsertion()],
-                    @reference elements[n + 1])
+    insert_elements(@reference(::JsonArray.elements::CellVector), n, Any[JsonInsertion()],
+                    @reference ::JsonArray.elements::CellVector[n + 1]::JsonInsertion)
 end
 
 # Append an empty entry and select its key for typing. Declines in a string
@@ -227,9 +227,9 @@ end
 function _object_insert(doc::JsonObject)
     _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.entries)
-    insert_elements(@reference(entries), n,
+    insert_elements(@reference(::JsonObject.entries::CellVector), n,
                     Any[JsonObjectEntry("", JsonInsertion())],
-                    @reference entries[n + 1].key{0})
+                    @reference ::JsonObject.entries::CellVector[n + 1]::JsonObjectEntry.key::String{0}::Position)
 end
 
 # Tab moves the cursor from an entry's key to its value, selected whole.
@@ -240,7 +240,7 @@ function _object_tab(doc::JsonObject)
         entries{s:e}.rest... => begin
             i = s + 1
             @reference_case rest begin
-                key.inner... => ReplaceSelectionOperation(@reference entries[i].value)
+                key.inner... => ReplaceSelectionOperation(@reference ::JsonObject.entries::CellVector[i]::JsonObjectEntry.value::Document)
             end
         end
     end
@@ -254,17 +254,17 @@ end
 # resolves a name to the type, `make_insertion_document` builds the value).
 # `JsonNull` needs no method: the zero-arg fallback already covers it.
 make_insertion_document(::Type{<:JsonBool}) =
-    with_selection(JsonBool(false), EmptyReferencePath())
+    with_selection(JsonBool(false), EmptyReferencePath(JsonBool))
 make_insertion_document(::Type{<:JsonNumber}) =
-    with_selection(JsonNumber(nothing), @reference value{0})
+    with_selection(JsonNumber(nothing), @reference ::JsonNumber.value::Nothing{0}::Position)
 make_insertion_document(::Type{<:JsonString}) =
-    with_selection(JsonString(""), @reference value{0})
+    with_selection(JsonString(""), @reference ::JsonString.value::String{0}::Position)
 make_insertion_document(::Type{<:JsonArray}) =
-    with_selection(JsonArray([JsonInsertion()]), @reference elements[1])
+    with_selection(JsonArray([JsonInsertion()]), @reference ::JsonArray.elements::CellVector[1]::JsonInsertion)
 make_insertion_document(::Type{<:JsonObjectEntry}) =
-    with_selection(JsonObjectEntry("", JsonInsertion()), @reference key{0})
+    with_selection(JsonObjectEntry("", JsonInsertion()), @reference ::JsonObjectEntry.key::String{0}::Position)
 make_insertion_document(::Type{<:JsonObject}) =
-    with_selection(JsonObject([JsonObjectEntry("", JsonInsertion())]), @reference entries[1].key{0})
+    with_selection(JsonObject([JsonObjectEntry("", JsonInsertion())]), @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.key::String{0}::Position)
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
