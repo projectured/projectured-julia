@@ -51,7 +51,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        is_position_reference, is_reference_equal, is_prefix_of,
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
-       fold_reference_types, reference_node_type,
+       fold_reference_types, reference_node_type, is_fully_typed,
        # Step-type extensibility seam:
        step_kind, evaluate_step,
        # DSL extension seams:

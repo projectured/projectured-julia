@@ -42,7 +42,8 @@ import ..ProjectionApiModule: map_reference_forward, map_reference_backward, rea
 import ..ProjectionApiModule
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
                           TypeReference, ReferencePath, Reference,
-                          fold_reference_types, strip_reference_types
+                          fold_reference_types, strip_reference_types,
+                          annotate_reference_types, is_fully_typed
 import ..ProjectionReferenceModule: ProjectionReference
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
@@ -743,28 +744,39 @@ end
 
 # ── Generic, data-driven mappers (one method, all template projections) ───────
 
+# Ensure a generic (template) mapper emits a fully-typed sub-path so a parent's
+# `^(inner)` splice stays typed (the reference-types-always-present invariant).
+# The template machinery builds paths from raw steps / `ProjectionReference`
+# wraps whose terminals it cannot always spell inline; annotating the finished
+# path against the mapper's own document (the one it navigates) fills every node
+# type at the source, so consumers need no boundary re-annotation.
+_typed_generic(::Nothing, _doc) = nothing
+_typed_generic(r, doc) = is_fully_typed(r) ? r : annotate_reference_types(doc, r)
+
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w = iomap.wiring
-    w isa AtomicWiring    && return _atomic_forward(p, w, reference)
-    w isa NodeWiring      && return _node_forward(p, w, iomap, reference)
-    w isa FixedNodeWiring && return _fixed_forward(p, w, iomap, reference)
-    w isa ConditionalNodeWiring && return _conditional_forward(p, w, iomap, reference)
-    w isa MixedNodeWiring && return _mixed_forward(p, w, iomap, reference)
-    w isa InlineWiring    && return _inline_forward(p, w, reference)
-    w isa SectionsWiring  && return _sections_forward(p, w, iomap, reference)
-    return nothing
+    r = w isa AtomicWiring    ? _atomic_forward(p, w, reference) :
+        w isa NodeWiring      ? _node_forward(p, w, iomap, reference) :
+        w isa FixedNodeWiring ? _fixed_forward(p, w, iomap, reference) :
+        w isa ConditionalNodeWiring ? _conditional_forward(p, w, iomap, reference) :
+        w isa MixedNodeWiring ? _mixed_forward(p, w, iomap, reference) :
+        w isa InlineWiring    ? _inline_forward(p, w, reference) :
+        w isa SectionsWiring  ? _sections_forward(p, w, iomap, reference) :
+        nothing
+    _typed_generic(r, iomap.output)
 end
 
 function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w = iomap.wiring
-    w isa AtomicWiring    && return _atomic_backward(p, w, reference)
-    w isa NodeWiring      && return _node_backward(p, w, iomap, reference)
-    w isa FixedNodeWiring && return _fixed_backward(p, w, iomap, reference)
-    w isa ConditionalNodeWiring && return _conditional_backward(p, w, iomap, reference)
-    w isa MixedNodeWiring && return _mixed_backward(p, w, iomap, reference)
-    w isa InlineWiring    && return _inline_backward(p, w, reference)
-    w isa SectionsWiring  && return _sections_backward(p, w, iomap, reference)
-    return nothing
+    r = w isa AtomicWiring    ? _atomic_backward(p, w, reference) :
+        w isa NodeWiring      ? _node_backward(p, w, iomap, reference) :
+        w isa FixedNodeWiring ? _fixed_backward(p, w, iomap, reference) :
+        w isa ConditionalNodeWiring ? _conditional_backward(p, w, iomap, reference) :
+        w isa MixedNodeWiring ? _mixed_backward(p, w, iomap, reference) :
+        w isa InlineWiring    ? _inline_backward(p, w, reference) :
+        w isa SectionsWiring  ? _sections_backward(p, w, iomap, reference) :
+        nothing
+    _typed_generic(r, iomap.input)
 end
 
 # ── atomic (leaf) ─────────────────────────────────────────────────────────────
@@ -777,8 +789,9 @@ function _atomic_forward(p, w, reference)
         return core.head.output_path
     end
     if w.bound_field === nothing
-        # opaque ⇒ mirror the default mapper: ∅ ⇒ ∅, otherwise unmapped
-        core isa EmptyReferencePath && return EmptyReferencePath()
+        # opaque ⇒ mirror the default mapper: ∅ ⇒ ∅ (typed to the output node so
+        # the strict-typing invariant holds), otherwise unmapped
+        core isa EmptyReferencePath && return _typed(w.outtype)
         return nothing
     end
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole ⇒ ::Out
@@ -795,8 +808,9 @@ end
 function _atomic_backward(p, w, reference)
     reference === nothing && return nothing
     if w.bound_field === nothing
-        # opaque ⇒ mirror the default mapper exactly
-        reference isa EmptyReferencePath && return EmptyReferencePath()
+        # opaque ⇒ mirror the default mapper exactly (typed empty so the
+        # strict-typing invariant holds on the whole-node case)
+        reference isa EmptyReferencePath && return _typed(w.intype)
         return _path(ProjectionReference(p, reference))
     end
     core = reference
