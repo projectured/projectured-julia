@@ -485,8 +485,8 @@ function test_function_availability()
         @test isa(result, String)
         # Should not error
         
-        # Test that is_valid_reference is available by calling it
-        result = execute_julia_code(editor, "is_valid_reference(PositionReference(1))")
+        # Test that is_reference_equal is available by calling it
+        result = execute_julia_code(editor, "is_reference_equal(EmptyReferencePath(), EmptyReferencePath())")
         @test isa(result, String)
         # Should not error
         

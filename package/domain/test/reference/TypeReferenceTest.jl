@@ -50,10 +50,10 @@ prefix = get_valid_reference_prefix(changed, annotated)
 oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 @test get_valid_reference_prefix(arr, oob) == EmptyReferencePath()
 
-# ── the one-arg structural check is unchanged ─────────────────────────────
+# ── every constructed step / path is Reference-shaped by type ─────────────
 
-@test is_valid_reference(TypeReference(JsonString))
-@test is_valid_reference(annotated)
+@test TypeReference(JsonString) isa ReferenceStep
+@test annotated isa ReferencePath
 
 # ── Folded form: head is always a navigation step (no checkpoints to skip) ─
 
@@ -144,9 +144,9 @@ hits = collect_references(obj, "x")
 @test !isempty(hits)
 canonical_hit = first(hits)
 # Canonical: carries folded node types (so its skeleton differs under strict
-# equality), and is structurally well-formed (single-arg validity).
+# equality), and is structurally a `ReferencePath`.
 @test strip_reference_types(canonical_hit) != canonical_hit
-@test is_valid_reference(canonical_hit)
+@test canonical_hit isa ReferencePath
 # The first node records the document's own type (folded, not a separate step).
 @test canonical_hit isa ConcreteReferencePath && canonical_hit.type !== nothing
 

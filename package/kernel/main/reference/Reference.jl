@@ -1,9 +1,8 @@
 # Fragment of `ReferenceModule` — the reference-path *types* (steps, paths,
 # their `@document`-generated struct forms) plus the value protocol on them
-# (`append_reference`, `evaluate_reference`, `is_valid_reference`,
-# `annotate_reference_types`, …). The DSL fragments `ReferenceCase.jl` and
-# `ReferenceBuilder.jl` build on these; both are included by
-# `ReferenceModule.jl` after this one.
+# (`append_reference`, `evaluate_reference`, `annotate_reference_types`, …).
+# The DSL fragments `ReferenceCase.jl` and `ReferenceBuilder.jl` build on
+# these; both are included by `ReferenceModule.jl` after this one.
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -362,43 +361,6 @@ function reference_steps(path::ReferencePath)
     steps
 end
 
-# ── Reference validation ─────────────────────────────────────────────────
-
-"""
-    is_valid_reference(obj)
-
-Check if `obj` is a valid reference step or reference path.
-
-Returns `true` if `obj` is a subtype of `Reference` or `ReferencePath`,
-and for `ConcreteReferencePath`, recursively validates that the head and
-tail cells contain valid reference steps and paths.
-
-# Examples
-
-```julia
-is_valid_reference(PositionReference(1))  # true
-is_valid_reference(FieldReference("name"))  # true
-is_valid_reference(EmptyReferencePath())  # true
-is_valid_reference("not a reference")  # false
-is_valid_reference(42)  # false
-```
-"""
-is_valid_reference(::ReferenceStep) = true
-is_valid_reference(::EmptyReferencePath) = true
-
-function is_valid_reference(obj::ConcreteReferencePath)
-    # Recursively validate head and tail
-    try
-        head_step = obj.head
-        tail_path = obj.tail
-        return is_valid_reference(head_step) && is_valid_reference(tail_path)
-    catch
-        return false  # Cell evaluation failed or contains invalid data
-    end
-end
-
-is_valid_reference(::Any) = false
-
 # ── Reference evaluation ─────────────────────────────────────────────────
 
 # Cells are transparent to reference navigation: a step that lands on a `Cell`
@@ -557,9 +519,7 @@ end
 
 Document-aware validity: `true` iff every step of `path` — in particular every
 [`TypeReference`](@ref) checkpoint — resolves against `document`. Equivalent to
-`get_valid_reference_prefix(document, path) == path`. This is distinct from the
-single-argument [`is_valid_reference`](@ref) which only checks *structural*
-well-formedness of the reference object itself.
+`get_valid_reference_prefix(document, path) == path`.
 """
 is_valid_reference(document, path::ReferencePath) =
     get_valid_reference_prefix(document, path) == path
