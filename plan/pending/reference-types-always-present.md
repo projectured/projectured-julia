@@ -182,10 +182,42 @@ The last step is a review checkpoint (user approves before I mark sealed).
 
    Execution: build a transitional strict checker (`is_fully_typed` +
    `_strict_check` behind a `STRICT[] ∈ (:off,:warn,:error)` flag wired into
-   `@reference`) as the per-file acceptance test; convert package-by-package
-   (kernel→base→visual→domain) in `:warn` mode, then flip `STRICT[]=:error` as
-   the default once every suite is warn-free. Any missed untyped nav step then
-   surfaces as a runtime failure at path construction.
+   `@reference`) as the per-file acceptance test — **done, committed**; convert
+   package-by-package (kernel→base→visual→domain) in `:warn` mode, then flip
+   `STRICT[]=:error` as the default once every suite is warn-free. Any missed
+   untyped nav step then surfaces as a runtime failure at path construction.
+
+   **Enumeration (2026-07-11, STRICT=:warn):** kernel main + base = 0 (already
+   clean); kernel test = 27 raw builder/eval primitive sites (deliberately test
+   skeletons → wrap in `STRICT=:off` at flip, not typed); visual main = 29,
+   visual test = 13; domain main = 95 (SQL 46, workbench 11, math 7, graph 5,
+   book 3, formula 3, insertion 2, …), domain test = 22. NOTE the checker only
+   flags `@reference` sites, NOT raw `make_child_context(ctx, FieldReference…)`
+   sites (ProjectionTemplate + some printers), which also build untyped
+   `ctx.reference` and must be converted separately.
+
+   **ctx.reference decision (user, 2026-07-11): type it fully.** Implemented the
+   core: `make_child_context(ctx, current_doc::Document, steps...)` annotates the
+   appended steps against the current document and concats onto the parent ref
+   (PrinterContext.jl) — replaces the `@reference ^(ctx.reference).field` splice.
+   Formula slice fully typed as the pilot (0 under-typed, green). **Committed.**
+
+   **Open fork — child mapper output typing (blocks the domain grind):** a parent
+   mapper splices `^(inner)` where `inner = map_reference_forward(child.projection,
+   child, rest)`. Generic children — `ProjectionTemplate` atomic/opaque wiring and
+   `ProjectionReference`-wrapped cursor paths — return structurally-correct but
+   *untyped* sub-paths, so the spliced result is under-typed. Typing the atomic
+   whole-node empties (`_atomic_forward/backward` opaque `∅ ⇒ _typed(w.outtype/intype)`)
+   helped but left the ProjectionReference/cursor case (SQL: 46→24). Two ways:
+   - **A (source typing, pure):** type `ProjectionReference.output_path` at
+     construction + the atomic transparent/cursor paths, so children always emit
+     typed sub-paths. No consumer changes; touches delicate generic core.
+   - **B (boundary annotation, one helper):** a single `mapped_forward/backward`
+     wrapper — `r === nothing ? nothing : (is_fully_typed(r) ? r :
+     annotate_reference_types(child.output/input, r))` — that every mapper routes
+     child recursion through. Localized, uniform, uses the in-hand child doc; a
+     re-annotation pass (the rejected per-site band-aid, formalized into ONE
+     helper). **Awaiting user decision.**
 6. **Retire** `strip_reference_types`, `annotate_reference_types`,
    `fold_reference_types` **from exports.** Update kernel-internal callers
    (in `Operations.jl`, `ProjectionTemplate.jl`) to use qualified inline
