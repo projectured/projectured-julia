@@ -15,7 +15,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_map
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, evaluate_reference
+import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, evaluate_reference, Position
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -116,9 +116,9 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 # of the candidates automatically: it has required fields and no method here
 # (it cannot stand alone as a child).
 make_insertion_document(::Type{<:XmlText}) =
-    with_selection(XmlText(""), @reference content{0})
+    let d = XmlText(""); with_selection(d, @reference(d, content{0})) end
 make_insertion_document(::Type{<:XmlElement}) =
-    with_selection(XmlElement(""), @reference tag{0})
+    let d = XmlElement(""); with_selection(d, @reference(d, tag{0})) end
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
@@ -131,16 +131,16 @@ end
 function _xml_insert_element(e)
     _xml_replaceable(e, nothing) && return nothing
     n = length(e.children)
-    insert_elements(@reference(children), n, Any[XmlElement("")], @reference children[n + 1].tag{0})
+    insert_elements(@reference(e, children), n, Any[XmlElement("")], @reference ::XmlElement.children::CellVector[n + 1]::XmlElement.tag::String{0}::Position)
 end
 function _xml_insert_text(e)
     _xml_replaceable(e, nothing) && return nothing
     n = length(e.children)
-    insert_elements(@reference(children), n, Any[XmlText("")], @reference children[n + 1].content{0})
+    insert_elements(@reference(e, children), n, Any[XmlText("")], @reference ::XmlElement.children::CellVector[n + 1]::XmlText.content::String{0}::Position)
 end
 function _xml_insert_node(e)
     n = length(e.children)
-    insert_elements(@reference(children), n, Any[XmlInsertion()], @reference children[n + 1])
+    insert_elements(@reference(e, children), n, Any[XmlInsertion()], @reference ::XmlElement.children::CellVector[n + 1]::XmlInsertion)
 end
 
 # A new attribute may be added only from the element itself, its tag, or an
@@ -154,7 +154,7 @@ _xml_in_attr_context(sel) =
 function _xml_insert_attr(e)
     _xml_in_attr_context(getfield(e, :selection)[]) || return nothing
     n = length(e.attrs)
-    insert_elements(@reference(attrs), n, Any[XmlAttribute("", "")], @reference attrs[n + 1].name{0})
+    insert_elements(@reference(e, attrs), n, Any[XmlAttribute("", "")], @reference ::XmlElement.attrs::CellVector[n + 1]::XmlAttribute.name::String{0}::Position)
 end
 
 # `=` moves the cursor from an attribute name to its value.
@@ -162,7 +162,7 @@ function _xml_attr_value(e)
     sel = getfield(e, :selection)[]
     sel === nothing && return nothing
     @reference_case sel begin
-        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference attrs[s + 1].value{0})
+        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference(e, attrs[s + 1].value{0}))
     end
 end
 

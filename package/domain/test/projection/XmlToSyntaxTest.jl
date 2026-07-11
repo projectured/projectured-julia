@@ -136,7 +136,8 @@ end
     e = XmlElement("a", [XmlAttribute("k", "v")])
     op = read_key(e, (@reference attrs[1].name{0}), KeyPress('='))
     @test op isa ReplaceSelectionOperation
-    @test is_reference_equal(op.path, @reference attrs[1].value{0})
+    # op.path is annotated against `e`, so compare against the same typed form.
+    @test is_reference_equal(op.path, @reference(e, attrs[1].value{0}))
     # = outside an attribute name does nothing.
     @test read_key(e, whole, KeyPress('=')) === nothing
 end
