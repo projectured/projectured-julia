@@ -158,7 +158,8 @@ export versioning_example, warm_file_editor, workbench_example, xml_example, yam
 export Example, domain_examples
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 # Re-export the kernel-example LLM test doubles so domain test files can use
-# FakeLlm / ScriptedLlm without importing ProjecturedKernelExample directly.
-export FakeLlm, ScriptedLlm
+# them without importing ProjecturedKernelExample directly.
+export FakeLlm, ScriptedLlm,
+       make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
 
 end # module ProjecturedDomainExample
