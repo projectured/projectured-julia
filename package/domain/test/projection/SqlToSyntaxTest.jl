@@ -88,7 +88,7 @@ function test_sql_insert_update_selection()
                 ReferencePath(FieldReference("values"), ElementReference(1)))
             fwd = map_reference_forward(p, iomap, path)
             @test fwd !== nothing
-            @test map_reference_backward(p, iomap, fwd) == path
+            @test strip_reference_types(map_reference_backward(p, iomap, fwd)) == path
         end
 
         # UPDATE: assignment column, assignment value, and a WHERE sub-reference.
@@ -109,7 +109,7 @@ function test_sql_insert_update_selection()
                               FieldReference("expression"), FieldReference("left")))
             fwd = map_reference_forward(up, uiomap, path)
             @test fwd !== nothing
-            @test map_reference_backward(up, uiomap, fwd) == path
+            @test strip_reference_types(map_reference_backward(up, uiomap, fwd)) == path
         end
     end
 end
@@ -193,13 +193,13 @@ function test_sql_ddl_selection()
                               FieldReference("column_name")))
             fwd = map_reference_forward(p, iomap, path)
             @test fwd !== nothing
-            @test map_reference_backward(p, iomap, fwd) == path
+            @test strip_reference_types(map_reference_backward(p, iomap, fwd)) == path
         end
 
         # CREATE SCHEMA only maps the whole-statement (∅) selection.
         siomap = print_document(proj, SqlCreateSchemaStatement("public"))
         sp = siomap.projection
-        @test map_reference_forward(sp, siomap, EmptyReferencePath()) == EmptyReferencePath()
+        @test strip_reference_types(map_reference_forward(sp, siomap, EmptyReferencePath())) == EmptyReferencePath()
     end
 end
 
