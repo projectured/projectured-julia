@@ -111,11 +111,11 @@ function test_console_backend()
     @testset "caret rendering" begin
         # Whole-element selection → the value's text is reverse-highlighted.
         doc = make_json_document_example()
-        set_selection!(doc, @reference entries[1].value)
+        set_selection!(doc, @reference(doc, entries[1].value))
         @test _highlighted(doc) == "\"Alice\""
         # Text cursor at offset 2 inside "Alice" → block on the char at index 2.
         doc2 = make_json_document_example()
-        set_selection!(doc2, @reference entries[1].value.value{2})
+        set_selection!(doc2, @reference(doc2, entries[1].value.value{2}))
         @test _highlighted(doc2) == "i"
     end
 

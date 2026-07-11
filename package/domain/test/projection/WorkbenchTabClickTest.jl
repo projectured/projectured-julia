@@ -73,13 +73,13 @@ function test_workbench_tab_click()
     @test active_after(nothing) == 0
 
     # Selecting an editor element makes *that* tab the active one — not tab 1.
-    @test active_after(@reference editing_page.elements[1]) == 1
-    @test active_after(@reference editing_page.elements[3]) == 3   # contact-list.json
-    @test active_after(@reference editing_page.elements[5]) == 5
+    @test active_after(@reference(doc, editing_page.elements[1])) == 1
+    @test active_after(@reference(doc, editing_page.elements[3])) == 3   # contact-list.json
+    @test active_after(@reference(doc, editing_page.elements[5])) == 5
 
     # A caret deep inside the active tab's content still resolves to its tab: the
     # `elements[i]` prefix is preserved while the deep cursor suffix is dropped.
-    @test active_after(@reference editing_page.elements[3].content) == 3
+    @test active_after(@reference(doc, editing_page.elements[3].content)) == 3
 end
 
 # ── Read side: clicking the JSON tab label selects the JSON editor element ──
@@ -175,10 +175,10 @@ end
     # Selecting the JSON editor takes focus away from the draft — a printable key
     # no longer becomes a composer edit (no caret in the tab content yet, so it
     # routes nowhere rather than into the draft).
-    @test !(type_op(@reference editing_page.elements[3]) isa ComposerInputOperation)
+    @test !(type_op(@reference(doc, editing_page.elements[3])) isa ComposerInputOperation)
 
     # Selecting the assistant panel routes keys back to the draft composer.
-    @test type_op(@reference control_page.elements[1]) isa ComposerInputOperation
+    @test type_op(@reference(doc, control_page.elements[1])) isa ComposerInputOperation
 end
 
 end # @testset

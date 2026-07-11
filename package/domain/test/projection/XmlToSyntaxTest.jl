@@ -75,7 +75,7 @@ end
 
 @testset "replacing a selected child insertion writes the slot in place" begin
     e = XmlElement("a", XmlDocument[XmlInsertion()])
-    op = read_key(e, (@reference children[1]), KeyPress('<'))
+    op = read_key(e, @reference(e, children[1]), KeyPress('<'))
     @test op isa CompoundOperation
     @test _written(op) isa XmlElement
     ed = _XmlReaderEditor(e, nothing)
@@ -110,7 +110,7 @@ end
 @testset "Space inserts an attribute and selects its name" begin
     e = XmlElement("a")
     # Cursor in the start tag → fires.
-    op = read_key(e, (@reference tag{0}), KeyDown(:space, Modifiers()))
+    op = read_key(e, @reference(e, tag{0}), KeyDown(:space, Modifiers()))
     @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
@@ -119,7 +119,7 @@ end
     @test selof(e.attrs[1]) isa ConcreteReferencePath  # cursor in the name
     # Gating: Space while editing a child node declines.
     e2 = XmlElement("a", XmlDocument[XmlText("hi")])
-    @test read_key(e2, (@reference children[1].content{0}), KeyDown(:space, Modifiers())) === nothing
+    @test read_key(e2, @reference(e2, children[1].content{0}), KeyDown(:space, Modifiers())) === nothing
 end
 
 @testset "Insert key inserts a generic insertion child" begin
@@ -134,7 +134,7 @@ end
 
 @testset "= moves from an attribute name to its value" begin
     e = XmlElement("a", [XmlAttribute("k", "v")])
-    op = read_key(e, (@reference attrs[1].name{0}), KeyPress('='))
+    op = read_key(e, @reference(e, attrs[1].name{0}), KeyPress('='))
     @test op isa ReplaceSelectionOperation
     # op.path is annotated against `e`, so compare against the same typed form.
     @test is_reference_equal(op.path, @reference(e, attrs[1].value{0}))

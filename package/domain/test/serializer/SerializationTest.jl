@@ -47,7 +47,7 @@ function test_serialization()
 
         @testset "binary preserves selection" begin
             doc = json_example.make_document()
-            set_selection!(doc, @reference entries[1].value)
+            set_selection!(doc, @reference(doc, entries[1].value))
             before = getfield(doc, :selection)[]
             p = tempname() * ".pdoc"
             save_document(doc, p)

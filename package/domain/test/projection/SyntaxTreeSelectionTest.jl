@@ -32,7 +32,7 @@ s2t = RecursiveProjection(SyntaxToText())
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     @test evaluate_reference(arr, whole) === arr
     # A character cursor (`.value{0}`) is a non-empty path — clearly distinct.
-    @test !isempty(@reference value{0})
+    @test !isempty(@reference(JsonNumber(42), value{0}))
     @test isempty(whole)
 end
 

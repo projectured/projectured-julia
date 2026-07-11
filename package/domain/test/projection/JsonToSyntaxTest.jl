@@ -93,7 +93,7 @@ end
 
 @testset "replacing a nested element writes the slot in place" begin
     arr = JsonArray([JsonInsertion()])
-    op = read_key(arr, (@reference elements[1]), KeyPress('5'))
+    op = read_key(arr, @reference(arr, elements[1]), KeyPress('5'))
     @test op isa CompoundOperation
     @test _written(op) isa JsonNumber
     ed = _JsonReaderEditor(arr, nothing)
@@ -107,7 +107,7 @@ end
 
 @testset "digit gating: a character cursor in a number declines" begin
     num = JsonNumber(42)
-    @test read_key(num, (@reference value{1}), KeyPress('5')) === nothing
+    @test read_key(num, @reference(num, value{1}), KeyPress('5')) === nothing
 end
 
 @testset "array insert appends an insertion and selects it" begin
@@ -137,7 +137,7 @@ end
 
 @testset "Tab moves from an entry key to its value" begin
     obj = JsonObject("a" => JsonNumber(1))
-    op = read_key(obj, (@reference entries[1].key{0}), KeyDown(:tab, Modifiers()))
+    op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, Modifiers()))
     @test op isa ReplaceSelectionOperation
     # The Tab op selects the entry's value whole, carrying its folded types.
     @test is_reference_equal(op.path,
@@ -192,12 +192,14 @@ function test_json_gesture_collection()
         @test "," in [describe(b.pattern) for b in whole_all]
         # Selecting an element keeps the type-to-replace set applicable (it
         # targets the element) plus the always-on comma.
-        _, elem_app = collect_for(JsonArray([JsonNumber(1)]), @reference elements[1])
+        arr2 = JsonArray([JsonNumber(1)])
+        _, elem_app = collect_for(arr2, @reference(arr2, elements[1]))
         @test length(elem_app) == 9
     end
 
     @testset "whole object entry greys type-to-replace, keeps comma + Tab" begin
-        all, app = collect_for(JsonObject("a" => JsonNumber(1)), @reference entries[1])
+        obj2 = JsonObject("a" => JsonNumber(1))
+        all, app = collect_for(obj2, @reference(obj2, entries[1]))
         @test length(all) == 10                       # 8 inherited + , insert + Tab
         # A whole entry is a key/value wrapper, not a replaceable value — the
         # type-to-replace set is greyed (its `applicable` precondition fails on a
