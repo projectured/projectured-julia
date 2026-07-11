@@ -62,9 +62,9 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     _parse_tree_elem_path(reference) !== nothing && return @reference()
     span_idx, char_idx = _parse_text_elem_path(reference)
     span_idx === nothing && return nothing
-    span_idx == 1 && return @reference open{char_idx}
-    span_idx == 2 && return @reference value{char_idx}
-    span_idx == 3 && return @reference close{char_idx}
+    span_idx == 1 && return @reference(iomap.input, open{char_idx})
+    span_idx == 2 && return @reference(iomap.input, value{char_idx})
+    span_idx == 3 && return @reference(iomap.input, close{char_idx})
     return nothing
 end
 
@@ -297,7 +297,7 @@ end
 _child_tree_path(idx::Int) =
     ConcreteReferencePath(FieldReference("elements"),
         ConcreteReferencePath(RangeReference(idx - 1, idx), EmptyReferencePath()))
-_prepend_child(i::Int, inner) = @reference children[i].^(inner)
+_prepend_child(i::Int, inner) = @reference ::SyntaxNode.children::CellVector[i].^(inner)
 
 function map_reference_backward(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)

@@ -242,8 +242,8 @@ op_path(sel, key, mods=Modifiers()) = begin
 end
 
 root   = EmptyReferencePath()
-child1 = @reference children[1]            # .children[1]∅
-child2 = @reference children[2]            # .children[2]∅
+child1 = @reference(node, children[1])            # .children[1]∅
+child2 = @reference(node, children[2])            # .children[2]∅
 
 @testset "plain arrows drive the tree once a whole element is selected" begin
     @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
@@ -272,22 +272,23 @@ end
     # :down has no text-domain meaning at console level → declines.
     # :right is handled by the console fallback (read_gesture on output TextText)
     # and returns a character-level cursor move, not a tree step.
-    cursor = @reference children[1].value{2}
+    cursor = @reference(node, children[1].value{2})
     @test read_key(cursor, :down) === nothing
     right_op = read_key(cursor, :right)
     @test right_op isa ReplaceSelectionOperation
-    @test is_reference_equal(right_op.path, (@reference children[1].value{3}))
+    @test is_reference_equal(right_op.path, (@reference(node, children[1].value{3})))
 end
 
 @testset "Ctrl+Space toggles structural ⇄ text" begin
     ctrl = Modifiers(ctrl=true)
     # text → structural: promote a leaf cursor to the whole leaf.
-    cursor = @reference children[1].value{2}
+    cursor = @reference(node, children[1].value{2})
     promoted = op_path(cursor, :space, ctrl)
-    @test is_reference_equal(promoted, child1)
+    @test is_reference_equal(strip_reference_types(promoted), strip_reference_types(child1))
     # structural → text: descend to the first leaf's value start.
     descended = op_path(child1, :space, ctrl)
-    @test is_reference_equal(descended, (@reference children[1].value{0}))
+    @test is_reference_equal(strip_reference_types(descended),
+                             strip_reference_types(@reference(node, children[1].value{0})))
     # round-trip lands back in the same leaf (at its start — stateless).
     @test is_reference_equal(op_path(promoted, :space, ctrl), descended)
 end

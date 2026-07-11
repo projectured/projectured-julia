@@ -451,7 +451,7 @@ function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
         elseif direction === :down
             children = node.children
             length(children) > 0 || return EmptyReferencePath()
-            return @reference children[1]
+            return @reference(node, children[1])
         else
             return nothing  # left/right need a parent; propagate up
         end
@@ -476,24 +476,23 @@ function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
         elseif direction === :down
             child = children[child_idx]
             if child isa SyntaxNode && length(child.children) > 0
-                return @reference children[child_idx].children[1]
+                return @reference(node, children[child_idx].children[1])
             end
-            return @reference children[child_idx]  # leaf or no children — stay
+            return @reference(node, children[child_idx])  # leaf or no children — stay
         elseif direction === :left
-            child_idx > 1 || return @reference children[child_idx]  # already first
-            return @reference children[child_idx - 1]
+            child_idx > 1 || return @reference(node, children[child_idx])  # already first
+            return @reference(node, children[child_idx - 1])
         elseif direction === :right
-            child_idx < length(children) || return @reference children[child_idx]  # already last
-            return @reference children[child_idx + 1]
+            child_idx < length(children) || return @reference(node, children[child_idx])  # already last
+            return @reference(node, children[child_idx + 1])
         end
     else
         # Recurse into the child
         child = children[child_idx]
-        child isa SyntaxNode || return @reference children[child_idx]
+        child isa SyntaxNode || return @reference(node, children[child_idx])
         inner = _tree_navigate(child, child_rest, direction)
         inner === nothing && return nothing
-        return ConcreteReferencePath(FieldReference("children"),
-                   ConcreteReferencePath(RangeReference(child_idx - 1, child_idx), inner))
+        return @reference ::SyntaxNode.children::CellVector[child_idx].^(inner)
     end
     return nothing
 end

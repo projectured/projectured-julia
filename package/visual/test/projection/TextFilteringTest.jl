@@ -18,7 +18,7 @@ end
 # Canonical (typed) form: the projection emits the same self-describing
 # `::TextText.elements[..].content::String{..}` checkpoints, so the round-trip
 # assertions compare typed-against-typed.
-_ref(span, char) = @reference ::TextText.elements[span].content::String{char}
+_ref(span, char) = @reference ::TextText.elements::CellVector[span]::TextString.content::String{char}::Position
 
 # `elements[span].content[start:stop]` range path.
 _range(span, start, stop) = ConcreteReferencePath(FieldReference("elements"),
