@@ -16,10 +16,9 @@ trajectory is explicit at every call site).
   splice, and previously-terminal steps all descend to a value on evaluation
   and all carry a `::T` after them naming the resulting node's type. For step
   types that don't correspond to a document field, the descent returns a
-  **synthetic value** — a `Coord(x, y)` for `PointReference`, a
-  `(projection, output_path)` tuple for `ProjectionReference`, a substring
-  for `TextRectangularReference` — anything evaluatable. The reference is
-  never *dead-endable*.
+  **synthetic value** — a coordinate pair for `PointReference`, the output
+  path for `ProjectionReference`, a range for `TextRectangularReference` —
+  anything evaluatable. The reference is never *dead-endable*.
 - **D3-a — rewrite kernel builder tests** using placeholder types
   (`ToyType`, `Any` where the specific type is beside the point). Update
   expected `ConcreteReferencePath` / `EmptyReferencePath` constructions to
@@ -27,6 +26,51 @@ trajectory is explicit at every call site).
 - **D4-a — strict patterns.** `@reference_case` patterns spell types the
   same way; the runtime match compares node types alongside navigation
   steps. Tolerant matching (currently used for `::T` in patterns) is retired.
+
+### Surface syntax (confirmed)
+
+Leading type on every node **plus** the trailing terminal type — the
+`::T1.f::T2` form. For a JSON path into `JsonObject → entries[i] → value`:
+
+```julia
+@reference ::JsonObject.entries::CellVector[i]::JsonObjectEntry.value::JsonString
+```
+
+The existing fold machinery (`fold_reference_types`) already turns this into
+the folded form (each node carries the type of the node its step descends
+from; the terminal carries the landed type) — `n` navigation steps yield
+`n+1` typed nodes. A whole-element / type reference with no navigation is
+`@reference ::T`; the no-arg `@reference()` is **removed**.
+
+### Generic / polymorphic code — type-binding DSL feature
+
+Generic reference-transforming code (the `map_reference_forward`/`backward`
+defaults, the base combinators — Chaining, Sorting, Focusing, …) runs for
+every domain and cannot name a concrete type. It satisfies the invariant by
+**binding** the type in the pattern and **splicing** it back in construction:
+
+```julia
+function map_reference_forward(p, iomap, reference)
+    @reference_case reference begin
+        (∅::t)            => @reference ::^(t)   # identity, type preserved
+        proj(^(p), inner) => inner
+    end
+end
+```
+
+New DSL machinery this requires:
+
+- **`@reference_case`: type-binding patterns.** `::t` where `t` is a
+  lowercase identifier binds the matched node/terminal type to `t` (like a
+  value pattern variable, but for the folded `type` field). A `::T` where `T`
+  resolves to a type value stays an assertion.
+- **`@reference`: type-variable splicing.** `::^(expr)` (or `::$(expr)`)
+  uses the runtime *type value* `expr` as the node/terminal type, rather than
+  a literal type name. Lets generic code reconstruct a path carrying a type
+  it bound rather than one it named.
+
+The ~40 generic kernel/base sites migrate using these; the ~450 concrete
+domain/visual sites use literal `::T` names.
 
 ## Consequences
 
@@ -51,16 +95,15 @@ trajectory is explicit at every call site).
 Each numbered step is at least one commit; the tree stays green throughout.
 The last step is a review checkpoint (user approves before I mark sealed).
 
-1. **This plan document** with the locked decisions above.
-2. **Strict-parse mode in the DSL builder** — a per-invocation opt-in
-   `strict = true` on the internal parse entry point. Untyped nav steps
-   error. Kept off-by-default so migration can proceed with the tree green.
+1. **This plan document** with the locked decisions above. ✅
+2. **DSL feature: type-binding + type-splicing.** `@reference_case` binds a
+   node/terminal type with `::t` (lowercase → variable); `@reference`
+   splices a runtime type value with `::^(expr)`. Enables the generic-code
+   migration without a concrete type. Add tests for both.
 3. **Update `evaluate_step` for terminal step types** — `PointReference`
-   returns `(x, y)`, `ProjectionReference` returns
-   `(projection, output_path)`, `TextRectangularReference` returns
-   `(start, stop)`. `step_kind` for these becomes `:structural`. Update
-   `evaluate_reference` / `get_valid_reference_prefix` / walkers to route
-   through the seam uniformly. Includes updating documentation.
+   returns `(x, y)`, `ProjectionReference` returns its output path,
+   `TextRectangularReference` returns `(start, stop)`. `step_kind` for these
+   becomes `:structural`. Walkers route through the seam uniformly. ✅
 4. **Migrate `@reference` / `@reference_case` call sites**, package by
    package. For each site:
    - Add `::T` after every navigation step (structural + splice + previous
