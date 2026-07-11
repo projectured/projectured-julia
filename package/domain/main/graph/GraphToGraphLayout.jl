@@ -140,16 +140,16 @@ end
 # delegation is needed here.
 function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        vertices[i].rest... => (@reference vertex_layouts[i].vertex.^(rest))
+        ∅ => @reference ::GraphLayout
+        vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts[i].vertex.^(rest))
         _ => nothing
     end
 end
 
 function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
-        ∅ => @reference()
-        vertex_layouts[i].vertex.rest... => (@reference vertices[i].^(rest))
+        ∅ => @reference ::GraphGraph
+        vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices[i].^(rest))
         _ => nothing
     end
 end

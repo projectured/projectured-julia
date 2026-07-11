@@ -138,7 +138,8 @@ end
     @test fwd !== nothing
     back = map_reference_backward(stage, s1, fwd)
     @test back !== nothing
-    @test is_reference_equal(back, @reference vertices[1])
+    # `back` is now typed; compare navigation shape.
+    @test is_reference_equal(strip_reference_types(back), @reference vertices[1])
 end
 
 end # test_graph

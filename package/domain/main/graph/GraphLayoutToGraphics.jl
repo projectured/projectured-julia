@@ -224,7 +224,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.modifiers)
         op = read_intent(cim.projection, cim, local_evt)
         op isa ReplaceSelectionOperation || return nothing
-        return ReplaceSelectionOperation(@reference vertex_layouts[i].vertex.content.^(op.path))
+        return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts[i].vertex.content.^(op.path))
     end
     nothing
 end
@@ -239,7 +239,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         cim = entry[3]
         op = read_intent(cim.projection, cim, event)
         if op isa ReplaceSelectionOperation
-            return ReplaceSelectionOperation(@reference vertex_layouts[i].vertex.content.^(op.path))
+            return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts[i].vertex.content.^(op.path))
         end
     end
     nothing
