@@ -276,15 +276,33 @@ end
 # any other form asserts it.
 _pat_type_step(x) = _is_type_bind_symbol(x) ? PSTypeBind(x) : PSType(x)
 
+# Split a pattern type-checkpoint base into its type step and any trailing
+# `.field` steps — the pattern mirror of `_push_type_and_fields!`.
+function _push_pat_type_and_fields!(steps::Vector{PatStep}, base)
+    fields = String[]
+    cur = base
+    while cur isa Expr && cur.head == :. && cur.args[2] isa QuoteNode
+        pushfirst!(fields, String(cur.args[2].value))
+        cur = cur.args[1]
+    end
+    cur isa Symbol ||
+        error("@reference_case: type checkpoint must start with a type name: $base")
+    push!(steps, _pat_type_step(cur))
+    for f in fields
+        push!(steps, PSField(PVLiteral(f)))
+    end
+end
+
 # `x::T` type suffix in a pattern: bare `T` is a checkpoint (or `::t` a binder);
 # `T{i}`/`T[i]` is read as checkpoint `T` then a position/range/element step (so
-# `value::Leaf{s:e}` needs no parens).
+# `value::Leaf{s:e}` needs no parens); `T.field` is the checkpoint `T` then
+# field steps.
 function _pat_type_suffix!(steps::Vector{PatStep}, T)
     if T isa Expr && T.head == :curly
-        push!(steps, _pat_type_step(T.args[1]))
+        _push_pat_type_and_fields!(steps, T.args[1])
         push!(steps, _braces_pat(T.args[2]))
     elseif T isa Expr && T.head == :ref
-        push!(steps, _pat_type_step(T.args[1]))
+        _push_pat_type_and_fields!(steps, T.args[1])
         if length(T.args) == 2
             push!(steps, PSIndex(_parse_value(T.args[2])))
         elseif length(T.args) == 3
@@ -293,7 +311,7 @@ function _pat_type_suffix!(steps::Vector{PatStep}, T)
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
     else
-        push!(steps, _pat_type_step(T))
+        _push_pat_type_and_fields!(steps, T)
     end
 end
 

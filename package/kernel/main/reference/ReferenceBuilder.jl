@@ -183,15 +183,36 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     end
 end
 
-# `x::T` type suffix: a bare `T` is a checkpoint; a `T{i}` / `T[i]` (which Julia
-# parses as a parametric/indexed type) is read as the checkpoint `T` followed by
-# a position/range/element step — so `value::Leaf{s:e}` needs no parens.
+# Split a type-checkpoint base into its `BSType` and any trailing `.field`
+# steps. A bare `Type` yields just the type; a `Type.a.b` chain (which Julia
+# parses as `getfield` on the type value) is read as the checkpoint `Type`
+# followed by field steps `.a`, `.b` — so a mid-path `::T.field` needs no
+# parens. Mirrors `_build_leading_type!`.
+function _push_type_and_fields!(steps::Vector{BuildStep}, base)
+    fields = String[]
+    cur = base
+    while cur isa Expr && cur.head == :. && cur.args[2] isa QuoteNode
+        pushfirst!(fields, String(cur.args[2].value))
+        cur = cur.args[1]
+    end
+    cur isa Symbol ||
+        error("@reference: type checkpoint must start with a type name: $base")
+    push!(steps, BSType(cur))
+    for f in fields
+        push!(steps, BSField(f))
+    end
+end
+
+# `x::T` type suffix: a bare `T` is a checkpoint; `T{i}` / `T[i]` (which Julia
+# parses as a parametric/indexed type) is the checkpoint `T` followed by a
+# position/range/element step (`value::Leaf{s:e}` needs no parens); `T.field`
+# is the checkpoint `T` followed by field steps (`entries[i]::Entry.key`).
 function _build_type_suffix!(steps::Vector{BuildStep}, T)
     if T isa Expr && T.head == :curly
-        push!(steps, BSType(T.args[1]))
+        _push_type_and_fields!(steps, T.args[1])
         push!(steps, _braces_step(T.args[2], T))
     elseif T isa Expr && T.head == :ref
-        push!(steps, BSType(T.args[1]))
+        _push_type_and_fields!(steps, T.args[1])
         if length(T.args) == 2
             push!(steps, BSIndex(T.args[2]))
         elseif length(T.args) == 3
@@ -200,7 +221,7 @@ function _build_type_suffix!(steps::Vector{BuildStep}, T)
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
     else
-        push!(steps, BSType(T))
+        _push_type_and_fields!(steps, T)
     end
 end
 

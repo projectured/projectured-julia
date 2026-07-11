@@ -8,6 +8,12 @@ test folder.
 using Test
 using ProjecturedKernel.ReferenceModule
 
+# Placeholder node types for the typed-step tests below.
+struct A end
+struct B end
+struct C end
+struct D end
+
 function test_reference_builder()
 @testset "ReferenceBuilder" begin
 
@@ -45,6 +51,22 @@ let s = 4, e = 9
     @test (@reference {s:e}) ==
           ConcreteReferencePath(RangeReference(4, 9), EmptyReferencePath())
 end
+
+# ── typed steps: `::T` interleaved with `.field` / `[i]` (step 3b) ────────
+# A `.field` or `[i]` following a mid-path `::Type` is a new step, not
+# `getfield` on the type value. The types fold onto the nodes their following
+# step descends from; the terminal records the landed type.
+@test (@reference ::A.entries::B[1]::C.key::D) ==
+      ConcreteReferencePath(A, FieldReference("entries"),
+          ConcreteReferencePath(B, ElementReference(1),
+              ConcreteReferencePath(C, FieldReference("key"),
+                  EmptyReferencePath(D))))
+
+# A cursor terminal after a typed chain.
+@test (@reference ::A.value::String{0}::Position) ==
+      ConcreteReferencePath(A, FieldReference("value"),
+          ConcreteReferencePath(String, RangeReference(0, 0),
+              EmptyReferencePath(Position)))
 
 # ── ^() splice ──────────────────────────────────────────────────────────
 
@@ -155,6 +177,15 @@ let src = ConcreteReferencePath(Int, FieldReference("value"), EmptyReferencePath
         ::a.value::b => @reference ::a.value::b
     end
     @test rebuilt == src                    # same path, types preserved by binding
+end
+
+# `::T.field` after a mid-path `::Type` in a PATTERN (step 3b, pattern side).
+let multi = @reference ::A.entries::B[1]::C.key::D
+    matched = @reference_case multi begin
+        ::A.entries::B[i]::C.key::D => (:hit, i)
+        _                           => :miss
+    end
+    @test matched == (:hit, 1)
 end
 
 end
