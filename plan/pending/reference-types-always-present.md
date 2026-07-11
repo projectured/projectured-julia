@@ -104,22 +104,56 @@ The last step is a review checkpoint (user approves before I mark sealed).
    returns `(x, y)`, `ProjectionReference` returns its output path,
    `TextRectangularReference` returns `(start, stop)`. `step_kind` for these
    becomes `:structural`. Walkers route through the seam uniformly. ✅
+3b. **DSL PARSER prerequisite — split `.field`/`[i]` after a mid-path
+   `::Type` (BLOCKS the domain migration).** Discovered while migrating JSON:
+   the chained typed form `entries::CellVector[i]::JsonObjectEntry.key::String{0}::Position`
+   does not parse as intended. Julia binds `Type.field` (getfield on the type
+   value) tighter than `::`, so `::JsonObjectEntry.key` parses as
+   `::(getfield(JsonObjectEntry, :key))` — the `.key` is absorbed into the
+   type instead of becoming a new field step. (`::Type[i]` and `::Type{k}`
+   already work — `_build_type_suffix!` handles the curly/ref cases; only a
+   `.field` after a mid-path `::Type` is broken.) The leading case
+   `::JsonObject.entries` works because `_build_leading_type!` special-cases
+   it (first symbol = type, rest = field steps).
+
+   Fix: teach `_build_type_suffix!` (ReferenceBuilder) and `_pat_type_suffix!`
+   (ReferenceCase) that when the type expression is a `.`-chain
+   (`A.b.c`), the leftmost symbol is the `BSType`/`PSType` and the trailing
+   parts are field steps — mirroring `_build_leading_type!`. Add a kernel
+   builder/eval test constructing a multi-step typed path
+   (`::T1.a::T2.b::T3`) and asserting the folded node types. Empirically
+   verified: `dump(:(x::A.b::C))` shows left-associative `::` nesting with
+   `A.b` as a getfield expr, so the flatten is well-defined.
+
+   Sites that parse today (no `.field` after a mid `::Type`) can migrate
+   before the fix; sites with it are blocked until 3b lands. Do 3b first.
+
 4. **Migrate `@reference` / `@reference_case` call sites**, package by
    package. For each site:
    - Add `::T` after every navigation step (structural + splice + previous
-     terminal).
+     terminal). Types match `annotate_reference_types`' canonical output.
    - Add leading `::T` where the root type is known.
+   - Cursor terminals record `::Position` (the value a `{k}` evaluates to).
    - Update `EmptyReferencePath()` no-arg call sites to spell the type.
    - Update `@reference_case` patterns to include types.
 
+   **Note on `with_selection` sites:** `set_selection!` currently
+   strips+re-annotates, so the DSL types on those sites are normalized to the
+   runtime document's types (cosmetic until step 6 retires the strip). They
+   must still parse and be readable/correct. Primitive value cursors
+   (`value{k}` on a JsonNumber holding `nothing`) annotate to the runtime
+   value's type (`Nothing`/`Int`/…), which the DSL literal should match.
+
    Order (small first):
-   - kernel main: 2 sites (both need updating for D2-b).
+   - kernel main: 2 sites — ✅ (identity maps typed via `reference_node_type`).
+   - base: generic combinators — ✅ (Reversing/Filtering/Sorting rebuilt
+     steps typed). Searching + Focusing deferred (strip-entangled).
    - kernel tests: ~30 sites (builder + eval tests rewritten).
-   - base: ~4 sites.
    - odbc: ~12 sites.
    - sdl: ~6 sites.
    - visual: ~54 sites.
-   - domain: ~298 sites, batched by domain slice.
+   - domain: ~298 sites, batched by domain slice. JSON attempted and
+     reverted pending 3b; it is the golden template once 3b lands.
 5. **Flip DSL to strict** — one commit. `strict = true` becomes the default;
    any missed untyped nav step surfaces as a compile-time failure.
 6. **Retire** `strip_reference_types`, `annotate_reference_types`,
