@@ -172,13 +172,13 @@ end
 function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoMap, reference)
     f = iomap.input
     @reference_case reference begin
-        ∅ => @reference()
+        ∅ => @reference ::SyntaxNode
         code.rest... => begin
             idx = _code_index(f)
             idx === nothing && return nothing
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference children[idx].^(inner))
+            inner === nothing ? nothing : (@reference ::SyntaxNode.children[idx].^(inner))
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -188,14 +188,14 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
     f = iomap.input
     idx = _code_index(f)
     @reference_case reference begin
-        ∅ => @reference()
+        ∅ => @reference ::FormulaFormula
         children{s:_}.rest... => begin
             child_i = s + 1
             if idx !== nothing && child_i == idx
                 # This child is the code sub-tree: delegate to its mapper.
                 child = iomap.child_iomaps[][1]
                 inner = map_reference_backward(child.projection, child, rest)
-                inner === nothing ? nothing : (@reference code.^(inner))
+                inner === nothing ? nothing : (@reference ::FormulaFormula.code.^(inner))
             else
                 # Projection-introduced child (name, "=", "⇒", result): wrap as
                 # structural reference so the roundtrip can place a cursor.
@@ -239,14 +239,14 @@ end
 
 function map_reference_forward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
+        ∅ => @reference ::SyntaxNode
         formulas{s:_}.rest... => begin
             child_i = s + 1
             ims = iomap.child_iomaps[]
             (child_i < 1 || child_i > length(ims)) && return nothing
             child = ims[child_i]
             inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference children[child_i].^(inner))
+            inner === nothing ? nothing : (@reference ::SyntaxNode.children[child_i].^(inner))
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -254,14 +254,14 @@ end
 
 function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference()
+        ∅ => @reference ::FormulaEnvironment
         children{s:_}.rest... => begin
             child_i = s + 1
             ims = iomap.child_iomaps[]
             (child_i < 1 || child_i > length(ims)) && return nothing
             child = ims[child_i]
             inner = map_reference_backward(child.projection, child, rest)
-            inner === nothing ? nothing : (@reference formulas[child_i].^(inner))
+            inner === nothing ? nothing : (@reference ::FormulaEnvironment.formulas[child_i].^(inner))
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
