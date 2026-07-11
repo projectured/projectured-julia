@@ -60,7 +60,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath
+                          ElementReference, EmptyReferencePath, Position
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -155,7 +155,7 @@ end
 function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         ::SyntaxNode.children[1].leaf_path... => @reference_case leaf_path begin
-            ::SyntaxLeaf.value{k} => @reference value{k}
+            ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
     end
 end
@@ -359,24 +359,18 @@ default_completion(name::AbstractString) =
 # Each scaffold pre-selects its first hole's own char cursor (`…value{0}`, the buffer
 # offset 0), so it is ready to type into the moment the keyword commits.
 const _JULIA_KEYWORD_SCAFFOLDS = Tuple{String,Function}[
-    ("function", () -> with_selection(
-        JuliaFunction(JuliaInsertion(), Any[JuliaInsertion()], JuliaBlock(Any[JuliaInsertion()])),
-        @reference name.value{0})),
-    ("if", () -> with_selection(
-        JuliaIf(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]), JuliaBlock(Any[JuliaInsertion()])),
-        @reference condition.value{0})),
-    ("while", () -> with_selection(
-        JuliaWhile(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()])),
-        @reference condition.value{0})),
-    ("for", () -> with_selection(
-        JuliaFor(Any[JuliaForIterator(JuliaInsertion(), JuliaInsertion())], JuliaBlock(Any[JuliaInsertion()])),
-        @reference iterators[1].variable.value{0})),
-    ("begin", () -> with_selection(
-        JuliaBegin(JuliaBlock(Any[JuliaInsertion()])),
-        @reference body.statements[1].value{0})),
-    ("return", () -> with_selection(
-        JuliaReturn(JuliaInsertion()),
-        @reference value.value{0})),
+    ("function", () -> (d = JuliaFunction(JuliaInsertion(), Any[JuliaInsertion()], JuliaBlock(Any[JuliaInsertion()]));
+        with_selection(d, @reference(d, name.value{0})))),
+    ("if", () -> (d = JuliaIf(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]), JuliaBlock(Any[JuliaInsertion()]));
+        with_selection(d, @reference(d, condition.value{0})))),
+    ("while", () -> (d = JuliaWhile(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]));
+        with_selection(d, @reference(d, condition.value{0})))),
+    ("for", () -> (d = JuliaFor(Any[JuliaForIterator(JuliaInsertion(), JuliaInsertion())], JuliaBlock(Any[JuliaInsertion()]));
+        with_selection(d, @reference(d, iterators[1].variable.value{0})))),
+    ("begin", () -> (d = JuliaBegin(JuliaBlock(Any[JuliaInsertion()]));
+        with_selection(d, @reference(d, body.statements[1].value{0})))),
+    ("return", () -> (d = JuliaReturn(JuliaInsertion());
+        with_selection(d, @reference(d, value.value{0})))),
 ]
 
 """
@@ -540,7 +534,7 @@ end
 
 function map_reference_backward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference value{k}
+        ::SyntaxLeaf.value{k} => @reference ::JuliaInsertion.value::String{k}::Position
     end
 end
 
