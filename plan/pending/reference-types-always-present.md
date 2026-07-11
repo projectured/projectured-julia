@@ -1,160 +1,120 @@
-# Reference types always present (no plain skeleton form)
+# Reference types always present (strict DSL enforcement)
 
-Make the reference-path type-checkpoint an **always-present** invariant, so
-the module's public API never needs to distinguish "plain" from "annotated"
-paths. `@reference` stays document-less; every path it produces carries its
-types from the start. Every path is validated when applied to a document.
+Make the reference-path type-checkpoint an **always-populated** invariant, so
+every path in the tree carries its types at every node. `@reference` requires
+`::T` after every navigation step; there is no plain skeleton form. Types are
+load-bearing — a stored path validates by asserting each recorded type against
+the node it stands on.
 
 ## Problem
 
 Reference paths currently exist in two forms:
 
-- **Plain skeleton** — produced by `@reference` at macro-time, when no
-  document is in hand. Every step's `type` field is `nothing`.
-- **Annotated (canonical)** — produced by `set_selection!` via
-  `annotate_reference_types(document, plain_path)`, which walks the document
-  and fills each step's `type` with `typeof(node)`. This is what selections
-  actually store.
+- **Plain skeleton** — `@reference` at macro-time can't know the types, so
+  every navigation step's `type` field starts `nothing`.
+- **Annotated (canonical)** — `set_selection!` walks the document and fills
+  each step's `type` in.
 
-Two forms means five public functions exist only to convert between them or
-to compare them modulo type checkpoints:
+Two forms means five conversion / comparison functions on the public API
+(`is_reference_equal_ignoring_types`, `is_prefix_of_ignoring_types`,
+`strip_reference_types`, `annotate_reference_types`, `fold_reference_types`),
+and ~10 defensive `strip_reference_types(x)` calls across kernel/base/visual —
+each a "I don't know which form this is" bandage.
 
-- `is_reference_equal_ignoring_types` / `is_prefix_of_ignoring_types` —
-  compare when one side is plain and the other is canonical.
-- `strip_reference_types` — canonical → plain.
-- `annotate_reference_types` — plain → canonical.
-- `fold_reference_types` — a `TypeReference` step collapses into the
-  following step's `type` field. Only the `@reference` DSL needs this (it
-  emits both kinds of AST fragments), but it currently sits on the public
-  API surface too.
+## Design decision
 
-Consumers all over the tree call `strip_reference_types` defensively to
-normalize before comparison or iteration
-(`base/document/Primitive.jl:135,154`, `base/projection/Searching.jl:145`,
-`base/projection/generic/Focusing.jl:60`,
-`visual/clipboard/ClipboardToAny.jl:484`,
-`visual/text/SelectionInverting.jl:289,310`, plus test sites and internal
-`kernel/operation/Operations.jl` machinery). Each of those calls is
-essentially "I don't know whether this path is annotated or not, strip to
-be safe" — the smell the invariant is meant to remove.
+**Strict DSL enforcement (Q1-A):** every navigation step in `@reference` is
+followed by `::T`. A step without a type annotation is a parse error, not a
+skeleton — the plain form never exists.
 
-## Goal
+Rationale:
 
-References always carry their types. Every path is either:
+- **Reader value.** The types spelled at every step make the shape of the
+  reference explicit at the call site. A reader sees the intended trajectory
+  through the document schema without opening the domain code.
+- **Load-bearing validation.** Every recorded type is asserted at runtime by
+  `get_valid_reference_prefix` / `evaluate_reference`. A stored path that has
+  survived a structural change is caught at exactly the step where its
+  assumption broke.
+- **Precedent.** The Lisp implementation of ProjecturEd required types at
+  every step for the same reasons.
 
-- an `EmptyReferencePath`, or
-- a `ConcreteReferencePath` whose every step has a fully-populated `type`
-  field.
+### DSL grammar
 
-Consequences:
+- **Navigation step + type:** `entries::T`, `[i]::T`, `.field::T`, `{k}::T`.
+- **Leading `::T`.** Optional — records the type of the starting node. Elided
+  = polymorphic root (starting node type unknown until application). Most
+  domain call sites carry it; generic combinator sites in base often elide.
+- **Splices `^(expr)`:** the spliced path carries its own types (runtime
+  guarantee, verified by construction at all producer sites). The chain
+  *after* the splice must still be typed at every step; the splice itself is
+  opaque and its terminal type contributes to whatever comes next.
+- **Trailing type in a whole-element path.** `@reference` (empty) → an
+  `EmptyReferencePath` with an optional leading `::T` recording the terminal
+  node's type. Also elided when polymorphic.
 
-- The five functions above stop being part of the module's exported surface.
-  They may still exist as internal helpers for the DSL fragment and for
-  `set_selection!`'s validation walk, but nobody outside the module needs
-  them.
-- Path equality is just `is_reference_equal`; prefix check is
-  `is_prefix_of`. The `_ignoring_types` variants disappear.
-- Comparison-normalization at consumer sites (the ~10 `strip_reference_types`
-  calls listed above) go away.
-
-## Design questions
-
-### Q1 — Where do the types come from?
-
-`@reference` runs at macro-expansion time and doesn't have a document in
-hand. Two options:
-
-- **Q1-A: Explicit per-step types in the DSL.** `@reference [1]::T.field::U`
-  — the user names the type at each step. Concrete and immediate but noisy
-  for common cases; how to elide `T` when it's obvious to the reader may
-  need thought.
-- **Q1-B: Deferred fill at first application.** `@reference` produces steps
-  with `type` cells that are `nothing`; the first application to a document
-  (via `evaluate_reference` / `set_selection!`) fills them in and *keeps*
-  them, so subsequent operations see canonical paths. This preserves DSL
-  ergonomics but keeps a "not-yet-filled" transient state.
-- **Q1-C: Reject `@reference` skeletons entirely; require the programmatic
-  builder** (`@step` / manual `ConcreteReferencePath` construction) for
-  cases that need explicit types, and let the DSL only produce paths that
-  can be inferred (e.g. field references where the enclosing struct
-  determines the type).
-
-Q1-B keeps existing call-site ergonomics best but the "first application
-mutates the path" is subtle; Q1-A is honest but noisy.
-
-### Q2 — When does validation happen?
-
-Even under Q1-B, the type field is filled from the *current* document at
-first application. If the document later mutates (a shape change), the
-stored type is now wrong. Validation must run at every subsequent use to
-catch the mismatch, and the invariant becomes "types are present AND
-current at time of use", enforced by validation, not just by construction.
-
-`get_valid_reference_prefix` already exists as the truncation-on-mismatch
-walk. Under the new invariant, its role expands: every use of a reference
-routes through it (or its return value is guaranteed correct because the
-last write walked the same path).
-
-### Q3 — What replaces the ~10 `strip_reference_types` call sites?
-
-Each site has to be classified:
-
-- Some are asking "match against a plain user-built path" — those go away
-  once user paths are also canonical.
-- Some are iterating steps and expecting no free-standing `TypeReference`
-  steps — those go away because the invariant means folded checkpoints are
-  the only form (a bare `TypeReference` step is only a build-time DSL
-  artifact `fold_reference_types` already resolves).
-- Some are semantic — they want to compare "does path A navigate to the
-  same *shape* as path B, regardless of which node types happen to sit on
-  it right now" — those keep needing a shape-only comparator, but under a
-  new name that's honest about what it does (e.g. `same_navigation` or
-  similar), not "ignoring types".
-
-Each existing call site should get audited during migration to decide which
-bucket it falls in.
+The current DSL already parses `.field::T` and `::T.rest` as folded
+`TypeReference` steps — enforcement is at the parse stage: every navigation
+step must be followed by a `::T` (folded onto the tail node's type field).
 
 ## Rollout
 
-1. **Design decisions.** Pick Q1-A vs Q1-B vs Q1-C. Decide the migration
-   shape for the `_ignoring_types` semantic-comparison use case (Q3).
-2. **`Reference.jl`.** Enforce the invariant at the type / constructor
-   level (types-present ConcreteReferencePath constructors); mark the
-   internal-only helpers `_`-prefixed so they clearly aren't public.
-3. **Move `annotate_reference_types` into `set_selection!`'s implementation
-   as an internal step,** dropping the export.
-4. **`ReferenceCase.jl`.** The DSL emits `is_reference_equal` /
-   `is_prefix_of` directly instead of `_ignoring_types` variants.
-5. **`ReferenceBuilder.jl`.** Whichever of Q1-A/B/C is chosen, the DSL
-   producer changes accordingly; `fold_reference_types` becomes an internal
-   helper `_fold_types` (or is inlined).
-6. **Consumer migration.** For each `strip_reference_types` /
-   `annotate_reference_types` / `_ignoring_types` call site outside the
-   module, apply the Q3 classification and either delete the call, replace
-   with the plain equality, or wire through the new shape-only comparator.
-7. **Un-export the five functions** from `ReferenceModule.jl` and drop them
-   from `import ..ReferenceModule: …` sites.
-8. **Guards + tests.** `test_kernel_layering()`, `test_kernel()`,
-   `test_base()`, `test_visual()`, `test_domain()`. The kernel guard's
-   `check_private_imports` proves the un-export took (any surviving import
-   of the five names becomes a guard failure).
+Each step is a real commit, tree stays green throughout.
 
-## Blast radius
+1. **This plan document.** Filed alongside the migration.
+2. **Add strict-parse mode** to `ReferenceBuilder.jl`, off by default (an
+   opt-in `strict = true` on the internal parse entry point). No user-visible
+   behaviour change yet — migration below flips call sites to be *ready* for
+   strict, but strict isn't the default.
+3. **Migrate `@reference` call sites, package by package.** Each package is
+   one (or a small handful of) commits:
+   - kernel: ~34 sites
+   - base: ~5 sites
+   - odbc: ~13 sites
+   - sdl: ~6 sites
+   - visual: ~76 sites
+   - domain: ~315 sites (by domain slice: json / xml / yaml / sql / graph /
+     workbench / …)
 
-- ~15 `strip_reference_types` / `annotate_reference_types` /
-  `_ignoring_types` call sites across kernel/base/visual/domain to audit
-  and rewrite.
-- `@reference` DSL semantics change slightly depending on Q1.
-- `set_selection!` internal shape changes (annotation moves inside).
-- No user-facing API is added; several are removed. Callers who were doing
-  the right thing (using `is_reference_equal`, iterating steps naïvely) are
-  unaffected.
+   For each site, add `::T` after every navigation step. Types come from the
+   domain's `@document` schema (grep `struct` / `@document` for the field
+   types). Splices propagate their types by construction.
+4. **`@reference_case` patterns** get the same treatment where they name
+   step types — the pattern grammar already supports the same `::T` suffix.
+5. **Flip the DSL to strict.** Parse error on any untyped navigation step
+   in `@reference`. All migrated sites keep working; any survivors surface as
+   compile-time failures.
+6. **Retire `strip_reference_types` / `annotate_reference_types` /
+   `fold_reference_types` from public exports.** They stay as internal
+   machinery of `set_selection!` and the DSL builder; every previous external
+   call becomes obsolete under the invariant (paths arriving at any consumer
+   are always canonical) and gets deleted or, in a handful of kernel-internal
+   places, becomes qualified inline access.
+7. **Retire `is_reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`**
+   — done in an earlier commit; comparisons are strict throughout.
+8. **AR-audit + seal `reference/ReferenceModule.jl`.** Everything the plan
+   sets up as final is now in place.
 
-## Related
+## Consequences
 
-- Blocks the AR-audit / seal of `reference/ReferenceModule.jl` — the
-  audit flagged the five exports as leftover machinery from a design
-  choice the module is trying to move past.
-- Later: consider whether the `TypeReference` step type is still needed as
-  a public export at all, given that under the invariant it exists only as
-  a build-time DSL artifact.
+- Every `@reference` call site in the tree is annotated. Grep for
+  `@reference` yields self-documenting paths.
+- The `strip_reference_types(x)` bandage disappears — 10-ish call sites in
+  base/visual either delete the call (the source is already canonical) or
+  become obsolete alongside the operations they normalized for.
+- `annotate_reference_types` becomes purely internal — `set_selection!`
+  still calls it while it canonicalizes, but no outside code sees it.
+- `fold_reference_types` becomes DSL-internal — the parser calls it when
+  building a path from the parsed AST; no outside code sees it.
+- `is_reference_equal` becomes the one comparator, strict on the canonical
+  form, working correctly because both sides always carry their types.
+
+## Scope estimate
+
+- Steps 1–2: small, this session.
+- Steps 3.kernel + 3.base + 3.odbc + 3.sdl: ~60 sites, this session.
+- Step 3.visual: ~76 sites, likely this session (may spill).
+- Step 3.domain: ~315 sites, multiple sessions.
+- Steps 4–8: final coordinated session once step 3 is complete.
+
+Multi-session, with each commit landing a green tree.
