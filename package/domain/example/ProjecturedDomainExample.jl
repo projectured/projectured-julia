@@ -157,5 +157,8 @@ export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example,
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
 export Example, domain_examples
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
+# Re-export the kernel-example LLM test doubles so domain test files can use
+# FakeLlm / ScriptedLlm without importing ProjecturedKernelExample directly.
+export FakeLlm, ScriptedLlm
 
 end # module ProjecturedDomainExample
