@@ -166,8 +166,26 @@ The last step is a review checkpoint (user approves before I mark sealed).
      heterogeneous and `CellVector`/`Document` are not imported in the slice's
      module (e.g. `WorkbenchToWidget`'s `@reference ::WorkbenchPage.elements[idx]`);
      step 5 adds the missing imports + full index/terminal types uniformly.
-5. **Flip DSL to strict** — one commit. `strict = true` becomes the default;
-   any missed untyped nav step surfaces as a compile-time failure.
+5. **Flip DSL to strict** — the big pass. **Confirmed user decisions (2026-07-11):**
+   - **Full per-node typing** — every navigation node carries `::T` matching
+     `annotate_reference_types`' canonical output; "types always present. period."
+   - **Spell `::CellVector` at every index explicitly** (no auto-supply in
+     fold): a bare `xs[i]` becomes `xs::CellVector[i]`, matching the json slice.
+     `CellVector` is imported into every slice that indexes a collection.
+
+   Real scope (measured 2026-07-11): ~117 main `@reference` sites still carry a
+   bare `[i]` (only 19 already json-style); ~68 test `@reference` (1-arg) sites
+   need inline types or conversion to `@reference(doc, …)`; ~202 `@reference_case`
+   patterns need typed patterns (D4-a); plus every `EmptyReferencePath()`
+   fallback needs its type. Step 4's leading-`::T`-only convention was an
+   intermediate — this step tightens every slice to full fidelity.
+
+   Execution: build a transitional strict checker (`is_fully_typed` +
+   `_strict_check` behind a `STRICT[] ∈ (:off,:warn,:error)` flag wired into
+   `@reference`) as the per-file acceptance test; convert package-by-package
+   (kernel→base→visual→domain) in `:warn` mode, then flip `STRICT[]=:error` as
+   the default once every suite is warn-free. Any missed untyped nav step then
+   surfaces as a runtime failure at path construction.
 6. **Retire** `strip_reference_types`, `annotate_reference_types`,
    `fold_reference_types` **from exports.** Update kernel-internal callers
    (in `Operations.jl`, `ProjectionTemplate.jl`) to use qualified inline

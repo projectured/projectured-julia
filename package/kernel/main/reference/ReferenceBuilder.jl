@@ -417,7 +417,8 @@ end
 
 macro reference(ex)
     steps = _parse_build_path(ex)
-    return _gen_build_path(steps)
+    expr = _gen_build_path(steps)
+    return :(ReferenceModule._strict_check($expr, $(QuoteNode(__source__))))
 end
 
 macro reference(document, ex)
