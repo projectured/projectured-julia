@@ -1,120 +1,102 @@
 # Reference types always present (strict DSL enforcement)
 
-Make the reference-path type-checkpoint an **always-populated** invariant, so
-every path in the tree carries its types at every node. `@reference` requires
-`::T` after every navigation step; there is no plain skeleton form. Types are
-load-bearing — a stored path validates by asserting each recorded type against
-the node it stands on.
+Every reference path in the tree carries its types at every node. `@reference`
+requires `::T` after every navigation step — including terminal-like step
+types (`.proj`, `.point`, `.rect`). `EmptyReferencePath()` (no-arg) is gone;
+an empty path is a *type reference* to an object of a specific type. Types
+are load-bearing (validated at runtime) and reader-serving (the schema
+trajectory is explicit at every call site).
 
-## Problem
+## Locked design decisions
 
-Reference paths currently exist in two forms:
-
-- **Plain skeleton** — `@reference` at macro-time can't know the types, so
-  every navigation step's `type` field starts `nothing`.
-- **Annotated (canonical)** — `set_selection!` walks the document and fills
-  each step's `type` in.
-
-Two forms means five conversion / comparison functions on the public API
-(`is_reference_equal_ignoring_types`, `is_prefix_of_ignoring_types`,
-`strip_reference_types`, `annotate_reference_types`, `fold_reference_types`),
-and ~10 defensive `strip_reference_types(x)` calls across kernel/base/visual —
-each a "I don't know which form this is" bandage.
-
-## Design decision
-
-**Strict DSL enforcement (Q1-A):** every navigation step in `@reference` is
-followed by `::T`. A step without a type annotation is a parse error, not a
-skeleton — the plain form never exists.
-
-Rationale:
-
-- **Reader value.** The types spelled at every step make the shape of the
-  reference explicit at the call site. A reader sees the intended trajectory
-  through the document schema without opening the domain code.
-- **Load-bearing validation.** Every recorded type is asserted at runtime by
-  `get_valid_reference_prefix` / `evaluate_reference`. A stored path that has
-  survived a structural change is caught at exactly the step where its
-  assumption broke.
-- **Precedent.** The Lisp implementation of ProjecturEd required types at
-  every step for the same reasons.
-
-### DSL grammar
-
-- **Navigation step + type:** `entries::T`, `[i]::T`, `.field::T`, `{k}::T`.
-- **Leading `::T`.** Optional — records the type of the starting node. Elided
-  = polymorphic root (starting node type unknown until application). Most
-  domain call sites carry it; generic combinator sites in base often elide.
-- **Splices `^(expr)`:** the spliced path carries its own types (runtime
-  guarantee, verified by construction at all producer sites). The chain
-  *after* the splice must still be typed at every step; the splice itself is
-  opaque and its terminal type contributes to whatever comes next.
-- **Trailing type in a whole-element path.** `@reference` (empty) → an
-  `EmptyReferencePath` with an optional leading `::T` recording the terminal
-  node's type. Also elided when polymorphic.
-
-The current DSL already parses `.field::T` and `::T.rest` as folded
-`TypeReference` steps — enforcement is at the parse stage: every navigation
-step must be followed by a `::T` (folded onto the tail node's type field).
-
-## Rollout
-
-Each step is a real commit, tree stays green throughout.
-
-1. **This plan document.** Filed alongside the migration.
-2. **Add strict-parse mode** to `ReferenceBuilder.jl`, off by default (an
-   opt-in `strict = true` on the internal parse entry point). No user-visible
-   behaviour change yet — migration below flips call sites to be *ready* for
-   strict, but strict isn't the default.
-3. **Migrate `@reference` call sites, package by package.** Each package is
-   one (or a small handful of) commits:
-   - kernel: ~34 sites
-   - base: ~5 sites
-   - odbc: ~13 sites
-   - sdl: ~6 sites
-   - visual: ~76 sites
-   - domain: ~315 sites (by domain slice: json / xml / yaml / sql / graph /
-     workbench / …)
-
-   For each site, add `::T` after every navigation step. Types come from the
-   domain's `@document` schema (grep `struct` / `@document` for the field
-   types). Splices propagate their types by construction.
-4. **`@reference_case` patterns** get the same treatment where they name
-   step types — the pattern grammar already supports the same `::T` suffix.
-5. **Flip the DSL to strict.** Parse error on any untyped navigation step
-   in `@reference`. All migrated sites keep working; any survivors surface as
-   compile-time failures.
-6. **Retire `strip_reference_types` / `annotate_reference_types` /
-   `fold_reference_types` from public exports.** They stay as internal
-   machinery of `set_selection!` and the DSL builder; every previous external
-   call becomes obsolete under the invariant (paths arriving at any consumer
-   are always canonical) and gets deleted or, in a handful of kernel-internal
-   places, becomes qualified inline access.
-7. **Retire `is_reference_equal_ignoring_types` / `is_prefix_of_ignoring_types`**
-   — done in an earlier commit; comparisons are strict throughout.
-8. **AR-audit + seal `reference/ReferenceModule.jl`.** Everything the plan
-   sets up as final is now in place.
+- **D1-b — no `nothing` types.** `EmptyReferencePath` requires a type. A path
+  referring to an object without further navigation is a **type reference**
+  spelled `::T` (an empty path whose terminal type is `T`).
+- **D2-b — every step is descending and every step is typed.** Structural,
+  splice, and previously-terminal steps all descend to a value on evaluation
+  and all carry a `::T` after them naming the resulting node's type. For step
+  types that don't correspond to a document field, the descent returns a
+  **synthetic value** — a `Coord(x, y)` for `PointReference`, a
+  `(projection, output_path)` tuple for `ProjectionReference`, a substring
+  for `TextRectangularReference` — anything evaluatable. The reference is
+  never *dead-endable*.
+- **D3-a — rewrite kernel builder tests** using placeholder types
+  (`ToyType`, `Any` where the specific type is beside the point). Update
+  expected `ConcreteReferencePath` / `EmptyReferencePath` constructions to
+  include the type argument.
+- **D4-a — strict patterns.** `@reference_case` patterns spell types the
+  same way; the runtime match compares node types alongside navigation
+  steps. Tolerant matching (currently used for `::T` in patterns) is retired.
 
 ## Consequences
 
-- Every `@reference` call site in the tree is annotated. Grep for
-  `@reference` yields self-documenting paths.
-- The `strip_reference_types(x)` bandage disappears — 10-ish call sites in
-  base/visual either delete the call (the source is already canonical) or
-  become obsolete alongside the operations they normalized for.
-- `annotate_reference_types` becomes purely internal — `set_selection!`
-  still calls it while it canonicalizes, but no outside code sees it.
-- `fold_reference_types` becomes DSL-internal — the parser calls it when
-  building a path from the parsed AST; no outside code sees it.
-- `is_reference_equal` becomes the one comparator, strict on the canonical
-  form, working correctly because both sides always carry their types.
+- `strip_reference_types`, `annotate_reference_types`, `fold_reference_types`
+  become internal to `ReferenceBuilder.jl` and `set_selection!` — under
+  strict, every path arriving at any consumer is fully typed, so the
+  compare-modulo-types machinery has no external use.
+- `EmptyReferencePath()` (no-arg) is removed; every construction spells a
+  type.
+- Every terminal step type — `ProjectionReference`, `PointReference`,
+  `TextRectangularReference` — gains an `evaluate_step` method (per its
+  home package). They stop being `:terminal` in `step_kind`; the
+  classification collapses to `:structural` (descends) vs `:checkpoint`
+  (asserts on the current node, `TypeReference`).
+- The DSL's `.point`/`.proj` DSL entries require `::T` after them; the T
+  is the type of the synthetic value they descend to.
+- Every `@reference` and `@reference_case` in the tree is annotated —
+  ~500+ call sites across 6 packages, migrated package by package.
 
-## Scope estimate
+## Rollout
 
-- Steps 1–2: small, this session.
-- Steps 3.kernel + 3.base + 3.odbc + 3.sdl: ~60 sites, this session.
-- Step 3.visual: ~76 sites, likely this session (may spill).
-- Step 3.domain: ~315 sites, multiple sessions.
-- Steps 4–8: final coordinated session once step 3 is complete.
+Each numbered step is at least one commit; the tree stays green throughout.
+The last step is a review checkpoint (user approves before I mark sealed).
 
-Multi-session, with each commit landing a green tree.
+1. **This plan document** with the locked decisions above.
+2. **Strict-parse mode in the DSL builder** — a per-invocation opt-in
+   `strict = true` on the internal parse entry point. Untyped nav steps
+   error. Kept off-by-default so migration can proceed with the tree green.
+3. **Update `evaluate_step` for terminal step types** — `PointReference`
+   returns `(x, y)`, `ProjectionReference` returns
+   `(projection, output_path)`, `TextRectangularReference` returns
+   `(start, stop)`. `step_kind` for these becomes `:structural`. Update
+   `evaluate_reference` / `get_valid_reference_prefix` / walkers to route
+   through the seam uniformly. Includes updating documentation.
+4. **Migrate `@reference` / `@reference_case` call sites**, package by
+   package. For each site:
+   - Add `::T` after every navigation step (structural + splice + previous
+     terminal).
+   - Add leading `::T` where the root type is known.
+   - Update `EmptyReferencePath()` no-arg call sites to spell the type.
+   - Update `@reference_case` patterns to include types.
+
+   Order (small first):
+   - kernel main: 2 sites (both need updating for D2-b).
+   - kernel tests: ~30 sites (builder + eval tests rewritten).
+   - base: ~4 sites.
+   - odbc: ~12 sites.
+   - sdl: ~6 sites.
+   - visual: ~54 sites.
+   - domain: ~298 sites, batched by domain slice.
+5. **Flip DSL to strict** — one commit. `strict = true` becomes the default;
+   any missed untyped nav step surfaces as a compile-time failure.
+6. **Retire** `strip_reference_types`, `annotate_reference_types`,
+   `fold_reference_types` **from exports.** Update kernel-internal callers
+   (in `Operations.jl`, `ProjectionTemplate.jl`) to use qualified inline
+   access.
+7. **AR-audit ReferenceModule.jl** and **stop for user review before
+   sealing** (user has explicitly asked for a review checkpoint here).
+
+## Scope estimate (multi-session)
+
+- Step 1: this session. Small.
+- Step 2: this session. Small parser change plus tests.
+- Step 3: 1–2 sessions. Redefining `evaluate_step` for three types plus
+  audit of every walker + call chain.
+- Step 4: several sessions. ~500 sites, domain schema knowledge per batch.
+- Steps 5, 6, 7: one coordinated session at the end.
+
+## Related
+
+- Pairs with `plan/done/reference-step-cleanup.md`. That plan restructured
+  the *type registry* (step types moved out of the kernel reference layer).
+  This plan tightens the *type invariant* on the paths those types describe.
