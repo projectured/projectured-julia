@@ -3,8 +3,7 @@
 # the document hierarchy. A selection's payload is a `ReferencePath`, and setting
 # one folds node types against the live document, so these sit one layer above
 # references (whose paths they carry) and above the document contract (whose
-# `.selection` field they read), and one layer below the operations that drive
-# them (`ReplaceSelectionOperation`, `SelectNextInsertionOperation`).
+# `.selection` field they read).
 #
 # See documentation/concepts.md for the document-editing model these are part of.
 
@@ -100,9 +99,9 @@ end
 
 # ── Incremental selection replacement ──────────────────────────────────────
 #
-# `update_selection!` is the caret-move fast path used by
-# `ReplaceSelectionOperation`. It produces exactly the same stored state as
-# `replace_selection!` (each level still holds the *whole remaining reference*,
+# `update_selection!` is the caret-move fast path: it produces exactly the same
+# stored state as `replace_selection!` (each level still holds the *whole
+# remaining reference*,
 # so every reader is unaffected), but writes the **shared selection chain in
 # place**, touching only the cells whose content actually changed:
 #
@@ -121,7 +120,7 @@ end
 #     — so cells *above* the divergence stay untouched too.
 #
 # The eager reactive engine has no value-equality short-circuit (see
-# Reactive.jl), so the whole point is to avoid the *writes*, not to rely on the
+# ReactiveCell.jl), so the whole point is to avoid the *writes*, not to rely on the
 # engine to absorb redundant ones.
 function update_selection!(document, path)
     hasproperty(document, :selection) || return

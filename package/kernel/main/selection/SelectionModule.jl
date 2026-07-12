@@ -11,9 +11,8 @@ remaining tail as that child's selection — and canonicalizes the path against 
 live document, folding each node's type in (see `annotate_reference_types`).
 
 A selection's payload is a `ReferencePath` (layer 3) stored on a `Document`
-(layer 2), which is why these live one layer above references and the document
-contract, and one layer below the operations that drive them
-(`ReplaceSelectionOperation`, `SelectNextInsertionOperation`).
+(layer 2), which is why these primitives live one layer above references and the
+document contract.
 
 `clear_selection!` / `set_selection!` are open generics: a document that stores
 its selection unconventionally overrides them; the defaults here read and write
