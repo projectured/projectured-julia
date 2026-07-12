@@ -175,7 +175,7 @@ end
 # sub-pipeline (the node-box selection band is drawn in place if added later).
 function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, reference)
     @reference_case reference begin
-        vertex_layouts[i].vertex.content.rest... => begin
+        ::GraphLayout.vertex_layouts[i].vertex.content.rest... => begin
             entries = iomap.child_iomaps[]
             (i < 1 || i > length(entries)) && return nothing
             entry = entries[i]

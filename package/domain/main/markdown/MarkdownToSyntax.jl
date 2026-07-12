@@ -452,12 +452,12 @@ end
 function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
     alt_sel = Cell(() -> begin
         @reference_case doc.selection begin
-            alt.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+            ::MarkdownImage.alt.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
     url_sel = Cell(() -> begin
         @reference_case doc.selection begin
-            url.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+            ::MarkdownImage.url.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
     alt_leaf = SyntaxLeaf(

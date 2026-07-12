@@ -102,13 +102,13 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
 
     title_sel = Cell(() -> begin
         @reference_case b.selection begin
-            title.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+            ::BookBook.title.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
 
     author_sel = Cell(() -> begin
         @reference_case b.selection begin
-            author.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+            ::BookBook.author.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
 
@@ -280,12 +280,12 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
     # `.numbering[k]` cursor maps straight onto the value span's leading region.
     title_sel = Cell(() -> begin
         @reference_case b.selection begin
-            title{s:_}.tail... => begin
+            ::BookChapter.title{s:_}.tail... => begin
                 offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
                 adj = s + offset
                 @reference ::SyntaxLeaf.value{adj}.^(tail)
             end
-            numbering{s:_}.tail... => @reference ::SyntaxLeaf.value{s}.^(tail)
+            ::BookChapter.numbering{s:_}.tail... => @reference ::SyntaxLeaf.value{s}.^(tail)
         end
     end)
 
@@ -483,7 +483,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
         path = b.selection
         path isa ConcreteReferencePath && path.head isa ProjectionReference && return b.selection
         @reference_case path begin
-            elements{s:_}.rest... => begin
+            ::BookList.elements{s:_}.rest... => begin
                 child_i = s + 1
                 iomaps  = element_iomaps[]
                 child_i > length(iomaps) && return nothing

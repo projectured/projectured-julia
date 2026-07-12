@@ -162,7 +162,7 @@ function _xml_attr_value(e)
     sel = getfield(e, :selection)[]
     sel === nothing && return nothing
     @reference_case sel begin
-        attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference(e, attrs[s + 1].value{0}))
+        ::XmlElement.attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference(e, attrs[s + 1].value{0}))
     end
 end
 

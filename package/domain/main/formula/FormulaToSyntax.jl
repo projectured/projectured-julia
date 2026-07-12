@@ -174,7 +174,7 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
     f = iomap.input
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        code.rest... => begin
+        ::FormulaFormula.code.rest... => begin
             idx = _code_index(f)
             idx === nothing && return nothing
             child = iomap.child_iomaps[][1]
@@ -190,7 +190,7 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
     idx = _code_index(f)
     @reference_case reference begin
         ∅ => @reference ::FormulaFormula
-        children{s:_}.rest... => begin
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             if idx !== nothing && child_i == idx
                 # This child is the code sub-tree: delegate to its mapper.
@@ -241,7 +241,7 @@ end
 function map_reference_forward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        formulas{s:_}.rest... => begin
+        ::FormulaEnvironment.formulas{s:_}.rest... => begin
             child_i = s + 1
             ims = iomap.child_iomaps[]
             (child_i < 1 || child_i > length(ims)) && return nothing
@@ -256,7 +256,7 @@ end
 function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::FormulaEnvironment
-        children{s:_}.rest... => begin
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             ims = iomap.child_iomaps[]
             (child_i < 1 || child_i > length(ims)) && return nothing

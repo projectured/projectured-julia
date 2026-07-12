@@ -236,10 +236,10 @@ function _mapping_tab(doc::YamlMapping)
     sel = getfield(doc, :selection)[]
     sel === nothing && return nothing
     @reference_case sel begin
-        entries{s:e}.rest... => begin
+        ::YamlMapping.entries{s:e}.rest... => begin
             i = s + 1
             @reference_case rest begin
-                key.inner... => ReplaceSelectionOperation(@reference ::YamlMapping.entries::CellVector[i]::YamlMappingEntry.value::Document)
+                ::YamlMappingEntry.key.inner... => ReplaceSelectionOperation(@reference ::YamlMapping.entries::CellVector[i]::YamlMappingEntry.value::Document)
             end
         end
     end

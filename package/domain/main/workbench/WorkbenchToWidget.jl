@@ -416,19 +416,19 @@ function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
                                 iomap::WorkbenchWorkbenchToWidgetShellIoMap,
                                 reference)
     @reference_case reference begin
-        navigation_page.rest... => begin
+        ::WorkbenchWorkbench.navigation_page.rest... => begin
             inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
-        editing_page.rest... => begin
+        ::WorkbenchWorkbench.editing_page.rest... => begin
             inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
-        information_page.rest... => begin
+        ::WorkbenchWorkbench.information_page.rest... => begin
             inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child.^(inner)
         end
-        control_page.rest... => begin
+        ::WorkbenchWorkbench.control_page.rest... => begin
             inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[3]::LayoutConstraint.child.^(inner)
         end
@@ -440,7 +440,7 @@ function map_reference_forward(::WorkbenchPageToWidgetTabbedPane,
                                 iomap::WorkbenchPageToWidgetTabbedPaneIoMap,
                                 reference)
     @reference_case reference begin
-        elements[i].rest... => begin
+        ::WorkbenchPage.elements[i].rest... => begin
             (1 <= i <= length(iomap.element_iomaps)) || return nothing
             inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath(WidgetDocument))
             @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(inner)
@@ -453,34 +453,34 @@ end
 # selection suffix passes straight through).
 function map_reference_forward(::WorkbenchEditorToWidgetScrollPane, iomap::ContentIoMap, reference)
     @reference_case reference begin
-        content.rest... => @reference ::WidgetScrollPane.content.^(rest)
+        ::WorkbenchEditor.content.rest... => @reference ::WidgetScrollPane.content.^(rest)
     end
 end
 
 function map_reference_forward(::WorkbenchNavigatorToWidgetScrollPane,
                                 iomap::WorkbenchNavigatorToWidgetScrollPaneIoMap, reference)
     @reference_case reference begin
-        workspace.rest... => @reference ::WidgetScrollPane.content.^(rest)
+        ::WorkbenchNavigator.workspace.rest... => @reference ::WidgetScrollPane.content.^(rest)
     end
 end
 
 function map_reference_forward(::WorkbenchConsoleToWidgetScrollPane, iomap::ContentIoMap, reference)
     @reference_case reference begin
-        content.rest... => @reference ::WidgetScrollPane.content.^(rest)
+        ::WorkbenchConsole.content.rest... => @reference ::WidgetScrollPane.content.^(rest)
     end
 end
 
 function map_reference_forward(::WorkbenchEvaluatorToWidgetScrollPane, iomap::ContentIoMap, reference)
     @reference_case reference begin
-        content.rest... => @reference ::WidgetScrollPane.content.^(rest)
+        ::WorkbenchEvaluator.content.rest... => @reference ::WidgetScrollPane.content.^(rest)
     end
 end
 
 # Assistant → vertical WidgetSplitPane(conversation | input), each a scroll pane.
 function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane, iomap, reference)
     @reference_case reference begin
-        conversation.rest... => @reference ::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
-        input.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
+        ::WorkbenchAssistant.conversation.rest... => @reference ::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
+        ::WorkbenchAssistant.input.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
     end
 end
 
@@ -509,7 +509,7 @@ function map_reference_backward(::WorkbenchEditorToWidgetScrollPane,
                                  iomap::ContentIoMap,
                                  reference)
     @reference_case reference begin
-        content.rest... => @reference ::WorkbenchEditor.content.^(rest)
+        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchEditor.content.^(rest)
     end
 end
 
@@ -519,7 +519,7 @@ function map_reference_backward(::WorkbenchNavigatorToWidgetScrollPane,
     # WorkbenchNavigator stores the workspace in `.workspace`; the widget
     # scroll pane wraps it as `.content`. Rewrite the field name.
     @reference_case reference begin
-        content.rest... => @reference ::WorkbenchNavigator.workspace.^(rest)
+        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchNavigator.workspace.^(rest)
     end
 end
 
@@ -527,7 +527,7 @@ function map_reference_backward(::WorkbenchConsoleToWidgetScrollPane,
                                  iomap::ContentIoMap,
                                  reference)
     @reference_case reference begin
-        content.rest... => @reference ::WorkbenchConsole.content.^(rest)
+        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchConsole.content.^(rest)
     end
 end
 
@@ -535,7 +535,7 @@ function map_reference_backward(::WorkbenchEvaluatorToWidgetScrollPane,
                                  iomap::ContentIoMap,
                                  reference)
     @reference_case reference begin
-        content.rest... => @reference ::WorkbenchEvaluator.content.^(rest)
+        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchEvaluator.content.^(rest)
     end
 end
 
@@ -561,7 +561,7 @@ function map_reference_backward(::WorkbenchAssistantToWidgetSplitPane,
     # wrapped in a LayoutConstraint and then a WidgetScrollPane.
     # So bubbled paths look like `elements[i].child.content.<rest>`.
     @reference_case reference begin
-        elements{s:e}.child.content.rest... => begin
+        ::WidgetSplitPane.elements{s:e}.child.content.rest... => begin
             i = s + 1
             if i == 1
                 @reference ::WorkbenchAssistant.conversation.^(rest)
@@ -582,7 +582,7 @@ function map_reference_backward(::WorkbenchPageToWidgetTabbedPane,
     # the page. Recurse via the matching element iomap so the panel's
     # own backward map can re-root its slice of the path.
     @reference_case reference begin
-        selector_element_pairs{s:e}.rest... => begin
+        ::WidgetTabbedPane.selector_element_pairs{s:e}.rest... => begin
             i = s + 1
             i <= length(iomap.element_iomaps) || return nothing
             elem_im = iomap.element_iomaps[i]
@@ -620,22 +620,22 @@ function map_reference_backward(::WorkbenchWorkbenchToWidgetShell,
     #       elements[1].child = info page widget   ← information_page
     #     elements[2].child = ctrl page widget  ← control_page
     @reference_case reference begin
-        content.elements{0:1}.child.rest... => begin
+        ::WidgetShell.content.elements{0:1}.child.rest... => begin
             inner = _page_backward(iomap.navigation_page_iomap, rest)
             inner === nothing && return nothing
             @reference ::WorkbenchWorkbench.navigation_page.^(inner)
         end
-        content.elements{1:2}.child.elements{0:1}.child.rest... => begin
+        ::WidgetShell.content.elements{1:2}.child.elements{0:1}.child.rest... => begin
             inner = _page_backward(iomap.editing_page_iomap, rest)
             inner === nothing && return nothing
             @reference ::WorkbenchWorkbench.editing_page.^(inner)
         end
-        content.elements{1:2}.child.elements{1:2}.child.rest... => begin
+        ::WidgetShell.content.elements{1:2}.child.elements{1:2}.child.rest... => begin
             inner = _page_backward(iomap.information_page_iomap, rest)
             inner === nothing && return nothing
             @reference ::WorkbenchWorkbench.information_page.^(inner)
         end
-        content.elements{2:3}.child.rest... => begin
+        ::WidgetShell.content.elements{2:3}.child.rest... => begin
             inner = _page_backward(iomap.control_page_iomap, rest)
             inner === nothing && return nothing
             @reference ::WorkbenchWorkbench.control_page.^(inner)

@@ -354,7 +354,7 @@ function map_reference_forward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIo
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        items{s:_}.rest... => begin
+        ::SqlSelectClause.items{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             1 <= child_i <= length(cims) || return nothing
@@ -370,7 +370,7 @@ end
 function map_reference_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlSelectClause
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
             body_idx = iomap.input.distinct !== nothing ? 3 : 2
             outer_i != body_idx && return nothing
@@ -444,19 +444,19 @@ function map_reference_forward(p::SqlJoinedFromItemToSyntaxNode, iomap::Children
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        join_type.rest... => begin
+        ::SqlJoinedFromItem.join_type.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children[1].^(inner)
         end
-        from_item.rest... => begin
+        ::SqlJoinedFromItem.from_item.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children[2].^(inner)
         end
-        condition.rest... => begin
+        ::SqlJoinedFromItem.condition.rest... => begin
             cims = iomap.child_iomaps[]
             length(cims) < 3 && return nothing
             child = cims[3]
@@ -470,19 +470,19 @@ end
 function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlJoinedFromItem
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlJoinedFromItem.join_type.^(inner)
         end
-        children[2].rest... => begin
+        ::SyntaxNode.children[2].rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlJoinedFromItem.from_item.^(inner)
         end
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             cims = iomap.child_iomaps[]
             length(cims) < 3 && return nothing
             child = cims[3]
@@ -538,7 +538,7 @@ function map_reference_forward(p::SqlJoinOnConditionToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        expression.rest... => begin
+        ::SqlJoinOnCondition.expression.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -550,7 +550,7 @@ end
 function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlJoinOnCondition
-        children[2].rest... => begin
+        ::SyntaxNode.children[2].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -618,13 +618,13 @@ function map_reference_forward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap,
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        base_item.rest... => begin
+        ::SqlFromItem.base_item.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
-        joins{s:_}.rest... => begin
+        ::SqlFromItem.joins{s:_}.rest... => begin
             join_i = s + 1
             cims = iomap.child_iomaps[]
             cim_i = join_i + 1                  # index 1 is base_im
@@ -640,13 +640,13 @@ end
 function map_reference_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlFromItem
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlFromItem.base_item.^(inner)
         end
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_s != 1 && return nothing       # joins_body is always at pos 2
             join_i = t + 1
             cims = iomap.child_iomaps[]
@@ -706,7 +706,7 @@ function map_reference_forward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMa
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        items{s:_}.rest... => begin
+        ::SqlFromClause.items{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             1 <= child_i <= length(cims) || return nothing
@@ -721,7 +721,7 @@ end
 function map_reference_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlFromClause
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_s != 1 && return nothing          # items_body is always at pos 2
             item_i = t + 1
             cims = iomap.child_iomaps[]
@@ -778,7 +778,7 @@ function map_reference_forward(p::SqlWhereFilterConditionToSyntaxNode, iomap::Ch
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        expression.rest... => begin
+        ::SqlWhereFilterCondition.expression.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -790,7 +790,7 @@ end
 function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlWhereFilterCondition
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -848,7 +848,7 @@ function map_reference_forward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoM
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        condition.rest... => begin
+        ::SqlWhereClause.condition.rest... => begin
             cims = iomap.child_iomaps[]
             isempty(cims) && return nothing
             child = cims[1]
@@ -862,7 +862,7 @@ end
 function map_reference_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlWhereClause
-        children[2].children[1].rest... => begin
+        ::SyntaxNode.children[2].children[1].rest... => begin
             cims = iomap.child_iomaps[]
             isempty(cims) && return nothing
             child = cims[1]
@@ -948,13 +948,13 @@ function map_reference_forward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMa
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        left.rest... => begin
+        ::SqlComparison.left.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
-        right.rest... => begin
+        ::SqlComparison.right.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -966,13 +966,13 @@ end
 function map_reference_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlComparison
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlComparison.left.^(inner)
         end
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1056,13 +1056,13 @@ end
 function map_reference_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlBooleanExpression
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlBooleanExpression.left.^(inner)
         end
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1118,7 +1118,7 @@ function map_reference_forward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, refe
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        expression.rest... => begin
+        ::SqlNot.expression.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1130,7 +1130,7 @@ end
 function map_reference_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlNot
-        children[2].rest... => begin
+        ::SyntaxNode.children[2].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1206,21 +1206,21 @@ function map_reference_forward(p::SqlSelectStatementToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        select_clause.rest... => begin
+        ::SqlSelectStatement.select_clause.rest... => begin
             cims = iomap.child_iomaps[]
             child = cims[1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
-        from_clause.rest... => begin
+        ::SqlSelectStatement.from_clause.rest... => begin
             cims = iomap.child_iomaps[]
             child = cims[2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[2].^(inner)
         end
-        where_clause.rest... => begin
+        ::SqlSelectStatement.where_clause.rest... => begin
             cims = iomap.child_iomaps[]
             length(cims) < 3 && return nothing
             child = cims[3]
@@ -1234,7 +1234,7 @@ end
 function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlSelectStatement
-        children{s:_}.rest... => begin
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             1 <= child_i <= length(cims) || return nothing
@@ -1332,13 +1332,13 @@ function map_reference_forward(p::SqlInsertStatementToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        table.rest... => begin
+        ::SqlInsertStatement.table.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[3].^(inner)
         end
-        columns{s:_}.rest... => begin
+        ::SqlInsertStatement.columns{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             cim_i = 1 + child_i
@@ -1348,7 +1348,7 @@ function map_reference_forward(p::SqlInsertStatementToSyntaxNode, iomap::Childre
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[4]::SyntaxNode.children::CellVector[child_i].^(inner)
         end
-        values{s:_}.rest... => begin
+        ::SqlInsertStatement.values{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             cim_i = 1 + ncols + child_i
@@ -1367,13 +1367,13 @@ function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::Childr
     vals_idx = cols_present ? 6 : 5
     @reference_case reference begin
         ∅ => @reference ::SqlInsertStatement
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlInsertStatement.table.^(inner)
         end
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
             child_i = t + 1
             cims = iomap.child_iomaps[]
@@ -1452,13 +1452,13 @@ function map_reference_forward(p::SqlUpdateAssignmentToSyntaxNode, iomap::Childr
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        column_name.rest... => begin
+        ::SqlUpdateAssignment.column_name.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
-        value.rest... => begin
+        ::SqlUpdateAssignment.value.rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1470,13 +1470,13 @@ end
 function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlUpdateAssignment
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlUpdateAssignment.column_name.^(inner)
         end
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             child = iomap.child_iomaps[][2]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1566,13 +1566,13 @@ function map_reference_forward(p::SqlUpdateStatementToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        table.rest... => begin
+        ::SqlUpdateStatement.table.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[2].^(inner)
         end
-        assignments{s:_}.rest... => begin
+        ::SqlUpdateStatement.assignments{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             cim_i = 1 + child_i
@@ -1582,7 +1582,7 @@ function map_reference_forward(p::SqlUpdateStatementToSyntaxNode, iomap::Childre
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[4]::SyntaxNode.children::CellVector[child_i].^(inner)
         end
-        where_clause.condition.rest... => begin
+        ::SqlUpdateStatement.where_clause.condition.rest... => begin
             cims = iomap.child_iomaps[]
             length(cims) < 2 + nassign && return nothing
             child = cims[2 + nassign]
@@ -1597,13 +1597,13 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
     nassign = length(iomap.input.assignments)
     @reference_case reference begin
         ∅ => @reference ::SqlUpdateStatement
-        children[2].rest... => begin
+        ::SyntaxNode.children[2].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlUpdateStatement.table.^(inner)
         end
-        children[6].rest... => begin
+        ::SyntaxNode.children[6].rest... => begin
             cims = iomap.child_iomaps[]
             length(cims) < 2 + nassign && return nothing
             child = cims[2 + nassign]
@@ -1611,7 +1611,7 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
             inner === nothing && return nothing
             @reference ::SqlUpdateStatement.where_clause::SqlWhereClause.condition.^(inner)
         end
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
             outer_i != 4 && return nothing
             child_i = t + 1
@@ -1675,7 +1675,7 @@ function map_reference_forward(p::SqlColumnDefinitionToSyntaxNode, iomap::Childr
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        column_name.rest... => begin
+        ::SqlColumnDefinition.column_name.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1687,7 +1687,7 @@ end
 function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlColumnDefinition
-        children[1].rest... => begin
+        ::SyntaxNode.children[1].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1770,13 +1770,13 @@ function map_reference_forward(p::SqlCreateTableStatementToSyntaxNode, iomap::Ch
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        table_name.rest... => begin
+        ::SqlCreateTableStatement.table_name.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[3].^(inner)
         end
-        columns{s:_}.rest... => begin
+        ::SqlCreateTableStatement.columns{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             cim_i = 1 + child_i
@@ -1792,13 +1792,13 @@ end
 function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlCreateTableStatement
-        children[3].rest... => begin
+        ::SyntaxNode.children[3].rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlCreateTableStatement.table_name.^(inner)
         end
-        children{outer_s:_}.children{t:u}.rest... => begin
+        ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
             outer_i != 4 && return nothing
             child_i = t + 1
@@ -1919,7 +1919,7 @@ function map_reference_forward(p::SqlStatementListToSyntaxNode, iomap::ChildrenI
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        statements{s:_}.rest... => begin
+        ::SqlStatementList.statements{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             1 <= child_i <= length(cims) || return nothing
@@ -1934,7 +1934,7 @@ end
 function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlStatementList
-        children{s:_}.rest... => begin
+        ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             1 <= child_i <= length(cims) || return nothing

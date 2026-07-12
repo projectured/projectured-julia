@@ -270,7 +270,7 @@ end
 
 function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children{s:_}.leaf_path... => begin
+        ::SyntaxNode.children{s:_}.leaf_path... => begin
             child_i = s + 1
             cims = iomap.child_iomaps[]
             if child_i == 1

@@ -130,9 +130,9 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
     reference isa EmptyReferencePath && return EmptyReferencePath()
     # Peel: children[1] (the keyword group), then children[i] (the item).
     @reference_case reference begin
-        children[1].rest1... => begin
+        ::SyntaxNode.children[1].rest1... => begin
             @reference_case rest1 begin
-                children{s:e}.rest2... => begin
+                ::SyntaxNode.children{s:e}.rest2... => begin
                     child_i = s + 1
                     iomaps = iomap.child_iomaps[]
                     1 <= child_i <= length(iomaps) || return nothing

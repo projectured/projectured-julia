@@ -140,7 +140,7 @@ end
 function map_reference_forward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphLayout
-        vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.^(rest))
+        ::GraphGraph.vertices[i].rest... => (@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex.^(rest))
         _ => nothing
     end
 end
@@ -148,7 +148,7 @@ end
 function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::GraphGraph
-        vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
+        ::GraphLayout.vertex_layouts[i].vertex.rest... => (@reference ::GraphGraph.vertices::CellVector[i].^(rest))
         _ => nothing
     end
 end
