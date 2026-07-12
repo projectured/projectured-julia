@@ -319,13 +319,11 @@ end
 
 `true` when a document's children are addressed **by position** (an
 `ElementReference`, i.e. `[i]`) rather than by named field — a 1-D positional
-sequence, not a record. A reflection walker (e.g. `search_references`) keys off
-this to emit `[i]` element paths for a collection instead of descending into its
-internal storage fields, so it never has to name a concrete collection type.
-Default `false` (records, leaves, and the 2-D collections like `CellMatrix` all
-answer `false`); `CellVector` opts in (in `CollectionModule`, where the type
-lives), as can any other 1-D positional collection (e.g. a `@forward_vector`
-wrapper).
+sequence, not a record. A reflection walker keys off this to emit `[i]` element
+paths for a collection instead of descending into its internal storage fields,
+so it never has to name a concrete collection type. Default `false` (records,
+leaves, and 2-D collections all answer `false`); a 1-D positional collection
+opts in with its own method.
 """
 is_element_collection(value) = false
 

@@ -681,8 +681,8 @@ end
 `true` when a document is **opaque** to reflection walkers: its internals are
 implementation detail, not addressable document content, so `search_references` /
 `search_objects` treat it as a leaf and never descend into it. Default `false`;
-the agent layer's `Llm` (which may hold large scripted event payloads / API
-config) opts in with its own method.
+a document type whose contents are configuration or an implementation detail
+rather than navigable structure opts in with its own method.
 """
 is_opaque(value) = false
 

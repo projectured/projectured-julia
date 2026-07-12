@@ -9,7 +9,10 @@ Domain-specific step types live in their own layers and register their
 navigation and DSL behaviours through this module's extension seams. The selection generics
 (`get_selection` / `clear_selection!` / `set_selection!` / `with_selection`)
 also live here — their payload is a reference — so a document's current-focus
-API sits with the machinery that expresses it.
+API sits with the machinery that expresses it. The reflection search
+(`search_references` / `search_objects`) likewise lives here: it walks an
+arbitrary document and *produces* a reference path for every matching node, so
+it belongs with the paths it emits.
 
 The reference types/values, the selection generics, the `@reference_case`
 pattern-matching DSL, and the `@reference` / `@step` construction DSL are one
@@ -22,7 +25,9 @@ The module lives in four fragments that share this namespace:
   their `@document`-generated struct forms) plus the value protocol on them
   (`append_reference`, `concat_references`, `evaluate_reference`,
   `is_valid_reference`, `annotate_reference_types`, `strip_reference_types`,
-  the equality/prefix predicates).
+  the equality/prefix predicates), and the reflection search over documents
+  (`search_references` / `search_objects`, with `is_opaque` marking a document
+  the walk treats as a leaf).
 - [`Selection.jl`](Selection.jl) — the `get_selection` / `clear_selection!` /
   `set_selection!` / `with_selection` generics that read, clear, and canonicalize
   a document's `selection` field.
