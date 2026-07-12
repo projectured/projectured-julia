@@ -21,7 +21,7 @@ import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocume
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position
+import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position, reference_node_type
 import ..TextRectangularReferenceModule: TextRectangularReference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
@@ -102,8 +102,12 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringR
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
     span_idx == 2 || return nothing
-    new_ref = ConcreteReferencePath(FieldReference("value"),
-                  ConcreteReferencePath(RangeReference(char_start, char_stop), EmptyReferencePath()))
+    # A char range over the leaf's `value` TextString lands on no document node
+    # (a text selection, like a cursor) — spell the node types so the reference
+    # is fully typed: `::SyntaxLeaf.value::TextString[s:e]::Position`.
+    new_ref = ConcreteReferencePath(SyntaxLeaf, FieldReference("value"),
+                  ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
+                      EmptyReferencePath(Position)))
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
@@ -609,7 +613,7 @@ function _resolve_click(p::SyntaxNodeToText, iomap::SyntaxNodeToTextIoMap, gestu
             end
             # Leaf child: Alt selects the whole leaf; a plain click places a cursor.
             return gesture.modifiers.alt ?
-                ReplaceSelectionOperation(_prepend_child(i, EmptyReferencePath())) : nothing
+                ReplaceSelectionOperation(_prepend_child(i, EmptyReferencePath(reference_node_type(cim.input)))) : nothing
         end
     end
     # Own delimiters / decoration: Alt selects this whole node.

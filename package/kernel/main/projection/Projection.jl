@@ -27,7 +27,7 @@ import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
 # the Primitive document types. This module stays Primitive-free.
 import ..CellModule: AbstractCell, ImmutableCell, cell_struct_exprs
 import ..DocumentModule: copy_document
-import ..ReferenceModule: EmptyReferencePath
+import ..ReferenceModule: EmptyReferencePath, is_fully_typed, annotate_reference_types
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
@@ -73,13 +73,16 @@ wrapper from a reference, returning the inner reference path. This works
 for simple projections where output elements directly correspond to input elements.
 """
 function map_reference_forward(projection::Projection, iomap, reference)
-    @reference_case reference begin
+    r = @reference_case reference begin
         # Whole-element selection maps by identity, but the *output* whole
         # element has the output document's type, not the input's — so the
         # empty path is retyped against `iomap.output`.
         ∅ => EmptyReferencePath(reference_node_type(iomap.output))
         proj(^(projection), inner) => inner
     end
+    # Self-type the result (the unwrapped `proj` inner may be a bare path) against
+    # the output document, so the strict-typing invariant holds at the source.
+    (r === nothing || is_fully_typed(r)) ? r : annotate_reference_types(iomap.output, r)
 end
 
 """
@@ -95,12 +98,12 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # selection, typed against the input document.
     reference isa EmptyReferencePath &&
         return EmptyReferencePath(reference_node_type(iomap.input))
-    # TODO(reference-types-plan step 5): type the `proj` node. The
-    # projection-introduced element has no input pre-image; its node type is
-    # the output document's, but the terminal type after a `proj` step needs
-    # the evaluate_step(ProjectionReference) value semantics pinned down first.
-    # Left untyped here; the permissive parser tolerates it until the strict flip.
-    @reference proj(projection, ^(reference))
+    # The projection-introduced element has no input pre-image; annotate the
+    # `proj`-wrapped path against the input document so its node carries the input
+    # type (a `ProjectionReference` evaluates to its `output_path`, so the terminal
+    # records that path's own type) — keeping the strict-typing invariant.
+    r = @reference proj(projection, ^(reference))
+    is_fully_typed(r) ? r : annotate_reference_types(iomap.input, r)
 end
 
 """
