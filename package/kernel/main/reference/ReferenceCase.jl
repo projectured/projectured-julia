@@ -23,54 +23,54 @@ prefix(path) = error("prefix() is only valid inside @reference_case")
 
 abstract type PatValue end
 
-struct PVWildcard <: PatValue end
+struct PatValueWildcard <: PatValue end
 
-struct PVBind <: PatValue
+struct PatValueBind <: PatValue
     name::Symbol
 end
 
-struct PVTypedBind <: PatValue
+struct PatValueTypedBind <: PatValue
     name::Symbol
     ty
 end
 
-struct PVLiteral <: PatValue
+struct PatValueLiteral <: PatValue
     value
 end
 
-struct PVInterp <: PatValue
+struct PatValueInterp <: PatValue
     expr
 end
 
 abstract type PatStep end
 
-struct PSField <: PatStep
+struct PatStepField <: PatStep
     namepat::PatValue   # matches FieldReference.name[] :: String
 end
 
-struct PSIndex <: PatStep
+struct PatStepIndex <: PatStep
     idxpat::PatValue    # matches a single-element RangeReference; 1-based index = start + 1
 end
 
-struct PSPosition <: PatStep
+struct PatStepPosition <: PatStep
     idxpat::PatValue    # matches a zero-width RangeReference (a cursor position); 0-based = start
 end
 
-struct PSRange <: PatStep
+struct PatStepRange <: PatStep
     startpat::PatValue
     stoppat::PatValue
 end
 
-# A `.name(patterns...)` DSL pattern whose step type is registered by dispatch
-# on `dsl_match_step(::Val{name}, hex, argpats, rest_success, bound)`. Kernel-
-# owned entries (`.point`, `.proj`) register in this file; higher packages
-# register their own.
-struct PSExtension <: PatStep
+# A `.name(patterns...)` DSL pattern whose match code is registered by dispatch
+# on `dsl_match_step(::Val{name}, hex, argpats, rest_success, bound)`. The
+# cross-package step types (`.point`, `.proj`, …) register their own
+# `dsl_match_step` in the package that owns them; none is kernel-registered here.
+struct PatStepExtension <: PatStep
     name::Symbol
     argpats::Vector{Any}   # per-arg PatValue or Vector{PatStep} (subpath)
 end
 
-struct PSWholePathBind <: PatStep
+struct PatStepWholePathBind <: PatStep
     name::Symbol
 end
 
@@ -78,19 +78,19 @@ end
 # folded `type` field of the node reached is a subtype of `T` (non-navigating).
 # The assertion is optional — an unknown (`nothing`) node type still matches — so
 # patterns that omit `::T`, and skeleton/skip-bound recursion tails, keep matching.
-struct PSType <: PatStep
+struct PatStepType <: PatStep
     typeexpr
 end
 
 # `::t` where `t` is a lowercase identifier binds the matched node's folded
 # `type` field to `t` (the pattern dual of construction, where `::t` splices
-# `t`'s runtime type value). A capitalized `::T` stays a `PSType` assertion, so
+# `t`'s runtime type value). A capitalized `::T` stays a `PatStepType` assertion, so
 # every existing typed pattern is unchanged.
-struct PSTypeBind <: PatStep
+struct PatStepTypeBind <: PatStep
     name::Symbol
 end
 
-struct PSPathInterp <: PatStep
+struct PatStepPathInterp <: PatStep
     expr
 end
 
@@ -106,20 +106,20 @@ _is_type_bind_symbol(x) =
 
 function _parse_value(ex)
     if ex === :_
-        return PVWildcard()
+        return PatValueWildcard()
     elseif ex isa Symbol
-        return PVBind(ex)
+        return PatValueBind(ex)
     elseif ex isa Expr && ex.head == :call && ex.args[1] == :(^)
-        return PVInterp(ex.args[2])
+        return PatValueInterp(ex.args[2])
     elseif ex isa Expr && ex.head == :(::) && ex.args[1] isa Symbol
-        return PVTypedBind(ex.args[1], ex.args[2])
+        return PatValueTypedBind(ex.args[1], ex.args[2])
     elseif ex isa QuoteNode
-        return PVLiteral(ex.value)
+        return PatValueLiteral(ex.value)
     elseif ex isa String || ex isa Int || ex isa Bool || ex isa Char
-        return PVLiteral(ex)
+        return PatValueLiteral(ex)
     else
         # Fall back to interpolation for arbitrary expressions.
-        return PVInterp(ex)
+        return PatValueInterp(ex)
     end
 end
 
@@ -148,7 +148,7 @@ end
 function _parse_path!(steps::Vector{PatStep}, ex)
     if ex isa Symbol
         # Top-level / path-position symbol means a literal field step.
-        push!(steps, PSField(PVLiteral(String(ex))))
+        push!(steps, PatStepField(PatValueLiteral(String(ex))))
         return steps
 
     elseif ex isa Expr && ex.head == :(::)
@@ -165,17 +165,17 @@ function _parse_path!(steps::Vector{PatStep}, ex)
     elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
         # a.b
         _parse_path!(steps, ex.args[1])
-        push!(steps, PSField(PVLiteral(String(ex.args[2].value))))
+        push!(steps, PatStepField(PatValueLiteral(String(ex.args[2].value))))
         return steps
 
     elseif ex isa Expr && ex.head == :ref
         # base[idx] — ElementReference (1-based), or base[i, j] — RangeReference
         if length(ex.args) == 2
             _parse_path!(steps, ex.args[1])
-            push!(steps, PSIndex(_parse_value(ex.args[2])))
+            push!(steps, PatStepIndex(_parse_value(ex.args[2])))
         elseif length(ex.args) == 3
             _parse_path!(steps, ex.args[1])
-            push!(steps, PSRange(_parse_value(ex.args[2]), _parse_value(ex.args[3])))
+            push!(steps, PatStepRange(_parse_value(ex.args[2]), _parse_value(ex.args[3])))
         else
             error("indexing patterns support 1 or 2 dimensions: $ex")
         end
@@ -191,11 +191,14 @@ function _parse_path!(steps::Vector{PatStep}, ex)
     elseif ex isa Expr && ex.head == :call
         f = ex.args[1]
 
-        if f == :proj
-            # Top-level: proj(projpat, subpath) — dispatched through the
-            # extension seam.
-            length(ex.args) == 3 || error("proj(projpat, outpath) expects exactly two arguments: $ex")
-            push!(steps, PSExtension(:proj, Any[_parse_value(ex.args[2]), _parse_subpath(ex.args[3])]))
+        if f == :(^)
+            length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
+            push!(steps, PatStepPathInterp(ex.args[2]))
+            return steps
+
+        elseif f isa Symbol
+            # Top-level extension step `name(args...)` with no preceding path.
+            push!(steps, _pat_extension_step(f, ex.args[2:end]))
             return steps
 
         elseif f isa Expr && f.head == :. && f.args[2] isa QuoteNode
@@ -204,23 +207,13 @@ function _parse_path!(steps::Vector{PatStep}, ex)
 
             if opname == :field
                 length(ex.args) == 2 || error(".field(...) expects exactly one argument")
-                push!(steps, PSField(_parse_value(ex.args[2])))
+                push!(steps, PatStepField(_parse_value(ex.args[2])))
                 return steps
-
-            elseif opname == :proj
-                length(ex.args) == 3 || error(".proj(projpat, outpath) expects exactly two arguments")
-                push!(steps, PSExtension(:proj, Any[_parse_value(ex.args[2]), _parse_subpath(ex.args[3])]))
-                return steps
-
             else
-                # Everything else is dispatched through the extension seam.
-                push!(steps, PSExtension(opname, Any[_parse_value(a) for a in ex.args[2:end]]))
+                # A mid-path extension step, dispatched through the seam.
+                push!(steps, _pat_extension_step(opname, ex.args[2:end]))
                 return steps
             end
-        elseif f == :(^)
-            length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-            push!(steps, PSPathInterp(ex.args[2]))
-            return steps
 
         else
             error("unsupported call form in path pattern: $ex")
@@ -229,9 +222,9 @@ function _parse_path!(steps::Vector{PatStep}, ex)
     elseif ex isa Expr && ex.head == :vect
         # [i] as a relative subpath — ElementReference (1-based), or [i, j] — RangeReference
         if length(ex.args) == 1
-            push!(steps, PSIndex(_parse_value(ex.args[1])))
+            push!(steps, PatStepIndex(_parse_value(ex.args[1])))
         elseif length(ex.args) == 2
-            push!(steps, PSRange(_parse_value(ex.args[1]), _parse_value(ex.args[2])))
+            push!(steps, PatStepRange(_parse_value(ex.args[1]), _parse_value(ex.args[2])))
         else
             error("subpath vector syntax supports 1 or 2 elements: $ex")
         end
@@ -252,14 +245,14 @@ function _parse_path!(steps::Vector{PatStep}, ex)
         _parse_path!(steps, ex.args[1])
         isempty(steps) && error("... suffix requires at least one preceding step: $ex")
         last_step = pop!(steps)
-        name = if last_step isa PSField && last_step.namepat isa PVLiteral
+        name = if last_step isa PatStepField && last_step.namepat isa PatValueLiteral
             Symbol(last_step.namepat.value::String)
-        elseif last_step isa PSField && last_step.namepat isa PVBind
+        elseif last_step isa PatStepField && last_step.namepat isa PatValueBind
             last_step.namepat.name
         else
             error("... suffix only supported after a named field step, got $(typeof(last_step)): $ex")
         end
-        push!(steps, PSWholePathBind(name))
+        push!(steps, PatStepWholePathBind(name))
         return steps
 
     else
@@ -268,13 +261,25 @@ function _parse_path!(steps::Vector{PatStep}, ex)
 end
 
 function _parse_subpath(ex)
-    ex isa Symbol && return PatStep[PSWholePathBind(ex)]
+    ex isa Symbol && return PatStep[PatStepWholePathBind(ex)]
     return _parse_path(ex)
+end
+
+# A `.name(args...)` / `name(args...)` extension step. Each argument is a value
+# pattern, except the positions the step declares as subpaths (via
+# `dsl_step_subpath_args`), which are parsed as sub-path patterns. So the parser
+# names no specific step type — `.proj`'s subpath argument is discovered through
+# the seam, keeping the reference layer ignorant of the projection concept.
+function _pat_extension_step(name::Symbol, args)
+    subpaths = dsl_step_subpath_args(Val(name))
+    argpats = Any[(i in subpaths ? _parse_subpath(a) : _parse_value(a))
+                  for (i, a) in enumerate(args)]
+    return PatStepExtension(name, argpats)
 end
 
 # A `::x` type step in a pattern: a lowercase identifier binds the node type,
 # any other form asserts it.
-_pat_type_step(x) = _is_type_bind_symbol(x) ? PSTypeBind(x) : PSType(x)
+_pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x)
 
 # Split a pattern type-checkpoint base into its type step and any trailing
 # `.field` steps — the pattern mirror of `_push_type_and_fields!`.
@@ -289,7 +294,7 @@ function _push_pat_type_and_fields!(steps::Vector{PatStep}, base)
         error("@reference_case: type checkpoint must start with a type name: $base")
     push!(steps, _pat_type_step(cur))
     for f in fields
-        push!(steps, PSField(PVLiteral(f)))
+        push!(steps, PatStepField(PatValueLiteral(f)))
     end
 end
 
@@ -304,9 +309,9 @@ function _pat_type_suffix!(steps::Vector{PatStep}, T)
     elseif T isa Expr && T.head == :ref
         _push_pat_type_and_fields!(steps, T.args[1])
         if length(T.args) == 2
-            push!(steps, PSIndex(_parse_value(T.args[2])))
+            push!(steps, PatStepIndex(_parse_value(T.args[2])))
         elseif length(T.args) == 3
-            push!(steps, PSRange(_parse_value(T.args[2]), _parse_value(T.args[3])))
+            push!(steps, PatStepRange(_parse_value(T.args[2]), _parse_value(T.args[3])))
         else
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
@@ -325,7 +330,7 @@ function _pat_leading_type!(steps::Vector{PatStep}, X)
         n = length(steps)
         _parse_path!(steps, X)
         root = steps[n + 1]
-        (root isa PSField && root.namepat isa PVLiteral && root.namepat.value isa String) ||
+        (root isa PatStepField && root.namepat isa PatValueLiteral && root.namepat.value isa String) ||
             error("leading ::T must start with a type name: $X")
         steps[n + 1] = _pat_type_step(Symbol(root.namepat.value))
     end
@@ -335,9 +340,9 @@ end
 # range step.
 function _braces_pat(inner)
     if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
-        return PSRange(_parse_value(inner.args[2]), _parse_value(inner.args[3]))
+        return PatStepRange(_parse_value(inner.args[2]), _parse_value(inner.args[3]))
     end
-    return PSPosition(_parse_value(inner))
+    return PatStepPosition(_parse_value(inner))
 end
 
 # ------------------------------------------------------------
@@ -367,7 +372,7 @@ function _parse_rule(ex)
         pat = _parse_path(lhs.args[2])
         return (:prefix, pat, nothing, rhs)
     elseif lhs === :_
-        pat = PatStep[PSWholePathBind(:_)]
+        pat = PatStep[PatStepWholePathBind(:_)]
         return (:exact, pat, nothing, rhs)
     elseif lhs === :∅
         # Empty-path pattern: matches a reference that terminates *at* the
@@ -394,20 +399,20 @@ end
 # Returns (expr, boundnames)
 #
 # `expr` evaluates either to `success` or to `_nomatch`.
-function _gen_value_match(valex, pat::PVWildcard, success, bound::Set{Symbol})
+function _gen_value_match(valex, pat::PatValueWildcard, success, bound::Set{Symbol})
     return success, bound
 end
 
-function _gen_value_match(valex, pat::PVLiteral, success, bound::Set{Symbol})
+function _gen_value_match(valex, pat::PatValueLiteral, success, bound::Set{Symbol})
     lit = pat.value
     return :($valex == $(QuoteNode(lit)) ? $success : _nomatch), bound
 end
 
-function _gen_value_match(valex, pat::PVInterp, success, bound::Set{Symbol})
+function _gen_value_match(valex, pat::PatValueInterp, success, bound::Set{Symbol})
     return :($valex == $(esc(pat.expr)) ? $success : _nomatch), bound
 end
 
-function _gen_value_match(valex, pat::PVBind, success, bound::Set{Symbol})
+function _gen_value_match(valex, pat::PatValueBind, success, bound::Set{Symbol})
     name = pat.name
     if name in bound
         return :($valex == $(esc(name)) ? $success : _nomatch), bound
@@ -418,7 +423,7 @@ function _gen_value_match(valex, pat::PVBind, success, bound::Set{Symbol})
     end
 end
 
-function _gen_value_match(valex, pat::PVTypedBind, success, bound::Set{Symbol})
+function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Symbol})
     name = pat.name
     ty = esc(pat.ty)
     if name in bound
@@ -434,13 +439,13 @@ function _gen_value_match(valex, pat::PVTypedBind, success, bound::Set{Symbol})
     end
 end
 
-# No `_gen_step_match(::PSType, …)`: a `PSType` is always intercepted at the top of
+# No `_gen_step_match(::PatStepType, …)`: a `PatStepType` is always intercepted at the top of
 # `_gen_path_match` / `_gen_prefix_match` (which handle the optional, tolerant type
 # assertion) before per-step dispatch is ever reached, so a step method would be
 # dead code. Every step reaches position 1 in the recursion, so this holds for
-# `PSType` anywhere in a pattern.
+# `PatStepType` anywhere in a pattern.
 
-function _gen_step_match(hex, tex, step::PSField, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PatStepField, rest_success, bound::Set{Symbol})
     nameexpr = :($hex.name)
     inner, bound2 = _gen_value_match(nameexpr, step.namepat, rest_success, bound)
 
@@ -454,7 +459,7 @@ function _gen_step_match(hex, tex, step::PSField, rest_success, bound::Set{Symbo
     return ex, bound2
 end
 
-function _gen_step_match(hex, tex, step::PSIndex, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PatStepIndex, rest_success, bound::Set{Symbol})
     idxexpr = :($hex.start + 1)
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
@@ -468,7 +473,7 @@ function _gen_step_match(hex, tex, step::PSIndex, rest_success, bound::Set{Symbo
     return ex, bound2
 end
 
-function _gen_step_match(hex, tex, step::PSPosition, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::Set{Symbol})
     idxexpr = :($hex.start)
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
@@ -482,7 +487,7 @@ function _gen_step_match(hex, tex, step::PSPosition, rest_success, bound::Set{Sy
     return ex, bound2
 end
 
-function _gen_step_match(hex, tex, step::PSRange, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{Symbol})
     startexpr = :($hex.start)
     stopexpr = :($hex.stop)
 
@@ -499,7 +504,7 @@ function _gen_step_match(hex, tex, step::PSRange, rest_success, bound::Set{Symbo
     return ex, bound1
 end
 
-function _gen_step_match(hex, tex, step::PSExtension, rest_success, bound::Set{Symbol})
+function _gen_step_match(hex, tex, step::PatStepExtension, rest_success, bound::Set{Symbol})
     dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound,
                    _gen_value_match, _gen_path_match)
 end
@@ -519,8 +524,9 @@ internals: their signatures are
     gen_value_match(expr, pat, rest_success, bound) -> (Expr, Set{Symbol})
     gen_path_match(path_expr, patsteps, success, bound) -> (Expr, Set{Symbol})
 
-Each package registers a `::Val{:name}` method for its own step types; the
-kernel's own `.point` and `.proj` entries live in this file.
+Each package registers a `::Val{:name}` method for its own step types; none
+live in the kernel's reference layer (`.point` / `.proj` register in the packages
+that own them).
 """
 function dsl_match_step end
 
@@ -531,6 +537,20 @@ dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} 
 # types (`.point`, `.proj`, …) register their own `dsl_match_step` at the
 # package that owns them.
 
+"""
+    dsl_step_subpath_args(::Val{name}) -> Tuple{Vararg{Int}}
+
+The 1-based argument positions of a `.name(args...)` DSL step that are
+**subpaths** (parsed as reference paths) rather than value expressions. Default
+`()` — every argument is a value. A step type whose surface syntax takes a
+subpath argument (e.g. `.proj(projection, subpath)` → position `(2,)`) registers
+its positions here, so neither DSL parser needs to name the step. Consulted by
+both the `@reference_case` pattern parser and the `@reference` / `@step`
+construction parser.
+"""
+function dsl_step_subpath_args end
+dsl_step_subpath_args(::Val) = ()
+
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
     # Folded references expose a navigation step directly as `head` (the type is a
     # node field), so patterns written against the navigation skeleton match the
@@ -539,7 +559,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return :(($path_ex isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
     end
 
-    if length(steps) == 1 && steps[1] isa PSWholePathBind
+    if length(steps) == 1 && steps[1] isa PatStepWholePathBind
         name = steps[1].name
         return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
@@ -552,7 +572,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # advances past an unfolded `TypeReference` *step* if one is present. (An
     # enforcing `<: T` gate here wrongly rejects re-rooted child selections whose
     # folded node type differs from the documented one.)
-    if steps[1] isa PSType
+    if steps[1] isa PatStepType
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
         rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
@@ -572,7 +592,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # matching the rest on the SAME path (a folded type consumes no step, the
     # dual of construction where `::t` splices `t`'s runtime type value). Both
     # `ConcreteReferencePath` and `EmptyReferencePath` carry a `type` field.
-    if steps[1] isa PSTypeBind
+    if steps[1] isa PatStepTypeBind
         name = steps[1].name
         sp = gensym(:sp)
         rest, b = _gen_path_match(sp, steps[2:end], success, union(bound, Set([name])))
@@ -584,7 +604,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return ex, b
     end
 
-    if length(steps) == 1 && steps[1] isa PSPathInterp
+    if length(steps) == 1 && steps[1] isa PatStepPathInterp
         expr = esc(steps[1].expr)
         # Shape-only comparison: both sides stripped of type checkpoints so a
         # canonical path matches a plain interpolated skeleton.
@@ -621,7 +641,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
         return :(_nomatch), bound
     end
 
-    if length(steps) == 1 && steps[1] isa PSPathInterp
+    if length(steps) == 1 && steps[1] isa PatStepPathInterp
         expr = esc(steps[1].expr)
         # Shape-only prefix check: both sides stripped first.
         return :(ReferenceModule.is_prefix_of(
@@ -633,7 +653,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     # A leading `::T` is a non-navigating, optional, *tolerant* type assertion
     # (same as in `_gen_path_match`): it never fails a match, advancing past an
     # unfolded `TypeReference` *step* if present, else matching on the same path.
-    if steps[1] isa PSType
+    if steps[1] isa PatStepType
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
         rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
@@ -651,7 +671,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
 
     # `::t` binds the matched node's type, then continues the prefix match on the
     # same path (mirrors the `_gen_path_match` binder).
-    if steps[1] isa PSTypeBind
+    if steps[1] isa PatStepTypeBind
         name = steps[1].name
         sp = gensym(:sp)
         rest, b = _gen_prefix_match(sp, steps[2:end], success, union(bound, Set([name])))

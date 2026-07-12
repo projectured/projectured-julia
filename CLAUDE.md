@@ -33,7 +33,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `reference/ReferenceLayer.jl`
   - 🔒 `reference/ReferenceModule.jl`
   - 🔒 `reference/Reference.jl`
-  - ⬜ `reference/ReferenceCase.jl`
+  - 🔒 `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
 - **Layer 4 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`

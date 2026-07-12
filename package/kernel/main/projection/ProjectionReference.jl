@@ -13,13 +13,13 @@ bridges; the reference layer (below) never names it. Registered as a
 `:terminal` step type — it identifies a location but does not participate
 in structural navigation — and registers its own `.proj(projection, sub)`
 entries with the `@reference` / `@reference_case` DSLs via the reference
-layer's `dsl_build_step` / `dsl_match_step` seams.
+layer's `dsl_build_step` / `dsl_match_step` / `dsl_step_subpath_args` seams.
 """
 module ProjectionReferenceModule
 
 import ..DocumentModule: @document
 import ..ReferenceModule: ReferenceStep, ReferencePath, step_kind, evaluate_step,
-                          dsl_build_step, dsl_match_step
+                          dsl_build_step, dsl_match_step, dsl_step_subpath_args
 
 export ProjectionReference
 
@@ -47,6 +47,11 @@ Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
     a.projection === b.projection && a.output_path == b.output_path
 
 # ── DSL registrations ──────────────────────────────────────────────────────
+
+# `.proj(projection, subpath)` — argument 2 is a subpath, so both DSL parsers
+# parse it as a reference path (not a value). This is the only kernel-side
+# coupling the reference layer needs; the parsers stay ignorant of `.proj` itself.
+dsl_step_subpath_args(::Val{:proj}) = (2,)
 
 dsl_build_step(::Val{:proj}, projex, outpathex) =
     :($(GlobalRef(ProjectionReferenceModule, :ProjectionReference))($projex, $outpathex))

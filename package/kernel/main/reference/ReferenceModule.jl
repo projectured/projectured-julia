@@ -56,7 +56,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        # Step-type extensibility seam:
        step_kind, evaluate_step,
        # DSL extension seams:
-       dsl_build_step, dsl_match_step,
+       dsl_build_step, dsl_match_step, dsl_step_subpath_args,
        # ReferenceCase DSL:
        @reference_case, when, prefix,
        # ReferenceBuilder DSL:

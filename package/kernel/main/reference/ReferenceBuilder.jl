@@ -50,8 +50,9 @@ struct BSPathSplice <: BuildStep
 end
 
 # A `.name(args...)` DSL entry whose step type is registered by dispatch on
-# `dsl_build_step(::Val{name}, escaped_args...)`. Kernel-owned entries (`.field`,
-# `.point`, `.proj`) register in this file; higher packages register their own.
+# `dsl_build_step(::Val{name}, escaped_args...)`. The cross-package step types
+# (`.point`, `.proj`, …) register their own `dsl_build_step` in the packages that
+# own them; none is kernel-registered here.
 struct BSExtension <: BuildStep
     name::Symbol
     args::Vector{Any}
@@ -115,15 +116,7 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     elseif ex isa Expr && ex.head == :call
         f = ex.args[1]
 
-        if f == :proj
-            # Top-level: proj(projection, subpath) — dispatched through the
-            # extension seam so the concrete step type can live in the
-            # package that owns projections.
-            length(ex.args) == 3 || error(".proj(projection, outpath) expects exactly two arguments: $ex")
-            push!(steps, BSExtension(:proj, Any[ex.args[2], _parse_build_subpath(ex.args[3])]))
-            return steps
-
-        elseif f == :(^)
+        if f == :(^)
             # ^(expr) at path position — splice
             length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
             push!(steps, BSPathSplice(ex.args[2]))
@@ -136,6 +129,11 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
             push!(steps, BSPathSplice(ex.args[3]))
             return steps
 
+        elseif f isa Symbol
+            # Top-level extension step `name(args...)` with no preceding path.
+            push!(steps, _build_extension_step(f, ex.args[2:end]))
+            return steps
+
         elseif f isa Expr && f.head == :. && f.args[2] isa QuoteNode
             opname = f.args[2].value
             _parse_build_path!(steps, f.args[1])
@@ -144,17 +142,9 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument")
                 push!(steps, BSField(ex.args[2]))
                 return steps
-
-            elseif opname == :proj
-                length(ex.args) == 3 || error(".proj(projection, outpath) expects exactly two arguments")
-                push!(steps, BSExtension(:proj, Any[ex.args[2], _parse_build_subpath(ex.args[3])]))
-                return steps
-
             else
-                # Everything else is dispatched through the extension seam so
-                # a higher-package step type (e.g. `.point(x, y)` in visual/
-                # graphics) can register its own DSL entry at its own site.
-                push!(steps, BSExtension(opname, Any[ex.args[2:end]...]))
+                # A mid-path extension step, dispatched through the seam.
+                push!(steps, _build_extension_step(opname, ex.args[2:end]))
                 return steps
             end
         else
@@ -258,6 +248,17 @@ function _parse_build_subpath(ex)
     return _parse_build_path(ex)
 end
 
+# A `.name(args...)` / `name(args...)` extension step. Arguments the step declares
+# as subpaths (via `dsl_step_subpath_args`) are parsed into `Vector{BuildStep}`;
+# the rest stay raw Julia expressions (escaped at codegen). So the parser names no
+# specific step type — `.proj`'s subpath argument is discovered through the seam.
+function _build_extension_step(name::Symbol, args)
+    subpaths = dsl_step_subpath_args(Val(name))
+    bargs = Any[(i in subpaths ? _parse_build_subpath(a) : a)
+                for (i, a) in enumerate(args)]
+    return BSExtension(name, bargs)
+end
+
 # ------------------------------------------------------------
 # Code generation
 # ------------------------------------------------------------
@@ -288,15 +289,12 @@ function _gen_build_step(step::BSType)
 end
 
 # Extension-registered `.name(args...)` DSL entries dispatch through
-# `dsl_build_step(::Val{name}, escaped_args...)`. The `.proj` entry is
-# special-cased: its second arg is a subpath the parser already parsed
-# into a `Vector{BuildStep}`, so we lower it before dispatching.
+# `dsl_build_step(::Val{name}, escaped_args...)`. A subpath argument — which the
+# parser stored as a `Vector{BuildStep}` (see `dsl_step_subpath_args`) — is
+# lowered to its path expression; every other argument is an escaped Julia
+# expression. So no step type is named here.
 function _gen_build_step(step::BSExtension)
-    args = if step.name === :proj
-        Any[esc(step.args[1]), _gen_build_path(step.args[2])]
-    else
-        Any[esc(a) for a in step.args]
-    end
+    args = Any[a isa Vector{BuildStep} ? _gen_build_path(a) : esc(a) for a in step.args]
     return dsl_build_step(Val(step.name), args...)
 end
 
@@ -306,9 +304,8 @@ end
 Return the expression that constructs the step type mapped to `.name(args...)`
 in the `@reference` DSL. `escaped_args` are `esc`'d Julia expressions ready
 to splice into the returned constructor call. Each package registers a
-`::Val{:name}` method for its own step types; the kernel registers
-`.point` (moves to visual/graphics in step 5) and `.proj` (moves to
-kernel/projection).
+`::Val{:name}` method for its own step types; none live in the kernel's reference
+layer (`.point` / `.proj` register in the packages that own them).
 """
 function dsl_build_step end
 
@@ -478,10 +475,8 @@ function _parse_step(ex)
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument in @step: $ex")
                 return BSField(ex.args[2])
             else
-                # Dispatch through the extension seam — a higher-package step
-                # type (e.g. `.point(x, y)` in visual/graphics) can register
-                # its own DSL entry at its own site.
-                return BSExtension(opname, Any[ex.args[2:end]...])
+                # A `.name(...)` extension step, dispatched through the seam.
+                return _build_extension_step(opname, ex.args[2:end])
             end
         else
             error("unsupported call form in @step: $ex")
