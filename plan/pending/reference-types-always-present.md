@@ -180,10 +180,16 @@ The last step is a review checkpoint (user approves before I mark sealed).
    in `STRICT=:off` (they test untyped-skeleton construction); `proj`-wrapped
    backward maps use the 2-arg `@reference(doc, proj…)` form (annotates without
    tripping the construction-time check); leaf char-ranges terminate in
-   `::Position`. **The remaining `@reference_case` pattern typing (D4-a, ~202
-   sites) is SEPARABLE** — the checker only gates `@reference` construction, not
-   `@reference_case` matching, so patterns can be typed as a follow-on without
-   affecting the flip. **Below is the original plan for the record.**
+   `::Position`. **D4-a (`@reference_case` pattern typing) — ✅ DONE
+   (2026-07-12):** a leading `::T` on ~95 navigation patterns (domain 88, visual
+   7, json, plus the pre-existing SQL step-4 ones), `T` = the type the matched
+   reference is rooted at. A pattern `::T` is a **tolerant** assertion (never
+   fails a match, by design for re-rooted selections) — documentary symmetry
+   with construction, not enforcement; suites green. Genuinely-generic patterns
+   left untyped: base higher-order combinators (`IoMap.input/output::Any`), the
+   kernel default map (`∅`/`proj` only), and a few abstract-projection cases
+   (MarkdownStyledInline, InsertionToSyntaxLeaf, SqlBooleanBinaryToSyntaxNode).
+   **Below is the original plan for the record.**
 
    **Confirmed user decisions (2026-07-11):**
    - **Full per-node typing** — every navigation node carries `::T` matching
