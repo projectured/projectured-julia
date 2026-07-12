@@ -512,10 +512,9 @@ _shadow_elem(K, x) = x isa Document ? copy_document(K, x) : x
 # Number leaf, e.g. a `PrimitiveString`'s value) folds up to the nearest
 # enclosing `Document`, so every result is a selectable node. `raw=true` reports
 # the exact matched value instead (scalars included). A path-producing
-# counterpart (`search_references`) reports *where* each match lives on the same
-# traversal and the same `raw` switch; the two walks are structurally parallel
-# (element-collection / dict / array / fields), so a fix to one branch here
-# should be mirrored there.
+# counterpart one layer up walks the same structure with the same `raw` switch;
+# the two walks are structurally parallel (element-collection / dict / array /
+# fields), so a fix to one branch here should be mirrored there.
 
 # Unwrap one field cell to its stored value; a non-cell passes through. (The
 # reference layer keeps its own copy for path navigation, and base's `_slotval`

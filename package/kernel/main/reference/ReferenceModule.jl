@@ -40,7 +40,7 @@ without rebuilding the chain.
 module ReferenceModule
 
 import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: Document, is_element_collection, _is_search_leaf, _text_query, @document
+import ..DocumentModule: Document, is_element_collection, is_opaque, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,

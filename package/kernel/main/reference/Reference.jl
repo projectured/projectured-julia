@@ -675,13 +675,33 @@ end
 
 # ── Reflection search: matching paths ───────────────────────────────────────
 # `search_references` reports *where* each matching node lives, as an annotated
-# `ReferencePath`. Like `search_documents` it is document-scoped by default (a
-# raw scalar match folds to the path of its nearest enclosing `Document`, so the
-# path is selectable) with a `raw=true` opt-out. The value-collecting
-# `search_documents` and the shared query / leaf helpers (`_text_query`,
-# `_is_search_leaf`, keyed off the `is_opaque` / `is_element_collection` document
-# traits) live one layer down in the document layer; this walk is their
-# path-building counterpart — keep the two in sync.
+# `ReferencePath`. Like `search_documents` (the value-collecting counterpart one
+# layer down in the document layer) it is document-scoped by default — a raw
+# scalar match folds to the path of its nearest enclosing `Document`, so the path
+# is selectable — with a `raw=true` opt-out. The two walks are structurally
+# parallel; keep them in sync. The small query / leaf helpers below duplicate the
+# document layer's one-liners (as `_deref_cell` above already does) rather than
+# importing them across the layer boundary; they key off the exported `is_opaque`
+# / `is_element_collection` document traits.
+
+# A node is a search leaf — nothing to descend into — when it is a scalar Julia
+# value or an opaque document (see `is_opaque`).
+_is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
+                     x isa Symbol || x isa Char || is_opaque(x)
+
+# A search query is either a predicate (called on each node) or a String / Regex.
+# A String/Regex is turned into a predicate matching any *leaf* node whose textual
+# form (the string / symbol / number / char rendered) contains the substring /
+# matches the regex. Struct and collection nodes have no textual form, so they
+# never match a String/Regex query — pass a predicate to match on type or shape.
+_search_text(x::AbstractString) = x
+_search_text(x::Symbol)         = string(x)
+_search_text(x::Number)         = string(x)
+_search_text(x::Char)           = string(x)
+_search_text(::Any)             = nothing
+
+_text_query(q::AbstractString) = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
+_text_query(q::Regex)          = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
 
 """
     search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{ReferencePath}

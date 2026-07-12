@@ -21,7 +21,7 @@ import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCel
                      cell_struct_kw_params, cell_struct_kwctor
 
 export Document, copy_document, sync_document!, is_element_collection,
-       is_opaque, search_documents, _is_search_leaf, _text_query,
+       is_opaque, search_documents,
        @document, @forward, @forward_vector, @forward_map
 
 # Interface.jl first — the machinery in Document.jl and Forward.jl refers to
