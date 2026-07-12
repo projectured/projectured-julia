@@ -237,10 +237,10 @@ function _object_tab(doc::JsonObject)
     sel = getfield(doc, :selection)[]
     sel === nothing && return nothing
     @reference_case sel begin
-        entries{s:e}.rest... => begin
+        ::JsonObject.entries{s:e}.rest... => begin
             i = s + 1
             @reference_case rest begin
-                key.inner... => ReplaceSelectionOperation(@reference ::JsonObject.entries::CellVector[i]::JsonObjectEntry.value::Document)
+                ::JsonObjectEntry.key.inner... => ReplaceSelectionOperation(@reference ::JsonObject.entries::CellVector[i]::JsonObjectEntry.value::Document)
             end
         end
     end
