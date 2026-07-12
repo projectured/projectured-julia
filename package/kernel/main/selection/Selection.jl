@@ -1,30 +1,11 @@
-# Fragment of `SelectionModule` — the selection primitives: read, clear, set,
-# replace, and canonicalize a document's current selection, propagating it down
-# the document hierarchy. A selection's payload is a `ReferencePath`, and setting
-# one folds node types against the live document, so these sit one layer above
-# references (whose paths they carry) and above the document contract (whose
-# `.selection` field they read).
-#
-# See documentation/concepts.md for the document-editing model these are part of.
+# Fragment of `SelectionModule` — the default implementations of the selection
+# generics declared in `Interface.jl`, plus the private path-walking helpers they
+# share (`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
+# `_mutate_terminal_step!`). All read and write the conventional
+# `document.selection` field and descend the folded reference path.
 
-"""
-    get_selection(document) -> reference or nothing
-
-The document's current selection — a reference path or `nothing`. Every
-document has one (the [`Document`](@ref) contract requires a `selection`
-field); the default reads that conventional field, so a concrete document gets
-it for free, and one that stores its selection differently overrides this
-method.
-"""
 get_selection(document::Document) = document.selection
 
-"""
-    clear_selection!(document)
-
-Recursively clears the selection from `document` and all its children.
-Sets the document's `selection` field to `nothing` and traverses the reference
-path to clear selections from nested structures.
-"""
 function clear_selection!(document)
     hasproperty(document, :selection) || return
     sel = getfield(document, :selection)
@@ -39,35 +20,11 @@ function clear_selection!(document)
     clear_selection!(child)
 end
 
-"""
-    set_selection!(document, path)
-
-Recursively sets the selection on `document` and its children to `path`.
-
-The path is first **canonicalized** against `document`: it is stripped to its
-plain navigation skeleton and then re-annotated so every node records the
-`typeof` the document it stands on (see `annotate_reference_types` — in the
-folded model the type is a *field* on each path node, not a separate step). This
-is the single binding point that makes every stored selection self-describing —
-callers hand in a plain navigation skeleton (built with `@reference`) and it
-becomes canonical against the live document. Annotation is idempotent on an
-unchanged document.
-"""
 function set_selection!(document, path)
     canonical = path === nothing ? path :
                 annotate_reference_types(document, strip_reference_types(path))
     _set_selection_walk!(document, canonical)
 end
-
-"""
-    with_selection(document, path) -> document
-
-Construct-and-select convenience: `set_selection!(document, path)` then return
-`document`, so a freshly-built document literal can be selected in a single
-expression. See [`set_selection!`](@ref) for the propagation/canonicalization
-semantics.
-"""
-with_selection(document, path) = (set_selection!(document, path); document)
 
 # Internal recursive walker: assumes `path` is already canonical and writes each
 # suffix into the matching child's selection cell, descending one navigation step
@@ -84,14 +41,8 @@ function _set_selection_walk!(document, path)
     _set_selection_walk!(child, path.tail)
 end
 
-"""
-    replace_selection!(document, path)
+with_selection(document, path) = (set_selection!(document, path); document)
 
-Replaces the current selection on `document` with `path`.
-This is equivalent to calling `clear_selection!(document)` followed by
-`set_selection!(document, path)`, ensuring the old selection is fully cleared
-before setting the new one.
-"""
 function replace_selection!(document, path)
     clear_selection!(document)
     set_selection!(document, path)
@@ -99,9 +50,8 @@ end
 
 # ── Incremental selection replacement ──────────────────────────────────────
 #
-# `update_selection!` is the caret-move fast path: it produces exactly the same
-# stored state as `replace_selection!` (each level still holds the *whole
-# remaining reference*,
+# `update_selection!` produces exactly the same stored state as
+# `replace_selection!` (each level still holds the *whole remaining reference*,
 # so every reader is unaffected), but writes the **shared selection chain in
 # place**, touching only the cells whose content actually changed:
 #

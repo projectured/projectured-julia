@@ -38,6 +38,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 - **Layer 4 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`
   - ⬜ `selection/SelectionModule.jl`
+  - ⬜ `selection/Interface.jl`
   - ⬜ `selection/Selection.jl`
 - **Layer 5 — operation** (`operation/`)
   - ⬜ `operation/OperationLayer.jl`

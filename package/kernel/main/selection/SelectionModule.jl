@@ -18,7 +18,10 @@ document contract.
 its selection unconventionally overrides them; the defaults here read and write
 the conventional `document.selection` field.
 
-The module is one fragment, [`Selection.jl`](Selection.jl), sharing this namespace.
+The module lives in two fragments that share this namespace:
+[`Interface.jl`](Interface.jl) declares the generics (the contract documents
+override / callers dispatch on) and [`Selection.jl`](Selection.jl) provides their
+default implementations and the private path-walking helpers.
 """
 module SelectionModule
 
@@ -31,6 +34,7 @@ import ..ReferenceModule: ConcreteReferencePath, ReferencePath, FieldReference,
 export get_selection, clear_selection!, set_selection!, with_selection,
        replace_selection!, update_selection!
 
-include("Selection.jl")
+include("Interface.jl")   # the selection generics (declaration-only)
+include("Selection.jl")   # their default methods + private helpers
 
 end # module
