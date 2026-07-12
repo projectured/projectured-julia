@@ -8,10 +8,10 @@ forming a `ReferencePath` (an `EmptyReferencePath` or a
 Domain-specific step types live in their own layers and register their
 navigation and DSL behaviours through this module's extension seams. The
 path-producing reflection search (`search_references`) also lives here: it walks
-an arbitrary document and
-*produces* a reference path for every matching node, so it belongs with the
-paths it emits (the value-collecting `search_documents` sibling, which needs no
-reference machinery, lives one layer down in the document layer).
+an arbitrary document and *produces* a reference path for every matching node, so
+it belongs with the paths it emits (the value-collecting `search_documents`
+sibling, which needs no reference machinery, lives one layer down in the document
+layer).
 
 The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@step` construction DSL are one module, because they are only ever

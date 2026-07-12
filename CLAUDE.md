@@ -31,7 +31,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `document/Clock.jl`
 - **Layer 3 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
-  - ⬜ `reference/ReferenceModule.jl`
+  - 🔒 `reference/ReferenceModule.jl`
   - ⬜ `reference/Reference.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
