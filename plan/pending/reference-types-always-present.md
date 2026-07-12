@@ -166,7 +166,26 @@ The last step is a review checkpoint (user approves before I mark sealed).
      heterogeneous and `CellVector`/`Document` are not imported in the slice's
      module (e.g. `WorkbenchToWidget`'s `@reference ::WorkbenchPage.elements[idx]`);
      step 5 adds the missing imports + full index/terminal types uniformly.
-5. **Flip DSL to strict** — the big pass. **Confirmed user decisions (2026-07-11):**
+5. **Flip DSL to strict** — ✅ **DONE (2026-07-12).** `STRICT[]=:error` is the
+   committed default; every 1-arg `@reference` requires a fully typed path or
+   throws at construction. All four main suites pass under enforcement: kernel
+   338, base 82, visual 51848, domain 132968 (0 fail/error). Every `@reference`
+   construction site in kernel/base/visual/domain **main + tests** is fully typed
+   (0 under-typed), plus domain/example, sdl/example, odbc (peripheral, typed
+   best-effort — sdl/odbc unverifiable without SDL2/ODBC drivers). Key mechanisms
+   that landed: doc-annotating `make_child_context` (typed ctx.reference through
+   the print recursion); generic template + **default** projection mappers
+   self-type their output against the iomap document (Option A — no boundary
+   band-aids); raw builder/eval/rerooting/point-reference primitive tests wrapped
+   in `STRICT=:off` (they test untyped-skeleton construction); `proj`-wrapped
+   backward maps use the 2-arg `@reference(doc, proj…)` form (annotates without
+   tripping the construction-time check); leaf char-ranges terminate in
+   `::Position`. **The remaining `@reference_case` pattern typing (D4-a, ~202
+   sites) is SEPARABLE** — the checker only gates `@reference` construction, not
+   `@reference_case` matching, so patterns can be typed as a follow-on without
+   affecting the flip. **Below is the original plan for the record.**
+
+   **Confirmed user decisions (2026-07-11):**
    - **Full per-node typing** — every navigation node carries `::T` matching
      `annotate_reference_types`' canonical output; "types always present. period."
    - **Spell `::CellVector` at every index explicitly** (no auto-supply in
@@ -219,11 +238,17 @@ The last step is a review checkpoint (user approves before I mark sealed).
      re-annotation pass (the rejected per-site band-aid, formalized into ONE
      helper). **Awaiting user decision.**
 6. **Retire** `strip_reference_types`, `annotate_reference_types`,
-   `fold_reference_types` **from exports.** Update kernel-internal callers
-   (in `Operations.jl`, `ProjectionTemplate.jl`) to use qualified inline
-   access.
+   `fold_reference_types` **from exports.** **RECONSIDER (2026-07-12):** these
+   turned out to be *load-bearing*, not transitional — `annotate_reference_types`
+   powers the 2-arg `@reference(doc, …)` form and the generic/default mapper
+   self-typing; `strip_reference_types` is used at boundaries (set_selection!,
+   test navigation-shape comparisons); `fold_reference_types` backs the `::T`
+   DSL. So they stay exported/public; step 6 is now just a tidy pass, not a
+   removal. `is_fully_typed` was added and exported (used by ProjectionTemplate).
 7. **AR-audit ReferenceModule.jl** and **stop for user review before
-   sealing** (user has explicitly asked for a review checkpoint here).
+   sealing** (user has explicitly asked for a review checkpoint here). — the
+   next action. D4-a (`@reference_case` pattern typing) is separable and can
+   follow either before or after the seal, at the user's discretion.
 
 ## Scope estimate (multi-session)
 
