@@ -41,7 +41,7 @@ without rebuilding the chain.
 module ReferenceModule
 
 import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: Document, @document
+import ..DocumentModule: Document, is_element_collection, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,
@@ -52,6 +52,8 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, reference_node_type, is_fully_typed,
+       # Reflection search (produces reference paths / matching objects):
+       search_references, search_objects, is_opaque,
        # Step-type extensibility seam:
        step_kind, evaluate_step,
        # DSL extension seams:

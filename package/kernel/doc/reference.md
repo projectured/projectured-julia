@@ -547,9 +547,15 @@ for ref in search_references(editor.document, "John")   # or r"TODO", or a predi
 end
 ```
 
-`search_references` (and its object-valued sibling `search_objects`) is a
-higher-layer walker — it must know about opaque document types — so it lives
-above the reference layer, not in it. See the
+`search_references` (and its object-valued sibling `search_objects`) lives in
+the reference layer: it *produces* reference paths, so it belongs with the
+machinery that expresses them. It stays free of higher-layer types through two
+Holy traits it dispatches on but does not own — `is_element_collection` (a
+document-layer default; `CellVector` opts in so a positional collection emits
+`[i]` element paths) and `is_opaque` (a reference-layer default that returns
+`false`; the agent layer's `Llm` opts in with `true` so the walker never
+descends into assistant configuration). Higher layers register their document
+types by adding methods, never by the walker naming them. See the
 [finding-and-selecting guide](finding-and-selecting.md).
 
 ## The opaque-payload pattern

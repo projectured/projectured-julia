@@ -12,7 +12,6 @@ module ObjectToSyntaxModule
 
 import ..CellModule: Cell
 import ..DocumentModule: is_element_collection
-import ..LlmModule: Llm
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
@@ -22,7 +21,7 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference, annotate_reference_types
+import ..ReferenceModule: ElementReference, FieldReference
 import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
@@ -31,8 +30,7 @@ import ..RecursiveProjectionModule: RecursiveProjection
 
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
-       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax,
-       search_references, search_objects
+       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
 
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
@@ -319,192 +317,5 @@ function print_object(obj; include_selection=false, open_delimiter="{", close_de
     newlines ? join((rstrip(l) for l in split(out, '\n')), '\n') : out
 end
 
-# ── search_references / search_objects ─────────────────────────────────────────
-
-# An `Llm` is opaque assistant configuration (it may hold large scripted
-# event payloads, API config, etc.), never document content — treat it as a leaf
-# so `search_objects`/`search_references` never descend into it.
-_is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                     x isa Symbol || x isa Char || x isa Llm
-
-# A search query is either a predicate (called on each node) or a String / Regex.
-# A String/Regex is turned into a predicate matching any *leaf* node whose textual
-# form (the string / symbol / number / char rendered) contains the substring /
-# matches the regex. Struct and collection nodes have no textual form, so they
-# never match a String/Regex query — pass a predicate to match on type or shape.
-_search_text(x::AbstractString) = x
-_search_text(x::Symbol)         = string(x)
-_search_text(x::Number)         = string(x)
-_search_text(x::Char)           = string(x)
-_search_text(::Any)             = nothing
-
-_text_query(q::AbstractString) = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
-_text_query(q::Regex)          = x -> (t = _search_text(x); t !== nothing && occursin(q, t))
-
-"""
-    search_references(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
-    search_references(obj, query::Union{AbstractString,Regex}; …)            -> Vector{ReferencePath}
-
-Walk any object and return a `ReferencePath` for every node whose (Cell-unwrapped)
-value satisfies `predicate`. Instead of a predicate you may pass a `String`
-(substring match) or `Regex` — it matches any leaf node (string / symbol / number
-/ char) whose textual form contains / matches the query, e.g.
-`search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
-Cells are unwrapped transparently (no path step);
-struct fields contribute a `FieldReference`, and array / `CellVector` elements an
-`ElementReference` — so the returned paths resolve with `evaluate_reference` and
-can be handed to `set_selection!` / `replace_selection!`.
-
-The returned paths are **canonical at rest**: each navigation step is preceded by
-a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
-so results are self-describing and carry
-replay-validation checkpoints. `evaluate_reference` honours the checkpoints; pass a
-result through `strip_reference_types` first if a consumer needs the plain
-navigation-only path.
-
-```julia
-for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
-    replace_selection!(editor.document, ref)
-end
-```
-
-`include_selection` includes `selection` fields in the walk. Every distinct path
-to a matching node is returned — a shared object reachable by several paths is a
-different *location* (hence a different selection) each time, so all of them are
-reported. Only paths that loop back through an object already on the current path
-are dropped, which keeps cyclic graphs (e.g. a doubly-linked list's `prev`/`next`)
-finite. `maxdepth` separately bounds recursion depth for structures that are never
-the *same* object, e.g. an infinite lazy list whose nodes are generated fresh on
-demand. See [`search_objects`](@ref) for the matching objects themselves (each once).
-
-`obj` need not be a document: passing an **iomap** (`print_document(proj, doc)`)
-walks the whole projection pipeline — every stage's input and output — so you can
-find where a value lives across all stages. Paths rooted at an iomap are for
-inspection only (not selectable); see the debugging guide's
-"Searching the pipeline state".
-"""
-function search_references(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
-    results = ReferencePath[]
-    _search_references!(results, _unwrap_cell(obj), predicate,
-                        EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
-    # Leave search results in canonical form: annotate each plain navigation path
-    # with `TypeReference(typeof(node))` checkpoints against `obj`, so the
-    # references are self-describing and carry replay-validation checkpoints
-    # (see annotate_reference_types).
-    ReferencePath[annotate_reference_types(_unwrap_cell(obj), p) for p in results]
-end
-
-search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_references(obj, _text_query(query); kwargs...)
-
-function _search_references!(results, obj, predicate, path, seen, include_selection, depth)
-    # Drop only paths that loop back through an object already on *this* path:
-    # `seen` holds the current path's ancestors (copied per level), so distinct
-    # paths to a shared object are all reported — they are different locations and
-    # mean different selections — while a path returning to one of its own
-    # ancestors is neither recorded nor descended (keeping cyclic graphs finite).
-    if ismutable(obj)
-        haskey(seen, obj) && return
-        seen = copy(seen); seen[obj] = true
-    end
-    matched = try predicate(obj) catch; false end
-    matched && push!(results, path)
-    depth <= 0 && return
-    _is_search_leaf(obj) && return
-    if is_element_collection(obj)
-        for i in 1:length(obj)
-            _search_references!(results, _unwrap_cell(obj[i]), predicate,
-                            append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
-        end
-    elseif obj isa AbstractDict
-        # Walk a Dict by its values, not its `fieldnames` (which would descend into
-        # the hash-table internals — `.keys`/`.vals` `Memory` buffers whose unused
-        # slots are undefined references). Use the key as the field step so the
-        # reference is meaningful (matches how a JSON object field is addressed).
-        for (k, v) in obj
-            _search_references!(results, _unwrap_cell(v), predicate,
-                            append_reference(path, FieldReference(string(k))), seen, include_selection, depth - 1)
-        end
-    elseif obj isa AbstractArray
-        for i in 1:length(obj)
-            isassigned(obj, i) || continue
-            _search_references!(results, _unwrap_cell(obj[i]), predicate,
-                            append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
-        end
-    else
-        fnames = try fieldnames(typeof(obj)) catch; () end
-        for fn in fnames
-            (fn == :ref || (fn == :selection && !include_selection)) && continue
-            isdefined(obj, fn) || continue
-            _search_references!(results, _unwrap_cell(getfield(obj, fn)), predicate,
-                            append_reference(path, FieldReference(string(fn))), seen, include_selection, depth - 1)
-        end
-    end
-end
-
-"""
-    search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
-    search_objects(obj, query::Union{AbstractString,Regex}; …)           -> Vector{Any}
-
-Walk any object and return every (Cell-unwrapped) node that satisfies `predicate`,
-**each object at most once** even when it is shared / reachable by several paths.
-As with [`search_references`](@ref), a `String` (substring) or `Regex` may be passed
-instead of a predicate to match leaf nodes by their textual form.
-This is the object-valued counterpart to [`search_references`](@ref): use it when
-you want the matching values themselves rather than where they live.
-
-```julia
-nums = search_objects(editor.document, v -> v isa JsonNumber)
-```
-
-`include_selection` includes `selection` fields in the walk. A single global
-visited set makes the walk visit each object once, so shared subtrees / DAGs are
-not re-walked and cyclic graphs terminate. `maxdepth` separately bounds recursion
-depth for structures that are never the *same* object, e.g. an infinite lazy list
-whose nodes are generated fresh on demand.
-"""
-function search_objects(obj, predicate; include_selection::Bool=false, maxdepth::Int=64)
-    results = Any[]
-    _search_objects!(results, _unwrap_cell(obj), predicate,
-                     IdDict{Any,Bool}(), include_selection, maxdepth)
-    results
-end
-
-search_objects(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_objects(obj, _text_query(query); kwargs...)
-
-function _search_objects!(results, obj, predicate, seen, include_selection, depth)
-    # Global visit-once: `seen` is shared across the whole walk, so each object is
-    # processed (and therefore reported) a single time regardless of how many
-    # paths reach it; this also makes shared subtrees / DAGs / cycles safe.
-    haskey(seen, obj) && return
-    seen[obj] = true
-    (try predicate(obj) catch; false end) && push!(results, obj)
-    depth <= 0 && return
-    _is_search_leaf(obj) && return
-    if is_element_collection(obj)
-        for i in 1:length(obj)
-            _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
-        end
-    elseif obj isa AbstractDict
-        # Walk values, not `fieldnames` (which descends into hash-table internals
-        # whose `Memory` buffers have undefined slots — see `_search_references!`).
-        for v in values(obj)
-            _search_objects!(results, _unwrap_cell(v), predicate, seen, include_selection, depth - 1)
-        end
-    elseif obj isa AbstractArray
-        for i in 1:length(obj)
-            isassigned(obj, i) || continue
-            _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
-        end
-    else
-        fnames = try fieldnames(typeof(obj)) catch; () end
-        for fn in fnames
-            (fn == :ref || (fn == :selection && !include_selection)) && continue
-            isdefined(obj, fn) || continue
-            _search_objects!(results, _unwrap_cell(getfield(obj, fn)), predicate, seen, include_selection, depth - 1)
-        end
-    end
-end
 
 end # module

@@ -20,6 +20,8 @@ dependency-free:
 """
 module LlmModule
 
+import ..ReferenceModule: is_opaque
+
 export Llm, stream_turn
 
 """
@@ -34,6 +36,11 @@ streaming spec — `message_start`, `content_block_start`,
 `message_stop` — so the same event handler works for all backends.
 """
 abstract type Llm end
+
+# Assistant configuration, not addressable document content (it may hold large
+# scripted event payloads / API config) — opaque to reflection walkers, so
+# `search_references` / `search_objects` never descend into it.
+is_opaque(::Llm) = true
 
 """
     stream_turn(backend, api_key, model, system, messages, tools; on_event)
