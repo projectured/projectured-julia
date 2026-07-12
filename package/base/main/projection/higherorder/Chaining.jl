@@ -161,7 +161,7 @@ function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::
     return out
 end
 
-# 3-arg compatibility shim: legacy callers (tests, hit-test recursion) that pass a
+# 3-arg payload form: callers (tests, hit-test recursion) that pass a
 # bare event/operation get it wrapped into a Intent and the operation back.
 read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
     read_intent(seq, nothing, Intent(payload), iomap).operation

@@ -140,7 +140,7 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
     Intent(event, isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops))
 end
 
-# 3-arg compatibility shim (tests / hit-test recursion).
+# 3-arg payload form (tests / hit-test recursion).
 read_intent(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 

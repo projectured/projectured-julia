@@ -18,7 +18,7 @@ proj = make_layout_projection_example()
     @test length(f.children) == 4
 end
 
-@testset "GridLayout per-column fields default to empty (backward compatible)" begin
+@testset "GridLayout per-column fields default to empty" begin
     g = GridLayout(Any[WidgetLabel(Point2D(0, 0), "a"), WidgetLabel(Point2D(0, 0), "b")], 2)
     @test isempty(g.column_align)
     @test isempty(g.column_stretch)

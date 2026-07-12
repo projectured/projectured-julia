@@ -34,7 +34,7 @@ end
 # inner constructor auto-wraps raw values into `Cell`s (and passes `Cell`s
 # through). Same for `FieldReference`/`PointReference` below.
 
-# ── Backward-compatible constructors ─────────────────────────────────────
+# ── Convenience step constructors ───────────────────────────────────────
 
 """
     ElementReference(index)
@@ -187,7 +187,7 @@ result and the next step's source.
     tail::ReferencePath
 end
 
-# Backward-compatible two-arg construction: type unknown (`nothing`). Fully
+# Two-arg construction: type unknown (`nothing`). Fully
 # untyped so it also catches the pre-wrapped `ConcreteReferencePath(Cell(h), Cell(t))`
 # call sites; the `@document` inner constructor Cell-wraps each field as needed.
 ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)

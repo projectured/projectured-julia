@@ -8,7 +8,7 @@ plus their submodules as `Projectured.XxxModule` aliases for qualified access.
 
 The re-exports are **generated mechanically** by the loop below — one pass over the
 submodules of the two source packages — so adding a document/projection/symbol upstream
-needs no edit here. Exact back-compat of the exported *set* is not a goal; this is a
+needs no edit here. The exported *set* may change freely; this is a
 convenience front-door, not a curated API boundary, so it re-exports every public name
 of every kernel/domain submodule.
 

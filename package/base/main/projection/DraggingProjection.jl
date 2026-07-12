@@ -200,7 +200,7 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
     end
 end
 
-# 3-arg compatibility shim (legacy reader entry point).
+# 3-arg payload form (reader entry point).
 read_intent(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 

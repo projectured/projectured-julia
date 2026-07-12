@@ -100,7 +100,7 @@ matched = @reference_case annot_sel begin
 end
 @test matched == (:hit, 1)
 
-# The same pattern still matches the plain skeleton (backward compatible).
+# The same pattern still matches the plain skeleton.
 matched_plain = @reference_case plain_sel begin
     entries[i].value => (:hit, i)
 end

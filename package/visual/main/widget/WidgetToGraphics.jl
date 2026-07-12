@@ -1989,8 +1989,8 @@ end
 
 """
 Per-slot intrinsic main-axis extent: read from the `LayoutConstraint`'s
-preferred when present, or fall back to the legacy `sizes` vector for
-backward compatibility, or to 200 px when neither is set.
+preferred when present, or fall back to the `sizes` vector, or to 200 px when
+neither is set.
 """
 function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
     intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : _SPLIT_SLOT_FALLBACK
@@ -2780,14 +2780,6 @@ function _tab_prefix(res)
     op, idx = res
     reroot_operation(op,
         (FieldReference("selector_element_pairs"), RangeReference(idx-1, idx)))
-end
-
-# Kept for back-compat with any external callers.
-function _active_tab_children(iomap::ChildrenIoMap, child_iomaps::Vector)
-    w = iomap.input
-    w isa WidgetTabbedPane || return child_iomaps
-    idx = _active_tab_index(w, length(child_iomaps))
-    idx == 0 ? child_iomaps : child_iomaps[idx:idx]
 end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────

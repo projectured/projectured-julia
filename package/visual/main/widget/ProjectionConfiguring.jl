@@ -128,7 +128,7 @@ function read_intent(p::ProjectionConfiguringProjection, recursion,
     read_intent(p.inner, recursion, change, iomap.inner_iomap)
 end
 
-# 3-arg compatibility shim (tests / hit-test recursion).
+# 3-arg payload form (tests / hit-test recursion).
 read_intent(p::ProjectionConfiguringProjection,
                 iomap::ProjectionConfiguringProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

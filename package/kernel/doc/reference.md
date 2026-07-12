@@ -61,7 +61,7 @@ Each step descends one level into a document tree. The full vocabulary:
 | `FieldReference("foo")` | the field named `foo` | resolved by `getfield(doc, :foo)`, unwrapping a `Cell` if needed — struct field names are public API |
 | `ElementReference(i)` | the *i*-th element of a sequence | constructor alias for `RangeReference(i-1, i)`; 1-based (Julia convention) |
 | `PositionReference(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReference(k, k)`; a zero-width cursor, 0-based |
-| `RangeReference(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are backward-compatible constructor aliases |
+| `RangeReference(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
 | `FunctionReference(f)` | a function value | element produced by applying a function; for closures held by name |
 | `ProjectionReference(p, sub)` | a projection-introduced element | see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
 | `PointReference(x, y)` | a pixel coordinate | for graphics/geometry endpoints and hit-testing |

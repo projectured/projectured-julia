@@ -92,7 +92,7 @@ struct MousePress
     modifiers::Modifiers
 end
 
-# Back-compat / convenience constructors default the multi-click count to 1.
+# Convenience constructors default the multi-click count to 1.
 # The `::Modifiers` form disambiguates from the 5-arg primary by argument type,
 # so the many existing `MousePress(button, x, y, modifiers)` call sites are
 # unaffected.
