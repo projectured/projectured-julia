@@ -11,9 +11,7 @@
 #   items[i].name
 #   xs{s:e}
 #   config.field(fname)
-#   cursor.point(x, y)
-#   rendered.proj(p, [0])
-#   rendered.proj(p, token[i])
+#   rendered.name(args...)   — extension steps registered by higher packages
 #
 # Splicing:
 #   ^(expr)              — splice a ReferencePath or ReferenceStep at the front
@@ -22,30 +20,30 @@
 #
 # Semantics:
 #   - top-level bare symbols in path position are literal field names
-#   - inside [expr], field(expr), point(x,y), proj(p, path), arguments are
+#   - inside [expr], field(expr), and extension calls, arguments are
 #     ordinary Julia expressions that get evaluated at runtime
 # ------------------------------------------------------------
 
 abstract type BuildStep end
 
-struct BSField <: BuildStep
+struct BuildStepField <: BuildStep
     nameexpr
 end
 
-struct BSIndex <: BuildStep
+struct BuildStepIndex <: BuildStep
     idxexpr
 end
 
-struct BSPosition <: BuildStep
+struct BuildStepPosition <: BuildStep
     idxexpr
 end
 
-struct BSRange <: BuildStep
+struct BuildStepRange <: BuildStep
     startexpr
     stopexpr
 end
 
-struct BSPathSplice <: BuildStep
+struct BuildStepPathSplice <: BuildStep
     expr
 end
 
@@ -53,14 +51,14 @@ end
 # `dsl_build_step(::Val{name}, escaped_args...)`. The cross-package step types
 # (`.point`, `.proj`, …) register their own `dsl_build_step` in the packages that
 # own them; none is kernel-registered here.
-struct BSExtension <: BuildStep
+struct BuildStepExtension <: BuildStep
     name::Symbol
     args::Vector{Any}
 end
 
 # A first-class type checkpoint step: `f::T` emits the steps of `f` and then a
 # TypeReference(T) — "f first then T".
-struct BSType <: BuildStep
+struct BuildStepType <: BuildStep
     typeexpr
 end
 
@@ -73,7 +71,7 @@ end
 function _parse_build_path!(steps::Vector{BuildStep}, ex)
     if ex isa Symbol
         # Path-position symbol => literal field name
-        push!(steps, BSField(String(ex)))
+        push!(steps, BuildStepField(String(ex)))
         return steps
 
     elseif ex isa Expr && ex.head == :(::)
@@ -90,17 +88,17 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
         # a.b
         _parse_build_path!(steps, ex.args[1])
-        push!(steps, BSField(String(ex.args[2].value)))
+        push!(steps, BuildStepField(String(ex.args[2].value)))
         return steps
 
     elseif ex isa Expr && ex.head == :ref
         # base[idx] — ElementReference (1-based), or base[i, j] — RangeReference
         if length(ex.args) == 2
             _parse_build_path!(steps, ex.args[1])
-            push!(steps, BSIndex(ex.args[2]))
+            push!(steps, BuildStepIndex(ex.args[2]))
         elseif length(ex.args) == 3
             _parse_build_path!(steps, ex.args[1])
-            push!(steps, BSRange(ex.args[2], ex.args[3]))
+            push!(steps, BuildStepRange(ex.args[2], ex.args[3]))
         else
             error("indexing supports 1 or 2 dimensions in @reference: $ex")
         end
@@ -119,14 +117,14 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
         if f == :(^)
             # ^(expr) at path position — splice
             length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-            push!(steps, BSPathSplice(ex.args[2]))
+            push!(steps, BuildStepPathSplice(ex.args[2]))
             return steps
 
         elseif f == :.^ && length(ex.args) == 3
             # base.^(expr) — Julia parses `base.^(expr)` as binary broadcast
             # `.^`; we use it as "path-tail splice at the end of the chain"
             _parse_build_path!(steps, ex.args[2])
-            push!(steps, BSPathSplice(ex.args[3]))
+            push!(steps, BuildStepPathSplice(ex.args[3]))
             return steps
 
         elseif f isa Symbol
@@ -140,7 +138,7 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
 
             if opname == :field
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument")
-                push!(steps, BSField(ex.args[2]))
+                push!(steps, BuildStepField(ex.args[2]))
                 return steps
             else
                 # A mid-path extension step, dispatched through the seam.
@@ -154,9 +152,9 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     elseif ex isa Expr && ex.head == :vect
         # [i] as a relative subpath — ElementReference (1-based), or [i, j] — RangeReference
         if length(ex.args) == 1
-            push!(steps, BSIndex(ex.args[1]))
+            push!(steps, BuildStepIndex(ex.args[1]))
         elseif length(ex.args) == 2
-            push!(steps, BSRange(ex.args[1], ex.args[2]))
+            push!(steps, BuildStepRange(ex.args[1], ex.args[2]))
         else
             error("subpath vector syntax supports 1 or 2 elements in @reference: $ex")
         end
@@ -173,7 +171,7 @@ function _parse_build_path!(steps::Vector{BuildStep}, ex)
     end
 end
 
-# Split a type-checkpoint base into its `BSType` and any trailing `.field`
+# Split a type-checkpoint base into its `BuildStepType` and any trailing `.field`
 # steps. A bare `Type` yields just the type; a `Type.a.b` chain (which Julia
 # parses as `getfield` on the type value) is read as the checkpoint `Type`
 # followed by field steps `.a`, `.b` — so a mid-path `::T.field` needs no
@@ -187,9 +185,9 @@ function _push_type_and_fields!(steps::Vector{BuildStep}, base)
     end
     cur isa Symbol ||
         error("@reference: type checkpoint must start with a type name: $base")
-    push!(steps, BSType(cur))
+    push!(steps, BuildStepType(cur))
     for f in fields
-        push!(steps, BSField(f))
+        push!(steps, BuildStepField(f))
     end
 end
 
@@ -204,9 +202,9 @@ function _build_type_suffix!(steps::Vector{BuildStep}, T)
     elseif T isa Expr && T.head == :ref
         _push_type_and_fields!(steps, T.args[1])
         if length(T.args) == 2
-            push!(steps, BSIndex(T.args[2]))
+            push!(steps, BuildStepIndex(T.args[2]))
         elseif length(T.args) == 3
-            push!(steps, BSRange(T.args[2], T.args[3]))
+            push!(steps, BuildStepRange(T.args[2], T.args[3]))
         else
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
@@ -220,30 +218,30 @@ end
 # checkpoint `Node` followed by the `.value{s:e}` steps — so no parens.
 function _build_leading_type!(steps::Vector{BuildStep}, X)
     if X isa Symbol
-        push!(steps, BSType(X))
+        push!(steps, BuildStepType(X))
     else
         n = length(steps)
         _parse_build_path!(steps, X)
         root = steps[n + 1]
-        (root isa BSField && root.nameexpr isa String) ||
+        (root isa BuildStepField && root.nameexpr isa String) ||
             error("leading ::T must start with a type name: $X")
-        steps[n + 1] = BSType(Symbol(root.nameexpr))
+        steps[n + 1] = BuildStepType(Symbol(root.nameexpr))
     end
 end
 
 # Lower the inner expression of `{...}` to either a position or range step.
 function _braces_step(inner, ctx)
     if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
-        return BSRange(inner.args[2], inner.args[3])
+        return BuildStepRange(inner.args[2], inner.args[3])
     end
-    return BSPosition(inner)
+    return BuildStepPosition(inner)
 end
 
 function _parse_build_subpath(ex)
     # ^(expr) splices an already-computed ReferencePath directly
     if ex isa Expr && ex.head == :call && ex.args[1] == :(^)
         length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-        return BuildStep[BSPathSplice(ex.args[2])]
+        return BuildStep[BuildStepPathSplice(ex.args[2])]
     end
     return _parse_build_path(ex)
 end
@@ -256,35 +254,35 @@ function _build_extension_step(name::Symbol, args)
     subpaths = dsl_step_subpath_args(Val(name))
     bargs = Any[(i in subpaths ? _parse_build_subpath(a) : a)
                 for (i, a) in enumerate(args)]
-    return BSExtension(name, bargs)
+    return BuildStepExtension(name, bargs)
 end
 
 # ------------------------------------------------------------
 # Code generation
 # ------------------------------------------------------------
 
-function _gen_build_step(step::BSField)
+function _gen_build_step(step::BuildStepField)
     nameex = step.nameexpr isa String ? QuoteNode(step.nameexpr) : esc(step.nameexpr)
     return :(ReferenceModule.FieldReference(String($nameex)))
 end
 
-function _gen_build_step(step::BSIndex)
+function _gen_build_step(step::BuildStepIndex)
     return :(ReferenceModule.ElementReference(Int($(esc(step.idxexpr)))))
 end
 
-function _gen_build_step(step::BSPosition)
+function _gen_build_step(step::BuildStepPosition)
     return :(ReferenceModule.PositionReference(Int($(esc(step.idxexpr)))))
 end
 
-function _gen_build_step(step::BSRange)
+function _gen_build_step(step::BuildStepRange)
     return :(ReferenceModule.RangeReference(Int($(esc(step.startexpr))), Int($(esc(step.stopexpr)))))
 end
 
-function _gen_build_step(step::BSPathSplice)
+function _gen_build_step(step::BuildStepPathSplice)
     return esc(step.expr)
 end
 
-function _gen_build_step(step::BSType)
+function _gen_build_step(step::BuildStepType)
     return :(ReferenceModule.TypeReference($(esc(step.typeexpr))))
 end
 
@@ -293,7 +291,7 @@ end
 # parser stored as a `Vector{BuildStep}` (see `dsl_step_subpath_args`) — is
 # lowered to its path expression; every other argument is an escaped Julia
 # expression. So no step type is named here.
-function _gen_build_step(step::BSExtension)
+function _gen_build_step(step::BuildStepExtension)
     args = Any[a isa Vector{BuildStep} ? _gen_build_path(a) : esc(a) for a in step.args]
     return dsl_build_step(Val(step.name), args...)
 end
@@ -331,10 +329,11 @@ const _concat = ReferenceModule.concat_references
 
 # Wrap a built (possibly TypeReference-bearing) path expression in the runtime
 # fold pass only when the literal carries a `::T` checkpoint — a plain navigation
-# skeleton needs no folding (its node types stay `nothing`, filled later by
-# `set_selection!`), so the common case allocates nothing extra.
+# skeleton needs no folding (its node types stay `nothing`, filled in later when
+# the skeleton is annotated against a document), so the common case allocates
+# nothing extra.
 _maybe_fold(expr, steps) =
-    any(s -> s isa BSType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
+    any(s -> s isa BuildStepType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
 
 function _gen_build_path(steps::Vector{BuildStep})
     # No steps → empty path.
@@ -343,7 +342,7 @@ function _gen_build_path(steps::Vector{BuildStep})
     end
 
     # Fast path: no splices at all.
-    if !any(s -> s isa BSPathSplice, steps)
+    if !any(s -> s isa BuildStepPathSplice, steps)
         stepexprs = [_gen_build_step(s) for s in steps]
         return _maybe_fold(:(ReferenceModule.ReferencePath($(stepexprs...))), steps)
     end
@@ -359,7 +358,7 @@ function _gen_concat_chain(steps::Vector{BuildStep})
     if isempty(steps)
         return :(ReferenceModule.EmptyReferencePath())
     end
-    if steps[1] isa BSPathSplice
+    if steps[1] isa BuildStepPathSplice
         head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
         # _concat needs an EmptyReferencePath base case to short-circuit when
@@ -367,7 +366,7 @@ function _gen_concat_chain(steps::Vector{BuildStep})
         return :(ReferenceModule._concat($head, $tail))
     end
     # Gather a run of non-splice steps into a single literal ReferencePath.
-    i = findfirst(s -> s isa BSPathSplice, steps)
+    i = findfirst(s -> s isa BuildStepPathSplice, steps)
     cutoff = i === nothing ? length(steps) + 1 : i
     prefix = steps[1:cutoff-1]
     prefix_expr = :(ReferenceModule.ReferencePath($([_gen_build_step(s) for s in prefix]...)))
@@ -389,14 +388,14 @@ rootless chain of steps, left = outermost:
 - `xs[i]`             — 1-based `ElementReference` (a single-element range)
 - `xs{k}` / `xs{s:e}` — 0-based `PositionReference` (cursor) / `RangeReference`
 - `.field(e)`         — a field whose name is the runtime value of `e`
-- `.point(x, y)`      — a `PointReference` at pixel `(x, y)`
-- `.proj(p, sub)`     — a `ProjectionReference` into projection `p`'s output `sub`
+- `.name(args...)`    — an extension step registered by a higher package (its
+                        owning package documents each one)
 - `x::T`              — a node type checkpoint after `x` (folded onto the node)
 - `^(expr)`           — splice a runtime `ReferencePath`/`ReferenceStep` into the literal
 
-Inside `[]`, `{}`, `field(...)`, `point(...)`, `proj(...)` the arguments are
-ordinary Julia expressions evaluated at runtime; bare symbols in *path* position
-are literal field names.
+Inside `[]`, `{}`, `field(...)`, and extension calls the arguments are ordinary
+Julia expressions evaluated at runtime; bare symbols in *path* position are
+literal field names.
 
 **Two ways to get a fully-typed path.** Either spell every node's type inline
 (`@reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document`),
@@ -428,8 +427,8 @@ end
     @step(expr)
 
 Build a single `ReferenceStep` from a one-step DSL expression (the same step
-grammar as `@reference`, e.g. `xs[i]`, `xs{k}`, `c.point(x, y)`, or a bare
-`value` for a field). Useful for passing varargs to `append_reference`, or any
+grammar as `@reference`, e.g. `xs[i]`, `xs{k}`, a `.name(...)` extension step, or
+a bare `value` for a field). Useful for passing varargs to `append_reference`, or any
 API that takes raw steps rather than whole paths. Unlike `@reference`, a leading
 identifier before an operator (`xs[i]`) is a placeholder, not a field name; only
 a bare symbol (`value`) is taken as a field name.
@@ -439,17 +438,17 @@ macro step(ex)
 end
 
 # Parse a single-step expression. Unlike `_parse_build_path`, a leading
-# identifier in front of an operator (`xs[i]`, `xs{k}`, `c.point(x, y)`) is
+# identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) is
 # treated as a placeholder; only when the whole expression is a bare symbol
 # (`value`) is it taken as a field name.
 function _parse_step(ex)
     if ex isa Symbol
-        return BSField(String(ex))
+        return BuildStepField(String(ex))
     elseif ex isa Expr && ex.head == :ref
         if length(ex.args) == 2
-            return BSIndex(ex.args[2])
+            return BuildStepIndex(ex.args[2])
         elseif length(ex.args) == 3
-            return BSRange(ex.args[2], ex.args[3])
+            return BuildStepRange(ex.args[2], ex.args[3])
         else
             error("indexing supports 1 or 2 dimensions in @step: $ex")
         end
@@ -458,9 +457,9 @@ function _parse_step(ex)
         return _braces_step(ex.args[2], ex)
     elseif ex isa Expr && ex.head == :vect
         if length(ex.args) == 1
-            return BSIndex(ex.args[1])
+            return BuildStepIndex(ex.args[1])
         elseif length(ex.args) == 2
-            return BSRange(ex.args[1], ex.args[2])
+            return BuildStepRange(ex.args[1], ex.args[2])
         else
             error("vector syntax supports 1 or 2 elements in @step: $ex")
         end
@@ -473,7 +472,7 @@ function _parse_step(ex)
             opname = f.args[2].value
             if opname == :field
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument in @step: $ex")
-                return BSField(ex.args[2])
+                return BuildStepField(ex.args[2])
             else
                 # A `.name(...)` extension step, dispatched through the seam.
                 return _build_extension_step(opname, ex.args[2:end])

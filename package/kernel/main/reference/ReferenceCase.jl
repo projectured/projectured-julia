@@ -130,9 +130,7 @@ end
 #   address.city
 #   items[i].name
 #   config.field(f)
-#   cursor.point(x, y)
-#   rendered.proj(p, [0])
-#   rendered.proj(p, token[i])
+#   rendered.name(args...)   — extension steps registered by higher packages
 #
 # Top-level bare symbols in path position are literal field names.
 # Bare symbols in value position (inside [] or field(...)) are binders.
@@ -543,8 +541,8 @@ dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} 
 The 1-based argument positions of a `.name(args...)` DSL step that are
 **subpaths** (parsed as reference paths) rather than value expressions. Default
 `()` — every argument is a value. A step type whose surface syntax takes a
-subpath argument (e.g. `.proj(projection, subpath)` → position `(2,)`) registers
-its positions here, so neither DSL parser needs to name the step. Consulted by
+subpath argument at position `n` registers `(n,)` here, so neither DSL parser
+needs to name the step. Consulted by
 both the `@reference_case` pattern parser and the `@reference` / `@step`
 construction parser.
 """
@@ -740,8 +738,8 @@ end
 
 Match the reference path `ref` against each `pattern => result` rule in order and
 return the `result` of the first that matches, or `nothing` if none do. Patterns
-use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, `.proj(p, sub)`,
-a leading/suffix `::T` checkpoint, …), with these matching conventions:
+use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/suffix
+`::T` checkpoint, an `.name(...)` extension step, …), with these matching conventions:
 
 - Bare symbols in *path* position are literal field names; bare symbols in *value*
   position (inside `[]`, `field(...)`, …) **bind** the matched value.
