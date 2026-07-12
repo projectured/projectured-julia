@@ -525,7 +525,7 @@ end
 
 function map_reference_backward(p::DatabaseInstanceToDbCatalog, iomap, reference)
     reference isa EmptyReferencePath && return @reference()
-    @reference proj(p, ^(reference))
+    @reference(iomap.input, proj(p, ^(reference)))
 end
 # No read_intent override — the generic default in Projection.jl handles
 # ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (which now

@@ -126,7 +126,7 @@ function play_live_example(live::LiveExample; width::Integer=live.width,
 
     # Lift the seeded selection to a screen-rooted path, mirroring `run_example`.
     inner_sel = getfield(document, :selection)[]
-    inner_sel === nothing || set_selection!(screen, @reference windows[1].content.^(inner_sel))
+    inner_sel === nothing || set_selection!(screen, @reference(screen, windows[1].content.^(inner_sel)))
 
     composed = _multi_window_projection([projection])
     # Timeline operations are authored in the bare-content domain (like the
@@ -135,7 +135,7 @@ function play_live_example(live::LiveExample; width::Integer=live.width,
     # reader automatically, so they need no prefix.
     play_live!(SdlBackend(), composed, screen, live.timeline;
                window_id=window_id, initial_hold=initial_hold,
-               op_prefix = @reference windows[1].content)
+               op_prefix = @reference(screen, windows[1].content))
 end
 
 function play_live_example(name::AbstractString; kwargs...)
@@ -159,16 +159,16 @@ const json_typein_live = LiveExample("json_typein", json_example,
         [timed_event(KeyDown(:left, Modifiers(), false); hold=0.4),
          timed_event(KeyDown(:left, Modifiers(), false); hold=0.6)],
     );
-    initial_selection = @reference entries[1].value.value{5})
+    initial_selection = @reference(make_json_document_example(), entries[1].value.value{5}))
 
 # Jump the selection with a timed *operation* (no single event triggers it), then
 # type at the new caret. Demonstrates timed operations and events together.
 const json_select_and_edit_live = LiveExample("json_select_and_edit", json_example,
     vcat(
-        [timed_operation(ReplaceSelectionOperation(@reference entries[4].value.entries[1].value.value{11}); hold=0.6)],
+        [timed_operation(ReplaceSelectionOperation(@reference(make_json_document_example(), entries[4].value.entries[1].value.value{11})); hold=0.6)],
         make_typein_gestures("!"),
     );
-    initial_selection = @reference entries[1].value.value{5})
+    initial_selection = @reference(make_json_document_example(), entries[1].value.value{5}))
 
 # Insert a brand-new `"role": "admin"` entry into the object. Starting from the
 # whole "name" value, `,` appends an empty entry (cursor on its key), type the
@@ -182,7 +182,7 @@ const json_insert_live = LiveExample("json_insert", json_example,
          timed_event(KeyPress('"'); hold=0.5)],                # start a string value
         make_typein_gestures("admin"),                         # type the value
     );
-    initial_selection = @reference entries[1].value)
+    initial_selection = @reference(make_json_document_example(), entries[1].value))
 
 # Type the entire nested `json_example` from an empty document, using only typing
 # and cursor navigation. Each value is built by type-to-replace (`"` string, digit

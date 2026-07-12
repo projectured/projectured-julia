@@ -32,7 +32,7 @@ end
 
 function make_json_sorted_projection_example(; measure=truetype_measure_text)
     ChainingProjection(
-        SortingAtProjection(@reference(windows[1].content.entries), x -> x.key),
+        SortingAtProjection((@reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::JsonObject.entries::CellVector), x -> x.key),
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),

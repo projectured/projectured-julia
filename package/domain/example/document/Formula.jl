@@ -18,5 +18,6 @@ function make_formula_document_example()
         JuliaBinaryOp(:*, FormulaReference(a2), JuliaInteger(2));
         display_mode=:both)
 
-    with_selection(FormulaEnvironment([a1, b1, a2, tax]), @reference formulas[1])
+    env = FormulaEnvironment([a1, b1, a2, tax])
+    with_selection(env, @reference(env, formulas[1]))
 end

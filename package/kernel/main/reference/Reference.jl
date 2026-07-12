@@ -665,7 +665,7 @@ is_fully_typed(p::ConcreteReferencePath) = p.type !== nothing && is_fully_typed(
 is_fully_typed(p::EmptyReferencePath)    = p.type !== nothing
 is_fully_typed(::Nothing)                = true   # no-selection sentinel: not our concern
 
-const STRICT = Ref(:off)
+const STRICT = Ref(:error)
 
 # In `:warn` mode, under-typed sites are collected here (unique file:line) instead
 # of flooding the log — dump/clear with the helpers below to drive the migration.

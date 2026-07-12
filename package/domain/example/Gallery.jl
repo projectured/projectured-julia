@@ -226,9 +226,9 @@ function _build_window_scene(docs, names; width, height, content_unwrap::Symbol=
                                                    win.content
         inner_sel = getfield(root_doc, :selection)[]
         inner_sel === nothing && continue
-        full_path = content_unwrap === :tooltip   ? (@reference windows[i].content.child.^(inner_sel)) :
-                    content_unwrap === :clipboard ? (@reference windows[i].content.content.^(inner_sel)) :
-                                                    (@reference windows[i].content.^(inner_sel))
+        full_path = content_unwrap === :tooltip   ? (@reference(screen, windows[i].content.child.^(inner_sel))) :
+                    content_unwrap === :clipboard ? (@reference(screen, windows[i].content.content.^(inner_sel))) :
+                                                    (@reference(screen, windows[i].content.^(inner_sel)))
         set_selection!(screen, full_path)
         break
     end
@@ -269,7 +269,7 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
-        targets[i] = @reference windows[i].content
+        targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
     end
     # One shared open/closed flag for the gesture-help window, threaded into every
     # (per-dispatch, transient) decorator so F1 toggles the same window.
@@ -281,7 +281,7 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
         # NestingProjection (recursion=IdentityProjection) lets the inner
         # projection's own recursion take over below this point.
         for i in 1:n
-            is_reference_equal(ref, targets[i]) || continue
+            is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
             return GestureHelpProjection(
                 inner = NestingProjection(projections[i]; recursion=IdentityProjection()),
                 state = help_state)
@@ -350,7 +350,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
-        targets[i] = @reference windows[i].content
+        targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
     end
     decorator = TooltipDecoratorProjection(
         trigger  = (source, _evt) -> source.child.selection !== nothing,
@@ -359,7 +359,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
     )
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
-            is_reference_equal(ref, targets[i]) || continue
+            is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
             return NestingProjection(projections[i];
                                       recursion=IdentityProjection())
         end
@@ -392,11 +392,11 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
-        targets[i] = @reference windows[i].content
+        targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
     end
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
-            is_reference_equal(ref, targets[i]) || continue
+            is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
             inner = NestingProjection(projections[i]; recursion=IdentityProjection())
             return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
         end
