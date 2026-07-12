@@ -197,7 +197,7 @@ and whose `gesture` is preserved, or a nothing-change (`operation === nothing`) 
 this projection has nothing to say about it.
 
 Most projections need no `read_intent` method at all: the generic bridge in
-`ProjectionModule` unwraps the `Intent` and dispatches the legacy 3-arg
+`ProjectionModule` unwraps the `Intent` and dispatches the 3-arg
 `read_intent(projection, iomap, event_or_op)` on the gesture (when no
 operation has been produced yet) or the operation, then re-wraps the result with
 the gesture preserved. Leaf projections therefore keep their 3-arg methods; only

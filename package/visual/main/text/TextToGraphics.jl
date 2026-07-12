@@ -359,12 +359,12 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
         end
         out
     end)
-    # `highlight_offset` keeps its legacy value of 1 — the rasterized-image click
+    # `highlight_offset` keeps its value of 1 — the rasterized-image click
     # path (`_translate_click`) indexes the coord_map past a leading highlight
     # rect. That path is only reached when a *leaf* canvas is rasterized by
     # GraphicsCanvasToGraphicsImage; this canvas is now non-leaf (it nests line
     # sub-canvases), so the bare text examples use the MousePress/coord_map reader
-    # instead, but the value is preserved for the legacy path.
+    # instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
     canvas_w = Cell(function ()
         w = 0

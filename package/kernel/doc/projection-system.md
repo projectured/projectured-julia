@@ -261,10 +261,10 @@ handle the gesture as a syntax gesture — falls back to
 result backward. In SDL the operation slot is already filled by `TextToGraphics`,
 so that fallback is a no-op and SDL behaviour is unchanged.
 
-> **Legacy 3-arg shim.** You may still see a 3-arg
-> `read_intent(projection, iomap, event_or_op)` returning a bare operation.
-> That form is **obsolete** — a transitional shim the generic bridge adapts to
-> the 4-arg `Intent` interface. Write the 4-arg `Intent` form in new code.
+> **The 3-arg reader form.** Many projections implement their reader as a 3-arg
+> `read_intent(projection, iomap, event_or_op)` returning a bare operation, which
+> the generic bridge adapts to the 4-arg `Intent` interface. Reach for the 4-arg
+> `Intent` form when a reader must do more than return an operation.
 
 #### Recursive gesture reading: delegate to the selected child, lift the operation
 

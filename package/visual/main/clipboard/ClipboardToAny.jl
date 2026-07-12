@@ -575,7 +575,7 @@ function collect_gesture_bindings(p::ClipboardCollectionToAnyProjection, recursi
     result
 end
 
-# 3-arg legacy shims (used by tests and any parent that hands a bare payload).
+# 3-arg payload form (used by tests and any parent that hands a bare payload).
 read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, payload) =

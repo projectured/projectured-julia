@@ -174,9 +174,9 @@ end
 """
     read_intent(p::Projection, recursion, change::Intent, iomap)
 
-Generic bridge from the symmetric 4-arg `Intent` interface to the legacy 3-arg
+Generic bridge from the symmetric 4-arg `Intent` interface to the 3-arg
 reader. For any projection without its own 4-arg method, unwrap the `Intent` and
-dispatch the legacy `read_intent(p, iomap, payload)` on the operation (when one
+dispatch `read_intent(p, iomap, payload)` on the operation (when one
 has already been produced) or otherwise the gesture (the gesture→operation stage),
 then re-wrap the result as a `Intent` with the gesture preserved. Compound
 projections that must thread the change to their children override this with a

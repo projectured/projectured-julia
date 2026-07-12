@@ -85,9 +85,9 @@ end
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
     ])
     @test !isempty(_prims_of(print_document(proj, tr).output, GraphicsPolyline))
-    # An icon-less (legacy) tree draws no icon polylines.
-    legacy = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
-    @test isempty(_prims_of(print_document(proj, legacy).output, GraphicsPolyline))
+    # An icon-less tree (bare tuple form) draws no icon polylines.
+    tuple_tree = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
+    @test isempty(_prims_of(print_document(proj, tuple_tree).output, GraphicsPolyline))
 end
 
 end # @testset

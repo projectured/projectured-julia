@@ -152,7 +152,7 @@ end
 
 # Opaque identity of the widget an enter-response came from. The tracker never
 # interprets the operation beyond this token, so it stays agnostic of any widget's
-# concrete hover/press operations: a legacy widget-identity op exposes it as
+# concrete hover/press operations: a widget-identity op exposes it as
 # `.widget`; an identity-rooted `ReplaceReferencedValueOperation` (the folded hover/press
 # write) carries its target widget as the root `.document`.
 function _target_of(op)

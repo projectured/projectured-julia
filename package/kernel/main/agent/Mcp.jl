@@ -94,7 +94,7 @@ function _scratch_module()
         for src in srcs
             Core.eval(m, :(const $(nameof(src)) = $src))
         end
-        # Alias the highest-preference one as `Projectured` for legacy code.
+        # Alias the highest-preference one as `Projectured`.
         Core.eval(m, :(const Projectured = $(srcs[1])))
         # Flat re-export every submodule of each source (mirrors the umbrella).
         for src in srcs

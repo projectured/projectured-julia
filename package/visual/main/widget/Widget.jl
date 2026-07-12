@@ -1578,7 +1578,7 @@ distinct from its text **label** (the decoration model used by typical widget
 libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
 is `Any`: a glyph `String` today, an image document later. `children` is a
 `Vector` of child nodes (each a `WidgetTreeNode`, a leaf `String`, or a
-legacy `(label, children)` tuple); an empty vector marks a leaf.
+bare `(label, children)` tuple); an empty vector marks a leaf.
 """
 struct WidgetTreeNode
     icon::Any

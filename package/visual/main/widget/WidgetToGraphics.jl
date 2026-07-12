@@ -2063,7 +2063,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     end
 
     # Build the main-axis allocation cell now that intrinsic widths are
-    # readable via the inner canvases. Falls back to legacy `sizes` when
+    # readable via the inner canvases. Falls back to `sizes` when
     # neither LayoutConstraint nor intrinsic preference is supplied.
     if avail_main !== nothing
         local_elems = valid_elems
@@ -5071,7 +5071,7 @@ end
 end
 
 # A node is a WidgetTreeNode (icon + label + children), a leaf label (String), or
-# a legacy (label, children::Vector) tuple. Icon-less nodes report an empty icon.
+# a bare (label, children::Vector) tuple. Icon-less nodes report an empty icon.
 _tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
 _tree_label(node) = node isa WidgetTreeNode ? string(node.label) :
                     (node isa Tuple ? string(node[1]) : string(node))

@@ -233,7 +233,7 @@ function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
         (FieldReference("versions"), ElementReference(iomap.index), FieldReference("value"))))
 end
 
-# 3-arg legacy shim (used by tests and any parent that hands a bare payload).
+# 3-arg payload form (used by tests and any parent that hands a bare payload).
 read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
