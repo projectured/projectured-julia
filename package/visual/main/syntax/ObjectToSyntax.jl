@@ -356,8 +356,8 @@ struct fields contribute a `FieldReference`, and array / `CellVector` elements a
 can be handed to `set_selection!` / `replace_selection!`.
 
 The returned paths are **canonical at rest**: each navigation step is preceded by
-a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref),
-matching [`collect_references`](@ref)), so results are self-describing and carry
+a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
+so results are self-describing and carry
 replay-validation checkpoints. `evaluate_reference` honours the checkpoints; pass a
 result through `strip_reference_types` first if a consumer needs the plain
 navigation-only path.
@@ -388,9 +388,9 @@ function search_references(obj, predicate; include_selection::Bool=false, maxdep
     _search_references!(results, _unwrap_cell(obj), predicate,
                         EmptyReferencePath(), IdDict{Any,Bool}(), include_selection, maxdepth)
     # Leave search results in canonical form: annotate each plain navigation path
-    # with `TypeReference(typeof(node))` checkpoints against `obj`, matching
-    # `collect_references`, so the references are self-describing and carry
-    # replay-validation checkpoints (see annotate_reference_types).
+    # with `TypeReference(typeof(node))` checkpoints against `obj`, so the
+    # references are self-describing and carry replay-validation checkpoints
+    # (see annotate_reference_types).
     ReferencePath[annotate_reference_types(_unwrap_cell(obj), p) for p in results]
 end
 

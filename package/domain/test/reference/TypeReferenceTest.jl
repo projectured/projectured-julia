@@ -138,10 +138,10 @@ elt_ann = annotate_reference_types(arr,
 
 # ── Phase 2: producers return canonical (self-describing) references ───────
 
-# collect_references annotates each result against the document, so every search
+# search_references annotates each result against the document, so every search
 # result is canonical (carries type checkpoints) and strips back to the plain
 # navigation path the search built.
-hits = collect_references(obj, "x")
+hits = search_references(obj, "x")
 @test !isempty(hits)
 canonical_hit = first(hits)
 # Canonical: carries folded node types (so its skeleton differs under strict

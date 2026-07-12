@@ -320,7 +320,7 @@ function test_search_object()
         @test length(search_references(doc, r"Ali")) == 1
 
         # Returned references are canonical at rest: every navigation step is
-        # preceded by a TypeReference checkpoint (as collect_references produces),
+        # preceded by a TypeReference checkpoint (as search_references produces),
         # and stripping them recovers a usable plain path.
         ar = search_references(doc, "Alice")[1]
         steps = ConcreteReferencePath[]

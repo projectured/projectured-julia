@@ -8,7 +8,7 @@ across domain transformations.
 
 This page is the single home for the **reference grammar**: the step
 vocabulary, the boundary axis, the two DSLs, type checkpoints, the path
-structs, per-domain path tables, and `collect_references`. For how a reference
+structs, per-domain path tables, and searching (`search_references`). For how a reference
 is *stored, propagated, and forward-projected* as the current selection, see
 the sibling [selection guide](selection.md).
 
@@ -251,7 +251,7 @@ and in projected output alike:
 - **Document-domain selections are canonical.** `set_selection!(document, path)`
   fills node types against `document` (it does
   `annotate_reference_types(document, strip_reference_types(path))`), so every
-  document's `selection` cell holds the folded form. `collect_references`
+  document's `selection` cell holds the folded form. `search_references`
   likewise annotates its results, so search results are self-describing too.
 - **Mappers and structure-creating printers emit the folded form.** Each printer
   that builds output structure types the output path it constructs; the generic
@@ -533,25 +533,24 @@ The pattern is consistent across all domains:
 A reference path is always a chain of these step types (plus `ProjectionReference`
 for projection-introduced elements like delimiters and brackets).
 
-## Collecting references: `collect_references`
+## Finding references: `search_references`
 
-`collect_references` searches a document tree for all occurrences of a specific
-value and returns their reference paths.
+To find every path to a matching node, use `search_references(document, query)`
+— it takes a predicate, a substring `String`, or a `Regex`, and returns a
+`Vector{ReferencePath}` whose results are annotated with type checkpoints (so
+they are self-describing and replay-safe):
 
 ```julia
-result = collect_references(editor.document, "John")
-# Returns a Vector{ReferencePath}, e.g.:
-# [entries[1].value, entries[3].value.name.value]  (printed with [i] for elements)
-
-for ref in result
+for ref in search_references(editor.document, "John")   # or r"TODO", or a predicate
     value = evaluate_reference(document, ref)
     println("Found at $ref: $value")
 end
 ```
 
-Its results are annotated with type checkpoints, so they are self-describing and
-replay-safe. To search by predicate (rather than by an exact value) and select
-the result, see the [finding-and-selecting guide](finding-and-selecting.md).
+`search_references` (and its object-valued sibling `search_objects`) is a
+higher-layer walker — it must know about opaque document types — so it lives
+above the reference layer, not in it. See the
+[finding-and-selecting guide](finding-and-selecting.md).
 
 ## The opaque-payload pattern
 

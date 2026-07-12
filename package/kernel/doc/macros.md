@@ -292,7 +292,7 @@ machinery, and with it the same three sharp edges:
   generated `I`-prefixed snapshot (`IFoo`, an immutable `struct`) compares
   structurally. Reference/path types define `==` by hand. Don't assume two
   freshly built documents with equal fields are `==` — they are not. Code that
-  needs value comparison (e.g. `collect_references`) compares the unwrapped
+  needs value comparison (e.g. `search_references`) compares the unwrapped
   *leaf values*, not whole documents.
 
 ## How this pattern threads through the codebase

@@ -29,8 +29,8 @@
 #   * FieldReference  → getfield, unwrapping a Cell
 #   * ElementReference → document[i] (CellVector indexing)
 # so the generated path strings are identical to what read_intent returns.
-# (The generic collect_references walker is deliberately NOT reused: it descends
-# into a CellVector's internal `elements` field and so yields non-canonical
+# (A generic reflection walker is deliberately NOT reused here: it would descend
+# into a CellVector's internal `elements` field and so yield non-canonical
 # paths like `.elements.elements[i]` instead of `.elements[i]`.)
 # ═══════════════════════════════════════════════════════════════════════════
 
