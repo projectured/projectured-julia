@@ -280,13 +280,13 @@ is the contract that keeps backends interchangeable.
 # Internals
 
 The remainder of this guide documents the kernel-internal module structure
-behind the two abstractions: the **device layer** (layer 5) and the **backend
-layer** (layer 6). They are independent siblings — the two abstractions only
+behind the two abstractions: the **device layer** (layer 6) and the **backend
+layer** (layer 7). They are independent siblings — the two abstractions only
 come together in a concrete implementation.
 
-## The device layer (layer 5)
+## The device layer (layer 6)
 
-Layer 5 of the kernel — **input devices, events, and gestures**.
+Layer 6 of the kernel — **input devices, events, and gestures**.
 
 The layer lives in [main/device/](../../../package/kernel/main/device/) as a set of small modules
 plus one aggregator (`GestureModule`) covering the gesture machinery:
@@ -365,9 +365,9 @@ other package docs defer here rather than repeat it.)
 
 That is the full import surface. No backend, no editor, no operation.
 
-## The backend layer (layer 6)
+## The backend layer (layer 7)
 
-Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
+Layer 7 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type, the batch generics, the display-size seam, and the
 dependency-free `HeadlessBackend` that CI and documentation examples run
 against.
@@ -395,7 +395,7 @@ against the loaded `Backend` subtypes by reflection — no coined `:kind` key an
 no per-backend registration.
 
 No document is imported here. The batch I/O generics are duck-typed on the
-`document` argument, so the layer stays document-free at layer 6.
+`document` argument, so the layer stays document-free at layer 7.
 
 ### DisplayModule
 

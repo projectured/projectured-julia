@@ -1,6 +1,6 @@
 # The agent layer
 
-Layer 8 of the kernel — the **AI control surface** (side-stack). Independent
+Layer 9 of the kernel — the **AI control surface** (side-stack). Independent
 of the editor loop itself: the editor reaches this layer only through
 `make_agent_server(:kind, editor)`, so no concrete agent-server type is named
 by the editor and the real transports live in optional opt-in packages

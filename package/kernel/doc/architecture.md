@@ -27,15 +27,16 @@ The package is organized around a strict layered architecture with per-layer
 guards, docs, and tests:
 
 ```
-Layer 1 — cell/       cells + performance counter + the editor clock
-Layer 2 — document/   the Document contract + @document + Cell-struct codegen
-Layer 3 — reference/  reference paths + @reference / @reference_case DSLs
-Layer 4 — operation/  Operation + evaluate_operation + the traversal and reroot seams
-Layer 5 — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
-Layer 6 — backend/    Backend + Display + HeadlessBackend
-Layer 7 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + gesture bindings (the concrete combinators live in ProjecturedBase)
-Layer 8 — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
-Layer 9 — editor/     the run_editor! loop + Playback
+Layer 1  — cell/       cells + performance counter + the editor clock
+Layer 2  — document/   the Document contract + @document + Cell-struct codegen
+Layer 3  — reference/  reference paths + @reference / @reference_case DSLs
+Layer 4  — selection/  the selection primitives (get/clear/set/replace/update_selection!) — a document's current-focus state, a reference stored on a document
+Layer 5  — operation/  Operation + evaluate_operation + the traversal and reroot seams
+Layer 6  — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
+Layer 7  — backend/    Backend + Display + HeadlessBackend
+Layer 8  — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + gesture bindings (the concrete combinators live in ProjecturedBase)
+Layer 9  — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
+Layer 10 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -55,7 +56,7 @@ include-order guard (see below).
 ## Dependency diagram — what depends on what
 
 Grouped by role into lettered **bands** (A–H), top = highest. The bands are a
-coarser view than the nine layers above — a diagram grouping, not the layer
+coarser view than the ten layers above — a diagram grouping, not the layer
 structure itself. **Every arrow points *down*: "depends on".**
 The API-stub band (B) is the cycle-breaker: implementation bands depend downward
 onto the abstract stubs, never up. The editor reaches the agent surface only
@@ -171,6 +172,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](cell.md)) |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) |
 | `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
+| `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!`, `update_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
 | `backend/` | Backend, Display, HeadlessBackend |

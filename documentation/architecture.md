@@ -70,8 +70,8 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      9 layers: cell → document → reference → operation →
-        │                      device → backend → projection → agent → editor
+        ▲                      10 layers: cell → document → reference → selection →
+        │                      operation → device → backend → projection → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         ▲                      3 layers: document (Collection, DocumentCore, Primitive,

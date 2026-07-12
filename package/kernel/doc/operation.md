@@ -273,7 +273,7 @@ The material above is *how* to reach for and add operations. The rest of this
 guide is the layer's **structure** — where the code lives and the two open seams
 every path-bearing operation or container document extends.
 
-Layer 4 of the kernel is **changing documents**. An operation is the reified
+Layer 5 of the kernel is **changing documents**. An operation is the reified
 edit the reader side of the projection pipeline produces and
 `evaluate_operation` applies. The layer holds the abstract `Operation`
 supertype, the built-in concrete operations, the selection propagation, the
@@ -387,7 +387,7 @@ other half is the default `read_intent`).
 **Testing pressure.** `test/operation/RerootingTest.jl` declares a test-local
 `ToyPathOp <: Operation` and registers its own `reroot_operation` method,
 proving the seam is genuinely open — you cannot depend on a concrete
-higher-layer type at layer 4.
+higher-layer type at layer 5.
 
 ### Downward edges
 
@@ -396,4 +396,4 @@ higher-layer type at layer 4.
 - `..ReferenceModule: ReferencePath, …, append_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
 
 That is the whole import surface. No projection, no device, no editor. This
-is what keeps the operation layer at index 4 in the DAG.
+is what keeps the operation layer at index 5 in the DAG.
