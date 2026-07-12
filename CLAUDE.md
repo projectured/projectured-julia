@@ -35,13 +35,17 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `reference/Reference.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
-- **Layer 4 — operation** (`operation/`)
+- **Layer 4 — selection** (`selection/`)
+  - ⬜ `selection/SelectionLayer.jl`
+  - ⬜ `selection/SelectionModule.jl`
+  - ⬜ `selection/Selection.jl`
+- **Layer 5 — operation** (`operation/`)
   - ⬜ `operation/OperationLayer.jl`
   - ⬜ `operation/OperationModule.jl`
   - ⬜ `operation/Interface.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
-- **Layer 5 — device** (`device/`)
+- **Layer 6 — device** (`device/`)
   - ⬜ `device/DeviceLayer.jl`
   - ⬜ `device/Device.jl`
   - ⬜ `device/Modifiers.jl`
@@ -52,12 +56,12 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `device/GestureBinding.jl`
   - ⬜ `device/ScreenDevice.jl`
   - ⬜ `device/GestureRecognizer.jl`
-- **Layer 6 — backend** (`backend/`)
+- **Layer 7 — backend** (`backend/`)
   - ⬜ `backend/BackendLayer.jl`
   - ⬜ `backend/Backend.jl`
   - ⬜ `backend/Display.jl`
   - ⬜ `backend/HeadlessBackend.jl`
-- **Layer 7 — projection** (`projection/`)
+- **Layer 8 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionApi.jl`
   - ⬜ `projection/IoMapApi.jl`
@@ -68,13 +72,13 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/Projection.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 8 — agent** (`agent/`)
+- **Layer 9 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/Llm.jl`
   - ⬜ `agent/ToolRegistry.jl`
   - ⬜ `agent/Mcp.jl`
-- **Layer 9 — editor** (`editor/`)
+- **Layer 10 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Playback.jl`

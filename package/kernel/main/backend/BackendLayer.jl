@@ -1,4 +1,4 @@
-# ── Backend layer (layer 6 — rendering targets, independent of device) ─────
+# ── Backend layer (layer 7 — rendering targets, independent of device) ─────
 # The ordered include list of the backend layer; a fragment of ProjecturedKernel.
 # BackendModule declares the abstract Backend and the batch generics
 # (initialize_backend!, quit_backend!, measure_text, write_image, record_video,

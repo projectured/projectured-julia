@@ -1,4 +1,4 @@
-# ── Device layer (layer 5 — input devices, events, gestures) ───────────────
+# ── Device layer (layer 6 — input devices, events, gestures) ───────────────
 # The ordered include list of the device layer; a fragment of ProjecturedKernel.
 # The DeviceModule interface, the modifier/keyboard/mouse event types, and
 # GestureModule (the @event_case macro + parser and the reified

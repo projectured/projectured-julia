@@ -58,6 +58,8 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ReferenceApiModule = ProjecturedKernel.ReferenceModule
+const SelectionModule = ProjecturedKernel.SelectionModule
+const SelectionApiModule = ProjecturedKernel.SelectionModule
 const ProjectionReferenceModule = ProjecturedKernel.ProjectionReferenceModule
 const ProjectionReferenceApiModule = ProjecturedKernel.ProjectionReferenceModule
 # PointReferenceModule is defined locally by this package's graphics slice

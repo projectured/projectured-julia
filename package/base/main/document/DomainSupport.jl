@@ -30,7 +30,8 @@ import InteractiveUtils: subtypes
 import ..GestureModule
 import ..DocumentModule: Document, var"@document"
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath, with_selection
+                          EmptyReferencePath
+import ..SelectionModule: with_selection
 import ..OperationModule: replace_document
 import ..GestureModule: GestureBinding, KeyDownPattern, get_document_gesture_bindings_own
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion

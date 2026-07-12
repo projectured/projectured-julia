@@ -41,6 +41,7 @@ using ProjecturedKernelExample: Example
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
+using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.KeyboardModule
 using ProjecturedKernel.ModifiersModule
@@ -89,8 +90,8 @@ function test_kernel_layering()
     main = normpath(dirname(pathof(ProjecturedKernel)))
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
-                   layers = ["cell", "document", "reference", "operation", "device",
-                             "backend", "projection", "agent", "editor"],
+                   layers = ["cell", "document", "reference", "selection", "operation",
+                             "device", "backend", "projection", "agent", "editor"],
                    check_private_imports = true)
 end
 

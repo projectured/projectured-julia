@@ -1,4 +1,4 @@
-# ── Operation layer (layer 4) ───────────────────────────────────────────────
+# ── Operation layer (layer 5) ───────────────────────────────────────────────
 # The ordered include list of the operation layer; a fragment of ProjecturedKernel.
 # The operation contract and the shared operations (selection replacement,
 # value replacement, compounds) plus rerooting. Like the reference layer, it

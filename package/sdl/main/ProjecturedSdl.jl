@@ -45,7 +45,7 @@ import ProjecturedDomain.ImageModule: ImageFile
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
 import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
-import ProjecturedDomain.ReferenceApiModule: clear_selection!, set_selection!
+import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell, is_up_to_date
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath

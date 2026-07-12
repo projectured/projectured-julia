@@ -37,7 +37,7 @@ module DocumentInsertionToSyntaxModule
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
-import ..ReferenceApiModule: with_selection
+import ..SelectionApiModule: with_selection
 import ..GestureApiModule: read_gesture
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress

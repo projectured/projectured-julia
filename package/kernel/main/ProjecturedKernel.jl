@@ -23,7 +23,7 @@ re-exported by the `Projectured` umbrella.
 """
 module ProjecturedKernel
 
-# The package is nine architectural layers, one folder each, included
+# The package is ten architectural layers, one folder each, included
 # bottom-to-top below. Each layer folder keeps its own ordered include list in
 # a `<Name>Layer.jl` *fragment* (a 0-module file sharing this module's
 # namespace), so this file reads as the layer diagram and each layer file as
@@ -34,11 +34,12 @@ module ProjecturedKernel
 include("cell/CellLayer.jl")             # layer 1 — the reactive cell engine
 include("document/DocumentLayer.jl")     # layer 2 — the document contract
 include("reference/ReferenceLayer.jl")   # layer 3 — reference machinery
-include("operation/OperationLayer.jl")   # layer 4 — reified edits
-include("device/DeviceLayer.jl")         # layer 5 — input devices, events, gestures
-include("backend/BackendLayer.jl")       # layer 6 — rendering-target seam
-include("projection/ProjectionLayer.jl") # layer 7 — projection interface & algebra
-include("agent/AgentLayer.jl")           # layer 8 — the AI control surface
-include("editor/EditorLayer.jl")         # layer 9 — the read-eval-print loop
+include("selection/SelectionLayer.jl")   # layer 4 — document current-focus state
+include("operation/OperationLayer.jl")   # layer 5 — reified edits
+include("device/DeviceLayer.jl")         # layer 6 — input devices, events, gestures
+include("backend/BackendLayer.jl")       # layer 7 — rendering-target seam
+include("projection/ProjectionLayer.jl") # layer 8 — projection interface & algebra
+include("agent/AgentLayer.jl")           # layer 9 — the AI control surface
+include("editor/EditorLayer.jl")         # layer 10 — the read-eval-print loop
 
 end # module ProjecturedKernel

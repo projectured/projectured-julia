@@ -15,7 +15,7 @@ import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..ReferenceApiModule: with_selection
+import ..SelectionApiModule: with_selection
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..DomainSupportModule: var"@domain", make_insertion_document

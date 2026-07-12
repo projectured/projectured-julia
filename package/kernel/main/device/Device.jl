@@ -1,7 +1,7 @@
 """
     DeviceModule
 
-The device *interface* — the first module of layer 5. Declares the batch I/O
+The device *interface* — the first module of layer 6. Declares the batch I/O
 used to render a document to, and poll input from, a set of devices. These are
 pure interface stubs: a concrete backend adds the methods, dispatching on its
 own backend type (e.g. `write_to_devices(::SomeBackend, devices, doc)`). The

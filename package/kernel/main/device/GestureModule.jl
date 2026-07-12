@@ -1,7 +1,7 @@
 """
     GestureModule
 
-Layer 5 aggregator — the gesture machinery. Two fragments share this
+Layer 6 aggregator — the gesture machinery. Two fragments share this
 namespace:
 
 - [`EventCase.jl`](EventCase.jl) — the `@event_case` dispatch-table macro

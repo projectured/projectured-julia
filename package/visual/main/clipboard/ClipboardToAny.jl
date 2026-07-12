@@ -49,7 +49,7 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
-import ..ReferenceModule: clear_selection!
+import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..TextModule: TextText, TextString, text_selection_substring, text_insert_op
 import ..CollectionModule: CellVector

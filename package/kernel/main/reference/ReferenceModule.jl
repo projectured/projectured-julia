@@ -6,21 +6,18 @@ of typed steps (`RangeReference`, `FieldReference`, `TypeReference`, …),
 forming a `ReferencePath` (an `EmptyReferencePath` or a
 `ConcreteReferencePath`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
-navigation and DSL behaviours through this module's extension seams. The selection generics
-(`get_selection` / `clear_selection!` / `set_selection!` / `with_selection`)
-also live here — their payload is a reference — so a document's current-focus
-API sits with the machinery that expresses it. The path-producing reflection
-search (`search_references`) also lives here: it walks an arbitrary document and
+navigation and DSL behaviours through this module's extension seams. The
+path-producing reflection search (`search_references`) also lives here: it walks
+an arbitrary document and
 *produces* a reference path for every matching node, so it belongs with the
 paths it emits (the value-collecting `search_documents` sibling, which needs no
 reference machinery, lives one layer down in the document layer).
 
-The reference types/values, the selection generics, the `@reference_case`
-pattern-matching DSL, and the `@reference` / `@step` construction DSL are one
-module, because they are only ever imported together and separating them just
-multiplied import headers.
+The reference types/values, the `@reference_case` pattern-matching DSL, and the
+`@reference` / `@step` construction DSL are one module, because they are only ever
+imported together and separating them just multiplied import headers.
 
-The module lives in four fragments that share this namespace:
+The module lives in three fragments that share this namespace:
 
 - [`Reference.jl`](Reference.jl) — the reference-path *types* (steps, paths,
   their `@document`-generated struct forms) plus the value protocol on them
@@ -28,9 +25,6 @@ The module lives in four fragments that share this namespace:
   `is_valid_reference`, `annotate_reference_types`, `strip_reference_types`,
   the equality/prefix predicates), and the path-producing reflection search
   (`search_references`) over documents.
-- [`Selection.jl`](Selection.jl) — the `get_selection` / `clear_selection!` /
-  `set_selection!` / `with_selection` generics that read, clear, and canonicalize
-  a document's `selection` field.
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
@@ -63,18 +57,13 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        step_kind, evaluate_step,
        # DSL extension seams:
        dsl_build_step, dsl_match_step,
-       # Selection generics:
-       get_selection, clear_selection!, set_selection!, with_selection,
        # ReferenceCase DSL:
        @reference_case, when, prefix,
        # ReferenceBuilder DSL:
        @reference, @step
 
-# Types + value protocol first; the selection generics reference `Document`
-# only (from DocumentModule) and are declaration-only, so their placement is
-# order-insensitive. The DSL fragments come last.
+# Types + value protocol first; the DSL fragments come last.
 include("Reference.jl")
-include("Selection.jl")
 include("ReferenceCase.jl")
 include("ReferenceBuilder.jl")
 

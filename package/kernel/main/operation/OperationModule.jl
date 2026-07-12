@@ -1,15 +1,15 @@
 """
     OperationModule
 
-Layer 4 of the kernel — **changing documents**. Operations are the reified
+Layer 5 of the kernel — **changing documents**. Operations are the reified
 edits the reader side of the projection pipeline produces and
 `evaluate_operation` applies. This module holds the abstract `Operation`
 supertype and the `evaluate_operation` / `invalidate_projection!` generics
 (from `Interface.jl`), the built-in concrete operations and their
-`evaluate_operation` methods, the selection propagation
-(`clear_selection!` / `set_selection!` / `update_selection!`), the
-`splice_*` text-edit helpers, and the two open seams the container
-projections and higher documents extend:
+`evaluate_operation` methods (the selection-changing ones —
+`ReplaceSelectionOperation`, `SelectNextInsertionOperation` — drive the
+selection primitives in the layer below), the `splice_*` text-edit helpers, and
+the two open seams the container projections and higher documents extend:
 
 - `child_reference_steps(node)` (in `Operations.jl`): the open
   traversal seam driving `SelectNextInsertionOperation`'s pre-order
@@ -43,16 +43,16 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                            FieldReference, RangeReference, TypeReference,
                            is_element_reference, evaluate_reference, is_reference_equal,
                            annotate_reference_types, strip_reference_types,
-                           append_reference, concat_references, reference_steps,
-                           clear_selection!, set_selection!, with_selection
+                           append_reference, concat_references, reference_steps
+import ..SelectionModule: set_selection!, update_selection!
 
 export Operation, evaluate_operation, invalidate_projection!,
        # from Operations.jl
        DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation,
-       QuitEditorException, replace_selection!, ToggleCollapseOperation,
+       QuitEditorException, ToggleCollapseOperation,
        ReplaceReferencedValueOperation, replace_document, insert_elements,
        delete_elements, SelectNextInsertionOperation, CompoundOperation,
-       AdjustZoomOperation, AdjustFontZoomOperation, update_selection!,
+       AdjustZoomOperation, AdjustFontZoomOperation,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
        # from Rerooting.jl
