@@ -585,7 +585,7 @@ _julia_ins_commit(ins) =
 # The Tab navigation predicate + in-hole cursor: land on the next `JuliaInsertion`,
 # cursor at its buffer offset 0 so it is ready to type.
 _is_julia_hole(node) = node isa JuliaInsertion
-const _JULIA_HOLE_CURSOR = @reference value{0}
+const _JULIA_HOLE_CURSOR = @reference ::JuliaInsertion.value::String{0}::Position
 
 # Tab: commit the buffer and jump to the next hole.
 #  - empty buffer            → just advance (skip the untouched hole).

@@ -196,7 +196,7 @@ end
 # The ellipsis (position after the open delimiter) has no source coordinate.
 @test _pos_to_selection(iomap_c, 1).head isa ProjectionReference
 # `.children[i]…` input references have no image while collapsed.
-@test _S2T._syntax_to_flat(node, (@reference children[1].value{0}), p, 0) == -1
+@test _S2T._syntax_to_flat(node, (@reference(node, children[1].value{0})), p, 0) == -1
 
 # Toggling back restores the expanded output byte-for-byte.
 node.collapsed = false

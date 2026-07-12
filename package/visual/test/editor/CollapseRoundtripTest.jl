@@ -59,7 +59,7 @@ function test_collapse_roundtrip()
         # ── Keyboard: Ctrl+. folds the innermost node at the cursor ─────────
         inner = doc.children[4].children[2]   # the (<= n 1) sub-expression
         clear_selection!(doc)
-        set_selection!(doc, @reference children[4].children[2].children[1].value{1})
+        set_selection!(doc, @reference(doc, children[4].children[2].children[1].value{1}))
         op3 = read_intent(proj, print_document(proj, doc), KeyDown(:period, Modifiers(ctrl=true)))
         @test op3 isa ToggleCollapseOperation
         @test op3.target === inner

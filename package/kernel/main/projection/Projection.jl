@@ -98,12 +98,12 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # selection, typed against the input document.
     reference isa EmptyReferencePath &&
         return EmptyReferencePath(reference_node_type(iomap.input))
-    # The projection-introduced element has no input pre-image; annotate the
-    # `proj`-wrapped path against the input document so its node carries the input
-    # type (a `ProjectionReference` evaluates to its `output_path`, so the terminal
-    # records that path's own type) — keeping the strict-typing invariant.
-    r = @reference proj(projection, ^(reference))
-    is_fully_typed(r) ? r : annotate_reference_types(iomap.input, r)
+    # The projection-introduced element has no input pre-image; build the
+    # `proj`-wrapped path and annotate it against the input document (the 2-arg
+    # `@reference(doc, …)` form) so its node carries the input type (a
+    # `ProjectionReference` evaluates to its `output_path`, so the terminal records
+    # that path's own type) — keeping the strict-typing invariant.
+    @reference(iomap.input, proj(projection, ^(reference)))
 end
 
 """

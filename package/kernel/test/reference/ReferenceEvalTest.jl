@@ -20,6 +20,10 @@ end
 end
 
 function test_reference_eval()
+# Exercises evaluation over raw/untyped skeleton paths — disable strict locally.
+_strict = ProjecturedKernel.ReferenceModule.STRICT[]
+ProjecturedKernel.ReferenceModule.STRICT[] = :off
+try
 @testset "ReferenceEval" begin
 
     root = EvalBranch(EvalLeaf(10, nothing), EvalLeaf(20, nothing), nothing)
@@ -57,5 +61,8 @@ function test_reference_eval()
         @test !is_prefix_of(deep, base)
     end
 
+end
+finally
+    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_reference_eval

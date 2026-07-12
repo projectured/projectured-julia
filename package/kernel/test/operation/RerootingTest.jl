@@ -20,6 +20,10 @@ ProjecturedKernel.OperationModule.reroot_operation(op::ToyPathOp, s::Tuple) =
     ToyPathOp(reroot_reference(op.reference, s))
 
 function test_rerooting()
+# Reroots raw/untyped skeleton paths — disable strict-typing enforcement locally.
+_strict = ProjecturedKernel.ReferenceModule.STRICT[]
+ProjecturedKernel.ReferenceModule.STRICT[] = :off
+try
 @testset "Rerooting" begin
 
     steps = (FieldReference("outer"), FieldReference("inner"))
@@ -62,5 +66,8 @@ function test_rerooting()
                                     ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
     end
 
+end
+finally
+    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_rerooting

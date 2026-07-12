@@ -26,6 +26,11 @@ end
 end
 
 function test_reference_builder()
+# This suite exercises the raw builder primitive, which legitimately constructs
+# *untyped* skeleton paths — disable the strict-typing enforcement locally.
+_strict = ProjecturedKernel.ReferenceModule.STRICT[]
+ProjecturedKernel.ReferenceModule.STRICT[] = :off
+try
 @testset "ReferenceBuilder" begin
 
 # ── basic forms ──────────────────────────────────────────────────────────
@@ -208,5 +213,8 @@ let multi = @reference ::A.entries::B[1]::C.key::D
     @test matched == (:hit, 1)
 end
 
+end
+finally
+    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_reference_builder

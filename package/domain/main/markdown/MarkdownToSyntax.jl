@@ -326,7 +326,7 @@ function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelect
     if h isa FieldReference && h.name == "value"
         return ReplaceSelectionOperation(@reference ::MarkdownText.content::String.^(path.tail))
     else
-        return ReplaceSelectionOperation(@reference proj(p, ^(path)))
+        return ReplaceSelectionOperation(@reference(iomap.input, proj(p, ^(path))))
     end
 end
 

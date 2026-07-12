@@ -106,7 +106,7 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
         in_span, char_offset, _ = mapping[next]
         out_char = 0
     end
-    ReplaceSelectionOperation(@reference elements[in_span].content{char_offset + out_char})
+    ReplaceSelectionOperation(@reference(iomap.input, elements[in_span].content{char_offset + out_char}))
 end
 
 read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt

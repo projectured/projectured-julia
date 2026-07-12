@@ -4,6 +4,11 @@ DSL build registration, and the `@reference_case c.point(x, y)` pattern-match
 registration.
 """
 function test_point_reference()
+# Exercises the raw `.point` builder/pattern DSL on untyped skeleton paths —
+# disable the strict-typing enforcement locally.
+_strict = ProjecturedVisual.ReferenceModule.STRICT[]
+ProjecturedVisual.ReferenceModule.STRICT[] = :off
+try
 @testset "PointReference" begin
 
 # ── struct construction and equality ─────────────────────────────────────
@@ -58,4 +63,7 @@ let sample = @reference value
 end
 
 end # @testset "PointReference"
+finally
+    ProjecturedVisual.ReferenceModule.STRICT[] = _strict
+end
 end # function test_point_reference
