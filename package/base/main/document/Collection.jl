@@ -24,12 +24,12 @@ module CollectionModule
 
 import ..CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_function!, set_value!
 import ..DocumentModule: Document, copy_document, sync_document!, _same_cell,
-       _same_wrapper, _shadow_elem, _document_cell_kind, @document, @forward
+       _same_wrapper, _shadow_elem, _document_cell_kind, is_element_collection, @document, @forward
 import ..ReferenceModule: Reference, RangeReference
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, children_container_type
 export CollectionDocument, get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
-       insertcol!, deleterow!, deletecol!, insertrow, deleterow, is_element_collection
+       insertcol!, deleterow!, deletecol!, insertrow, deleterow
 
 # The four collection shapes, one fragment file each (fragments share this
 # module's namespace). CellVector first — CellTable's rows are a CellVector.

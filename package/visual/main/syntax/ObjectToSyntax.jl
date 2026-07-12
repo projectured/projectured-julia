@@ -11,7 +11,7 @@ AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 module ObjectToSyntaxModule
 
 import ..CellModule: Cell
-import ..CollectionModule: is_element_collection
+import ..DocumentModule: is_element_collection
 import ..LlmModule: Llm
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"

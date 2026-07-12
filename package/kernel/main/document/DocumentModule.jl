@@ -17,7 +17,7 @@ module DocumentModule
 import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
                      cell_struct_kw_params, cell_struct_kwctor
 
-export Document, copy_document, sync_document!,
+export Document, copy_document, sync_document!, is_element_collection,
        @document, @forward, @forward_vector, @forward_map
 
 # Interface.jl first — the machinery in Document.jl and Forward.jl refers to
