@@ -42,19 +42,19 @@ end
 # Type-specific variants so the returned reference carries the leading document type.
 function _backward_bool(reference)
     @reference_case reference begin
-        elements[1].content{s:e} => @reference ::PrimitiveBool.value::Bool{s}::Position
+        ::TextText.elements[1].content{s:e} => @reference ::PrimitiveBool.value::Bool{s}::Position
     end
 end
 
 function _backward_number(reference)
     @reference_case reference begin
-        elements[1].content{s:e} => @reference ::PrimitiveNumber.value::Number{s}::Position
+        ::TextText.elements[1].content{s:e} => @reference ::PrimitiveNumber.value::Number{s}::Position
     end
 end
 
 function _backward_string(reference)
     @reference_case reference begin
-        elements[1].content{s:e} => @reference ::PrimitiveString.value::String{s}::Position
+        ::TextText.elements[1].content{s:e} => @reference ::PrimitiveString.value::String{s}::Position
     end
 end
 

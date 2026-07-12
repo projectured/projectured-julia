@@ -47,9 +47,9 @@ struct SyntaxLeafToText <: Projection end
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
     @reference_case reference begin
         ∅                          => @reference()
-        open{s:_}                  => _text_elem_path(1, s)
-        value{s:_}                 => _text_elem_path(2, s)
-        close{s:_}                 => _text_elem_path(3, s)
+        ::SyntaxLeaf.open{s:_}     => _text_elem_path(1, s)
+        ::SyntaxLeaf.value{s:_}    => _text_elem_path(2, s)
+        ::SyntaxLeaf.close{s:_}    => _text_elem_path(3, s)
         proj(_, open{s:_})         => _text_elem_path(1, s)
         proj(_, close{s:_})        => _text_elem_path(3, s)
     end

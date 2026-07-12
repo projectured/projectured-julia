@@ -575,7 +575,7 @@ text_insert_op(text::TextText, str::AbstractString) = _text_insert(text, str)
 function _cursor_position(sel)
     sel === nothing && return nothing
     @reference_case sel begin
-        elements{s:_}.content{c:_} => (span=s + 1, char=c)
+        ::TextText.elements{s:_}.content{c:_} => (span=s + 1, char=c)
     end
 end
 
