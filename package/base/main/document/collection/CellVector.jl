@@ -14,6 +14,20 @@
     selection::Reference
 end
 
+"""
+    is_element_collection(document) -> Bool
+
+`true` when a document's children are addressed **by position** (an
+`ElementReference`, i.e. `[i]`) rather than by named field. A reflection walker
+(e.g. `search_references`) keys off this trait to emit `[i]` element paths for a
+collection instead of descending into its internal storage fields — so it never
+has to name a concrete collection type. Default `false`; `CellVector`, the
+canonical sequence document, is the primary `true`. Other positional-collection
+documents (e.g. a `@forward_vector` wrapper) can opt in with their own method.
+"""
+is_element_collection(::Any) = false
+is_element_collection(::CellVector) = true
+
 CellVector()                        = CellVector(Cell(Cell[]),           Cell(nothing))
 CellVector(cells::Vector{Cell})     = CellVector(Cell(copy(cells)),      Cell(nothing))
 CellVector(items::AbstractVector)   = CellVector(Cell[Cell(x) for x in items])

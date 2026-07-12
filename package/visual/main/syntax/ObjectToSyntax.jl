@@ -11,7 +11,7 @@ AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 module ObjectToSyntaxModule
 
 import ..CellModule: Cell
-import ..CollectionModule: CellVector
+import ..CollectionModule: is_element_collection
 import ..LlmModule: Llm
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -206,7 +206,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # `fieldnames` of a Tuple type yields integer indices, not Symbols, so the
     # struct branch below cannot reflect over them (e.g. an RGBA color stored
     # as NTuple{4,UInt8}).
-    if obj isa CellVector || obj isa AbstractArray || obj isa Tuple
+    if is_element_collection(obj) || obj isa AbstractArray || obj isa Tuple
         idxs = p.filter === nothing ? collect(1:length(obj)) :
                [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
         element_nodes = SyntaxDocument[
@@ -411,7 +411,7 @@ function _search_references!(results, obj, predicate, path, seen, include_select
     matched && push!(results, path)
     depth <= 0 && return
     _is_search_leaf(obj) && return
-    if obj isa CellVector
+    if is_element_collection(obj)
         for i in 1:length(obj)
             _search_references!(results, _unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), seen, include_selection, depth - 1)
@@ -482,7 +482,7 @@ function _search_objects!(results, obj, predicate, seen, include_selection, dept
     (try predicate(obj) catch; false end) && push!(results, obj)
     depth <= 0 && return
     _is_search_leaf(obj) && return
-    if obj isa CellVector
+    if is_element_collection(obj)
         for i in 1:length(obj)
             _search_objects!(results, _unwrap_cell(obj[i]), predicate, seen, include_selection, depth - 1)
         end

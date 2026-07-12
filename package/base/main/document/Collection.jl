@@ -29,7 +29,7 @@ import ..ReferenceModule: Reference, RangeReference
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, children_container_type
 export CollectionDocument, get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
-       insertcol!, deleterow!, deletecol!, insertrow, deleterow
+       insertcol!, deleterow!, deletecol!, insertrow, deleterow, is_element_collection
 
 # The four collection shapes, one fragment file each (fragments share this
 # module's namespace). CellVector first — CellTable's rows are a CellVector.
