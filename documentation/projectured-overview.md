@@ -378,7 +378,7 @@ The operations you expect — in every domain.
 - **Cut / copy / paste** — a real `Clipboard` domain; you paste structured
   *meaning*, not text.
 - **Mouse** — click-to-select maps pixels back to a position.
-- **Search** — `search_references` / `search_objects` walk the whole tree
+- **Search** — `search_references` / `search_documents` walk the whole tree
   (string, regex, or predicate; depth-bounded for infinite data).
 - **Scroll, tabs, panels, drag-to-reorder** in the workbench.
 

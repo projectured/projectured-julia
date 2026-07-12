@@ -181,7 +181,7 @@ node = evaluate_reference(document, ref)   # the JsonString at that path
 ```
 
 **To find a node by content** (and get a reference to it, or select it) rather
-than knowing its path up front, use `search_references` / `search_objects` — see
+than knowing its path up front, use `search_references` / `search_documents` — see
 the [finding-and-selecting guide](finding-and-selecting.md). Do not hand-walk
 the document tree to locate a node.
 
@@ -547,16 +547,22 @@ for ref in search_references(editor.document, "John")   # or r"TODO", or a predi
 end
 ```
 
-`search_references` (and its object-valued sibling `search_objects`) lives in
-the reference layer: it *produces* reference paths, so it belongs with the
-machinery that expresses them. It stays free of higher-layer types through two
-Holy traits it dispatches on but does not own — `is_element_collection` (a
-document-layer default; `CellVector` opts in so a positional collection emits
-`[i]` element paths) and `is_opaque` (a reference-layer default that returns
-`false`; the agent layer's `Llm` opts in with `true` so the walker never
-descends into assistant configuration). Higher layers register their document
-types by adding methods, never by the walker naming them. See the
+`search_references` lives in the **reference layer**: it *produces* reference
+paths, so it belongs with the machinery that expresses them. Its object-valued
+sibling `search_documents` (below) needs no reference machinery, so it lives one
+layer down in the **document layer** — the two walks are structurally parallel
+and kept in sync. Both stay free of higher-layer types through two Holy traits
+they dispatch on but do not own, each a document-layer default: `is_element_collection`
+(`CellVector` opts in, so a positional collection emits `[i]` element paths) and
+`is_opaque` (the agent layer's `Llm` opts in, so the walk never descends into
+assistant configuration). Higher layers register their document types by adding
+methods, never by the walker naming them. See the
 [finding-and-selecting guide](finding-and-selecting.md).
+
+To collect the matching **document nodes** themselves (each once) rather than their
+paths, use `search_documents(document, query)` — same predicate/`String`/`Regex`
+query, returning a `Vector` of the matched document nodes (scalar leaf matches are
+folded up to their enclosing `Document`; pass `raw=true` to return the exact matched value).
 
 ## The opaque-payload pattern
 

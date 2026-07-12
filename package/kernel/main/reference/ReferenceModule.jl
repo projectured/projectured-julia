@@ -9,10 +9,11 @@ Domain-specific step types live in their own layers and register their
 navigation and DSL behaviours through this module's extension seams. The selection generics
 (`get_selection` / `clear_selection!` / `set_selection!` / `with_selection`)
 also live here — their payload is a reference — so a document's current-focus
-API sits with the machinery that expresses it. The reflection search
-(`search_references` / `search_objects`) likewise lives here: it walks an
-arbitrary document and *produces* a reference path for every matching node, so
-it belongs with the paths it emits.
+API sits with the machinery that expresses it. The path-producing reflection
+search (`search_references`) also lives here: it walks an arbitrary document and
+*produces* a reference path for every matching node, so it belongs with the
+paths it emits (the value-collecting `search_documents` sibling, which needs no
+reference machinery, lives one layer down in the document layer).
 
 The reference types/values, the selection generics, the `@reference_case`
 pattern-matching DSL, and the `@reference` / `@step` construction DSL are one
@@ -25,9 +26,8 @@ The module lives in four fragments that share this namespace:
   their `@document`-generated struct forms) plus the value protocol on them
   (`append_reference`, `concat_references`, `evaluate_reference`,
   `is_valid_reference`, `annotate_reference_types`, `strip_reference_types`,
-  the equality/prefix predicates), and the reflection search over documents
-  (`search_references` / `search_objects`, with `is_opaque` marking a document
-  the walk treats as a leaf).
+  the equality/prefix predicates), and the path-producing reflection search
+  (`search_references`) over documents.
 - [`Selection.jl`](Selection.jl) — the `get_selection` / `clear_selection!` /
   `set_selection!` / `with_selection` generics that read, clear, and canonicalize
   a document's `selection` field.
@@ -46,7 +46,7 @@ without rebuilding the chain.
 module ReferenceModule
 
 import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: Document, is_element_collection, @document
+import ..DocumentModule: Document, is_element_collection, _is_search_leaf, _text_query, @document
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,
@@ -57,8 +57,8 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, reference_node_type, is_fully_typed,
-       # Reflection search (produces reference paths / matching objects):
-       search_references, search_objects, is_opaque,
+       # Reflection search (produces reference paths):
+       search_references,
        # Step-type extensibility seam:
        step_kind, evaluate_step,
        # DSL extension seams:

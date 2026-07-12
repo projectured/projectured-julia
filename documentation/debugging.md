@@ -110,7 +110,7 @@ apart so you can step through it one call at a time.
 
 ## Searching the pipeline state (iomaps)
 
-`search_references` / `search_objects` (the content-search primitives from the
+`search_references` / `search_documents` (the content-search primitives from the
 [finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)) are usually run
 against `editor.document`, but they walk **any** object graph — unwrapping cells,
 descending struct fields and collections. An **iomap** is exactly such a graph:
@@ -124,16 +124,20 @@ at every stage — not just the source document.
 julia> iomap = print_document(make_json_projection_example(),
                                 make_json_document_example());
 
-julia> search_references(iomap, "Wonderland")   # 16 paths — one per pipeline location
-julia> search_objects(iomap,    "Wonderland")   # 1 object  — the value itself, once
+julia> search_references(iomap, "Wonderland")            # 16 paths — one per pipeline location
+julia> search_documents(iomap, "Wonderland"; raw=true)   # 1 — the shared String value, once
 julia> search_references(make_json_document_example(), "Wonderland")   # 1 path — source only
 ```
 
 The value shows up **16 times** in the iomap because it appears at 16 distinct
 *locations* along the pipeline — the source `JsonString`, each projection step's
-input, the projected `SyntaxNode` tree, the text, … — yet `search_objects`
-returns it **once**, because all 16 locations are the *same* `String` object,
-shared by reference. That gap is itself a diagnostic (below).
+input, the projected `SyntaxNode` tree, the text, … — yet `search_documents(…; raw=true)`
+returns it **once**, because all 16 locations share the *same* underlying `String`
+object by reference. (Use `raw=true` here on purpose: the default document-scoped
+search folds each hit up to its enclosing document, which differs by stage — a
+`JsonString` in the JSON stages, a syntax/text leaf in the projected ones — so it
+does **not** collapse to one. Counting object identity is what `raw=true` gives
+you.) That gap is itself a diagnostic (below).
 
 ### Reading an iomap path
 
@@ -164,11 +168,12 @@ didn't propagate — search the iomap and read which stages it survives to:
 
 - **Present in an early `.input`, absent from a later stage's `.output`** → that
   stage's printer dropped it. Narrow to the projection between those two stages.
-- **`search_references` count high but `search_objects` count > 1** → the value
-  was *copied* somewhere instead of flowing by reference: a stale copy is sitting
-  next to the fresh one, the classic signature of a broken reactive link. When
-  reactivity is healthy the same object flows through and `search_objects`
-  collapses to one.
+- **`search_references` count high but `search_documents(…; raw=true)` count > 1** →
+  the value was *copied* somewhere instead of flowing by reference: a stale copy is
+  sitting next to the fresh one, the classic signature of a broken reactive link.
+  When reactivity is healthy the same object flows through and the `raw=true` count
+  collapses to one. (Count with `raw=true` for this check — the default folds hits
+  to their enclosing documents, which legitimately differ across stages.)
 - **Nothing in any `.output`** → the value never entered the projected tree; look
   at the first projection, not the renderer.
 

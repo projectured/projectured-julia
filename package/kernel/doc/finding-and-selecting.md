@@ -13,7 +13,7 @@ The three primitives, and how they compose:
 | You have… | You want… | Use |
 |-----------|-----------|-----|
 | a document + a predicate **or string/regex** | the **paths** to matching nodes | `search_references(doc, query)` |
-| a document + a predicate **or string/regex** | the **matching nodes** themselves | `search_objects(doc, query)` |
+| a document + a predicate **or string/regex** | the **matching nodes** themselves | `search_documents(doc, query)` |
 | a document + a path | the **node** at that path | `evaluate_reference(doc, path)` |
 | a document + a path | the cursor moved there | `replace_selection!(doc, path)` |
 
@@ -27,27 +27,39 @@ Both search functions take a `query` that is *either*:
   node (string / symbol / number / char) by its textual form.
 
 ```julia
-search_references(editor.document, "Alice")        # leaf text containing "Alice"
-search_references(editor.document, r"TODO|FIXME")  # regex over leaf text
-search_objects(editor.document, r"^\d+$")          # every integer-looking leaf
+search_references(editor.document, "Alice")           # JsonString whose value contains "Alice"
+search_references(editor.document, r"TODO|FIXME")     # regex over leaf text, folds to enclosing document
+search_documents(editor.document, r"^\d+$")           # every JsonNumber whose text is all digits
 search_references(editor.document, v -> v isa JsonNumber)   # predicate: by type
 ```
 
-The string/regex form matches the rendered text of leaf values only — struct and
-collection nodes have no textual form, so they never match a string/regex query.
+The string/regex form matches the rendered text of leaf values (e.g. a `JsonString`'s
+`.value`, a `JsonNumber`'s `.value`) and then **folds the match up to the nearest enclosing
+`Document`** — so `search_documents(doc, "Alice")` returns the `JsonString` document
+(not the bare `String` `"Alice"`), and `search_references(doc, "Alice")` returns the path to
+that `JsonString`. A scalar match with no enclosing document is dropped. Pass `raw=true` to
+opt out: `search_documents(doc, "Alice"; raw=true)` returns `["Alice"]` (the bare string).
+
+Struct and collection nodes have no textual form, so they never match a string/regex query.
 Reach for a predicate when you need to match by type or shape, or to match a leaf
-*exactly* (`v -> v == "Alice"`) rather than as a substring.
+*exactly* (`v -> v == "Alice"`) rather than as a substring. A predicate that matches a
+`Document` directly is returned as-is (no folding needed).
 
 ## Searching for references — `search_references`
 
 ```julia
-search_references(obj, predicate; include_selection=false, maxdepth=64) -> Vector{ReferencePath}
-search_references(obj, query::Union{AbstractString,Regex}; …)           -> Vector{ReferencePath}
+search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{ReferencePath}
+search_references(obj, query::Union{AbstractString,Regex}; …)                       -> Vector{ReferencePath}
 ```
 
 Walks `obj` and returns a document-rooted `ReferencePath` for **every** node whose
 (cell-unwrapped) value satisfies the query. With a predicate, a predicate that
 throws on some node is treated as "no match" there, not an error.
+
+By default, when a string/regex query matches a raw scalar leaf (e.g. a `JsonString`'s
+`.value` field, which is a plain `String`), the path is **folded up to the nearest enclosing
+`Document`** — so the returned path points to the selectable `JsonString` node, not to its
+internal string field. Pass `raw=true` to return the path to the exact matched node instead.
 
 - A node reachable by **several paths** yields **one result per path** — each path
   is a distinct *location*, hence a distinct selection.
@@ -62,17 +74,32 @@ Because the returned paths are document-rooted, they resolve with
 `evaluate_reference` and can be handed straight to `set_selection!` /
 `replace_selection!`.
 
-## Searching for objects — `search_objects`
+## Searching for documents — `search_documents`
 
 ```julia
-search_objects(obj, predicate; include_selection=false, maxdepth=64) -> Vector{Any}
-search_objects(obj, query::Union{AbstractString,Regex}; …)           -> Vector{Any}
+search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector
+search_documents(obj, query::Union{AbstractString,Regex}; …)                       -> Vector
 ```
 
 Same walk (and the same string/regex shorthand), but returns the matching
-**objects themselves, each one once** even when a node is shared / reachable by
+**nodes themselves, each one once** even when a node is shared / reachable by
 several paths. Use it when you want the values, not where they live
 (`search_references` is the one to use when you intend to select).
+
+By default, a string/regex match on a raw scalar leaf **folds up to the nearest enclosing
+`Document`** — so `search_documents(doc, "Alice")` returns the `JsonString` node (whose
+`.value == "Alice"`), not the bare `String` `"Alice"`. A predicate that matches a `Document`
+directly is returned unchanged. A scalar match with no enclosing document is dropped, so every
+result is an addressable, selectable document node.
+
+Pass `raw=true` to opt out of folding and return the exact matched value:
+
+```julia
+search_documents(doc, "Alice")          # [<JsonString value="Alice">]  (the enclosing document)
+search_documents(doc, "Alice"; raw=true)  # ["Alice"]                   (the bare string)
+search_documents(doc, r"^\d+$")           # [<JsonNumber …>, …]         (enclosing JsonNumber documents)
+search_documents(doc, r"^\d+$"; raw=true) # [10, 20, …]                 (the raw numbers)
+```
 
 ## Resolving a reference — `evaluate_reference`
 
@@ -117,7 +144,7 @@ ref = first(search_references(editor.document, v -> v isa JsonString && v.value 
 evaluate_operation(editor, ReplaceSelectionOperation(ref))
 
 # Any other action: find the target, build the op carrying it, evaluate.
-page = first(search_objects(editor.document, x -> x isa WorkbenchPage && !isempty(x.elements)))
+page = first(search_documents(editor.document, x -> x isa WorkbenchPage && !isempty(x.elements)))
 evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
 ```
 
@@ -167,7 +194,7 @@ If several editors of the same domain are open, first locate the document you wa
 and search the editor that holds it:
 
 ```julia
-jsondoc = first(search_objects(editor.document, x -> x isa JsonDocument))
+jsondoc = first(search_documents(editor.document, x -> x isa JsonDocument))
 # …then search editor.document with a predicate keyed to that doc's nodes.
 ```
 
@@ -182,9 +209,9 @@ point them at an **iomap** to search the *whole projection pipeline* at once:
 every intermediate document and every projected output tree, at every stage.
 
 ```julia
-iomap = print_document(proj, doc)          # links input → output, holds every stage
-search_references(iomap, "Wonderland")       # every location across the pipeline
-search_objects(iomap, x -> x isa JsonNumber) # every number, source through output
+iomap = print_document(proj, doc)             # links input → output, holds every stage
+search_references(iomap, "Wonderland")        # every location across the pipeline
+search_documents(iomap, x -> x isa JsonNumber) # every number, source through output
 ```
 
 This is a **debugging / inspection** tool: the returned paths are rooted at the
@@ -192,7 +219,7 @@ iomap (`::…IoMap.input…` / `.output…`), so — like searching `jsondoc` ab
 they are **not** selectable on the screen. It is the go-to move for "the value is
 in the document but not on screen — which stage dropped it?" and for diagnosing
 reactivity. The [debugging guide](../../../documentation/debugging.md#searching-the-pipeline-state-iomaps)
-covers the workflow (reading iomap paths, `search_references` vs `search_objects`
+covers the workflow (reading iomap paths, `search_references` vs `search_documents`
 counts as a reactivity signal).
 
 ## Notes

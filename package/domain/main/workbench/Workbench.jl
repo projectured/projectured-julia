@@ -221,9 +221,9 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "TO INSPECT OR CHANGE THE DOCUMENT — never hand-walk the document tree or write\n" *
                                   "bespoke helpers; use the general primitives (they work through any Screen/Window\n" *
                                   "wrapping and across every domain):\n" *
-                                  "- `search_references(editor.document, query)` returns the paths to matching nodes.\n" *
-                                  "- `search_objects(editor.document, query)` returns the matching nodes themselves (each once).\n" *
-                                  "  `query` is a predicate `node -> Bool`, or a `String`/`Regex` matching leaf text.\n" *
+                                  "- `search_references(editor.document, query)` returns paths to matching document nodes.\n" *
+                                  "- `search_documents(editor.document, query)` returns the matching document nodes themselves (each once).\n" *
+                                  "  `query` is a predicate `node -> Bool`, or a `String`/`Regex` matching leaf text (which folds to its enclosing document; pass `raw=true` for the exact matched value).\n" *
                                   "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
                                   "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
                                   "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
@@ -233,7 +233,7 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "bare value match (e.g. \"Alice\" or `n isa AbstractString`) returns one hit per\n" *
                                   "projection and cannot tell them apart. Match the DOMAIN NODE TYPE instead, e.g.\n" *
                                   "`v -> v isa JsonString && v.value == \"Alice\"`, and/or first locate the document\n" *
-                                  "with `search_objects(editor.document, x -> x isa JsonDocument)`.\n\n" *
+                                  "with `search_documents(editor.document, x -> x isa JsonDocument)`.\n\n" *
                                   "STATE PERSISTS between `execute_julia_code` calls: a variable you assign at top\n" *
                                   "level in one call (e.g. `paths = search_references(...)`) is still bound in the\n" *
                                   "next call, so you can build up state incrementally instead of one giant block.\n\n" *
@@ -342,7 +342,7 @@ set_function!(e::WorkbenchEditor, f::Function) = (set_function!(getfield(e, :con
 # Workbench tab edits are expressed as operations: build the operation carrying
 # its target `WorkbenchPage` and apply it with `evaluate_operation(editor, op)` —
 # the same path the editor loop runs for a gesture. Find the page (and any tab)
-# generically with `search_objects` / `search_references` (which walk through the
+# generically with `search_documents` / `search_references` (which walk through the
 # ScreenDocument → WindowDocument → … wrapping); there is deliberately no bespoke
 # imperative helper layer that re-navigates `editor.document`. See
 # package/kernel/doc/finding-and-selecting.md and package/kernel/doc/operation.md.
@@ -356,7 +356,7 @@ const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReference("elements"), Em
 Open a workbench tab: append `entry` (a `WorkbenchEditor`) to `page`
 (a `WorkbenchPage`). An **identity-rooted** sequence splice — `insert_elements`
 with `root=page` appending at the end. Locate `page` with e.g.
-`search_objects(editor.document, x -> x isa WorkbenchPage)` and apply with
+`search_documents(editor.document, x -> x isa WorkbenchPage)` and apply with
 `evaluate_operation(editor, WorkbenchOpenDocumentOperation(page, entry))`.
 """
 WorkbenchOpenDocumentOperation(page::WorkbenchPage, entry::WorkbenchDocument) =
@@ -367,7 +367,7 @@ WorkbenchOpenDocumentOperation(page::WorkbenchPage, entry::WorkbenchDocument) =
 
 Close the workbench tab at **1-based** `index` on `page` (a `WorkbenchPage`). An
 identity-rooted splice — `delete_elements` with `root=page` at the 0-based
-`index-1`. Locate `page` with `search_objects` / `search_references`.
+`index-1`. Locate `page` with `search_documents` / `search_references`.
 """
 WorkbenchCloseDocumentOperation(page::WorkbenchPage, index::Integer) =
     delete_elements(_WORKBENCH_ELEMENTS, index - 1, 1; root=page)

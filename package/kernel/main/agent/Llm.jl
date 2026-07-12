@@ -20,7 +20,7 @@ dependency-free:
 """
 module LlmModule
 
-import ..ReferenceModule: is_opaque
+import ..DocumentModule: is_opaque
 
 export Llm, stream_turn
 
@@ -39,7 +39,7 @@ abstract type Llm end
 
 # Assistant configuration, not addressable document content (it may hold large
 # scripted event payloads / API config) — opaque to reflection walkers, so
-# `search_references` / `search_objects` never descend into it.
+# `search_references` / `search_documents` never descend into it.
 is_opaque(::Llm) = true
 
 """

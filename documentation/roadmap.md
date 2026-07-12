@@ -42,7 +42,7 @@ end to end:
 - **Document persistence.** Binary `save_document` / `load_document` (exact,
   lossless, same-version) plus a human-readable natural-format
   `import_document` / `export_document` path dispatched by file extension.
-- **Search.** `search_references` / `search_objects` produce selectable paths;
+- **Search.** `search_references` / `search_documents` produce selectable paths;
   filtering, focusing, and highlighting projections and a search-input widget
   build on them.
 - **Version history.** A versioning overlay records and deletes snapshots

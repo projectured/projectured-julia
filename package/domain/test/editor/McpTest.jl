@@ -209,7 +209,7 @@ function test_workbench_b1()
 
         # Find tabs generically with search (no bespoke list helper). The
         # Navigator is not a WorkbenchEditor, so nothing is "open" yet.
-        @test isempty(search_objects(wb, x -> x isa WorkbenchEditor))
+        @test isempty(search_documents(wb, x -> x isa WorkbenchEditor))
 
         # Open tabs by building the operation that carries its target page, then
         # evaluating it — the same path the editor loop runs for a gesture.
@@ -218,7 +218,7 @@ function test_workbench_b1()
         evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, a))
         evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, b))
 
-        editors = search_objects(wb, x -> x isa WorkbenchEditor)
+        editors = search_documents(wb, x -> x isa WorkbenchEditor)
         @test length(editors) == 2
         @test Set(e.title for e in editors) == Set(["a.json", "b.json"])
 
@@ -234,7 +234,7 @@ function test_workbench_b1()
         # Open onto another page; search finds it regardless of which page.
         n = WorkbenchEditor(JsonNull(); title="n.json")
         evaluate_operation(editor, WorkbenchOpenDocumentOperation(info, n))
-        @test any(e -> e.title == "n.json", search_objects(wb, x -> x isa WorkbenchEditor))
+        @test any(e -> e.title == "n.json", search_documents(wb, x -> x isa WorkbenchEditor))
 
         # Close a tab: find its index on the page, build the close operation.
         idx = 0
@@ -308,16 +308,22 @@ function test_search_object()
         # a predicate that throws on some nodes is treated as no-match, not an error
         @test !isempty(search_references(doc, v -> v.value == 10))
 
-        # String query → substring match on leaf text (the JsonString's value
-        # "Alice" is a leaf String node in the document tree).
+        # Document-scoped by default: a text match on the raw "Alice" leaf folds to
+        # the path of its enclosing JsonString, so the reference is selectable.
         @test length(search_references(doc, "Alice")) == 1
-        @test evaluate_reference(doc, search_references(doc, "Alice")[1]) == "Alice"
+        @test evaluate_reference(doc, search_references(doc, "Alice")[1]) isa JsonString
+        @test evaluate_reference(doc, search_references(doc, "Alice")[1]).value == "Alice"
         @test length(search_references(doc, "lic")) == 1      # substring
         @test isempty(search_references(doc, "Bob"))
 
-        # Regex query → matches leaf text; "10" and "20" are number leaves.
+        # Regex query → the two number leaves fold to their JsonNumber documents.
         @test length(search_references(doc, r"^\d+$")) == 2
+        @test all(r -> evaluate_reference(doc, r) isa JsonNumber, search_references(doc, r"^\d+$"))
         @test length(search_references(doc, r"Ali")) == 1
+
+        # raw=true reports the path to the exact matched leaf instead.
+        @test evaluate_reference(doc, search_references(doc, "Alice"; raw=true)[1]) == "Alice"
+        @test sort([evaluate_reference(doc, r) for r in search_references(doc, r"^\d+$"; raw=true)]) == [10, 20]
 
         # Returned references are canonical at rest: every navigation step is
         # preceded by a TypeReference checkpoint (as search_references produces),
@@ -333,31 +339,41 @@ function test_search_object()
         @test any(s -> s.type !== nothing, steps)   # folded: nodes carry types
         @test ar.head isa FieldReference             # head is always a nav step now
         @test ar.type !== nothing                    # first node records the document type
-        @test evaluate_reference(doc, strip_reference_types(ar)) == "Alice"
+        @test evaluate_reference(doc, strip_reference_types(ar)) isa JsonString
     end
 
-    @testset "search_objects" begin
+    @testset "search_documents" begin
         doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
 
-        # returns the matching objects themselves
-        nums = search_objects(doc, v -> v isa JsonNumber)
+        # returns the matching documents themselves
+        nums = search_documents(doc, v -> v isa JsonNumber)
         @test length(nums) == 2
         @test all(v -> v isa JsonNumber, nums)
 
-        strs = search_objects(doc, v -> v isa JsonString && occursin("Alice", v.value))
+        strs = search_documents(doc, v -> v isa JsonString && occursin("Alice", v.value))
         @test length(strs) == 1
         @test strs[1].value == "Alice"
 
-        @test isempty(search_objects(doc, v -> v isa JsonNull))
+        @test isempty(search_documents(doc, v -> v isa JsonNull))
 
-        # String / Regex query forms also work here (leaf-text match).
-        @test search_objects(doc, "Alice") == ["Alice"]
-        @test sort(search_objects(doc, r"^\d+$")) == [10, 20]
+        # Document-scoped: a text / regex match on a raw leaf returns the enclosing
+        # document (the JsonString / JsonNumber), not the bare scalar.
+        alice = search_documents(doc, "Alice")
+        @test length(alice) == 1
+        @test alice[1] isa JsonString && alice[1].value == "Alice"
+        numdocs = search_documents(doc, r"^\d+$")
+        @test length(numdocs) == 2
+        @test all(v -> v isa JsonNumber, numdocs)
+        @test sort([v.value for v in numdocs]) == [10, 20]
+
+        # raw=true returns the exact matched values (bare scalars included).
+        @test search_documents(doc, "Alice"; raw=true) == ["Alice"]
+        @test sort(search_documents(doc, r"^\d+$"; raw=true)) == [10, 20]
 
         # a shared object reachable by several paths is returned only once…
         shared = JsonString("dup")
         obj = JsonObject("a" => shared, "b" => shared)
-        @test length(search_objects(obj, v -> v === shared)) == 1
+        @test length(search_documents(obj, v -> v === shared)) == 1
         # …whereas search_references reports both locations
         @test length(search_references(obj, v -> v === shared)) == 2
     end

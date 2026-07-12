@@ -17,7 +17,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
 | Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
-| Search (by content) | `search_references`, `search_objects`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
+| Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `operations` |
 | Editor & loop | `Editor`, `run_editor!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
 | Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `document/workbench`, `editor` |
@@ -33,8 +33,9 @@ browsing tools below. Do not guess names — search for them.
 ## Acting on the document (the essentials)
 
 - **Find** — `search_references(editor.document, query)` → paths;
-  `search_objects(...)` → nodes. `query` is a predicate `node -> Bool`, or a
-  `String`/`Regex` matching leaf text. Both walk **any** graph, so passing an
+  `search_documents(...)` → matching document nodes. `query` is a predicate `node -> Bool`, or a
+  `String`/`Regex` matching leaf text (string/regex matches fold to the enclosing `Document` by
+  default; pass `raw=true` for the exact matched value). Both walk **any** graph, so passing an
   **iomap** (`print_document(proj, doc)`) searches the whole projection
   pipeline — a debugging move for "where did the value go?" (see `debugging`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.

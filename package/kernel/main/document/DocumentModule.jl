@@ -4,7 +4,10 @@
 Layer 2 of the kernel — the **document contract**: the `Document` abstract
 type, the `@document`/`@forward*` codegen macros, and the shared value
 protocol every concrete document reuses (`copy_document`, `sync_document!`).
-The kernel defines only this contract; it carries no concrete documents.
+It also carries the reflection walk over a document tree (`search_documents`,
+with the `is_element_collection` / `is_opaque` traits that steer it) — the
+value-collecting search that needs no reference machinery. The kernel defines
+only this contract; it carries no concrete documents.
 
 Three fragments share this namespace, each documented at its own definition:
 [`Interface.jl`](Interface.jl) (the `Document` type + selection-field
@@ -18,6 +21,7 @@ import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCel
                      cell_struct_kw_params, cell_struct_kwctor
 
 export Document, copy_document, sync_document!, is_element_collection,
+       is_opaque, search_documents, _is_search_leaf, _text_query,
        @document, @forward, @forward_vector, @forward_map
 
 # Interface.jl first — the machinery in Document.jl and Forward.jl refers to

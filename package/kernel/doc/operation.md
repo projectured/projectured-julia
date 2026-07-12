@@ -134,11 +134,11 @@ ref = first(search_references(editor.document, v -> v isa JsonString && v.value 
 evaluate_operation(editor, ReplaceSelectionOperation(ref))   # == replace_selection!(editor.document, ref)
 
 # A workbench action: find the page, build the op carrying it, evaluate.
-page = editor.document |> d -> first(search_objects(d, x -> x isa WorkbenchPage && !isempty(x.elements)))
+page = editor.document |> d -> first(search_documents(d, x -> x isa WorkbenchPage && !isempty(x.elements)))
 evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
 ```
 
-This pattern — **`search_objects` / `search_references` → build `Operation` →
+This pattern — **`search_documents` / `search_references` → build `Operation` →
 `evaluate_operation`** — is general: it works through any wrapper
 (`ScreenDocument` → `WindowDocument` → … → the document you want), and the same
 three steps apply in every domain. Prefer it over bespoke imperative helpers;

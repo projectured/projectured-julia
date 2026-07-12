@@ -169,7 +169,7 @@ states for placement).
     store it in cells on the relevant node, write it via a self-contained
     `ReplaceReferencedValueOperation`, and never serialize it.
 
-17. **Prefer `search_references` / `search_objects` over hand-walking the tree,
+17. **Prefer `search_references` / `search_documents` over hand-walking the tree,
     and scope by domain node type.** To locate a node by content, search for it
     and operate on the returned reference rather than open-coding a recursive
     descent; the search predicate runs in the input (document) domain, so match on
@@ -358,7 +358,7 @@ states for placement).
 38. **`evaluate_operation(editor, op)` is the one way to change the document.**
     Every edit is an `Operation` produced by a reader and applied by the editor;
     to script the editor, do exactly what a reader does — find the target
-    (`search_references`/`search_objects`), build the operation, evaluate it.
+    (`search_references`/`search_documents`), build the operation, evaluate it.
     Prefer this over bespoke imperative helpers.
 
 39. **Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a

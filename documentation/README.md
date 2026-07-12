@@ -130,7 +130,7 @@ Each package also documents its own internal structure in its `doc/architecture.
 | [Editor](../package/kernel/doc/editor.md) | REPL loop, event handling, rendering pipeline |
 | [Reference guide](../package/kernel/doc/reference.md) | Reference paths and the @reference / @reference_case DSL |
 | [Selection guide](../package/kernel/doc/selection.md) | How selection is stored and propagated, incl. the recursion algorithm |
-| [Finding and selecting](../package/kernel/doc/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_objects`), resolve paths (`evaluate_reference`), select |
+| [Finding and selecting](../package/kernel/doc/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_documents`), resolve paths (`evaluate_reference`), select |
 | [Devices and backends](../package/kernel/doc/devices-and-backends.md) | Backend/Device split, the SDL, Console, and Web backends, and how to add a new one |
 
 ### Per-domain (in the owning package)
