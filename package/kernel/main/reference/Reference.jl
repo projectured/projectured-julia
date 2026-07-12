@@ -1,8 +1,9 @@
 # Fragment of `ReferenceModule` — the reference-path *types* (steps, paths,
-# their `@document`-generated struct forms) plus the value protocol on them
-# (`append_reference`, `evaluate_reference`, `annotate_reference_types`, …).
-# The DSL fragments `ReferenceCase.jl` and `ReferenceBuilder.jl` build on
-# these; both are included by `ReferenceModule.jl` after this one.
+# their `@document`-generated struct forms), the value protocol on them
+# (`append_reference`, `evaluate_reference`, `annotate_reference_types`, …), and
+# the path-producing reflection search (`search_references`). The DSL fragments
+# `ReferenceCase.jl` and `ReferenceBuilder.jl` build on these; both are included
+# by `ReferenceModule.jl` after this one.
 
 # ── ReferenceStep ─────────────────────────────────────────────────────
 
@@ -603,7 +604,7 @@ end
 Return `path` reduced to its plain navigation skeleton: every node's recorded
 `type` is blanked to `nothing` and any leftover (transitional) `TypeReference`
 *step* is dropped. Inverse of [`annotate_reference_types`](@ref) — used at
-boundaries that re-annotate against a fresh document (e.g. `set_selection!`).
+boundaries that re-annotate a path against a fresh document.
 """
 strip_reference_types(::EmptyReferencePath) = EmptyReferencePath()
 
@@ -613,9 +614,9 @@ function strip_reference_types(path::ConcreteReferencePath)
     step isa TypeReference ? rest : ConcreteReferencePath(nothing, step, rest)
 end
 
-# Permissive fallback, mirroring `skip_type_checkpoints`: callers may apply this
-# to a non-path (e.g. `nothing` when there is no selection); pass it through
-# unchanged so the structural reads downstream handle the absence themselves.
+# Permissive fallback: callers may apply this to a non-path (e.g. `nothing` when
+# there is no selection); pass it through unchanged so the structural reads
+# downstream handle the absence themselves.
 strip_reference_types(other) = other
 
 """
@@ -715,9 +716,9 @@ Cells are unwrapped transparently (no path step); struct fields contribute a
 
 By default the paths are **document-scoped**: a match on a raw scalar folds to
 the path of its nearest enclosing `Document`, so every returned path addresses a
-selectable node and can be handed to `set_selection!` / `replace_selection!`.
-Pass `raw=true` to get the path to the **exact matched node** instead (scalar
-leaves included) — the path-valued counterpart to `search_documents(...; raw=true)`.
+selectable node. Pass `raw=true` to get the path to the **exact matched node**
+instead (scalar leaves included) — the path-valued counterpart to
+`search_documents(...; raw=true)`.
 
 The returned paths are **canonical at rest**: each navigation step is preceded by
 a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
@@ -727,7 +728,7 @@ so results are self-describing and carry replay-validation checkpoints.
 
 ```julia
 for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
-    replace_selection!(editor.document, ref)
+    node = evaluate_reference(editor.document, ref)   # the matching JsonString
 end
 ```
 
@@ -741,11 +742,10 @@ finite. `maxdepth` separately bounds recursion depth for structures that are nev
 the *same* object, e.g. an infinite lazy list whose nodes are generated fresh on
 demand. See [`search_documents`](@ref) for the matching nodes themselves (each once).
 
-`obj` need not be a document: passing an **iomap** (`print_document(proj, doc)`)
-walks the whole projection pipeline — every stage's input and output — so you can
-find where a value lives across all stages. Paths rooted at an iomap are for
-inspection only (not selectable); see the debugging guide's
-"Searching the pipeline state".
+`obj` need not be a document — the walk descends **any** object graph (structs,
+arrays, dicts), not only document trees. Searching derived/intermediate state for
+debugging is one such use; the debugging guide's "Searching the pipeline state"
+covers it (those paths are for inspection only, not selectable).
 """
 function search_references(obj, predicate; include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false)
     results = ReferencePath[]
