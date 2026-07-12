@@ -251,6 +251,13 @@ The last step is a review checkpoint (user approves before I mark sealed).
    test navigation-shape comparisons); `fold_reference_types` backs the `::T`
    DSL. So they stay exported/public; step 6 is now just a tidy pass, not a
    removal. `is_fully_typed` was added and exported (used by ProjectionTemplate).
+   **DONE (2026-07-12): removed the transitional `STRICT` `Ref` (`:off`/`:warn`/
+   `:error`) and the `_UNDERTYPED` collector** — enforcement is now fixed and
+   unconditional (`_strict_check` always throws on an under-typed `@reference`).
+   The builder/eval/rerooting/point-reference tests that used the `:off` escape
+   hatch were rewritten (D3-a) to build typed paths (compared via
+   `strip_reference_types`, or built directly for the `.point` extension step,
+   which has no inline `::T` form).
 7. **AR-audit ReferenceModule.jl** and **stop for user review before
    sealing** (user has explicitly asked for a review checkpoint here). — the
    next action. D4-a (`@reference_case` pattern typing) is separable and can
