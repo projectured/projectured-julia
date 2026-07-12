@@ -644,41 +644,33 @@ end
 
 fold_reference_types(other) = other
 
-# ── Strict-typing invariant (transitional) ───────────────────────────────────
+# ── Strict-typing invariant ──────────────────────────────────────────────────
 #
-# The reference-types-always-present plan tightens every `@reference` literal so
-# every folded node — and the terminal — carries a non-`nothing` type. Until
-# every call site complies, the check runs in `:warn` mode to enumerate the
-# stragglers; flipping `STRICT[]` to `:error` makes it the enforced default and
-# `:off` disables it. `@reference` routes its result through `_strict_check`.
+# Every `@reference` literal must carry a type on every folded node — and on the
+# terminal: "types always present, period". `@reference` routes its result
+# through `_strict_check`, which throws when any node is untyped, so a bare
+# navigation skeleton is never a valid `@reference` result. (Skeletons still
+# exist internally — `@reference(document, …)` builds one and annotates it, and
+# `strip_reference_types` produces one — but they are never surfaced untyped.)
 
 """
     is_fully_typed(path::ReferencePath) -> Bool
 
 `true` when every node of `path` (each `ConcreteReferencePath` and the terminal
-`EmptyReferencePath`) records a non-`nothing` `type`. The strict-typing invariant
-the plan enforces: a path built from a fully-typed `@reference` literal (or
-annotated against a document) is fully typed; a path with any bare navigation
-node is not.
+`EmptyReferencePath`) records a non-`nothing` `type`. This is the strict-typing
+invariant `@reference` enforces: a path built from a fully-typed `@reference`
+literal (or annotated against a document) is fully typed; a path with any bare
+navigation node is not.
 """
 is_fully_typed(p::ConcreteReferencePath) = p.type !== nothing && is_fully_typed(p.tail)
 is_fully_typed(p::EmptyReferencePath)    = p.type !== nothing
 is_fully_typed(::Nothing)                = true   # no-selection sentinel: not our concern
 
-const STRICT = Ref(:error)
-
-# In `:warn` mode, under-typed sites are collected here (unique file:line) instead
-# of flooding the log — dump/clear with the helpers below to drive the migration.
-const _UNDERTYPED = Set{String}()
-
-# Route a freshly built `@reference` path through the strict-typing invariant.
-# `src` is the macro-call `LineNumberNode` so a straggler names its file:line.
+# Enforce the strict-typing invariant on a freshly built `@reference` path.
+# `src` is the macro-call `LineNumberNode`, so a violation names its file:line.
 function _strict_check(path, src)
-    (STRICT[] === :off || is_fully_typed(path)) && return path
-    loc = "$(src.file):$(src.line)"
-    STRICT[] === :error && error("under-typed @reference (missing node types) at $loc")
-    push!(_UNDERTYPED, loc)
-    path
+    is_fully_typed(path) && return path
+    error("under-typed @reference (missing node types) at $(src.file):$(src.line)")
 end
 
 # ── Reference collection ─────────────────────────────────────────────────────

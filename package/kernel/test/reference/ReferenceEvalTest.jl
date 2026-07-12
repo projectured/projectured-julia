@@ -19,11 +19,11 @@ end
     selection::Reference
 end
 
+struct EA end
+struct EB end
+struct EC end
+
 function test_reference_eval()
-# Exercises evaluation over raw/untyped skeleton paths — disable strict locally.
-_strict = ProjecturedKernel.ReferenceModule.STRICT[]
-ProjecturedKernel.ReferenceModule.STRICT[] = :off
-try
 @testset "ReferenceEval" begin
 
     root = EvalBranch(EvalLeaf(10, nothing), EvalLeaf(20, nothing), nothing)
@@ -32,13 +32,13 @@ try
         # empty path resolves to the root document
         @test evaluate_reference(root, EmptyReferencePath()) === root
         # simple field navigation
-        @test evaluate_reference(root, @reference left) === root.left
-        @test evaluate_reference(root, @reference right.value) == 20
+        @test evaluate_reference(root, strip_reference_types(@reference ::EA.left::EB)) === root.left
+        @test evaluate_reference(root, strip_reference_types(@reference ::EA.right::EB.value::EC)) == 20
     end
 
     @testset "@reference_case destructures paths" begin
         # exact-path match wins
-        p = @reference right.value
+        p = strip_reference_types(@reference ::EA.right::EB.value::EC)
         matched = @reference_case p begin
             right.value => :hit
             _           => :miss
@@ -46,7 +46,7 @@ try
         @test matched === :hit
 
         # wildcard fallback fires on non-match
-        q = @reference left
+        q = strip_reference_types(@reference ::EA.left::EB)
         matched2 = @reference_case q begin
             right.value => :hit
             _           => :miss
@@ -55,14 +55,11 @@ try
     end
 
     @testset "prefix + suffix predicates" begin
-        base = @reference left
-        deep = @reference left.value
+        base = strip_reference_types(@reference ::EA.left::EB)
+        deep = strip_reference_types(@reference ::EA.left::EB.value::EC)
         @test is_prefix_of(base, deep)
         @test !is_prefix_of(deep, base)
     end
 
-end
-finally
-    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_reference_eval

@@ -19,17 +19,16 @@ end
 ProjecturedKernel.OperationModule.reroot_operation(op::ToyPathOp, s::Tuple) =
     ToyPathOp(reroot_reference(op.reference, s))
 
+struct RL end
+struct RN end
+
 function test_rerooting()
-# Reroots raw/untyped skeleton paths — disable strict-typing enforcement locally.
-_strict = ProjecturedKernel.ReferenceModule.STRICT[]
-ProjecturedKernel.ReferenceModule.STRICT[] = :off
-try
 @testset "Rerooting" begin
 
     steps = (FieldReference("outer"), FieldReference("inner"))
 
     @testset "reroot_reference prepends outermost-first" begin
-        ref = @reference leaf
+        ref = strip_reference_types(@reference ::RL.leaf::RN)
         r = reroot_reference(ref, steps)
         @test r == ConcreteReferencePath(FieldReference("outer"),
                      ConcreteReferencePath(FieldReference("inner"),
@@ -42,14 +41,14 @@ try
         @test reroot_operation(DoNothingOperation(), steps) isa DoNothingOperation
 
         # ReplaceSelectionOperation reroots the path field.
-        r = reroot_operation(ReplaceSelectionOperation(@reference leaf), steps)
+        r = reroot_operation(ReplaceSelectionOperation(strip_reference_types(@reference ::RL.leaf::RN)), steps)
         @test r isa ReplaceSelectionOperation
         @test r.path == ConcreteReferencePath(FieldReference("outer"),
                             ConcreteReferencePath(FieldReference("inner"),
                                 ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
 
         # CompoundOperation maps the reroot over its constituents.
-        cop = CompoundOperation(Any[ReplaceSelectionOperation(@reference leaf),
+        cop = CompoundOperation(Any[ReplaceSelectionOperation(strip_reference_types(@reference ::RL.leaf::RN)),
                                     DoNothingOperation()])
         rc = reroot_operation(cop, steps)
         @test rc isa CompoundOperation
@@ -59,15 +58,12 @@ try
 
     @testset "test-local Operation type adds its own reroot method" begin
         # ToyPathOp is declared at file scope; the method registration above.
-        r = reroot_operation(ToyPathOp(@reference leaf), steps)
+        r = reroot_operation(ToyPathOp(strip_reference_types(@reference ::RL.leaf::RN)), steps)
         @test r isa ToyPathOp
         @test r.reference == ConcreteReferencePath(FieldReference("outer"),
                                 ConcreteReferencePath(FieldReference("inner"),
                                     ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
     end
 
-end
-finally
-    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_rerooting

@@ -14,6 +14,8 @@ struct A end
 struct B end
 struct C end
 struct D end
+struct E end
+struct F end
 
 # Navigable toy documents for the `@reference(document, path)` annotation test.
 @document struct EvalChild
@@ -26,45 +28,41 @@ end
 end
 
 function test_reference_builder()
-# This suite exercises the raw builder primitive, which legitimately constructs
-# *untyped* skeleton paths — disable the strict-typing enforcement locally.
-_strict = ProjecturedKernel.ReferenceModule.STRICT[]
-ProjecturedKernel.ReferenceModule.STRICT[] = :off
-try
 @testset "ReferenceBuilder" begin
 
 # ── basic forms ──────────────────────────────────────────────────────────
 
 @test (@reference()) == EmptyReferencePath()
-@test (@reference value) == ConcreteReferencePath(FieldReference("value"), EmptyReferencePath())
-@test (@reference a.b.c) ==
+@test strip_reference_types(@reference ::A.value::B) ==
+      ConcreteReferencePath(FieldReference("value"), EmptyReferencePath())
+@test strip_reference_types(@reference ::A.a::B.b::C.c::D) ==
       ConcreteReferencePath(FieldReference("a"),
           ConcreteReferencePath(FieldReference("b"),
               ConcreteReferencePath(FieldReference("c"), EmptyReferencePath())))
 
-@test (@reference xs[3]) ==
+@test strip_reference_types(@reference ::A.xs::B[3]::C) ==
       ConcreteReferencePath(FieldReference("xs"),
           ConcreteReferencePath(ElementReference(3), EmptyReferencePath()))
 
-@test (@reference xs{2}) ==
+@test strip_reference_types(@reference ::A.xs::B{2}::C) ==
       ConcreteReferencePath(FieldReference("xs"),
           ConcreteReferencePath(PositionReference(2), EmptyReferencePath()))
 
 # ── {s:e} range syntax ──────────────────────────────────────────────────
 
-@test (@reference xs{1:3}) ==
+@test strip_reference_types(@reference ::A.xs::B{1:3}::C) ==
       ConcreteReferencePath(FieldReference("xs"),
           ConcreteReferencePath(RangeReference(1, 3), EmptyReferencePath()))
 
 let s = 2, e = 7
-    @test (@reference xs{s:e}) ==
+    @test strip_reference_types(@reference ::A.xs::B{s:e}::C) ==
           ConcreteReferencePath(FieldReference("xs"),
               ConcreteReferencePath(RangeReference(2, 7), EmptyReferencePath()))
 end
 
 # bare {s:e} as a relative subpath
 let s = 4, e = 9
-    @test (@reference {s:e}) ==
+    @test strip_reference_types(@reference ::A{s:e}::B) ==
           ConcreteReferencePath(RangeReference(4, 9), EmptyReferencePath())
 end
 
@@ -95,32 +93,41 @@ end
 
 # ── ^() splice ──────────────────────────────────────────────────────────
 
-let p = @reference children[2].name
-    @test (@reference value.^(p)) ==
+let p = @reference ::A.children::B[2]::C.name::D
+    @test strip_reference_types(@reference ::E.value.^(p)) ==
           ConcreteReferencePath(FieldReference("value"),
               ConcreteReferencePath(FieldReference("children"),
                   ConcreteReferencePath(ElementReference(2),
                       ConcreteReferencePath(FieldReference("name"), EmptyReferencePath()))))
 
-    @test (@reference ^(p)) == p
+    @test strip_reference_types(@reference ::E.^(p)) == strip_reference_types(p)
 
+    # @step returns a FieldReference (a single step, no type). To splice it via
+    # ^() in a strict-typed @reference, first build a typed 1-step path from it.
+    # (Note: ::A.^(step_path).field::B cannot be written with leading ::A when
+    # .^ is involved — Julia parses ::A as the minimal grab, leaving .^(step_path)
+    # as a broadcast. Use ^(step_path).field::B with a pre-typed step_path instead.)
     let step = @step value
-        @test (@reference ^(step).field) ==
+        step_path = @reference ::A.value::E
+        @test strip_reference_types(@reference ^(step_path).field::B) ==
               ConcreteReferencePath(FieldReference("value"),
                   ConcreteReferencePath(FieldReference("field"), EmptyReferencePath()))
     end
 end
 
 # splice with a single step at the tail
-let s = FieldReference("foo")
-    @test (@reference value.^(s)) ==
+let s = @reference ::A.foo::B
+    @test strip_reference_types(@reference ::C.value.^(s)) ==
           ConcreteReferencePath(FieldReference("value"),
               ConcreteReferencePath(FieldReference("foo"), EmptyReferencePath()))
 end
 
 # splice at start with subsequent steps
-let base = @reference root.outer
-    @test (@reference ^(base).inner) ==
+# Note: ::A.^(base).inner::B cannot be spelled with a leading ::A type since
+# Julia's parser grabs ::A minimally and leaves .^(base) as a broadcast.
+# Instead, rely on base being fully typed and add ::B only for the terminal.
+let base = @reference ::A.root::B.outer::C
+    @test strip_reference_types(@reference ^(base).inner::B) ==
           ConcreteReferencePath(FieldReference("root"),
               ConcreteReferencePath(FieldReference("outer"),
                   ConcreteReferencePath(FieldReference("inner"), EmptyReferencePath())))
@@ -136,7 +143,7 @@ end
 
 # ── @reference_case range pattern ───────────────────────────────────────
 
-let sample = @reference items{2:5}
+let sample = strip_reference_types(@reference ::A.items::B{2:5}::C)
     matched = @reference_case sample begin
         items{s:e} => (s, e)
     end
@@ -144,7 +151,7 @@ let sample = @reference items{2:5}
 end
 
 # range pattern with literal bounds
-let sample = @reference items{4:7}
+let sample = strip_reference_types(@reference ::A.items::B{4:7}::C)
     matched = @reference_case sample begin
         items{4:7} => :literal_match
         _ => :fallback
@@ -155,7 +162,7 @@ end
 # range pattern matches any RangeReference, including positions, since they
 # are represented identically. The position pattern is more specific, so it
 # wins when listed first.
-let sample = @reference items{3}
+let sample = strip_reference_types(@reference ::A.items::B{3}::C)
     matched = @reference_case sample begin
         items{k}   => :position
         items{s:e} => :range
@@ -213,8 +220,5 @@ let multi = @reference ::A.entries::B[1]::C.key::D
     @test matched == (:hit, 1)
 end
 
-end
-finally
-    ProjecturedKernel.ReferenceModule.STRICT[] = _strict
 end
 end # test_reference_builder
