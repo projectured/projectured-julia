@@ -70,7 +70,7 @@ against the value, so the document has to be bound before the path can be built:
 @with_selection JsonString("") value{0}     # caret at the path, typed by construction
 ```
 
-This is what every `make_insertion_document` factory uses; without it each one
+This is what every `@insertion` factory uses; without it each one
 needs a `let d = …; with_selection(d, @reference(d, …)) end`.
 
 `read_gesture(document, gesture) -> Union{Operation, Nothing}` is the

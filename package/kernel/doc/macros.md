@@ -128,7 +128,9 @@ construction time — a field's cell object can never be swapped afterwards.
 ```
 
 One line generates a document domain's **insertion kit**: the abstract root
-(`JsonDocument <: Document`, exported), the empty placeholder
+(`JsonDocument <: Document`, **exported** from the calling module — a domain
+never re-exports its own root by hand, and an adopted `root = X` is exported
+too), the empty placeholder
 (`@document struct JsonNothing`), the typed-name insertion buffer
 (`@document struct JsonInsertion` with `value::String = ""` plus the
 `JsonInsertion("…")` convenience constructor), the **Insert-key gesture**
@@ -147,7 +149,7 @@ literal.
 
 What the completion machinery then gives the domain for free: the reflected
 candidate list (`insertion_candidates(JsonDocument)`, every insertable
-concrete subtype — zero-arg constructible or with a `make_insertion_document`
+concrete subtype — zero-arg constructible or with an `@insertion`
 method), derived names (`JsonString` / `json string`, prefix-free inside the
 domain), live completion + commitability colouring in the shared insertion
 leaf, Enter-commit of unambiguous prefixes, Tab completion, and the
@@ -155,6 +157,23 @@ Insert ⇄ Escape loop between placeholder and insertion. Not generated
 (layering): the two projection-table lines in the domain's `ToSyntax`
 (`XInsertion => DomainInsertionToSyntaxLeaf(XDocument)` via the domain's
 `XInsertionToSyntaxLeaf()` delegate, `XNothing => NothingToSyntaxLeaf()`).
+
+## `@insertion`
+
+```julia
+@insertion JsonString    = @with_selection JsonString("") value{0}
+@insertion JuliaFunction = julia_scaffold("function")
+```
+
+The document a committed insertion of that candidate becomes — `@domain`'s
+companion. A candidate whose empty instance is already right needs no
+`@insertion` at all: the zero-arg constructor is the fallback. The macro is for
+the rest — a cursor to place (an empty string wants a caret *inside* it, not a
+whole-node selection) or a scaffold of holes to build.
+
+It expands to a single **fully qualified** `make_insertion_document` method, so
+a domain declares its factories without importing the generic it extends. The
+type matches its subtypes too (`::Type{<:JsonString}`).
 
 ## `@projection`
 

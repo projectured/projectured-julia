@@ -6,7 +6,7 @@ The JSON document domain.
 The domain includes:
 - **Primitive types**: `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`
 - **Compound types**: `JsonArray`, `JsonObject`, `JsonObjectEntry`
-- **Utility types**: `JsonInsertion` for cursor positioning
+- **Utility types**: `JsonNothing` for an empty document, `JsonInsertion` for cursor positioning
 """
 module JsonModule
 
@@ -21,7 +21,7 @@ using ..KeyboardModule
 using ..GestureModule
 using ..DomainModule
 
-export JsonDocument, entries
+export entries
 
 @domain Json
 
@@ -242,14 +242,14 @@ end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-DomainModule.make_insertion_document(::Type{<:JsonBool})        = @with_selection JsonBool(false)
+@insertion JsonBool        = @with_selection JsonBool(false)
 # An empty number's value is `nothing`, which has no text position, so it is selected
 # whole; an empty string is `""` and does have position 0.
-DomainModule.make_insertion_document(::Type{<:JsonNumber})      = @with_selection JsonNumber(nothing)
-DomainModule.make_insertion_document(::Type{<:JsonString})      = @with_selection JsonString("") value{0}
-DomainModule.make_insertion_document(::Type{<:JsonArray})       = @with_selection JsonArray([JsonInsertion()]) elements[1]
-DomainModule.make_insertion_document(::Type{<:JsonObjectEntry}) = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
-DomainModule.make_insertion_document(::Type{<:JsonObject})      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
+@insertion JsonNumber      = @with_selection JsonNumber(nothing)
+@insertion JsonString      = @with_selection JsonString("") value{0}
+@insertion JsonArray       = @with_selection JsonArray([JsonInsertion()]) elements[1]
+@insertion JsonObjectEntry = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
+@insertion JsonObject      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))

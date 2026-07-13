@@ -43,9 +43,9 @@ import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainModule
-import ..DomainModule: insertion_root, nothing_document, insertion_names,
-                              insertion_candidates, complete_insertion, resolve_insertion,
-                              make_insertion_document
+import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
+                       insertion_candidates, complete_insertion, resolve_insertion,
+                       make_insertion_document
 import ..JuliaModule: JuliaInsertion, JuliaDocument,
                       JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
                       JuliaBegin, JuliaReturn, JuliaBlock
@@ -406,12 +406,12 @@ end
 # The keyword scaffolds double as insertion *candidates*: `julia function`
 # committed from a DocumentInsertion (or `function` by name inside a Julia
 # scope) builds the same scaffold-of-holes the keyword commit does.
-DomainModule.make_insertion_document(::Type{<:JuliaFunction}) = julia_scaffold("function")
-DomainModule.make_insertion_document(::Type{<:JuliaIf})       = julia_scaffold("if")
-DomainModule.make_insertion_document(::Type{<:JuliaWhile})    = julia_scaffold("while")
-DomainModule.make_insertion_document(::Type{<:JuliaFor})      = julia_scaffold("for")
-DomainModule.make_insertion_document(::Type{<:JuliaBegin})    = julia_scaffold("begin")
-DomainModule.make_insertion_document(::Type{<:JuliaReturn})   = julia_scaffold("return")
+@insertion JuliaFunction = julia_scaffold("function")
+@insertion JuliaIf       = julia_scaffold("if")
+@insertion JuliaWhile    = julia_scaffold("while")
+@insertion JuliaFor      = julia_scaffold("for")
+@insertion JuliaBegin    = julia_scaffold("begin")
+@insertion JuliaReturn   = julia_scaffold("return")
 
 # Commit a Julia hole: a keyword prefix expands to its scaffold; otherwise parse the
 # buffer as complete source. Partial / invalid non-keyword source can't commit.

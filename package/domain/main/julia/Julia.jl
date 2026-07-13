@@ -13,7 +13,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..DomainModule: var"@domain"
-export JuliaDocument, _julia_operator_string
+export _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 

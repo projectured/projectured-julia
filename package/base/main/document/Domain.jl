@@ -17,8 +17,8 @@ Julia, … are instances of. Two halves:
    type name (`insertion_names`: the capitalized type name `JsonString` and the
    lowercase human-readable form `json string`; prefix-free inside a domain
    scope), and construction goes through *dispatch* (`make_insertion_document`,
-   zero-arg fallback + per-type cursor/scaffold overrides). Nothing is listed
-   or registered.
+   zero-arg fallback + per-type cursor/scaffold overrides written with
+   `@insertion`). Nothing is listed or registered.
 
 `complete_insertion` classifies a typed prefix (`:empty` / `:invalid` /
 `:unambiguous` / `:ambiguous`) and computes the completion continuation;
@@ -37,7 +37,7 @@ import ..OperationModule: replace_document
 import ..GestureModule: GestureBinding, KeyDownPattern, get_document_gesture_bindings_own
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 
-export var"@domain",
+export var"@domain", var"@insertion",
        insertion_root, nothing_document, insertion_document, domain_prefix,
        domain_insertion, insertable, insertion_aliases, make_insertion_document,
        insertion_names, insertion_candidates, complete_insertion, resolve_insertion,
@@ -114,11 +114,29 @@ insertion_aliases(::Type) = String[]
     make_insertion_document(::Type{T}) -> Document
 
 A fresh document committed for candidate `T`. The fallback is the zero-arg
-constructor; per-type methods add cursor placement / scaffolds where the empty
-instance is not enough — an empty text leaf, say, wants a caret at position 0
-rather than a whole-node selection (see `@with_selection`).
+constructor; per-type methods (write them with `@insertion`) add cursor
+placement / scaffolds where the empty instance is not enough — an empty text
+leaf, say, wants a caret at position 0 rather than a whole-node selection (see
+`@with_selection`).
 """
 make_insertion_document(::Type{T}) where {T} = T()
+
+"""
+    @insertion JsonString = @with_selection JsonString("") value{0}
+    @insertion JuliaFunction = julia_scaffold("function")
+
+The document a committed insertion of `JsonString` becomes: one
+`make_insertion_document` method, emitted fully qualified, so a domain declares
+its insertion factories without importing the generic it extends. The type
+matches its subtypes too (`::Type{<:JsonString}`).
+"""
+macro insertion(ex)
+    (ex isa Expr && ex.head === :(=) && length(ex.args) == 2) ||
+        error("@insertion expects `T = expr`, e.g. `@insertion JsonBool = JsonBool(false)`, got `$ex`")
+    T, body = ex.args
+    M = @__MODULE__
+    :($M.make_insertion_document(::Type{<:$(esc(T))}) = $(esc(body)))
+end
 
 const _MAKE_FALLBACK = which(make_insertion_document, Tuple{Type{Document}})
 
@@ -350,7 +368,9 @@ get_document_gesture_bindings_own(::Type{DocumentNothing}) =
 
 Generate a document domain's insertion kit from its name:
 
-- `abstract type JsonDocument <: Document end` (exported),
+- `abstract type JsonDocument <: Document end`, the domain's root — **exported**
+  from the calling module, so a domain never re-exports its own root by hand
+  (adopted roots are exported too),
 - `@document struct JsonNothing <: JsonDocument` — the empty placeholder,
 - `@document struct JsonInsertion <: JsonDocument` — the typed-name buffer
   (`value::String = ""`),
@@ -366,6 +386,9 @@ type instead of generating one (only its traits and gestures are emitted); the
 option's type must already be defined at the `@domain` call site. Escape from
 an insertion is *not* generated per domain — the shared insertion gestures
 abort to `nothing_document(typeof(ins))()` generically.
+
+Candidates whose empty instance needs a cursor or a scaffold declare it with
+the companion `@insertion` macro.
 
 Not generated (layering): the domain's projection-table entries for the two
 new types — add `XNothing`/`XInsertion` lines to the domain's `ToSyntax` table.
@@ -399,8 +422,10 @@ macro domain(name, opts...)
 
     if gen_root
         push!(out.args, :(abstract type $root <: $Document end))
-        push!(out.args, esc(Expr(:export, root_sym)))
     end
+    # The root is the domain's public name, so it is exported either way —
+    # generated here, or adopted with `root = X` and defined at the call site.
+    push!(out.args, esc(Expr(:export, root_sym)))
     if gen_nothing
         # `struct XNothing <: XDocument; selection::Reference = nothing; end`,
         # run through the @document macro function (its expansion is fully

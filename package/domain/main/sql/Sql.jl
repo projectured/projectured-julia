@@ -14,7 +14,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..DomainModule: var"@domain"
 
-export SqlDocument, SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
+export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
 
 # ── Abstract types ─────────────────────────────────────────────────────────────
