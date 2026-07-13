@@ -35,7 +35,6 @@ abstract type GraphicsDocument <: Document end
 
 @document struct GraphicsInsertion <: GraphicsDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── GraphicsText ───────────────────────────────────────────────────────
@@ -54,7 +53,6 @@ backend converts it to its own device encoding at draw time.
     y::Int32
     font::StyleFont
     color::StyleColor
-    selection::Reference
 end
 
 function GraphicsText(text::AbstractString, x::Integer, y::Integer,
@@ -93,7 +91,6 @@ Each field is a `Cell`.
     radius_bl::Int32
     border_width::Int32
     border_color::StyleColor
-    selection::Reference
 end
 
 # Normalize a `border_color` argument: `nothing` → fully transparent (no border
@@ -139,7 +136,6 @@ stay crisp on axis-aligned lines and follow the slope on diagonals.
     color::StyleColor
     width::Int32
     dash::Any              # nothing | (on::Int, off::Int) — dash pattern in pixels
-    selection::Reference
 end
 
 # Normalize a `dash` argument to `nothing` (solid) or a `(on, off)` pixel tuple.
@@ -172,7 +168,6 @@ switch knobs and slider thumbs.
     color::StyleColor
     border_width::Int32
     border_color::StyleColor
-    selection::Reference
 end
 
 function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
@@ -204,7 +199,6 @@ oriented along the adjacent segment.
     start_arrow::Bool
     end_arrow::Bool
     arrow_size::Int32
-    selection::Reference
 end
 
 function GraphicsPolyline(points::AbstractVector,
@@ -240,7 +234,6 @@ span), so curve quality is one shared knob. Arrowhead flags as on
     end_arrow::Bool
     arrow_size::Int32
     segments::Int32
-    selection::Reference
 end
 
 function GraphicsSpline(points::AbstractVector,
@@ -360,17 +353,18 @@ overlap along the layout axis. This enables the renderer and hit-testing
 to stop early once past the viewport or click point.
 """
 @document struct GraphicsCanvas <: GraphicsDocument
-    x::Int32
-    y::Int32
-    w::Int32
-    h::Int32
-    elements::CollectionDocument
-    layout::LayoutDirection
-    overlapping_elements::Bool
-    selection::Reference
+    x::Int32 = Int32(0)
+    y::Int32 = Int32(0)
+    w::Int32 = Int32(0)
+    h::Int32 = Int32(0)
+    elements::CollectionDocument = CellVector()
+    layout::LayoutDirection = layout_none
+    overlapping_elements::Bool = true
 end
 
-GraphicsCanvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), CellVector(), layout_none, true, Cell(nothing))
+# `GraphicsCanvas()` is the macro's keyword constructor — an empty canvas at the
+# origin. Every field defaults, so Rule Y emits no positional constructor and the
+# typed constructors below stay in sole charge of positional construction.
 GraphicsCanvas(elems::Vector; x::Integer=0, y::Integer=0, w::Integer=0, h::Integer=0,
                layout::LayoutDirection=layout_none, overlapping::Bool=true) =
     GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h),
@@ -404,7 +398,6 @@ work.
     h::Int32
     content::GraphicsCanvas
     transform::AffineTransform
-    selection::Reference
 end
 
 function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
@@ -424,7 +417,6 @@ end
     w::Int32
     h::Int32
     data::Any
-    selection::Reference
 end
 
 function GraphicsImage(x::Integer, y::Integer, w::Integer, h::Integer, data)
@@ -446,7 +438,6 @@ the canvas's `layout` direction. It carries no visual representation
 and is skipped during rendering and hit-testing.
 """
 @document struct GraphicsFence <: GraphicsDocument
-    selection::Reference = nothing
 end
 
 # ── Hit testing ─────────────────────────────────────────────────────────────

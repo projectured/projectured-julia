@@ -20,11 +20,9 @@ struct F end
 # Navigable toy documents for the `@reference(document, path)` annotation test.
 @document struct EvalChild
     n::Int
-    selection::Reference = nothing
 end
 @document struct EvalDoc
     child::EvalChild
-    selection::Reference = nothing
 end
 
 function test_reference_builder()

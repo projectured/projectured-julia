@@ -20,14 +20,12 @@ abstract type FileSystemDocument <: Document end
 
 @document struct FileSystemInsertion <: FileSystemDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── File ──────────────────────────────────────────────────────────────────────
 
 @document struct FileSystemFile <: FileSystemDocument
     pathname::String
-    selection::Reference = nothing
 end
 
 
@@ -36,7 +34,6 @@ end
 @document struct FileSystemDirectory <: FileSystemDocument
     pathname::String
     elements::CellVector
-    selection::Reference = nothing
 end
 
 

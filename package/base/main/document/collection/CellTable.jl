@@ -4,11 +4,10 @@
 # cell in the matrix. Column access requires iterating rows.
 
 @document struct CellTable
-    rows::CellVector
-    selection::Reference
+    rows::CellVector = CellVector()
 end
 
-CellTable() = CellTable(Cell(CellVector()), Cell(nothing))
+# `CellTable()` is the macro's keyword constructor (empty rows, no selection).
 
 CellTable(nrows::Integer, ncols::Integer) =
     CellTable(Cell(CellVector(Cell[Cell(CellVector(undef, ncols)) for _ in 1:nrows])), Cell(nothing))

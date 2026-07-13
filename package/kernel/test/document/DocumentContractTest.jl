@@ -25,7 +25,6 @@ using ProjecturedKernel.ReferenceModule: Reference, EmptyReferencePath, Referenc
 @document struct ToyNode
     label::String
     child::Union{ToyNode, Nothing}
-    selection::Reference
 end
 
 function test_document_contract()

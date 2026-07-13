@@ -34,7 +34,6 @@ abstract type WorkbenchDocument <: Document end
 
 @document struct WorkbenchInsertion <: WorkbenchDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── WorkbenchPage ─────────────────────────────────────────────────────────────
@@ -46,7 +45,6 @@ A page within the workbench that holds a sequence of panel documents.
 """
 @document struct WorkbenchPage <: WorkbenchDocument
     elements::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 function WorkbenchPage(elements::Vector)
@@ -67,7 +65,6 @@ the right.
     editing_page::WorkbenchPage
     information_page::WorkbenchPage
     control_page::WorkbenchPage
-    selection::Reference = nothing
 end
 
 function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
@@ -94,7 +91,6 @@ The navigator panel.  `workspace` is a `Workspace` document containing
 @document struct WorkbenchNavigator <: WorkbenchDocument
     workspace::Workspace  # required: keeps the 1-arg `WorkbenchNavigator(workspace)`
                           # ctor (macro Rule Y needs req≥1)
-    selection::Reference = nothing
 end
 
 
@@ -112,7 +108,6 @@ class-level constant `"Console"`.
 """
 @document struct WorkbenchConsole <: WorkbenchDocument
     content::TextText = TextText()
-    selection::Reference = nothing
 end
 
 function WorkbenchConsole(content::TextText)
@@ -135,7 +130,6 @@ constant `"Descriptor"`.
 """
 @document struct WorkbenchDescriptor <: WorkbenchDocument
     content::ReferencePath
-    selection::Reference = nothing
 end
 
 function WorkbenchDescriptor(content::ReferencePath)
@@ -154,7 +148,6 @@ const WORKBENCH_OPERATOR_TITLE = "Operator"
 The operator panel.  Its title is the class-level constant `"Operator"`.
 """
 @document struct WorkbenchOperator <: WorkbenchDocument
-    selection::Reference = nothing
 end
 
 title(::WorkbenchOperator) = WORKBENCH_OPERATOR_TITLE
@@ -169,7 +162,6 @@ const WORKBENCH_SEARCHER_TITLE = "Searcher"
 The searcher panel.  Its title is the class-level constant `"Searcher"`.
 """
 @document struct WorkbenchSearcher <: WorkbenchDocument
-    selection::Reference = nothing
 end
 
 title(::WorkbenchSearcher) = WORKBENCH_SEARCHER_TITLE
@@ -187,7 +179,6 @@ constant `"Evaluator"`.
 """
 @document struct WorkbenchEvaluator <: WorkbenchDocument
     content::Any = nothing
-    selection::Reference = nothing
 end
 
 function WorkbenchEvaluator(content)
@@ -278,8 +269,6 @@ from `ProjecturedKernelExample`, e.g. `FakeLlm("ok")`).
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
-    selection::Reference  # defaulted by the keyword ctor below, not the macro,
-                          # to avoid a zero-arg ctor clash (see FlowLayout pattern)
 end
 
 # A fresh user draft (one active text typein) for the composer input pane.
@@ -323,7 +312,6 @@ path on disk.
     filename::String
     content::Any
     follow_end::Bool
-    selection::Reference = nothing
 end
 
 function WorkbenchEditor(content;

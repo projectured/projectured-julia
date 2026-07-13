@@ -46,7 +46,6 @@ abstract type WidgetDocument <: Document end
 
 @document struct WidgetInsertion <: WidgetDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── WidgetLabel ────────────────────────────────────────────────────────────
@@ -67,7 +66,6 @@ A positioned, non-interactive label..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetLabel(position::Point2D, content;
@@ -108,7 +106,6 @@ An editable text widget..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetText(position::Point2D, content;
@@ -175,7 +172,6 @@ A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that ad
     validator::Any
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 
 function WidgetSpinBox(position::Point2D, value;
@@ -203,7 +199,6 @@ selects the hit row; Up/Down move the selection. Stage 6.
     width::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 
 function WidgetList(position::Point2D, items::Vector;
@@ -378,7 +373,6 @@ A floating tooltip overlay..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetTooltip(position::Point2D, size::Point2D, content;
@@ -422,7 +416,6 @@ wrapper ignores the right click (the child still works).
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetContextMenu(child, menu;
@@ -469,7 +462,6 @@ open it from a `WidgetButton`'s `dialog` field.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetDialog(title, content, buttons::Vector;
@@ -529,16 +521,15 @@ end
 A menu containing a sequence of `WidgetMenuItem`s..
 """
 @document struct WidgetMenu <: WidgetDocument
-    elements::CellVector
-    orientation::Symbol
-    visible::Bool
-    margin::Inset
-    margin_color::StyleColor
-    border::Inset
-    border_color::StyleColor
-    padding::Inset
-    padding_color::StyleColor
-    selection::Reference
+    elements::CellVector = CellVector()
+    orientation::Symbol = :vertical
+    visible::Bool = true
+    margin::Inset = inset_default
+    margin_color::StyleColor = nothing
+    border::Inset = inset_default
+    border_color::StyleColor = nothing
+    padding::Inset = inset_default
+    padding_color::StyleColor = nothing
 end
 
 function WidgetMenu(elements::Vector;
@@ -557,8 +548,6 @@ function WidgetMenu(elements::Vector;
                Cell(padding), Cell(padding_color),
                Cell(nothing))
 end
-
-WidgetMenu(; kwargs...) = WidgetMenu(Any[]; kwargs...)
 
 set_function!(w::WidgetMenu, f::Function) = (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
@@ -643,7 +632,6 @@ A positioned container holding an ordered sequence of child widgets.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetComposite(position::Point2D, elements::Vector;
@@ -672,15 +660,14 @@ A horizontal strip of tool items (buttons, labels, separators) placed
 below the menu bar in a `WidgetShell`.
 """
 @document struct WidgetToolbar <: WidgetDocument
-    elements::CellVector
-    visible::Bool
-    margin::Inset
-    margin_color::StyleColor
-    border::Inset
-    border_color::StyleColor
-    padding::Inset
-    padding_color::StyleColor
-    selection::Reference
+    elements::CellVector = CellVector()
+    visible::Bool = true
+    margin::Inset = inset_default
+    margin_color::StyleColor = nothing
+    border::Inset = inset_default
+    border_color::StyleColor = nothing
+    padding::Inset = inset_default
+    padding_color::StyleColor = nothing
 end
 
 function WidgetToolbar(elements::Vector;
@@ -698,8 +685,6 @@ function WidgetToolbar(elements::Vector;
                   Cell(nothing))
 end
 
-WidgetToolbar(; kwargs...) = WidgetToolbar(Any[]; kwargs...)
-
 set_function!(w::WidgetToolbar, f::Function) =
     (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
@@ -713,15 +698,14 @@ A thin bottom band of status text `segments` (each stringified) — Qt's
 `status_bar` field; it is rendered below the content.
 """
 @document struct WidgetStatusBar <: WidgetDocument
-    elements::CellVector
-    visible::Bool
-    margin::Inset
-    margin_color::StyleColor
-    border::Inset
-    border_color::StyleColor
-    padding::Inset
-    padding_color::StyleColor
-    selection::Reference
+    elements::CellVector = CellVector()
+    visible::Bool = true
+    margin::Inset = inset_default
+    margin_color::StyleColor = nothing
+    border::Inset = inset_default
+    border_color::StyleColor = nothing
+    padding::Inset = inset_default
+    padding_color::StyleColor = nothing
 end
 
 function WidgetStatusBar(segments::Vector;
@@ -738,8 +722,6 @@ function WidgetStatusBar(segments::Vector;
                     Cell(padding), Cell(padding_color),
                     Cell(nothing))
 end
-
-WidgetStatusBar(; kwargs...) = WidgetStatusBar(Any[]; kwargs...)
 
 set_function!(w::WidgetStatusBar, f::Function) =
     (set_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
@@ -768,7 +750,6 @@ Top-level window shell..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetShell(content;
@@ -817,7 +798,6 @@ A pane with a title bar and a content area..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetTitlePane(title, content;
@@ -910,12 +890,11 @@ set_function!(w::WidgetSplitPane, f::Function) = (set_function!(getfield(w.eleme
 @document struct WidgetTabPage <: WidgetDocument
     selector::Any
     element::Any
-    icon::Any
-    selection::Reference
+    icon::Any = nothing
 end
 
-WidgetTabPage(selector, element, icon=nothing) =
-    WidgetTabPage(Cell(selector), Cell(element), Cell(icon), Cell(nothing))
+# `WidgetTabPage(selector, element)` and `(selector, element, icon)` are both Rule Y
+# constructors: `icon` and `selection` are the trailing defaulted run.
 
 # Wrap a caller's tab entry — a `(selector, element)` or `(selector, element, icon)`
 # tuple, or an already-built `WidgetTabPage` — into a `WidgetTabPage`.
@@ -930,16 +909,15 @@ A tabbed container.  `selector_element_pairs` is a `Vector` of
 [`WidgetTabPage`](@ref)).
 """
 @document struct WidgetTabbedPane <: WidgetDocument
-    selector_element_pairs::CellVector
-    visible::Bool
-    margin::Inset
-    margin_color::StyleColor
-    border::Inset
-    border_color::StyleColor
-    padding::Inset
-    padding_color::StyleColor
-    tab_scroll::Int
-    selection::Reference
+    selector_element_pairs::CellVector = CellVector()
+    visible::Bool = true
+    margin::Inset = inset_default
+    margin_color::StyleColor = nothing
+    border::Inset = inset_default
+    border_color::StyleColor = nothing
+    padding::Inset = inset_default
+    padding_color::StyleColor = nothing
+    tab_scroll::Int = 0
 end
 
 # `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -961,8 +939,6 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                      Cell(Int(tab_scroll)),
                      Cell(nothing))
 end
-
-WidgetTabbedPane(; kwargs...) = WidgetTabbedPane(Any[]; kwargs...)
 
 set_function!(w::WidgetTabbedPane, f::Function) = (set_function!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
@@ -991,7 +967,6 @@ axis.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetScrollPane(content;
@@ -1048,7 +1023,6 @@ translate+scale subset is rendered today; rotation/shear is future work.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetTransformPane(content;
@@ -1095,7 +1069,6 @@ the visible-fraction represented by the thumb.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
 end
 
 function WidgetScrollBar(orientation::Symbol;
@@ -1139,7 +1112,6 @@ A small pill-shaped status label. `variant` ∈
     content::Any
     variant::Symbol
     visible::Bool
-    selection::Reference
 end
 WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true) =
     WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(nothing))
@@ -1156,7 +1128,6 @@ A 1px divider rule.
     orientation::Symbol
     length::Int
     visible::Bool
-    selection::Reference
 end
 WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
                 length::Integer=200, visible::Bool=true) =
@@ -1185,7 +1156,6 @@ Cards left at the default `collapsed=false` render exactly as before.
     width::Int
     visible::Bool
     collapsed::Bool
-    selection::Reference
 end
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=320, visible::Bool=true, collapsed::Bool=false) =
@@ -1234,7 +1204,6 @@ A horizontal progress bar. `value` ∈ [0, 1].
     value::Float64
     width::Int
     visible::Bool
-    selection::Reference
 end
 WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true) =
     WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
@@ -1252,7 +1221,6 @@ A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
     width::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true, enabled::Bool=true) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
@@ -1271,7 +1239,6 @@ A vertical group of radio options (`options` is a `Vector` of labels);
     selected::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
@@ -1289,7 +1256,6 @@ A circular avatar showing initials (image-clipping is future work).
     initials::Any
     size::Int
     visible::Bool
-    selection::Reference
 end
 WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) =
     WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(nothing))
@@ -1309,7 +1275,6 @@ A rounded, bordered callout with a bold title and muted description.
     variant::Symbol
     width::Int
     visible::Bool
-    selection::Reference
 end
 WidgetAlert(position::Point2D, title, description=nothing;
             variant::Symbol=:default, width::Integer=360, visible::Bool=true) =
@@ -1328,7 +1293,6 @@ A muted rounded placeholder block for loading states.
     width::Int
     height::Int
     visible::Bool
-    selection::Reference
 end
 WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
@@ -1346,7 +1310,6 @@ A two-state toggle button (pressed = accent surface).
     pressed::Bool
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true) =
     WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled), Cell(nothing))
@@ -1364,7 +1327,6 @@ A segmented control: a row of options with one selected segment.
     selected::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
@@ -1388,7 +1350,6 @@ popup. With no options the box is inert (renders the closed state only).
     width::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=220,
              visible::Bool=true, enabled::Bool=true) =
@@ -1417,7 +1378,6 @@ to `evaluate_operation`.
     popup_id::Symbol
     width::Int
     visible::Bool
-    selection::Reference
 end
 WidgetOption(position::Point2D, select, value; label=string(value),
              popup_id::Symbol=:widget_popup, width::Integer=220, visible::Bool=true) =
@@ -1438,7 +1398,6 @@ A multi-line text surface. `content` is a string (newlines split into rows).
     rows::Int
     visible::Bool
     enabled::Bool
-    selection::Reference
 end
 WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true, enabled::Bool=true) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
@@ -1454,10 +1413,7 @@ WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, 
 @document struct WidgetAccordionItem <: WidgetDocument
     title::Any
     body::Any
-    selection::Reference
 end
-
-WidgetAccordionItem(title, body) = WidgetAccordionItem(Cell(title), Cell(body), Cell(nothing))
 
 _as_accordion_item(it::WidgetAccordionItem) = it
 _as_accordion_item(it::Tuple) = WidgetAccordionItem(it[1], it[2])
@@ -1475,7 +1431,6 @@ item (0 = all collapsed).
     expanded::Int
     width::Int
     visible::Bool
-    selection::Reference
 end
 WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=360, visible::Bool=true) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),

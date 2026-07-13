@@ -30,7 +30,6 @@ An XML attribute, a first-class document so the selection can descend into its v
 @document struct XmlAttribute <: XmlDocument
     name::String
     value::String
-    selection::Reference = nothing
 end
 
 # ── Text node ─────────────────────────────────────────────────────────────
@@ -40,7 +39,6 @@ A text node in an XML element.
 """
 @document struct XmlText <: XmlDocument
     content::String
-    selection::Reference = nothing
 end
 
 # ── Element ───────────────────────────────────────────────────────────────
@@ -55,7 +53,6 @@ An XML element with a tag, attributes (`attrs`) and child nodes (`children`).
     attrs::CellVector = CellVector()
     children::CellVector = CellVector()  # holds XmlDocument children
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 # `attrs` and `children` are both `CellVector`, so the macro can't tell an

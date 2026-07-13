@@ -23,7 +23,6 @@ abstract type WorkspaceDocument <: Document end
 @document struct WorkspaceFolder <: WorkspaceDocument
     name::String
     pathname::String
-    selection::Reference = nothing
 end
 
 
@@ -31,7 +30,6 @@ end
 
 @document struct Workspace <: WorkspaceDocument
     folders::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 

@@ -28,7 +28,6 @@ type-to-replace swaps it for concrete content.
 """
 @document struct BookInsertion <: BookDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── Structure ────────────────────────────────────────────────────────────
@@ -43,7 +42,6 @@ marker in the projection.
     author::Any = nothing
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 """
@@ -55,7 +53,6 @@ A chapter grouping child nodes under a `title` and optional `numbering` (e.g.
     numbering::String = ""
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 # ── Content ──────────────────────────────────────────────────────────────
@@ -68,7 +65,6 @@ A prose paragraph. `content` is typically a `TextText`; `alignment` is one of
     content::Any
     alignment::Symbol = :left
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 """
@@ -77,7 +73,6 @@ An unordered list of child nodes. `collapsed` hides them in the projection.
 @document struct BookList <: BookDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 """
@@ -89,7 +84,6 @@ A figure with an optional `title`. `content` is an image value or path;
     title::String = ""
     alignment::Symbol = :left
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 # Text-replace edits need no per-type method: `title`/`author`/`numbering` are

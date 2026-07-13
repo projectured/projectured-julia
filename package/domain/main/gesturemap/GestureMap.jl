@@ -48,7 +48,6 @@ its own.
 """
 @document struct GestureMap
     rows::Any = GestureRow[]
-    selection::Reference = nothing
 end
 
 # Evaluate a binding's precondition defensively: a collector spanning several

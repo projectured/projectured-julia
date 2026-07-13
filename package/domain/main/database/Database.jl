@@ -31,7 +31,6 @@ WHERE fragment, and row limit. No query results are cached here.
     columns::Any = nothing
     where_clause::Any = nothing
     limit::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── Operations ────────────────────────────────────────────────────────────────

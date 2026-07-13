@@ -31,7 +31,6 @@ A collapsible slot around an arbitrary content document.
 @document struct ConversationPart <: ConversationDocument
     content::Document
     collapsed::Bool
-    selection::Reference = nothing
 end
 
 ConversationPart(content::Document; collapsed::Bool = false) =
@@ -51,7 +50,6 @@ re-serialization back to the API.
     signature::String
     redacted::Bool
     data::String
-    selection::Reference = nothing
 end
 
 ConversationThinking(text::Document;
@@ -88,7 +86,6 @@ a streaming `stop_reason`, and a `collapsed` flag.
     parts::CellVector
     stop_reason::Symbol
     collapsed::Bool
-    selection::Reference = nothing
 end
 
 ConversationTurn(role::Symbol;
@@ -115,7 +112,6 @@ The whole chat history as an ordered sequence of `ConversationTurn`s.
 """
 @document struct ConversationConversation <: ConversationDocument
     turns::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 # ── ConversationDraft ─────────────────────────────────────────────────────────
@@ -135,7 +131,6 @@ when standalone) so ENTER can submit the draft into the conversation.
 @document struct ConversationDraft <: ConversationDocument
     parts::CellVector
     assistant::Any        # the owning WorkbenchAssistant (or nothing, standalone)
-    selection::Reference = nothing
 end
 
 ConversationDraft(parts::Vector, assistant = nothing) =

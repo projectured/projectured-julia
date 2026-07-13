@@ -168,6 +168,16 @@ macro document(structdef)
     # resolves in the caller's module — where it is always in scope, since a
     # module that declares documents necessarily uses the reference layer.
     # (`@cell_struct` emits its `Cell` type the same way, for the same reason.)
+    #
+    # The injected field is *not* a programmer default: it must not, by itself,
+    # manufacture keyword constructors a struct never had. A struct whose fields
+    # all lack defaults gets no `Foo(; …)` — leaving a hand-written keyword
+    # constructor (one that needs to do more than fill fields, e.g. establish a
+    # back-link) free to own that signature. Rule Y and Rule C *do* count it, since
+    # filling a trailing default positionally is exactly their job — and that is
+    # what retires the `Foo(a, b) = Foo(a, b, nothing)` boilerplate.
+    programmer_defaults = length(defaults)
+    declared_fields = length(cell_fields)
     if !any(f -> f[1] === :selection, original_fields)
         push!(cell_fields, :selection)
         push!(original_fields, (:selection, :Reference))
@@ -249,17 +259,32 @@ macro document(structdef)
     # object is not a valid method-definition *name*, but `(::typeof(f))(…)` is.
     dvt = :((::typeof($(_declared_value_types)))(::Type{<:$(struct_name)}) = ($(Tvals...),))
 
-    # ── Keyword constructors (only when ≥1 default is declared) ────────
+    # ── Keyword constructors (only when the *programmer* declared ≥1 default) ──
     # Forward into the positional ctors of the bare `Foo` and the typed kind
     # ctors `IFoo`/`MFoo`, so defaults are available on any kind. Fields without
     # a default become required keywords, à la `Base.@kwdef`.
+    #
+    # Gated on `programmer_defaults`, not on the injected `selection`: a keyword
+    # constructor is zero-*positional*, so an auto-generated one would claim the
+    # `Foo(; …)` signature and collide with any hand-written keyword constructor.
+    # Structs that need one to do real work beyond filling fields (`WorkbenchAssistant`
+    # back-links its draft; `WindowDocument` used to coerce its arguments) declare no
+    # defaults, and so keep that signature to themselves. Declare a default on any
+    # field to opt into the generated keyword constructors.
+    #
+    # A struct with no fields of its own (`JsonNull`, and every `@domain` placeholder)
+    # is the exception: it holds nothing but its selection, so there is no
+    # hand-written keyword constructor to protect and `Foo()` must come from
+    # somewhere — Rule Y cannot supply it (`req == 0`).
     extra = Any[]
     if !isempty(defaults)
         default_map = Dict(defaults)
         kw_params = cell_struct_kw_params(field_names, default_map)
-        push!(extra, cell_struct_kwctor(struct_name, field_names, kw_params))
-        push!(extra, cell_struct_kwctor(i_name, field_names, kw_params))
-        push!(extra, cell_struct_kwctor(m_name, field_names, kw_params))
+        if programmer_defaults > 0 || declared_fields == 0
+            push!(extra, cell_struct_kwctor(struct_name, field_names, kw_params))
+            push!(extra, cell_struct_kwctor(i_name, field_names, kw_params))
+            push!(extra, cell_struct_kwctor(m_name, field_names, kw_params))
+        end
 
         # ── Rule Y: positional ctors that omit a trailing run of defaulted
         #    fields (the positional analog of `@kwdef`). Generated only when at

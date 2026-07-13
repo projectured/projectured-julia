@@ -57,7 +57,6 @@ abstract type TextDocument <: Document end
 
 @document struct TextInsertion <: TextDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── TextNewline ─────────────────────────────────────────────────────
@@ -75,23 +74,20 @@ incremental updates.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
 - `TextNewline(; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing)`
+  — the macro's keyword constructor; `font` is the one field without a default,
+  and so the one required keyword.
 """
 @document struct TextNewline <: TextDocument
     font::StyleFont
-    font_color::StyleColor
-    fill_color::StyleColor
-    line_color::StyleColor
-    padding::Inset
-    selection::Reference
+    font_color::StyleColor = ""
+    fill_color::StyleColor = nothing
+    line_color::StyleColor = nothing
+    padding::Inset = nothing
 end
-
-TextNewline(; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
-    TextNewline(Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
 # ── TextSpacing ─────────────────────────────────────────────────────
 
@@ -124,7 +120,6 @@ in pixels or character spaces.
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
-    selection::Reference
 end
 
 TextSpacing(size::Number; unit=:pixel, font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
@@ -154,7 +149,6 @@ refers to the cursor within the span's `content` field:  `.content{k}`
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
-    selection::Reference
 end
 
 TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
@@ -217,7 +211,6 @@ contributes its height to the line and occupies one atomic cursor position.
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
-    selection::Reference
 end
 
 TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospace_regular_20, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
@@ -240,7 +233,6 @@ The `selection` cell holds a path into the span sequence, or `nothing`:
 """
 @document struct TextText <: TextDocument
     elements::CollectionDocument = CellVector()
-    selection::Reference = nothing
 end
 
 TextText(spans::Vector{<:TextDocument}) =

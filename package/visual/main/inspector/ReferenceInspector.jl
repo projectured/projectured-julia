@@ -19,7 +19,6 @@ the `target` document it points into.
 @document struct ReferenceInspector
     reference::Reference = nothing
     target::Any = nothing
-    selection::Reference = nothing
 end
 
 end # module

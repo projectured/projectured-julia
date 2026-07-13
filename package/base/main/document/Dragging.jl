@@ -22,7 +22,6 @@ as a normal click).
 @document struct DraggingState <: DraggingDocument
     content::Document
     threshold::Int = 5
-    selection::Reference = nothing
 end
 
 end # module

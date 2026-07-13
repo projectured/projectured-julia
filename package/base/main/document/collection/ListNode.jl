@@ -6,7 +6,6 @@
     value::Any
     prev::Union{ListNode, Nothing}
     next::Union{ListNode, Nothing}
-    selection::Reference
 end
 
 ListNode(value) =

@@ -31,7 +31,6 @@ The placed rect `(x, y, w, h)` for `vertex` (a `GraphVertex`, held by identity).
     w::Int
     h::Int
     pinned::Bool = false
-    selection::Reference = nothing
 end
 
 # ── EdgeLayout ───────────────────────────────────────────────────────────────
@@ -45,7 +44,6 @@ Routed waypoints for `edge` (a `GraphEdge`, held by identity). `route` is a
     route::Any = Tuple{Int,Int}[]
     source_port::Symbol = :auto
     target_port::Symbol = :auto
-    selection::Reference = nothing
 end
 
 """
@@ -58,7 +56,6 @@ direction/spacing knobs fed to the engine.
     direction::Symbol = :tb
     node_sep::Int = 40
     rank_sep::Int = 60
-    selection::Reference = nothing
 end
 
 """
@@ -70,7 +67,6 @@ Per-vertex/edge policy wrapper. `kind` is one of `:pin`, `:same_rank`,
     target::Document
     kind::Symbol = :pin
     payload::Any = nothing
-    selection::Reference = nothing
 end
 
 end # module

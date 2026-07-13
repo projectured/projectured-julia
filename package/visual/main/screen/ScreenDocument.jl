@@ -49,15 +49,15 @@ frames but carries no visual semantics — window identity is the
 `WindowDocument.id` `Symbol`.
 """
 @document struct ScreenDocument
-    windows::CellVector
-    selection::Reference
+    windows::CellVector = CellVector()
 end
 
-ScreenDocument() = ScreenDocument(CellVector(), Cell(nothing))
+# `ScreenDocument()` (empty), `ScreenDocument([w, …])` and `ScreenDocument(w, …)`
+# all come from the macro: the keyword constructor plus Rule C's bracketed and
+# variadic forms for a struct backed by a single `CellVector`. Only the
+# already-wrapped `CellVector` form needs writing — a `CellVector` is a `Document`,
+# so this more specific method takes it as the *collection*, not as one element.
 ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing))
-ScreenDocument(windows::AbstractVector) =
-    ScreenDocument(CellVector(Cell[Cell(w) for w in windows]), Cell(nothing))
-ScreenDocument(window) = ScreenDocument([window])
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
@@ -86,41 +86,22 @@ projected.
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
 """
+# The defaults live on the fields, so `WindowDocument(; content = doc, …)` is the
+# macro's keyword constructor. `content` is the one field without a default, and
+# is therefore a *required* keyword — which is exactly the old hand-written
+# signature.
 @document struct WindowDocument
-    id::Symbol
-    title::String
-    x::Int
-    y::Int
-    width::Int
-    height::Int
-    bg::NTuple{4,UInt8}
-    style::Symbol
-    auto_dismiss::Bool
-    modal::Bool
+    id::Symbol = :default
+    title::String = "ProjecturEd"
+    x::Int = -1
+    y::Int = -1
+    width::Int = 2400
+    height::Int = 1600
+    bg::NTuple{4,UInt8} = DEFAULT_BG
+    style::Symbol = :normal
+    auto_dismiss::Bool = false
+    modal::Bool = false
     content::Document
-    selection::Reference
-end
-
-function WindowDocument(; id::Symbol = :default,
-                          title::AbstractString = "ProjecturEd",
-                          x::Integer = -1,
-                          y::Integer = -1,
-                          width::Integer = 2400,
-                          height::Integer = 1600,
-                          bg::NTuple{4,Integer} = DEFAULT_BG,
-                          style::Symbol = :normal,
-                          auto_dismiss::Bool = false,
-                          modal::Bool = false,
-                          content)
-    WindowDocument(Cell(id), Cell(String(title)),
-                   Cell(Int(x)), Cell(Int(y)),
-                   Cell(Int(width)), Cell(Int(height)),
-                   Cell((UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4]))),
-                   Cell(style),
-                   Cell(auto_dismiss),
-                   Cell(modal),
-                   Cell(content),
-                   Cell(nothing))
 end
 
 # `EventEnvelope` lives in GestureModule; still exported from this module

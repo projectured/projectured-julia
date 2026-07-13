@@ -10,7 +10,6 @@ using ProjecturedKernel.ReferenceModule: Reference
     query::String
     case_insensitive::Bool
     whole_word::Bool
-    selection::Reference
 end
 
 function make_object_to_widget_document_example()
@@ -26,7 +25,6 @@ end
     width::Int
     height::Int
     visible::Bool
-    selection::Reference
 end
 
 @document struct AppSettings
@@ -34,7 +32,6 @@ end
     dark_mode::Bool
     window::WindowSettings
     tags::Vector
-    selection::Reference
 end
 
 function make_nested_object_to_widget_document_example()

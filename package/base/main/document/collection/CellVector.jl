@@ -10,8 +10,7 @@
 # declared type is therefore the loose `Vector`; accessors branch on the storage
 # with a fully-typed fast path for the reactive convention.
 @document struct CellVector
-    elements::Vector
-    selection::Reference
+    elements::Vector = Cell[]
 end
 
 # `CellVector` is the canonical 1-D positional collection: its children are
@@ -20,7 +19,11 @@ end
 # `.elements`. See `is_element_collection` (DocumentModule) for the contract.
 is_element_collection(::CellVector) = true
 
-CellVector()                        = CellVector(Cell(Cell[]),           Cell(nothing))
+# `CellVector()` is the macro's keyword constructor: `elements` defaults to an
+# empty `Cell[]` and `selection` to `nothing`. Because *every* field defaults,
+# Rule Y emits no positional constructor — which is what keeps the variadic below
+# in charge of the 1-argument call (`CellVector(x)` is a one-*element* vector, not
+# an elements vector).
 CellVector(cells::Vector{Cell})     = CellVector(Cell(copy(cells)),      Cell(nothing))
 CellVector(items::AbstractVector)   = CellVector(Cell[Cell(x) for x in items])
 # `CellVector(undef, n)` — n empty (`nothing`) slots. Spelled with `undef` so it

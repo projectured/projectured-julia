@@ -32,7 +32,6 @@ import ..DomainModule: var"@domain", var"@insertion", make_insertion_document
 The YAML `null` literal (also written `~`).
 """
 @document struct YamlNull <: YamlDocument
-    selection::Reference = nothing
 end
 
 """
@@ -40,7 +39,6 @@ A YAML boolean literal (`true` or `false`).
 """
 @document struct YamlBool <: YamlDocument
     value::Bool
-    selection::Reference = nothing
 end
 
 """
@@ -48,7 +46,6 @@ A YAML number literal. `value` may be `nothing` while its text has been fully de
 """
 @document struct YamlNumber <: YamlDocument
     value::Union{Real, Nothing}
-    selection::Reference = nothing
 end
 
 """
@@ -57,7 +54,6 @@ projection concern, not part of the value).
 """
 @document struct YamlString <: YamlDocument
     value::String
-    selection::Reference = nothing
 end
 
 # ── Compounds ────────────────────────────────────────────────────────────
@@ -69,7 +65,6 @@ elements behind a marker in the projection.
 @document struct YamlSequence <: YamlDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector YamlSequence elements
@@ -81,7 +76,6 @@ One `key: value` member of a YAML mapping.
     key::String
     value::Document
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 """
@@ -91,7 +85,6 @@ A YAML mapping (a `key: value` block or `{…}` flow map) — an ordered sequenc
 @document struct YamlMapping <: YamlDocument
     entries::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_map YamlMapping entries key value YamlMappingEntry

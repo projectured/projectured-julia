@@ -48,7 +48,6 @@ abstract type SyntaxDocument <: Document end
 
 @document struct SyntaxInsertion <: SyntaxDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── Intermediate document types ──────────────────────────────────────────
@@ -74,7 +73,6 @@ bracket-style delimiters to any document type.
     content
     opening_delimiter::TextString
     closing_delimiter::TextString
-    selection::Reference
 end
 
 SyntaxDelimitation(content; opening_delimiter=TextString(""), closing_delimiter=TextString("")) =
@@ -99,7 +97,6 @@ pretty-printing indentation for structured documents.
 @document struct SyntaxIndentation <: SyntaxDocument
     content
     indentation::Int
-    selection::Reference
 end
 
 SyntaxIndentation(content; indentation::Int=0) =
@@ -124,7 +121,6 @@ collapse/expand portions of the document tree.
 @document struct SyntaxCollapsible <: SyntaxDocument
     content
     collapsed::Bool
-    selection::Reference
 end
 
 SyntaxCollapsible(content; collapsed::Bool=false) =
@@ -139,18 +135,15 @@ that the cursor should be positioned at this location.
 # Fields
 
 - `content` — the wrapped document
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
-- `SyntaxNavigation(content)`
+- `SyntaxNavigation(content)` — a Rule Y constructor; `selection` is the trailing
+  defaulted field.
 """
 @document struct SyntaxNavigation <: SyntaxDocument
     content
-    selection::Reference
 end
-
-SyntaxNavigation(content) = SyntaxNavigation(content, nothing)
 
 """
     SyntaxConcatenation
@@ -170,7 +163,6 @@ join documents end-to-end.
 """
 @document struct SyntaxConcatenation <: SyntaxDocument
     children::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
@@ -196,7 +188,6 @@ Used to join documents with a specific separator string.
 @document struct SyntaxSeparation <: SyntaxDocument
     children::CellVector
     separator::TextString
-    selection::Reference
 end
 
 SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString) =
@@ -253,7 +244,6 @@ The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
     value::TextString
     indentation::Int
     collapsed::Bool
-    selection::Reference
 end
 
 # Canonical keyword constructor: `value` leads positionally and is left untyped
@@ -314,7 +304,6 @@ The `selection` cell routes a cursor into the rendered node, or `nothing`:
     children::CellVector
     indentation::Int
     collapsed::Bool
-    selection::Reference
 end
 
 # Canonical keyword constructor: `children` leads positionally; `_children`

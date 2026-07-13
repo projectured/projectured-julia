@@ -34,19 +34,14 @@ All fields optional — a version can be anonymous.
 - `origin` — where it came from (host, file, session, `nothing`).
 - `label` — optional human name / tag for the version.
 """
+# Every field defaults, so `VersionProperties()` and `VersionProperties(; author=…)`
+# are both the macro's keyword constructor.
 @document struct VersionProperties <: VersioningDocument
-    timestamp::Any        # e.g. DateTime, or nothing
-    author::Any           # who created it (string / user object / nothing)
-    origin::Any           # where it came from (host, file, session, nothing)
-    label::Any            # optional human name / tag for the version
-    selection::Reference  # defaulted by the keyword ctor below, not the macro,
-                          # to avoid a zero-arg ctor clash (see FlowLayout pattern)
+    timestamp::Any = nothing   # e.g. DateTime, or nothing
+    author::Any    = nothing   # who created it (string / user object / nothing)
+    origin::Any    = nothing   # where it came from (host, file, session, nothing)
+    label::Any     = nothing   # optional human name / tag for the version
 end
-
-VersionProperties(; timestamp=nothing, author=nothing, origin=nothing,
-                    label=nothing, selection=nothing) =
-    VersionProperties(Cell(timestamp), Cell(author), Cell(origin),
-                      Cell(label), Cell(selection))
 
 # ── ObjectVersion ─────────────────────────────────────────────────────────────
 
@@ -61,7 +56,6 @@ version) together with its `properties`. The keyword form builds the
 @document struct ObjectVersion <: VersioningDocument
     value::Document            # the actual domain document for this version
     properties::VersionProperties
-    selection::Reference = nothing
 end
 
 ObjectVersion(value; properties=nothing, timestamp=nothing, author=nothing,
@@ -86,7 +80,6 @@ initial `ObjectVersion`.
 @document struct VersionedObject <: VersioningDocument
     versions::CellVector       # Vector{ObjectVersion}, newest-first by convention
     criterion::Any             # a VersionCriterion; selects the active version
-    selection::Reference = nothing
 end
 
 VersionedObject(versions::AbstractVector; criterion=VersionCriterionLatest(),

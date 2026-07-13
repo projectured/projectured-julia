@@ -43,7 +43,6 @@ A code form paired with its evaluation result. `form` is the code document
     is_error::Bool
     tool_use_id::String
     tool_name::String
-    selection::Reference
 end
 
 EvaluatorForm(form::Document;
@@ -80,7 +79,6 @@ An ordered sequence of `EvaluatorForm`s.
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
-    selection::Reference = nothing
 end
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))

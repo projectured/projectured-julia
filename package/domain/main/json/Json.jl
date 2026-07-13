@@ -29,7 +29,6 @@ export entries
 The JSON `null` literal.
 """
 @document struct JsonNull <: JsonDocument
-    selection::Reference = nothing
 end
 
 """
@@ -37,7 +36,6 @@ A JSON boolean literal (`true` or `false`).
 """
 @document struct JsonBool <: JsonDocument
     value::Bool
-    selection::Reference = nothing
 end
 
 """
@@ -45,7 +43,6 @@ A JSON number literal. `value` may be `nothing` while its text has been fully de
 """
 @document struct JsonNumber <: JsonDocument
     value::Union{Real, Nothing}
-    selection::Reference = nothing
 end
 
 """
@@ -53,7 +50,6 @@ A JSON string literal.
 """
 @document struct JsonString <: JsonDocument
     value::String
-    selection::Reference = nothing
 end
 
 # ── Compounds ────────────────────────────────────────────────────────────
@@ -64,7 +60,6 @@ A JSON array `[…]`. `collapsed` hides its elements behind a marker in the proj
 @document struct JsonArray <: JsonDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector JsonArray elements
@@ -76,7 +71,6 @@ One `"key": value` member of a JSON object.
     key::String
     value::Document
     collapsed::Bool = false
-    selection::Reference = nothing
 end    
 
 """
@@ -86,7 +80,6 @@ A JSON object `{…}` — an ordered sequence of `JsonObjectEntry` members.
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end    
 
 @forward_map JsonObject entries key value JsonObjectEntry

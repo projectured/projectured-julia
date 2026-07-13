@@ -10,13 +10,11 @@ using ProjecturedKernel.DocumentModule: @document, Document
 
 @document struct EvalLeaf
     value::Int
-    selection::Reference
 end
 
 @document struct EvalBranch
     left::EvalLeaf
     right::EvalLeaf
-    selection::Reference
 end
 
 struct EA end

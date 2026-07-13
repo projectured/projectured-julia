@@ -11,11 +11,9 @@ abstract type GestureProbe <: Document end
 
 @document struct GestureProbeLeaf <: GestureProbe
     value::Int = 0
-    selection::Reference = nothing
 end
 
 @document struct GestureProbeArray <: GestureProbe
-    selection::Reference = nothing
 end
 
 # Shared (base-type) bindings, with a block precondition over (doc, sel).
@@ -41,10 +39,8 @@ end
 end
 
 @document struct ProbeAlpha
-    selection::Reference = nothing
 end
 @document struct ProbeBeta
-    selection::Reference = nothing
 end
 
 @gestures ProbeAlpha begin

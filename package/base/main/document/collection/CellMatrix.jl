@@ -4,12 +4,10 @@
 # Matrix{Cell}, but Cell references remain stable.
 
 @document struct CellMatrix
-    elements::Matrix{Cell}
-    selection::Reference
+    elements::Matrix{Cell} = Matrix{Cell}(undef, 0, 0)
 end
 
-CellMatrix() =
-    CellMatrix(Cell(Matrix{Cell}(undef, 0, 0)), Cell(nothing))
+# `CellMatrix()` is the macro's keyword constructor (empty elements, no selection).
 
 CellMatrix(cells::Matrix{Cell}) =
     CellMatrix(Cell(copy(cells)), Cell(nothing))

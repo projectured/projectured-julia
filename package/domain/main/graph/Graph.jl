@@ -22,7 +22,6 @@ A placeholder for graph content being entered (the insert-by-typing cursor).
 """
 @document struct GraphInsertion <: GraphDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 """
@@ -32,7 +31,6 @@ itself, so an edge can point at it (same identity model as `TableCell.content`).
 @document struct GraphVertex <: GraphDocument
     content::Any          # required: keeps the 1-arg `GraphVertex(content)` ctor
                           # (macro Rule Y needs req≥1; all-defaulted would drop it)
-    selection::Reference = nothing
 end
 
 """
@@ -44,7 +42,6 @@ An edge from `source` to `target` (both `GraphVertex`, held by identity).
     target::Document
     directed::Bool = true
     label::Any = nothing
-    selection::Reference = nothing
 end
 
 # Mixed positional+keyword form the macro can't generate (source/target are
@@ -62,7 +59,6 @@ vertex's `content` is arbitrary, a vertex may hold another `GraphGraph` for free
 @document struct GraphGraph <: GraphDocument
     vertices::CellVector = CellVector()
     edges::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 # Two-CellVector convenience: Rule C only covers a single CellVector, so this

@@ -21,7 +21,6 @@ abstract type ClipboardDocument <: Document end
 
 @document struct ClipboardInsertion <: ClipboardDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── ClipboardSlice ────────────────────────────────────────────────────────────
@@ -33,7 +32,6 @@ copied portion.
 @document struct ClipboardSlice <: ClipboardDocument
     content::Document
     slice::Any = nothing
-    selection::Reference = nothing
 end
 
 """
@@ -42,7 +40,6 @@ Clipboard entry: `content` document + sequence of extracted `elements`.
 @document struct ClipboardCollection <: ClipboardDocument
     content::Document
     elements::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 end # module

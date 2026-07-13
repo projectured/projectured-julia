@@ -203,19 +203,67 @@ losing `Document` status changes nothing for them.
       `Foo` — but these are *docstring examples* inside `DomainSupport.jl` and
       `Document.jl`, not real declarations.)
 
-### Step 3 — The 99 bare `selection::Reference` → `= nothing`
+### Steps 3 + 6 — Delete all 271 remaining declarations — ✅ DONE
 
-The risky step. Do it in small batches (by file), loading after each.
+Steps 3 and 6 **collapsed into one**: since the injected field is appended last
+*and* defaulted, deleting a `selection::Reference` line from a struct where it was
+already last leaves the field layout byte-identical. So "give it a default" and
+"delete the declaration" are the same edit. 271 declarations removed from 47 files;
+zero remain.
 
-- [ ] Add `= nothing` to the 99 bare declarations.
-- [ ] Delete the hand-written ctors the macro now generates (the exact-signature
-      collisions **and** the merely-redundant `Foo(a, b) = Foo(a, b, nothing)`
-      forms). See the audit table appended below.
-- [ ] Watch for the three newly-triggered codegen paths per struct: the
-      `Foo`/`IFoo`/`MFoo` **keyword** ctors (keyword-only, zero positional — so
-      they collide with a hand-written `Foo(; …)`, but *not* with a
-      `Foo(x; …)`), **Rule Y**, and — for a struct that is a single `CellVector`
-      plus `selection` — **Rule C**'s variadic `Foo(items::Document...)`.
+- [x] 271 declarations deleted (the 7 reordered widgets were done in step 4).
+- [x] The newly-triggered constructor codegen was resolved. **The load is the
+      oracle for collisions** — Julia makes method overwriting during
+      precompilation a *fatal error*, so every exact-signature clash surfaced
+      loudly, one per precompile. The fixes split into two shapes:
+  - **A hand-written zero-arg `Foo()`** (`CellVector`, `CellMatrix`, `CellTable`,
+    `GraphicsCanvas`, `ScreenDocument`, the four `XLayout(; kwargs...)` shims, the
+    four `WidgetX(; kwargs...)` shims, `TextNewline`, `WindowDocument`). The honest
+    fix is to **hoist the values that constructor was hard-coding into field
+    defaults** and delete it — the macro's keyword constructor then *is* that
+    constructor. This is a real improvement: `CellVector()` now means "elements
+    default to empty", stated on the field.
+  - **A redundant `Foo(a, b) = Foo(a, b, nothing)`** (`PrimitiveBool/Number/String`,
+    `ImageMemory`, `ImageFile`, `WidgetAccordionItem`, `WidgetTabPage`,
+    `SyntaxNavigation`, `DatabaseInstance`, `VersionProperties`). Deleted — Rule Y
+    now generates exactly these.
+- [x] Verified green, **identical to baseline**: `test_kernel()` 338/338,
+      `test_base()` 82/82, `test_visual()` 51856 pass / 1 broken, `test_domain()`
+      132976 pass / 1 pre-existing error / 15 broken.
+
+**Two hazards found during implementation that the plan had not called out:**
+
+1. **Rule Y can *silently shadow* a variadic** — no error, just wrong behaviour.
+   With `elements` required and `selection` defaulted, `CellVector` would have had
+   Rule Y emit an untyped 1-arg `CellVector(x)`, which is *more specific* than the
+   hand-written variadic `CellVector(items...)` and would have silently changed
+   `CellVector(doc)` from "a one-*element* vector" to "elements = doc". Defaulting
+   `elements` drives `req` to 0, which suppresses Rule Y entirely and keeps the
+   variadic in charge. The file's own comment already warned about this arity
+   confusion.
+
+2. **The generated keyword constructor is zero-*positional*, so it claims the
+   `Foo(; …)` signature** — and would collide with any hand-written keyword
+   constructor that does more than fill fields. `WorkbenchAssistant` back-links its
+   draft (`draft.assistant = a`) and `DatabaseCredentials` coerces its arguments;
+   neither can be expressed as field defaults. Tellingly, `WorkbenchAssistant` and
+   `VersionProperties` both carried the comment *"to avoid a zero-arg ctor clash"* —
+   their bare `selection` was a **workaround for exactly this**, which is why it was
+   on the bug list.
+
+   **Resolution (a macro change):** the injected `selection` no longer counts as a
+   default *for keyword-constructor generation*. Keyword ctors are emitted when the
+   **programmer** declared ≥1 default (or the struct declares no fields at all — see
+   below). Rule Y and Rule C *do* still count it, since filling a trailing default
+   positionally is precisely their job, and that is what retires the
+   `Foo(a, b) = Foo(a, b, nothing)` boilerplate. So injection is non-invasive to the
+   keyword surface: a struct that needs to own `Foo(; …)` simply declares no
+   defaults.
+
+   The **no-declared-fields exception** is load-bearing: `JsonNull` (and every
+   `@domain` placeholder) holds nothing but its selection, so `JsonNull()` cannot
+   come from Rule Y (`req == 0`) and there is no hand-written keyword constructor to
+   protect. Those structs still get the generated one.
 
 ### Step 4 — The 7 widget structs: `selection` moves to last
 

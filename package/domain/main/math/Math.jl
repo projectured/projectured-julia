@@ -20,7 +20,6 @@ A placeholder for a math value being entered (the insert-by-typing cursor).
 """
 @document struct MathInsertion <: MathDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 """
@@ -28,7 +27,6 @@ A named variable (e.g. `X`, `A`).
 """
 @document struct MathVariable <: MathDocument
     name::String
-    selection::Reference = nothing
 end
 
 """
@@ -38,7 +36,6 @@ A binary arithmetic operation; `operator` is one of `:+`, `:-`, `:*`, `:/`.
     operator::Symbol
     left::Document
     right::Document
-    selection::Reference = nothing
 end
 
 """
@@ -46,7 +43,6 @@ Explicit parenthesized grouping around a sub-expression.
 """
 @document struct MathParenthesized <: MathDocument
     content::Document
-    selection::Reference = nothing
 end
 
 """
@@ -55,7 +51,6 @@ An assignment expression `target = value`.
 @document struct MathAssignment <: MathDocument
     target::Document
     value::Document
-    selection::Reference = nothing
 end
 
 function _operator_string(op::Symbol)

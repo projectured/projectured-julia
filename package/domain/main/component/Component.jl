@@ -67,7 +67,6 @@ Fields
     master_title::String
     detail_title::String
     split_ratio::Float64
-    selection::Reference
 end
 
 function ComponentMasterDetail(master::Document, detail::Document;

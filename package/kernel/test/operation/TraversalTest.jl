@@ -12,18 +12,15 @@ using ProjecturedKernel.ReferenceModule: Reference, FieldReference, RangeReferen
 
 @document struct ToyLeaf
     value::Int
-    selection::Reference
 end
 
 @document struct ToyBranch
     left::ToyLeaf
     right::ToyLeaf
-    selection::Reference
 end
 
 @document struct ToyList
     items::Vector{ToyLeaf}
-    selection::Reference
 end
 
 # The seam pressure — a test-local document type registers its own

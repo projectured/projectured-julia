@@ -35,7 +35,6 @@ The Formula domain's type-in entry point: text typed on Enter parses into a
 """
 @document struct FormulaInsertion <: FormulaDocument
     value::String = ""
-    selection::Reference = nothing
 end
 
 """
@@ -44,7 +43,6 @@ A citation of another formula, held *by identity*. The projection renders
 """
 @document struct FormulaReference <: FormulaDocument
     target::Document
-    selection::Reference = nothing
 end
 
 """
@@ -59,7 +57,6 @@ environment; see [`wire_result!`](@ref).
     code::Document
     result::Document
     display_mode::Symbol = :both
-    selection::Reference = nothing
 end
 
 # Convenience: build a result document from a value.
@@ -85,7 +82,6 @@ against this environment.
 """
 @document struct FormulaEnvironment <: FormulaDocument
     formulas::CellVector = CellVector()
-    selection::Reference = nothing
 end
 function FormulaEnvironment(formulas::Vector)
     env = FormulaEnvironment(CellVector(Cell[Cell(f) for f in formulas]), Cell(nothing))

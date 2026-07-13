@@ -23,7 +23,6 @@ type-to-replace swaps it for concrete content.
 """
 @document struct MarkdownInsertion <: MarkdownDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── Inline nodes ──────────────────────────────────────────────────────────────
@@ -33,7 +32,6 @@ A run of plain inline text. Supports `[]` / `[]=` on the content.
 """
 @document struct MarkdownText <: MarkdownDocument
     content::String
-    selection::Reference = nothing
 end
 
 Base.getindex(t::MarkdownText) = t.content::String
@@ -46,7 +44,6 @@ An inline code span (`` `code` ``). Supports `[]` / `[]=` on the content.
 """
 @document struct MarkdownCode <: MarkdownDocument
     content::String
-    selection::Reference = nothing
 end
 
 Base.getindex(c::MarkdownCode) = c.content::String
@@ -59,7 +56,6 @@ Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.
 """
 @document struct MarkdownEmphasis <: MarkdownDocument
     content::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownEmphasis content
@@ -69,7 +65,6 @@ Strong (bold) inline content (`**…**`), a sequence of inline nodes.
 """
 @document struct MarkdownStrong <: MarkdownDocument
     content::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownStrong content
@@ -81,7 +76,6 @@ target.
 @document struct MarkdownLink <: MarkdownDocument
     content::CellVector = CellVector()
     url::String
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownLink content
@@ -92,7 +86,6 @@ An inline image (`![alt](url)`). `alt` is the alternative text, `url` the source
 @document struct MarkdownImage <: MarkdownDocument
     alt::String
     url::String
-    selection::Reference = nothing
 end
 
 # ── Block nodes ───────────────────────────────────────────────────────────────
@@ -104,7 +97,6 @@ nodes.
 @document struct MarkdownHeading <: MarkdownDocument
     level::Int
     content::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownHeading content
@@ -114,7 +106,6 @@ A prose paragraph — a sequence of inline nodes.
 """
 @document struct MarkdownParagraph <: MarkdownDocument
     content::CellVector = CellVector()
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownParagraph content
@@ -128,14 +119,12 @@ projection.
     language::String
     code::String
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 """
 A thematic break — a horizontal rule (`---`).
 """
 @document struct MarkdownThematicBreak <: MarkdownDocument
-    selection::Reference = nothing
 end
 
 """
@@ -145,7 +134,6 @@ behind a marker in the projection.
 @document struct MarkdownQuote <: MarkdownDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownQuote elements
@@ -158,7 +146,6 @@ projection.
 @document struct MarkdownListItem <: MarkdownDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownListItem elements
@@ -173,7 +160,6 @@ wrapping constructor: `MarkdownList(true, [MarkdownListItem(…), …])`.
     ordered::Bool
     items::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownList items
@@ -187,7 +173,6 @@ hides the body behind a marker in the projection.
 @document struct MarkdownRoot <: MarkdownDocument
     elements::CellVector = CellVector()
     collapsed::Bool = false
-    selection::Reference = nothing
 end
 
 @forward_vector MarkdownRoot elements

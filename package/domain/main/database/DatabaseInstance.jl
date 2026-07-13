@@ -26,26 +26,23 @@ abstract type DatabaseInstanceDocument <: Document end
 @document struct DatabaseCredentials <: DatabaseInstanceDocument
     user::String
     password::String
-    selection::Reference
 end
 
+# No field declares a default, so the macro generates no keyword constructor and
+# this one owns the `(; …)` signature — it coerces both arguments to `String`.
 DatabaseCredentials(; user::AbstractString, password::AbstractString) =
-    DatabaseCredentials(String(user), String(password), Cell(nothing))
+    DatabaseCredentials(String(user), String(password))
 
 # ── DatabaseInstance ────────────────────────────────────────────────────────────
 
+# The defaults live on the fields, so `DatabaseInstance(; database, credentials, …)`
+# is the macro's keyword constructor; `database` and `credentials` are the two
+# fields without a default, and so the two required keywords.
 @document struct DatabaseInstance <: DatabaseInstanceDocument
     database::String
-    host::String
-    port::Int
+    host::String = "localhost"
+    port::Int = 5432
     credentials::DatabaseCredentials
-    selection::Reference
 end
-
-DatabaseInstance(; database::AbstractString,
-                   host::AbstractString="localhost",
-                   port::Integer=5432,
-                   credentials::DatabaseCredentials) =
-    DatabaseInstance(String(database), String(host), Int(port), credentials, Cell(nothing))
 
 end # module

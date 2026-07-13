@@ -5,7 +5,6 @@ using ProjecturedKernel.ReferenceModule: Reference
     street::String
     city::String
     zip::String
-    selection::Reference
 end
 
 @document struct Person
@@ -15,7 +14,6 @@ end
     score::Float64
     address::Address
     tag::Symbol
-    selection::Reference
 end
 
 function make_object_document_example()

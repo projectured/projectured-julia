@@ -34,56 +34,43 @@ a concrete primitive value comes to replace the insertion.
 """
 @document struct PrimitiveInsertion <: PrimitiveDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── PrimitiveBool ─────────────────────────────────────────────────────────────
 
 """
-    PrimitiveBool(value; selection=nothing)
+    PrimitiveBool(value)
 
 A primitive domain-independent boolean document with selection and identity.
 `value` is a `Cell` holding a `Bool`.
 """
 @document struct PrimitiveBool <: PrimitiveDocument
     value::Bool
-    selection::Reference
 end
-
-PrimitiveBool(value::Bool; selection=nothing) =
-    PrimitiveBool(Cell(value), Cell(selection))
 
 # ── PrimitiveNumber ───────────────────────────────────────────────────────────
 
 """
-    PrimitiveNumber(value; selection=nothing)
+    PrimitiveNumber(value)
 
 A primitive domain-independent number document with selection and identity.
 `value` is a `Cell` holding a `Number` or `nothing`.
 """
 @document struct PrimitiveNumber <: PrimitiveDocument
     value::Union{Number, Nothing}
-    selection::Reference
 end
-
-PrimitiveNumber(value; selection=nothing) =
-    PrimitiveNumber(Cell(value), Cell(selection))
 
 # ── PrimitiveString ───────────────────────────────────────────────────────────
 
 """
-    PrimitiveString(value; selection=nothing)
+    PrimitiveString(value)
 
 A primitive domain-independent string document with selection and identity.
 `value` is a `Cell` holding a `String` or `nothing`.
 """
 @document struct PrimitiveString <: PrimitiveDocument
     value::Union{String, Nothing}
-    selection::Reference
 end
-
-PrimitiveString(value; selection=nothing) =
-    PrimitiveString(Cell(value), Cell(selection))
 
 # ── Operations ────────────────────────────────────────────────────────────────
 

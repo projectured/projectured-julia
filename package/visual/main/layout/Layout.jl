@@ -45,10 +45,9 @@ width = sum of child widths + gaps and height = max of child
 heights.
 """
 @document struct HorizontalLayout <: LayoutDocument
-    children::CellVector
-    vertical_align::Symbol
-    gap::Int
-    selection::Reference
+    children::CellVector = CellVector()
+    vertical_align::Symbol = :top
+    gap::Int = 0
 end
 
 function HorizontalLayout(children::Vector;
@@ -57,8 +56,6 @@ function HorizontalLayout(children::Vector;
     HorizontalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                      Cell(vertical_align), Cell(Int(gap)), Cell(nothing))
 end
-
-HorizontalLayout(; kwargs...) = HorizontalLayout(Any[]; kwargs...)
 
 # ── VerticalLayout ──────────────────────────────────────────────────────────
 
@@ -70,10 +67,9 @@ A column of children. Symmetric to `HorizontalLayout`:
 of child widths; outer height = sum of child heights + gaps.
 """
 @document struct VerticalLayout <: LayoutDocument
-    children::CellVector
-    horizontal_align::Symbol
-    gap::Int
-    selection::Reference
+    children::CellVector = CellVector()
+    horizontal_align::Symbol = :left
+    gap::Int = 0
 end
 
 function VerticalLayout(children::Vector;
@@ -82,8 +78,6 @@ function VerticalLayout(children::Vector;
     VerticalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                    Cell(horizontal_align), Cell(Int(gap)), Cell(nothing))
 end
-
-VerticalLayout(; kwargs...) = VerticalLayout(Any[]; kwargs...)
 
 # ── GridLayout ──────────────────────────────────────────────────────────────
 
@@ -105,7 +99,6 @@ of `w` across children in that column; row heights are the max of
     vertical_gap::Int
     column_align::Any        # Vector{Symbol}; empty ⇒ use horizontal_align for every column
     column_stretch::Any      # Vector{Int} weights; empty/all-zero ⇒ content-sized columns
-    selection::Reference
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -162,13 +155,12 @@ controls intra-line justification (`:left`, `:center`, `:right`);
 (`:top`, `:center`, `:bottom`).
 """
 @document struct FlowLayout <: LayoutDocument
-    children::CellVector
-    max_width::Int
-    horizontal_align::Symbol
-    vertical_align::Symbol
-    horizontal_gap::Int
-    vertical_gap::Int
-    selection::Reference
+    children::CellVector = CellVector()
+    max_width::Int = 400
+    horizontal_align::Symbol = :left
+    vertical_align::Symbol = :top
+    horizontal_gap::Int = 0
+    vertical_gap::Int = 0
 end
 
 function FlowLayout(children::Vector;
@@ -184,8 +176,6 @@ function FlowLayout(children::Vector;
                Cell(nothing))
 end
 
-FlowLayout(; kwargs...) = FlowLayout(Any[]; kwargs...)
-
 # ── StackLayout ────────────────────────────────────────────────────────────
 
 """
@@ -199,11 +189,10 @@ heights. Per-child `(x, y)` is derived from `horizontal_align` /
 badges, and composing background / foreground layers.
 """
 @document struct StackLayout <: LayoutDocument
-    children::CellVector
-    horizontal_align::Symbol
-    vertical_align::Symbol
-    active::Int
-    selection::Reference
+    children::CellVector = CellVector()
+    horizontal_align::Symbol = :left
+    vertical_align::Symbol = :top
+    active::Int = 0
 end
 
 function StackLayout(children::Vector;
@@ -213,8 +202,6 @@ function StackLayout(children::Vector;
     StackLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                 Cell(horizontal_align), Cell(vertical_align), Cell(Int(active)), Cell(nothing))
 end
-
-StackLayout(; kwargs...) = StackLayout(Any[]; kwargs...)
 
 # ── LayoutConstraint ────────────────────────────────────────────────────────
 
@@ -241,7 +228,6 @@ falls back to the bare-child interpretation for that field.
     preferred_height::Any
     max_height::Any
     weight_height::Any
-    selection::Reference
 end
 
 function LayoutConstraint(child::Document;
@@ -434,7 +420,6 @@ solve, they are not independent variables.
 @document struct LayoutAnchor <: Document
     child::Int                  # 0 = parent container
     edge::Symbol
-    selection::Reference
 end
 
 LayoutAnchor(child::Integer, edge::Symbol) =
@@ -467,7 +452,6 @@ Prefer the [`anchor`](@ref) / [`constrain`](@ref) DSL to build these.
     op::Symbol                  # :(==), :(<=), :(>=)
     constant::Float64
     strength::Symbol            # :required, :strong, :medium, :weak
-    selection::Reference
 end
 
 function LayoutRelation(terms::Vector;
@@ -491,7 +475,6 @@ leave the container intrinsically sized (outer extent = max child extent).
     relations::CellVector       # of LayoutRelation
     bounding_width::Int         # parent container width  (parent :width)
     bounding_height::Int        # parent container height (parent :height)
-    selection::Reference
 end
 
 function ConstraintLayout(children::Vector, relations::Vector;

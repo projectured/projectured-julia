@@ -31,7 +31,6 @@ A document that represents the absence of content. Its display value is the
 class-level constant `"Empty document"`.
 """
 @document struct DocumentNothing <: DocumentBase
-    selection::Reference = nothing
 end
 
 value(::DocumentNothing) = DOCUMENT_NOTHING_VALUE
@@ -51,7 +50,6 @@ The prefix `"Insert a new "` and suffix `" here"` are class-level constants.
 @document struct DocumentInsertion <: DocumentBase
     value::String = ""
     font::Any = nothing
-    selection::Reference = nothing
 end
 
 DocumentInsertion(value::AbstractString; font=nothing, selection=nothing) =
@@ -73,7 +71,6 @@ A document that holds a reference path into another document tree.
 """
 @document struct DocumentReference <: DocumentBase
     path::ReferencePath
-    selection::Reference = nothing
 end
 
 DocumentReference(path::ReferencePath; selection=nothing) =

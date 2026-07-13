@@ -25,13 +25,12 @@ abstract type ImageDocument <: Document end
 
 @document struct ImageInsertion <: ImageDocument
     value::Any = nothing
-    selection::Reference = nothing
 end
 
 # ── ImageFile ──────────────────────────────────────────────────────────────
 
 """
-    ImageFile(filename; selection)
+    ImageFile(filename)
 
 A file-backed image document.  `filename` is a `Cell` holding a `String` path
 and `raw` is a `Cell` holding the decoded image data (or `nothing` until loaded).
@@ -39,28 +38,21 @@ and `raw` is a `Cell` holding the decoded image data (or `nothing` until loaded)
 @document struct ImageFile <: ImageDocument
     filename::String
     raw::Any
-    selection::Reference
 end
 
-function ImageFile(filename::AbstractString; selection=nothing)
-    ImageFile(Cell(filename), Cell(nothing), Cell(selection))
-end
+# Only `raw` needs filling; the trailing `selection` is filled by the macro.
+ImageFile(filename::AbstractString) = ImageFile(Cell(filename), Cell(nothing))
 
 # ── ImageMemory ────────────────────────────────────────────────────────────
 
 """
-    ImageMemory(raw; selection)
+    ImageMemory(raw)
 
 A memory-backed image document.  `raw` is a `Cell` holding the image data
 directly (e.g. a decoded pixel buffer).
 """
 @document struct ImageMemory <: ImageDocument
     raw::Any
-    selection::Reference
-end
-
-function ImageMemory(raw; selection=nothing)
-    ImageMemory(Cell(raw), Cell(selection))
 end
 
 # ── set_function! delegation ──────────────────────────────────────────────────────

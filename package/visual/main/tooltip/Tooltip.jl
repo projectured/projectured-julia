@@ -21,7 +21,6 @@ Transparent wrapper around `child` that carries a `content` document plus the
     content::Document
     style::Symbol = :tooltip
     id::Symbol
-    selection::Reference = nothing
 end
 
 end # module

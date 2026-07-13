@@ -21,7 +21,6 @@ module _ProjectionTemplateHygieneProbe
 
     @document struct ProbeDoc <: Document
         text::String
-        selection::Reference
     end
     ProbeDoc(t::AbstractString) = ProbeDoc(Cell(String(t)), Cell(nothing))
 
