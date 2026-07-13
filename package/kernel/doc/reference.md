@@ -86,10 +86,14 @@ Each step descends one level into a document tree. The full vocabulary:
 | `ElementReference(i)` | the *i*-th element of a sequence | constructor alias for `RangeReference(i-1, i)`; 1-based (Julia convention) |
 | `PositionReference(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReference(k, k)`; a zero-width cursor, 0-based |
 | `RangeReference(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
-| `FunctionReference(f)` | a function value | element produced by applying a function; for closures held by name |
-| `ProjectionReference(p, sub)` | a projection-introduced element | see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
-| `PointReference(x, y)` | a pixel coordinate | for graphics/geometry endpoints and hit-testing |
-| `TextRectangularReference(…)` | a rectangular text region | text-domain endpoint |
+| `ProjectionReference(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
+| `PointReference(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
+| `TextRectangularReference(…)` | a rectangular text region | visual `text/`; text-domain endpoint |
+
+The first four are the kernel's own steps (`ReferenceStep.jl`). The last three are
+owned by the packages that need them: each subtypes `ReferenceStep` and registers
+its navigation and DSL behaviour through the seams in `Interface.jl`, at its own
+definition site, with no edit to the reference layer.
 
 `TypeReference(T)` also exists but is **not** a navigation step in stored
 paths — it survives only as an internal build-time token that is immediately

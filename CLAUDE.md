@@ -68,6 +68,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `backend/HeadlessBackend.jl`
 - **Layer 8 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
+  - ⬜ `projection/ProjectionReference.jl`
   - ⬜ `projection/ProjectionApi.jl`
   - ⬜ `projection/IoMapApi.jl`
   - ⬜ `projection/Intent.jl`

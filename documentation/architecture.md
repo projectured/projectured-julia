@@ -32,7 +32,7 @@ mechanism see the [reference guide](../package/kernel/doc/reference.md) and
                            │                    │                  │
                     ┌──────▼────────────────────▼──────────────────▼──────┐
                     │              Reactive Cell Engine                    │
-                    │                  (Reactive.jl)                       │
+                    │              (kernel layer 1 — `cell/`)             │
                     └─────────────────────────────────────────────────────┘
 ```
 
@@ -43,7 +43,7 @@ described in the next section.)
 
 | Stage | Modules | Role |
 |---|---|---|
-| 0 — Reactive engine | `Reactive.jl` | `Cell` type, dependency tracking, lazy invalidation |
+| 0 — Reactive engine | kernel `cell/` | the `Cell` kinds, dependency tracking, lazy invalidation |
 | 1 — Domain modules | `document/*.jl` | Document/operation types per problem area |
 | 2 — Projection modules | `projection/**/*.jl` | Domain-to-domain transformations |
 | 3 — Editor + backend | `editor/*.jl`, Console/Pdf backends, opt-in backend packages | REPL loop, rendering, device I/O |
@@ -80,18 +80,18 @@ ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         │                      serialization (BinarySerialization).
         │                      Deps: kernel + Serialization stdlib.
 ProjecturedVisual (visual/)    the rendering substrate
-        ▲                      11 slices (acyclic DAG; include order: style,
-        │                      screen, graphics, layout, text, widget, syntax,
-        │                      clipboard, tooltip, inspector, backend
-        │                      (Console, Pdf)).
+        ▲                      9 slices across 11 folders (acyclic DAG; include
+        │                      order: style, screen, graphics, layout, text,
+        │                      widget, syntax, interaction decorators
+        │                      (clipboard + tooltip + inspector — one slice,
+        │                      three folders), backend (Console, Pdf)).
         │                      Deps: kernel + base.
 ProjecturedDomain (domain/)    concrete source domains, feature-sliced
-        ▲                      ~16 slice folders (json/xml/yaml/julia/math/
-        │                      markdown/book/sql/dbcatalog/database/
-        │                      graph/filesystem/formula/gesturemap/versioning
-        │                      + workbench/conversation apps) plus a shrinking
-        │                      transitional layer (projection/serializer/,
-        │                      pending seam refactors elsewhere in the chain).
+        ▲                      20 slice folders (json/yaml/xml/julia/math/
+        │                      markdown/book/sql/dbcatalog/database/graph/
+        │                      filesystem/formula/gesturemap/versioning/
+        │                      insertion/component/naturalformat + the
+        │                      workbench/conversation apps). Flat — no layers.
         │                      Deps: kernel + base + visual + Base64 + Markdown.
 Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
                                as a single flat public API.
@@ -163,10 +163,12 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 ### Stage 0 — Reactive Cell Engine
 
-**`Reactive.jl`**
+**kernel layer 1 — `cell/`** (`CellModule`)
 
-- A single `Cell` type — either *primitive* (holds a value) or *computed*
-  (holds a zero-arg thunk).
+- `AbstractCell` and three kinds: `ReactiveCell` (tracks dependencies and
+  invalidates lazily), `MutableCell` (a plain writable box), and `ImmutableCell`
+  (a frozen value). `Cell` is the constructor that picks the kind. `@cell_struct`
+  generates structs whose fields are transparently cell-backed.
 - **Pull-based lazy evaluation:** computed cells evaluate only on read (`c[]`).
 - **Automatic dependency tracking:** a per-task (task-local) `_computing` stack
   registers every cell read during a computation as an upstream dependency.
@@ -180,7 +182,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 | Module | Types |
 |---|---|
-| `Reference.jl` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; step structs `RangeReference`, `FieldReference`, `ProjectionReference`, `TypeReference`, `FunctionReference`, `PointReference`, `TextRectangularReference` (`ElementReference`/`PositionReference` are convenience constructors that produce a `RangeReference`, not distinct structs) |
+| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRectangularReference` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
 | `Text.jl` | `TextText`, `TextString`, `TextNewline` |
@@ -284,49 +286,89 @@ composes with any higher-order projection.
 | Module | Role |
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
-| `backend/Sdl.jl` | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
+| `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
-| `backend/Web.jl` | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
-| `backend/Pdf.jl` | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
+| `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/ScreenDevice.jl` | `Screen` device; `WindowQuit` |
 | `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
-| `editor/Mcp.jl` | MCP server: JSON-RPC over HTTP exposing documents and operations |
+| `agent/Mcp.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
 
 ## Module dependency graph
 
+Dependencies flow one way at every level: package → layer → slice. Each edge below
+points from a thing to the things it may import; nothing imports upward. The layer
+order inside each package is what the static guard (`test_kernel_layering()`, …)
+enforces.
+
+**Between packages:**
+
 ```
-Reactive  (no deps)
-  │
-  ├── ProjectionApiModule   (no deps — interface only)
-  ├── DocumentApiModule     (no deps — interface only)
-  ├── IoMapApiModule        (no deps)
-  ├── OperationApiModule    (depends on Reactive)
-  │
-  ├── Reference.jl          (depends on Reactive)
-  ├── Text.jl               (depends on Reactive)
-  ├── Syntax.jl             (depends on Reactive, Text)
-  ├── Graphics.jl           (depends on Reactive)
-  ├── Json.jl               (depends on Reactive, Reference)
-  ├── Xml.jl                (depends on Reactive, Reference)
-  │
-  ├── ChainingProjection  (depends on ProjectionApi, IoMap)
-  ├── TypeDispatching       (depends on ProjectionApi)
-  ├── RecursiveProjection   (depends on ProjectionApi)
-  │
-  ├── JsonToSyntax          (depends on Json, Syntax, Text, Operation, Reference)
-  ├── XmlToSyntax           (depends on Xml, Syntax, Text)
-  ├── SyntaxToText          (depends on Syntax, Text, Operation, Reference)
-  ├── TextToGraphics        (depends on Text, Graphics, Operation, Reference, Keyboard)
-  │
-  ├── Keyboard.jl           (no deps)
-  ├── backend/Sdl.jl        (depends on Graphics, Keyboard, Mouse, Screen, Image, ProjectionApi, IoMap)
-  ├── backend/Web.jl        (depends on Graphics, Keyboard, Mouse, Screen, Sdl [text metrics], HTTP, JSON3)
-  ├── backend/Pdf.jl        (depends on Graphics, Font, Image, ProjectionApi, IoMap — no SDL)
-  └── editor/Editor.jl      (depends on everything)
+ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄── ProjecturedDomain ◄── Projectured
+       ▲                                                                ▲            (umbrella)
+       │                                                                │
+   Mcp, Llm                                              Sdl, Web, Video, Odbc
+   (opt-in)                                                        (opt-in)
 ```
+
+**Inside ProjecturedKernel — 10 layers**, in include order; each imports only layers
+above it in this list:
+
+```
+ 1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
+               @cell_struct, the per-frame performance counters
+ 2 document    the Document supertype, @document, the is_element_collection /
+               is_opaque traits, search_documents, Clock
+ 3 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
+               search_references, the @reference / @reference_case DSLs
+ 4 selection   get_selection / set_selection! / clear_selection! / with_selection
+ 5 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+ 6 device      Keyboard / Mouse / Screen events, modifiers, gestures, @gestures
+ 7 backend     the Backend / Display seam and HeadlessBackend
+ 8 projection  the four interface functions, Intent, the IO maps, @projection,
+               ProjectionTemplate, ProjectionReference
+ 9 agent       the agent control surface: ToolRegistry and the Llm / Mcp seams
+10 editor      run_editor!, the read-eval-print loop, Playback
+```
+
+**Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble
+that picks a loaded `Backend` subtype by reflection):
+
+```
+ 1 document       Collection (CellVector, …), Primitive, DocumentCore, Dragging
+ 2 projection     the domain-independent algebra — generic (Identity, Reversing,
+                  Constant, Focusing) + higher-order (Chaining, TypeDispatching,
+                  Recursive, Switching, PredicateDispatching, ReferenceDispatching,
+                  Nesting, EnvelopeUnwrapping) + Sorting / Filtering / Searching /
+                  Copying / ReaderDefaults / DraggingProjection
+ 3 serialization  BinarySerialization
+```
+
+**Inside ProjecturedVisual — 9 slices** across 11 folders, an acyclic DAG in include
+order:
+
+```
+ 1 style     Color, Font, TrueType, Geometry, Image, strokes and text styles
+ 2 screen    ScreenDocument, WindowManaging
+ 3 graphics  Graphics, GraphicsCaching, PointReference
+ 4 layout    Layout, the constraint solver, CollectionToLayout
+ 5 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
+             highlighting, TextRectangularReference, ReferenceToText
+ 6 widget    Widget, WidgetToGraphics, ObjectToWidget, ProjectionConfiguring
+ 7 syntax    Syntax, SyntaxToText, ObjectToSyntax, CollectionToSyntax,
+             PrimitiveToSyntax
+ 8 interaction decorators   clipboard + tooltip + inspector (one slice, three folders)
+ 9 backend   the dependency-free concrete backends: Console, Pdf
+```
+
+**Inside ProjecturedDomain — 20 slice folders**, flat (no layers): json, yaml, xml,
+julia, math, markdown, book, sql, dbcatalog, database, graph, filesystem, formula,
+gesturemap, versioning, insertion, component, naturalformat, plus the workbench and
+conversation apps. Each slice holds its documents, its parser, and its projections;
+slice→slice edges stay acyclic.
 
 ---
 
