@@ -1,5 +1,10 @@
 # Selectable / editable document support
 
+> **🚫 OBSOLETE 2026-07-13 — closed without implementation.** This plan is no
+> longer the intended direction; it is filed here as a record of the design that
+> was considered, not as work to pick up. The audit note below still describes
+> its (unimplemented) state accurately.
+
 > **⏳ AUDIT 2026-06-23 — ALL OPEN (verified design-only).** No part of this plan
 > is implemented. `GatingProjection`, `ReadOnlyProjection`, `InertProjection`,
 > `deny_selection`, `deny_content` appear *only* in this plan file (grep across
