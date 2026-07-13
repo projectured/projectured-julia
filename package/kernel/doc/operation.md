@@ -110,7 +110,7 @@ These do something other than a single-slot write, so they stay their own types:
 | `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
-| `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `common/Operation.jl` | view/window state |
+| `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
 | `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
 | `WriteOsClipboardOperation` | `projection/primitive/ClipboardToAny.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
@@ -247,9 +247,9 @@ When you do need a new one:
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
   `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
   is handled in **both** the default `read_intent`
-  ([common/Projection.jl](../../../package/kernel/main/projection/Projection.jl)) **and**
+  ([projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl)) **and**
   `reroot_operation`
-  ([common/OperationRerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
+  ([operation/Rerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing
   from either is **silently passed through unmapped** — its reference stays in the
   wrong domain with no error. A `ReplaceReferencedValueOperation` that carries its own root

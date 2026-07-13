@@ -18,7 +18,7 @@ include("ProjectionApi.jl")
 include("IoMapApi.jl")
 include("Intent.jl")
 include("IoMap.jl")
-# PrinterContext (Reactive + Reference only) is projection-layer infrastructure
+# PrinterContext (Cell + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections.
 include("PrinterContext.jl")
 # Open generics for the children container ProjectionTemplate uses; base's

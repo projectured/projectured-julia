@@ -27,8 +27,8 @@ The package is organized around a strict layered architecture with per-layer
 guards, docs, and tests:
 
 ```
-Layer 1  — cell/       cells + performance counter + the editor clock
-Layer 2  — document/   the Document contract + @document + Cell-struct codegen
+Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
+Layer 2  — document/   the Document contract + @document + the editor clock
 Layer 3  — reference/  reference paths + @reference / @reference_case DSLs
 Layer 4  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
 Layer 5  — operation/  Operation + evaluate_operation + the traversal and reroot seams
@@ -55,74 +55,47 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-Grouped by role into lettered **bands** (A–H), top = highest. The bands are a
-coarser view than the ten layers above — a diagram grouping, not the layer
-structure itself. **Every arrow points *down*: "depends on".**
-The API-stub band (B) is the cycle-breaker: implementation bands depend downward
-onto the abstract stubs, never up. The editor reaches the agent surface only
-through the `AgentApiModule` *stub* (a `make_agent_server(:mcp, …)` factory seam), so
-it does **not** depend on `Mcp`/`Llm` — which is why the agent surface hangs off to
-the side.
+**The ten layers *are* the dependency diagram.** A layer imports only layers below
+it, and that is the whole rule — the static guard enforces exactly it, so there is
+no second grouping to learn. What the plain stack does not show is the two places
+the shape is more interesting than "N depends on N−1":
 
-```
-   ┌──────────────────────────────────────────────────────────────┐
- H │  EDITOR      EditorModule  ·  ScreenDeviceModule(device)  ·          │  run_editor!/play_live!
-   │              GestureRecognizerModule                           │
-   └───┬───────────────────────────────┬─────────────────┬─────────┘
-       │ (pulls in nearly every band)  │                 │ via AgentApiModule stub
-       │                               │                 ▼
-       │                               │      ┌───────────────────────────┐
-       │                               │    G │ AGENT SURFACE             │
-       │                               │      │  ToolRegistry · Llm ·      │
-       │                               │      │  Mcp(→ToolRegistry)        │  (independent
-       │                               │      └───────────────────────────┘   side-stack)
-       ▼                               ▼
-   ┌──────────────────────────────────────────────────────────────┐
- F │  PROJECTION ALGEBRA + DEFAULTS   17 projection modules  +      │
-   │  ProjectionModule (@projection, four-generic fallbacks)        │
-   └───┬───────────────────────────┬──────────────────┬────────────┘
-       │                           │                  │
-       ▼                           ▼                  ▼
-   ┌─────────────────────────┐ ┌──────────────────────────────────┐
- D │ FOUNDATIONAL DOCUMENTS  │ │ E  INPUT DEVICES & GESTURES       │
-   │  Collection · Primitive │ │  Modifiers · Keyboard · Mouse ·   │
-   │  · ScreenDocument       │ │  EventCase · GestureBinding       │
-   └───────────┬─────────────┘ └───────────────┬──────────────────┘
-               │                               │
-               ▼                               ▼
-   ┌──────────────────────────────────────────────────────────────┐
- C │  CORE DATA & REFERENCES                                        │
-   │  Document · IoMap · Reference · Operation · OperationRerooting │
-   │  · PrinterContext                                              │
-   └───────────────────────────────┬──────────────────────────────┘
-                                    ▼
-   ┌──────────────────────────────────────────────────────────────┐
- B │  API STUBS (abstract types + `function foo end`)               │
-   │  Projection · Operation · Document · IoMap ·                   │
-   │  Backend · Device · Agent          ← the cycle-breaker         │
-   └───────────────────────────────┬──────────────────────────────┘
-                                    ▼
-   ┌──────────────────────────────────────────────────────────────┐
- A │  REACTIVE ENGINE     PerformanceCounter → Reactive            │
-   │  (reactive/, band A — the DAG's dependency-free base)          │
-   └──────────────────────────────────────────────────────────────┘
-```
+**The interface files are the cycle-breaker.** Each layer opens with its contract:
+`document/Interface.jl` (the `Document` supertype), `reference/Interface.jl` (the
+`ReferenceStep` / `ReferencePath` types and the step seam), `selection/Interface.jl`,
+`operation/Interface.jl` (`Operation` + `evaluate_operation`), and the projection
+layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
+generic *declarations* (`function f end`) and nothing else. A higher layer — or a
+higher *package* — extends them by adding methods at its own definition site, so a
+lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
+the clearest case: `ProjectionReference` (layer 8), `PointReference` and
+`TextRectangularReference` (both in `ProjecturedVisual`) all subtype it and register
+their navigation through `evaluate_step`, with no edit to layer 3.
 
-Four modules carry almost all the fan-in (a consolidation must keep them cheap to
-import); everything else is depended on ≤7 times:
+**The agent surface is a side-stack.** The editor (layer 10) reaches it only through
+the factory seam `make_agent_server(:mcp, editor)` declared in `agent/Agent.jl`
+(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
+transports are the opt-in `package/mcp/` and `package/llm/`, which register their
+method on load.
 
-| Hub | Band | Depended on by |
+**Fan-in.** Counting `import ..XxxModule` lines across the kernel's own files, the
+hubs — the modules a consolidation must keep cheap to import — are:
+
+| Hub | Layer | Imported by |
 | --- | --- | --- |
-| `ProjectionApiModule` | B | ~20 modules |
-| `CellModule` | A | ~19 |
-| `ReferenceModule` | C | ~17 |
-| `IoMapApiModule` | B | ~12 |
+| `DocumentModule` | 2 | 11 kernel files |
+| `ReferenceModule` | 3 | 10 |
+| `CellModule` | 1 | 10 |
+| `OperationModule` | 5 | 9 |
+| `KeyboardModule` | 6 | 7 |
+| `ProjectionApiModule` | 8 | 6 |
 
-## The API band is the extension SPI
+## The interface files are the extension SPI
 
-Band B is not just an internal decoupling seam — it is the **service-provider
-interface** a third party implements to extend ProjecturEd (a new `Backend`,
-`Device`, agent server, domain `Document`, or `Projection`). It is kept **pure**:
+The per-layer interface files are not just an internal decoupling seam — together
+they are the **service-provider interface** a third party implements to extend
+ProjecturEd (a new `Backend`, `Device`, agent server, domain `Document`,
+`ReferenceStep`, or `Projection`). They are kept **pure**:
 abstract types + generic function *declarations* (`function f end`) + docstrings —
 **no** concrete types, algorithms, factory registries, or mutable globals.
 (Implementations live in their own impl modules: the
@@ -130,11 +103,11 @@ abstract types + generic function *declarations* (`function f end`) + docstrings
 `OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`
 — they are data vehicles that cross the seam, not interfaces to
 implement.) The stateless factory seam `make_agent_server(kind)` is the one
-deliberate exception, kept as the SPI's own registration entry. (Backends used
-to have such a seam too, `make_backend`; they now construct by naming the type
-directly or via `default_backend`'s reflection.) An interface is its functions,
-not just its type, so api
-modules are expected to grow accessor/behaviour operations (e.g. the
+deliberate exception, kept as the SPI's own registration entry. Backends need no
+such seam: they construct by naming the type directly (`SdlBackend()`) or via
+`default_backend`'s reflection. An interface is its functions,
+not just its type, so interface
+files are expected to grow accessor/behaviour operations (e.g. the
 `get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapApiModule`).
 
 ## Load order and the include-order guard
@@ -153,15 +126,13 @@ module is defined once. Run it with:
 julia --project=package/kernel/test package/kernel/test/runtests.jl
 ```
 
-Depth ≠ include index. Layering each module by its *longest path from a source*
-(its earliest-safe position) gives roughly: **D0** sources (Reactive's
-PerformanceCounter, Modifiers, ToolRegistry, Llm, the api stubs) → **D1** Device,
-Document, IoMap, Reactive, Mcp → **D2** Keyboard, Mouse, Reference, EditorTime →
-**D3** Collection, EventCase, Operation, Primitive, PrinterContext,
-ReferenceCase/Builder → **D4** GestureBinding, OperationRerooting, ScreenDocument,
-ProjectionModule + ProjectionTemplate → **D5** GestureRecognizer → **D6** Editor
-(deepest; the concrete projection combinators now live in ProjecturedBase). The guard enforces only the real
-constraint (every module precedes its users), not a specific linearization.
+Depth ≠ include index. A module's *earliest safe position* is its longest path from
+a dependency-free source, and that is not the same as where it sits in the include
+list: `PerformanceCounterModule`, `ModifiersModule`, `ToolRegistryModule` and the
+interface files are sources (they import nothing), while `EditorModule` is deepest
+— it pulls in nearly every layer. The guard enforces only the real constraint
+(every module precedes its users), not one specific linearization, so a file may
+legitimately sit later in the list than its depth requires.
 
 ## Folder layout
 
@@ -169,9 +140,9 @@ Each layer lives in its own folder under [main/](../main/):
 
 | Folder | Holds |
 | --- | --- |
-| `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](cell.md)) |
-| `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) |
-| `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
+| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounter` (see [cell.md](cell.md)) |
+| `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) and the editor clock (`Clock.jl`) |
+| `reference/` | the step/path contract (`Interface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
@@ -187,6 +158,6 @@ ProjecturedKernel.XxxModule` aliases so its files can use relative `..XxxModule`
 imports; the `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently **module
 names are de-facto public API** — renaming one ripples into the domain alias block
-and the umbrella. New sub-modules extracted within a layer (as `PerformanceCounter`
-/ `EditorTime` / `Intent` were) are picked up by the umbrella automatically and
-need only an added domain alias if a domain file imports from them directly.
+and the umbrella. A new sub-module added within a layer (as `PerformanceCounterModule`
+and `IntentModule` are) is picked up by the umbrella automatically and
+needs only an added domain alias if a domain file imports from it directly.

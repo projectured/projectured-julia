@@ -224,7 +224,7 @@ root selected by the `document` field:
   unchanged.
 - **`document === nothing`** — the root is `editor.document` and `reference` is
   rooted there, so container/generic projections reroot the reference as the
-  operation flows up (see `OperationRerooting.reroot_operation` and the default
+  operation flows up (see `reroot_operation` in the sibling `Rerooting.jl` and the default
   `read_intent`). An empty `reference` then means a **whole-root swap** (rebind
   `editor.document`, drop the cached iomap), mirroring `ReplaceDocumentOperation`'s
   empty-path branch.

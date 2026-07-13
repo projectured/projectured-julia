@@ -105,7 +105,7 @@ The two extra arguments are essential:
   `EmptyReferencePath()`).
 
 A two-argument convenience overload `print_document(p, input)` is defined in
-[common/Projection.jl](../../../package/kernel/main/projection/Projection.jl) and supplies
+[projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
@@ -287,7 +287,7 @@ This is the reader-side mirror of three things the printer side already does:
   the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
 - **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
   route a mouse gesture to the hit child and lift the returned operation with
-  `reroot_operation` ([common/OperationRerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
+  `reroot_operation` ([operation/Rerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
 
 The template engine applies the rule **automatically**: the `RuleIoMap` reader in
 [projection/ProjectionTemplate.jl](../../../package/kernel/main/projection/ProjectionTemplate.jl)

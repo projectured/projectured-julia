@@ -719,7 +719,7 @@ states for placement).
     one process can run many editors" (#45) names a requirement, not a consumer;
     "the seam `@document`/`@iomap`/`@projection` build on" names consumers and is the
     violation. Precedent: `PerformanceCounterModule` dropped its "`CellModule` imports
-    this" / "extracted from `Reactive.jl`" references, and `CellModule` dropped the
+    this" reference, and `CellModule` dropped the
     "declarative macros `@document`/`@iomap`/`@projection` build on this" references.
 
     **Seam carve-out.** An open interface declaration is content-free by

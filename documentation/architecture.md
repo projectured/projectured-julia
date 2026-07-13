@@ -412,7 +412,7 @@ slice→slice edges stay acyclic.
 
 | Lisp ProjecturEd | Julia ProjecturEd | Status |
 |---|---|---|
-| `computed-class` (change propagation) | `Reactive.Cell` | ✅ |
+| `computed-class` (change propagation) | `CellModule` (`ReactiveCell`) | ✅ |
 | JSON domain | `Json.jl` | ✅ |
 | Tree domain | `Syntax.jl` | ✅ |
 | Styled string domain | `Text.jl` | ✅ |
