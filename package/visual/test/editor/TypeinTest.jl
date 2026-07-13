@@ -192,12 +192,20 @@ function _typein_one(document, projection, target, ch)
     end
 
     # 2. Project and confirm the cursor shows up in the Graphics image.
+    # The printer is lazy, so the projection's cells are forced by the cursor
+    # search, not by `print_document` — a printer error surfaces here, and it must
+    # fail this one target rather than abort the whole walk.
     iomap = try
         print_document(projection, document)
     catch e
         return (false, "print_document threw: $e")
     end
-    _cursor_present(iomap) || return (false, "no cursor in Graphics image for string $(repr(old))")
+    present = try
+        _cursor_present(iomap)
+    catch e
+        return (false, "searching the Graphics image for the cursor threw: $e")
+    end
+    present || return (false, "no cursor in Graphics image for string $(repr(old))")
 
     # 3. Type a character through the reader.
     op = try
