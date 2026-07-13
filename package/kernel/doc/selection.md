@@ -66,7 +66,7 @@ path = ReferencePath(FieldReference("name"), PositionReference(5))
 set_selection!(document, path)
 ```
 
-The generic implementation in `Reference.jl` walks the path step by step:
+The generic implementation in `ReferenceEvaluation.jl` walks the path step by step:
 
 1. If `path` is `EmptyReferencePath`, stop.
 2. Read the head step `h = path.head[]`.

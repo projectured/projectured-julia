@@ -183,7 +183,7 @@ undefined name:
 | Concept | Home in the kernel | What it defines |
 |---|---|---|
 | `Document` | layer 2 — `document/Interface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
-| `Reference` | layer 3 — `reference/Reference.jl` | the reference-step and reference-path types, the value protocol on them, and the `@reference` DSL. |
+| `Reference` | layer 3 — `reference/Interface.jl` | the `ReferenceStep` / `ReferencePath` abstract types and the step seam. The concrete steps live in `reference/ReferenceStep.jl`, the path structure in `reference/ReferencePath.jl`, the value protocol in `reference/ReferenceEvaluation.jl`, and the `@reference` DSL in `reference/ReferenceBuilder.jl`. |
 | Selection generics | layer 4 — `selection/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 5) calls down into this layer. |
 | `Operation` | layer 5 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |
 | `gesture` and `read_gesture` | layer 6 — `device/GestureBinding.jl` | the reified gesture patterns, the `@gestures` registry, the `read_gesture(document, gesture)` open seam and its `@gestures`-driven catch-all. |

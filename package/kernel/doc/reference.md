@@ -16,19 +16,33 @@ the sibling [selection guide](selection.md).
 
 References are **layer 3 of the kernel** — paths into documents. The layer lives
 in [main/reference/](../main/reference/), inside one aggregator module
-(`ReferenceModule`) split across three fragments that share its namespace:
+(`ReferenceModule`) split across seven fragments that share its namespace:
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │ imports Cell and @cell_struct (from CellModule) and Document (from
         │ DocumentModule, for the reflection-walker traits) and exports every
         │ public name below
-        ├─ Reference.jl        — the step + path types (RangeReference,
-        │                        FieldReference, TypeReference, …,
-        │                        EmptyReferencePath, ConcreteReferencePath)
-        │                        plus the value protocol on them
-        │                        (append_reference, evaluate_reference,
-        │                        annotate_reference_types, …)
+        ├─ Interface.jl        — the contract: the ReferenceStep and
+        │                        ReferencePath abstract types, the Reference
+        │                        union, and the open generics higher packages
+        │                        add methods to (step_kind, evaluate_step, and
+        │                        the dsl_* DSL seams)
+        ├─ ReferenceStep.jl    — the kernel step types (RangeReference,
+        │                        FieldReference, TypeReference) and the Position
+        │                        a cursor evaluates to, each packaged with its
+        │                        own show, ==, and seam methods
+        ├─ ReferencePath.jl    — the path structure and its document-free
+        │                        algebra (EmptyReferencePath,
+        │                        ConcreteReferencePath, append_reference,
+        │                        concat_references, reference_steps, the
+        │                        equality/prefix predicates)
+        ├─ ReferenceEvaluation.jl — walking a path against a document
+        │                        (evaluate_reference, get_valid_reference_prefix)
+        │                        and the "types always present" invariant
+        │                        (annotate_reference_types, …)
+        ├─ ReferenceSearch.jl  — the path-producing reflection search
+        │                        (search_references)
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
@@ -36,7 +50,12 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
                                  (compact surface syntax for building paths)
 ```
 
-The three fragments are only ever imported together, so they share one
+`Interface.jl` comes first for a reason beyond convention: the abstract types it
+declares are named in the struct field annotations below it
+(`head::ReferenceStep`, `tail::ReferencePath`), and those are evaluated at
+definition time, so the contract must be loaded before the types that satisfy it.
+
+The seven fragments are only ever imported together, so they share one
 `ReferenceModule` namespace instead of being separate modules — splitting them
 would just multiply import headers. They still live in separate files for
 readability, but as **fragments** (0-module files sharing the aggregator's
@@ -577,8 +596,8 @@ So the only edge between projection and reference is `projection → reference`
 (for `PrinterContext`, reference mapping, and similar), and it points down. This
 is the same pattern `Intent` uses (the reader's backward-flowing type), and it
 is the kernel's answer to "you'd think this needs a cycle" cases: mention the
-higher type opaquely, never call into it. The `Reference.jl` fragment documents
-this at the type declaration.
+higher type opaquely, never call into it. `projection/ProjectionReference.jl`
+documents this at the type declaration.
 
 ## Testing
 

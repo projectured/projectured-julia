@@ -380,7 +380,7 @@ Reactive  (no deps)
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
-| References | `Reference.jl` | ✅ |
+| References | `reference/` (layer 3) | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

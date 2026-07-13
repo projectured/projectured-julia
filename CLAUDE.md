@@ -31,10 +31,14 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - 🔒 `document/Clock.jl`
 - **Layer 3 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
-  - 🔒 `reference/ReferenceModule.jl`
-  - 🔒 `reference/Reference.jl`
-  - 🔒 `reference/ReferenceCase.jl`
-  - 🔒 `reference/ReferenceBuilder.jl`
+  - ⬜ `reference/ReferenceModule.jl`
+  - ⬜ `reference/Interface.jl`
+  - ⬜ `reference/ReferenceStep.jl`
+  - ⬜ `reference/ReferencePath.jl`
+  - ⬜ `reference/ReferenceEvaluation.jl`
+  - ⬜ `reference/ReferenceSearch.jl`
+  - ⬜ `reference/ReferenceCase.jl`
+  - ⬜ `reference/ReferenceBuilder.jl`
 - **Layer 4 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`
   - ⬜ `selection/SelectionModule.jl`
