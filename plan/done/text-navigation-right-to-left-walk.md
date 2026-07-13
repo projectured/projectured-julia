@@ -81,7 +81,7 @@ already agree in both directions, drop the stripping from the comparison and not
 
 Work in a dedicated worktree, one commit per step.
 
-### Step 1 — factor out a direction-parameterized walk
+### Step 1 — factor out a direction-parameterized walk — **done**
 
 Replace the inline loop in `test_text_nav_invariants` with a helper that both directions share:
 
@@ -98,7 +98,7 @@ sweep result must be unchanged.
 **Verify:** `test_text_nav_invariants(json_example)` and one non-JSON example (`text`, `syntax`)
 give the same pass counts as before the refactor.
 
-### Step 2 — add the leftward walk, and measure
+### Step 2 — add the leftward walk, and measure — **done** (see Findings)
 
 Call `_walk_cursor` a second time with `(seed=Ctrl+End, step=left)` and assert P1–P4 on it too.
 Add a `directions=(:right, :left)` keyword so a single direction can be run in isolation while
@@ -120,7 +120,7 @@ belongs in the table above and in the summary at the end of this plan.
 **Verify:** `test_text_nav_invariants(json_example)`, then the full
 `test_text_nav_invariants_all()` sweep.
 
-### Step 3 — cross-direction invariants
+### Step 3 — cross-direction invariants — **done** (asserted as same_length / right_reaches_end / left_reaches_start; caret-sequence equality dropped, see Findings)
 
 Add X1, X2, X3 as `@test`s. Add X4 too, but gate it on what Step 2's table showed: where the order
 reversal genuinely fails because of the line-boundary path ambiguity, mark it `@test_broken` with a
@@ -133,7 +133,7 @@ investigate it before marking anything broken. Record the diagnosis here.
 **Verify:** the sweep again; `Fail`/`Error` must stay at zero, and any change in the `Broken` count
 must be explained by a `# @broken:` marker added in this step.
 
-### Step 4 — docs
+### Step 4 — docs — **done**
 
 - Update the `ClickRoundtripTest.jl` header comment: `test_text_nav_invariants` now walks both
   directions and cross-checks them. (Describe what it *is*, not that it changed.)

@@ -104,6 +104,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_position_navigations_complete()` | Over a curated subset, additionally asserts navigation reaches every position enumerated from the document (`collect_position_selections`). |
 | `test_tree_navigations_complete()` | Same idea for whole-element/structural selections (`collect_tree_selections`); curated to the native syntax tree. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
+| `test_text_nav_invariants_all()` | Runs `test_text_nav_invariants` (walk the cursor end to end, rightwards from Ctrl+Home and leftwards from Ctrl+End, and cross-check the two walks) over every example with a text pipeline. |
 | `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. ~1200 positions, ~30s. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
@@ -121,9 +122,22 @@ julia> test_position_navigation(json_example; check_reaches_all=true)  # + reach
 julia> test_repl(json_example)
 julia> test_typein(json_example)                               # every caret of every string
 julia> test_typein(json_example; positions=:ends)              # just the boundary carets + one interior
+julia> test_text_nav_invariants(json_example)                  # end-to-end cursor walk, both directions
 
 julia> ex = widget_example;
 julia> test_printer("widget", ex.document, ex.projection)
+```
+
+`test_text_nav_invariants` is the linear counterpart to `test_position_navigation`'s
+BFS: it walks a single cursor from one end of the text to the other and back, so a
+direction that skips a caret or stalls partway is caught. Several examples are known
+to fail the leftward walk; the sweep marks those `@test_broken`, but a bare
+single-example call does not. Pass `broken=nav_broken(example.name)` to see one
+example exactly as the sweep does:
+
+```julia
+julia> test_text_nav_invariants(json_example; broken=nav_broken("json"))
+julia> test_text_nav_invariants(json_example; directions=(:left,))   # one walk, while debugging
 ```
 
 `test_example(ex)` bundles printer + reader + repl + text-navigation + typein
