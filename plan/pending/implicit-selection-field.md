@@ -295,28 +295,45 @@ zero remain.
       `- selection::Reference — a ReferencePath or nothing (stored in a Cell)`
       (Syntax.jl alone has ~8). The macro's docstring documents it once.
 
-### Step 7 — `@domain` stops hand-writing the field
+### Step 7 — `@domain` stops hand-writing the field — ✅ DONE
 
-- [ ] `@domain` (`base/main/document/Domain.jl:373`) hand-builds the
-      `XNothing` / `XInsertion` struct defs *including* a `selection` field
-      (lines 409-420) and feeds them to `@document`. Drop `selection` from both
-      `ndef` and `idef` — otherwise the generated types get a **duplicate field**.
-- [ ] `XInsertion` currently needs a hand-written `XInsertion(value::AbstractString)`
-      because "a fully-defaulted `@document` struct gets no positional
-      constructors" (Rule Y's `req ≥ 1` guard). That stays true — `value` and
-      `selection` both default — so keep it.
+- [x] `@domain` (`base/main/document/Domain.jl`) hand-built the `XNothing` /
+      `XInsertion` struct defs *including* a `selection` field and fed them to
+      `@document`. Dropped from both `ndef` and `idef` — otherwise the generated
+      types would get a **duplicate field**. `XNothing` is now an empty struct body;
+      it holds nothing but its injected selection.
+- [x] `Reference` dropped from `Domain.jl`'s imports — the macro no longer splices
+      the type, and nothing else in that module names it.
+- [x] `XInsertion` keeps its hand-written `XInsertion(value::AbstractString)`:
+      `value` and `selection` both default, so `req == 0` and Rule Y emits nothing.
+- [x] Verified: `JsonNothing` has fields `(:selection,)`, `JsonInsertion` has
+      `(:value, :selection)`, and `JsonNothing()` / `JsonInsertion("js")` /
+      `JsonInsertion()` all work.
 
-### Step 8 — Enforce and document
+### Step 8 — Enforce and document — ✅ DONE
 
-- [ ] Flip the step-2 escape hatch into an **error**: `@document` should reject a
-      body that declares `selection` explicitly ("`selection` is injected
-      automatically; remove the explicit field"). Decision 1 says a hand-written
-      selection field is a bug — make it unrepresentable rather than merely
-      discouraged.
-- [ ] Update `@document`'s docstring (it enumerates what the macro generates) and
-      `package/kernel/doc/macros.md`.
-- [ ] Update `documentation/architecture-requirements.md` if it states the
-      selection-field obligation as a rule the *author* must follow.
+- [x] The step-2 escape hatch is now an **error**: `@document` rejects a body that
+      declares `selection`, pointing at `@cell_struct` for types that should not
+      carry one. Decision 1 says a hand-written selection field is a bug, so it is
+      now unrepresentable rather than merely discouraged. (This also closes the
+      `WorkbenchAssistant` workaround for good — a bare `selection` can no longer be
+      used to suppress the keyword constructors.)
+- [x] `@document`'s docstring documents the injected field, the `@cell_struct`
+      alternative, and the keyword-constructor gate.
+- [x] Prose docs updated: `package/kernel/doc/document.md` (contract #1 is now a
+      macro *guarantee*, not an author obligation), `package/kernel/doc/macros.md`
+      (the example no longer writes the field; the expansion still shows it),
+      `package/kernel/doc/reference.md` (steps/paths are `@cell_struct`-backed),
+      `documentation/tutorial-new-domain.md`, `documentation/concepts.md`,
+      `documentation/vision.md`, `package/base/doc/collection.md`,
+      `package/domain/doc/json.md`, `package/domain/doc/workbench.md`,
+      `CONTRIBUTING.md`.
+- [x] Per-type docstrings cleaned: the `- selection::Reference — a ReferencePath or
+      nothing` bullets removed (8 of them), and the two abstract-base docstrings that
+      said a concrete type "must have a `selection::Reference` field" reworded — that
+      is now the macro's job, not the author's.
+- [x] `documentation/architecture-requirements.md` needed no change: it never stated
+      the selection field as an author obligation.
 
 ## Verification
 

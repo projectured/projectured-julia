@@ -38,13 +38,15 @@ top of it.
 
 ## The two contracts every concrete document must satisfy
 
-1. **Selection field.** Every `@document struct` must declare a
-   `selection::Reference` field (the field name is fixed). The macro stores it
-   in a `Cell`; `document.selection` reads through it via the generated
-   `getproperty`, so `get_selection(doc)` returns a `ReferencePath` (or
-   `nothing`), not the Cell. The default `get_selection(::Document) = doc.selection`
-   supplied here works for any document that follows this convention; documents
-   with a differently stored selection override it.
+1. **Selection field.** Every document carries a `selection::Reference` field
+   (the field name is fixed) — the `@document` macro injects it automatically,
+   appended as the struct's last field, so the programmer never declares it
+   (declaring one by hand is an error). The macro stores it in a `Cell`;
+   `document.selection` reads through it via the generated `getproperty`, so
+   `get_selection(doc)` returns a `ReferencePath` (or `nothing`), not the Cell.
+   The default `get_selection(::Document) = doc.selection` supplied here works
+   for any document built through `@document`; documents with a differently
+   stored selection override it.
 2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in
    a reference path is resolved by `getfield(document, :foo)` — so struct
    field names are public API. Renaming a field silently breaks every stored

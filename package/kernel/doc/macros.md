@@ -55,18 +55,19 @@ that module must have it in scope (every framework module already imports it).
 ```julia
 @document struct JsonString <: JsonDocument
     value::String
-    selection::Reference
 end
 ```
 
 The macro rewrites the struct into the **kind-parameterized stem**: an
 immutable struct with one cell type-parameter per field
-(see [plan/pending/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)):
+(see [plan/pending/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)),
+plus an injected `selection::Reference = nothing` field appended as the last
+field — the programmer never writes it, and writing it by hand is an error:
 
 ```julia
 struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: JsonDocument
     value::C1          # a cell holding the String
-    selection::C2      # a cell holding the Reference
+    selection::C2      # injected by the macro: a cell holding the Reference
 end
 ```
 
@@ -259,10 +260,17 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for **both** the Cell-based
-struct and its immutable `I`-prefixed snapshot. Why `Base.@kwdef` can't simply be
-stacked on these macros (macro-ordering and the dueling inner constructors), and
-why the defaults must be stripped out of the struct body, is spelled out in
-`plan/done/macro-default-field-values.md`.
+struct and its immutable `I`-prefixed snapshot — but only when **the programmer**
+declares at least one field default; the always-defaulted, macro-injected
+`selection` field does not itself count. A struct with no defaults of its own
+(`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free
+for a hand-written keyword constructor that needs to do more than fill fields
+(`WorkbenchAssistant` back-links its draft this way). A struct with no fields of
+its own beyond the injected `selection` (e.g. `JsonNull`) is the exception: `Foo()`
+has to come from somewhere, so it gets the generated keyword constructor too. Why
+`Base.@kwdef` can't simply be stacked on these macros (macro-ordering and the
+dueling inner constructors), and why the defaults must be stripped out of the
+struct body, is spelled out in `plan/done/macro-default-field-values.md`.
 
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 

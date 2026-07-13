@@ -42,11 +42,17 @@ not a document). The rationale for those placements is documented in
 ## CellVector
 
 ```julia
-@document struct CellVector <: Document
-    elements::Vector{Cell}
-    selection::Reference
+@document struct CellVector
+    elements::Vector = Cell[]
 end
 ```
+
+(`@document` injects the `selection::Reference` field automatically, appended
+as the struct's last field — it is not written here.) `elements` defaults to
+an empty `Cell[]`, so `CellVector()` comes from the macro's own generated
+keyword constructor; there is no hand-written zero-arg constructor to
+maintain. `CellTable`'s `rows::CellVector = CellVector()` and `CellMatrix`'s
+`elements::Matrix{Cell} = Matrix{Cell}(undef, 0, 0)` follow the same pattern.
 
 A growable indexed vector where **each slot is a reactive `Cell`**. A
 write to one slot invalidates only the dependents that read *that* slot —
@@ -55,10 +61,10 @@ not the whole container — which is the key to scalable updates.
 Construction:
 
 ```julia
-CellVector()                       # empty
+CellVector()                       # empty — the macro's keyword constructor
 CellVector(cells::Vector{Cell})    # adopt these cells
 CellVector(items::AbstractVector)  # wrap each item in a Cell
-CellVector(n::Integer)             # n empty slots
+CellVector(undef, n::Integer)      # n empty slots
 CellVector(items...)               # wrap each positional arg in a Cell
 CellVector(f::Function)            # computed slots — thunk returns Vector
 ```
@@ -94,11 +100,10 @@ The selection mechanism treats a `CellVector` as a sequence:
 ## ListNode
 
 ```julia
-@document struct ListNode <: Document
+@document struct ListNode
     value::Any
     prev::Union{ListNode, Nothing}
     next::Union{ListNode, Nothing}
-    selection::Reference
 end
 ```
 

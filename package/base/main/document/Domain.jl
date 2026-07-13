@@ -30,7 +30,7 @@ module DomainModule
 import InteractiveUtils: subtypes
 import ..GestureModule
 import ..DocumentModule: Document, var"@document"
-import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, RangeReference,
+import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath
 import ..SelectionModule: with_selection
 import ..OperationModule: replace_document
@@ -427,12 +427,10 @@ macro domain(name, opts...)
     # generated here, or adopted with `root = X` and defined at the call site.
     push!(out.args, esc(Expr(:export, root_sym)))
     if gen_nothing
-        # `struct XNothing <: XDocument; selection::Reference = nothing; end`,
-        # run through the @document macro function (its expansion is fully
-        # escaped, so it resolves at this call site). Field types are spliced
-        # as objects, so the caller needs no extra imports.
-        ndef = Expr(:struct, false, Expr(:(<:), nothing_sym, root_sym),
-                    Expr(:block, Expr(:(=), Expr(:(::), :selection, Reference), :nothing)))
+        # `struct XNothing <: XDocument end` — a placeholder holds nothing but its
+        # selection, and `@document` injects that. Run through the `@document` macro
+        # function (its expansion is fully escaped, so it resolves at this call site).
+        ndef = Expr(:struct, false, Expr(:(<:), nothing_sym, root_sym), Expr(:block))
         push!(out.args, var"@document"(__source__, __module__, ndef))
         push!(out.args, esc(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__,
             "`@domain $prefix`-generated empty placeholder: the absence of a " *
@@ -440,9 +438,7 @@ macro domain(name, opts...)
     end
     if gen_insertion
         idef = Expr(:struct, false, Expr(:(<:), insertion_sym, root_sym),
-                    Expr(:block,
-                         Expr(:(=), Expr(:(::), :value, String), ""),
-                         Expr(:(=), Expr(:(::), :selection, Reference), :nothing)))
+                    Expr(:block, Expr(:(=), Expr(:(::), :value, String), "")))
         push!(out.args, var"@document"(__source__, __module__, idef))
         # A fully-defaulted @document struct gets no positional constructors;
         # generate the `XInsertion("prefix")` convenience by hand.

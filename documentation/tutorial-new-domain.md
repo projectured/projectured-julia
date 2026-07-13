@@ -57,9 +57,8 @@ abstract type BookmarkDocument <: Document end
 
 @document struct BookmarkInsertion <: BookmarkDocument
     value::Any
-    selection::Reference
 end
-BookmarkInsertion() = BookmarkInsertion(Cell(nothing), Cell(nothing))
+BookmarkInsertion() = BookmarkInsertion(Cell(nothing))
 
 # ── BookmarkEntry ──────────────────────────────────────────────────────────
 
@@ -72,11 +71,10 @@ Both fields are reactive Cells.
 @document struct BookmarkEntry <: BookmarkDocument
     title::String
     url::String
-    selection::Reference
 end
 
 BookmarkEntry(title::AbstractString, url::AbstractString) =
-    BookmarkEntry(Cell(title), Cell(url), Cell(nothing))
+    BookmarkEntry(Cell(title), Cell(url))
 
 # ── BookmarkList ───────────────────────────────────────────────────────────
 
@@ -89,18 +87,19 @@ An ordered collection of BookmarkEntry documents.
 @document struct BookmarkList <: BookmarkDocument
     name::String
     entries::CellVector
-    selection::Reference
 end
 
 function BookmarkList(name::AbstractString, entries::Vector)
-    BookmarkList(Cell(name), Cell(CellVector(Cell[Cell(e) for e in entries])), Cell(nothing))
+    BookmarkList(Cell(name), Cell(CellVector(Cell[Cell(e) for e in entries])))
 end
 
 end # module
 ```
 
 **Key points:**
-- Every concrete `Document` subtype carries `selection::Reference`.
+- `@document` injects a `selection::Reference` field into every document
+  automatically, appended as the struct's last field — you never declare it
+  yourself (declaring one by hand is an error).
 - `@document` makes `doc.title` read the cell value and `doc.title = v` write it.
 - **Field names are public API.** A selection path reaches `title` / `url` /
   `entries` by `getfield`, so these names *are* the domain's reference

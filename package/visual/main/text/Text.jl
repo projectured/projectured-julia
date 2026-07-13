@@ -48,8 +48,8 @@ export TextDocument, set_function!, text_flat_length, text_selection_flat, hinte
     TextDocument
 
 Abstract base type for all text document types. Every concrete text type
-subtypes `TextDocument` and must have a `selection::Reference` field as required
-by the `Document` contract.
+subtypes `TextDocument`; `@document` injects the `selection::Reference` field the
+`Document` contract requires.
 """
 abstract type TextDocument <: Document end
 
@@ -106,7 +106,6 @@ in pixels or character spaces.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -195,7 +194,6 @@ contributes its height to the line and occupies one atomic cursor position.
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 

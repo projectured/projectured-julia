@@ -20,8 +20,9 @@ in [main/reference/](../main/reference/), inside one aggregator module
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
-        │ imports Cell (from CellModule) and @document (from DocumentModule)
-        │ and exports every public name below
+        │ imports Cell and @cell_struct (from CellModule) and Document (from
+        │ DocumentModule, for the reflection-walker traits) and exports every
+        │ public name below
         ├─ Reference.jl        — the step + path types (RangeReference,
         │                        FieldReference, TypeReference, …,
         │                        EmptyReferencePath, ConcreteReferencePath)
@@ -43,10 +44,14 @@ namespace), not separate modules.
 
 ### Downward edges
 
-- `..CellModule: Cell, AbstractCell` — the reactive box the mutable step fields
-  live in.
-- `..DocumentModule: @document` — the macro that builds each step/path struct
-  with its cells.
+- `..CellModule: Cell, AbstractCell, @cell_struct` — the reactive box the
+  mutable step fields live in, and the macro that builds each step/path
+  struct with its cells. Steps and paths are not addressable content —
+  nothing navigates into one, selects inside one, or projects one — so they
+  carry no `selection` field and need none of `@document`'s document codegen;
+  `@cell_struct` gives them the transparent-`Cell` fields alone.
+- `..DocumentModule: Document, is_element_collection, is_opaque` — only for
+  the reflection-walker traits, not for `@document`.
 
 That is the whole import surface of the layer. No projection, no operation, no
 device. This is what makes the reference layer sit at index 3 in the kernel's
@@ -131,7 +136,7 @@ end
 `EmptyReferencePath()` terminates the list at the root/leaf;
 `ConcreteReferencePath(step, tail)` is one cons cell. Both fields are `Cell`s so
 the path is reactive — a computed cell can depend on a path's content. The list
-*shape* is persistent, but because each `@document`-backed step/path struct is
+*shape* is persistent, but because each `@cell_struct`-backed step/path struct is
 mutable and stores its dynamic values in reactive `Cell`s, `replace_selection!`
 can move a caret by writing those cells in place rather than rebuilding the chain.
 

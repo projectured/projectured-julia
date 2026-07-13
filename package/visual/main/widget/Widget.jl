@@ -38,7 +38,8 @@ Abstract base type for all widget documents.  Subtypes the `Document`
 contract.  Every
 concrete widget carries the seven base fields (`visible`, `margin`,
 `margin_color`, `border`, `border_color`, `padding`, `padding_color`)
-plus its own positional / content fields and a `selection::Reference`.
+plus its own positional / content fields; `@document` injects the
+`selection::Reference`.
 """
 abstract type WidgetDocument <: Document end
 
@@ -1463,7 +1464,7 @@ layout iomap ("layout is just layout").
 - `column_count::Int` — number of columns.
 - `padding::Int` — inner padding (px) between a cell's border and its content.
 - `border_width::Int` — hairline rule / border width (px).
-- `visible::Bool`, `selection::Reference` — standard Document fields.
+- `visible::Bool` — standard Document field; `selection` is macro-injected.
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.

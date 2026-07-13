@@ -128,7 +128,8 @@ A full walkthrough is in [documentation/tutorial-new-domain.md](documentation/tu
 The short version:
 
 - [ ] `package/domain/main/document/MyDomain.jl` — define document types with
-      `@document`, `selection::Reference`, and any domain-specific operations.
+      `@document` (it injects the `selection::Reference` field automatically)
+      and any domain-specific operations.
 - [ ] Include in `package/domain/main/ProjecturedDomain.jl` and add `using` +
       `export` lines.
 - [ ] `package/domain/main/projection/primitive/MyDomainToSyntax.jl` —

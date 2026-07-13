@@ -182,7 +182,7 @@ undefined name:
 
 | Concept | Home in the kernel | What it defines |
 |---|---|---|
-| `Document` | layer 2 — `document/Interface.jl` | the abstract supertype and the "carries a selection field" obligation. The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
+| `Document` | layer 2 — `document/Interface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
 | `Reference` | layer 3 — `reference/Reference.jl` | the reference-step and reference-path types, the value protocol on them, and the `@reference` DSL. |
 | Selection generics | layer 4 — `selection/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 5) calls down into this layer. |
 | `Operation` | layer 5 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |

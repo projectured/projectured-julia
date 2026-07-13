@@ -58,7 +58,6 @@ Fields
 - `master_title::String`   — display title for the master pane
 - `detail_title::String`   — display title for the detail pane
 - `split_ratio::Float64`   — fraction of width allocated to the master pane (0.0–1.0)
-- `selection::Reference`   — cursor/selection position within this component
 """
 @document struct ComponentMasterDetail <: ComponentDocument
     master::Document

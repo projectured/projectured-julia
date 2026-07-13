@@ -120,7 +120,8 @@ Future:
 
 Adding a new domain in ProjecturEd is intentionally small:
 
-1. Define your document types (structs with `@document` + `selection::Reference`).
+1. Define your document types (structs with `@document`, which injects the
+   `selection::Reference` field automatically).
 2. Write `print_document` methods mapping each type to the syntax domain.
 3. Write `read_intent` methods translating selection operations backward.
 4. Add an example and a test.

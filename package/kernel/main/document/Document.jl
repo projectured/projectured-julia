@@ -47,13 +47,13 @@ Annotate a Document struct whose fields are transparent cells. The programmer
 writes real value types.
 
 Every document gets a **`selection::Reference = nothing`** field, appended as its
-last field by the macro — the programmer never writes it. `Reference` is a
-`ReferencePath` (what is selected inside this node) or `nothing` (nothing
-selected). Julia has no field inheritance, so the field must exist on every
-struct; making it the macro's job is what keeps it from being repeated on all of
-them. It is appended last and always defaulted, so it falls inside Rule Y's
-trailing run and a document's own fields keep the positional arity they would
-have had without it.
+last field by the macro — the programmer never writes it, and declaring it by hand
+is an **error**. `Reference` is a `ReferencePath` (what is selected inside this
+node) or `nothing` (nothing selected). Julia has no field inheritance, so the field
+must exist on every struct; making it the macro's job is what keeps it from being
+repeated on all of them. It is appended last and always defaulted, so it falls
+inside Rule Y's trailing run and a document's own fields keep the positional arity
+they would have had without it.
 
 A type that is *not* addressable content — a reference step, a clock, anything
 that is never navigated into, selected inside, or projected — should not be a
@@ -82,11 +82,19 @@ From the declared fields the macro generates the **kind-parameterized stem**:
    `MFoo(args…)` that wrap raw values in their kind's typed cells. Convert a
    whole subtree between kinds with [`copy_document`](@ref)`(K, doc)`.
 
-Fields may carry `@kwdef`-style defaults (`field::T = value`). When at least one
-default is present, the macro also generates:
+Fields may carry `@kwdef`-style defaults (`field::T = value`). The injected
+`selection` is always one, so Rule Y and Rule C below always apply; the keyword
+constructors are the exception and need a default you declared yourself.
 
 4. **Keyword constructors** for `Foo`, `IFoo` and `MFoo` — fields with a default
-   are optional keywords, fields without one are required keywords.
+   are optional keywords, fields without one are required keywords. Emitted only
+   when **you** declared ≥1 default (the injected `selection` does not count), or
+   when the struct declares no fields at all. A keyword constructor is
+   zero-*positional*, so it claims the `Foo(; …)` signature: gating it this way
+   leaves that signature to a struct that must hand-write one because it does more
+   than fill fields (`WorkbenchAssistant` back-links its draft;
+   `DatabaseCredentials` coerces its arguments). Declare a default on any field to
+   opt in.
 
 5. **Positional default constructors** (Rule Y, bare name only) — the positional
    analog of `@kwdef`: for a trailing run of defaulted fields, ctors `Foo(f₁..f_k)`
@@ -176,14 +184,20 @@ macro document(structdef)
     # back-link) free to own that signature. Rule Y and Rule C *do* count it, since
     # filling a trailing default positionally is exactly their job — and that is
     # what retires the `Foo(a, b) = Foo(a, b, nothing)` boilerplate.
+    #
+    # Declaring it by hand is an error, not an override: a hand-written
+    # `selection::Reference` (no default) is what used to suppress the keyword
+    # constructors, and that workaround is precisely the bug this injection removes.
+    any(f -> f[1] === :selection, original_fields) &&
+        error("@document $(struct_name): `selection` is injected automatically — " *
+              "remove the explicit field. A type that should not carry a selection " *
+              "is not a document: declare it with `@cell_struct`.")
     programmer_defaults = length(defaults)
     declared_fields = length(cell_fields)
-    if !any(f -> f[1] === :selection, original_fields)
-        push!(cell_fields, :selection)
-        push!(original_fields, (:selection, :Reference))
-        push!(defaults, :selection => :nothing)
-        push!(body.args, :(selection::$(Symbol("C", length(cell_fields)))))
-    end
+    push!(cell_fields, :selection)
+    push!(original_fields, (:selection, :Reference))
+    push!(defaults, :selection => :nothing)
+    push!(body.args, :(selection::$(Symbol("C", length(cell_fields)))))
 
     n = length(cell_fields)
     Cs = [Symbol("C", i) for i in 1:n]

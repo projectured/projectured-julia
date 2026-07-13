@@ -78,10 +78,10 @@ projection emits a graphics canvas the SDL backend can render.
 
 ## Selection across the workbench
 
-`selection::Reference` is present on every workbench type. Because
-`WorkbenchEditor.content` holds an arbitrary inner document, the selection
-path can descend straight through the workbench tree into the user's
-file — e.g.
+Every workbench type carries a `selection::Reference` field, injected
+automatically by `@document`. Because `WorkbenchEditor.content` holds an
+arbitrary inner document, the selection path can descend straight through the
+workbench tree into the user's file — e.g.
 
 ```
 @reference editing_page.elements[1].content.entries[1].value.value{3}

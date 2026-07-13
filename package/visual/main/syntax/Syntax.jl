@@ -39,8 +39,8 @@ export SyntaxDocument, render, set_function!
     SyntaxDocument
 
 Abstract base type for all syntax document types. Every concrete syntax type
-subtypes `SyntaxDocument` and must have a `selection::Reference` field as required
-by the `Document` contract.
+subtypes `SyntaxDocument`; `@document` injects the `selection::Reference` field the
+`Document` contract requires.
 """
 abstract type SyntaxDocument <: Document end
 
@@ -63,7 +63,6 @@ bracket-style delimiters to any document type.
 - `content` — the wrapped document
 - `opening_delimiter::TextString` — the opening delimiter text
 - `closing_delimiter::TextString` — the closing delimiter text
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -88,7 +87,6 @@ pretty-printing indentation for structured documents.
 
 - `content` — the wrapped document
 - `indentation::Int` — the indentation level (number of spaces/tabs)
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -112,7 +110,6 @@ collapse/expand portions of the document tree.
 
 - `content` — the wrapped document
 - `collapsed::Cell` — holds `Bool` indicating if collapsed
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructor
 
@@ -154,7 +151,6 @@ join documents end-to-end.
 # Fields
 
 - `children::CellVector` — holds the child `SyntaxDocument` nodes
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
@@ -178,7 +174,6 @@ Used to join documents with a specific separator string.
 
 - `children::CellVector` — holds the child `SyntaxDocument` nodes
 - `separator::TextString` — the separator text string
-- `selection::Reference` — a `ReferencePath` or `nothing` (stored in a Cell)
 
 # Constructors
 
