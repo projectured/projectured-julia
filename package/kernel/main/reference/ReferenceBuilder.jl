@@ -1,7 +1,10 @@
 # Fragment of `ReferenceModule` — the `@reference` / `@step` construction DSL,
 # the compact surface syntax for building `ReferencePath`s / `ReferenceStep`s.
 # The pattern-matching counterpart is `@reference_case` in
-# `ReferenceCase.jl`, its fragment sibling.
+# `ReferenceCase.jl`, its fragment sibling. Extension steps owned by higher
+# packages are reached through the `dsl_build_step` / `dsl_step_subpath_args`
+# seams declared in `Interface.jl`, so this parser names no step type it does
+# not own.
 
 # ------------------------------------------------------------
 # Parsing for constructor DSL
@@ -295,25 +298,6 @@ function _gen_build_step(step::BuildStepExtension)
     args = Any[a isa Vector{BuildStep} ? _gen_build_path(a) : esc(a) for a in step.args]
     return dsl_build_step(Val(step.name), args...)
 end
-
-"""
-    dsl_build_step(::Val{name}, escaped_args...) -> Expr
-
-Return the expression that constructs the step type mapped to `.name(args...)`
-in the `@reference` DSL. `escaped_args` are `esc`'d Julia expressions ready
-to splice into the returned constructor call. Each package registers a
-`::Val{:name}` method for its own step types; none live in the kernel's reference
-layer (`.point` / `.proj` register in the packages that own them).
-"""
-function dsl_build_step end
-
-dsl_build_step(::Val{n}, args...) where {n} =
-    error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
-
-# No kernel-registered `.name(...)` DSL entries — the cross-package step
-# types (`.point`, `.proj`, …) register their own `dsl_build_step` at the
-# package that owns them. The kernel keeps only the built-in navigation and
-# `::T` type-checkpoint syntax.
 
 # Wrap a value so it can stand in as a ReferencePath: pass paths through,
 # wrap steps into a one-element path.

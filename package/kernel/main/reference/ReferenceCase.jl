@@ -1,8 +1,11 @@
 # Fragment of `ReferenceModule` — the `@reference_case` pattern-matching DSL,
 # the destructuring counterpart of the `@reference` construction DSL
-# (`ReferenceBuilder.jl`). Both DSLs are siblings that share the reference-type
-# vocabulary from `Reference.jl` and live in the same module, since they are
-# only ever imported together.
+# (`ReferenceBuilder.jl`). Both DSLs are siblings that share the step/path
+# vocabulary from `ReferenceStep.jl` / `ReferencePath.jl` and live in the same
+# module, since they are only ever imported together. Extension steps owned by
+# higher packages are reached through the `dsl_match_step` /
+# `dsl_step_subpath_args` seams declared in `Interface.jl`, so this parser names
+# no step type it does not own.
 
 """
     when(pattern, condition)
@@ -506,48 +509,6 @@ function _gen_step_match(hex, tex, step::PatStepExtension, rest_success, bound::
     dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound,
                    _gen_value_match, _gen_path_match)
 end
-
-"""
-    dsl_match_step(::Val{name}, hex, argpats, rest_success, bound,
-                   gen_value_match, gen_path_match) -> (Expr, Set{Symbol})
-
-Return `(match_branch, updated_bound)` for a `.name(patterns...)` pattern in the
-`@reference_case` DSL. `hex` is the expression bound to the current step, and
-`argpats` is the vector of parsed patterns (each a `PatValue` for a value
-argument, or a `Vector{PatStep}` for a subpath argument). `gen_value_match`
-and `gen_path_match` are helper callbacks the caller passes in so extension
-methods can generate value/path patterns without reaching into kernel
-internals: their signatures are
-
-    gen_value_match(expr, pat, rest_success, bound) -> (Expr, Set{Symbol})
-    gen_path_match(path_expr, patsteps, success, bound) -> (Expr, Set{Symbol})
-
-Each package registers a `::Val{:name}` method for its own step types; none
-live in the kernel's reference layer (`.point` / `.proj` register in the packages
-that own them).
-"""
-function dsl_match_step end
-
-dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
-    error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
-
-# No kernel-registered `.name(...)` DSL entries — the cross-package step
-# types (`.point`, `.proj`, …) register their own `dsl_match_step` at the
-# package that owns them.
-
-"""
-    dsl_step_subpath_args(::Val{name}) -> Tuple{Vararg{Int}}
-
-The 1-based argument positions of a `.name(args...)` DSL step that are
-**subpaths** (parsed as reference paths) rather than value expressions. Default
-`()` — every argument is a value. A step type whose surface syntax takes a
-subpath argument at position `n` registers `(n,)` here, so neither DSL parser
-needs to name the step. Consulted by
-both the `@reference_case` pattern parser and the `@reference` / `@step`
-construction parser.
-"""
-function dsl_step_subpath_args end
-dsl_step_subpath_args(::Val) = ()
 
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
     # Folded references expose a navigation step directly as `head` (the type is a

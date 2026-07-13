@@ -17,14 +17,27 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in three fragments that share this namespace:
+The module lives in seven fragments that share this namespace:
 
-- [`Reference.jl`](Reference.jl) — the reference-path *types* (steps, paths,
-  their `@cell_struct`-generated struct forms) plus the value protocol on them
-  (`append_reference`, `concat_references`, `evaluate_reference`,
-  `is_valid_reference`, `annotate_reference_types`, `strip_reference_types`,
-  the equality/prefix predicates), and the path-producing reflection search
-  (`search_references`) over documents.
+- [`Interface.jl`](Interface.jl) — the contract: the `ReferenceStep` and
+  `ReferencePath` abstract types, the `Reference` union a selection field holds,
+  and the open generics higher packages add methods to (`step_kind`,
+  `evaluate_step`, and the `dsl_*` DSL seams).
+- [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
+  (`RangeReference`, `FieldReference`, `TypeReference`, the `Position` a cursor
+  evaluates to), each step type packaged with its own `show`, `==`, and seam
+  methods.
+- [`ReferencePath.jl`](ReferencePath.jl) — the path structure and its
+  document-free algebra: the two path types, their constructors/accessors/
+  iteration, the equality and prefix predicates, and `append_reference` /
+  `concat_references` / `reference_steps`.
+- [`ReferenceEvaluation.jl`](ReferenceEvaluation.jl) — walking a path against a
+  document (`evaluate_reference`, `get_valid_reference_prefix`,
+  `is_valid_reference`) and the "types always present" invariant
+  (`annotate_reference_types`, `strip_reference_types`, `fold_reference_types`,
+  `reference_node_type`, `is_fully_typed`).
+- [`ReferenceSearch.jl`](ReferenceSearch.jl) — the path-producing reflection
+  search (`search_references`) over documents.
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
@@ -68,8 +81,15 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        # ReferenceBuilder DSL:
        @reference, @step
 
-# Types + value protocol first; the DSL fragments come last.
-include("Reference.jl")
+# The contract first — the abstract types it declares are named in the struct
+# field annotations below (`head::ReferenceStep`, `tail::ReferencePath`), which
+# are evaluated at definition time. Then the types, the value protocol on them,
+# and finally the DSL fragments that consume the seams.
+include("Interface.jl")
+include("ReferenceStep.jl")
+include("ReferencePath.jl")
+include("ReferenceEvaluation.jl")
+include("ReferenceSearch.jl")
 include("ReferenceCase.jl")
 include("ReferenceBuilder.jl")
 
