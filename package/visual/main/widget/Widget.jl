@@ -235,7 +235,6 @@ operation.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
     gestures::Any               # per-instance gesture bindings (see get_instance_gesture_bindings)
 end
 
@@ -253,7 +252,7 @@ function WidgetCheckbox(position::Point2D, content;
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(nothing), Cell(gestures))
+                   Cell(gestures))
 end
 
 set_function!(w::WidgetCheckbox, f::Function) = (set_function!(getfield(w, :content), f); w)
@@ -308,7 +307,6 @@ are not meant to be serialised.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
     hovered::Bool
     pressed::Bool
 end
@@ -344,7 +342,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
-                 Cell(nothing), Cell(false), Cell(false))
+                 Cell(false), Cell(false))
 end
 
 set_function!(w::WidgetButton, f::Function) = (set_function!(getfield(w, :content), f); w)
@@ -597,7 +595,6 @@ item (or one bound to a disabled command) is inert.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
     hovered::Bool
 end
 
@@ -622,7 +619,7 @@ function WidgetMenuItem(content;
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(nothing), Cell(false))
+                   Cell(false))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
@@ -873,7 +870,6 @@ the document's content and are not meant to be serialised.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
-    selection::Reference
     active_splitter::Int
     drag_anchor::Any
     pinned::CellVector
@@ -893,7 +889,7 @@ function WidgetSplitPane(orientation::Symbol, elements::Vector;
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing), Cell(0), Cell(nothing), CellVector())
+                    Cell(0), Cell(nothing), CellVector())
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -1218,13 +1214,12 @@ the logical on/off value.
     duration::Int        # slide length in ms; 0 disables the animation
     anim_from::Float64   # knob fraction [0,1] when the current slide began
     anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
-    selection::Reference
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
 end
 WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
              duration::Integer=0, gestures=GestureBinding[]) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
-                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(nothing), Cell(gestures))
+                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures))
 get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
@@ -1527,7 +1522,6 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     padding::Int
     border_width::Int
     visible::Bool
-    selection::Reference
     hovered::Reference   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
 
@@ -1554,7 +1548,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 CellVector(Cell[Cell(_table_row(r)) for r in rows]),
                 Cell(Int(column_count)), Cell(Int(padding)), Cell(Int(border_width)),
-                Cell(visible), Cell(nothing), Cell(nothing))
+                Cell(visible), Cell(nothing))
 end
 
 # String convenience shim: headers become a column-header strip, rows become the
@@ -1619,14 +1613,13 @@ part of the tree's content.
     position::Point2D
     roots::CellVector
     visible::Bool
-    selection::Reference
     hovered::Reference           # transient: node-path ref of the row under the pointer, or nothing
     collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
     gestures::Any                # per-instance tree-level gesture bindings
 end
 WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=GestureBinding[]) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
-               Cell(nothing), Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
+               Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
 # `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_document_gesture`.

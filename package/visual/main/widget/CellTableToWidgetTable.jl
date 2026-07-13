@@ -66,7 +66,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         rows,
                         Cell(nc),
                         Cell(8), Cell(1),    # padding, border_width
-                        Cell(true), Cell(nothing), Cell(nothing))
+                        Cell(true), Cell(nothing))   # visible, hovered (selection defaults)
     SimpleIoMap(p, ct, table)
 end
 
