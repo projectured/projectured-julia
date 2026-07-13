@@ -1,12 +1,14 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # test/editor/TypeinTest.jl
 #
-# Type-in round-trip test.  Walks the document graph and, at every string,
-# exercises the full keyboard-editing cycle:
+# Type-in round-trip test.  Walks the document graph and, at every character
+# boundary of every string, exercises the full keyboard-editing cycle:
 #
 #   1. Walk every field (with a circularity guard), building a ReferencePath
 #      to each String the walk reaches; keep that reference.
-#   2. Replace the selection so the cursor points into that string.
+#   2. Replace the selection so the cursor points into that string, at the
+#      boundary under test (`0` … `n` for a string of length `n` — the `positions`
+#      policy chooses which, and by default it is all of them).
 #   3. Print the projection and check that a cursor is present in the
 #      Graphics-domain image (a thin GraphicsRect).
 #   4. Simulate a keypress through the reader; it must yield a
@@ -14,6 +16,12 @@
 #   5. Evaluate that operation against the document.
 #   6. Check that the string in the original input document changed exactly
 #      as the keypress dictates (the typed character inserted at the cursor).
+#   7. Undo the edit, so the next boundary is typed into the same pristine string.
+#
+# The boundary carets (`0` and `n`) are the point of walking every position: they
+# sit where the projection also renders the neighbouring chrome (a quote, a
+# delimiter, the next token), which is where a typed character can land in the
+# wrong slot — or produce no operation at all.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.CellModule: Cell
@@ -277,28 +285,31 @@ end
 
 # Run the type-in cycle at each of `target`'s positions, restoring the document
 # between them so every position is typed into the same pristine string. Returns one
-# (position, ok, message) per position tried.
+# (position, length, ok, message) per position tried; `length` is the pristine
+# string's character count, so a caller can tell a boundary caret (`position` of `0`
+# or of `length`) from an interior one.
 #
 # A position whose edit cannot be undone ends the target: the remaining positions
 # would be typing into a string that is no longer the one they enumerate boundaries
 # for, and a silently-drifting string turns the exact-value assertion into noise. The
 # other targets live elsewhere in the document, so the walk goes on.
 function _typein_target(document, projection, target, ch, policy::Symbol)
-    results = NamedTuple{(:position, :ok, :message)}[]
+    results = NamedTuple{(:position, :length, :ok, :message)}[]
     pristine = try
         _read_target_string(document, target)
     catch e
-        push!(results, (position=0, ok=false, message="reading target string threw: $e"))
+        push!(results, (position=0, length=0, ok=false, message="reading target string threw: $e"))
         return results
     end
     if !(pristine isa AbstractString)
-        push!(results, (position=0, ok=false,
+        push!(results, (position=0, length=0, ok=false,
                         message="reference did not resolve to a string: $(pristine === nothing ? "nothing" : typeof(pristine))"))
         return results
     end
-    for k in _typein_positions(length(pristine), policy)
+    n = length(pristine)
+    for k in _typein_positions(n, policy)
         outcome = _typein_at(document, projection, target, k, ch)
-        push!(results, (position=k, ok=outcome.ok, message=outcome.message))
+        push!(results, (position=k, length=n, ok=outcome.ok, message=outcome.message))
         # A projection that cannot print this document fails identically at every
         # caret; one report is the signal, `n` reports are noise.
         outcome.broken && return results
@@ -314,11 +325,12 @@ function _typein_target(document, projection, target, ch, policy::Symbol)
             end
             current
         catch e
-            push!(results, (position=k, ok=false, message="restoring the string after typing threw: $e"))
+            push!(results, (position=k, length=n, ok=false,
+                            message="restoring the string after typing threw: $e"))
             return results
         end
         if restored != pristine
-            push!(results, (position=k, ok=false,
+            push!(results, (position=k, length=n, ok=false,
                             message="string not restored after typing: expected $(repr(pristine)) got $(repr(restored))"))
             return results
         end
@@ -327,7 +339,7 @@ function _typein_target(document, projection, target, ch, policy::Symbol)
 end
 
 """
-    walk_typein(document, projection; replacement="X", positions=:first) -> Vector
+    walk_typein(document, projection; replacement="X", positions=:all) -> Vector
 
 For every string reachable in `document`, and at every character boundary selected
 by `positions`, set the cursor there, assert the cursor renders in the Graphics
@@ -337,23 +349,26 @@ image, type `replacement`'s first character via the reader, evaluate the resulti
 `positions` is `:all` (every boundary `0…n` of a string of length `n`), `:ends`
 (both boundary carets plus one interior one) or `:first` (one character in).
 
-Returns one `(ref, position, ok, message)` result per (string, position) visited so
-callers can assert (and count) each one; `message` is empty on success.
+Returns one `(ref, position, length, ok, message)` result per (string, position)
+visited so callers can assert (and count) each one; `length` is the string's
+character count (so `position == 0` and `position == length` are its boundary
+carets) and `message` is empty on success.
 """
 function walk_typein(document, projection; replacement::AbstractString="X",
-                     positions::Symbol=:first)
+                     positions::Symbol=:all)
     ch = string(first(replacement))
     clear_selection!(document)
     targets = try
         _collect_string_refs(document)
     catch e
-        return [(ref=EmptyReferencePath(), position=0, ok=false,
+        return [(ref=EmptyReferencePath(), position=0, length=0, ok=false,
                  message="collecting string references threw: $e")]
     end
-    results = NamedTuple{(:ref, :position, :ok, :message)}[]
+    results = NamedTuple{(:ref, :position, :length, :ok, :message)}[]
     for target in targets
         for r in _typein_target(document, projection, target, ch, positions)
-            push!(results, (ref=target.cursor, position=r.position, ok=r.ok, message=r.message))
+            push!(results, (ref=target.cursor, position=r.position, length=r.length,
+                            ok=r.ok, message=r.message))
         end
     end
     results
@@ -361,13 +376,37 @@ end
 
 # ── Test helpers ─────────────────────────────────────────────────────────────
 
+# The type-in failures that are known bugs, named one by one. They are *declared*
+# here rather than inferred from whatever happens to fail, so that a new failure
+# still registers as a `Fail` — marking every failing iteration broken would throw
+# away exactly the regression signal the walk is for. Each returns the reason it
+# stands for; `nothing` means the case is expected to pass.
+function _typein_broken_reason(label, r)
+    # @broken: book — BookToSyntax throws "under-typed @reference (missing node
+    # types)" as soon as a caret is set, so every target dies at the print step;
+    # plan/pending/typein-every-string-position.md
+    label == "book" && return "BookToSyntax cannot print with a caret set"
+    # @broken: json_string — typing at the string's last caret yields no operation
+    # at all (the reader returns nothing, not a ReplaceStringRangeOperation);
+    # plan/pending/typein-every-string-position.md
+    label == "json_string" && r.position == r.length && !r.ok &&
+        return "no operation at the last caret"
+    nothing
+end
+
 # One @test per (string, position), so the test count reflects how many cursor
 # positions were verified.
-function test_typein(label, document, projection; positions::Symbol=:first)
+function test_typein(label, document, projection; positions::Symbol=:all)
     @testset "$label" begin
         for r in walk_typein(document, projection; positions=positions)
-            r.ok || @warn "[$label] [$(r.ref){$(r.position)}] $(r.message)"
-            @test r.ok
+            if _typein_broken_reason(label, r) === nothing
+                r.ok || @warn "[$label] [$(r.ref){$(r.position)}] $(r.message)"
+                @test r.ok
+            else
+                # @broken: a known type-in bug; see `_typein_broken_reason` above for
+                # which one and why. An Unexpected Pass here means it is fixed.
+                @test_broken r.ok
+            end
         end
     end
 end
@@ -379,7 +418,7 @@ end
 # document (it types characters into every string), and in `test_all` this runs
 # after the other reader/repl tests which share the global `example.document`;
 # starting from a pristine document keeps the exact-string assertions reliable.
-function test_typein(example::Example; positions::Symbol=:first)
+function test_typein(example::Example; positions::Symbol=:all)
     test_typein(example.name, example.make_document(), example.make_projection();
                 positions=positions)
 end

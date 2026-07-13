@@ -177,6 +177,11 @@ function test_typeins()
         # including document-domain `TextString` (e.g. `SyntaxLeaf.value`) and
         # `TextText` (e.g. `BookParagraph.content`). Domains whose projection has
         # no string-edit reader (sorting/primitive/object) are covered elsewhere.
+        #
+        # Every character boundary of every string is typed at (`positions=:all`,
+        # the default): ~2200 cursor positions over these six examples, half a
+        # minute. `test_typein(ex; positions=:ends)` buys the time back if that
+        # ever stops being worth it.
         for name in ("json", "json_string", "text", "xml", "book", "syntax")
             idx = findfirst(e -> e.name == name, examples)
             idx === nothing && continue
