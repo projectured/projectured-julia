@@ -12,8 +12,9 @@
 #     neighbour band (the line-boundary case, where the cursor at end of
 #     line N is logically identical to cursor at start of line N+1).
 #
-#   - test_text_nav_invariants walks `right` from Ctrl+Home N times and
-#     asserts the BFS reachable-state count matches.
+#   - test_text_nav_invariants walks a single cursor end to end and asserts the
+#     walk is a chain: each step lands on a state not yet visited, and the walk
+#     ends by itself at the edge of the text.
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.ReferenceModule: head, tail
@@ -183,52 +184,133 @@ end
 
 # ── Keyboard nav invariants ────────────────────────────────────────────────
 
-"""
-    test_text_nav_invariants(label, document, projection)
+# The two end-to-end linear cursor walks. Each direction's seed is the other's
+# expected terminal state: walking `right` from the text start exhausts at the
+# text end, which is exactly where Ctrl+End jumps, and vice versa.
+const TEXT_WALK_RIGHT = (name = "right",
+                         seed = KeyDown(:home, Modifiers(ctrl=true)),
+                         step = KeyDown(:right, Modifiers()))
+const TEXT_WALK_LEFT  = (name = "left",
+                         seed = KeyDown(:end, Modifiers(ctrl=true)),
+                         step = KeyDown(:left, Modifiers()))
 
-Walk a single cursor right N times from Ctrl+Home. Assert each step yields a
-distinct selection (so `right` always advances) and that we eventually hit a
-state where `right` is a fixed point (end of document).
 """
-function test_text_nav_invariants(label, document, projection)
-    @testset "$label" begin
+    _walk_cursor(document, projection, walk; max_steps=10_000)
+
+Fire `walk.seed`, then `walk.step` repeatedly, re-printing the document between
+moves, until the cursor stops moving. Returns
+
+    (paths, seeded, terminated, cycle, error)
+
+`paths` is the visited selections in visit order, seed first — an ordered
+sequence rather than a set, because the two directions are compared as
+sequences. `terminated` says the walk ended on its own (the reader declined the
+step, or the step is a fixed point) rather than by exhausting `max_steps`.
+`cycle` holds the offending selection when a step lands on an already-visited
+state other than the current one — the walk is then not a chain. `seeded` is
+false when the seed gesture yields no selection at all: the pipeline has no
+cursor to walk, which is a skip rather than a failure. `error` is set when the
+printer or a reader threw.
+"""
+function _walk_cursor(document, projection, walk; max_steps=10_000)
+    failure(msg) = (paths=Any[], seeded=false, terminated=false, cycle=nothing, error=msg)
+
+    clear_selection!(document)
+    iomap = try
+        print_document(projection, document)
+    catch e
+        return failure("print_document failed: $e")
+    end
+    op = try
+        read_intent(projection, iomap, walk.seed)
+    catch e
+        return failure("seed $(walk.seed) failed: $e")
+    end
+    # No cursor at the top of this pipeline: nothing to walk.
+    op isa ReplaceSelectionOperation ||
+        return (paths=Any[], seeded=false, terminated=false, cycle=nothing, error=nothing)
+
+    paths   = Any[op.path]
+    visited = Set{String}([string(op.path)])
+    cycle      = nothing
+    terminated = false
+    while length(paths) <= max_steps
+        current = last(paths)
         clear_selection!(document)
-        iomap = print_document(projection, document)
-        op = read_intent(projection, iomap, KeyDown(:home, Modifiers(ctrl=true)))
+        try
+            set_selection!(document, current)
+        catch e
+            return (paths=paths, seeded=true, terminated=false, cycle=nothing,
+                    error="set_selection! at [$current] failed: $e")
+        end
+        iomap = try
+            print_document(projection, document)
+        catch e
+            return (paths=paths, seeded=true, terminated=false, cycle=nothing,
+                    error="reprint at [$current] failed: $e")
+        end
+        op = try
+            read_intent(projection, iomap, walk.step)
+        catch e
+            return (paths=paths, seeded=true, terminated=false, cycle=nothing,
+                    error="reader error at [$current] with $(walk.step): $e")
+        end
         if !(op isa ReplaceSelectionOperation)
-            @warn "[$label] Ctrl+Home produced no selection; skipping"
+            terminated = true          # the reader declines: the edge of the text
+            break
+        end
+        key = string(op.path)
+        if key == string(current)
+            terminated = true          # a fixed point: the edge of the text
+            break
+        end
+        if key in visited
+            cycle = key                # revisits an earlier state: not a chain
+            terminated = true
+            break
+        end
+        push!(visited, key)
+        push!(paths, op.path)
+    end
+    (paths=paths, seeded=true, terminated=terminated, cycle=cycle, error=nothing)
+end
+
+# The per-direction invariants: the walk runs cleanly, ends on its own, never
+# revisits a state, and moves at least once.
+function _assert_walk(label, walk, result)
+    @testset "$(walk.name)" begin
+        result.error === nothing || @warn "[$label] [$(walk.name)] $(result.error)"
+        @test result.error === nothing
+        result.error === nothing || return
+        if !result.seeded
+            @warn "[$label] $(walk.seed) produced no selection; skipping the $(walk.name) walk"
             @test true
             return
         end
-        clear_selection!(document)
-        set_selection!(document, op.path)
+        result.cycle === nothing ||
+            @warn "[$label] [$(walk.name)] revisits [$(result.cycle)]: the walk is not a chain"
+        @test result.terminated
+        @test result.cycle === nothing
+        @test length(result.paths) > 1
+    end
+end
 
-        visited = Set{String}([string(op.path)])
-        prev_str = string(op.path)
-        steps = 0
-        max_steps = 10_000
-        terminated = false
-        while steps < max_steps
-            iomap = print_document(projection, document)
-            op = read_intent(projection, iomap, KeyDown(:right, Modifiers()))
-            if !(op isa ReplaceSelectionOperation)
-                terminated = true
-                break
-            end
-            new_str = string(op.path)
-            if new_str == prev_str
-                terminated = true
-                break
-            end
-            push!(visited, new_str)
-            clear_selection!(document)
-            set_selection!(document, op.path)
-            prev_str = new_str
-            steps += 1
+"""
+    test_text_nav_invariants(label, document, projection; directions=(:right,))
+
+Walk a single cursor end to end and assert it describes a chain: every step
+lands on a state not yet visited, and the walk ends by itself at the edge of the
+text. `directions` selects which walks run — `:right` from Ctrl+End's mirror
+(Ctrl+Home) rightwards, `:left` from Ctrl+End leftwards.
+"""
+function test_text_nav_invariants(label, document, projection; directions=(:right,))
+    @testset "$label" begin
+        for direction in directions
+            walk = direction === :right ? TEXT_WALK_RIGHT :
+                   direction === :left  ? TEXT_WALK_LEFT  :
+                   throw(ArgumentError("unknown walk direction $direction"))
+            _assert_walk(label, walk, _walk_cursor(document, projection, walk))
         end
-        @test terminated  # walking right terminates
-        @test steps > 0   # at least one character to walk through
-        @test length(visited) == steps + 1  # every step is a new state
     end
 end
 
@@ -240,5 +322,6 @@ end
 test_click_roundtrip(example::Example) =
     test_click_roundtrip(example.name, example.document, example.projection)
 
-test_text_nav_invariants(example::Example) =
-    test_text_nav_invariants(example.name, example.document, example.projection)
+test_text_nav_invariants(example::Example; directions=(:right,)) =
+    test_text_nav_invariants(example.name, example.document, example.projection;
+                             directions=directions)
