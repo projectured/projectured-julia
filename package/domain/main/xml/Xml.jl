@@ -109,16 +109,9 @@ _xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
 _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
 # ── Insertion factories ─────────────────────────────────────────────────────
-#
-# One construction per committable XML node, with its cursor pre-placed —
-# shared by the char type-to-replace gestures below and by the typed-name
-# commit of an `XmlInsertion` / `DocumentInsertion`. `XmlAttribute` stays out
-# of the candidates automatically: it has required fields and no method here
-# (it cannot stand alone as a child).
-make_insertion_document(::Type{<:XmlText}) =
-    @with_selection XmlText("") content{0}
-make_insertion_document(::Type{<:XmlElement}) =
-    @with_selection XmlElement("") tag{0}
+
+make_insertion_document(::Type{<:XmlText})    = @with_selection XmlText("") content{0}
+make_insertion_document(::Type{<:XmlElement}) = @with_selection XmlElement("") tag{0}
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))

@@ -244,30 +244,15 @@ function _object_tab(doc::JsonObject)
 end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
-#
-# One construction per committable JSON value, with its cursor pre-placed —
-# shared by the char type-to-replace gestures below and by the typed-name
-# commit of a `JsonInsertion` / `DocumentInsertion` (the completion machinery
-# resolves a name to the type, `make_insertion_document` builds the value).
-# `JsonNull` needs no method: the zero-arg fallback already covers it.
-# `@with_selection` types the caret against the document it just built, so the
-# selection is fully typed by construction with no hand-spelled `::T`; with no
-# path, the built value is selected whole.
-make_insertion_document(::Type{<:JsonBool}) =
-    @with_selection JsonBool(false)
-# An empty number's value is `nothing`, which has no text position — so it is
-# selected *whole* (like `JsonBool`), not with a caret into nothing. An empty
-# string, by contrast, is `""` and does have position 0.
-make_insertion_document(::Type{<:JsonNumber}) =
-    @with_selection JsonNumber(nothing)
-make_insertion_document(::Type{<:JsonString}) =
-    @with_selection JsonString("") value{0}
-make_insertion_document(::Type{<:JsonArray}) =
-    @with_selection JsonArray([JsonInsertion()]) elements[1]
-make_insertion_document(::Type{<:JsonObjectEntry}) =
-    @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
-make_insertion_document(::Type{<:JsonObject}) =
-    @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
+
+make_insertion_document(::Type{<:JsonBool})        = @with_selection JsonBool(false)
+# An empty number's value is `nothing`, which has no text position, so it is selected
+# whole; an empty string is `""` and does have position 0.
+make_insertion_document(::Type{<:JsonNumber})      = @with_selection JsonNumber(nothing)
+make_insertion_document(::Type{<:JsonString})      = @with_selection JsonString("") value{0}
+make_insertion_document(::Type{<:JsonArray})       = @with_selection JsonArray([JsonInsertion()]) elements[1]
+make_insertion_document(::Type{<:JsonObjectEntry}) = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
+make_insertion_document(::Type{<:JsonObject})      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))

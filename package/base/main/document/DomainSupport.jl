@@ -114,7 +114,8 @@ insertion_aliases(::Type) = String[]
 
 A fresh document committed for candidate `T`. The fallback is the zero-arg
 constructor; per-type methods add cursor placement / scaffolds where the empty
-instance is not enough (e.g. `with_selection(JsonString(""), value{0})`).
+instance is not enough — an empty text leaf, say, wants a caret at position 0
+rather than a whole-node selection (see `@with_selection`).
 """
 make_insertion_document(::Type{T}) where {T} = T()
 

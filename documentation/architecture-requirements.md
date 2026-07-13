@@ -740,3 +740,21 @@ states for placement).
     introduced (AR-47): once every concept sits at or below the seam, the
     forward-concept references become backward, not forward, and the
     carve-out is unnecessary.
+
+71. **A comment carries only what the code cannot — keep it tight.** A comment
+    earns its place by holding information that is neither visible in the code
+    nor one hop away in a docstring: a constraint, an invariant, a rejected
+    alternative, the reason an expected method is *absent*, a non-obvious
+    consequence. Everything else is noise that rots. Specifically, do not restate
+    what the next line does; do not re-explain a function, macro, or generic that
+    is documented at its own definition (its owning module is the single place —
+    #70); do not summarise the code beneath a section banner (the banner names the
+    section, nothing more); and do not narrate the change that produced the code
+    ("was previously", "moved from", "now uses X") — history belongs in the `plan/`
+    document, never in the source. Prefer a docstring on the definition over a
+    comment above the call. Two comments saying the same thing in two files is one
+    comment too many, and when a comment and the code drift apart, the comment is
+    the bug. Precedent: JSON's insertion-factory block shed a paragraph restating
+    `make_insertion_document`'s own docstring and `@with_selection`'s semantics,
+    keeping only the one line no reader could derive — why an empty `JsonNumber` is
+    selected whole while an empty `JsonString` gets a caret at position 0.
