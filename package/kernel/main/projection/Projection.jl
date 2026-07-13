@@ -27,7 +27,8 @@ import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
 # the Primitive document types. This module stays Primitive-free.
 import ..CellModule: AbstractCell, ImmutableCell, cell_struct_exprs
 import ..DocumentModule: copy_document
-import ..ReferenceModule: EmptyReferencePath, is_fully_typed, annotate_reference_types
+import ..ReferenceModule: EmptyReferencePath, is_fully_typed, annotate_reference_types,
+                          reference_node_type
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
