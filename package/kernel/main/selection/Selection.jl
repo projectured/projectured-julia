@@ -20,10 +20,60 @@ function clear_selection!(document)
     clear_selection!(child)
 end
 
+"""
+    SelectionMismatch(document, path)
+
+Thrown by the selection writers ([`set_selection!`](@ref) /
+[`replace_selection!`](@ref)) when `path` does not match `document`: a routing
+step names a field the node lacks, indexes past the end of a sized container, or
+lands on a node whose folded type no longer holds. The stored selection is left
+untouched — a selection either matches and applies, or fails without half-writing.
+"""
+struct SelectionMismatch <: Exception
+    document::Any
+    path::Any
+end
+
+Base.showerror(io::IO, e::SelectionMismatch) =
+    print(io, "SelectionMismatch: selection path ", e.path,
+          " does not match a document of type ", typeof(e.document))
+
+# Canonicalize `path` against `document` (see `set_selection!`) and require it to
+# still match before any selection cell is written — throwing `SelectionMismatch`
+# without touching the stored selection when it does not. `nothing` (a clear)
+# always matches. This is the single validate-then-write gate every selection
+# writer passes through, so a stale/cross-domain path fails atomically instead of
+# leaving a half-written selection.
+function _matched_selection(document, path)
+    path === nothing && return nothing
+    canonical = annotate_reference_types(document, strip_reference_types(path))
+    _selection_matches(document, canonical) || throw(SelectionMismatch(document, canonical))
+    canonical
+end
+
+# A canonical selection matches `document` iff its **routing** resolves — every
+# field, element index and folded node type along the way. We delegate that to the
+# reference layer's tested resolver (`is_valid_reference`) after removing a
+# terminal caret: a cursor step (`start == stop`) addresses a position *inside* a
+# leaf, and a text leaf exposes no length/index, so the resolver would reject a
+# real caret (see the base `SelectionEnumeration` note). Dropping it validates the
+# path up to the node the caret sits on and accepts the caret by reachability,
+# while still failing a missing field, an out-of-range element, or a stale type.
+_selection_matches(document, canonical) =
+    is_valid_reference(document, _drop_terminal_cursor(canonical))
+
+_drop_terminal_cursor(path::EmptyReferencePath) = path
+function _drop_terminal_cursor(path::ConcreteReferencePath)
+    if path.tail isa EmptyReferencePath && path.head isa RangeReference &&
+       path.head.start == path.head.stop
+        # Terminal caret: stop at the node it sits on, keeping that node's type.
+        return EmptyReferencePath(path.type)
+    end
+    ConcreteReferencePath(path.type, path.head, _drop_terminal_cursor(path.tail))
+end
+
 function set_selection!(document, path)
-    canonical = path === nothing ? path :
-                annotate_reference_types(document, strip_reference_types(path))
-    _set_selection_walk!(document, canonical)
+    _set_selection_walk!(document, _matched_selection(document, path))
 end
 
 # Internal recursive walker: assumes `path` is already canonical and writes each
@@ -44,15 +94,14 @@ end
 with_selection(document, path) = (set_selection!(document, path); document)
 
 # Change `document`'s selection to `path`, replacing any previous selection.
-# `path` is canonicalized (like `set_selection!`) then written into the shared
-# selection chain **in place** by `_sync_selection!` — see the algorithm note on
-# that helper for why this touches only the cells that actually changed instead
-# of clearing and rebuilding every selection cell on the path.
+# `path` is canonicalized and required to match (`_matched_selection` throws
+# `SelectionMismatch` on a stale/cross-domain path, before any cell is written),
+# then written into the shared selection chain **in place** by `_sync_selection!`
+# — see the algorithm note on that helper for why this touches only the cells that
+# actually changed instead of clearing and rebuilding every selection cell.
 function replace_selection!(document, path)
     hasproperty(document, :selection) || return
-    canonical = path === nothing ? path :
-                annotate_reference_types(document, strip_reference_types(path))
-    _sync_selection!(document, canonical)
+    _sync_selection!(document, _matched_selection(document, path))
     return
 end
 
