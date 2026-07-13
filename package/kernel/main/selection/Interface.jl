@@ -53,6 +53,10 @@ Construct-and-select convenience: `set_selection!(document, path)` then return
 `document`, so a freshly-built document literal can be selected in a single
 expression. See [`set_selection!`](@ref) for the propagation/canonicalization
 semantics.
+
+To select a path that must be *typed against* the document being built, use
+[`@with_selection`](@ref): it binds the freshly-built document once and hands it
+to the `@reference` DSL.
 """
 function with_selection end
 

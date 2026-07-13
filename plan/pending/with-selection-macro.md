@@ -87,10 +87,11 @@ structurally.
 
 ## Steps
 
-- [ ] 1. Add `@with_selection` to `selection/Selection.jl` with a docstring; export
+- [x] 1. **Done.** Add `@with_selection` to `selection/Selection.jl` with a docstring; export
   `var"@with_selection"` and add the plain `import ..ReferenceModule` in
   `selection/SelectionModule.jl`.
-- [ ] 2. Convert Json.jl's 6 factories. Verify: `test_json()`, `test_example(json_example)`.
+- [x] 2. **Done.** Convert Json.jl's 6 factories (plus the three gesture sites, incl. the
+  last hand-spelled `::JsonNumber.value::Int{1}::Position` path, now `value{1}`). Verify: `test_json()`, `test_example(json_example)`.
 - [ ] 3. Convert Xml.jl (2) and Yaml.jl (6). Verify: `test_example(xml_example)`,
   `test_example(yaml_example)`.
 - [ ] 4. Update `package/kernel/doc/selection.md` if it documents the

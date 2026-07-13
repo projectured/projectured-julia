@@ -206,7 +206,7 @@ end
 function _replace_number(doc, c)
     target = try evaluate_reference(doc, getfield(doc, :selection)[]) catch; nothing end
     target isa JsonNumber && return nothing
-    _replace(doc, with_selection(JsonNumber(parse(Int, string(c))), @reference ::JsonNumber.value::Int{1}::Position))
+    _replace(doc, @with_selection JsonNumber(parse(Int, string(c))) value{1})
 end
 
 # Append a JsonInsertion and select it whole, ready to type-to-replace. Declines
@@ -250,30 +250,30 @@ end
 # commit of a `JsonInsertion` / `DocumentInsertion` (the completion machinery
 # resolves a name to the type, `make_insertion_document` builds the value).
 # `JsonNull` needs no method: the zero-arg fallback already covers it.
-# Each factory builds the document, then selects into it with the two-arg
-# `@reference(doc, path)` form — the document fills the node types, so the
-# selection is fully typed by construction with no hand-spelled `::T`.
+# `@with_selection` types the caret against the document it just built, so the
+# selection is fully typed by construction with no hand-spelled `::T`; with no
+# path, the built value is selected whole.
 make_insertion_document(::Type{<:JsonBool}) =
-    with_selection(JsonBool(false), EmptyReferencePath(JsonBool))
+    @with_selection JsonBool(false)
 # An empty number's value is `nothing`, which has no text position — so it is
 # selected *whole* (like `JsonBool`), not with a caret into nothing. An empty
 # string, by contrast, is `""` and does have position 0.
 make_insertion_document(::Type{<:JsonNumber}) =
-    with_selection(JsonNumber(nothing), EmptyReferencePath(JsonNumber))
+    @with_selection JsonNumber(nothing)
 make_insertion_document(::Type{<:JsonString}) =
-    let d = JsonString(""); with_selection(d, @reference(d, value{0})) end
+    @with_selection JsonString("") value{0}
 make_insertion_document(::Type{<:JsonArray}) =
-    let d = JsonArray([JsonInsertion()]); with_selection(d, @reference(d, elements[1])) end
+    @with_selection JsonArray([JsonInsertion()]) elements[1]
 make_insertion_document(::Type{<:JsonObjectEntry}) =
-    let d = JsonObjectEntry("", JsonInsertion()); with_selection(d, @reference(d, key{0})) end
+    @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
 make_insertion_document(::Type{<:JsonObject}) =
-    let d = JsonObject([JsonObjectEntry("", JsonInsertion())]); with_selection(d, @reference(d, entries[1].key{0})) end
+    @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
-    KeyPress('n') => "Replace with null"   => _replace(doc, with_selection(JsonNull(), EmptyReferencePath()))
+    KeyPress('n') => "Replace with null"   => _replace(doc, @with_selection JsonNull())
     KeyPress('f') => "Replace with false"  => _replace(doc, make_insertion_document(JsonBool))
-    KeyPress('t') => "Replace with true"   => _replace(doc, with_selection(JsonBool(true), EmptyReferencePath()))
+    KeyPress('t') => "Replace with true"   => _replace(doc, @with_selection JsonBool(true))
     KeyPress('"') => "Replace with a string" => _replace(doc, make_insertion_document(JsonString))
     KeyPress('[') => "Replace with an array" => _replace(doc, make_insertion_document(JsonArray))
     KeyPress(':') => "Replace with an object entry" => _replace(doc, make_insertion_document(JsonObjectEntry))

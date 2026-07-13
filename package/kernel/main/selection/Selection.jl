@@ -93,6 +93,37 @@ end
 
 with_selection(document, path) = (set_selection!(document, path); document)
 
+"""
+    @with_selection(document)
+    @with_selection(document, path)
+
+Construct-and-select in one expression: evaluate `document` once, then select
+`path` in it. Without a `path` the whole node is selected.
+
+    @with_selection JsonBool(false)              # whole node
+    @with_selection JsonString("") value{0}      # caret at the path
+
+`path` is the [`@reference`](@ref) step DSL, typed against the document that was
+just built — the same as the two-argument `@reference(document, path)` form, so
+no `::T` is spelled by hand. The document expression is bound once, which is what
+the DSL needs (typing a path is a *runtime* operation against the value) and what
+a bare `with_selection(build(), @reference(???, path))` cannot express.
+"""
+macro with_selection(document, path...)
+    length(path) <= 1 ||
+        throw(ArgumentError("@with_selection takes a document and at most one path"))
+    d = gensym("document")
+    # The reference is built through `ReferenceModule.@reference` under its own
+    # module, so the calling module needs only `@with_selection` in scope.
+    selection = isempty(path) ?
+        :($annotate_reference_types($d, $EmptyReferencePath())) :
+        Expr(:macrocall, Expr(:., ReferenceModule, QuoteNode(Symbol("@reference"))),
+             __source__, d, path[1])
+    esc(:(let $d = $document
+              $with_selection($d, $selection)
+          end))
+end
+
 # Change `document`'s selection to `path`, replacing any previous selection.
 # `path` is canonicalized and required to match (`_matched_selection` throws
 # `SelectionMismatch` on a stale/cross-domain path, before any cell is written),

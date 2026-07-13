@@ -30,12 +30,15 @@ module SelectionModule
 
 import ..CellModule: AbstractCell
 import ..DocumentModule: Document
+# The module itself, so `@with_selection` can expand to a qualified
+# `ReferenceModule.@reference` call and its callers need only import the macro.
+import ..ReferenceModule
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
                           FieldReference, RangeReference, annotate_reference_types,
                           strip_reference_types, is_reference_equal, is_valid_reference
 
 export get_selection, clear_selection!, set_selection!, with_selection,
-       replace_selection!, SelectionMismatch
+       var"@with_selection", replace_selection!, SelectionMismatch
 
 include("Interface.jl")   # the selection generics (declaration-only)
 include("Selection.jl")   # their default methods + private helpers
