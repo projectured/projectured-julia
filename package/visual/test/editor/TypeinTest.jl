@@ -167,20 +167,37 @@ function _expected_insert(old::AbstractString, k::Int, ch::AbstractString)
     String(left) * ch * String(right)
 end
 
+# ── Positions ────────────────────────────────────────────────────────────────
+#
+# Which character boundaries of a string of length `n` to type at. A string has
+# `n + 1` of them (`0` … `n`) — the cursor positions `collect_position_selections`
+# calls the carets. The boundary carets are where a typed character is at risk of
+# landing in the neighbouring chrome (a quote, a delimiter, the next token) instead
+# of the string, so `:all` is the policy that earns its keep; the other two exist to
+# buy back time when a caller is sweeping every example.
+#
+#   :all   — every boundary.
+#   :ends  — both boundary carets plus one interior one.
+#   :first — one character in; the cheapest probe that still edits a string.
+function _typein_positions(n::Int, policy::Symbol)
+    policy === :all   && return collect(0:n)
+    policy === :ends  && return unique([0, min(1, n), n])
+    policy === :first && return [min(1, n)]
+    error("unknown type-in positions policy: $(repr(policy))")
+end
+
 # ── Walker ───────────────────────────────────────────────────────────────────
 
-# Run the full type-in cycle for the cursor target `target`. Returns
-# (ok, message); `message` is empty on success and describes the first failed
-# step otherwise.
-function _typein_one(document, projection, target, ch)
+# Run the full type-in cycle for the cursor target `target` at character boundary
+# `k`. Returns (ok, message); `message` is empty on success and describes the first
+# failed step otherwise.
+function _typein_at(document, projection, target, k::Int, ch)
     old = try
         _read_target_string(document, target)
     catch e
         return (false, "reading target string threw: $e")
     end
     old isa AbstractString || return (false, "reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
-    n = length(old)
-    k = min(1, n)                           # cursor one char into the string
     sel = append_reference(target.cursor, PositionReference(k))
 
     # 1. Point the selection into this string.
@@ -237,40 +254,70 @@ function _typein_one(document, projection, target, ch)
     (true, "")
 end
 
-"""
-    walk_typein(document, projection; replacement="X") -> Vector
+# Run the type-in cycle at each of `target`'s positions, restoring the document
+# between them so every position is typed into the same pristine string. Returns one
+# (position, ok, message) per position tried.
+function _typein_target(document, projection, target, ch, policy::Symbol)
+    results = NamedTuple{(:position, :ok, :message)}[]
+    pristine = try
+        _read_target_string(document, target)
+    catch e
+        push!(results, (position=0, ok=false, message="reading target string threw: $e"))
+        return results
+    end
+    if !(pristine isa AbstractString)
+        push!(results, (position=0, ok=false,
+                        message="reference did not resolve to a string: $(pristine === nothing ? "nothing" : typeof(pristine))"))
+        return results
+    end
+    for k in _typein_positions(length(pristine), policy)
+        ok, message = _typein_at(document, projection, target, k, ch)
+        push!(results, (position=k, ok=ok, message=message))
+    end
+    results
+end
 
-For every string reachable in `document`, set the cursor into it, assert the
-cursor renders in the Graphics image, type `replacement`'s first character via
-the reader, evaluate the resulting `ReplaceStringRangeOperation`, and verify
-the string changed accordingly.  Returns one `(ref, ok, message)` result per
-string visited so callers can assert (and count) each one; `message` is empty
-on success.
 """
-function walk_typein(document, projection; replacement::AbstractString="X")
+    walk_typein(document, projection; replacement="X", positions=:first) -> Vector
+
+For every string reachable in `document`, and at every character boundary selected
+by `positions`, set the cursor there, assert the cursor renders in the Graphics
+image, type `replacement`'s first character via the reader, evaluate the resulting
+`ReplaceStringRangeOperation`, and verify the string changed accordingly.
+
+`positions` is `:all` (every boundary `0…n` of a string of length `n`), `:ends`
+(both boundary carets plus one interior one) or `:first` (one character in).
+
+Returns one `(ref, position, ok, message)` result per (string, position) visited so
+callers can assert (and count) each one; `message` is empty on success.
+"""
+function walk_typein(document, projection; replacement::AbstractString="X",
+                     positions::Symbol=:first)
     ch = string(first(replacement))
     clear_selection!(document)
     targets = try
         _collect_string_refs(document)
     catch e
-        return [(ref=EmptyReferencePath(), ok=false, message="collecting string references threw: $e")]
+        return [(ref=EmptyReferencePath(), position=0, ok=false,
+                 message="collecting string references threw: $e")]
     end
-    results = NamedTuple{(:ref, :ok, :message)}[]
+    results = NamedTuple{(:ref, :position, :ok, :message)}[]
     for target in targets
-        ok, message = _typein_one(document, projection, target, ch)
-        push!(results, (ref=target.cursor, ok=ok, message=message))
+        for r in _typein_target(document, projection, target, ch, positions)
+            push!(results, (ref=target.cursor, position=r.position, ok=r.ok, message=r.message))
+        end
     end
     results
 end
 
 # ── Test helpers ─────────────────────────────────────────────────────────────
 
-# One @test per string, so the test count reflects how many strings were
-# verified.
-function test_typein(label, document, projection)
+# One @test per (string, position), so the test count reflects how many cursor
+# positions were verified.
+function test_typein(label, document, projection; positions::Symbol=:first)
     @testset "$label" begin
-        for r in walk_typein(document, projection)
-            r.ok || @warn "[$label] [$(r.ref)] $(r.message)"
+        for r in walk_typein(document, projection; positions=positions)
+            r.ok || @warn "[$label] [$(r.ref){$(r.position)}] $(r.message)"
             @test r.ok
         end
     end
@@ -283,6 +330,7 @@ end
 # document (it types characters into every string), and in `test_all` this runs
 # after the other reader/repl tests which share the global `example.document`;
 # starting from a pristine document keeps the exact-string assertions reliable.
-function test_typein(example::Example)
-    test_typein(example.name, example.make_document(), example.make_projection())
+function test_typein(example::Example; positions::Symbol=:first)
+    test_typein(example.name, example.make_document(), example.make_projection();
+                positions=positions)
 end
