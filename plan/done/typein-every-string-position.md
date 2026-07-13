@@ -209,14 +209,25 @@ between adjacent spans.
    `test_typeins()` row, the per-unit sentence, the `walk_typein` walker row) and the
    `TypeinTest.jl` header. The stale type-in baseline memories are replaced by one
    note pointing at this plan.
-7. Move this plan to `plan/done/`. Open the two real bugs (Findings 1 and 2) as
-   their own work.
+7. ~~Move this plan to `plan/done/`.~~ **Done.**
 
 ## Follow-ups (not this plan)
 
-- Fix the `json_string` end-of-string no-op and the `book` under-typed `@reference`.
-- Assert the caret rect *moves* between consecutive positions.
+- **`book` / `yaml`: `under-typed @reference (missing node types)`** from
+  `BookToSyntax` whenever a caret is set — 22 broken type-in targets in `book`, 3 in
+  `yaml`. The largest single bug this surfaced.
+- **`json_string`: no operation at the last caret** — `read_intent` returns `nothing`
+  at `k = n`.
+- **`julia`: no caret rendered at all** for identifier `name`-leaves (0/28 positions).
+  Not a boundary bug — it fails at every position — and not in the sweep.
+- Assert the caret rect *moves* between consecutive positions, not merely that some
+  thin rect exists. `_cursor_present` still only proves *a* caret is on screen.
 - Converge `_walk_strings!` with `_walk_document` / `collect_position_selections`
   (needs a `TextText` flat leaf in the base walker).
-- `ned` / `julia` type-in baselines (34 and 6 failures per memory) should be
-  re-measured after step 1 — they may be largely the same broken check.
+
+## Verification
+
+- `test_typeins()` — **1187 pass / 23 broken / 0 fail / 0 error**, 30.6s (was 113
+  vacuous failures).
+- `test_visual()` — 51844 pass / 1 broken (pre-existing), `test_base()` — 82 pass,
+  `test_kernel()` — 338 pass: nothing relied on the old (wrong) `propertynames`.
