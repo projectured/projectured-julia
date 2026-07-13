@@ -167,20 +167,41 @@ and `PrinterContext` (a plain `struct`) — **no `@document` struct holds a
 `Clock`** — so `copy_document` / `sync_document!` never walked into it, and it
 losing `Document` status changes nothing for them.
 
-### Step 2 — `@document` injects the field
+### Step 2 — `@document` injects the field — ✅ DONE
 
-- [ ] In `@document` (`kernel/main/document/Document.jl:94`), after the field
-      walk, append `selection::Reference = nothing` **when the body does not
-      already declare `selection`**.
-      - Emit the **bare symbol** `Reference` (see *Layering* above), not the
-        spliced type object.
-      - Append it **last** — this matches 271/278 structs and is what makes it
-        land in Rule Y's trailing-defaults run.
-      - The "explicit declaration wins" escape hatch is what makes the migration
-        incremental: steps 3–6 can then delete declarations file by file, each
-        commit loading green.
-- [ ] Verify by loading. At this point *nothing* has changed semantically — every
-      struct still declares its own field — so the whole suite must stay green.
+- [x] In `@document` (`kernel/main/document/Document.jl`), after the field walk,
+      append `selection::Reference = nothing` **when the body does not already
+      declare `selection`**.
+      - Emits the **bare symbol** `Reference` (see *Layering* above), not the
+        spliced type object. Confirmed correct by step 1: `@cell_struct` emits
+        its `Cell` type the same way.
+      - Appended **last** and always defaulted, so it lands in Rule Y's trailing
+        run and a document's own fields keep the arity they had without it.
+      - "Explicit declaration wins" is the migration escape hatch; step 8 flips it
+        to an error.
+- [x] The `isempty(cell_fields) && return esc(structdef)` early return is now
+      **dead** (injection guarantees ≥1 field) and was removed. A zero-field
+      `@document struct Foo end` is now a one-field struct holding just its
+      selection — which is exactly what e.g. `JsonNull` wants.
+- [x] `@document`'s docstring documents the injected field and points types that
+      are *not* addressable content at `@cell_struct`.
+- [x] Verified as a no-op: `test_kernel()` 338/338, `test_base()` 82/82,
+      `test_visual()` 51856 pass / 1 broken, `test_domain()` 132976 pass /
+      1 pre-existing error / 15 broken.
+
+### Step 5 — `Action` gains a selection field — ✅ DONE (by step 2)
+
+- [x] `Action` (`visual/main/widget/Widget.jl`) was the only *real* `@document`
+      struct in the repo with no `selection` field, so step 2's injection gave it
+      one with no edit: its fields are now
+      `(:label, :icon, :enabled, :shortcut, :callback, :selection)`. This is
+      visible in the suite — `test_visual()` went from 51850 to **51856** passes
+      (0 fail / 0 error): six assertions that previously could not hold for a
+      selection-less document now do.
+- [x] Confirmed no `@document` struct anywhere is left without a selection. (A
+      scan reports five more names — `JsonNothing`, `JsonInsertion`, `gets`, `T`,
+      `Foo` — but these are *docstring examples* inside `DomainSupport.jl` and
+      `Document.jl`, not real declarations.)
 
 ### Step 3 — The 99 bare `selection::Reference` → `= nothing`
 

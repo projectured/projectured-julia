@@ -44,7 +44,23 @@ end
     @document struct T [<: Super] ... end
 
 Annotate a Document struct whose fields are transparent cells. The programmer
-writes real value types; the macro generates the **kind-parameterized stem**:
+writes real value types.
+
+Every document gets a **`selection::Reference = nothing`** field, appended as its
+last field by the macro — the programmer never writes it. `Reference` is a
+`ReferencePath` (what is selected inside this node) or `nothing` (nothing
+selected). Julia has no field inheritance, so the field must exist on every
+struct; making it the macro's job is what keeps it from being repeated on all of
+them. It is appended last and always defaulted, so it falls inside Rule Y's
+trailing run and a document's own fields keep the positional arity they would
+have had without it.
+
+A type that is *not* addressable content — a reference step, a clock, anything
+that is never navigated into, selected inside, or projected — should not be a
+document at all: declare it with [`@cell_struct`](@ref), which gives the same
+transparent-cell fields with none of the document codegen.
+
+From the declared fields the macro generates the **kind-parameterized stem**:
 
 1. **Immutable parametric struct** (same name) — one cell type-parameter per
    field (`Foo{C1<:AbstractCell, …}`), so the *cell kind* in the fields decides
@@ -135,7 +151,29 @@ macro document(structdef)
             body.args[i] = :($(fname)::$(Symbol("C", length(cell_fields))))
         end
     end
-    isempty(cell_fields) && return esc(structdef)
+
+    # ── Inject the selection field ────────────────────────────────────────────
+    # Every document carries a selection — a `Reference` (a `ReferencePath`, or
+    # `nothing` for no selection) naming what is selected *inside* that node.
+    # Julia has no field inheritance, so the field has to be materialized on
+    # every struct; the macro writes it so the programmer never repeats it.
+    #
+    # Appended **last**, and always defaulted, so it lands in the trailing run of
+    # defaulted fields that Rule Y fills — a document's own fields keep the
+    # positional arity they would have had without it.
+    #
+    # `Reference` is emitted as a **bare symbol**, not a spliced type object: it
+    # is defined in the reference layer (layer 3), *above* this one (layer 2), so
+    # this module cannot name the type. The expansion is `esc`'d, so the symbol
+    # resolves in the caller's module — where it is always in scope, since a
+    # module that declares documents necessarily uses the reference layer.
+    # (`@cell_struct` emits its `Cell` type the same way, for the same reason.)
+    if !any(f -> f[1] === :selection, original_fields)
+        push!(cell_fields, :selection)
+        push!(original_fields, (:selection, :Reference))
+        push!(defaults, :selection => :nothing)
+        push!(body.args, :(selection::$(Symbol("C", length(cell_fields)))))
+    end
 
     n = length(cell_fields)
     Cs = [Symbol("C", i) for i in 1:n]
