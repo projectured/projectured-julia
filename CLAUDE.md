@@ -37,6 +37,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`
   - ⬜ `reference/ReferenceSearch.jl`
+  - ⬜ `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
 - **Layer 4 — selection** (`selection/`)

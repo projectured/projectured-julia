@@ -16,7 +16,7 @@ the sibling [selection guide](selection.md).
 
 References are **layer 3 of the kernel** — paths into documents. The layer lives
 in [main/reference/](../main/reference/), inside one aggregator module
-(`ReferenceModule`) split across seven fragments that share its namespace:
+(`ReferenceModule`) split across eight fragments that share its namespace:
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
@@ -43,12 +43,34 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        (annotate_reference_types, …)
         ├─ ReferenceSearch.jl  — the path-producing reflection search
         │                        (search_references)
+        ├─ ReferenceSyntax.jl  — the surface grammar BOTH DSLs accept, parsed
+        │                        once into one step AST (RefStep). The two
+        │                        fragments below are lowerings of that AST,
+        │                        not parsers of their own
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
         └─ ReferenceBuilder.jl — the @reference / @step construction DSL
                                  (compact surface syntax for building paths)
 ```
+
+The two DSLs read the **same path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
+`.name(...)`, `^(e)` — so it is parsed in one place. Each DSL then *lowers* the
+resulting AST: the builder to constructor calls, the matcher to match branches. Six
+forms deliberately mean different things on each side, and the lowering is where that
+difference lives:
+
+| Syntax | `@reference` / `@step` builds | `@reference_case` matches |
+| --- | --- | --- |
+| bare symbol as a **subpath argument** | a field name | **binds** the whole subpath |
+| bare symbol in a **value** position (`[i]`, `.field(e)`) | a runtime expression | **binds** the value |
+| `_` | a field named `"_"` | a wildcard |
+| `::t` (lowercase) | splices `t`'s runtime type value | **binds** the node's folded `type` |
+| `name...` | *rejected* — matcher-only | binds the remaining tail |
+| `base.^(e)` | splices a runtime path | *rejected* — builder-only |
+
+A leading identifier is also read differently by `@step` (a placeholder, dropped:
+`@step xs[i]` yields just `[i]`) than by `@reference` (a field name).
 
 `Interface.jl` comes first for a reason beyond convention: the abstract types it
 declares are named in the struct field annotations below it

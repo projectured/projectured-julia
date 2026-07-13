@@ -99,16 +99,28 @@ Two behaviour notes, both preserved-or-improved, neither a regression:
 
 ## Steps
 
-- [ ] **0. Baseline.** Record kernel / base / visual / domain counts before touching anything.
-- [ ] **1. `ReferenceSyntax.jl`** — the shared AST + grammar, included after `Interface.jl`
-      and before the two DSL fragments. Nothing consumes it yet.
-- [ ] **2. Rewrite `ReferenceBuilder.jl`** to lower the shared AST; delete `BuildStep*` and
-      `_parse_build_*`. Verify. Commit.
-- [ ] **3. Rewrite `ReferenceCase.jl`** to lower the shared AST; delete `PatStep*` (except the
-      rule-level `PatValue*`, which stays — it is the *value* pattern vocabulary, not the step
-      grammar) and `_parse_path*`. Verify. Commit.
-- [ ] **4. Update** `ReferenceModule.jl`'s docstring/include list, `package/kernel/doc/reference.md`,
-      and the CLAUDE.md seal list (`ReferenceSyntax.jl` lands ⬜).
+- [x] **0. Baseline.** Recorded; matched the parent commit's own numbers exactly.
+- [x] **1. `ReferenceSyntax.jl`** — the shared AST + grammar, included after `ReferenceSearch.jl`
+      and before the two DSL fragments (it calls the `dsl_step_subpath_args` seam while parsing,
+      so it must follow `Interface.jl`).
+- [x] **2–3. Both DSL fragments rewritten as lowerings.** Landed as one commit (`b19909e0`) —
+      see the deviation below. `ReferenceBuilder.jl` 470 → 187 lines, `ReferenceCase.jl` 741 → 579,
+      plus the 371-line shared grammar.
+- [x] **4. Docs + seal list.**
+
+### Deviation: the matcher kept its `PatStep` vocabulary
+
+The plan said to delete `PatStep*`. It was kept, and that turned out to be the right call —
+it is what made the change low-risk. **Only the two parsers were replaced; both lowerers' codegen
+is untouched.** The matcher converts the shared `RefStep` AST into its existing `PatStep`
+vocabulary at lowering time (`_to_pat`), so all of `_gen_path_match` / `_gen_prefix_match` /
+`_gen_step_match` — the genuinely intricate part of `@reference_case` — never moved. A rewrite of
+that codegen would have been a much bigger risk for no benefit: `PatStep` is the matcher's private
+lowering vocabulary, not a second grammar.
+
+The steps also landed as one commit rather than two: the builder and matcher both stop compiling
+the moment the shared parser replaces either one, so there is no loadable intermediate state to
+commit.
 
 ## Verification
 
@@ -130,3 +142,30 @@ A grammar change is also exactly the kind that passes tests while quietly narrow
 macros accept, so beyond the suites: grep the repo for every `@reference` / `@step` /
 `@reference_case` call site and confirm the corpus still parses (it is large — the macros are
 the reference layer's whole surface, so a full precompile of the umbrella *is* that check).
+
+## Outcome
+
+All four suites came back **identical to the baseline** — kernel 338/338, base 82/82, visual
+51856/0-fail/1-broken, domain 125962/93-fail/1-error/15-broken (the domain failures neither grew
+nor shrank). The `Projectured` umbrella precompiles, which re-expands every `@reference` /
+`@step` / `@reference_case` call site in the repo through the new grammar — the corpus check.
+
+On top of the suites, 12 targeted checks over the six divergences all pass: the `@step`
+placeholder, the `_` wildcard, value binding, `rest...` tail binding, `::t` binding vs `::T`
+asserting, the `.^` splice, a bare symbol as a subpath argument reading as a *field* to the
+builder and a *whole-path bind* to the matcher, and both lowerers rejecting by name what they
+cannot lower.
+
+**One assumption in this plan was wrong, and worth recording.** The plan claimed `base.^(e)` was
+builder-only because the matcher's parser rejected it. It is subtler than that: Julia's field
+access binds tighter than the `.^` broadcast, so `a.^(q).b` parses as `a .^ (q.b)` — a *trailing*
+splice, which both DSLs handle. A genuine mid-path splice has to be written `^(q).b`. That form
+used to die with a `MethodError` on a missing `_gen_step_match` method; it now reports that
+interpolation must be the sole step of a pattern.
+
+Landed:
+
+| Commit | |
+| --- | --- |
+| `fc15bc76` | the plan |
+| `b19909e0` | the shared grammar — `ReferenceSyntax.jl`, both DSLs become lowerings |
