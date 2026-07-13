@@ -1,7 +1,9 @@
 # Implicit selection field
 
-> **Status: pending.** Make `@document` inject `selection::Reference = nothing`
-> instead of every document struct declaring it by hand (278 repetitions today).
+> **✅ DONE 2026-07-13.** `@document` injects `selection::Reference = nothing`; no
+> document struct declares it, and declaring one is an error. 278 repetitions
+> removed. All eight steps implemented and verified; the suites match the
+> pre-change baseline exactly.
 
 ## Goal
 
