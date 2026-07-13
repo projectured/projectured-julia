@@ -25,10 +25,6 @@ import ..GestureBindingModule: var"@gestures"
 import ..DomainSupportModule: var"@domain", make_insertion_document
 export JsonDocument, entries
 
-# The domain kit: `JsonDocument` (abstract root), `JsonNothing` (empty
-# placeholder, Insert turns it into the insertion), `JsonInsertion` (typed-name
-# buffer completing over the JSON candidates), the Insert gesture and the
-# insertion traits — all generated from the domain name.
 @domain Json
 
 # ── Primitives ───────────────────────────────────────────────────────────
