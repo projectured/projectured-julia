@@ -188,16 +188,26 @@ end
 
 # ── Walker ───────────────────────────────────────────────────────────────────
 
-# Run the full type-in cycle for the cursor target `target` at character boundary
-# `k`. Returns (ok, message); `message` is empty on success and describes the first
-# failed step otherwise.
+# The outcome of one cycle: `ok`, the `message` naming the first failed step (empty
+# on success), and `broken` — the projection itself is unusable for this target, so
+# the remaining positions would only reproduce the same error and are not worth
+# running. Only the printer steps set it: a projection that throws while printing
+# this document, or while the cursor search forces its cells, throws the same way at
+# every caret. A missing cursor or a missing operation is *not* broken — those are
+# exactly the position-dependent failures this walk exists to find.
+_typein_ok()               = (ok=true,  message="",  broken=false)
+_typein_failed(message)    = (ok=false, message=message, broken=false)
+_typein_broken(message)    = (ok=false, message=message, broken=true)
+
+# Run the full type-in cycle for the cursor target `target` at character boundary `k`.
 function _typein_at(document, projection, target, k::Int, ch)
     old = try
         _read_target_string(document, target)
     catch e
-        return (false, "reading target string threw: $e")
+        return _typein_failed("reading target string threw: $e")
     end
-    old isa AbstractString || return (false, "reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
+    old isa AbstractString ||
+        return _typein_failed("reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
     sel = append_reference(target.cursor, PositionReference(k))
 
     # 1. Point the selection into this string.
@@ -205,58 +215,74 @@ function _typein_at(document, projection, target, k::Int, ch)
     try
         set_selection!(document, sel)
     catch e
-        return (false, "set_selection! threw: $e")
+        return _typein_failed("set_selection! threw: $e")
     end
 
     # 2. Project and confirm the cursor shows up in the Graphics image.
     # The printer is lazy, so the projection's cells are forced by the cursor
-    # search, not by `print_document` — a printer error surfaces here, and it must
-    # fail this one target rather than abort the whole walk.
+    # search, not by `print_document` — a printer error surfaces here.
     iomap = try
         print_document(projection, document)
     catch e
-        return (false, "print_document threw: $e")
+        return _typein_broken("print_document threw: $e")
     end
     present = try
         _cursor_present(iomap)
     catch e
-        return (false, "searching the Graphics image for the cursor threw: $e")
+        return _typein_broken("searching the Graphics image for the cursor threw: $e")
     end
-    present || return (false, "no cursor in Graphics image for string $(repr(old))")
+    present || return _typein_failed("no cursor in Graphics image for string $(repr(old))")
 
     # 3. Type a character through the reader.
     op = try
         read_intent(projection, iomap, KeyPress(first(ch)))
     catch e
-        return (false, "read_intent(KeyPress) threw: $e")
+        return _typein_failed("read_intent(KeyPress) threw: $e")
     end
     op isa ReplaceStringRangeOperation ||
-        return (false, "KeyPress produced $(op === nothing ? "nothing" : string(typeof(op))), not ReplaceStringRangeOperation")
+        return _typein_failed("KeyPress produced $(op === nothing ? "nothing" : string(typeof(op))), not ReplaceStringRangeOperation")
 
     # 4. Evaluate the operation and 5. verify the input string changed.
     before = try
         _read_target_string(document, target)
     catch e
-        return (false, "re-read before edit threw: $e")
+        return _typein_failed("re-read before edit threw: $e")
     end
     try
         evaluate_operation((document=document,), op)
     catch e
-        return (false, "evaluate_operation threw: $e")
+        return _typein_failed("evaluate_operation threw: $e")
     end
     after = try
         _read_target_string(document, target)
     catch e
-        return (false, "re-read after edit threw: $e")
+        return _typein_failed("re-read after edit threw: $e")
     end
     expected = _expected_insert(before, k, ch)
-    after == expected || return (false, "expected $(repr(expected)) got $(repr(after))")
-    (true, "")
+    after == expected || return _typein_failed("expected $(repr(expected)) got $(repr(after))")
+    _typein_ok()
+end
+
+# Undo the character `_typein_at` inserted at boundary `k`, with the operation that
+# inserted it: delete the range `[k, k + length(ch))`. One operation covers all three
+# target kinds, because `evaluate_operation` hands the field's value to
+# `splice_value!`, which dispatches on its representation — plain String, `TextString`
+# span, or the flat offset across a `TextText`'s spans (where the insert lands in the
+# first span containing the offset and this delete hits that same span).
+function _typein_undo!(document, target, k::Int, ch)
+    undo = ReplaceStringRangeOperation(
+        append_reference(target.cursor, RangeReference(k, k + length(ch))), "")
+    evaluate_operation((document=document,), undo)
 end
 
 # Run the type-in cycle at each of `target`'s positions, restoring the document
 # between them so every position is typed into the same pristine string. Returns one
 # (position, ok, message) per position tried.
+#
+# A position whose edit cannot be undone ends the target: the remaining positions
+# would be typing into a string that is no longer the one they enumerate boundaries
+# for, and a silently-drifting string turns the exact-value assertion into noise. The
+# other targets live elsewhere in the document, so the walk goes on.
 function _typein_target(document, projection, target, ch, policy::Symbol)
     results = NamedTuple{(:position, :ok, :message)}[]
     pristine = try
@@ -271,8 +297,31 @@ function _typein_target(document, projection, target, ch, policy::Symbol)
         return results
     end
     for k in _typein_positions(length(pristine), policy)
-        ok, message = _typein_at(document, projection, target, k, ch)
-        push!(results, (position=k, ok=ok, message=message))
+        outcome = _typein_at(document, projection, target, k, ch)
+        push!(results, (position=k, ok=outcome.ok, message=outcome.message))
+        # A projection that cannot print this document fails identically at every
+        # caret; one report is the signal, `n` reports are noise.
+        outcome.broken && return results
+
+        # Undo only what was actually typed: a cycle that failed before the edit
+        # (no cursor, no operation) left the string alone, and deleting `[k, k+1)`
+        # from it would eat a real character.
+        restored = try
+            current = _read_target_string(document, target)
+            if current != pristine
+                _typein_undo!(document, target, k, ch)
+                current = _read_target_string(document, target)
+            end
+            current
+        catch e
+            push!(results, (position=k, ok=false, message="restoring the string after typing threw: $e"))
+            return results
+        end
+        if restored != pristine
+            push!(results, (position=k, ok=false,
+                            message="string not restored after typing: expected $(repr(pristine)) got $(repr(restored))"))
+            return results
+        end
     end
     results
 end
