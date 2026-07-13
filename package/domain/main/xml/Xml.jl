@@ -11,24 +11,15 @@ The domain includes:
 """
 module XmlModule
 
-import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document, @forward_map
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference, EmptyReferencePath, evaluate_reference, Position
-import ..ProjectionReferenceModule: ProjectionReference
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
-import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..SelectionApiModule: with_selection, var"@with_selection"
-import ..KeyboardModule: KeyPress, KeyDown
-import ..GestureBindingModule: var"@gestures"
-import ..DomainModule: var"@domain", var"@insertion", make_insertion_document
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+using ..ProjectionReferenceModule
+using ..OperationModule
+using ..SelectionModule
+using ..GestureModule
+using ..DomainModule
 
-# The domain kit: `XmlDocument` (abstract root), `XmlNothing` (empty
-# placeholder, Insert turns it into the insertion), `XmlInsertion` (typed-name
-# buffer completing over the XML candidates), the Insert gesture and the
-# insertion traits — all generated from the domain name.
 @domain Xml
 
 # ── Attribute ─────────────────────────────────────────────────────────────
