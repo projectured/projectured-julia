@@ -229,7 +229,7 @@ export test_catalog
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
-export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all
+export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all, nav_broken
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections

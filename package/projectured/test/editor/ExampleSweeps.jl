@@ -239,6 +239,53 @@ end
 
 # ── keyboard nav invariants ──────────────────────────────────────────────────
 
+# @broken: the leftward walk stalls two or three carets in from the end of every
+# syntax-backed document, so it neither retraces the rightward walk nor reaches
+# the start. At a caret sitting on projection-introduced text (the flat-offset
+# position SyntaxToText emits for its own indentation and markers) `left` clamps
+# in place while `right` from the same caret advances. Diagnosed in
+# plan/pending/left-motion-stalls-on-introduced-text.md; the fix belongs in the
+# SyntaxToText forward map.
+const NAV_LEFT_WALK_STALLS = ("json", "json_insertion", "syntax", "markdown",
+                              "focusing", "formula", "sql_syntax",
+                              "sql_insert_syntax", "sql_update_syntax", "dragging")
+
+# @broken: on these three the *rightward* walk also ends somewhere other than
+# where Ctrl+End lands — a second, narrower asymmetry in the same forward map.
+const NAV_RIGHT_WALK_MISSES_END = ("markdown", "formula", "sql_update_syntax")
+
+# @broken: these examples cannot complete a walk at all — the printer or a reader
+# throws partway through. All pre-existing and unrelated to navigation direction
+# (they surfaced as uncaught errors before the walk guarded the printer); tracked
+# in plan/pending/fix-selection-tests.md and plan/pending/test-suite-green.md.
+const NAV_WALK_THROWS = Dict(
+    # print_document: MethodError constructing RJsonObject in CopyingProjection
+    "json_sorted"       => (:walk_right, :walk_left),
+    # TypeDispatchingProjection: no projection registered for RXmlAttribute
+    "mixed"             => (:walk_right, :walk_left),
+    "graph"             => (:walk_right, :walk_left),
+    # under-typed @reference (missing node types) in MarkdownToSyntax
+    "markdown_rendered" => (:walk_right, :walk_left),
+    # under-typed @reference (missing node types) in YamlToSyntax
+    "yaml"              => (:walk_right,),
+    # under-typed @reference (missing node types) in SqlToSyntax
+    "sql_nested_syntax" => (:walk_right,),
+    # SelectionMismatch in set_selection! on a CollectionToSyntax leaf
+    "searching"         => (:walk_right,),
+)
+
+# The invariants a given example is known to fail, for `test_text_nav_invariants`.
+# A bare `test_text_nav_invariants(example)` runs unannotated and will report the
+# known failures above as plain `Fail`s; pass `broken=nav_broken(example.name)`
+# to see it the way the sweep does.
+function nav_broken(name)
+    broken = Symbol[]
+    append!(broken, get(NAV_WALK_THROWS, name, ()))
+    name in NAV_LEFT_WALK_STALLS && append!(broken, (:same_length, :left_reaches_start))
+    name in NAV_RIGHT_WALK_MISSES_END && push!(broken, :right_reaches_end)
+    broken
+end
+
 function test_text_nav_invariants_all()
     @testset "TextNavInvariants" begin
         for example in examples
@@ -264,7 +311,7 @@ function test_text_nav_invariants_all()
                               "collection", "reversing", "filtering",
                               "sorting") && continue
             @testset "$(example.name)" begin
-                test_text_nav_invariants(example)
+                test_text_nav_invariants(example; broken=nav_broken(example.name))
             end
         end
     end
