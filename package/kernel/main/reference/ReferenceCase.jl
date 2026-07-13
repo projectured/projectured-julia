@@ -1,11 +1,16 @@
-# Fragment of `ReferenceModule` — the `@reference_case` pattern-matching DSL,
-# the destructuring counterpart of the `@reference` construction DSL
-# (`ReferenceBuilder.jl`). Both DSLs are siblings that share the step/path
-# vocabulary from `ReferenceStep.jl` / `ReferencePath.jl` and live in the same
-# module, since they are only ever imported together. Extension steps owned by
-# higher packages are reached through the `dsl_match_step` /
-# `dsl_step_subpath_args` seams declared in `Interface.jl`, so this parser names
-# no step type it does not own.
+# Fragment of `ReferenceModule` — the `@reference_case` pattern-matching DSL, the
+# destructuring counterpart of the `@reference` construction DSL
+# (`ReferenceBuilder.jl`).
+#
+# This fragment is a **lowering**, not a parser: the surface grammar both DSLs accept is
+# parsed once by `ReferenceSyntax.jl` into the shared `RefStep` AST, and everything here
+# turns that AST into match branches. What makes the matching reading its own thing is the
+# *value* vocabulary below (`PatValue`: wildcards, binders, typed binders, interpolation)
+# — a bare symbol binds here where it would name a field in the builder.
+#
+# Extension steps owned by higher packages are reached through the `dsl_match_step` /
+# `dsl_step_subpath_args` seams declared in `Interface.jl`, so this fragment names no step
+# type it does not own.
 
 """
     when(pattern, condition)
@@ -127,224 +132,49 @@ function _parse_value(ex)
 end
 
 # ------------------------------------------------------------
-# Path parsing
+# Step-AST lowering
 #
-# Rootless rules:
-#   address.city
-#   items[i].name
-#   config.field(f)
-#   rendered.name(args...)   — extension steps registered by higher packages
+# The surface grammar is parsed once, by `ReferenceSyntax.jl`, into the shared
+# `RefStep` AST. This is where the *matching* reading of that AST is applied — the
+# three places the matcher reads the same syntax differently from the builder:
 #
-# Top-level bare symbols in path position are literal field names.
-# Bare symbols in value position (inside [] or field(...)) are binders.
+#   - every raw leaf expression becomes a `PatValue` (`_parse_value`): a bare symbol
+#     in value position BINDS, `_` is a wildcard, `^(e)` interpolates a comparison;
+#   - a `::T` step asserts the node type, but a lowercase `::t` BINDS it;
+#   - a bare symbol as a subpath argument binds the whole subpath, where the
+#     construction DSL would read it as a field name.
+#
+# `ReferenceBuilder.jl` lowers the very same AST into constructor calls.
 # ------------------------------------------------------------
-
-function _parse_path(ex)
-    steps = PatStep[]
-    _parse_path!(steps, ex)
-    return steps
-end
-
-# Parse a relative path expression and append steps to `steps`.
-function _parse_path!(steps::Vector{PatStep}, ex)
-    if ex isa Symbol
-        # Top-level / path-position symbol means a literal field step.
-        push!(steps, PatStepField(PatValueLiteral(String(ex))))
-        return steps
-
-    elseif ex isa Expr && ex.head == :(::)
-        # f::T — match f's steps then a TypeReference(T) checkpoint.
-        # A leading `::T` (no `f`) matches the checkpoint then the rest of the chain.
-        if length(ex.args) == 2
-            _parse_path!(steps, ex.args[1])
-            _pat_type_suffix!(steps, ex.args[2])
-        else
-            _pat_leading_type!(steps, ex.args[1])
-        end
-        return steps
-
-    elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
-        # a.b
-        _parse_path!(steps, ex.args[1])
-        push!(steps, PatStepField(PatValueLiteral(String(ex.args[2].value))))
-        return steps
-
-    elseif ex isa Expr && ex.head == :ref
-        # base[idx] — ElementReference (1-based), or base[i, j] — RangeReference
-        if length(ex.args) == 2
-            _parse_path!(steps, ex.args[1])
-            push!(steps, PatStepIndex(_parse_value(ex.args[2])))
-        elseif length(ex.args) == 3
-            _parse_path!(steps, ex.args[1])
-            push!(steps, PatStepRange(_parse_value(ex.args[2]), _parse_value(ex.args[3])))
-        else
-            error("indexing patterns support 1 or 2 dimensions: $ex")
-        end
-        return steps
-
-    elseif ex isa Expr && ex.head == :curly
-        # base{idx} — PositionReference (0-based), or base{s:e} — RangeReference
-        length(ex.args) == 2 || error("only one-dimensional position patterns are supported: $ex")
-        _parse_path!(steps, ex.args[1])
-        push!(steps, _braces_pat(ex.args[2]))
-        return steps
-
-    elseif ex isa Expr && ex.head == :call
-        f = ex.args[1]
-
-        if f == :(^)
-            length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-            push!(steps, PatStepPathInterp(ex.args[2]))
-            return steps
-
-        elseif f isa Symbol
-            # Top-level extension step `name(args...)` with no preceding path.
-            push!(steps, _pat_extension_step(f, ex.args[2:end]))
-            return steps
-
-        elseif f isa Expr && f.head == :. && f.args[2] isa QuoteNode
-            opname = f.args[2].value
-            _parse_path!(steps, f.args[1])
-
-            if opname == :field
-                length(ex.args) == 2 || error(".field(...) expects exactly one argument")
-                push!(steps, PatStepField(_parse_value(ex.args[2])))
-                return steps
-            else
-                # A mid-path extension step, dispatched through the seam.
-                push!(steps, _pat_extension_step(opname, ex.args[2:end]))
-                return steps
-            end
-
-        else
-            error("unsupported call form in path pattern: $ex")
-        end
-
-    elseif ex isa Expr && ex.head == :vect
-        # [i] as a relative subpath — ElementReference (1-based), or [i, j] — RangeReference
-        if length(ex.args) == 1
-            push!(steps, PatStepIndex(_parse_value(ex.args[1])))
-        elseif length(ex.args) == 2
-            push!(steps, PatStepRange(_parse_value(ex.args[1]), _parse_value(ex.args[2])))
-        else
-            error("subpath vector syntax supports 1 or 2 elements: $ex")
-        end
-        return steps
-
-    elseif ex isa Expr && ex.head == :braces
-        # {i} or {s:e} as a relative subpath
-        length(ex.args) == 1 || error("subpath braces syntax supports exactly one element, e.g. {0} or {0:k}: $ex")
-        push!(steps, _braces_pat(ex.args[1]))
-        return steps
-
-    elseif ex isa Expr && ex.head == :...
-        # path.name... — match the prefix path and bind the entire remaining
-        # tail to `name`.  The last step of the prefix must be a field step
-        # whose name becomes the binding variable.
-        #
-        # Example: [j].rest...  binds j to the index and rest to the tail.
-        _parse_path!(steps, ex.args[1])
-        isempty(steps) && error("... suffix requires at least one preceding step: $ex")
-        last_step = pop!(steps)
-        name = if last_step isa PatStepField && last_step.namepat isa PatValueLiteral
-            Symbol(last_step.namepat.value::String)
-        elseif last_step isa PatStepField && last_step.namepat isa PatValueBind
-            last_step.namepat.name
-        else
-            error("... suffix only supported after a named field step, got $(typeof(last_step)): $ex")
-        end
-        push!(steps, PatStepWholePathBind(name))
-        return steps
-
-    else
-        error("unsupported path pattern syntax: $ex")
-    end
-end
-
-function _parse_subpath(ex)
-    ex isa Symbol && return PatStep[PatStepWholePathBind(ex)]
-    return _parse_path(ex)
-end
-
-# A `.name(args...)` / `name(args...)` extension step. Each argument is a value
-# pattern, except the positions the step declares as subpaths (via
-# `dsl_step_subpath_args`), which are parsed as sub-path patterns. So the parser
-# names no specific step type — `.proj`'s subpath argument is discovered through
-# the seam, keeping the reference layer ignorant of the projection concept.
-function _pat_extension_step(name::Symbol, args)
-    subpaths = dsl_step_subpath_args(Val(name))
-    argpats = Any[(i in subpaths ? _parse_subpath(a) : _parse_value(a))
-                  for (i, a) in enumerate(args)]
-    return PatStepExtension(name, argpats)
-end
 
 # A `::x` type step in a pattern: a lowercase identifier binds the node type,
 # any other form asserts it.
 _pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x)
 
-# Split a pattern type-checkpoint base into its type step and any trailing
-# `.field` steps — the pattern mirror of `_push_type_and_fields!`.
-function _push_pat_type_and_fields!(steps::Vector{PatStep}, base)
-    fields = String[]
-    cur = base
-    while cur isa Expr && cur.head == :. && cur.args[2] isa QuoteNode
-        pushfirst!(fields, String(cur.args[2].value))
-        cur = cur.args[1]
-    end
-    cur isa Symbol ||
-        error("@reference_case: type checkpoint must start with a type name: $base")
-    push!(steps, _pat_type_step(cur))
-    for f in fields
-        push!(steps, PatStepField(PatValueLiteral(f)))
-    end
-end
+# The matching reading of a subpath argument: a bare symbol binds the entire subpath.
+# (The construction DSL reads a bare symbol here as a field name instead — which is
+# exactly why the shared grammar keeps subpath arguments raw rather than pre-parsing
+# them.)
+_case_subpath(ex) =
+    ex isa Symbol ? PatStep[PatStepWholePathBind(ex)] : _to_pat_steps(parse_reference_path(ex))
 
-# `x::T` type suffix in a pattern: bare `T` is a checkpoint (or `::t` a binder);
-# `T{i}`/`T[i]` is read as checkpoint `T` then a position/range/element step (so
-# `value::Leaf{s:e}` needs no parens); `T.field` is the checkpoint `T` then
-# field steps.
-function _pat_type_suffix!(steps::Vector{PatStep}, T)
-    if T isa Expr && T.head == :curly
-        _push_pat_type_and_fields!(steps, T.args[1])
-        push!(steps, _braces_pat(T.args[2]))
-    elseif T isa Expr && T.head == :ref
-        _push_pat_type_and_fields!(steps, T.args[1])
-        if length(T.args) == 2
-            push!(steps, PatStepIndex(_parse_value(T.args[2])))
-        elseif length(T.args) == 3
-            push!(steps, PatStepRange(_parse_value(T.args[2]), _parse_value(T.args[3])))
-        else
-            error("type suffix index supports 1 or 2 dimensions: $T")
-        end
-    else
-        _push_pat_type_and_fields!(steps, T)
-    end
-end
+_to_pat(s::RefField)     = PatStepField(PatValueLiteral(s.name))
+_to_pat(s::RefFieldExpr) = PatStepField(_parse_value(s.expr))
+_to_pat(s::RefIndex)     = PatStepIndex(_parse_value(s.expr))
+_to_pat(s::RefPosition)  = PatStepPosition(_parse_value(s.expr))
+_to_pat(s::RefRange)     = PatStepRange(_parse_value(s.startexpr), _parse_value(s.stopexpr))
+_to_pat(s::RefType)      = _pat_type_step(s.expr)
+_to_pat(s::RefSplice)    = PatStepPathInterp(s.expr)
+_to_pat(s::RefTailBind)  = PatStepWholePathBind(s.name)
+_to_pat(s::RefExtension) = PatStepExtension(s.name, Any[_to_pat_arg(a) for a in s.args])
 
-# Leading `::X`: a bare symbol is the checkpoint (or a `::t` binder); a chain
-# like `Node.entries{s:e}` is read as checkpoint `Node` then the
-# `.entries{s:e}` steps (no parens).
-function _pat_leading_type!(steps::Vector{PatStep}, X)
-    if X isa Symbol
-        push!(steps, _pat_type_step(X))
-    else
-        n = length(steps)
-        _parse_path!(steps, X)
-        root = steps[n + 1]
-        (root isa PatStepField && root.namepat isa PatValueLiteral && root.namepat.value isa String) ||
-            error("leading ::T must start with a type name: $X")
-        steps[n + 1] = _pat_type_step(Symbol(root.namepat.value))
-    end
-end
+_to_pat_arg(a::RefArgValue)   = _parse_value(a.expr)
+_to_pat_arg(a::RefArgSubPath) = _case_subpath(a.expr)
 
-# Lower the inner expression of a `{...}` pattern to either a position or
-# range step.
-function _braces_pat(inner)
-    if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
-        return PatStepRange(_parse_value(inner.args[2]), _parse_value(inner.args[3]))
-    end
-    return PatStepPosition(_parse_value(inner))
-end
+_to_pat_steps(steps::Vector{RefStep}) = PatStep[_to_pat(s) for s in steps]
+
+# Parse a path pattern: the shared grammar, then the matching reading of it.
+_parse_path(ex) = _to_pat_steps(parse_reference_path(ex))
 
 # ------------------------------------------------------------
 # Rule parsing
@@ -509,6 +339,14 @@ function _gen_step_match(hex, tex, step::PatStepExtension, rest_success, bound::
     dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound,
                    _gen_value_match, _gen_path_match)
 end
+
+# `^(expr)` interpolates a whole path to compare against, so it is only meaningful as the
+# *sole* step of a pattern — `_gen_path_match` / `_gen_prefix_match` intercept it there.
+# Reaching per-step dispatch means it was written mid-chain (`a.^(p).b`, `a.b.^(p)`), which
+# has no matching reading. Say so, rather than failing with a `MethodError` on this method
+# not existing.
+_gen_step_match(hex, tex, step::PatStepPathInterp, rest_success, bound::Set{Symbol}) =
+    error("^(expr) path interpolation is only valid as the sole step of an @reference_case pattern: ^($(step.expr))")
 
 function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
     # Folded references expose a navigation step directly as `head` (the type is a

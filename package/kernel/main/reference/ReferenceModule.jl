@@ -17,7 +17,7 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in seven fragments that share this namespace:
+The module lives in eight fragments that share this namespace:
 
 - [`Interface.jl`](Interface.jl) — the contract: the `ReferenceStep` and
   `ReferencePath` abstract types, the `Reference` union a selection field holds,
@@ -38,6 +38,9 @@ The module lives in seven fragments that share this namespace:
   `reference_node_type`, `is_fully_typed`).
 - [`ReferenceSearch.jl`](ReferenceSearch.jl) — the path-producing reflection
   search (`search_references`) over documents.
+- [`ReferenceSyntax.jl`](ReferenceSyntax.jl) — the **surface grammar both DSLs
+  accept**, parsed once into one step AST (`RefStep`). The two DSL fragments below
+  are *lowerings* of that AST, not parsers of their own.
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
@@ -90,6 +93,10 @@ include("ReferenceStep.jl")
 include("ReferencePath.jl")
 include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
+# The shared surface grammar, then the two DSLs that lower it. Syntax must precede
+# both: it calls the `dsl_step_subpath_args` seam (declared in `Interface.jl`) to tag
+# an extension step's subpath arguments while parsing.
+include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")
 include("ReferenceBuilder.jl")
 
