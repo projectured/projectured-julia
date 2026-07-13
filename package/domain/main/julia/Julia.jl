@@ -7,12 +7,10 @@ The Julia document domain — a Julia AST as reactive `Document`s. Leaves
 """
 module JuliaModule
 
-import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference
-import ..DomainModule: var"@domain"
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule   # `@document` injects the implicit `selection::Reference` field
+using ..DomainModule
 export _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────

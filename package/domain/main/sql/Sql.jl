@@ -7,12 +7,11 @@ against a `DatabaseInstance`.
 """
 module SqlDocumentModule
 
-import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference
-import ..DomainModule: var"@domain"
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule   # `@document` injects the implicit `selection::Reference` field
+using ..DomainModule
 
 export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression

@@ -6,19 +6,14 @@ scalars, block/flow sequences, ordered mappings.
 """
 module YamlModule
 
-import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document, @forward_vector, @forward_map
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference, Position
-import ..ProjectionReferenceModule: ProjectionReference
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
-import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..SelectionApiModule: with_selection, var"@with_selection"
-import ..KeyboardModule: KeyPress, KeyDown
-import ..GestureBindingModule: var"@gestures"
-import ..DomainModule: var"@domain", var"@insertion", make_insertion_document
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+using ..ProjectionReferenceModule
+using ..OperationModule
+using ..SelectionModule
+using ..GestureModule
+using ..DomainModule
 
 # The domain kit: `YamlDocument` (abstract root), `YamlNothing` (empty
 # placeholder, Insert turns it into the insertion), `YamlInsertion` (typed-name
@@ -90,13 +85,8 @@ end
 @forward_map YamlMapping entries key value YamlMappingEntry
 
 # build a mapping from `key => value` pairs
-function YamlMapping(pairs::Pair{<:AbstractString}...)
-    cv = CellVector()
-    for (k, v) in pairs
-        push!(cv, Cell(YamlMappingEntry(String(k), v)))
-    end
-    YamlMapping(cv, Cell(false), Cell(nothing))
-end
+YamlMapping(pairs::Pair{<:AbstractString}...) =
+    YamlMapping([YamlMappingEntry(String(k), v) for (k, v) in pairs])
 
 # Text/number replace edits need no per-type method: `YamlString.value` and
 # `YamlMappingEntry.key` are plain strings, and `YamlNumber.value` is a number
