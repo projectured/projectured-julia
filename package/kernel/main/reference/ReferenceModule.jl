@@ -20,7 +20,7 @@ imported together and separating them just multiplied import headers.
 The module lives in three fragments that share this namespace:
 
 - [`Reference.jl`](Reference.jl) — the reference-path *types* (steps, paths,
-  their `@document`-generated struct forms) plus the value protocol on them
+  their `@cell_struct`-generated struct forms) plus the value protocol on them
   (`append_reference`, `concat_references`, `evaluate_reference`,
   `is_valid_reference`, `annotate_reference_types`, `strip_reference_types`,
   the equality/prefix predicates), and the path-producing reflection search
@@ -32,15 +32,21 @@ The module lives in three fragments that share this namespace:
   construction DSL (compact surface syntax for building paths).
 
 The linked-list *shape* is persistent — extending a path reuses the existing
-tail rather than copying. The `@document`-backed step/path structs are
+tail rather than copying. The `@cell_struct`-backed step/path structs are
 mutable and store their dynamic values (indices, positions, the head/tail
 links) in reactive `Cell`s, so callers can update those cells in place
 without rebuilding the chain.
+
+Steps and paths are **not `Document`s** — they are the machinery that *addresses*
+documents, not addressable content. Nothing navigates into a reference, selects
+inside one, or projects one, so a reference has no `selection` field and needs
+none of `@document`'s document codegen. `@cell_struct` gives it the only thing it
+wants: transparent reactive-`Cell` fields.
 """
 module ReferenceModule
 
-import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: Document, is_element_collection, is_opaque, @document
+import ..CellModule: Cell, AbstractCell, @cell_struct
+import ..DocumentModule: Document, is_element_collection, is_opaque
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,

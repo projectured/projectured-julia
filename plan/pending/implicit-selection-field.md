@@ -128,22 +128,44 @@ Two things follow:
 
 Work in a dedicated git worktree. Commit per step; each step must load green.
 
-### Step 1 — Move the non-documents to `@cell_struct`
+### Step 1 — Move the non-documents to `@cell_struct` — ✅ DONE
 
 `@cell_struct` (`kernel/main/cell/CellStruct.jl:178`) already emits exactly what
 these types need: `::Cell` fields, the auto-wrapping inner ctor, transparent
 accessors, and a keyword ctor when defaults are present. It does **not** inject a
 supertype, kind aliases, or Rule Y/C ctors — none of which these types use.
 
-- [ ] `Clock` (`kernel/main/document/Clock.jl:43`) → `@cell_struct`. It stops
+- [x] `Clock` (`kernel/main/document/Clock.jl:43`) → `@cell_struct`. It stops
       being `<: Document`. Bonus: `clock::Clock` in `Editor.jl:54` and
       `PrinterContext.jl:53` becomes a **concrete** field type (today it is the
       `Clock{…}` UnionAll, i.e. abstract).
-- [ ] The 10 reference types → `@cell_struct`. They keep their declared
-      `<: ReferenceStep` / `<: ReferencePath` supertypes.
-- [ ] `@cell_struct` does **not** export the struct name (`@document` does).
-      Add explicit `export`s where these names were relying on the macro.
-- [ ] Verify by loading, and run `test_kernel()` (includes `test_kernel_layering()`).
+- [x] The 8 reference types → `@cell_struct` (5 in `reference/Reference.jl`,
+      plus `ProjectionReference`, `PointReference`, `TextRectangularReference`).
+      They keep their declared `<: ReferenceStep` / `<: ReferencePath` supertypes.
+- [x] Exports: **no change needed** — `ReferenceModule.jl:45-54` and
+      `ClockModule` (`Clock.jl:32`) already export their type names explicitly,
+      so losing `@document`'s auto-export costs nothing.
+- [x] Verified: `test_kernel()` 338/338 (incl. `test_kernel_layering()`),
+      `test_base()` 82/82, `test_visual()` 51850 pass / 1 broken,
+      `test_domain()` 132976 pass / 1 error / 15 broken — the single domain
+      error (`TableNavigationTest`, "individual moves (3×3 with headers)",
+      a `SelectionMismatch` on `RWidgetTable`) **reproduces identically on clean
+      `main`**: it is the known pre-existing "table Alt+arrow" failure, not a
+      regression.
+
+**Discovered during implementation.** `@cell_struct` emits `Cell` as a **bare
+symbol** resolved in the caller's scope (it does *not* splice the type object the
+way `@document` splices its cell types), so every module that switches to it must
+also `import ..CellModule: Cell`. `ReferenceModule` already did; `ClockModule`,
+`ProjectionReferenceModule`, `PointReferenceModule` and
+`TextRectangularReferenceModule` each needed `Cell` added to their import. This is
+the same call-site-resolution mechanism step 2 relies on for `Reference`, so it is
+a useful confirmation that the approach works.
+
+Also: `Clock`'s only uses are as a field of `Editor` (a plain `mutable struct`)
+and `PrinterContext` (a plain `struct`) — **no `@document` struct holds a
+`Clock`** — so `copy_document` / `sync_document!` never walked into it, and it
+losing `Document` status changes nothing for them.
 
 ### Step 2 — `@document` injects the field
 

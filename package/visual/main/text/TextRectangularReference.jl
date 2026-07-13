@@ -16,7 +16,7 @@ here alongside the type.
 """
 module TextRectangularReferenceModule
 
-import ..DocumentModule: @document
+import ..CellModule: Cell, @cell_struct
 import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step
 
 export TextRectangularReference
@@ -31,7 +31,7 @@ concatenated text of a `TextText`. Evaluates to the offset pair
 box's value is its character range independent of what characters happen
 to sit in the current text.
 """
-@document struct TextRectangularReference <: ReferenceStep
+@cell_struct struct TextRectangularReference <: ReferenceStep
     start::Int
     stop::Int
 end

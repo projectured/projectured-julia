@@ -13,7 +13,7 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 """
 module PointReferenceModule
 
-import ..DocumentModule: @document
+import ..CellModule: Cell, @cell_struct
 import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step, dsl_build_step, dsl_match_step
 
 export PointReference
@@ -27,7 +27,7 @@ relative to that element's origin. Evaluates to the coordinate tuple
 value is the coordinate itself, independent of what happens to be at
 that coordinate in the current document.
 """
-@document struct PointReference <: ReferenceStep
+@cell_struct struct PointReference <: ReferenceStep
     x::Int
     y::Int
 end

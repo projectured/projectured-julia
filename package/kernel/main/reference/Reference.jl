@@ -1,5 +1,5 @@
 # Fragment of `ReferenceModule` — the reference-path *types* (steps, paths,
-# their `@document`-generated struct forms), the value protocol on them
+# their `@cell_struct`-generated struct forms), the value protocol on them
 # (`append_reference`, `evaluate_reference`, `annotate_reference_types`, …), and
 # the path-producing reflection search (`search_references`). The DSL fragments
 # `ReferenceCase.jl` and `ReferenceBuilder.jl` build on these; both are included
@@ -26,14 +26,14 @@ Unified sequence step.  Encodes:
 All positions are 0-based boundaries.  For a collection with n elements,
 valid boundaries are 0 to n.
 """
-@document struct RangeReference <: ReferenceStep
+@cell_struct struct RangeReference <: ReferenceStep
     start::Int
     stop::Int
 end
 
-# `RangeReference(start, stop)` needs no explicit Int constructor: the `@document`
-# inner constructor auto-wraps raw values into `Cell`s (and passes `Cell`s
-# through). Same for `FieldReference`/`PointReference` below.
+# `RangeReference(start, stop)` needs no explicit Int constructor: the
+# `@cell_struct` inner constructor auto-wraps raw values into `Cell`s (and passes
+# `Cell`s through). Same for `FieldReference`/`PointReference` below.
 
 # ── Convenience step constructors ───────────────────────────────────────
 
@@ -85,7 +85,7 @@ Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
 References a named field of an object/record.
 """
-@document struct FieldReference <: ReferenceStep
+@cell_struct struct FieldReference <: ReferenceStep
     name::String
 end
 
@@ -104,7 +104,7 @@ The match rule is `node isa type`. Checkpoints are normally created from
 `typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
 the assertion holds exactly; recording an abstract supertype is also tolerated.
 """
-@document struct TypeReference <: ReferenceStep
+@cell_struct struct TypeReference <: ReferenceStep
     type::Any
 end
 
@@ -148,7 +148,7 @@ node carries that node's type here.
 The type is a field of the terminal node, not a separate trailing
 `TypeReference` checkpoint step.
 """
-@document struct EmptyReferencePath <: ReferencePath
+@cell_struct struct EmptyReferencePath <: ReferencePath
     type::Any = nothing
 end
 
@@ -182,7 +182,7 @@ result and the next step's source.
                ConcreteReferencePath(FieldReference("city"),
                    EmptyReferencePath()))
 """
-@document struct ConcreteReferencePath <: ReferencePath
+@cell_struct struct ConcreteReferencePath <: ReferencePath
     type::Any
     head::ReferenceStep
     tail::ReferencePath
@@ -190,7 +190,7 @@ end
 
 # Two-arg construction: type unknown (`nothing`). Fully
 # untyped so it also catches the pre-wrapped `ConcreteReferencePath(Cell(h), Cell(t))`
-# call sites; the `@document` inner constructor Cell-wraps each field as needed.
+# call sites; the `@cell_struct` inner constructor Cell-wraps each field as needed.
 ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
 
 # Whole-element ("tree") selection is not a distinct reference step: it is just

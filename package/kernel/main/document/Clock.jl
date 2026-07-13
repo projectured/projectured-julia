@@ -27,20 +27,25 @@ carve-out — nothing else ever *writes* conflicting elapsed values into it.
 """
 module ClockModule
 
-import ..DocumentModule: @document, Document
+import ..CellModule: Cell, @cell_struct
 
 export Clock, get_reactive_time, get_time, tick!, seek!, get_wall_clock
 
 """
     Clock(; time = 0.0) -> Clock
 
-A `@document` with one reactive field, `time::Float64`. Reads and writes go
+A `@cell_struct` with one reactive field, `time::Float64`. Reads and writes go
 through the field's `Cell`: `clock.time` reads with dependency tracking,
 `clock.time = t` writes and invalidates every subscriber. Use the named
 helpers below rather than the raw field when intent (SUBSCRIBE vs SAMPLE, TICK
 vs SEEK) matters.
+
+A clock is **not** a `Document`: it is editor infrastructure, not addressable
+content — nothing navigates into it, selects inside it, or projects it. It
+wants only the transparent-cell codegen, which is exactly what `@cell_struct`
+provides.
 """
-@document struct Clock
+@cell_struct struct Clock
     time::Float64 = 0.0
 end
 

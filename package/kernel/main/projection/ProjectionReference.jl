@@ -17,7 +17,7 @@ layer's `dsl_build_step` / `dsl_match_step` / `dsl_step_subpath_args` seams.
 """
 module ProjectionReferenceModule
 
-import ..DocumentModule: @document
+import ..CellModule: Cell, @cell_struct
 import ..ReferenceModule: ReferenceStep, ReferencePath, step_kind, evaluate_step,
                           dsl_build_step, dsl_match_step, dsl_step_subpath_args
 
@@ -32,7 +32,7 @@ points. Evaluates to `output_path` — the projection-introduced element is
 identified by that path in the projection's own output; every reference in
 the tree is evaluatable.
 """
-@document struct ProjectionReference <: ReferenceStep
+@cell_struct struct ProjectionReference <: ReferenceStep
     projection::Any
     output_path::ReferencePath
 end
