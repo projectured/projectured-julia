@@ -24,7 +24,7 @@ computed cells driven by the `completion` policy (see `name_completion`):
   inverse of the placeholder's Insert gesture.
 
 The candidates, names (`JsonString` / `json string`, prefix-free inside a
-domain scope), and constructors all come from `DomainSupportModule`'s
+domain scope), and constructors all come from `DomainModule`'s
 reflection — nothing here is a table. The chain is *domain-independent
 insertion (`DocumentInsertion`) → domain-specific insertion
 (`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*, exactly as in
@@ -42,8 +42,8 @@ import ..GestureApiModule: read_gesture
 import ..KeyboardModule: KeyPress, KeyDown
 import ..MouseModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
-import ..DomainSupportModule
-import ..DomainSupportModule: insertion_root, nothing_document, insertion_names,
+import ..DomainModule
+import ..DomainModule: insertion_root, nothing_document, insertion_names,
                               insertion_candidates, complete_insertion, resolve_insertion,
                               make_insertion_document
 import ..JuliaModule: JuliaInsertion, JuliaDocument,
@@ -325,7 +325,7 @@ end
 
 # `TextText` is a plain visual document, not an `@domain` kit, so its historic
 # `"text"` short name is a hand-written alias.
-DomainSupportModule.insertion_aliases(::Type{<:TextText}) = ["text"]
+DomainModule.insertion_aliases(::Type{<:TextText}) = ["text"]
 
 """
     default_factory(name) -> Document | nothing
@@ -406,12 +406,12 @@ end
 # The keyword scaffolds double as insertion *candidates*: `julia function`
 # committed from a DocumentInsertion (or `function` by name inside a Julia
 # scope) builds the same scaffold-of-holes the keyword commit does.
-DomainSupportModule.make_insertion_document(::Type{<:JuliaFunction}) = julia_scaffold("function")
-DomainSupportModule.make_insertion_document(::Type{<:JuliaIf})       = julia_scaffold("if")
-DomainSupportModule.make_insertion_document(::Type{<:JuliaWhile})    = julia_scaffold("while")
-DomainSupportModule.make_insertion_document(::Type{<:JuliaFor})      = julia_scaffold("for")
-DomainSupportModule.make_insertion_document(::Type{<:JuliaBegin})    = julia_scaffold("begin")
-DomainSupportModule.make_insertion_document(::Type{<:JuliaReturn})   = julia_scaffold("return")
+DomainModule.make_insertion_document(::Type{<:JuliaFunction}) = julia_scaffold("function")
+DomainModule.make_insertion_document(::Type{<:JuliaIf})       = julia_scaffold("if")
+DomainModule.make_insertion_document(::Type{<:JuliaWhile})    = julia_scaffold("while")
+DomainModule.make_insertion_document(::Type{<:JuliaFor})      = julia_scaffold("for")
+DomainModule.make_insertion_document(::Type{<:JuliaBegin})    = julia_scaffold("begin")
+DomainModule.make_insertion_document(::Type{<:JuliaReturn})   = julia_scaffold("return")
 
 # Commit a Julia hole: a keyword prefix expands to its scaffold; otherwise parse the
 # buffer as complete source. Partial / invalid non-keyword source can't commit.

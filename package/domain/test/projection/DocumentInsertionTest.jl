@@ -1,7 +1,7 @@
 # Tests for the insert-by-typing mechanism (DocumentInsertionToSyntax):
 # typing a domain name into a DocumentInsertion and committing it to that
 # domain's document/insertion, and committing Julia source via JuliaInsertion —
-# plus the reflection-based completion machinery (DomainSupportModule) and the
+# plus the reflection-based completion machinery (DomainModule) and the
 # @domain-generated Insert/Escape kit.
 
 
@@ -31,7 +31,7 @@ function test_document_insertion()
         end
 
         @testset "derived names" begin
-            DS = DomainSupportModule
+            DS = DomainModule
             @test DS.insertion_names(JsonString) == ["JsonString", "json string"]
             @test DS.insertion_names(JsonObjectEntry; root = JsonDocument) ==
                   ["JsonObjectEntry", "json object entry", "ObjectEntry", "object entry"]
@@ -42,7 +42,7 @@ function test_document_insertion()
         end
 
         @testset "completion states" begin
-            DS = DomainSupportModule
+            DS = DomainModule
             @test DS.complete_insertion(Document, "  ").state === :empty
             @test DS.complete_insertion(Document, "zzz").state === :invalid
             # Unambiguous: only JsonString continues "json str"; the pale
@@ -64,7 +64,7 @@ function test_document_insertion()
         end
 
         @testset "resolution" begin
-            DS = DomainSupportModule
+            DS = DomainModule
             # Exact type name / human-readable name / alias all commit.
             @test DS.resolve_insertion(Document, "JsonString") === JsonString
             @test DS.resolve_insertion(Document, "json string") === JsonString
@@ -79,7 +79,7 @@ function test_document_insertion()
         end
 
         @testset "reflection auto-extension" begin
-            DS = DomainSupportModule
+            DS = DomainModule
             # InsertionReflectionProbe is defined only in this test file — no
             # registration anywhere — yet it is a candidate with derived names.
             @test InsertionReflectionProbe in DS.insertion_candidates(Document)
@@ -90,7 +90,7 @@ function test_document_insertion()
         end
 
         @testset "@domain kit: *Nothing + Insert/Escape" begin
-            DS = DomainSupportModule
+            DS = DomainModule
             # Generated placeholders exist and are excluded from candidates.
             @test JsonNothing <: JsonDocument && XmlNothing <: XmlDocument &&
                   YamlNothing <: YamlDocument && SqlNothing <: SqlDocument

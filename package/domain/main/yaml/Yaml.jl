@@ -18,7 +18,8 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..SelectionApiModule: with_selection, var"@with_selection"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain", make_insertion_document
+import ..DomainModule
+import ..DomainModule: var"@domain", make_insertion_document
 export YamlDocument
 
 # The domain kit: `YamlDocument` (abstract root), `YamlNothing` (empty
@@ -247,14 +248,14 @@ end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-make_insertion_document(::Type{<:YamlBool})         = @with_selection YamlBool(false)
+DomainModule.make_insertion_document(::Type{<:YamlBool})         = @with_selection YamlBool(false)
 # An empty number's value is `nothing`, which has no text position, so it is selected
 # whole; an empty string is `""` and does have position 0.
-make_insertion_document(::Type{<:YamlNumber})       = @with_selection YamlNumber(nothing)
-make_insertion_document(::Type{<:YamlString})       = @with_selection YamlString("") value{0}
-make_insertion_document(::Type{<:YamlSequence})     = @with_selection YamlSequence([YamlInsertion()]) elements[1]
-make_insertion_document(::Type{<:YamlMappingEntry}) = @with_selection YamlMappingEntry("", YamlInsertion()) key{0}
-make_insertion_document(::Type{<:YamlMapping})      = @with_selection YamlMapping([YamlMappingEntry("", YamlInsertion())]) entries[1].key{0}
+DomainModule.make_insertion_document(::Type{<:YamlNumber})       = @with_selection YamlNumber(nothing)
+DomainModule.make_insertion_document(::Type{<:YamlString})       = @with_selection YamlString("") value{0}
+DomainModule.make_insertion_document(::Type{<:YamlSequence})     = @with_selection YamlSequence([YamlInsertion()]) elements[1]
+DomainModule.make_insertion_document(::Type{<:YamlMappingEntry}) = @with_selection YamlMappingEntry("", YamlInsertion()) key{0}
+DomainModule.make_insertion_document(::Type{<:YamlMapping})      = @with_selection YamlMapping([YamlMappingEntry("", YamlInsertion())]) entries[1].key{0}
 
 @gestures YamlDocument begin
     when(_yaml_replaceable(doc, sel))

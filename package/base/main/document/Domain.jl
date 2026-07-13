@@ -1,10 +1,11 @@
 """
-    DomainSupportModule
+    DomainModule
 
-Per-domain insertion support, in two halves:
+What a document domain *is* — the concept the domain package's JSON, XML, SQL,
+Julia, … are instances of. Two halves:
 
-1. **The `@domain` macro** — generates a document domain's whole insertion kit
-   from one line: the abstract root (`JsonDocument`), the empty placeholder
+1. **The `@domain` macro** — generates a document domain's whole kit from one
+   line: the abstract root (`JsonDocument`), the empty placeholder
    (`JsonNothing`), the typed-name insertion buffer (`JsonInsertion`), the
    Insert-key gesture that turns the placeholder into the insertion, and the
    insertion *traits* that anchor everything below.
@@ -24,7 +25,7 @@ Per-domain insertion support, in two halves:
 `resolve_insertion` maps a typed name to the committable type (exact name or
 alias first, then an unambiguous prefix).
 """
-module DomainSupportModule
+module DomainModule
 
 import InteractiveUtils: subtypes
 import ..GestureModule

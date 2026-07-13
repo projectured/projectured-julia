@@ -23,7 +23,8 @@ import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOpe
 import ..SelectionApiModule: with_selection, var"@with_selection"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain", make_insertion_document
+import ..DomainModule
+import ..DomainModule: var"@domain", make_insertion_document
 export XmlDocument
 
 # The domain kit: `XmlDocument` (abstract root), `XmlNothing` (empty
@@ -110,9 +111,9 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-make_insertion_document(::Type{<:XmlText})      = @with_selection XmlText("") content{0}
-make_insertion_document(::Type{<:XmlAttribute}) = @with_selection XmlAttribute("", "") name{0}
-make_insertion_document(::Type{<:XmlElement})   = @with_selection XmlElement("") tag{0}
+DomainModule.make_insertion_document(::Type{<:XmlText})      = @with_selection XmlText("") content{0}
+DomainModule.make_insertion_document(::Type{<:XmlAttribute}) = @with_selection XmlAttribute("", "") name{0}
+DomainModule.make_insertion_document(::Type{<:XmlElement})   = @with_selection XmlElement("") tag{0}
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))

@@ -76,12 +76,12 @@ include("backend/DefaultBackend.jl")
 include("document/Collection.jl")
 include("document/Primitive.jl")
 include("document/DocumentCore.jl")
-# DomainSupport — the @domain macro (per-domain root/Nothing/Insertion kit +
-# Insert gesture + insertion traits) and the reflection-based completion
-# machinery (insertion_candidates / insertion_names / complete_insertion /
+# Domain — the @domain macro (per-domain root/Nothing/Insertion kit + Insert
+# gesture + insertion traits) and the reflection-based completion machinery
+# (insertion_candidates / insertion_names / complete_insertion /
 # resolve_insertion). Sits right above DocumentCore: DocumentNothing /
 # DocumentInsertion implement the same traits.
-include("document/DomainSupport.jl")
+include("document/Domain.jl")
 # DraggingState — a transparent drag-and-drop reorder wrapper; the gesture
 # interpretation lives in the projection layer's DraggingProjection. Moved
 # down from the domain `dragging/` slice (kernel-only document contracts).

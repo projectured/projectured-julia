@@ -12,7 +12,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..DomainSupportModule: var"@domain"
+import ..DomainModule: var"@domain"
 export JuliaDocument, _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────

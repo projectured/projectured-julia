@@ -12,7 +12,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..DomainSupportModule: var"@domain"
+import ..DomainModule: var"@domain"
 
 export SqlDocument, SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression

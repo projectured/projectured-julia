@@ -19,10 +19,7 @@ using ..OperationModule
 using ..SelectionModule
 using ..KeyboardModule
 using ..GestureModule
-using ..DomainSupportModule
-# `make_insertion_document` gains JSON methods below; a `using`-visible generic
-# cannot be extended, so it is the one name that must be `import`ed.
-import ..DomainSupportModule: make_insertion_document
+using ..DomainModule
 
 export JsonDocument, entries
 
@@ -245,14 +242,14 @@ end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-make_insertion_document(::Type{<:JsonBool})        = @with_selection JsonBool(false)
+DomainModule.make_insertion_document(::Type{<:JsonBool})        = @with_selection JsonBool(false)
 # An empty number's value is `nothing`, which has no text position, so it is selected
 # whole; an empty string is `""` and does have position 0.
-make_insertion_document(::Type{<:JsonNumber})      = @with_selection JsonNumber(nothing)
-make_insertion_document(::Type{<:JsonString})      = @with_selection JsonString("") value{0}
-make_insertion_document(::Type{<:JsonArray})       = @with_selection JsonArray([JsonInsertion()]) elements[1]
-make_insertion_document(::Type{<:JsonObjectEntry}) = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
-make_insertion_document(::Type{<:JsonObject})      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
+DomainModule.make_insertion_document(::Type{<:JsonNumber})      = @with_selection JsonNumber(nothing)
+DomainModule.make_insertion_document(::Type{<:JsonString})      = @with_selection JsonString("") value{0}
+DomainModule.make_insertion_document(::Type{<:JsonArray})       = @with_selection JsonArray([JsonInsertion()]) elements[1]
+DomainModule.make_insertion_document(::Type{<:JsonObjectEntry}) = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
+DomainModule.make_insertion_document(::Type{<:JsonObject})      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))

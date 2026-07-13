@@ -206,9 +206,9 @@ The risky step. Do it in small batches (by file), loading after each.
 
 ### Step 7 — `@domain` stops hand-writing the field
 
-- [ ] `@domain` (`base/main/document/DomainSupport.jl:371`) hand-builds the
+- [ ] `@domain` (`base/main/document/Domain.jl:373`) hand-builds the
       `XNothing` / `XInsertion` struct defs *including* a `selection` field
-      (lines 407-418) and feeds them to `@document`. Drop `selection` from both
+      (lines 409-420) and feeds them to `@document`. Drop `selection` from both
       `ndef` and `idef` — otherwise the generated types get a **duplicate field**.
 - [ ] `XInsertion` currently needs a hand-written `XInsertion(value::AbstractString)`
       because "a fully-defaulted `@document` struct gets no positional
