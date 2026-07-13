@@ -103,7 +103,9 @@ function _xml_selected(doc)
 end
 
 # Only an insertion placeholder is replaceable: `"` becomes an empty text node,
-# `<` an empty element, each with its cursor pre-placed.
+# `<` an empty element, `@` an empty attribute, each with its cursor pre-placed.
+# The keys are non-alphanumeric because the insertion is a typed-name buffer: a
+# letter goes into the buffer instead of firing a gesture.
 _xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
 _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
@@ -115,8 +117,9 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
-    KeyPress('"') => "Replace with text"      => _xml_replace(doc, make_insertion_document(XmlText))
-    KeyPress('<') => "Replace with an element" => _xml_replace(doc, make_insertion_document(XmlElement))
+    KeyPress('"') => "Replace with text"        => _xml_replace(doc, make_insertion_document(XmlText))
+    KeyPress('<') => "Replace with an element"  => _xml_replace(doc, make_insertion_document(XmlElement))
+    KeyPress('@') => "Replace with an attribute" => _xml_replace(doc, make_insertion_document(XmlAttribute))
 end
 
 # Append a child at the end and drop the cursor into it. `<`/`"` decline when an

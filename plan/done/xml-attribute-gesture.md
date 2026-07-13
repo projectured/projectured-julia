@@ -59,8 +59,14 @@ scope machinery is designed properly.
 
 ## Steps
 
-- [ ] 1. Add the `KeyPress('@')` gesture to `@gestures XmlDocument`.
-- [ ] 2. Verify against baseline.
+- [x] 1. **Done.** Added the `KeyPress('@')` gesture to `@gestures XmlDocument`.
+- [x] 2. **Done.** Verified:
+  - `test_example(xml_example)` **12483 / 52** — exactly the baseline.
+  - `test_document_insertion()` 101/101, `test_xml_to_syntax()` 7/7,
+    `test_xml_to_syntax_reader()` 32/32.
+  - Driven end-to-end: `@` on a selected `XmlInsertion` yields the same operation
+    shape as `<` and `"` — a `ReplaceReferencedValueOperation` carrying an
+    `XmlAttribute` selected at `::XmlAttribute.name::String{0}::Position`.
 
 ## Verification
 
