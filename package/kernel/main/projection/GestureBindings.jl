@@ -12,11 +12,9 @@ GestureBinding container and the document-typed methods stay in
 """
 module ProjectionGestureBindingsModule
 
-import ..ProjectionApiModule: Projection
-import ..DocumentModule: Document
-import ..GestureModule: GestureBinding, matches,
-                        get_document_gesture_bindings,
-                        get_instance_gesture_bindings
+using ..ProjectionApiModule
+using ..DocumentModule
+using ..GestureModule
 
 export get_projection_gesture_bindings, read_projection_gesture,
        collect_gesture_bindings

@@ -17,8 +17,7 @@ helpers).
 """
 module DocumentModule
 
-import ..CellModule: Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-                     cell_struct_kw_params, cell_struct_kwctor
+using ..CellModule
 
 export Document, copy_document, sync_document!, is_element_collection,
        is_opaque, search_documents,

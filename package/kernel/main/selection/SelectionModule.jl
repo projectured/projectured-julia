@@ -28,14 +28,11 @@ default implementations and the private path-walking helpers.
 """
 module SelectionModule
 
-import ..CellModule: AbstractCell
-import ..DocumentModule: Document
-# The module itself, so `@with_selection` can expand to a qualified
+using ..CellModule
+using ..DocumentModule
+# This also binds the module itself, so `@with_selection` can expand to a qualified
 # `ReferenceModule.@reference` call and its callers need only import the macro.
-import ..ReferenceModule
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
-                          FieldReference, RangeReference, annotate_reference_types,
-                          strip_reference_types, is_reference_equal, is_valid_reference
+using ..ReferenceModule
 
 export get_selection, clear_selection!, set_selection!, with_selection,
        var"@with_selection", replace_selection!, SelectionMismatch

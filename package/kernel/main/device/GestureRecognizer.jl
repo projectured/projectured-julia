@@ -47,11 +47,11 @@ single home.
 """
 module GestureRecognizerModule
 
-import ..MouseModule: MouseDown, MouseUp, MousePress
-import ..KeyboardModule: KeyDown, KeyChord
+using ..MouseModule
+using ..KeyboardModule
 # `EventEnvelope` lives on the device layer beside its consumers, not in
 # ScreenDocumentModule.
-import ..GestureModule: EventEnvelope
+using ..GestureModule
 
 export GestureRecognizer, recognize_gesture!, pop_gesture!
 

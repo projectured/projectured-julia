@@ -9,24 +9,24 @@ the current coordinate mapping.
 """
 module EditorModule
 
-import ..ProjectionApiModule: Projection, print_document, read_intent
-import ..IntentModule: Intent
-import ..IoMapApiModule: IoMap
-import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..BackendModule: Backend, initialize_backend!, quit_backend!
-import ..ScreenDeviceModule: Screen, WindowQuit
-import ..GestureModule: EventEnvelope
-import ..PerformanceCounterModule: get_performance_counters, with_performance_counters, @performance_time, PERFORMANCE_COUNTERS_ENABLED
-import ..ClockModule: Clock, tick!
-import ..PrinterContextModule: PrinterContext, with_clock
-import ..DocumentModule: Document
-import ..KeyboardModule: Keyboard, KeyDown
-import ..MouseModule: Mouse
-import ..OperationModule: Operation, evaluate_operation, invalidate_projection!
-import ..OperationModule: ReplaceSelectionOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation
-import ..OperationModule: QuitEditorException
-import ..GestureRecognizerModule: GestureRecognizer, pop_gesture!
-import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
+using ..ProjectionApiModule
+using ..IntentModule
+using ..IoMapApiModule
+using ..DeviceModule
+using ..BackendModule
+using ..ScreenDeviceModule
+using ..GestureModule
+using ..PerformanceCounterModule
+using ..ClockModule
+using ..PrinterContextModule
+using ..DocumentModule
+using ..KeyboardModule
+using ..MouseModule
+using ..OperationModule
+# `import`, not `using`: this module adds the Editor method to the invalidation seam.
+import ..OperationModule: invalidate_projection!
+using ..GestureRecognizerModule
+using ..AgentModule
 
 export Editor, run_editor!
 

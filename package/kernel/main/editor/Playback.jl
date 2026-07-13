@@ -8,20 +8,20 @@ real window. Extracted from Editor.jl; builds on the editor-loop primitives
 """
 module PlaybackModule
 
-import ..EditorModule: Editor, read!, evaluate!, print!, perf!
-import ..PerformanceCounterModule: with_performance_counters, @performance_time
-import ..ProjectionApiModule: read_intent
-import ..IntentModule: Intent
-import ..GestureModule: EventEnvelope
-import ..OperationModule: Operation
-import ..OperationModule: QuitEditorException
-import ..OperationModule: reroot_operation
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath
-import ..BackendModule: Backend, initialize_backend!, quit_backend!
-import ..DeviceModule: Device
-import ..ScreenDeviceModule: Screen
-import ..KeyboardModule: Keyboard
-import ..MouseModule: Mouse
+# The read/evaluate/print/perf loop steps are internal to `EditorModule` (not
+# exported), so they have to be named explicitly.
+using ..EditorModule: Editor, read!, evaluate!, print!, perf!
+using ..PerformanceCounterModule
+using ..ProjectionApiModule
+using ..IntentModule
+using ..GestureModule
+using ..OperationModule
+using ..ReferenceModule
+using ..BackendModule
+using ..DeviceModule
+using ..ScreenDeviceModule
+using ..KeyboardModule
+using ..MouseModule
 
 export play_live!
 

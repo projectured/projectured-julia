@@ -25,13 +25,10 @@ OpenWindowOperation, …) stay with ScreenDocument in base.
 """
 module GestureModule
 
-import ..KeyboardModule
-import ..MouseModule
-import ..ModifiersModule
-import ..KeyboardModule: KeyDown, KeyUp, KeyPress
-import ..MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ..ModifiersModule: Modifiers
-import ..DocumentModule: Document
+using ..KeyboardModule
+using ..MouseModule
+using ..ModifiersModule
+using ..DocumentModule
 # The three Projection-typed seam methods live in
 # projection/GestureBindings.jl (ProjectionGestureBindingsModule); this
 # module does not reference the Projection type.

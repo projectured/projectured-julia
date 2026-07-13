@@ -26,8 +26,8 @@ All carry a `Modifiers` struct for the Ctrl/Shift/Alt state.
 """
 module MouseModule
 
-import ..DeviceModule: Device
-import ..ModifiersModule: Modifiers
+using ..DeviceModule
+using ..ModifiersModule
 
 export Mouse, MouseDown, MouseUp, MousePress, MouseMove, MouseScroll, MouseEnter, MouseLeave
 

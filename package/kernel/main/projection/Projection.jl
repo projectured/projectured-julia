@@ -17,25 +17,24 @@ directly mirrors the input structure.
 """
 module ProjectionModule
 
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
-       pure_print_document, pure_print_child
-import ..IntentModule: Intent
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation, SelectNextInsertionOperation
+using ..ProjectionApiModule
+# `import`, not `using`: this module defines the default methods of the four
+# interface functions (plus the pure-print entry point).
+import ..ProjectionApiModule: print_document, read_intent,
+                              map_reference_forward, map_reference_backward,
+                              pure_print_document
+using ..IntentModule
+using ..OperationModule
 # The ReplaceStringRangeOperation / ReplaceNumberRangeOperation branches of
 # the default read_intent live in base/projection/ReaderDefaults.jl beside
 # the Primitive document types. This module stays Primitive-free.
-import ..CellModule: AbstractCell, ImmutableCell, cell_struct_exprs
-import ..DocumentModule: copy_document
-import ..ReferenceModule: EmptyReferencePath, is_fully_typed, annotate_reference_types,
-                          reference_node_type
-import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..KeyboardModule: KeyPress, KeyDown
-import ..MouseModule: MousePress
-import ..DocumentModule: Document
-import ..GestureModule: read_gesture
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..PrinterContextModule
+using ..KeyboardModule
+using ..MouseModule
+using ..GestureModule
 
 export @projection, pure_print
 

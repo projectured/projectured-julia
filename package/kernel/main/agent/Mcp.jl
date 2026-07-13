@@ -16,9 +16,7 @@ module McpModule
 # the registry→MCP wire-format bridges mcp_tools/mcp_resources) needs
 # ModelContextProtocol and lives in the standalone `ProjecturedMcp` package
 # (package/mcp/main/ProjecturedMcp.jl), which imports this module.
-import ..ToolRegistryModule: Tool, Resource,
-                              register_tool!, register_resource!,
-                              list_tools, list_resources
+using ..ToolRegistryModule
 
 export execute_julia_code, get_last_evaluated_value, list_guides, read_guide,
        list_modules, list_types, list_functions,

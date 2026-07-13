@@ -45,8 +45,8 @@ wants: transparent reactive-`Cell` fields.
 """
 module ReferenceModule
 
-import ..CellModule: Cell, AbstractCell, @cell_struct
-import ..DocumentModule: Document, is_element_collection, is_opaque
+using ..CellModule
+using ..DocumentModule
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,

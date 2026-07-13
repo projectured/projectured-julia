@@ -16,11 +16,10 @@ field set.
 """
 module PrinterContextModule
 
-import ..CellModule: Cell
-import ..DocumentModule: Document
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ReferenceStep, append_reference,
-                          annotate_reference_types, concat_references
-import ..ClockModule: Clock, get_wall_clock
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..ClockModule
 
 export PrinterContext, make_child_context, with_available_size, with_clock,
        with_property, get_property

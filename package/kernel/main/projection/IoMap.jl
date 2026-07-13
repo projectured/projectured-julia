@@ -8,8 +8,8 @@ own specialised IoMap struct alongside their projection type.
 """
 module IoMapModule
 
-import ..CellModule: Cell, cell_struct_exprs
-import ..IoMapApiModule: IoMap
+using ..CellModule
+using ..IoMapApiModule
 
 export SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
 

@@ -17,8 +17,10 @@ layer's `dsl_build_step` / `dsl_match_step` / `dsl_step_subpath_args` seams.
 """
 module ProjectionReferenceModule
 
-import ..CellModule: Cell, @cell_struct
-import ..ReferenceModule: ReferenceStep, ReferencePath, step_kind, evaluate_step,
+using ..CellModule
+using ..ReferenceModule
+# `import`, not `using`: this module adds methods to the five reference seams.
+import ..ReferenceModule: step_kind, evaluate_step,
                           dsl_build_step, dsl_match_step, dsl_step_subpath_args
 
 export ProjectionReference

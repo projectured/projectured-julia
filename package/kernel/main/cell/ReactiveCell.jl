@@ -1,7 +1,7 @@
 # Fragment of `CellModule` — the pull-based reactive kind and its engine.
 # `AbstractCell` is already in scope. This is the only cell kind that touches the
-# performance counters, so it imports the bump macro.
-import ..PerformanceCounterModule: @count_performance
+# performance counters, so it pulls in the bump macro.
+using ..PerformanceCounterModule
 
 """
     ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)

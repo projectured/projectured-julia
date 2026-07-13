@@ -27,26 +27,24 @@ documents — no adapter or engine change.
 """
 module ProjectionTemplateModule
 
-import ..CellModule: Cell
+using ..CellModule
 # ProjectionTemplate does not name CellVector directly.
 # `make_children_container(...)` builds the container (base's
 # Collection.jl registers Vector/Function methods on CellVector);
 # `children_container_type()` returns the concrete type for TypeReference
 # markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
-import ..ChildrenContainerModule: make_children_container, children_container_type
-import ..IoMapApiModule: IoMap
-import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent, Projection,
-                              print_child
-# Bind the module itself so `@projection_template` can emit a module-qualified
-# `ProjectionApiModule.print_document` method-definition name (see the macro).
-import ..ProjectionApiModule
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, ElementReference,
-                          TypeReference, ReferencePath, Reference,
-                          fold_reference_types, strip_reference_types,
-                          annotate_reference_types, is_fully_typed
-import ..ProjectionReferenceModule: ProjectionReference
-import ..PrinterContextModule: make_child_context
-import ..OperationModule: ReplaceSelectionOperation
+using ..ChildrenContainerModule
+using ..IoMapApiModule
+# This also binds the module itself, so `@projection_template` can emit a
+# module-qualified `ProjectionApiModule.print_document` method-definition name
+# (see the macro).
+using ..ProjectionApiModule
+# `import`, not `using`: this module adds RuleIoMap methods to the three seams.
+import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent
+using ..ReferenceModule
+using ..ProjectionReferenceModule
+using ..PrinterContextModule
+using ..OperationModule
 # The `RuleIoMap` readers keyed on `RecursiveProjection` (the transparent
 # wrapper disambiguations) and the single
 # `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
@@ -54,10 +52,9 @@ import ..OperationModule: ReplaceSelectionOperation
 # is a base projection and `ReplaceStringRangeOperation` a base/Primitive
 # type, neither of which the kernel can name. Base imports `RuleIoMap` +
 # `AtomicWiring` from this module to preserve the same dispatch behaviour.
-import ..DocumentModule: Document
-import ..GestureModule: read_gesture
-import ..KeyboardModule: KeyDown, KeyPress
-import ..OperationModule: reroot_operation
+using ..DocumentModule
+using ..GestureModule
+using ..KeyboardModule
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 

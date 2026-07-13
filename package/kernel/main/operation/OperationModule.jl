@@ -37,14 +37,10 @@ and still works against any object carrying `editor.document`.
 """
 module OperationModule
 
-import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: Document
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                           FieldReference, RangeReference, TypeReference,
-                           is_element_reference, evaluate_reference, is_reference_equal,
-                           annotate_reference_types, strip_reference_types,
-                           append_reference, concat_references, reference_steps
-import ..SelectionModule: set_selection!, replace_selection!
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..SelectionModule
 
 export Operation, evaluate_operation, invalidate_projection!,
        # from Operations.jl

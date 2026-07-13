@@ -27,7 +27,7 @@ carve-out — nothing else ever *writes* conflicting elapsed values into it.
 """
 module ClockModule
 
-import ..CellModule: Cell, @cell_struct
+using ..CellModule
 
 export Clock, get_reactive_time, get_time, tick!, seek!, get_wall_clock
 
