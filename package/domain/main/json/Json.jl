@@ -10,14 +10,12 @@ The domain includes:
 """
 module JsonModule
 
-using ..CellModule
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
 using ..ProjectionReferenceModule
 using ..OperationModule
 using ..SelectionModule
-using ..KeyboardModule
 using ..GestureModule
 using ..DomainModule
 
@@ -94,13 +92,8 @@ end
 @forward_map JsonObject entries key value JsonObjectEntry
 
 # build an object from `key => value` pairs
-function JsonObject(pairs::Pair{<:AbstractString}...)
-    cv = CellVector()
-    for (k, v) in pairs
-        push!(cv, Cell(JsonObjectEntry(String(k), v)))
-    end    
-    JsonObject(cv, Cell(false), Cell(nothing))
-end    
+JsonObject(pairs::Pair{<:AbstractString}...) =
+    JsonObject([JsonObjectEntry(String(k), v) for (k, v) in pairs])
 
 # Text/number replace edits need no per-type method: `JsonString.value` and
 # `JsonObjectEntry.key` are plain strings, and `JsonNumber.value` is a number
