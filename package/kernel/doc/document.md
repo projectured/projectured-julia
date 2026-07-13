@@ -61,6 +61,18 @@ one-expression build-and-select form (used by examples, fixtures, clipboard
 payloads, and the gesture→replace builders). `get_selection` reads through
 the conventional `selection` field.
 
+`@with_selection` is the macro form, for when the selected path has to be *typed
+against the document being built* — the `@reference` DSL types a path at runtime,
+against the value, so the document has to be bound before the path can be built:
+
+```julia
+@with_selection JsonBool(false)             # select the built node whole
+@with_selection JsonString("") value{0}     # caret at the path, typed by construction
+```
+
+This is what every `make_insertion_document` factory uses; without it each one
+needs a `let d = …; with_selection(d, @reference(d, …)) end`.
+
 `read_gesture(document, gesture) -> Union{Operation, Nothing}` is the
 projection-independent half of a domain's reader: it maps a backend-agnostic
 gesture to an operation expressed against `document`'s own reference

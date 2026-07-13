@@ -92,12 +92,24 @@ structurally.
   `selection/SelectionModule.jl`.
 - [x] 2. **Done.** Convert Json.jl's 6 factories (plus the three gesture sites, incl. the
   last hand-spelled `::JsonNumber.value::Int{1}::Position` path, now `value{1}`). Verify: `test_json()`, `test_example(json_example)`.
-- [ ] 3. Convert Xml.jl (2) and Yaml.jl (6). Verify: `test_example(xml_example)`,
+- [x] 3. **Done.** Convert Xml.jl (2) and Yaml.jl (6, plus `_replace_number`'s
+  hand-spelled path and two gesture sites). Verify: `test_example(xml_example)`,
   `test_example(yaml_example)`.
-- [ ] 4. Update `package/kernel/doc/selection.md` if it documents the
-  construct-and-select idiom.
+- [x] 4. **Done.** Documented in `package/kernel/doc/document.md` ("The selection
+  generics"), which is where the construct-and-select idiom is described —
+  there is no `selection.md` section covering it.
 
-## Baselines (pre-existing, not regressions)
+## Baselines (pre-existing, not regressions) — all re-measured on clean main
 
-- `test_typein(json_example)` fails 23/23 wholesale ("no cursor") on clean main.
-- The `NothingToSyntaxLeaf` conflicting-import warning at precompile is pre-existing.
+| suite | baseline | after |
+|---|---|---|
+| `test_example(json_example)` | 5028 pass / 23 fail | 5028 / 23 |
+| `test_example(xml_example)` | 12482 pass / 52 fail | 12482 / 52 |
+| `test_example(yaml_example)` | 4520 pass / 79 fail | 4520 / 79 |
+| `test_json_to_syntax_reader()` | 48 / 0 | 48 / 0 |
+| `test_kernel_layering()` | 7 / 0 | 7 / 0 |
+| `test_json()` | 24 / 0 | 24 / 0 |
+
+The failures above are the pre-existing wholesale typein "no cursor" failures.
+The `NothingToSyntaxLeaf` conflicting-import warning at precompile is also
+pre-existing.

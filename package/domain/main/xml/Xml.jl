@@ -20,7 +20,7 @@ import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..SelectionApiModule: with_selection
+import ..SelectionApiModule: with_selection, var"@with_selection"
 import ..KeyboardModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..DomainSupportModule: var"@domain", make_insertion_document
@@ -116,9 +116,9 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 # of the candidates automatically: it has required fields and no method here
 # (it cannot stand alone as a child).
 make_insertion_document(::Type{<:XmlText}) =
-    let d = XmlText(""); with_selection(d, @reference(d, content{0})) end
+    @with_selection XmlText("") content{0}
 make_insertion_document(::Type{<:XmlElement}) =
-    let d = XmlElement(""); with_selection(d, @reference(d, tag{0})) end
+    @with_selection XmlElement("") tag{0}
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
