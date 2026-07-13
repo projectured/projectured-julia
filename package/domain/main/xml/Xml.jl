@@ -110,8 +110,9 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-make_insertion_document(::Type{<:XmlText})    = @with_selection XmlText("") content{0}
-make_insertion_document(::Type{<:XmlElement}) = @with_selection XmlElement("") tag{0}
+make_insertion_document(::Type{<:XmlText})      = @with_selection XmlText("") content{0}
+make_insertion_document(::Type{<:XmlAttribute}) = @with_selection XmlAttribute("", "") name{0}
+make_insertion_document(::Type{<:XmlElement})   = @with_selection XmlElement("") tag{0}
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))

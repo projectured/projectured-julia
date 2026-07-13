@@ -51,7 +51,18 @@ committed into an `XmlInsertion` must print.
 
 ## Steps
 
-- [ ] 1. `XmlAttributeToSyntaxNode` + dispatch entry.
-- [ ] 2. Element delegates `collection(:attrs)`; drop its now-unused styles.
-- [ ] 3. `make_insertion_document` factory.
-- [ ] 4. Verify against baseline; check the candidate list and a standalone print.
+- [x] 1. **Done.** `XmlAttributeToSyntaxNode` + dispatch entry.
+- [x] 2. **Done.** Element delegates `collection(:attrs)`; its `attr_name` /
+  `quote_style` / `attr_value` styles moved to the attribute projection.
+- [x] 3. **Done.** `make_insertion_document` factory.
+- [x] 4. **Done.** Verified:
+  - `test_example(xml_example)`: **12483 pass / 52 fail** vs the 12482 / 52 baseline —
+    no new failures, and one *more* passing assertion.
+  - `test_document_insertion()` 101/101, `test_xml_to_syntax()` 7/7,
+    `test_xml_to_syntax_reader()` 32/32, `test_xml_parser()` 11/11.
+  - `insertion_candidates(XmlDocument)` is now `[XmlAttribute, XmlElement, XmlText]`.
+  - Completion stays prefix-free: `a` → attribute, `e` → element, `t` → text, all
+    unambiguous.
+  - Rendering: a standalone `XmlAttribute("id", "42")` prints as `id="42"`, and an
+    element still prints as `<a id="1" cls="x">…</a>` — the delegation is
+    output-identical.

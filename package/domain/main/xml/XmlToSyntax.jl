@@ -48,7 +48,8 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
-export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlElementToSyntaxNode, XmlToSyntax
+export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
+       XmlElementToSyntaxNode, XmlToSyntax
 
 # ── XmlTextToSyntaxLeaf ─────────────────────────────────────────────────────
 #
@@ -71,34 +72,44 @@ end
 
 XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 
-# ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
+# ── XmlAttributeToSyntaxNode ────────────────────────────────────────────────
+#
+# A fixed 2-leaf `name="value"` node, both leaves bound. An attribute is a
+# document in its own right, so it projects on its own rather than being built
+# inline by the element that happens to hold it.
 
-@projection struct XmlElementToSyntaxNode
-    tag::StyleText         = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+@projection struct XmlAttributeToSyntaxNode
     delim::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     attr_name::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
     quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
     attr_value::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
+@projection_template XmlAttributeToSyntaxNode XmlAttribute (p, a) ->
+    SyntaxNode(TextString("", p.delim), TextString("", p.delim), TextString("=", p.delim),
+        [ SyntaxLeaf(bound(:name, String, TextString(() -> a.name, p.attr_name))),
+          SyntaxLeaf(bound(:value, String, TextString(() -> xml_escape_attr(a.value), p.attr_value));
+                     open=TextString("\"", p.quote_style),
+                     close=TextString("\"", p.quote_style)) ],
+        0, false, nothing)
+
+# ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
+
+@projection struct XmlElementToSyntaxNode
+    tag::StyleText   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
 # Fixed-children node `[tag, attrs, body, close]`. The tag leaf is `bound(:tag)`;
 # the attrs and body nodes are nested sub-nodes (F1) each keying off one element
-# field (`:attrs` / `:children`); the close leaf is projection-introduced (renders
-# the shared `.tag`, no cursor). Each attribute builds a fixed 2-leaf `name="value"`
-# node with both leaves bound.
+# field (`:attrs` / `:children`), whose elements project through the composite; the
+# close leaf is projection-introduced (renders the shared `.tag`, no cursor).
 @projection_template XmlElementToSyntaxNode XmlElement (p, e) -> begin
     tag_leaf = SyntaxLeaf(bound(:tag, String, TextString(() -> e.tag, p.tag));
                           open=TextString("<", p.delim),
                           close=TextString(() -> isempty(e.attrs) ? "" : " ", p.delim))
 
-    attrs_node = SyntaxNode(collection(:attrs) do a
-                                SyntaxNode(TextString("", p.delim), TextString("", p.delim), TextString("=", p.delim),
-                                    [ SyntaxLeaf(bound(:name, String, TextString(() -> a.name, p.attr_name))),
-                                      SyntaxLeaf(bound(:value, String, TextString(() -> xml_escape_attr(a.value), p.attr_value));
-                                                 open=TextString("\"", p.quote_style),
-                                                 close=TextString("\"", p.quote_style)) ],
-                                    0, false, nothing)
-                            end;
+    attrs_node = SyntaxNode(collection(:attrs);
                             close=TextString(">", p.delim),
                             sep=TextString(" ", p.delim.font, color_default))
 
@@ -151,6 +162,7 @@ end
 function XmlToSyntax()
     TypeDispatchingProjection(
         XmlText      => XmlTextToSyntaxLeaf(),
+        XmlAttribute => XmlAttributeToSyntaxNode(),
         XmlElement   => XmlElementToSyntaxNode(),
         XmlInsertion => XmlInsertionToSyntaxLeaf(),
         XmlNothing   => NothingToSyntaxLeaf(),
