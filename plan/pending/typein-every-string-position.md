@@ -151,25 +151,34 @@ of the one-position walk, at 2–57 ms each). That is affordable: `positions=:al
 be the default for both `test_typein` and the `test_typeins()` sweep, with `:ends`
 held in reserve.
 
-## Findings (from the prototype — the harvest this change is for)
+## Findings (what walking every position found)
 
-Once the cursor check works, the domains are in far better shape than the memory
-notes suggest — the "wholesale type-in failures" were the broken check, not the
-domains. The real defects the every-position walk exposes:
+The domains are in far better shape than the memory notes suggested — the
+"wholesale type-in failures" were the broken cursor check, not the domains. After
+the fix, the six sweep examples run **1210 cursor positions: 1187 pass, 23 broken,
+0 fail, in ~30s** (they ran 113 vacuous failures before). Both broken cases are real
+bugs the one-position walk could not see; both are declared in
+`_typein_broken_reason` and marked `@test_broken`.
 
-1. **`json_string`, `k = n` (last caret, 12-char string): `KeyPress` produces
-   `nothing`** — no operation at the end of the string. The only genuine
-   position-dependent failure in 1188 positions. Typing at the very end of that
-   document's string is a no-op in the editor.
-2. **`book` throws** `under-typed @reference (missing node types)`
-   ([BookToSyntax.jl:129](../../package/domain/main/book/BookToSyntax.jl#L129)) as
-   soon as the graphics cells are forced with a caret set. A real reference-typing
-   bug, masked until now.
-3. `k = 0` (the caret before the first character) passes everywhere it was reachable
-   — the boundary that looked most at risk is fine.
+1. **`book` (22 broken)** — `BookToSyntax` throws `under-typed @reference (missing
+   node types)` ([BookToSyntax.jl:129](../../package/domain/main/book/BookToSyntax.jl#L129))
+   as soon as a caret is set, so every target dies at the print step. The printer is
+   lazy, so this surfaces when the cursor search forces the cells.
+2. **`json_string`, the last caret (1 broken)** — typing at `k = n` produces *no
+   operation at all* (`read_intent` returns `nothing`). The single genuine
+   position-dependent failure in 1188 typed positions, and exactly the kind of
+   boundary bug this change exists to find.
+3. **`k = 0` passes everywhere** — the caret before the first character, which
+   looked most at risk, is fine in every domain that prints at all.
+4. Two examples **outside the sweep** have their own trouble (worth their own work,
+   not marked here since the sweep does not run them): `julia` renders **no cursor at
+   all** for its string leaves (0/28 positions, at every position, not just the
+   boundaries), and `yaml` hits the same `under-typed @reference` throw as `book` on
+   3 of its 33 targets (138/141).
 
-Fixing 1 and 2 is separate work; this plan's job is to *surface* them and leave them
-recorded here.
+The `TextText` flat-offset restore was the design risk going in, and it held: **zero
+restore failures across all 1188 typed positions**, including at the junctions
+between adjacent spans.
 
 ## Steps
 
@@ -179,25 +188,27 @@ recorded here.
    from 0/91 to **json 23/23, json_string 1/1, text 1/1, xml 52/52, syntax 14/14**;
    `book` throws (step 2). `propertynames` takes the two-arg `(io, private::Bool)`
    form Julia's `hasproperty` calls.
-2. **Catch exceptions around the cursor check** so `book` reports a failed record
-   instead of aborting the walk (§3). Commit.
-3. **Refactor to a position loop.** Split `_typein_one` into `_typein_at(…, k, …)` +
-   `_typein_target`, add `_typein_positions(n, policy)`, thread `positions` through
-   `walk_typein` / `test_typein`, extend the record with `position`. Run with
-   `positions=:first` and confirm the step-1 counts are unchanged — a provable no-op
-   refactor. Commit.
-4. **Add the restore** (inverse `ReplaceStringRangeOperation` + post-undo
-   verification). Still `:first`. Commit.
-5. **Switch the default to `:all`** and run the sweep. Expect the numbers in
-   *Measurements*; anything else is new information — triage it into the *Findings*
-   section by position class (`k = 0` / interior / `k = n`) and target kind before
-   committing.
-6. **Docs + baselines.** Update
-   [documentation/testing.md](../../documentation/testing.md) (the `test_typeins()`
-   row, "one `@test` per string" → per string *position*, and the `walk_typein` row
-   in the walker table), the `TypeinTest.jl` header, and the `ProjecturedVisualTest`
-   docstring. Re-record the type-in baselines in memory — the json/xml, ned, and
-   julia baseline notes are all wrong (they blame the domains for the broken check).
+2. ~~**Catch exceptions around the cursor check** so `book` reports a failed record
+   instead of aborting the walk (§3).~~ **Done.** `book` reports 22 failures instead
+   of taking the sweep down.
+3. ~~**Refactor to a position loop.**~~ **Done.** `_typein_at` (one boundary) +
+   `_typein_target` (the policy loop) + `_typein_positions(n, policy)`; records gained
+   `position` and `length`. Verified a no-op at `positions=:first`.
+4. ~~**Add the restore** (inverse `ReplaceStringRangeOperation` + post-undo
+   verification).~~ **Done.** Two refinements the plan did not foresee: the undo runs
+   only if the string actually changed (a cycle that fails *before* editing would
+   otherwise have a real character deleted from under it), and a printer error is
+   marked `broken` so it ends its target after one report instead of repeating itself
+   at every caret (`book`: 22 reports, not 1003).
+5. ~~**Switch the default to `:all`** and run the sweep.~~ **Done.** The sweep
+   reproduced the prototype exactly. The two real bugs are marked `@test_broken` and
+   *declared* case by case in `_typein_broken_reason` — deliberately not "mark
+   whatever fails", which would have thrown away the regression signal the walk
+   exists to produce.
+6. ~~**Docs + baselines.**~~ **Done.** `documentation/testing.md` (the
+   `test_typeins()` row, the per-unit sentence, the `walk_typein` walker row) and the
+   `TypeinTest.jl` header. The stale type-in baseline memories are replaced by one
+   note pointing at this plan.
 7. Move this plan to `plan/done/`. Open the two real bugs (Findings 1 and 2) as
    their own work.
 

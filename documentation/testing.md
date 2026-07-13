@@ -104,7 +104,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_position_navigations_complete()` | Over a curated subset, additionally asserts navigation reaches every position enumerated from the document (`collect_position_selections`). |
 | `test_tree_navigations_complete()` | Same idea for whole-element/structural selections (`collect_tree_selections`); curated to the native syntax tree. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
-| `test_typeins()` | Runs `test_typein` (type a character into every string and check the edit) over the supported field-addressed examples. |
+| `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. ~1200 positions, ~30s. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 
@@ -119,7 +119,8 @@ julia> test_reader(json_example)
 julia> test_position_navigation(json_example)                 # no-error position BFS
 julia> test_position_navigation(json_example; check_reaches_all=true)  # + reaches every enumerated position
 julia> test_repl(json_example)
-julia> test_typein(json_example)
+julia> test_typein(json_example)                               # every caret of every string
+julia> test_typein(json_example; positions=:ends)              # just the boundary carets + one interior
 
 julia> ex = widget_example;
 julia> test_printer("widget", ex.document, ex.projection)
@@ -133,8 +134,8 @@ Each example-level test emits **one `@test` per unit verified** rather than a
 single `isempty(errors)` assertion, so the pass count reflects the work done:
 `test_printer` asserts once per forced reactive cell, `test_reader`/`test_repl`
 once per event, `test_position_navigation` once per reachable selection state, and
-`test_typein` once per string. A failing unit names the offending
-cell/event/state/reference in a `@warn`.
+`test_typein` once per cursor position of every string. A failing unit names the
+offending cell/event/state/reference in a `@warn`.
 
 ## The walker helpers (non-`@testset` variants)
 
@@ -151,7 +152,7 @@ every test has a sibling that does the same work without wrapping it in
 | `explore_selections(doc, proj; nav_keys, seed_gesture)` | [kernel/test NavigationTest.jl](../package/kernel/test/editor/NavigationTest.jl) | The generic navigation BFS over reachable selection states, parameterized by gesture set and seed. Returns `(state_count, errors, visited)`. |
 | `explore_position_selections(doc, proj[, initial])` / `explore_tree_selections(doc, proj)` | [visual/test NavigationPresets.jl](../package/visual/test/editor/NavigationPresets.jl) | The two presets over `explore_selections`: position (caret) navigation keys and Alt+arrow structural navigation. |
 | `collect_position_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../package/base/test/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all positions/carets / all whole-element nodes), for the completeness suites to check against. |
-| `walk_typein(doc, proj)` | [visual/test TypeinTest.jl](../package/visual/test/editor/TypeinTest.jl) | Types a character into every reachable string and verifies the cursor renders and the edit lands. Returns one `(ref, ok, message)` result per string. |
+| `walk_typein(doc, proj; positions=:all)` | [visual/test TypeinTest.jl](../package/visual/test/editor/TypeinTest.jl) | Types a character at every character boundary of every reachable string — undoing each edit so the next boundary starts from the same string — and verifies the cursor renders and the edit lands. The boundary carets (`0` and `n`) are the ones that catch a character landing in the neighbouring chrome. Returns one `(ref, position, length, ok, message)` result per (string, position); `positions=:ends` / `:first` trade coverage for time. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
 `explore_position_selections` keep their plain return values for REPL use; each also
