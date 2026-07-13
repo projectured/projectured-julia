@@ -60,29 +60,32 @@ a future `ReferenceSyntax.jl` slots between `ReferenceEvaluation.jl` and the two
 All five reference files are 🔒 **sealed**. The split edits three of them and deletes one.
 **Do not start without the user's explicit permission for each:**
 
+**The user granted the seal override explicitly** (2026-07-13). Files touched, as built:
+
 | File | Change |
 | --- | --- |
-| `reference/Reference.jl` | content moves out; file is **deleted** when empty |
-| `reference/ReferenceModule.jl` | include list + the "three fragments" docstring |
-| `reference/ReferenceCase.jl` | header comment names `Reference.jl` as the vocabulary source (1 line) |
-| `reference/ReferenceLayer.jl` | **untouched** — it only includes `ReferenceModule.jl` |
-| `reference/ReferenceBuilder.jl` | **untouched** — its header names only `ReferenceCase.jl` |
+| `reference/Reference.jl` | content moved out; file **deleted** |
+| `reference/ReferenceModule.jl` | include list + the fragment docstring |
+| `reference/ReferenceCase.jl` | header comment + `dsl_match_step` / `dsl_step_subpath_args` moved out to `Interface.jl` |
+| `reference/ReferenceBuilder.jl` | header comment + `dsl_build_step` moved out to `Interface.jl` |
+| `reference/ReferenceLayer.jl` | **untouched** — it only includes `ReferenceModule.jl`; keeps its 🔒 |
 
-The five new files land ⬜ **unsealed** and must be re-audited against
-[architecture-requirements.md](../../documentation/architecture-requirements.md) before the
-user re-seals them. The audit should be cheap: the code is unchanged, only its home is new.
+Every reference file the split touched dropped back to ⬜ **unsealed** in the CLAUDE.md seal
+list, pending re-audit against
+[architecture-requirements.md](../../documentation/architecture-requirements.md). Carrying a
+seal across a content change would defeat the point of the seal; re-sealing is the user's
+call. The audit should be cheap — the code is unchanged, only its home is new.
 
-### Open decision for the user
+### Decisions taken
 
-CLAUDE.md's seal list says *"Do not remove entries or reorder the list"*, but this plan
-deletes `Reference.jl` and adds five files, so the reference section of that list must be
-rewritten. Two ways out:
-
-- **(recommended)** Rewrite the reference section of the seal list: drop the `Reference.jl`
-  entry, add the five new files in load order, all ⬜. Requires the user to bless the removal.
-- Keep the name `Reference.jl` for one fragment (the path file) so no entry disappears. Costs
-  naming consistency — `ReferenceStep.jl` / `Reference.jl` / `ReferenceEvaluation.jl` reads
-  worse than `ReferenceStep.jl` / `ReferencePath.jl` / `ReferenceEvaluation.jl`.
+- **Seal list rewritten** (the recommended option). The reference section drops the
+  `Reference.jl` entry and lists the nine files in load order. The alternative — keeping the
+  name `Reference.jl` for one fragment so no entry disappears — was rejected: it costs
+  naming consistency for nothing.
+- **The `dsl_*` seams moved to `Interface.jl`** (the recommended option), so both DSL
+  fragments are touched after all. They are the layer's extension points —
+  `PointReference.jl` imports all three — so they belong in the contract, not buried in a DSL
+  fragment.
 
 ## Target layout
 
@@ -168,21 +171,34 @@ enforce the same "types always present" invariant, so they stay together.
 
 ## Steps
 
-Work in a dedicated git worktree, not the main checkout (there is concurrent activity in the
-main checkout — never do a pathless `git commit`; always `git add` explicit paths).
+Done in the worktree `.claude/worktrees/reference-layer-file-split` (branch
+`worktree-reference-layer-file-split`), not the main checkout — there is concurrent activity
+in main, so every commit named explicit paths.
 
-- [ ] **0. Baseline.** `julia --project=. -e 'using Projectured; test_kernel()'`. Record the
-      pass/fail/broken counts — every later run must match them exactly.
-- [ ] **1. `Interface.jl` + `ReferenceStep.jl`.** Create both, delete the moved blocks from
-      `Reference.jl`, update the `ReferenceModule.jl` include list. Verify. Commit.
-- [ ] **2. `ReferencePath.jl`.** Move, verify, commit.
-- [ ] **3. `ReferenceEvaluation.jl`.** Move, verify, commit.
-- [ ] **4. `ReferenceSearch.jl`.** Move; `Reference.jl` is now empty — `git rm` it. Verify.
-      Commit.
-- [ ] **5. Docstrings.** Rewrite the `ReferenceModule.jl` module docstring ("three fragments"
-      → the new inventory); write each new file's header docstring naming its contract
-      (requirement 66); fix `ReferenceCase.jl`'s header line naming `Reference.jl`. Commit.
-- [ ] **6. Docs + seal list.** Commit.
+- [x] **0. Baseline.** `ProjecturedKernel | 338 Pass, 338 Total`, zero Fail/Error/Broken.
+      (The invocation in the original plan was wrong: `test_kernel` lives in the test package,
+      so it is `using Projectured, ProjecturedKernelTest; test_kernel()`.)
+- [x] **1–4. The five fragments**, `Reference.jl` deleted, `ReferenceModule.jl` include list
+      and docstring updated, `dsl_*` seams lifted out of the two DSL fragments, header
+      docstrings written for each new file. **Landed as one commit** (`903c5ee0`), not the
+      four the plan proposed — see the deviation below.
+- [x] **5. Verification.** Full-stack load + `test_kernel()`: **338/338, matching the baseline
+      exactly**, zero Fail/Error/Broken.
+- [x] **6. Docs + seal list** (`10f39885`).
+
+### Deviation: commit granularity
+
+The plan called for a commit *and a verification run* per fragment. Dropped, for two reasons:
+each intermediate state would have needed its own full Julia precompile + test cycle (minutes
+each) to be honestly "verified", and bisecting four mechanical commits buys nothing over
+bisecting one — a dropped definition fails at load, pointing straight at the name. The code
+motion is one atomic refactor and landed as one commit.
+
+What replaced the per-step runs is a **stronger** check for pure motion, run before any test:
+strip comments and blanks from the old `Reference.jl` and from the five new fragments,
+normalize whitespace, sort, and set-diff the code lines. Every code line of the old file was
+present in the new fragments — zero dropped — which a test run cannot prove (a lost `==`
+method would silently change behavior rather than error). Only then was the test run spent.
 
 ## Docs to update (step 6)
 
@@ -225,6 +241,45 @@ struct field annotation.
   (earlier file) are both fine.
 - **Silent loss.** A moved block that gets dropped rather than relocated fails as a
   `MethodError`/`UndefVarError` at load, not silently — the full-stack load catches it.
-- **Seal churn.** Five files to re-audit and re-seal. That cost is real and is the main reason
+- **Seal churn.** Eight files to re-audit and re-seal. That cost is real and is the main reason
   to fold the deferred `TypeReference` and grammar work into the same seal cycle later rather
   than re-sealing twice.
+
+## Outcome
+
+Landed on branch `worktree-reference-layer-file-split`:
+
+| Commit | |
+| --- | --- |
+| `879c5e85` | the plan |
+| `903c5ee0` | the split — 9 files, +968 / −891 |
+| `10f39885` | docs + seal list |
+
+The layer as built (load order), 2238 lines across nine files where there were five:
+
+```
+ReferenceLayer.jl          2   includes ReferenceModule.jl
+ReferenceModule.jl        96   imports, exports, include list
+Interface.jl             129   the contract: 2 abstract types, the Reference union, 5 generics
+ReferenceStep.jl         202   RangeReference / FieldReference / TypeReference / Position
+ReferencePath.jl         225   the path structure and its document-free algebra
+ReferenceEvaluation.jl   231   the 3 walkers + the "types always present" invariant
+ReferenceSearch.jl       142   search_references
+ReferenceCase.jl         741   @reference_case
+ReferenceBuilder.jl      470   @reference / @step
+```
+
+`Reference.jl` was 817 lines doing three jobs; the largest fragment that replaces it is 231.
+
+**Verified:** full-stack `using Projectured` loads clean; `test_kernel()` returns 338/338,
+identical to the pre-split baseline; zero code lines lost (set-diff, above).
+
+### Left undone, deliberately
+
+- **`documentation/architecture.md`'s "Module dependency graph"** (~line 308) still lists
+  `Reference.jl (depends on Reactive)`. That whole diagram predates the layering — it names a
+  `Reactive` module that no longer exists and flat `Text.jl` / `Json.jl` / `ProjectionApiModule`
+  entries that are not the current structure. Fixing one line of a broadly stale diagram would
+  imply the rest is current. It needs its own pass; out of scope for a file split.
+- The two deferred items at the top of this plan (`TypeReference` deletion, DSL grammar
+  unification) are untouched, as intended.
