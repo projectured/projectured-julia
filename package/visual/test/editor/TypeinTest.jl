@@ -131,13 +131,17 @@ end
 
 # ── Cursor detection in the Graphics image ───────────────────────────────────
 #
-# The text cursor is rendered as a thin (width ≤ 5px) GraphicsRect somewhere in
+# The text cursor is rendered as a thin (1 ≤ width ≤ 5px) GraphicsRect somewhere in
 # the projected canvas.  Search the iomap's output recursively for one.
+#
+# The lower bound matters: TextToGraphics always emits the caret rect and gives it
+# width 0 when there is no cursor, so a `w <= 5` test alone matches the *absence* of
+# a cursor just as happily as its presence.
 
 function _find_cursor_rect(x)
     x = x isa Cell ? x[] : x
     if x isa GraphicsRect
-        return Int(x.w) <= 5 ? x : nothing
+        return 1 <= Int(x.w) <= 5 ? x : nothing
     elseif x isa GraphicsCanvas
         for elem in x.elements
             r = _find_cursor_rect(elem)

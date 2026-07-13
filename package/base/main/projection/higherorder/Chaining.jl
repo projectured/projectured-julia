@@ -37,6 +37,12 @@ function Base.getproperty(io::ChainingProjectionIoMap, name::Symbol)
     getfield(io, name)
 end
 
+# `:output` is synthesized, not a field, so `propertynames` must list it too —
+# otherwise `hasproperty(iomap, :output)` is false while `iomap.output` works, and
+# a caller guarding its access with `hasproperty` silently skips every chain.
+Base.propertynames(::ChainingProjectionIoMap, private::Bool=false) =
+    (fieldnames(ChainingProjectionIoMap)..., :output)
+
 """
     ChainingProjection(projections...)
 

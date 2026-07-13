@@ -173,11 +173,12 @@ recorded here.
 
 ## Steps
 
-1. **Fix the vacuous cursor check** (the two prerequisite defects):
+1. ~~**Fix the vacuous cursor check** (the two prerequisite defects):
    `Base.propertynames` on `ChainingProjectionIoMap`, and `1 <= w <= 5` in
-   `_find_cursor_rect`. Run `test_typein` on json / json_string / text / xml /
-   syntax and confirm the counts flip from 0/113 to passing. Commit — this is a
-   standalone bug fix and should land on its own.
+   `_find_cursor_rect`.~~ **Done.** With both fixes the single-position walk goes
+   from 0/91 to **json 23/23, json_string 1/1, text 1/1, xml 52/52, syntax 14/14**;
+   `book` throws (step 2). `propertynames` takes the two-arg `(io, private::Bool)`
+   form Julia's `hasproperty` calls.
 2. **Catch exceptions around the cursor check** so `book` reports a failed record
    instead of aborting the walk (§3). Commit.
 3. **Refactor to a position loop.** Split `_typein_one` into `_typein_at(…, k, …)` +
