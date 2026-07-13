@@ -10,19 +10,20 @@ The domain includes:
 """
 module JsonModule
 
-import ..CellModule: Cell
-import ..DocumentApiModule: Document
-import ..DocumentModule: @document, @forward_vector, @forward_map
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, PositionReference, RangeReference, FieldReference, EmptyReferencePath, evaluate_reference, Position
-import ..ProjectionReferenceModule: ProjectionReference
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
-import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..SelectionApiModule: with_selection
-import ..KeyboardModule: KeyPress, KeyDown
-import ..GestureBindingModule: var"@gestures"
-import ..DomainSupportModule: var"@domain", make_insertion_document
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+using ..ProjectionReferenceModule
+using ..OperationModule
+using ..SelectionModule
+using ..KeyboardModule
+using ..GestureModule
+using ..DomainSupportModule
+# `make_insertion_document` gains JSON methods below; a `using`-visible generic
+# cannot be extended, so it is the one name that must be `import`ed.
+import ..DomainSupportModule: make_insertion_document
+
 export JsonDocument, entries
 
 @domain Json

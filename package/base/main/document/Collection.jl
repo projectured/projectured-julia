@@ -28,7 +28,8 @@ import ..DocumentModule: Document, copy_document, sync_document!, _same_cell,
 import ..ReferenceModule: Reference, RangeReference
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, children_container_type
-export CollectionDocument, get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
+export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
+       get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
        insertcol!, deleterow!, deletecol!, insertrow, deleterow
 
 # The four collection shapes, one fragment file each (fragments share this
