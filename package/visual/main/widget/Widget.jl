@@ -906,7 +906,7 @@ set_function!(w::WidgetSplitPane, f::Function) = (set_function!(getfield(w.eleme
 # A single tab page: the tab `selector` (label), its content `element`, and an
 # optional `icon`. A first-class Document rather than a raw `(selector, element,
 # icon)` tuple, so the selection chain descends Document→Document through a tabbed
-# pane. With a tuple in the path, the in-place selection sync (`update_selection!`)
+# pane. With a tuple in the path, the in-place selection sync (`replace_selection!`)
 # could not step past the non-Document tuple and diverged, re-pointing the pane's
 # active-tab path on every within-tab caret move — a printer-locality dimension-A
 # violation (see plan/pending/printer-locality.md). With a Document the in-place

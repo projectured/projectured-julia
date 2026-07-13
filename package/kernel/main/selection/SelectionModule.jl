@@ -4,8 +4,8 @@
 Layer 4 of the kernel — **selection**: a document's current-focus state,
 expressed as a reference path stored on the document's `selection` field. The
 primitives read (`get_selection`), clear (`clear_selection!`), set
-(`set_selection!` / `with_selection`), and replace (`replace_selection!` /
-`update_selection!`) that state. Setting a selection propagates the path down the
+(`set_selection!` / `with_selection`), and replace (`replace_selection!`) that
+state. Setting a selection propagates the path down the
 document hierarchy — each step navigates to a child document and stores the
 remaining tail as that child's selection — and canonicalizes the path against the
 live document, folding each node's type in (see `annotate_reference_types`).
@@ -32,7 +32,7 @@ import ..ReferenceModule: ConcreteReferencePath, ReferencePath, FieldReference,
                           strip_reference_types, is_reference_equal
 
 export get_selection, clear_selection!, set_selection!, with_selection,
-       replace_selection!, update_selection!
+       replace_selection!
 
 include("Interface.jl")   # the selection generics (declaration-only)
 include("Selection.jl")   # their default methods + private helpers

@@ -1,8 +1,7 @@
 # Fragment of `SelectionModule` — the selection **interface**: the open generics
-# that read, clear, set, replace, and incrementally update a document's current
-# selection. A document with unconventional selection storage overrides these;
-# the default implementations (and the private path-walking helpers) live in
-# `Selection.jl`.
+# that read, clear, set, and replace a document's current selection. A document
+# with unconventional selection storage overrides these; the default
+# implementations (and the private path-walking helpers) live in `Selection.jl`.
 #
 # See documentation/concepts.md for the document-editing model these are part of.
 
@@ -54,20 +53,17 @@ function with_selection end
 """
     replace_selection!(document, path)
 
-Replaces the current selection on `document` with `path`. Equivalent to
-`clear_selection!(document)` followed by `set_selection!(document, path)`,
-ensuring the old selection is fully cleared before setting the new one.
+Change `document`'s current selection to `path`, replacing whatever was selected
+before; pass `nothing` to clear it.
+
+Like [`set_selection!`](@ref), `path` is **canonicalized** against `document`
+first (stripped to its navigation skeleton, then re-annotated so each node
+records the `typeof` the document it stands on). But instead of clearing and
+rebuilding every selection cell on the path, the new path is written into the
+**shared selection chain in place**: only the cells whose content actually
+changed are touched, and any old branch that diverges from the new path is
+cleared. A caret move within one leaf mutates just that step's start/stop cells,
+leaving every routing ancestor's `selection` cell untouched — so partial
+rendering repaints only the caret.
 """
 function replace_selection! end
-
-"""
-    update_selection!(document, path)
-
-Incrementally move the selection to `path`, producing the same stored state as
-[`replace_selection!`](@ref) but writing the **shared selection chain in place** —
-touching only the cells whose content actually changed. The caret-move fast path:
-a cursor move within one leaf mutates just that step's cells, leaving every
-routing ancestor's `selection` cell untouched (so partial rendering repaints only
-the caret).
-"""
-function update_selection! end

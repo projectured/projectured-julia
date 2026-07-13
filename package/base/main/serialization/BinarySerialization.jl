@@ -41,7 +41,7 @@ export save_document, load_document, SaveDocumentOperation, LoadDocumentOperatio
 # desyncing the shared-object counter and corrupting the stream. The cost is that
 # cell *sharing* (the shared selection chain, where `child.selection ===
 # parent.selection.tail`) is not preserved — the chain reloads as an equal value
-# tree and is re-shared by the next `set_selection!`/`update_selection!`, a
+# tree and is re-shared by the next `set_selection!`/`replace_selection!`, a
 # perf nuance, not a correctness issue. Document trees are acyclic, so dropping
 # cycle tracking cannot loop.
 function Serialization.serialize(s::AbstractSerializer, c::ReactiveCell)

@@ -251,7 +251,7 @@ function print_document(::WorkbenchPageToWidgetTabbedPane,
     # the tab index `i`; the caret inside the active tab is carried by that tab
     # content's own forward-projected selection. Keeping just `elements[i]` stops
     # this cell from reading the deep cursor cells, so a caret move inside a tab —
-    # which (thanks to the in-place `update_selection!`) mutates only the terminal
+    # which (thanks to the in-place `replace_selection!`) mutates only the terminal
     # cursor step, leaving the `elements[i]` prefix untouched — does not invalidate
     # this cell and therefore does not regenerate the tab strip or active-content
     # wrapper (incremental selection propagation).

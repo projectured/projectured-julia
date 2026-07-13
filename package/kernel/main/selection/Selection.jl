@@ -43,17 +43,26 @@ end
 
 with_selection(document, path) = (set_selection!(document, path); document)
 
+# Change `document`'s selection to `path`, replacing any previous selection.
+# `path` is canonicalized (like `set_selection!`) then written into the shared
+# selection chain **in place** by `_sync_selection!` — see the algorithm note on
+# that helper for why this touches only the cells that actually changed instead
+# of clearing and rebuilding every selection cell on the path.
 function replace_selection!(document, path)
-    clear_selection!(document)
-    set_selection!(document, path)
+    hasproperty(document, :selection) || return
+    canonical = path === nothing ? path :
+                annotate_reference_types(document, strip_reference_types(path))
+    _sync_selection!(document, canonical)
+    return
 end
 
-# ── Incremental selection replacement ──────────────────────────────────────
+# ── In-place selection replacement ─────────────────────────────────────────
 #
-# `update_selection!` produces exactly the same stored state as
-# `replace_selection!` (each level still holds the *whole remaining reference*,
-# so every reader is unaffected), but writes the **shared selection chain in
-# place**, touching only the cells whose content actually changed:
+# `_sync_selection!` moves the selection to a new (canonical) path while keeping
+# the stored state identical to a `clear`-then-`set` rebuild — each level still
+# holds the *whole remaining reference*, so every reader is unaffected — but it
+# writes the **shared selection chain in place**, touching only the cells whose
+# content actually changed:
 #
 #   * `set_selection!` stores `child.selection === parent.selection.tail` (the
 #     same path objects), and `ConcreteReferencePath`'s head/tail — and a
@@ -72,15 +81,9 @@ end
 # The eager reactive engine has no value-equality short-circuit (see
 # ReactiveCell.jl), so the whole point is to avoid the *writes*, not to rely on the
 # engine to absorb redundant ones.
-function update_selection!(document, path)
-    hasproperty(document, :selection) || return
-    _sync_selection!(document, path)
-    return
-end
-
-# Sync `document`'s selection subtree to `path`, reusing the existing chain in
-# place wherever possible. Returns the value now held by `document.selection`
-# so the caller can keep its own path tail pointing at it (chain sharing).
+#
+# Returns the value now held by `document.selection` so the caller can keep its
+# own path tail pointing at it (chain sharing).
 function _sync_selection!(document, path)
     hasproperty(document, :selection) || return path
     cell = getfield(document, :selection)

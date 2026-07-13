@@ -44,7 +44,7 @@ import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePa
                            is_element_reference, evaluate_reference, is_reference_equal,
                            annotate_reference_types, strip_reference_types,
                            append_reference, concat_references, reference_steps
-import ..SelectionModule: set_selection!, update_selection!
+import ..SelectionModule: set_selection!, replace_selection!
 
 export Operation, evaluate_operation, invalidate_projection!,
        # from Operations.jl

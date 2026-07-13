@@ -132,9 +132,8 @@ end
 `ConcreteReferencePath(step, tail)` is one cons cell. Both fields are `Cell`s so
 the path is reactive — a computed cell can depend on a path's content. The list
 *shape* is persistent, but because each `@document`-backed step/path struct is
-mutable and stores its dynamic values in reactive `Cell`s, `set_selection!` and
-`update_selection!` can move a caret by writing those cells in place rather than
-rebuilding the chain.
+mutable and stores its dynamic values in reactive `Cell`s, `replace_selection!`
+can move a caret by writing those cells in place rather than rebuilding the chain.
 
 **Build paths with the `@reference` macro** (see
 [§ Reference DSL](#reference-dsl-reference) below) — it is the canonical, most

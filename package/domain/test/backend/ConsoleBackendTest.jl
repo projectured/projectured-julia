@@ -20,7 +20,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
             _ED.read!(editor)
             _ED.evaluate!(editor)
             _ED.print!(editor)
-            # Snapshot the selection as a stripped string so later update_selection!
+            # Snapshot the selection as a stripped string so later replace_selection!
             # mutations (which reuse cells in-place) do not change already-recorded
             # entries.  strip_reference_types removes TypeReference checkpoints so
             # the string matches the plain navigation skeleton the tests assert on.

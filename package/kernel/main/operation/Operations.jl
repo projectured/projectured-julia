@@ -170,7 +170,7 @@ struct ReplaceSelectionOperation <: Operation
 end
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
-    update_selection!(editor.document, op.path)
+    replace_selection!(editor.document, op.path)
 end
 
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is

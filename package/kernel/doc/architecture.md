@@ -30,7 +30,7 @@ guards, docs, and tests:
 Layer 1  — cell/       cells + performance counter + the editor clock
 Layer 2  — document/   the Document contract + @document + Cell-struct codegen
 Layer 3  — reference/  reference paths + @reference / @reference_case DSLs
-Layer 4  — selection/  the selection primitives (get/clear/set/replace/update_selection!) — a document's current-focus state, a reference stored on a document
+Layer 4  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
 Layer 5  — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 6  — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
 Layer 7  — backend/    Backend + Display + HeadlessBackend
@@ -172,7 +172,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `cell/` | the reactive engine — `Reactive`/`Cell` kinds, `PerformanceCounter`, `Time` (the animation clock) (see [reactive.md](cell.md)) |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) |
 | `reference/` | reference paths, `@reference` / `@step`, `@reference_case` |
-| `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!`, `update_selection!` |
+| `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
 | `backend/` | Backend, Display, HeadlessBackend |
