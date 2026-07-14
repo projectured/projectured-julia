@@ -85,19 +85,8 @@ end
 
 @forward_map JsonObject entries key value JsonObjectEntry
 
-# build an object from `key => value` pairs
 JsonObject(pairs::Pair{<:AbstractString}...) =
     JsonObject([JsonObjectEntry(String(k), v) for (k, v) in pairs])
-
-# Text/number replace edits need no per-type method: `JsonString.value` and
-# `JsonObjectEntry.key` are plain strings, and `JsonNumber.value` is a number
-# reparsed from its text representation.
-
-# ── Authoring gestures ──────────────────────────────────────────────────────
-#
-# Nothing here asks whether the caret sits inside a string. It cannot be: the reader
-# runs last-to-first, so a key the text layer turned into a character edit never
-# reaches the domain — if the caret were in a string, `,` was already a comma.
 
 function _json_replaceable(doc, sel)
     sel === nothing && return false
@@ -115,8 +104,6 @@ end
 # ── Insertion factories ─────────────────────────────────────────────────────
 
 @insertion JsonBool        = @with_selection JsonBool(false)
-# An empty number's value is `nothing`, which has no text position, so it is selected
-# whole; an empty string is `""` and does have position 0.
 @insertion JsonNumber      = @with_selection JsonNumber(nothing)
 @insertion JsonString      = @with_selection JsonString("") value{0}
 @insertion JsonArray       = @with_selection JsonArray([JsonInsertion()]) elements[1]
