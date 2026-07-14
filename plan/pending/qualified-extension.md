@@ -110,6 +110,53 @@ That is ~40% of the 2078 top-level method definitions in the repo, and it is ent
 `@projection` / `@projection_template` / `@iomap` codegen. It gets its own follow-up plan once
 the rule and the guard have proven themselves on a small surface.
 
+## Blast radius of bare `using` — measured, not guessed
+
+The obvious objection to dropping symbol lists is that bare `using` dumps every export of every
+used module into scope, so same-named exports collide. Measured against the real loaded stack
+(`ProjecturedKernel` + `Base` + `Visual` + `Domain`, 190 modules):
+
+- **14** names are exported by more than one module.
+- **13 of those 14 are re-exports** — the *same binding object* reached through several module
+  names (`evaluate_operation` is one function visible through `OperationModule`,
+  `OperationApiModule`, `OperationRerootingModule` and `WidgetModule`; `set_function!` through
+  8 modules; the whole `Inset`/`Point2D`/`inset_*` family through `GeometryModule` and
+  `WidgetModule`). Verified: Julia raises an ambiguity error only when the bindings **differ** —
+  `using A, B` where both export the *same* binding resolves cleanly. These are not collisions.
+- **1 real collision** exists in the entire codebase.
+
+### The one real collision: `NothingToSyntaxLeaf`
+
+Two genuinely different projections share one exported name:
+
+| | |
+|---|---|
+| [package/visual/main/syntax/ObjectToSyntax.jl:37](../../package/visual/main/syntax/ObjectToSyntax.jl#L37) | `@projection struct NothingToSyntaxLeaf` — renders a Julia `nothing` value (regular font, magenta) |
+| [package/domain/main/insertion/InsertionToSyntax.jl:493](../../package/domain/main/insertion/InsertionToSyntax.jl#L493) | `struct NothingToSyntaxLeaf <: Projection` — renders the `*Nothing` **insertion placeholder** (italic, gray) |
+
+It is **latent, not active**: no file currently names both modules (checked — none of
+`JsonToSyntax` / `XmlToSyntax` / `YamlToSyntax` / `SqlToSyntax`, which import the insertion one,
+mentions `ObjectToSyntaxModule`). Under bare `using` it stays harmless *until* some file needs
+both, at which point it fails loudly with `UndefVarError` on use.
+
+This is an AR-48 smell independent of this plan — two modules publishing the same name for
+different concepts — and the insertion module's own export list already shows the fix: every
+sibling is prefixed (`DocumentInsertionToSyntaxLeaf`, `DomainInsertionToSyntaxLeaf`,
+`JuliaInsertionToSyntaxLeaf`, `SqlInsertionToSyntaxLeaf`); `NothingToSyntaxLeaf` is the lone
+unprefixed odd-one-out. The more-specific concept takes the qualifier.
+
+**Verdict: the risk that motivated this check is not real. Proceed.**
+
+## Phase 0 — clear the one collision (prerequisite)
+
+- [ ] Rename the insertion placeholder to `InsertionNothingToSyntaxLeaf`, matching its four
+      prefixed siblings in the same export list. ~8 sites: the declaration + inner constructor +
+      `print_document` method in `InsertionToSyntax.jl`, its export line, and the
+      `import ..DocumentInsertionToSyntaxModule: …, NothingToSyntaxLeaf` header plus one use site
+      in each of `JsonToSyntax.jl`, `XmlToSyntax.jl`, `YamlToSyntax.jl`, `SqlToSyntax.jl`.
+      (Alternative, rejected: rename the visual one — it holds the generic name legitimately.)
+- [ ] Verify with `test_json()` / `test_xml()`; commit. Mechanical — delegate.
+
 ## Phase 1 — teach the guard (do this first)
 
 - [ ] Add `check_qualified_references` to `CheckLayering.jl`: walk each file's AST for
@@ -188,12 +235,15 @@ Only after Phase 2 is merged and the guard has been exercised.
 
 ## Risks
 
-- **Export collisions from bare `using`.** Dropping symbol lists means every export of every
-  `using`'d module lands in scope. Two modules exporting the same name → `UndefVarError` on
-  use. Loud, not silent, and the test suite will catch it — but it may surface in files far from
-  the one being edited. If a collision proves genuinely unresolvable, the fallback is to qualify
-  the *reference* too (`X.foo()`), not to reintroduce a symbol list.
+- ~~**Export collisions from bare `using`.**~~ **Measured and cleared** — see *Blast radius*
+  above. Exactly one real collision exists in the whole stack, it is latent, and Phase 0 removes
+  it. Re-exports (13 of the 14 candidates) are not collisions. Should a *new* collision ever
+  arise, it fails loudly (`UndefVarError` on use, never a silent pick); the fix is to rename the
+  more-specific concept, not to reintroduce a symbol list.
 - **Signature length.** `function ReferenceModule.step_kind(s::PointReference)` is ~18 chars
   longer. Accepted: the explicitness is the point.
 - **Guard grandfather list rots.** If Phase 3 stalls, the list becomes a permanent exemption.
   Mitigate by keeping it a literal file list in the guard, not a pattern.
+- **New modules can silently reintroduce a collision.** The `check_qualified_references` pass of
+  Phase 1 should also assert that no two modules export the same name with *different* bindings —
+  cheap to compute, and it turns the property just measured into a standing guarantee.
