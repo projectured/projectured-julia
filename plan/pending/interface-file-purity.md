@@ -102,7 +102,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   `print_child` / `pure_print_child` → `Projection.jl`; the three `get_iomap_*` accessors →
   `IoMap.jl`. Both modules already depend on the api modules; extend their import headers.
 
-- [ ] **7. Wire the guard.** `test_kernel_layering()` passes `interface_files` naming all eight
+- [x] **7. Wire the guard.** `test_kernel_layering()` passes `interface_files` naming all eight
   kernel interface files — the six purified above plus `document/Interface.jl`,
   `selection/Interface.jl` and `device/Device.jl`, which are already clean and now stay that way.
 
