@@ -150,9 +150,12 @@ end
     obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, Modifiers()))
     @test op isa ReplaceSelectionOperation
-    # The Tab op selects the entry's value whole, carrying its folded types.
+    # The Tab op selects the entry's value whole, carrying its folded types. The
+    # terminal checkpoint is the value's *concrete* type, not the declared `Document`
+    # field type — that is the canonical annotated form, and what `set_selection!`
+    # stores for this path either way.
     @test is_reference_equal(op.path,
-          @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document)
+          @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::JsonNumber)
     # Tab outside a key does nothing.
     @test read_key(obj, whole, KeyDown(:tab, Modifiers())) === nothing
 end

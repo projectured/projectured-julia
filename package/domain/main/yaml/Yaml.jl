@@ -128,35 +128,6 @@ function _yaml_replaceable(doc, sel)
     return !(target isa YamlMappingEntry)
 end
 
-# Append a YamlInsertion and select it whole, ready to type-to-replace.
-function _sequence_insert(doc::YamlSequence)
-    n = length(doc.elements)
-    insert_elements(@reference(doc, elements), n, Any[YamlInsertion()],
-                    @reference ::YamlSequence.elements::CellVector[n + 1]::YamlInsertion)
-end
-
-# Append an empty entry and select its key for typing.
-function _mapping_insert(doc::YamlMapping)
-    n = length(doc.entries)
-    insert_elements(@reference(doc, entries), n,
-                    Any[YamlMappingEntry("", YamlInsertion())],
-                    @reference ::YamlMapping.entries::CellVector[n + 1]::YamlMappingEntry.key::String{0}::Position)
-end
-
-# Tab moves the cursor from an entry's key to its value, selected whole.
-function _mapping_tab(doc::YamlMapping)
-    sel = getfield(doc, :selection)[]
-    sel === nothing && return nothing
-    @reference_case sel begin
-        ::YamlMapping.entries{s:e}.rest... => begin
-            i = s + 1
-            @reference_case rest begin
-                ::YamlMappingEntry.key.inner... => ReplaceSelectionOperation(@reference ::YamlMapping.entries::CellVector[i]::YamlMappingEntry.value::Document)
-            end
-        end
-    end
-end
-
 # ── Insertion factories ─────────────────────────────────────────────────────
 
 @insertion YamlBool         = @with_selection YamlBool(false)
@@ -182,12 +153,12 @@ end
 end
 
 @gestures YamlSequence begin
-    KeyPress(',') => "Insert a new element" => _sequence_insert(doc)
+    KeyPress(',') => "Insert a new element" => append_insertion_operation(doc, :elements, YamlInsertion)
 end
 
 @gestures YamlMapping begin
-    KeyPress(',') => "Insert a new entry" => _mapping_insert(doc)
-    KeyDown(:tab) => "Move from key to value" => _mapping_tab(doc)
+    KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, YamlMappingEntry)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
 end
 
 end # module

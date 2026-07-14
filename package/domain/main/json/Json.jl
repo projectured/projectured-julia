@@ -127,35 +127,6 @@ function _json_replaceable(doc, sel)
     return !(target isa JsonObjectEntry)
 end
 
-# Append a JsonInsertion and select it whole, ready to type-to-replace.
-function _array_insert(doc::JsonArray)
-    n = length(doc.elements)
-    insert_elements(@reference(::JsonArray.elements::CellVector), n, Any[JsonInsertion()],
-                    @reference ::JsonArray.elements::CellVector[n + 1]::JsonInsertion)
-end
-
-# Append an empty entry and select its key for typing.
-function _object_insert(doc::JsonObject)
-    n = length(doc.entries)
-    insert_elements(@reference(::JsonObject.entries::CellVector), n,
-                    Any[JsonObjectEntry("", JsonInsertion())],
-                    @reference ::JsonObject.entries::CellVector[n + 1]::JsonObjectEntry.key::String{0}::Position)
-end
-
-# Tab moves the cursor from an entry's key to its value, selected whole.
-function _object_tab(doc::JsonObject)
-    sel = getfield(doc, :selection)[]
-    sel === nothing && return nothing
-    @reference_case sel begin
-        ::JsonObject.entries{s:e}.rest... => begin
-            i = s + 1
-            @reference_case rest begin
-                ::JsonObjectEntry.key.inner... => ReplaceSelectionOperation(@reference ::JsonObject.entries::CellVector[i]::JsonObjectEntry.value::Document)
-            end
-        end
-    end
-end
-
 # ── Insertion factories ─────────────────────────────────────────────────────
 
 @insertion JsonBool        = @with_selection JsonBool(false)
@@ -181,12 +152,12 @@ end
 end
 
 @gestures JsonArray begin
-    KeyPress(',') => "Insert a new element" => _array_insert(doc)
+    KeyPress(',') => "Insert a new element" => append_insertion_operation(doc, :elements, JsonInsertion)
 end
 
 @gestures JsonObject begin
-    KeyPress(',') => "Insert a new entry" => _object_insert(doc)
-    KeyDown(:tab) => "Move from key to value" => _object_tab(doc)
+    KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
 end
 
 end # module
