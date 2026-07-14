@@ -417,7 +417,9 @@ function move_to_field(document, selection, from::Symbol, to::Symbol)
 end
 
 # The path down to (but not including) the step naming `field` — the enclosing element,
-# whose sibling field the caret is moving to. `nothing` if no such step is on the path.
+# whose sibling field the caret is moving to. `nothing` if no such step is on the path,
+# including when there is no caret at all.
+_prefix_before_field(::Nothing, field) = nothing
 _prefix_before_field(path::EmptyReferencePath, field) = nothing
 function _prefix_before_field(path::ConcreteReferencePath, field)
     h = path.head
