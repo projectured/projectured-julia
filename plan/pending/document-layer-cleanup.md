@@ -217,7 +217,7 @@ claiming a "~13 failed" baseline was stale and has been corrected.)
 
 ---
 
-## Step 4 — One walk, not two
+## Step 4 — One walk, not two ✅ done
 
 `search_documents` (kernel `document/`) and `search_references` (kernel `reference/`) are
 the same traversal, and the code says so out loud: *"The two walks are structurally
@@ -280,29 +280,51 @@ methods, and dispatch is the registration. **And it is the shape that survives i
 once path syntax sinks below documents, `PathWalk` can move down beside `ValueWalk` and the
 seam either collapses or stays as a two-strategy dispatch — no rework either way.
 
-- [ ] `DocumentWalk.jl`: `DocumentWalk`, the three seam generics, `walk_document`, and the
-      shared helpers `is_search_leaf` / `search_text` / `text_query` moved here from
+- [x] `DocumentWalk.jl`: `DocumentWalk`, the four seam generics (`initial_location`,
+      `child_field_location`, `child_element_location`, `visit_policy`), `walk_document`, and
+      the shared helpers `is_walk_leaf` / `_walk_text` / `text_query` moved here from
       `DocumentSearch.jl` (they are walk vocabulary, not search vocabulary). Export the
-      seam; keep the helpers module-internal — `PathWalk` needs only the seam.
-- [ ] `DocumentTrait.jl` header: note that `is_element_collection` / `is_opaque` exist to
-      let `walk_document` avoid naming concrete collection types. They are walk traits, and
-      after Step 2 they finally sit next to the walk instead of in the middle of the copy
-      code.
-- [ ] `DocumentSearch.jl`: `ValueWalk` + `search_documents` over `walk_document`. Delete
+      seam; `_walk_text` and `is_walk_leaf` stay module-internal — `PathWalk` needs only the
+      seam and `text_query`.
+- [x] `DocumentTrait.jl` header: note that `is_element_collection` / `is_opaque` exist to
+      let `walk_document` avoid naming concrete collection types.
+- [x] `DocumentSearch.jl`: `ValueWalk` + `search_documents` over `walk_document`. Deleted
       `_search_documents!`.
-- [ ] `reference/ReferenceSearch.jl`: `PathWalk` + `search_references` over
-      `walk_document`. Delete `_search_references!` and the duplicated helpers.
-- [ ] Delete both "keep them in sync" comments — the obligation is gone, and a comment
-      describing a contract the code no longer needs is exactly the noise AR-71 forbids.
+- [x] `reference/ReferenceSearch.jl`: `PathWalk` + `search_references` over
+      `walk_document`. Deleted `_search_references!` and the duplicated helpers.
+- [x] Deleted both "keep them in sync" comments — the obligation is gone.
+- [x] New suite `base/test/document/DocumentWalkTest.jl` (14 assertions), registered in
+      `test_base()`. Base, not kernel: expressing a shared subtree needs a collection
+      document, and `CellVector` is base's.
 
-**Verify:** the semantic difference in the table above is where a regression will hide.
-Beyond `test_kernel()` and `test_base()`, hand-check in the REPL against a document with a
-**shared subtree** (one node reachable by two paths) and against a **cyclic** graph (a
-`ListNode` `prev`/`next` pair): `search_documents` must return the shared node **once**,
-`search_references` must return **both** paths to it, and neither may hang. If no existing
-test covers this, add one (AR-54) — the fact that the merge could silently break it is
-itself the argument that it should have been tested all along.
-**Commit:** `refactor: one document walk, two strategies — value and path`
+**Verify:** `test_kernel()` 338/338 · `test_base()` 82→96/96 · `test_visual()` 51856/1
+broken/0 fail · `test_domain()` 125962/93/1/15 — the last two **exactly** matching the
+pre-plan baseline.
+
+### The seam generics must be `import`ed, not `using`-ed — the bug this step nearly shipped
+
+`ReferenceModule` does `using ..DocumentModule`. Defining `child_field_location(::PathWalk,
+…)` under a plain `using` does **not** add a method to the document layer's generic — Julia
+silently creates a *new function of the same name in `ReferenceModule`*, which shadows it.
+`walk_document` (which calls the document layer's original) then finds no `PathWalk` method
+and throws `MethodError`. The fix is an explicit
+`import ..DocumentModule: initial_location, visit_policy, child_field_location,
+child_element_location`, with a comment at the import saying why.
+
+This is a general hazard for **every** seam this codebase declares (AR-49): a lower layer's
+open generic is only extended by an `import`ed name. It cost nothing here because the
+behavioural check caught it immediately — but note that it would **not** have been caught by
+`test_kernel()`, which was green *with the bug present*: nothing in the kernel suite walks a
+document with references. That is the argument for the new base suite.
+
+### Verified against the pre-change baseline, not against intuition
+
+The two policies' difference is the whole risk of this step, so it was measured rather than
+reasoned about. A script exercising a shared subtree, a cycle, `raw=`, `include_selection=`,
+`maxdepth=`, and a `Regex` query was run in a detached worktree at pre-plan `main` and in
+this branch. All nine quantities identical, notably `search_documents` → **1** node and
+`search_references` → **2** distinct paths for the same shared object (both evaluating back
+to it), and the cyclic-graph counts (2 nodes / 64 paths).
 
 ---
 

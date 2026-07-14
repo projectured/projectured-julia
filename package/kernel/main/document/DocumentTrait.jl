@@ -1,7 +1,7 @@
-# Fragment of `DocumentModule` — the two traits that steer a reflection walk
-# over a document tree. They exist so a walker never has to name a concrete
-# collection type: a document opts into a shape, and the walk reads the shape
-# off the trait.
+# Fragment of `DocumentModule` — the two traits that steer `walk_document`.
+# They exist so the walk never has to name a concrete collection type: a document
+# opts into a shape, the walk reads the shape off the trait. That is what lets the
+# walk sit below every collection it descends.
 
 """
     is_element_collection(document) -> Bool

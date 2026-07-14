@@ -40,6 +40,7 @@ using ProjecturedBase.KeyboardModule: KeyDown
 using ProjecturedBase.ModifiersModule: Modifiers
 
 include("document/CollectionTest.jl")
+include("document/DocumentWalkTest.jl")
 include("document/SelectionEnumeration.jl")
 include("projection/CopyingProjectionTest.jl")
 include("projection/FocusingTest.jl")
@@ -68,6 +69,7 @@ function test_base()
     @testset "ProjecturedBase" begin
         test_base_layering()
         test_collection()
+        test_document_walk()
         test_copying_projection()
         test_focusing()
     end

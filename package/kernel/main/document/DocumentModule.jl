@@ -20,7 +20,8 @@ its own definition:
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
-| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting reflection walk |
+| [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, and the seam that names a node |
+| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting strategy over that walk |
 | [`DocumentShow.jl`](DocumentShow.jl) | the depth-limited debug `show` |
 | [`Forward.jl`](Forward.jl) | `@forward*` — delegating-method helpers |
 """
@@ -36,6 +37,11 @@ export Document, copy_document, sync_document!, is_element_collection,
 # index, so it cannot reuse the record walk). Exported because it is a contract,
 # not an internal — the module boundary is the API boundary.
 export is_same_document_type, get_document_cell_kind, copy_shadow_element, copy_cell_as
+# The walk seam: a strategy decides what a visited node's *location* is, which is
+# how a caller that names locations with types declared above this layer (a
+# `ReferencePath`) reuses the one traversal instead of copying it.
+export DocumentWalk, ValueWalk, walk_document, initial_location, visit_policy,
+       child_field_location, child_element_location, text_query
 
 # Document.jl first — every fragment below refers to the `Document` supertype.
 include("Document.jl")
@@ -44,6 +50,7 @@ include("DocumentKind.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")
 include("DocumentMacro.jl")
+include("DocumentWalk.jl")
 include("DocumentSearch.jl")
 include("DocumentShow.jl")
 include("Forward.jl")
