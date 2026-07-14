@@ -100,6 +100,11 @@ YamlMapping(pairs::Pair{<:AbstractString}...) =
 # Tab to move from a key to its value. Gestures are root-relative: each reads
 # `doc`'s own selection and emits a `doc`-relative operation that resolves to the
 # actual (possibly nested) target.
+#
+# A gesture here fires only on a key the *output* layers left unclaimed — the
+# reader runs last-to-first, so a printable key that the text layer turned into a
+# character edit never reaches the domain. That is why nothing below asks whether
+# the caret sits inside a string: if it does, `,` was already a comma.
 
 # A projection-introduced caret: the cursor sits on a part the projection added
 # (a delimiter, separator, or the `YamlInsertion` placeholder), so its head is a
@@ -114,65 +119,11 @@ _replace(doc, newdoc) =
     replace_document(_is_introduced(getfield(doc, :selection)[]) ?
                      EmptyReferencePath() : getfield(doc, :selection)[], newdoc)
 
-# A character cursor: a path ending in value{k} or key{k} (a RangeReference after a
-# value/key field). A whole-element selection ends in ∅.
-function _is_char_cursor(sel)
-    prev = nothing
-    cur = sel
-    while cur isa ConcreteReferencePath
-        if cur.tail isa EmptyReferencePath
-            return cur.head isa RangeReference && prev isa FieldReference &&
-                   (prev.name == "value" || prev.name == "key")
-        end
-        prev = cur.head
-        cur = cur.tail
-    end
-    return false
-end
-
-# The node whose `.value` / `.key` a char cursor edits, as `(owner_ref, field)`
-# (the path with the trailing `<field>{k}` stripped), or `nothing` when `sel` is
-# not a char cursor. Used to tell a string-text caret from a number caret.
-function _char_cursor_owner(sel)
-    steps = Any[]
-    cur = sel
-    while cur isa ConcreteReferencePath
-        if cur.tail isa EmptyReferencePath && cur.head isa RangeReference
-            isempty(steps) && return nothing
-            field = steps[end]
-            (field isa FieldReference && (field.name == "value" || field.name == "key")) || return nothing
-            owner = EmptyReferencePath()
-            for i in (length(steps) - 1):-1:1
-                owner = ConcreteReferencePath(steps[i], owner)
-            end
-            return (owner, field.name)
-        end
-        push!(steps, cur.head)
-        cur = cur.tail
-    end
-    return nothing
-end
-
-# True when the caret is editing *string* text: a mapping key (keys are strings),
-# or a `value{k}` cursor whose owning node is a `YamlString`. A `value{k}` cursor
-# in a `YamlNumber` is not a string context. Keeps `,` a literal comma while
-# typing inside a string/key (everywhere else `,` is a structural insert).
-function _in_string_context(doc, sel)
-    oc = _char_cursor_owner(sel)
-    oc === nothing && return false
-    owner_ref, field = oc
-    field == "key" && return true
-    target = try evaluate_reference(doc, owner_ref) catch; nothing end
-    return target isa YamlString
-end
-
-# Block precondition for the type-to-replace set: a whole YAML value (not a
-# character cursor) whose target exists and is replaceable (values / sequence
-# elements / root — not a mapping entry wrapper). An introduced caret names the
-# whole focused node, so it is replaceable too.
+# Block precondition for the type-to-replace set: the caret names a whole YAML
+# value whose target exists and is replaceable (values / sequence elements / root —
+# not a mapping entry wrapper).
 function _yaml_replaceable(doc, sel)
     sel === nothing && return false
-    _is_char_cursor(sel) && return false
     # An introduced caret (on a delimiter / placeholder) names the focused node.
     # Enable type-to-replace there for a `YamlInsertion` placeholder or a container
     # (you are on its marker / brace), but not on a concrete scalar's own quotes /
@@ -186,28 +137,15 @@ function _yaml_replaceable(doc, sel)
     return true
 end
 
-# A digit builds a fresh number, unless a whole number is already selected (that
-# edit belongs to the typein path, which appends digits to the existing value).
-function _replace_number(doc, c)
-    target = try evaluate_reference(doc, getfield(doc, :selection)[]) catch; nothing end
-    target isa YamlNumber && return nothing
-    _replace(doc, @with_selection YamlNumber(parse(Int, string(c))) value{1})
-end
-
-# Append a YamlInsertion and select it whole, ready to type-to-replace. Declines
-# (`,` stays a literal comma) while the caret is editing string text, so a comma
-# can be typed into a string element / key; structural everywhere else.
+# Append a YamlInsertion and select it whole, ready to type-to-replace.
 function _sequence_insert(doc::YamlSequence)
-    _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.elements)
     insert_elements(@reference(doc, elements), n, Any[YamlInsertion()],
                     @reference ::YamlSequence.elements::CellVector[n + 1]::YamlInsertion)
 end
 
-# Append an empty entry and select its key for typing. Declines in a string
-# context (see `_sequence_insert`).
+# Append an empty entry and select its key for typing.
 function _mapping_insert(doc::YamlMapping)
-    _in_string_context(doc, getfield(doc, :selection)[]) && return nothing
     n = length(doc.entries)
     insert_elements(@reference(doc, entries), n,
                     Any[YamlMappingEntry("", YamlInsertion())],
@@ -248,7 +186,8 @@ end
     KeyPress('-') => "Replace with a sequence" => _replace(doc, make_insertion_document(YamlSequence))
     KeyPress(':') => "Replace with a mapping entry" => _replace(doc, make_insertion_document(YamlMappingEntry))
     KeyPress('{') => "Replace with a mapping" => _replace(doc, make_insertion_document(YamlMapping))
-    when(KeyPress(c), isdigit(c)) => "Replace with a number" => _replace_number(doc, c)
+    when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
+        _replace(doc, @with_selection YamlNumber(parse(Int, string(c))) value{1})
 end
 
 @gestures YamlSequence begin

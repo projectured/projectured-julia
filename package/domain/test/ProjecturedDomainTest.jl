@@ -148,6 +148,7 @@ function test_domain()
         test_json_gesture_collection()
         test_xml_to_syntax()
         test_xml_to_syntax_reader()
+        test_xml_override_gestures()
         test_sql_to_syntax()
         test_sql_to_syntax_selection()
         test_sql_insert_update_selection()
@@ -217,7 +218,7 @@ export test_json, test_json_parser, test_xml_parser,
        test_sql_parser, test_sql_document, test_sql_document_nested_select,
        test_sql_boolean_expression
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection,
-       test_xml_to_syntax, test_xml_to_syntax_reader,
+       test_xml_to_syntax, test_xml_to_syntax_reader, test_xml_override_gestures,
        test_sql_to_syntax, test_sql_to_syntax_selection,
        test_sql_insert_update_selection, test_sql_ddl, test_sql_ddl_selection,
        test_formula_to_syntax, test_filesystem_to_syntax, test_graph
