@@ -253,8 +253,8 @@ end
 #
 # Diagnosed in plan/pending/left-motion-stalls-on-introduced-text.md; the fix is
 # deferred to the text-selection work (see plan/pending/simplest-syntax-document.md).
-const NAV_LEFT_WALK_STALLS = ("json", "json_insertion", "syntax", "mixed",
-                              "focusing", "formula", "sql_syntax", "dragging")
+const NAV_LEFT_WALK_STALLS = ("json", "json_sorted", "json_insertion", "syntax",
+                              "mixed", "focusing", "formula", "sql_syntax", "dragging")
 
 # @broken: on formula the *rightward* walk also ends somewhere other than where
 # Ctrl+End lands — a second, narrower asymmetry in the same forward map.
@@ -265,8 +265,6 @@ const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 # (they surfaced as uncaught errors before the walk guarded the printer); tracked
 # in plan/pending/fix-selection-tests.md and plan/pending/test-suite-green.md.
 const NAV_WALK_THROWS = Dict(
-    # print_document: MethodError constructing RJsonObject in CopyingProjection
-    "json_sorted"       => (:walk_right, :walk_left),
     # The graph example's layout engine is the native Adaptagrams library, whose
     # built .so is gitignored — so in a fresh worktree the seed gesture throws.
     # Unrelated to navigation; it walks fine wherever the library is built.
