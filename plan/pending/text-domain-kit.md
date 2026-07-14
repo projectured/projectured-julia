@@ -218,7 +218,7 @@ Mechanics, as executed:
 
 ---
 
-## Phase 3 — `TextLine` *(shape B decided; the semantics below still need settling)*
+## Phase 3 — `TextLine` *(shape B decided; separator semantics decided)*
 
 ### The case for it is stronger than it looks
 
@@ -314,22 +314,62 @@ sheds its indent splicing → the remaining consumers upgrade, or get `TextLineF
 - Rendering: `TextToString` (new `TextLineToString` leaf; the block emits the break, the line emits
   its indent and spans) and the console backend.
 
-**Not done — the next two commits, in this order:**
+**Done: `TextToGraphics` is line-native** (step 2 of the sequence).
 
-1. **`TextToGraphics` goes line-native.** `SegCoord.span_idx :: Int` → `SpanPath`; the three
-   `_build_selection_path(sc.span_idx, …)` call sites then need *no* change (the `Vector` method
-   already exists), and `cursor_pos.span == span_idx` comparisons become path comparisons by
-   swapping `_cursor_position` for `_cursor_coord`. The real work is the two element loops
-   (`_layout_text`, `_layout_line`) and `lines_cell`: build the span list as
-   `(path, span, break_before, indent)` items once and iterate *that*, so both the flat pass and
-   the per-line reactive pass agree. Watch the empty-line height fallback — `lines_cell` currently
-   takes the font from the group's terminating `TextNewline`, and a `TextLine` break has no such
-   document to read it from. `SegCoord` is internal to `TextToGraphics`, so the change is contained
-   to that file (20 sites) plus `ClickRoundtripTest` / `HoverProbeTest`.
-   *Until this lands a line-structured block renders blank in the graphics pipeline* — nothing
-   emits a `TextLine`, so nothing hits it, but it is a trap for the next producer.
-2. **`SyntaxToText` emits `TextLine(…; indentation)`** and sheds `indent_indices` + the
-   splice-widening machinery. This is the payoff, and the first real producer.
+`SegCoord.span_idx :: Int` → `span_path :: SpanPath`. The reader carried over as predicted: the
+`_build_selection_path(sc.span_path, …)` sites needed no change (the `Vector` method already
+existed) and the `cursor_pos.span == …` comparisons became path comparisons by swapping
+`_cursor_position` for `_cursor_coord` — which is now **deleted**, nothing else used the flat
+reading. `_build_selection_path(::Int, …)` stays as a one-line delegation to the path method.
+
+The layout **collapsed rather than grew**: `_layout_text` and `_layout_line` were two near-duplicate
+span loops that had to agree by hand or the caret would drift off its glyph. Both passes now run one
+grouping (`_line_groups`) and one span loop (`_layout_group`) — the per-line reactive sub-canvases
+with `collect_spans = true`, the caret/highlight overlay with the running absolute `y` and the caret
+to locate. `_layout_text` is gone; the overlay is `_layout_overlay`, which folds `_layout_group` over
+the groups.
+
+Two things the *rendering* caught that the reading did not (both now regression-tested in
+`TextToGraphicsTest`):
+
+- **An empty `TextLine` collapsed to nothing.** The blank-row fallback took its height from the
+  group's terminating `TextNewline`, and a line has none — so a blank line in indented code would
+  have vanished. It is sized by the block's *prevailing font* (`_block_font`), in a cell that only an
+  empty line reads, so a font edit still re-lays out just the lines that draw glyphs. The mirror
+  trap: the empty group a **trailing** `TextNewline` leaves behind is *not* a line and must keep its
+  zero height, or every block ending in a newline grows a phantom row. Hence `is_line` on the group.
+- **A line's indentation counts in the flat box space** — the space a `TextRectangularReference` is
+  expressed in — as does its implicit break; the rule `text_flat_offsets` already encodes, and the
+  one **`SyntaxToText` must count when it emits the lines**. A `TextNewline` still counts **zero**
+  there, and that is not an oversight to unify away: `WordWrapping` splices *soft* newlines in at
+  wrap points and documents the box space as invariant under them. The graphics box space and
+  `text_flat_length` are therefore two deliberately different spaces (they also differ on
+  `TextGraphics`: 1 vs 0). Leave them apart.
+
+Verified by driving the pipeline, not only by the suite: a line block renders indented with one row
+per line, the graphics agree with `TextToString`'s string, a click on the second row yields
+`.elements[2].elements[1].content{2}`, Down crosses into it. `test_visual` 51895/0/0; `test_domain`
+byte-identical to the base commit (125978 passed, 93 failed, 1 errored — all pre-existing).
+
+**Not done — the next commit:**
+
+3. **`SyntaxToText` emits `TextLine(…; indentation)`** and sheds `indent_indices` + the
+   splice-widening machinery. This is the payoff, and the first real producer. Its `_span_len` /
+   `_text_elem_path_to_flat` accounting must grow the break and the indentation (see above), and its
+   `_parse_text_elem_path` — a flat `[i]`-only parser, duplicated across `WordWrapping`,
+   `TextFiltering`, `TextHighlighting`, `TextFirstLine`, `SelectionInverting` and `LineNumbering` —
+   is what each of those consumers will have to learn a path for, or get `TextLineFlattening` (C) in
+   front of.
+
+**Found, not fixed** (pre-existing, both out of this phase's scope):
+
+- A caret in an **empty** `TextString` renders no caret at all: the layout `continue`s past an empty
+  sub-line before it can place one, so no `SegCoord` and no cursor rect. A freshly inserted `text`
+  (one empty span, caret at `{0}` — Phase 1's `@insertion`) is exactly this shape. Fixing it means
+  emitting a zero-width segment, which shifts `coord_map` indices and so the rasterized-image click
+  path; do it deliberately, with `_translate_click` in hand.
+- `TextSpacing` is never rendered by `TextToGraphics` (the span loop skips it) though it counts 1 in
+  `text_flat_length`.
 
 `TextLine` is deliberately **not** an insertion candidate — but *withholding the `@insertion` factory
 is not enough*, which is the trap the test suite caught. Both of its fields are defaulted, so unlike
@@ -360,9 +400,12 @@ document node per line is a new iomap per line — watch for reconciliation loss
 - **`TextLine` shape** — B: one more element kind, with `TextLineFlattening` (C) held in reserve as
   an escape hatch. *(decided)*
 
-Still open, to settle when Phase 3 starts:
+- **Implicit newline** — **separator**. `n` lines → `n-1` breaks, no phantom trailing blank line.
+  `text_flat_length` stays a pure per-node function and the *container* adds the break
+  (`text_flat_offsets`); `TextBlockToString` and `TextToGraphics` both encode the same rule.
+  *(decided, implemented)*
 
-- **Implicit newline** — separator (recommended: `n` lines → `n-1` breaks, no phantom trailing blank
-  line) or terminator. This decides whether `text_flat_length` stays a pure per-node function.
+Still open:
+
 - **`TextGraphics` insertability** — scaffold a placeholder image, or opt out with
   `insertable(::Type{TextGraphics}) = false`.
