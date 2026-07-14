@@ -45,7 +45,7 @@ import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
-import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..OperationModule: ReplaceSelectionOperation
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
@@ -160,7 +160,7 @@ keyword labels, whitespace).
 function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
         ConcreteReferencePath(Cell(ProjectionReference(p,

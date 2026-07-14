@@ -79,6 +79,6 @@ maps an input gesture to a `ReplaceSelectionOperation` on the tree:
   (parent / first child / previous / next sibling); arrows require `Alt` only to
   *enter* structural mode from a character cursor
 
-`SyntaxNodeToText` delegates to this and keeps only the geometry/output-driven
+`SyntaxCompoundToText` delegates to this and keeps only the geometry/output-driven
 mouse hit-testing (collapse glyph, Alt+click). See
 [projection-system.md](../../../package/kernel/doc/projection-system.md) for the full reader split.

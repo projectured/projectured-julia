@@ -8,14 +8,22 @@ layout engine from any specific source domain so the same word-wrap and
 indentation logic applies to JSON, XML, or any future domain.
 
 The domain includes:
-- **Core types**: `SyntaxLeaf` (leaf with delimiters and value), `SyntaxNode` (compound with delimiters and children)
-- **Wrapper types**: `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation` (intermediate document wrappers)
-- **Container types**: `SyntaxConcatenation`, `SyntaxSeparation` (for combining documents)
-- **Base type**: `SyntaxDocument` abstract type for all syntax documents
+- **Core types**: `SyntaxLeaf` (leaf with delimiters and value), `SyntaxNode` (a compound carrying every span at once)
+- **Compounds**: `SyntaxConcatenation`, `SyntaxSeparation` — documents that sequence children and little else
+- **Wrapper types**: `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation` (single-child document wrappers)
+- **Base types**: `SyntaxDocument` for every syntax document; `SyntaxCompound` for the ones with children
+
+A document picks whichever type says what it means. A delimited, indented,
+collapsible node is a `SyntaxNode`; one that only sequences a fixed child list is a
+`SyntaxConcatenation`. They are not alternatives to choose between once and for all
+— they are the same five layout jobs in different combinations, and they share one
+implementation (the compound contract below, and `SyntaxToText`'s splice core).
 
 Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 - Leaves: `.open{k}`, `.value{k}`, `.close{k}` — cursor at boundary k in a delimiter or the value
-- Nodes: `.open{k}`, `.close{k}` for delimiters, `.children[i]` for the i-th child
+- Compounds: `.children[i]` for the i-th child, plus a cursor in whatever delimiters
+  the compound has (`.open{k}` / `.close{k}` on a `SyntaxNode`). A delimiter a
+  compound does not have renders no span and offers no cursor.
 """
 module SyntaxModule
 
@@ -25,7 +33,8 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ReferencePath
+                          FieldReference, RangeReference, ReferencePath,
+                          reference_node_type
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -33,7 +42,9 @@ import ..KeyboardModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
-export SyntaxDocument, render, set_function!
+export SyntaxDocument, SyntaxCompound, render, set_function!,
+       syntax_children, syntax_opening, syntax_closing, syntax_separator,
+       syntax_indentation, syntax_collapsed, syntax_collapsible
 
 """
     SyntaxDocument
@@ -43,6 +54,56 @@ subtypes `SyntaxDocument`; `@document` injects the `selection::Reference` field 
 `Document` contract requires.
 """
 abstract type SyntaxDocument <: Document end
+
+"""
+    SyntaxCompound
+
+A syntax document that has a `children` sequence: an interior node of the syntax
+tree. `SyntaxNode` and `SyntaxConcatenation` are compounds; `SyntaxLeaf` is not.
+
+Everything that walks the tree — tree navigation, collapse resolution, the flat
+metric, and the splice printer — is written against this type, not against
+`SyntaxNode`. Otherwise `SyntaxNode` would be the only navigable interior node and
+every other compound an opaque dead end in the middle of the tree.
+"""
+abstract type SyntaxCompound <: SyntaxDocument end
+
+# ── The compound contract ─────────────────────────────────────────────────
+#
+# What a compound answers about itself. These are *document* facts, not rendering
+# choices — which spans a compound has is decided by the document; the projection
+# supplies only configuration (indent size, marker glyphs). A compound that lacks
+# a given span answers `nothing`, and no span — and so no caret — is emitted.
+#
+# An answer names the DOCUMENT FIELD the span comes from, because that is what the
+# reference mappers hand back: a caret in that span is `.<field>{k}`. So a compound
+# is free to call its delimiters whatever it likes (`SyntaxNode` says `open`, a
+# `SyntaxDelimitation` would say `opening_delimiter`) without the printer or the
+# mappers knowing the difference.
+
+"Every compound's children. A `SyntaxDocument` that is not a compound has none."
+syntax_children(c::SyntaxCompound) = c.children
+syntax_children(::SyntaxDocument) = nothing
+
+"The compound's opening / closing delimiter and separator, as `field => span`, or `nothing`."
+syntax_opening(::SyntaxCompound) = nothing
+syntax_closing(::SyntaxCompound) = nothing
+syntax_separator(::SyntaxCompound) = nothing
+
+"The compound's pretty-print indentation; `0` for one that does not indent."
+syntax_indentation(::SyntaxCompound) = 0
+
+"Whether the compound is collapsed; `false` for one that cannot collapse."
+syntax_collapsed(::SyntaxCompound) = false
+
+"""
+Whether the compound can collapse at all.
+
+Only a compound that can collapse is given a fold marker, and only such a compound
+can be the target of a `ToggleCollapseOperation`. A compound with no `collapsed`
+field would otherwise be handed a marker glyph that does nothing when clicked.
+"""
+syntax_collapsible(::SyntaxCompound) = false
 
 # ── SyntaxInsertion ───────────────────────────────────────────────────────
 
@@ -145,8 +206,14 @@ end
 """
     SyntaxConcatenation
 
-Concatenates multiple syntax documents without separators. Used to
-join documents end-to-end.
+Sequences its children and nothing else: no delimiters, no separator, no
+indentation, no collapse. It renders as its children, end to end.
+
+This is the same *rendering* a bare `SyntaxNode` produces, and deliberately so —
+what `SyntaxConcatenation` adds is precision. A node that only sequences a fixed
+child list says exactly that, and cannot later acquire a delimiter by accident,
+where a `SyntaxNode` carrying five unused fields leaves the reader to work out
+that none of them is set.
 
 # Fields
 
@@ -157,12 +224,16 @@ join documents end-to-end.
 - `SyntaxConcatenation(children::Vector{<:SyntaxDocument})`
 - `SyntaxConcatenation()` — empty concatenation
 """
-@document struct SyntaxConcatenation <: SyntaxDocument
+@document struct SyntaxConcatenation <: SyntaxCompound
     children::CellVector = CellVector()
 end
 
 SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
     SyntaxConcatenation(CellVector(Cell[Cell(c) for c in children]), nothing)
+
+# A concatenation answers the compound contract with the defaults throughout: it
+# has children, and nothing else. Every `nothing` here is a span the printer does
+# not emit and a caret the mappers decline.
 
 """
     SyntaxSeparation
@@ -338,7 +409,7 @@ The `selection` cell routes a cursor into the rendered node, or `nothing`:
   `.children[i]`      — descend into the i-th child (1-based); set_selection!
                         clears all other children and propagates the rest into child i
 """
-@document struct SyntaxNode <: SyntaxDocument
+@document struct SyntaxNode <: SyntaxCompound
     open::Union{TextString,Nothing} = nothing
     close::Union{TextString,Nothing} = nothing
     sep::Union{TextString,Nothing} = nothing
@@ -346,6 +417,16 @@ The `selection` cell routes a cursor into the rendered node, or `nothing`:
     indentation::Int = 0
     collapsed::Bool = false
 end
+
+# `SyntaxNode` is the compound that carries every span at once — the combined type
+# a domain reaches for when its node really is delimited, separated, indented and
+# collapsible. It answers the whole contract.
+syntax_opening(n::SyntaxNode)     = n.open === nothing ? nothing : (:open  => n.open)
+syntax_closing(n::SyntaxNode)     = n.close === nothing ? nothing : (:close => n.close)
+syntax_separator(n::SyntaxNode)   = n.sep === nothing ? nothing : (:sep   => n.sep)
+syntax_indentation(n::SyntaxNode) = n.indentation
+syntax_collapsed(n::SyntaxNode)   = n.collapsed
+syntax_collapsible(::SyntaxNode)  = true
 
 # Canonical keyword constructor: `children` leads positionally. Its only job is to
 # coerce — the delimiters through `_text`, the children through `_children` — and
@@ -402,29 +483,41 @@ function render(leaf::SyntaxLeaf)
     string(_delimiter_content(leaf.open), leaf.value.content, _delimiter_content(leaf.close))
 end
 
-function render(node::SyntaxNode)
-    parts = [render(child) for child in node.children]
-    string(_delimiter_content(node.open),
-           join(parts, _delimiter_content(node.sep)),
-           _delimiter_content(node.close))
+# Every compound renders the same way — its children, joined by whatever separator
+# it has, between whatever delimiters it has. A concatenation simply answers
+# `nothing` to all three and so renders as its children, end to end.
+_span_of(::Nothing) = nothing
+_span_of(pair::Pair) = pair.second
+
+function render(c::SyntaxCompound)
+    parts = [render(child) for child in syntax_children(c)]
+    string(_delimiter_content(_span_of(syntax_opening(c))),
+           join(parts, _delimiter_content(_span_of(syntax_separator(c)))),
+           _delimiter_content(_span_of(syntax_closing(c))))
 end
 
 # ── set_function! delegation ───────────────────────────────────────────────────
 
 set_function!(t::SyntaxLeaf, f::Function) = (set_function!(getfield(t.value, :content), f); t)
-set_function!(n::SyntaxNode, f::Function) = (set_function!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
+set_function!(n::SyntaxCompound, f::Function) = (set_function!(getfield(syntax_children(n), :elements), () -> Cell[Cell(x) for x in f()]); n)
 
 # ── read_gesture via reified @gestures: geometry-free tree navigation ─────
 #
-# The projection-independent half of the Syntax domain's reader, now a reified
-# `@gestures` table on `SyntaxNode` (was a `read_gesture(::SyntaxNode)` method).
-# The generic `read_gesture` interpreter (`read_document_gesture`) fires it, so
-# the table that *fires* is exactly the one gesture-help enumerates. Any projection
-# whose input is a `SyntaxNode` (e.g. `SyntaxToText`) reaches it through that
-# interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs
+# The projection-independent half of the Syntax domain's reader: a reified
+# `@gestures` table. The generic `read_gesture` interpreter (`read_document_gesture`)
+# fires it, so the table that *fires* is exactly the one gesture-help enumerates.
+# Any projection whose input is a compound (e.g. `SyntaxToText`) reaches it through
+# that interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs
 # and Alt+click stays in `SyntaxToText`'s 4-arg reader.
 #
-# The entire mapping is geometry-free — it walks the `SyntaxNode` tree and its
+# The table is registered on `SyntaxCompound`, not on `SyntaxNode`: the registry
+# collects a type's own bindings plus every supertype's, so one declaration covers
+# every interior node there is or will be. Tree navigation is a property of *being*
+# an interior node, not of being a `SyntaxNode` — a table per compound type would
+# be the same twenty lines copied out once per wrapper. A `SyntaxLeaf` is not a
+# compound and so is untouched by this.
+#
+# The entire mapping is geometry-free — it walks the compound tree and its
 # selection *paths* (e.g. `.children[i].children[j]…∅`):
 # - Ctrl+Alt+Home → select the root node (∅)
 # - Ctrl+Space    → toggle structural ⇄ text (character-cursor) mode
@@ -443,7 +536,7 @@ set_function!(n::SyntaxNode, f::Function) = (set_function!(getfield(n.children, 
 # plain-arrow rules are disjoint (exact Alt vs. exact none); if Alt-arrow's
 # operation declines, the plain-arrow rule does not match it, so it declines too —
 # same result as the old reader.
-@gestures SyntaxNode begin
+@gestures SyntaxCompound begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReferencePath())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
@@ -475,22 +568,45 @@ _unwrap_projection_ref(sel) =
     (sel isa ConcreteReferencePath && sel.head isa ProjectionReference) ?
         sel.head.output_path : sel
 
-function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
+# A `.children[i]` step into `doc`, carrying `inner` beneath it. The literal-type
+# form (`@reference ::SyntaxNode.children::CellVector[i].^(inner)`) can only spell
+# ONE type, which is exactly what made tree navigation a `SyntaxNode`-only affair,
+# so the path is built with the document's own type instead. This is the same
+# structure that form lowers to: `ElementReference(i)` is `RangeReference(i-1, i)`,
+# and a `::T` checkpoint folds onto the node it follows.
+_child_step(doc, i::Int, inner) =
+    ConcreteReferencePath(reference_node_type(doc), FieldReference("children"),
+        ConcreteReferencePath(CellVector, RangeReference(i - 1, i),
+            _typed_terminal(inner, syntax_children(doc)[i])))
+
+# A bare `∅` handed back by a child's own navigation means "the child node itself".
+# Spliced under a `.children[i]` step it has to carry that child's type, because
+# selections are compared with `==`, types included, and every other way of naming
+# that same element (`@reference(doc, children[i])`, a click, a backward map) produces
+# the typed form. Without this, walking `:up` out of a nested node yields a path that
+# *is* the child but does not compare equal to it.
+_typed_terminal(t::EmptyReferencePath, child) =
+    t.type === nothing ? EmptyReferencePath(reference_node_type(child)) : t
+_typed_terminal(t, _child) = t
+
+# The whole element `doc.children[i]` — the same path `@reference(doc, children[i])`
+# annotates against the live document.
+_child_element(doc, i::Int) = _child_step(doc, i, EmptyReferencePath())
+
+function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
     # sel must be a tree selection (path of .children[i] steps ending in ∅)
     sel === nothing && return nothing
     sel = _unwrap_projection_ref(sel)
+    children = syntax_children(doc)
 
     # ∅ on the root node: this node is wholly selected
     if sel isa EmptyReferencePath
-        if direction === :up
-            return nothing  # no parent at this level; propagate up
-        elseif direction === :down
-            children = node.children
+        if direction === :down
             length(children) > 0 || return EmptyReferencePath()
-            return @reference(node, children[1])
-        else
-            return nothing  # left/right need a parent; propagate up
+            return _child_element(doc, 1)
         end
+        # up has no parent at this level; left/right need one — propagate up.
+        return nothing
     end
 
     sel isa ConcreteReferencePath || return nothing
@@ -501,34 +617,33 @@ function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
     h2 = rest.head
     h2 isa RangeReference || return nothing
     child_idx = h2.start + 1  # 1-based
-    children = node.children
     (1 <= child_idx <= length(children)) || return nothing
     child_rest = rest.tail
+    child = children[child_idx]
 
     if child_rest isa EmptyReferencePath
         # The selected node is children[child_idx]
         if direction === :up
             return EmptyReferencePath()  # select the current node
         elseif direction === :down
-            child = children[child_idx]
-            if child isa SyntaxNode && length(child.children) > 0
-                return @reference(node, children[child_idx].children[1])
-            end
-            return @reference(node, children[child_idx])  # leaf or no children — stay
+            # Descend into the child, if it is an interior node with children of
+            # its own; otherwise stay where we are.
+            grandchildren = syntax_children(child)
+            (grandchildren !== nothing && length(grandchildren) > 0) || return _child_element(doc, child_idx)
+            return _child_step(doc, child_idx, _child_element(child, 1))
         elseif direction === :left
-            child_idx > 1 || return @reference(node, children[child_idx])  # already first
-            return @reference(node, children[child_idx - 1])
+            child_idx > 1 || return _child_element(doc, child_idx)   # already first
+            return _child_element(doc, child_idx - 1)
         elseif direction === :right
-            child_idx < length(children) || return @reference(node, children[child_idx])  # already last
-            return @reference(node, children[child_idx + 1])
+            child_idx < length(children) || return _child_element(doc, child_idx)  # already last
+            return _child_element(doc, child_idx + 1)
         end
     else
-        # Recurse into the child
-        child = children[child_idx]
-        child isa SyntaxNode || return @reference(node, children[child_idx])
+        # Recurse into the child — any compound, not just a SyntaxNode.
+        child isa SyntaxCompound || return _child_element(doc, child_idx)
         inner = _tree_navigate(child, child_rest, direction)
         inner === nothing && return nothing
-        return @reference ::SyntaxNode.children::CellVector[child_idx].^(inner)
+        return _child_step(doc, child_idx, inner)
     end
     return nothing
 end
@@ -579,7 +694,7 @@ end
 # `.children[i]` path to the selected element, then descend to its first leaf
 # and place a character cursor at the start of that leaf's value (`…value{0}`).
 # Returns nothing if a node along the way has no children (no leaf to land on).
-function _descend_to_text_cursor(node::SyntaxNode, sel)
+function _descend_to_text_cursor(node::SyntaxCompound, sel)
     indices = Int[]
     cur = node
     p = sel
@@ -591,16 +706,19 @@ function _descend_to_text_cursor(node::SyntaxNode, sel)
         h2 = t.head
         h2 isa RangeReference || return nothing
         i = h2.start + 1
-        children = cur.children
+        children = syntax_children(cur)
+        children === nothing && return nothing
         (1 <= i <= length(children)) || return nothing
         push!(indices, i)
         cur = children[i]
         p = t.tail
     end
-    while cur isa SyntaxNode
-        isempty(cur.children) && return nothing
+    # Descend through any interior node — the first leaf is where a text cursor can
+    # actually land.
+    while cur isa SyntaxCompound
+        isempty(syntax_children(cur)) && return nothing
         push!(indices, 1)
-        cur = cur.children[1]
+        cur = syntax_children(cur)[1]
     end
     cur isa SyntaxLeaf || return nothing
     path = ConcreteReferencePath(FieldReference("value"),

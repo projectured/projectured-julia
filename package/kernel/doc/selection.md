@@ -253,7 +253,7 @@ spell out the path translation each one's mapper performs.)
 - Partitions `pos` against `open_len` and `open_len + value_len`.
 - Returns one of `.open + {pos}`, `.value + {pos - open_len}`, or `.close + {pos - close_start}`.
 
-**`SyntaxNodeToText`**:
+**`SyntaxCompoundToText`**:
 - Receives `ReplaceSelectionOperation({flat_pos})`.
 - Calls `_pos_to_selection` which walks the tree accounting for all structural
   characters to locate the owning child and its local offset.

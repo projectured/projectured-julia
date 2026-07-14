@@ -73,18 +73,18 @@ node = SyntaxNode(
         SyntaxLeaf("hello"; open="\"", close="\""),
         SyntaxLeaf("world"; open="\"", close="\""),
     ]; open="[", close="]", sep=", ", indentation=1)
-_check_roundtrip("indented array", node, _S2T.SyntaxNodeToText())
+_check_roundtrip("indented array", node, _S2T.SyntaxCompoundToText())
 
 # An inline (non-indented) node: child₁ sep child₂.
 inline_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")]; sep=" | ")
-_check_roundtrip("inline node", inline_node, _S2T.SyntaxNodeToText())
+_check_roundtrip("inline node", inline_node, _S2T.SyntaxCompoundToText())
 
 # Nested: an outer array whose child is itself an inline pair node.
 inner_pair = SyntaxNode(
     SyntaxDocument[SyntaxLeaf("key"; open="\"", close="\""),
                     SyntaxLeaf("value"; open="\"", close="\"")]; sep=": ")
 outer = SyntaxNode(SyntaxDocument[inner_pair]; open="{", close="}", sep=", ", indentation=1)
-_check_roundtrip("nested key/value", outer, _S2T.SyntaxNodeToText())
+_check_roundtrip("nested key/value", outer, _S2T.SyntaxCompoundToText())
 end # let
 
 end # @testset "SyntaxToText flat-position round-trip"
@@ -100,8 +100,8 @@ mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
 
-p_off = _S2T.SyntaxNodeToText()
-p_on  = _S2T.SyntaxNodeToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸"))
+p_off = _S2T.SyntaxCompoundToText()
+p_on  = _S2T.SyntaxCompoundToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸"))
 
 pipe_off = RecursiveProjection(SyntaxToText())
 pipe_on  = RecursiveProjection(SyntaxToText(expanded_marker=mk("▾"), collapsed_marker=mk("▸")))
@@ -172,7 +172,7 @@ mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
 pipe = RecursiveProjection(SyntaxToText())
-p    = _S2T.SyntaxNodeToText()
+p    = _S2T.SyntaxCompoundToText()
 
 # Expanded output, captured for the restoration check below.
 expanded = join(s.content for s in print_document(pipe, node).output.elements)
@@ -229,7 +229,7 @@ node = SyntaxNode(
         SyntaxLeaf("world"; open="\"", close="\""),
     ]; open="[", close="]", sep=", ", indentation=1)
 
-# Drive the SyntaxNodeToText reader with `sel` as the current selection.
+# Drive the SyntaxCompoundToText reader with `sel` as the current selection.
 read_key(sel, key, mods=Modifiers()) = begin
     clear_selection!(node)
     set_selection!(node, sel)
@@ -294,5 +294,110 @@ end
 end
 end # let
 end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"
+
+@testset "SyntaxConcatenation" begin
+
+# A concatenation sequences its children and emits nothing of its own: no
+# delimiters, no separator, no indent chrome, no fold marker — and so no caret
+# that is not one of its children's.
+let
+_S2T = SyntaxToTextModule
+s2st = RecursiveProjection(SyntaxToText())
+
+@testset "renders as its children, end to end" begin
+    c = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
+    out = print_document(s2st, c).output
+    @test [s.content for s in out.elements] == ["a", "b"]   # exactly two spans: no chrome
+    @test render(c) == "ab"
+
+    # An empty concatenation renders nothing at all.
+    @test isempty(print_document(s2st, SyntaxConcatenation()).output.elements)
+end
+
+@testset "a concatenation is a compound, a leaf is not" begin
+    c = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a")])
+    @test c isa SyntaxCompound
+    @test !(SyntaxLeaf("a") isa SyntaxCompound)
+    # It answers the compound contract with the defaults throughout.
+    @test syntax_opening(c) === nothing
+    @test syntax_closing(c) === nothing
+    @test syntax_separator(c) === nothing
+    @test syntax_indentation(c) == 0
+    @test syntax_collapsed(c) == false
+    @test syntax_collapsible(c) == false     # so it is never given a (dead) fold marker
+end
+
+@testset "a marker is never emitted for a concatenation" begin
+    # Markers are configured on the projection, so a concatenation would be handed
+    # one too if collapsibility were not part of the contract — a glyph that does
+    # nothing when clicked.
+    p_on = _S2T.SyntaxCompoundToText(expanded_marker=TextString("▾"),
+                                     collapsed_marker=TextString("▸"))
+    @test _S2T._active_marker(p_on, SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a")])) === nothing
+    @test _S2T._active_marker(p_on, SyntaxNode(SyntaxDocument[SyntaxLeaf("a")])) !== nothing
+end
+
+@testset "nested in a node: every caret round-trips" begin
+    # The flat round-trip harness, but with a concatenation between the node and
+    # its leaves — every character offset must still map back to a selection that
+    # forward-maps onto the same character.
+    inner = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
+    p = _S2T.SyntaxCompoundToText()
+    iomap = print_document(s2st, node)
+    @test join(s.content for s in iomap.output.elements) == "(x,ab)"
+    for k in 0:_S2T._subtree_len(node, p, 0)
+        sel = map_reference_backward(iomap.projection, iomap,
+                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+    end
+end
+
+@testset "indentation is widened through a concatenation" begin
+    # The parent widens every line-start indent its child reported, reading them
+    # off the child's IoMap. A concatenation in between must still report them, or
+    # everything beneath it silently stops being re-indented on splice.
+    leaf   = SyntaxLeaf("k")
+    inner  = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
+    outer  = SyntaxNode(SyntaxDocument[SyntaxConcatenation(SyntaxDocument[inner])];
+                        open="{", close="}", indentation=1)
+    through = join(s.content for s in print_document(s2st, outer).output.elements)
+    # The same tree with the concatenation removed must render identically —
+    # a concatenation contributes no characters of its own.
+    direct = SyntaxNode(SyntaxDocument[inner]; open="{", close="}", indentation=1)
+    @test through == join(s.content for s in print_document(s2st, direct).output.elements)
+    @test occursin("\n    k", through)   # k is indented twice: once per indenting node
+end
+
+@testset "tree navigation walks into and out of a concatenation" begin
+    # Tree navigation is registered on SyntaxCompound, so a concatenation is an
+    # ordinary interior node: it can be selected, entered, and stepped past.
+    inner = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
+    node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
+
+    read_key(sel, key, mods=Modifiers()) = begin
+        clear_selection!(node)
+        set_selection!(node, sel)
+        read_intent(s2st, print_document(s2st, node), KeyDown(key, mods))
+    end
+    op_path(sel, key, mods=Modifiers()) = begin
+        op = read_key(sel, key, mods)
+        op isa ReplaceSelectionOperation ? op.path : op
+    end
+
+    root   = EmptyReferencePath()
+    child1 = @reference(node, children[1])                 # the leaf "x"
+    concat = @reference(node, children[2])                 # the concatenation
+    inner1 = @reference(node, children[2].children[1])     # the leaf "a" inside it
+
+    @test is_reference_equal(op_path(root,   :down),  child1)   # root → first child
+    @test is_reference_equal(op_path(child1, :right), concat)   # step onto the concatenation
+    @test is_reference_equal(op_path(concat, :down),  inner1)   # descend INTO it
+    @test is_reference_equal(op_path(inner1, :up),    concat)   # and back out
+    @test is_reference_equal(op_path(concat, :left),  child1)   # step back off it
+end
+end # let
+
+end # @testset "SyntaxConcatenation"
 
 end # test_syntax_to_text

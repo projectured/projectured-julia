@@ -242,7 +242,7 @@ The harness lives in
 
 The asserted check is the **delegation probe** — the discriminating test, which adds
 no per-projection generic function (the spy is an ordinary higher-order projection).
-Every probed node now delegates: `SyntaxNodeToText` was the last flattener (reached
+Every probed node now delegates: `SyntaxCompoundToText` was the last flattener (reached
 transitively by all four examples) and the refactor in
 `plan/done/syntaxtotext-delegation.md` converted it to School A, so it is now a plain
 `@test`. `test_recursion_contracts()` is opt-in (not yet wired into `test_all`); the

@@ -26,7 +26,7 @@ import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReferenc
                           EmptyReferencePath, append_reference, is_element_reference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
 
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
@@ -43,7 +43,7 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
     if core isa ConcreteReferencePath
         # A projection-introduced position (structural delimiter) was encoded as
         # proj(p, {flat}) by the reader.  Keep it wrapped so that
-        # SyntaxNodeToText._syntax_to_flat can extract the flat position via its
+        # SyntaxCompoundToText._syntax_to_flat can extract the flat position via its
         # `h isa ProjectionReference` branch — same pattern as JsonToSyntax's
         # `_node_forward` which also returns the wrapped reference unchanged.
         if core.head isa ProjectionReference && core.head.projection === p
@@ -121,7 +121,7 @@ function read_intent(p::CollectionCellVectorToSyntax,
                           op::ReplaceSelectionOperation)
     result = _translate_collection_path(iomap.input::CellVector, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
         ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))

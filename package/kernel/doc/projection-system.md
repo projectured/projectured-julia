@@ -70,7 +70,7 @@ The rest of this guide is the contract spelled out per function: the printer
 recurses via `recursion` ([§ Recursion across projections](#recursion-across-projections)),
 and the reader and both mappers recurse via the stored child IoMaps
 ([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
-Every projection in the tree now honours it. `SyntaxNodeToText`/`SyntaxListToText`
+Every projection in the tree now honours it. `SyntaxCompoundToText`/`SyntaxListToText`
 were the last holdouts (they flattened the syntax subtree into one flat `TextText`);
 the delegation refactor in `plan/done/syntaxtotext-delegation.md` converted them to
 School A — a worked before/after example of this contract.
@@ -248,7 +248,7 @@ A projection reader **delegates** to it and keeps only its geometry arms:
 - `TextToGraphics` calls `read_gesture(iomap.input, evt)` for character
   insert/delete and left/right/Ctrl+Home-End cursor motion, and keeps visual
   up/down, plain Home/End, and mouse click.
-- `SyntaxToText` (`SyntaxNodeToText`) calls `read_gesture(iomap.input, evt)` for
+- `SyntaxToText` (`SyntaxCompoundToText`) calls `read_gesture(iomap.input, evt)` for
   tree navigation (Ctrl+Alt+Home, Ctrl+Space toggle, Alt/structural arrows), and
   keeps the mouse hit-test for collapse glyphs and Alt+click.
 
@@ -677,7 +677,7 @@ When the child the printer recursed into went through a `CopyingProjection` (as
 > into your own output — walking `input`'s descendants yourself instead of calling
 > `print_child(recursion, child, …)` and composing each `child_iomap.output` — is
 > the printer-side School B. It forecloses composing any descendant with another
-> projection, for the same reasons. (`SyntaxNodeToText`/`SyntaxListToText`
+> projection, for the same reasons. (`SyntaxCompoundToText`/`SyntaxListToText`
 > historically did exactly this; the delegation refactor in
 > `plan/done/syntaxtotext-delegation.md` fixed them — splicing each child's
 > `output.elements` and re-indenting on splice.)

@@ -309,7 +309,7 @@ machinery, and with it the same three sharp edges:
   `Function` is worse: `Cell(f)` builds a **computed thunk**, so the field would be
   *called* (with no args) when read, not returned — a config field like
   `marker_eligible::Any = some_predicate` silently breaks at runtime. (This is exactly
-  the trap that forced `SyntaxNodeToText` to stay a plain `struct` instead of becoming
+  the trap that forced `SyntaxCompoundToText` to stay a plain `struct` instead of becoming
   `@projection`.) If you genuinely need to store a cell or a callable *as a value*, box
   it (e.g. in a one-element tuple or a wrapper struct), or keep it in a plain
   hand-rolled struct instead.
@@ -337,7 +337,7 @@ machinery, and with it the same three sharp edges:
 - Most projection structs use `@projection` (with the `<: Projection` defaulted
   in) — the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
   plain `struct ... <: Projection` is the exception, used when the macro can't
-  be: `SyntaxNodeToText` stays plain because it stores a `Function` field (which
+  be: `SyntaxCompoundToText` stays plain because it stores a `Function` field (which
   the auto-wrapping ctor would turn into a thunk — see "Gotchas"), and
   `AlternativeProjection` stays plain even though it holds a reactive
   `index::Cell`, reading the cell explicitly rather than through `@projection`.

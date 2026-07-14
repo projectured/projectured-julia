@@ -31,7 +31,7 @@ import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
-import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode, MathToSyntax
@@ -170,7 +170,7 @@ end
 function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
@@ -237,7 +237,7 @@ end
 function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
@@ -332,7 +332,7 @@ end
 function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end

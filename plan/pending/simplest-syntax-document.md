@@ -303,8 +303,12 @@ Do them in dependency order, one commit each, each with its own tests:
   Pure refactor, as required: all six guard rails match their baselines exactly (`test_visual`
   49291/0/1, `test_domain` 110766/0/1 err/15, `test_text_nav_invariants_all` 236/0/26, `test_typeins`
   1187/0/23, `test_table_navigation` 63/0/1 err/1, `test_click_roundtrips` 27/2/4).
-- **2.2 `SyntaxConcatenation`** — the core splice, over `children`.
-- **2.3 `SyntaxSeparation`** — concatenation plus separator spans between children.
+- **2.2 `SyntaxConcatenation` — DONE, but not the way this plan said.** See "What 2.2 changed about
+  the plan" below: there is **one projection for every compound**, not one per wrapper type.
+- **2.3 `SyntaxSeparation`** — concatenation plus separator spans between children. Now nearly free:
+  make it a `SyntaxCompound`, answer `syntax_separator(s) = :separator => s.separator`, register it.
+  The separator machinery (forward-maps to the first occurrence, backward-maps as projection-introduced
+  chrome) is already generic over the field name.
 - **2.4 `SyntaxDelimitation`** — open/close spans around a single child. **Each delimiter is
   independently optional**: `opening_delimiter` and `closing_delimiter` are both
   `Union{TextString,Nothing}`, and either may be present while the other is absent (an opening `"("`
@@ -347,6 +351,77 @@ them. Options, decide before writing code: move the label helper (and possibly t
 Nothing/Insertion renderers) down to base or visual so both layers share one implementation, or give
 `SyntaxNothingToText` its own. Prefer sharing — a second `_nothing_label` is exactly the kind of
 duplication this plan is trying to remove.
+
+### What 2.2 changed about the plan
+
+The plan above says each wrapper gets its own `<Type>ToText <: Projection` and its own IoMap. **That
+was wrong, and 2.2 does not do it.** After Phase 1, a `SyntaxConcatenation` is not a new *rendering*:
+it is a `SyntaxNode` with no delimiters, no separator, no indentation and no collapse, and it emits
+exactly the same spans. A projection per wrapper would have been this file's mappers and readers —
+child splicing, delegation, the flat metric, click resolution — copied out once per wrapper, for zero
+behavioural difference. That is the duplication this plan exists to remove.
+
+The five jobs are properties of the **document**; the projection supplies only **configuration**
+(indent size, marker glyphs, ellipsis), and none of that differs per compound type. So:
+
+- **`SyntaxCompound`** — a new abstract document type: a syntax document with a `children` sequence.
+  `SyntaxNode` and `SyntaxConcatenation` subtype it (`SyntaxSeparation` will). Everything that walks
+  the tree — the splice printer, both mappers, both readers, tree navigation, collapse resolution, the
+  flat metric — is now written against `SyntaxCompound`, never `SyntaxNode`.
+- **The compound contract** (`Syntax.jl`): `syntax_children` / `syntax_opening` / `syntax_closing` /
+  `syntax_separator` / `syntax_indentation` / `syntax_collapsed` / `syntax_collapsible`. A compound
+  that lacks a span answers `nothing` and no span — and so no caret — is emitted. An answer names the
+  **document field** the span came from (`:open => …`), so a compound may call its delimiters whatever
+  it likes and neither the printer nor the mappers care.
+- **One projection** (`SyntaxCompoundToText`, renamed from `SyntaxNodeToText`) and **one IoMap**. The
+  IoMap *must* be shared: a parent reads its child's `indent_indices` off the child's IoMap to widen
+  them on splice, so a wrapper with an IoMap of its own type would be invisible to that read and every
+  indent beneath it would silently stop being widened.
+- **`own_spans`** replaces `open_index` + `close_index`: element index => document field, recorded by
+  the printer. `sep_indices` stays separate on purpose — a separator is **not** backward-addressable
+  (one `sep` field renders n−1 spans, so a caret in one of them names no single document position and
+  must map back as projection-introduced chrome, exactly as before).
+- **`@gestures SyntaxCompound`**, not `@gestures SyntaxNode`. The registry collects a type's own
+  bindings plus every supertype's, so one declaration covers every interior node there is or will be.
+  A `SyntaxLeaf` is not a compound and is untouched.
+
+Two bugs this shook out, both found by tests, neither guessable:
+
+- **`typeof(doc)` is not the reference node type.** `@document` generates a *reactive* struct, so
+  `typeof(node)` is `RSyntaxNode` while the literal `::SyntaxNode` checkpoint means `SyntaxNode`.
+  Every type checkpoint built by hand must use `reference_node_type(doc)`.
+- **`_tree_navigate` was not canonical.** `:down`/`:left`/`:right` returned *annotated* paths (via
+  `@reference(doc, children[i])`), but recursing back out on `:up` spliced a **bare** `∅` terminal.
+  Selections are compared with `==`, types included, so a nested `:up` produced a path that *was* the
+  child yet did not compare equal to it. Pre-existing; nested `:up` had no test. Fixed by typing the
+  terminal (`_typed_terminal`), which also let `_child_element` and the `@reference` form collapse into
+  one construction — the existing plain-arrow tests now *prove* the two are identical.
+
+### Guard rails after 2.2
+
+All green, but **`test_domain`'s pass count legitimately drops 110766 → 110182 (−584)**. Do not
+"fix" this. The printer walker emits *one assertion per reactive cell*
+([PrinterTest.jl](../../package/kernel/test/editor/PrinterTest.jl)), so its count tracks the size of
+the reactive graph. Merging `open_index` + `close_index` into one `own_spans` cell removes one `Cell`
+per compound IoMap, and there are exactly 584 compound IoMaps across the domain examples — confirmed
+by re-adding a dummy `Cell`, which restores the count to 110766 precisely. **New `test_domain`
+baseline: 110182 pass / 0 fail / 1 error / 15 broken.** `test_visual` rises to 49294+ (28 new
+`SyntaxConcatenation` assertions); every other guard rail is unchanged to the assertion.
+
+### Still open, for 2.3–2.7
+
+- **The single-child wrappers are a different problem.** `SyntaxDelimitation` / `SyntaxIndentation` /
+  `SyntaxCollapsible` / `SyntaxNavigation` have a `content`, not `children`, so they are **not**
+  `SyntaxCompound`s and the machinery above does not cover them. They need the `.content`-hop
+  transparency the plan flags below (tree navigation must step over a wrapper without treating it as a
+  child level). Decide whether to model them as one-child compounds — which would make them fall out of
+  the existing machinery for free — or to build the transparency mechanism.
+- **`SyntaxConcatenation` in a `@projection_template` blueprint still does not work.** The Phase 1
+  lesson stands: a blueprint needs a raw `Vector` (`ProjectionTemplate._has_fixed_children` tests
+  `getfield(out, f)[] isa Vector`) while a hand-written projection's output needs a `CellVector`, and
+  `SyntaxConcatenation(children::Vector)` wraps into a `CellVector`. So the promise that Julia's 19
+  connector nodes get to drop the 7-arg positional form is **not yet delivered** — the real fix is to
+  teach `_has_fixed_children` to recognise a `CellVector`. Phase 3.
 
 ### Design decisions to settle in Phase 2 — do not skip these
 

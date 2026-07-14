@@ -27,7 +27,7 @@ _unwrap(x) = x isa Cell ? x[] : x
 function _find_text_iomap(io)
     io isa TextToGraphicsIoMap && return io
     # ChainingProjectionIoMap.step_iomaps is a Vector{Cell{IoMap}}; unwrap each.
-    # SyntaxNodeToTextIoMap keeps its expanded children as Cell{Vector{IoMap}}.
+    # SyntaxCompoundToTextIoMap keeps its expanded children as Cell{Vector{IoMap}}.
     # Either can be absent on a node that has not been expanded.
     for field in (:step_iomaps, :child_iomaps)
         hasfield(typeof(io), field) || continue

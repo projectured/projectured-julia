@@ -37,7 +37,7 @@ import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, PositionReference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
 import ..TextModule: TextString
@@ -142,7 +142,7 @@ end
 function read_intent(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxNodeToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end

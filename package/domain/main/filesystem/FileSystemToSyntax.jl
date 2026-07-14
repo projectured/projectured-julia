@@ -157,7 +157,7 @@ end
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────
 #
-# `SyntaxNodeToText`'s default rule marks every node with children. A directory
+# `SyntaxCompoundToText`'s default rule marks every node with children. A directory
 # is projected as a header node (the name leaf, at indentation 0) wrapping an
 # indented body node (indentation 2) that holds the entries — so the default
 # rule would mark BOTH, producing a stray marker on the indented block. This

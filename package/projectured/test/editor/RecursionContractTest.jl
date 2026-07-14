@@ -198,7 +198,7 @@ end
     walk_recursion_contract(document, projection) -> errors::Vector{String}
 
 Run both contract checks and return all findings as strings. A delegation
-finding for a known flattener (`SyntaxNodeToText`/`SyntaxListToText`) is reported
+finding for a known flattener (`SyntaxCompoundToText`/`SyntaxListToText`) is reported
 with a `(known)` marker rather than treated as a hard error.
 """
 function walk_recursion_contract(document, projection)
@@ -244,7 +244,7 @@ test_recursion_contract(example::Example) =
     test_recursion_contract(example.name, example.document, example.projection)
 
 # Curated to the structural, recursing pipelines: `json` / `xml` exercise the
-# compliant `*ToSyntaxNode` delegators, and all four reach `SyntaxNodeToText`
+# compliant `*ToSyntaxNode` delegators, and all four reach `SyntaxCompoundToText`
 # transitively (now a compliant delegator too, post-refactor). Widget /
 # graphics-layout / table / database pipelines are excluded for the same reason the
 # navigation suites curate their inputs — their node types are not in the
