@@ -39,7 +39,7 @@ import ..ProjectionReferenceModule: ProjectionReference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
@@ -165,7 +165,7 @@ function XmlToSyntax()
         XmlAttribute => XmlAttributeToSyntaxNode(),
         XmlElement   => XmlElementToSyntaxNode(),
         XmlInsertion => XmlInsertionToSyntaxLeaf(),
-        XmlNothing   => NothingToSyntaxLeaf(),
+        XmlNothing   => InsertionNothingToSyntaxLeaf(),
     )
 end
 

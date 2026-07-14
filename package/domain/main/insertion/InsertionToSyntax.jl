@@ -76,7 +76,7 @@ import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
-       JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, NothingToSyntaxLeaf,
+       JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, name_completion,
        julia_completion, julia_scaffold
 
@@ -474,7 +474,7 @@ green when it parses as a complete statement, red otherwise.
 SqlInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(_sql_commit; completion = _parse_completion(sqlparse))
 
-# ── NothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
+# ── InsertionNothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
 
 # "JsonNothing" → "empty json"; the universal `DocumentNothing` → "empty document".
 function _nothing_label(doc)
@@ -484,21 +484,21 @@ function _nothing_label(doc)
 end
 
 """
-    NothingToSyntaxLeaf()
+    InsertionNothingToSyntaxLeaf()
 
 The shared leaf for the `@domain` `*Nothing` placeholders: a muted italic
 `empty json` / `empty xml` label. Printer-only — raw input falls through the
 generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
-struct NothingToSyntaxLeaf <: Projection
+struct InsertionNothingToSyntaxLeaf <: Projection
     style::StyleText
 end
 
-NothingToSyntaxLeaf() =
-    NothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
+InsertionNothingToSyntaxLeaf() =
+    InsertionNothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
 
-print_document(p::NothingToSyntaxLeaf, recursion, doc, ctx) =
+print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx) =
     SimpleIoMap(p, doc, SyntaxLeaf(TextString(_nothing_label(doc), p.style);
         selection=getfield(doc, :selection)))
 
