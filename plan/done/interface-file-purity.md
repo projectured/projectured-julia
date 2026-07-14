@@ -110,13 +110,24 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   statement, and update `package/kernel/doc/devices-and-backends.md` if it documents the moved
   backend fallback.
 
-## Verification
+## Verification — done, no regressions
 
-`test_kernel_layering()` (guard, ~1s, no load) and `test_kernel()`. The moved methods are all on hot
-paths that every projection uses, so also drive one end-to-end example (`test_example(json_example)`)
-— method motion cannot change dispatch, but a wrong import header or include order fails at load,
-and a load failure is exactly what a structural guard cannot see (memory: "guards are not a load
-check").
+| Run | Result |
+| --- | --- |
+| `test_kernel_layering()` | 8/8 — including the new interface-purity check over all nine contract files |
+| `test_layering_checkers()` | 14 new assertions for the checker itself |
+| `test_kernel()` | 353 pass |
+| `test_base()` | 82 pass |
+| `test_visual()` | 51856 pass, 1 broken (pre-existing) |
+| `test_domain()` | 125962 pass, 93 fail, 1 error, 15 broken — **identical to the same run on untouched `main`**, same counts and same source locations, so every failure is pre-existing |
+| `test_example(json_example)` | 5188 pass — printer, reader, repl, navigation and typein through the whole JSON pipeline, which is every moved method driven live |
+
+The end-to-end example matters more than it looks: method motion cannot change dispatch, but a wrong
+import header or include order fails at *load*, and a load failure is exactly what a structural guard
+cannot see (memory: "guards are not a load check").
+
+The purity checker was also pointed at an implementation file (`ReferenceStep.jl`) to prove it is not
+vacuously passing: 30 violations, with correct line numbers.
 
 ## Out of scope
 
