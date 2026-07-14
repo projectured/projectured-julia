@@ -34,7 +34,7 @@ import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation, SyntaxNavigation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
@@ -767,9 +767,11 @@ function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::
         map_reference_forward(p, im, path)
     end)
 
-    node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[expr_im[].output]);
-        selection=sel)
+    # No delimiters, no separator, no indentation — the node exists only so the whole
+    # condition has a level to select (`∅`). That is a navigation anchor, not a sequence.
+    # Positional (content, selection): SyntaxNavigation has no keyword constructor, and a
+    # `Function` content is wrapped as a computed cell so the child stays lazily projected.
+    node = SyntaxNavigation(() -> expr_im[].output, sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -778,13 +780,13 @@ end
 
 function map_reference_forward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ∅ => @reference ::SyntaxNode
+        ∅ => @reference ::SyntaxNavigation
         proj(^(p), _) => reference
         ::SqlWhereFilterCondition.expression.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children::CellVector[1].^(inner)
+            @reference ::SyntaxNavigation.content.^(inner)
         end
     end
 end
@@ -792,7 +794,7 @@ end
 function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlWhereFilterCondition
-        ::SyntaxNode.children[1].rest... => begin
+        ::SyntaxNavigation.content.rest... => begin
             child = iomap.child_iomaps[][1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
