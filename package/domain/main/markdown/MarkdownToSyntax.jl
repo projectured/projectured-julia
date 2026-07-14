@@ -43,7 +43,7 @@ import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -507,8 +507,8 @@ function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownLis
     items = CellVector(() -> begin
         ord = lst.ordered
         SyntaxDocument[
-            SyntaxNode(CellVector(Cell[Cell(im.output)]);
-                       open=TextString(_md_list_marker(ord, i), p.marker_style))
+            SyntaxDelimitation(im.output;
+                               opening_delimiter=TextString(_md_list_marker(ord, i), p.marker_style))
             for (i, im) in enumerate(child_iomaps[]) ]
     end)
     iomap_cell = Cell(nothing)
