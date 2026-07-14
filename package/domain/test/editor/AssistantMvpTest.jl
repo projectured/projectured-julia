@@ -25,7 +25,7 @@
 # composite's `elements` *without* re-running `print_document`.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.McpModule: register_default_tools_and_resources!
+using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
 using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc
@@ -103,7 +103,7 @@ function _mvp_enter!(a::WorkbenchAssistant)
     iomap = print_document(chain, a)
     op = read_intent(chain, iomap, KeyDown(:return, Modifiers()))
     op === nothing && return nothing
-    evaluate_operation((document=a,), op)
+    evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op
 end
 
@@ -217,7 +217,7 @@ end
 
 function _mvp_test_resource_collapse()
     @testset "resource-read tool part collapsed by default" begin
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "read_resource",
                              """{"uri":"resource://guides"}"""),
@@ -225,7 +225,7 @@ function _mvp_test_resource_collapse()
         ])
         a = WorkbenchAssistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("look it up")]))
-        _run_agent_loop!((document = a,), a)
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -311,7 +311,8 @@ function _mvp_test_thinking_stream()
     @testset "thinking block captured from stream" begin
         a = WorkbenchAssistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("hi")]))
-        _run_agent_loop!((document = a,), a)
+        tools = register_default_tools!(ToolSet())
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -455,7 +456,7 @@ end
 
 function _mvp_test_scripted_builders()
     @testset "ScriptedLlm timestamped builders" begin
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
         # Multi-line code with an embedded quote — stresses the JSON escaper.
         code = "v = 6 * 7\nstring(\"n=\", v)"
         llm = ScriptedLlm([
@@ -468,7 +469,7 @@ function _mvp_test_scripted_builders()
         ]; delay = 0.0)
         a = WorkbenchAssistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute")]))
-        _run_agent_loop!((document = a,), a)
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -491,7 +492,7 @@ end
 function _mvp_test_tool_use_roundtrip()
     @testset "Tool-use round-trip via ScriptedLlm" begin
         # Make sure execute_julia_code is registered.
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
 
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "execute_julia_code",
@@ -506,7 +507,7 @@ function _mvp_test_tool_use_roundtrip()
         # `evaluate_operation(editor, op)` plumbing — the tool dispatch in
         # the loop receives this as `editor` (the FakeLlm script's `1+1`
         # doesn't read it, but the wiring is what's under test).
-        _run_agent_loop!((document=a,), a)
+        _run_agent_loop!((document=a, tools=tools), a)
 
         msgs = a.conversation.turns
         # Expected sequence in the turn/part model:

@@ -14,8 +14,9 @@ agent server only through these generics, so it never names a concrete server
 type — letting the implementation move into an optional extension whose type
 cannot be referenced at load time.
 
-The agent layer also holds `LlmModule`, `McpModule`, and
-`ToolRegistryModule`, matching their layer position in the DAG.
+The agent layer also holds `LlmModule` — the outbound direction, where this editor
+drives a model. What an agent may *do* is the `ToolSet` in the layer below; this
+module is only the channel.
 """
 module AgentModule
 

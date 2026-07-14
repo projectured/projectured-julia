@@ -21,8 +21,9 @@ dependency-free:
 module LlmModule
 
 import ..DocumentModule: is_opaque
+import ..ToolModule: Tool, list_tools
 
-export Llm, stream_turn
+export Llm, stream_turn, get_anthropic_tool_schema
 
 """
     Llm
@@ -50,5 +51,43 @@ event; `ev` has at least `:type` (`Symbol`) and `:data` (the event
 payload). Errors propagate to the caller.
 """
 function stream_turn end
+
+"""
+    get_anthropic_tool_schema(tools) -> Vector{Dict}
+
+Render `tools` as the JSON-Schema-shaped vector the Anthropic Messages API
+expects for its `tools` parameter.
+
+This does not belong in the kernel: rendering a `Tool` into *a particular
+provider's* wire format is that provider adapter's job, exactly as rendering one
+into MCP's wire format is `ProjecturedMcp`'s. It sits here — beside the
+Anthropic-shaped `stream_turn` whose caller needs it — only until the provider
+seam stops being Anthropic-shaped, at which point it moves into `ProjecturedLlm`
+next to `AnthropicLlm` and this function goes away.
+"""
+function get_anthropic_tool_schema(tools::AbstractVector{Tool})
+    out = Dict[]
+    for t in tools
+        properties = Dict{String,Any}()
+        required = String[]
+        for p in t.parameters
+            properties[String(p.name)] = Dict(
+                "type"        => String(p.type),
+                "description" => String(p.description),
+            )
+            get(p, :required, false) && push!(required, String(p.name))
+        end
+        push!(out, Dict(
+            "name"         => t.name,
+            "description"  => t.description,
+            "input_schema" => Dict(
+                "type"       => "object",
+                "properties" => properties,
+                "required"   => required,
+            ),
+        ))
+    end
+    out
+end
 
 end # module

@@ -23,12 +23,13 @@ using ..OperationModule
 # `import`, not `using`: this module adds the Editor method to the invalidation seam.
 import ..OperationModule: invalidate_projection!
 using ..GestureRecognizerModule
+using ..ToolModule
 using ..AgentModule
 
 export Editor, run_editor!
 
 """
-    Editor(backend, document, projection, devices; clock = Clock())
+    Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
 
 Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
@@ -39,6 +40,12 @@ Holds the state for a read-eval-print loop:
                    default); `run_editor!` ticks it once per frame from OS
                    time so subscribers reanimate, independently of any other
                    editor running in the same process.
+  - `tools`      — what *this* editor exposes to an agent: the `ToolSet` an agent
+                   loop drives and an MCP server publishes. Empty by default;
+                   `register_default_tools!(editor.tools)` fills it with the
+                   built-ins on first use. Per editor, so two editors in one
+                   process neither share a tool list nor evaluate code into each
+                   other's namespace (AR-45).
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)
@@ -49,13 +56,16 @@ mutable struct Editor
     projection::Projection
     devices::Vector{Device}
     clock::Clock
+    tools::ToolSet
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
 end
 
-Editor(backend, document, projection, devices; clock::Clock = Clock()) =
-    Editor(backend, document, projection, devices, clock, nothing, nothing, GestureRecognizer())
+Editor(backend, document, projection, devices;
+       clock::Clock = Clock(), tools::ToolSet = ToolSet()) =
+    Editor(backend, document, projection, devices, clock, tools,
+           nothing, nothing, GestureRecognizer())
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method

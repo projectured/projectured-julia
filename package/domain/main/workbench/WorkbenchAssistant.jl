@@ -2,24 +2,25 @@
     WorkbenchAssistantModule
 
 Operations, streaming orchestration, and message building for the
-in-editor AI chat surface. Glue between `WorkbenchModule.WorkbenchAssistant`,
-`ToolRegistryModule`, and `AnthropicModule`.
+in-editor AI chat surface. Glue between `WorkbenchModule.WorkbenchAssistant`, the
+editor's `ToolSet`, and the `LlmModule` provider seam.
 
 Submit flows:
 - `SubmitProseOperation(assistant)`  — append a user message from `assistant.input`,
   clear the input, launch a streaming Claude turn on an `@async` task.
-- `SubmitJuliaOperation(assistant)`  — parse `assistant.input` as Julia, run it
-  via `ToolRegistry.call_tool("execute_julia_code", ...)`, append the input/result
-  message pair, clear the input. No Claude call now; the next prose turn synthesizes
-  the eval into the conversation history.
+- `SubmitJuliaOperation(assistant)`  — parse `assistant.input` as Julia, run it via
+  the editor's `execute_julia_code` tool, append the input/result message pair,
+  clear the input. No Claude call now; the next prose turn synthesizes the eval
+  into the conversation history.
+
+The tools come from `editor.tools` — the `ToolSet` that editor owns. Nothing here
+holds a registry of its own, so two editors in one process never share tools or
+evaluate code into each other's namespace.
 
 Internal helpers:
 - `build_messages(conversation)`  — walk the conversation history and produce
   the JSON array Anthropic expects.
-- `assistant_tool_schemas()`      — list_tools() schemas plus the two bridging
-  tools `list_resources` and `read_resource`.
-- `dispatch_assistant_tool(name, args, editor)` — calls registered tools and
-  resolves the bridging tools to `ToolRegistry.list_resources` / `read_resource`.
+- `assistant_tool_schemas(set)`   — the editor's tools, in the Anthropic shape.
 - `parse_markdown_blocks(text)`   — split a finished assistant text block into
   parts: top-level fenced code blocks become live domain documents, prose runs
   become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
@@ -61,13 +62,12 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
 import ..EventModule: KeyDown
-import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
-                              get_anthropic_tool_schema, Tool
+import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
+                      register_default_tools!, execute_julia_code, last_evaluated_value
 import ..EventModule: KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..LlmModule: Llm, stream_turn
-import ..McpModule: execute_julia_code, get_last_evaluated_value, register_default_tools_and_resources!
+import ..LlmModule: Llm, stream_turn, get_anthropic_tool_schema
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
@@ -92,7 +92,7 @@ _json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) fo
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, conversation_to_string, write_conversation, assistant_tool_schemas, dispatch_assistant_tool,
+       build_messages, conversation_to_string, write_conversation, assistant_tool_schemas,
        parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -261,17 +261,18 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     code = _text_to_string(a.input)
     isempty(strip(code)) && return nothing
 
-    # Make sure the editor's exec tool is registered (no-op if already done).
-    register_default_tools_and_resources!()
+    # This editor's own tools; make sure the exec tool is registered (idempotent).
+    set = editor.tools
+    register_default_tools!(set)
     output = try
-        call_tool("execute_julia_code", Dict("code" => code), editor)
+        call_tool(set, "execute_julia_code", Dict("code" => code), editor)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
     is_error = occursin("ERROR", output) || occursin("Error", output)
     # A Document return value (e.g. a live SimulationTaskDocument) is embedded as
     # the result so it renders live; anything else falls back to its text repr.
-    val = get_last_evaluated_value()
+    val = last_evaluated_value(set)
     result = val isa Document ? val : result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
@@ -364,58 +365,19 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    assistant_tool_schemas()
+    assistant_tool_schemas(set::ToolSet) -> Vector{Dict}
 
-Return the tool schemas to send to Claude:
-- every registered tool from `ToolRegistry`, plus
-- two bridging tools (`list_resources`, `read_resource`) that expose the
-  registry's read-only resources through the Anthropic tool-use interface.
-"""
-function assistant_tool_schemas()
-    schemas = get_anthropic_tool_schema(list_tools())
-    push!(schemas, Dict(
-        "name"         => "list_resources",
-        "description"  => "List every read-only documentation resource registered in the editor. " *
-                           "Returns a markdown bullet list of URIs and their one-line descriptions.",
-        "input_schema" => Dict("type" => "object", "properties" => Dict{String,Any}(), "required" => String[]),
-    ))
-    push!(schemas, Dict(
-        "name"         => "read_resource",
-        "description"  => "Read the full body of a documentation resource by URI " *
-                           "(URIs come from `list_resources`).",
-        "input_schema" => Dict(
-            "type" => "object",
-            "properties" => Dict(
-                "uri" => Dict("type" => "string",
-                              "description" => "Resource URI from `list_resources`"),
-            ),
-            "required" => ["uri"],
-        ),
-    ))
-    schemas
-end
+The tool schemas to send to Claude: every tool in the editor's `ToolSet`, rendered
+into the Anthropic shape.
 
+There is no longer a special case here. `list_resources` and `read_resource` used
+to be "bridging tools" this function hand-wrote schemas for and a companion
+dispatcher resolved by name, because the registry exposed resources through an API
+no tool call could reach. They are ordinary registered tools now
+(`register_default_tools!`), so they arrive through `list_tools` like everything
+else, and dispatch is just `call_tool`.
 """
-    dispatch_assistant_tool(name, args, editor) -> String
-
-Call a tool by name. Resolves the bridging `list_resources` / `read_resource`
-tools to `ToolRegistry.list_resources()` / `ToolRegistry.read_resource(uri)`;
-all other names go to `ToolRegistry.call_tool`.
-"""
-function dispatch_assistant_tool(name::AbstractString, args, editor)
-    if name == "list_resources"
-        io = IOBuffer()
-        println(io, "# Resources")
-        for r in list_resources()
-            println(io, "- `", r.uri, "` — ", r.description)
-        end
-        return String(take!(io))
-    elseif name == "read_resource"
-        return read_resource(String(get(args, "uri", "")))
-    else
-        return call_tool(String(name), args, editor)
-    end
-end
+assistant_tool_schemas(set::ToolSet) = get_anthropic_tool_schema(list_tools(set))
 
 # ═══════════════════════════════════════════════════════════════════════
 # Conversation → Anthropic messages
@@ -653,8 +615,9 @@ end
 function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # The real backend's `stream_turn` errors with a clear HTTP message if the
     # API key is empty, so leave key validation to the backend.
-    register_default_tools_and_resources!()
-    tools = assistant_tool_schemas()
+    set = editor.tools
+    register_default_tools!(set)
+    tools = assistant_tool_schemas(set)
     # Resolve the backend and key now (not at construction): a `nothing` default
     # becomes the real-network backend when a key is available *and* the opt-in
     # `ProjecturedLlm` package is loaded (discovered by reflection). Reading ENV
@@ -735,7 +698,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             @info "[assistant] tool call" name=tu.name
             tool_t0 = time()
             output = try
-                dispatch_assistant_tool(tu.name, tu.input, editor)
+                call_tool(set, tu.name, tu.input, editor)
             catch e
                 sprint(showerror, e, catch_backtrace())
             end
@@ -747,7 +710,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             # live result (renders in place); other tools / non-Document values
             # keep the text repr. (Claude still sees the text tool_result, which
             # build_messages derives from this result.)
-            val = tu.name == "execute_julia_code" ? get_last_evaluated_value() : nothing
+            val = tu.name == "execute_julia_code" ? last_evaluated_value(set) : nothing
             result = val isa Document ? val : result_text(output)
             push!(turn.parts, Cell(ConversationPart(
                 EvaluatorForm(_eval_form_doc(code);

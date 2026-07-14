@@ -96,7 +96,7 @@ function test_kernel_layering()
                    name = "kernel",
                    layers = ["cell", "event", "device", "gesture", "backend",
                              "document", "reference", "selection", "operation",
-                             "binding", "projection", "agent", "editor"],
+                             "binding", "projection", "tool", "agent", "editor"],
                    check_private_imports = true,
                    # A layer's contract file, and its owning module. The projection
                    # layer declares two contracts, so it has two.

@@ -106,13 +106,19 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/Projection.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 12 — agent** (`agent/`)
+- **Layer 12 — tool** (`tool/`)
+  - ⬜ `tool/ToolLayer.jl`
+  - ⬜ `tool/ToolModule.jl`
+  - ⬜ `tool/Tool.jl`
+  - ⬜ `tool/ToolSet.jl`
+  - ⬜ `tool/CodeExecution.jl`
+  - ⬜ `tool/Documentation.jl`
+  - ⬜ `tool/DefaultTools.jl`
+- **Layer 13 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/Llm.jl`
-  - ⬜ `agent/ToolRegistry.jl`
-  - ⬜ `agent/Mcp.jl`
-- **Layer 13 — editor** (`editor/`)
+- **Layer 14 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Playback.jl`

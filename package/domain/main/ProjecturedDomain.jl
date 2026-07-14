@@ -55,7 +55,7 @@ const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const PlaybackModule = ProjecturedKernel.PlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule
-const McpModule = ProjecturedKernel.McpModule
+const ToolModule = ProjecturedKernel.ToolModule
 const AgentApiModule = ProjecturedKernel.AgentModule
 const AgentModule = ProjecturedKernel.AgentModule
 const NestingProjectionModule = ProjecturedBase.NestingProjectionModule
@@ -85,7 +85,6 @@ const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
 const HigherOrderCompoundModule = ProjecturedBase.HigherOrderCompoundModule
 const GenericCompoundModule = ProjecturedBase.GenericCompoundModule
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
-const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
 const TypeDispatchingProjectionModule = ProjecturedBase.TypeDispatchingProjectionModule
 
 # ── Visual submodule aliases ───────────────────────────────────────────────

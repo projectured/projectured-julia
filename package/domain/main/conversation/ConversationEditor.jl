@@ -43,7 +43,7 @@ import ..TextModule: TextText, TextString
 import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
-import ..McpModule: execute_julia_code, get_last_evaluated_value
+import ..ToolModule: execute_julia_code, last_evaluated_value
 import ..DocumentApiModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
@@ -273,8 +273,9 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     c isa JuliaInsertion || return nothing
     src = _value(c)
     isempty(strip(src)) && return nothing
+    set = editor.tools
     output = try
-        execute_julia_code(editor, src)
+        execute_julia_code(set, editor, src)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
@@ -284,7 +285,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     # is kept as the result so it renders live; otherwise the text repr.
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
-    val = get_last_evaluated_value()
+    val = last_evaluated_value(set)
     result = val isa Document ? val : result_text(rstrip(output))
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result, is_error = is_err))

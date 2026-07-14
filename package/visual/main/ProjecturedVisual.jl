@@ -104,8 +104,7 @@ const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule
 const LlmModule = ProjecturedKernel.LlmModule
-const McpModule = ProjecturedKernel.McpModule
-const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
+const ToolModule = ProjecturedKernel.ToolModule
 const AgentApiModule = ProjecturedKernel.AgentModule
 const AgentModule = ProjecturedKernel.AgentModule
 # Base's document-shaped projections used by visual bridges (Sorting is
