@@ -31,7 +31,7 @@ import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
@@ -160,8 +160,8 @@ end
 #     children[i] = SyntaxNode(open="- ",      ← the "- " marker
 #                     children[1] = <projected element i>)
 #
-# Selection: .elements[i].rest ↔ .children[i].children[1].<child-mapped rest>
-# (the extra `.children[1]` hop steps through the "- " wrapper). The tail is
+# Selection: .elements[i].rest ↔ .children[i].content.<child-mapped rest>
+# (the `.content` hop steps through the "- " delimitation). The tail is
 # delegated through the stored child iomaps (School A); the two mappers are the
 # single source of truth for the printer's selection cell and the readers.
 
@@ -175,7 +175,7 @@ function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSe
                                for (i, elem) in enumerate(seq.elements)])
 
     items = CellVector(() -> SyntaxDocument[
-        SyntaxNode(CellVector(Cell[Cell(im.output)]); open=TextString("- ", p.marker_style))
+        SyntaxDelimitation(im.output; opening_delimiter=TextString("- ", p.marker_style))
         for im in child_iomaps[]])
 
     iomap_cell = Cell(nothing)
@@ -206,7 +206,7 @@ function map_reference_forward(p::YamlSequenceToBlockSyntaxNode, iomap::Children
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].children[1].^(inner)
+            @reference ::SyntaxNode.children[child_i].content.^(inner)
         end
     end
 end
@@ -214,7 +214,7 @@ end
 function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::YamlSequence
-        ::SyntaxNode.children{s:e}.children[1].rest... => begin
+        ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
