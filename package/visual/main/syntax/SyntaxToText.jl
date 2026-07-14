@@ -480,94 +480,142 @@ function print_document(p::SyntaxNodeToText, recursion, node::SyntaxNode, ctx)
     iomap
 end
 
-# Assemble this node's output element vector by delegation + splice. Own chrome
-# (marker, open, sep, newline/indent decorations, ellipsis, close) is emitted at
-# **relative depth 0**; each child's `output.elements` are spliced verbatim, save
-# that an `indentation != 0` parent widens every span in the child's
+# ── The shared splice core ───────────────────────────────────────────────────
+#
+# Own chrome (marker, open, sep, newline/indent decorations, ellipsis, close) is
+# emitted at **relative depth 0**; each child's `output.elements` are spliced
+# verbatim, save that an `indentation != 0` parent widens every span in the child's
 # `indent_indices` by one indent level (re-indent-on-splice — Settled decision 2).
-# Summed over ancestors this reproduces the old `depth * indent_size` widths
-# byte-for-byte. Returns `(elements, child_elem_ranges, indent_indices)`.
+# Summed over ancestors this reproduces a `depth * indent_size` width byte-for-byte.
+#
+# `SyntaxNodeToText` lays out five separable things at once: a collapse marker, a
+# pair of delimiters, a separator between children, newline/indent chrome, and the
+# children's own spans spliced in. Those five are exactly what the `Syntax` wrapper
+# documents (`SyntaxCollapsible`, `SyntaxDelimitation`, `SyntaxSeparation`,
+# `SyntaxIndentation`, `SyntaxConcatenation`) each own on their own.
+#
+# So the layout is written once, here, as operations on a `SpliceBuffer`: the
+# element list under construction plus everything the reference mappers need to
+# know about where each span ended up. `SyntaxNodeToText` composes all five; a
+# wrapper projection will compose the one it owns. Nothing is inferred from a
+# span's position — with optional delimiters no position identifies the open span
+# (it is not necessarily `marker_index + 1`) or the close span (not necessarily the
+# last element), so every operation *records* what it appended.
+
+mutable struct SpliceBuffer
+    elements::Vector{TextDocument}
+    child_elem_ranges::Vector{UnitRange{Int}}
+    indent_indices::Vector{Int}          # line-start indent spans, for ancestor widening
+    sep_indices::Vector{Int}             # each separator span, in order
+    open_index::Int                      # 0 when there is no such span
+    close_index::Int
+    deco::Any                            # decorative-span reuse cache (see _DecoCache)
+    nid::UInt                            # structural-slot key prefix for deco spans
+    deco_font::StyleFont                 # whitespace decorations track the content font
+    indent_size::Int
+end
+
+SpliceBuffer(deco, nid::UInt, deco_font::StyleFont, indent_size::Int) =
+    SpliceBuffer(TextDocument[], UnitRange{Int}[], Int[], Int[], 0, 0,
+                 deco, nid, deco_font, indent_size)
+
+# Append a span and return its element index; an absent span appends nothing and
+# has no index (0), so it carries no cursor position either.
+function _push_span!(buf::SpliceBuffer, span)
+    span === nothing && return 0
+    push!(buf.elements, span)
+    length(buf.elements)
+end
+
+_push_open!(buf::SpliceBuffer, delim)  = (buf.open_index  = _push_span!(buf, delim))
+_push_close!(buf::SpliceBuffer, delim) = (buf.close_index = _push_span!(buf, delim))
+
+# The separator, between two children (never before the first).
+function _push_separator!(buf::SpliceBuffer, sep)
+    i = _push_span!(buf, sep)
+    i == 0 || push!(buf.sep_indices, i)
+    i
+end
+
+# The collapse marker, ahead of everything else.
+_push_marker!(buf::SpliceBuffer, marker) = _push_span!(buf, marker)
+
+# The ellipsis standing in for a collapsed node's (un-projected) children.
+function _push_ellipsis!(buf::SpliceBuffer, ellipsis::TextString)
+    size = buf.deco_font.size
+    _push_span!(buf, _deco_span(buf.deco, (buf.nid, 0, :ellipsis),
+        () -> TextString(ellipsis.content,
+                         StyleFont(ellipsis.font.filename, size), ellipsis.font_color)))
+end
+
+# One child's line chrome: a newline then an indent of width `depth * indent_size`.
+# Recorded in `indent_indices`, which is what an `indentation != 0` ancestor widens
+# (re-indent-on-splice). `slot` keys the decorative-span cache so an unchanged line
+# keeps its span identity across re-layouts.
+function _push_line_chrome!(buf::SpliceBuffer, slot::Int, depth::Int)
+    font, size = buf.deco_font, buf.indent_size
+    _push_span!(buf, _deco_span(buf.deco, (buf.nid, slot, depth == 0 ? :tnl : :nl),
+                                () -> _newline_span(font)))
+    i = _push_span!(buf, _deco_span(buf.deco, (buf.nid, slot, depth == 0 ? :tind : :ind),
+                                    () -> _indent_span(size, depth, font)))
+    push!(buf.indent_indices, i)
+    i
+end
+
+# Splice one child's spans into this buffer, widening every line-start indent the
+# child reported when this level indents, and propagating those indents upward
+# (shifted to their spliced position) so a higher indenting ancestor widens them
+# too. Records the element range the child occupies.
+function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
+    base = length(buf.elements) + 1
+    child_iset = cim isa SyntaxNodeToTextIoMap ? Set(cim.indent_indices[]) : Set{Int}()
+    for (j, s) in enumerate(cim.output.elements)
+        if j in child_iset && widen
+            s = _widen_indent_span(buf.deco, (buf.nid, :widen, objectid(cim.input), j),
+                                   s, buf.indent_size)
+        end
+        push!(buf.elements, s)
+        j in child_iset && push!(buf.indent_indices, length(buf.elements))
+    end
+    rng = base:length(buf.elements)
+    push!(buf.child_elem_ranges, rng)
+    rng
+end
+
+# What the printer hands to the IoMap.
+_splice_result(buf::SpliceBuffer) =
+    (elements = buf.elements, child_elem_ranges = buf.child_elem_ranges,
+     indent_indices = buf.indent_indices, open_index = buf.open_index,
+     close_index = buf.close_index, sep_indices = buf.sep_indices)
+
+# `SyntaxNode` is the composition of all five jobs, in render order.
 function _splice_node(node::SyntaxNode, p::SyntaxNodeToText, deco, cims)
-    elements = TextDocument[]
-    child_elem_ranges = UnitRange{Int}[]
-    indent_indices = Int[]
-    sep_indices = Int[]                  # element index of each separator, in order
-    open_index = 0                       # 0 when the node has no such delimiter
-    close_index = 0
-    nid = objectid(node)                 # structural-slot key prefix for deco spans
-    deco_font = _deco_font(node)         # whitespace decorations track content size
+    buf = SpliceBuffer(deco, objectid(node), _deco_font(node), p.indent_size)
     indent = node.indentation
 
-    # optional inline expand/collapse marker, before the open delimiter
-    marker = _active_marker(p, node)
-    marker !== nothing && push!(elements, marker)
-
-    # open delimiter, when the node has one
-    if node.open !== nothing
-        push!(elements, node.open)
-        open_index = length(elements)
-    end
+    _push_marker!(buf, _active_marker(p, node))     # collapse marker, before the open delimiter
+    _push_open!(buf, node.open)
 
     if node.collapsed
-        # Collapsed body: a single ellipsis stands in for the (un-projected)
-        # children; a childless node gets none.
-        if length(node.children) > 0
-            ell = p.ellipsis_text
-            push!(elements, _deco_span(deco, (nid, 0, :ellipsis),
-                () -> TextString(ell.content, StyleFont(ell.font.filename, deco_font.size), ell.font_color)))
-        end
+        # A collapsed node projects no children; a single ellipsis stands in for
+        # them. A childless node gets none.
+        length(node.children) > 0 && _push_ellipsis!(buf, p.ellipsis_text)
     else
         for (i, cim) in enumerate(cims)
-            if i > 1 && node.sep !== nothing
-                push!(elements, node.sep)
-                push!(sep_indices, length(elements))
-            end
-            if indent != 0
-                # This node's own child-line chrome, at relative depth 0: a
-                # newline then an indent of width `1 * indent_size` (ancestors
-                # widen it further). Both go into indent_indices for that widening.
-                push!(elements, _deco_span(deco, (nid, i, :nl), () -> _newline_span(deco_font)))
-                push!(elements, _deco_span(deco, (nid, i, :ind), () -> _indent_span(p, 1, deco_font)))
-                push!(indent_indices, length(elements))
-            end
-            base = length(elements) + 1
-            child_iset = cim isa SyntaxNodeToTextIoMap ? Set(cim.indent_indices[]) : Set{Int}()
-            for (j, s) in enumerate(cim.output.elements)
-                if j in child_iset && indent != 0
-                    s = _widen_indent_span(deco, (nid, :widen, objectid(cim.input), j), s, p.indent_size)
-                end
-                push!(elements, s)
-                # Propagate the child's line-start indents upward (shifted to their
-                # spliced position) so a higher `indentation != 0` ancestor widens
-                # them too — inline (`indentation == 0`) parents propagate without
-                # widening.
-                j in child_iset && push!(indent_indices, length(elements))
-            end
-            push!(child_elem_ranges, base:length(elements))
+            i > 1 && _push_separator!(buf, node.sep)
+            # This node's own child-line chrome, at relative depth 1 (ancestors
+            # widen it further).
+            indent != 0 && _push_line_chrome!(buf, i, 1)
+            _splice_child!(buf, cim, indent != 0)
         end
-        if indent > 0
-            # Trailing newline + indent before the close delimiter. The indent is
-            # width 0 at relative depth 0 (an empty span is still emitted so there
-            # is always a slot to widen and element counts never depend on depth).
-            push!(elements, _deco_span(deco, (nid, 0, :tnl), () -> _newline_span(deco_font)))
-            push!(elements, _deco_span(deco, (nid, 0, :tind), () -> _indent_span(p, 0, deco_font)))
-            push!(indent_indices, length(elements))
-        end
+        # Trailing newline + indent before the close delimiter, at relative depth 0
+        # — a zero-width indent, but the slot must exist so ancestors have something
+        # to widen and element counts never depend on depth.
+        indent > 0 && _push_line_chrome!(buf, 0, 0)
     end
 
-    # close delimiter, when the node has one
-    if node.close !== nothing
-        push!(elements, node.close)
-        close_index = length(elements)
-    end
-
-    # The own-span indices are *recorded*, not inferred: with optional delimiters
-    # there is no position that reliably identifies the open span (it is not
-    # necessarily `marker_index + 1`) or the close span (not necessarily the last
-    # element). Both mappers read these instead of guessing.
-    (elements = elements, child_elem_ranges = child_elem_ranges,
-     indent_indices = indent_indices, open_index = open_index,
-     close_index = close_index, sep_indices = sep_indices)
+    _push_close!(buf, node.close)
+    _splice_result(buf)
 end
 
 # Whitespace decorations track the content's font, because TextToGraphics measures
@@ -931,8 +979,8 @@ end
 # document's token font would leave the line pitch stuck at the old size. The font
 # is the enclosing node's own delimiter font (`node.open.font`, passed in as
 # `font`), so decoration tracks whatever size the upstream projection chose.
-_indent_span(p::SyntaxNodeToText, depth::Int, font::StyleFont) =
-    TextString(" " ^ (depth * p.indent_size), font, color_default)
+_indent_span(indent_size::Int, depth::Int, font::StyleFont) =
+    TextString(" " ^ (depth * indent_size), font, color_default)
 _newline_span(font::StyleFont) = TextString("\n", font, color_default)
 
 # Widen a child's line-start indent span by `extra` spaces when an

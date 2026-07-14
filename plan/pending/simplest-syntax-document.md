@@ -284,11 +284,25 @@ Make the wrappers real. Each gets the full projection surface, following the sha
 
 Do them in dependency order, one commit each, each with its own tests:
 
-- **2.1 Extract the shared core.** Pull child splicing + `child_elem_ranges`, separator emission,
-  delimiter spans, `indent_indices` splice-widening, and the collapse marker out of
-  `SyntaxNodeToText` into helpers. Re-express `SyntaxNodeToText` in terms of them — it must be a pure
-  refactor, with the whole suite unchanged, before any new type is added. Everything below then
-  *calls* these helpers rather than reimplementing them.
+- **2.1 Extract the shared core — DONE.** The five jobs are now operations on a `SpliceBuffer`: the
+  element list under construction plus everything the reference mappers need to know about where each
+  span ended up (`child_elem_ranges`, `indent_indices`, `sep_indices`, `open_index`, `close_index`).
+  `_push_marker!` / `_push_open!` / `_push_close!` / `_push_separator!` / `_push_ellipsis!` /
+  `_push_line_chrome!` / `_splice_child!` are the operations; `_splice_node` is now just their
+  composition, in render order, and reads as the five jobs it does.
+
+  **Every operation *records* what it appended** — nothing is inferred from a span's position. That is
+  forced by Phase 1: with optional delimiters no position identifies the open span (it is not
+  necessarily `marker_index + 1`) or the close span (not necessarily the last element). It is also
+  exactly what the wrappers need, since a `SyntaxDelimitation` wrapping a `SyntaxSeparation` cannot
+  locate its delimiters positionally either.
+
+  `_indent_span` now takes an `indent_size::Int` rather than the `SyntaxNodeToText` projection — the
+  core must not know its caller's type, because the wrapper projections are not `SyntaxNodeToText`.
+
+  Pure refactor, as required: all six guard rails match their baselines exactly (`test_visual`
+  49291/0/1, `test_domain` 110766/0/1 err/15, `test_text_nav_invariants_all` 236/0/26, `test_typeins`
+  1187/0/23, `test_table_navigation` 63/0/1 err/1, `test_click_roundtrips` 27/2/4).
 - **2.2 `SyntaxConcatenation`** — the core splice, over `children`.
 - **2.3 `SyntaxSeparation`** — concatenation plus separator spans between children.
 - **2.4 `SyntaxDelimitation`** — open/close spans around a single child. **Each delimiter is
