@@ -28,9 +28,9 @@ file-header docstrings.
 
 3. **`Reference.jl`'s own header names three jobs** ("the reference-path *types* … the value
    protocol on them … and the path-producing reflection search"). A three-item contract is
-   the smell requirement 66 exists to catch.
+   the smell AR-MODULE-DOCSTRING exists to catch.
 
-Requirement 46 is the constraint that keeps this honest: *"Files are a readability boundary
+AR-PACKAGE-CHAIN is the constraint that keeps this honest: *"Files are a readability boundary
 only and must never imply an API boundary the module does not enforce."* The module stays
 exactly one module; these stay fragments sharing its namespace. This buys readability, not
 function — price it accordingly.
@@ -50,7 +50,7 @@ function — price it accordingly.
   `_parse_path!` (ReferenceCase.jl:146) are the same recursive-descent grammar written twice,
   down to verbatim-identical comments, feeding two parallel step-AST hierarchies. Worth a
   shared `ReferenceSyntax.jl` later (the `@event_case`/`@gestures` shared-parser precedent in
-  requirement 48). Not this plan.
+  AR-MODULE-BOUNDARY-IS-API). Not this plan.
 
 The layout below leaves room for both: `TypeReference` is confined to `ReferenceStep.jl`, and
 a future `ReferenceSyntax.jl` slots between `ReferenceEvaluation.jl` and the two DSL fragments.
@@ -140,7 +140,7 @@ matching how `PointReference.jl` packages a step.
   clean excision of one block.
 - The `==(::ReferenceStep, ::ReferenceStep) = false` fallback (286).
 - The navigation helpers `_deref_cell`, `_has_field`, `_get_field` (383–406). Used also by
-  `ReferenceSearch.jl` — fine, same module (requirement 48 explicitly blesses fragment
+  `ReferenceSearch.jl` — fine, same module (AR-MODULE-BOUNDARY-IS-API explicitly blesses fragment
   sharing over exporting an internal).
 
 ### `ReferencePath.jl` — the path structure and its algebra

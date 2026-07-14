@@ -16,7 +16,7 @@ the rules don't answer it, extend the rules, don't improvise.
 These are the *placement* rules (where code lives). For the *invariants and
 conventions* every change must respect — reactivity, the projection contract,
 references/selection, operations, testing — see
-[architecture-requirements.md](architecture-requirements.md) (the numbered AR-N
+[architecture-requirements.md](architecture-requirements.md) (the `AR-…`
 development requirements).
 
 ## The four levels of division

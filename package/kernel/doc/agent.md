@@ -37,7 +37,7 @@ A `Tool` is a name, a description, abstractly-described parameters, and a handle
 Anthropic's `input_schema` is `ProjecturedLlm`'s job, rendering it into MCP's
 parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
 
-**One `ToolSet` per editor** ([AR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md)).
+**One `ToolSet` per editor** ([AR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md#ar-per-editor-state)).
 `Editor` owns one. Nothing here is process-global: not the tool list, not the
 resource list, not the scratch module `execute_julia_code` evaluates into, not its
 last result. Two editors in one process therefore cannot see each other's tools or

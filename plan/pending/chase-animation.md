@@ -65,7 +65,8 @@ no polling loop — an ordinary computed cell is the change observer.
 chase must remember where it was when the target last changed. Cells are
 memoryless functions of their current inputs, so *some* state must be written
 somewhere, and there are exactly three possible sites: (a) the flip site
-(rejected — requirement 2), (b) a per-tick stepper (rejected — requirement 3),
+(rejected — *Independent of how the input changes*), (b) a per-tick stepper
+(rejected — *No editor-loop changes*),
 (c) inside the graph, during a pull, when the change is first observed. This
 design takes (c) in its most disciplined form and quarantines it in one tiny
 projection (see "The purity asterisk" below).

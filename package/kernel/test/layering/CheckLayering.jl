@@ -495,7 +495,7 @@ function relative_import_errors(src_root, qualified_files)
     for rel in sort(collect(qualified_files))
         path = joinpath(src_root, rel)
         if !isfile(path)
-            push!(errs, "$rel is listed as AR-QUALIFIED-EXTENSION-migrated but is not on disk")
+            push!(errs, "$rel is listed as migrated to AR-QUALIFIED-EXTENSION but is not on disk")
             continue
         end
         for stmt in collect_exprs(x -> x.head in (:import, :using), parse_file(path))

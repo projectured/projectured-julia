@@ -2,7 +2,7 @@
 
 ## Why
 
-[AR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md) says an interface file carries the module
+[AR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#ar-interface-declares-only) says an interface file carries the module
 docstring, the abstract types and type aliases, and the open generics as bodiless `function f end` —
 and no method bodies at all, defaults and error fallbacks included. Everything it declares is
 exported, so its export list *is* the layer's API surface.
