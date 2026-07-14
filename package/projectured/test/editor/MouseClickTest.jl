@@ -205,9 +205,10 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
             return
         end
         
-        # Extract graphics canvas from iomap
+        # Extract graphics canvas from iomap. `output` is a property, not always a
+        # stored field — a ChainingProjectionIoMap computes it from its last step.
         canvas = nothing
-        if hasfield(typeof(iomap), :output)
+        if hasproperty(iomap, :output)
             canvas = iomap.output
         elseif iomap isa GraphicsCanvas
             canvas = iomap
@@ -252,7 +253,7 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100)
                 
                 # Extract new canvas
                 new_canvas = nothing
-                if hasfield(typeof(new_iomap), :output)
+                if hasproperty(new_iomap, :output)
                     new_canvas = new_iomap.output
                 elseif new_iomap isa GraphicsCanvas
                     new_canvas = new_iomap
