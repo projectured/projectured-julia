@@ -29,7 +29,10 @@ using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
 using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc
-import ProjecturedKernel.LlmModule: stream_turn
+import ProjecturedKernel.LlmModule: stream_turn,
+    LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
+    LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
+    LlmTurnEnd
 import ProjecturedKernel.CellModule: Cell
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
@@ -408,42 +411,27 @@ end
 #   turn 2: LLM emits a final text reply
 #       → ConversationAssistantMessage with a text block appended
 
+# A script entry pairs an `LlmEvent` with the delay `ScriptedLlm` sleeps after
+# emitting it (0.0 defers to the backend-wide `delay`). Mirrors the private
+# `ProjecturedKernelExample._ev` helper, re-created here since it isn't exported.
+_ev(event::LlmEvent, delay::Real = 0.0) = (event = event, delay = Float64(delay))
+
 function _tool_use_script(tool_id::AbstractString, tool_name::AbstractString,
                           input_json::AbstractString)
     NamedTuple[
-        (type = :message_start, data = Dict{Symbol,Any}()),
-        (type = :content_block_start,
-         data = Dict{Symbol,Any}(:content_block =>
-                                  Dict{Symbol,Any}(:type => "tool_use",
-                                                    :id   => String(tool_id),
-                                                    :name => String(tool_name)))),
-        (type = :content_block_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:type         => "input_json_delta",
-                                                    :partial_json => String(input_json)))),
-        (type = :content_block_stop, data = Dict{Symbol,Any}()),
-        (type = :message_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:stop_reason => "tool_use"))),
-        (type = :message_stop, data = Dict{Symbol,Any}()),
+        _ev(LlmToolUseStart(String(tool_id), String(tool_name))),
+        _ev(LlmToolInputDelta(String(input_json))),
+        _ev(LlmToolUseStop()),
+        _ev(LlmTurnEnd(:tool_use)),
     ]
 end
 
 function _final_text_script(text::AbstractString)
     NamedTuple[
-        (type = :message_start, data = Dict{Symbol,Any}()),
-        (type = :content_block_start,
-         data = Dict{Symbol,Any}(:content_block =>
-                                  Dict{Symbol,Any}(:type => "text"))),
-        (type = :content_block_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:type => "text_delta",
-                                                    :text => String(text)))),
-        (type = :content_block_stop, data = Dict{Symbol,Any}()),
-        (type = :message_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:stop_reason => "end_turn"))),
-        (type = :message_stop, data = Dict{Symbol,Any}()),
+        _ev(LlmTextStart()),
+        _ev(LlmTextDelta(String(text))),
+        _ev(LlmTextStop()),
+        _ev(LlmTurnEnd(:end_turn)),
     ]
 end
 

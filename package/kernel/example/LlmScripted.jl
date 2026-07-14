@@ -13,14 +13,14 @@
     ScriptedLlm(scripts; delay = 0.0)
 
 A multi-round scripted backend. `scripts` is a vector of *rounds*; each round is
-a `Vector{NamedTuple}` of SSE events. Every call to `stream_turn` consumes the
-next round (the agent loop calls `stream_turn` once per round — a round that ends
-in `stop_reason = "tool_use"` is followed by a continuation round, so one logical
-assistant turn typically spans several rounds).
+a `Vector{<:NamedTuple}` of `(event::LlmEvent, delay::Float64)` entries. Every call
+to `stream_turn` consumes the next round (the agent loop calls `stream_turn` once
+per round — a round that ends in `LlmTurnEnd(:tool_use)` is followed by a
+continuation round, so one logical assistant turn typically spans several rounds).
 
 Timing makes the stream feel real: after emitting each event the backend sleeps
-for that event's `:delay` field, or for the backend-wide `delay` when the event
-carries none. Build rounds with [`make_scripted_turn`](@ref) and the block helpers
+for that entry's `delay`, or for the backend-wide `delay` when the entry's is
+zero. Build rounds with [`make_scripted_turn`](@ref) and the block helpers
 [`make_scripted_think`](@ref) / [`make_scripted_say`](@ref) / [`make_scripted_run`](@ref), which
 already spread prose across delayed deltas.
 
@@ -36,21 +36,13 @@ end
 ScriptedLlm(scripts; delay::Real = 0.0, jitter::Real = 0.0) =
     ScriptedLlm([Vector{NamedTuple}(s) for s in scripts], 0, Float64(delay), Float64(jitter))
 
-function stream_turn(b::ScriptedLlm,
-                     _api_key::AbstractString,
-                     _model::AbstractString,
-                     _system::AbstractString,
-                     _messages::AbstractVector,
-                     _tools::AbstractVector;
-                     on_event::Function,
-                     thinking = nothing,
-                     output_config = nothing)
+function stream_turn(b::ScriptedLlm, _request::LlmRequest; on_event::Function)
     b.cursor += 1
     b.cursor > length(b.scripts) &&
         error("ScriptedLlm: exhausted at round $(b.cursor) (have $(length(b.scripts)))")
-    for ev in b.scripts[b.cursor]
-        on_event(ev)
-        d = get(ev, :delay, b.delay)
+    for e in b.scripts[b.cursor]
+        on_event(e.event)
+        d = e.delay > 0 ? e.delay : b.delay
         # Jitter each delay by a random factor in [1-jitter, 1+jitter] so the
         # streamed prose lands unevenly — like a real model, not a metronome.
         b.jitter > 0 && (d *= 1 + b.jitter * (2 * rand() - 1))
@@ -59,17 +51,15 @@ function stream_turn(b::ScriptedLlm,
     nothing
 end
 
-# ── Scripted-round builders (dependency-free SSE NamedTuple factories) ──────────
+# ── Scripted-round builders (dependency-free LlmEvent factories) ────────────
 #
-# Each block builder returns a `Vector{NamedTuple}`; `make_scripted_turn` concatenates
-# blocks and wraps them in the `message_start … message_stop` envelope with a
-# `stop_reason`. The shapes match exactly what `_handle_sse_event!` consumes.
+# Each block builder returns a `Vector{<:NamedTuple}` of `(event, delay)` entries;
+# `make_scripted_turn` concatenates blocks and appends the terminal `LlmTurnEnd`.
+# The shapes match exactly what `ScriptedLlm.stream_turn` consumes.
 
-# One SSE event; carries an optional per-event `:delay` (seconds) the backend
-# sleeps for after emitting it.
-_sse(type::Symbol, data::Dict{Symbol,Any}) = (type = type, data = data)
-_sse(type::Symbol, data::Dict{Symbol,Any}, delay::Real) =
-    (type = type, data = data, delay = Float64(delay))
+# One scripted entry: an `LlmEvent` and the delay (seconds) the backend sleeps
+# for after emitting it (0.0 defers to the backend-wide `delay`).
+_ev(event::LlmEvent, delay::Real = 0.0) = (event = event, delay = Float64(delay))
 
 # Split prose into groups of `n` words (single-space rejoin, trailing space kept
 # between chunks) so each chunk reveals a few words at a time.
@@ -112,22 +102,17 @@ end
 """
     make_scripted_think(text; chunk_words = 4, delay = 0.05, signature = "sig_demo")
 
-A thinking content block: `content_block_start{thinking}`, `thinking_delta`s (a
-few words each, paced by `delay`), a `signature_delta`, then `content_block_stop`.
+A thinking content block: `LlmThinkingStart`, `LlmThinkingDelta`s (a few words
+each, paced by `delay`), an `LlmThinkingSignature`, then `LlmThinkingStop`.
 """
 function make_scripted_think(text::AbstractString; chunk_words::Integer = 4,
                         delay::Real = 0.05, signature::AbstractString = "sig_demo")
-    evs = NamedTuple[_sse(:content_block_start,
-        Dict{Symbol,Any}(:content_block => Dict{Symbol,Any}(:type => "thinking")))]
+    evs = NamedTuple[_ev(LlmThinkingStart())]
     for chunk in _word_chunks(text, chunk_words)
-        push!(evs, _sse(:content_block_delta,
-            Dict{Symbol,Any}(:delta => Dict{Symbol,Any}(:type => "thinking_delta",
-                                                          :thinking => chunk)), delay))
+        push!(evs, _ev(LlmThinkingDelta(chunk), delay))
     end
-    push!(evs, _sse(:content_block_delta,
-        Dict{Symbol,Any}(:delta => Dict{Symbol,Any}(:type => "signature_delta",
-                                                      :signature => String(signature)))))
-    push!(evs, _sse(:content_block_stop, Dict{Symbol,Any}()))
+    push!(evs, _ev(LlmThinkingSignature(String(signature))))
+    push!(evs, _ev(LlmThinkingStop()))
     evs
 end
 
@@ -137,14 +122,11 @@ end
 A text content block streamed a few words at a time so the prose types itself out.
 """
 function make_scripted_say(text::AbstractString; chunk_words::Integer = 3, delay::Real = 0.05)
-    evs = NamedTuple[_sse(:content_block_start,
-        Dict{Symbol,Any}(:content_block => Dict{Symbol,Any}(:type => "text")))]
+    evs = NamedTuple[_ev(LlmTextStart())]
     for chunk in _word_chunks(text, chunk_words)
-        push!(evs, _sse(:content_block_delta,
-            Dict{Symbol,Any}(:delta => Dict{Symbol,Any}(:type => "text_delta",
-                                                          :text => chunk)), delay))
+        push!(evs, _ev(LlmTextDelta(chunk), delay))
     end
-    push!(evs, _sse(:content_block_stop, Dict{Symbol,Any}()))
+    push!(evs, _ev(LlmTextStop()))
     evs
 end
 
@@ -160,13 +142,9 @@ function make_scripted_run(code::AbstractString;
                       tool_name::AbstractString = "execute_julia_code",
                       delay::Real = 0.0)
     NamedTuple[
-        _sse(:content_block_start,
-            Dict{Symbol,Any}(:content_block => Dict{Symbol,Any}(
-                :type => "tool_use", :id => String(tool_id), :name => String(tool_name)))),
-        _sse(:content_block_delta,
-            Dict{Symbol,Any}(:delta => Dict{Symbol,Any}(:type => "input_json_delta",
-                :partial_json => "{\"code\":" * _json_string(code) * "}")), delay),
-        _sse(:content_block_stop, Dict{Symbol,Any}()),
+        _ev(LlmToolUseStart(String(tool_id), String(tool_name))),
+        _ev(LlmToolInputDelta("{\"code\":" * _json_string(code) * "}"), delay),
+        _ev(LlmToolUseStop()),
     ]
 end
 
@@ -174,17 +152,16 @@ end
     make_scripted_turn(blocks...; stop_reason = "end_turn") -> Vector{NamedTuple}
 
 Wrap one or more content blocks (from `make_scripted_think` / `make_scripted_say` /
-`make_scripted_run`) into a single streaming round: `message_start`, the blocks in
-order, `message_delta{stop_reason}`, `message_stop`. Use `stop_reason = "tool_use"`
-for a round that ends in a `make_scripted_run` block.
+`make_scripted_run`) into a single streaming round: the blocks in order, then the
+terminal `LlmTurnEnd(stop_reason)`. Use `stop_reason = "tool_use"` for a round
+that ends in a `make_scripted_run` block. `stop_reason` accepts a `String` for
+source compatibility with existing call sites.
 """
 function make_scripted_turn(blocks::Vector...; stop_reason::AbstractString = "end_turn")
-    evs = NamedTuple[_sse(:message_start, Dict{Symbol,Any}())]
+    evs = NamedTuple[]
     for b in blocks
         append!(evs, b)
     end
-    push!(evs, _sse(:message_delta,
-        Dict{Symbol,Any}(:delta => Dict{Symbol,Any}(:stop_reason => String(stop_reason)))))
-    push!(evs, _sse(:message_stop, Dict{Symbol,Any}()))
+    push!(evs, _ev(LlmTurnEnd(Symbol(stop_reason))))
     evs
 end

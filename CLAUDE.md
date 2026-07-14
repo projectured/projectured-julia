@@ -114,11 +114,16 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/CodeExecution.jl`
   - ⬜ `tool/Documentation.jl`
   - ⬜ `tool/DefaultTools.jl`
-- **Layer 13 — agent** (`agent/`)
+- **Layer 13 — llm** (`llm/`)
+  - ⬜ `llm/LlmLayer.jl`
+  - ⬜ `llm/LlmModule.jl`
+  - ⬜ `llm/Llm.jl`
+  - ⬜ `llm/LlmMessage.jl`
+  - ⬜ `llm/LlmEvent.jl`
+- **Layer 14 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
   - ⬜ `agent/Agent.jl`
-  - ⬜ `agent/Llm.jl`
-- **Layer 14 — editor** (`editor/`)
+- **Layer 15 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Playback.jl`

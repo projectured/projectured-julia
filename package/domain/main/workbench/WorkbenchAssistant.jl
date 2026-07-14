@@ -19,12 +19,11 @@ evaluate code into each other's namespace.
 
 Internal helpers:
 - `build_messages(conversation)`  — walk the conversation history and produce
-  the JSON array Anthropic expects.
-- `assistant_tool_schemas(set)`   — the editor's tools, in the Anthropic shape.
+  the `LlmMessage`s the provider seam takes.
 - `parse_markdown_blocks(text)`   — split a finished assistant text block into
   parts: top-level fenced code blocks become live domain documents, prose runs
   become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
-  block at `content_block_stop`.
+  block, when it closes.
 """
 module WorkbenchAssistantModule
 
@@ -67,7 +66,13 @@ import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
 import ..EventModule: KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..LlmModule: Llm, stream_turn, get_anthropic_tool_schema
+import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage, LlmContent,
+                     LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
+                     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
+                     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
+                     LlmRedactedThinkingBlock,
+                     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
+                     LlmTurnEnd, LlmFailure
 import ..DocumentApiModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
@@ -92,7 +97,7 @@ _json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) fo
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, conversation_to_string, write_conversation, assistant_tool_schemas,
+       build_messages, conversation_to_string, write_conversation,
        parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -285,7 +290,7 @@ end
 
 # Flip to streaming and launch the agent loop on a task. `FakeLlm` synthesises
 # events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
-# same `_handle_sse_event!` consumes both.
+# same `_handle_llm_event!` consumes both, because both speak `LlmEvent`.
 function _launch_agent_turn!(editor, a::WorkbenchAssistant)
     a.status = :streaming
     @async begin
@@ -361,32 +366,27 @@ function _eval_form_doc(code::AbstractString)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
-# Tool schemas exposed to Claude
+# The tools exposed to the model
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-    assistant_tool_schemas(set::ToolSet) -> Vector{Dict}
-
-The tool schemas to send to Claude: every tool in the editor's `ToolSet`, rendered
-into the Anthropic shape.
-
-There is no longer a special case here. `list_resources` and `read_resource` used
-to be "bridging tools" this function hand-wrote schemas for and a companion
-dispatcher resolved by name, because the registry exposed resources through an API
-no tool call could reach. They are ordinary registered tools now
-(`register_default_tools!`), so they arrive through `list_tools` like everything
-else, and dispatch is just `call_tool`.
-"""
-assistant_tool_schemas(set::ToolSet) = get_anthropic_tool_schema(list_tools(set))
+# The tools the model may call are simply the editor's — `list_tools(editor.tools)`.
+# There is nothing to render here: an `LlmRequest` carries `Tool`s, and the provider
+# adapter turns them into its own schema (`tool_schema`).
+#
+# `list_resources` and `read_resource` used to be "bridging tools" this module
+# hand-wrote provider schemas for, with a companion dispatcher that resolved them
+# by name, because the registry exposed resources through an API no tool call could
+# reach. They are ordinary registered tools now, so they arrive through `list_tools`
+# like everything else and dispatch through `call_tool` like everything else.
 
 # ═══════════════════════════════════════════════════════════════════════
-# Conversation → Anthropic messages
+# Conversation → LlmMessages
 # ═══════════════════════════════════════════════════════════════════════
 
 """
     build_messages(conversation::ConversationConversation) -> Vector{Dict}
 
-Walk the conversation and produce the JSON array Anthropic expects.
+Walk the conversation and produce the `LlmMessage`s the provider seam takes.
 
 Code executions are all stored as `ConversationCodeExecution`, with the
 originator carried on the `initiator` field:
@@ -396,7 +396,7 @@ originator carried on the `initiator` field:
     as the human reporting an execution they did themselves.
 
   * `:assistant` (Claude calling `execute_julia_code`) → reassembled into
-    the Anthropic tool-use protocol shape: appended to the preceding
+    the tool-use shape: appended to the preceding
     assistant message as a `tool_use` block (using `tool_use_id`), and
     followed by a `user` turn whose `tool_result` block carries the
     result. The id pairs the two so the API recognises the call.
@@ -406,7 +406,7 @@ into the tool-use shape would tell Claude it had asked for a run it
 never requested.
 """
 function build_messages(conversation::ConversationConversation)
-    out = Dict[]
+    out = LlmMessage[]
     turns = collect(conversation.turns)
     i = 1
     while i <= length(turns)
@@ -430,12 +430,11 @@ function build_messages(conversation::ConversationConversation)
             # (adjacent API text blocks concatenate with no separator). An empty turn
             # still needs a non-empty block.
             merged = isempty(texts) ? " " : join(texts, "\n\n")
-            push!(out, Dict("role" => "user",
-                            "content" => Any[Dict("type" => "text", "text" => merged)]))
+            push!(out, LlmMessage(:user, LlmContent[LlmText(merged)]))
             i += 1
         elseif t.role === :assistant
             # Coalesce consecutive assistant turns into one logical turn before
-            # serialising: Anthropic merges consecutive same-role messages, and a
+            # serialising: a provider merges consecutive same-role messages, and a
             # tool_use block must share its assistant message with the preceding
             # thinking/text. A later assistant turn that only carries the tool call
             # would otherwise emit a second assistant message (and 400 the API).
@@ -453,7 +452,7 @@ function build_messages(conversation::ConversationConversation)
 end
 
 # Serialize one :assistant turn — an ordered mix of thinking / text / eval parts —
-# into the Anthropic wire shape. The tool-use protocol requires each tool call to
+# into messages. The tool-use protocol requires each tool call to
 # sit in an assistant message whose immediately-following user message carries the
 # `tool_result`, so a single turn becomes one or more
 # `assistant(thinking+text+tool_use) → user(tool_result)` pairs, split at each run
@@ -461,29 +460,30 @@ end
 # blocks must lead each assistant message and keep their signature unchanged, or a
 # tool-use continuation 400s.
 function _emit_assistant_turn!(out, parts)
-    thinking = Any[]
+    thinking = LlmContent[]
     text     = String[]
     evals    = EvaluatorForm[]
 
     flush_segment! = function ()
-        content = Any[]
+        content = LlmContent[]
         append!(content, thinking)    # thinking first
         # The segment's text parts join into ONE block, blank-line separated —
-        # adjacent API text blocks concatenate with no separator otherwise.
-        isempty(text) || push!(content, Dict("type" => "text", "text" => join(text, "\n\n")))
-        for ef in evals               # then tool_use blocks
-            push!(content, Dict("type"  => "tool_use",
-                                 "id"    => ef.tool_use_id,
-                                 "name"  => "execute_julia_code",
-                                 "input" => Dict("code" => _eval_code(ef))))
+        # adjacent text blocks concatenate with no separator otherwise.
+        isempty(text) || push!(content, LlmText(join(text, "\n\n")))
+        for ef in evals               # then the tool calls
+            # KNOWN GAP (pre-existing, held constant by this refactor): the call is
+            # replayed as `execute_julia_code` with a `code` argument whatever tool
+            # it actually was, so a `read_resource` call re-serialises with an empty
+            # code string. Fixing it needs `EvaluatorForm` to keep the tool's raw
+            # input, which is a behaviour change, not a move.
+            push!(content, LlmToolUse(ef.tool_use_id, "execute_julia_code",
+                                      Dict{String,Any}("code" => _eval_code(ef))))
         end
-        isempty(content) || push!(out, Dict("role" => "assistant", "content" => content))
+        isempty(content) || push!(out, LlmMessage(:assistant, content))
         if !isempty(evals)
-            results = Any[Dict("type"        => "tool_result",
-                                "tool_use_id" => ef.tool_use_id,
-                                "content"     => _eval_result(ef),
-                                "is_error"    => ef.is_error) for ef in evals]
-            push!(out, Dict("role" => "user", "content" => results))
+            push!(out, LlmMessage(:user,
+                LlmContent[LlmToolResult(ef.tool_use_id, _eval_result(ef), ef.is_error)
+                           for ef in evals]))
         end
         empty!(thinking); empty!(text); empty!(evals)
     end
@@ -509,16 +509,12 @@ function _emit_assistant_turn!(out, parts)
     flush_segment!()
 end
 
-# One Anthropic content block for a thinking part. Redacted blocks carry an
-# opaque `data` payload; normal blocks carry the reasoning text plus signature.
-function _thinking_block(c::ConversationThinking)
-    if c.redacted
-        return Dict("type" => "redacted_thinking", "data" => c.data)
-    end
-    Dict("type"      => "thinking",
-         "thinking"  => _content_to_string(c.text),
-         "signature" => c.signature)
-end
+# One content block for a thinking part. Redacted blocks carry an opaque `data`
+# payload; normal blocks carry the reasoning text plus the signature that must go
+# back unchanged.
+_thinking_block(c::ConversationThinking) =
+    c.redacted ? LlmRedactedThinking(c.data) :
+                 LlmThinking(_content_to_string(c.text), c.signature)
 
 """
     conversation_to_string(conversation) -> String
@@ -579,19 +575,6 @@ mutable struct _PendingToolUse
     input::Any
 end
 
-# Extended-thinking request config for a model. Opus 4.x / Sonnet thinking
-# models accept `{"type":"adaptive","display":"summarized"}`; `display:
-# "summarized"` is what yields readable reasoning text (vs. the `"omitted"`
-# default). Returns `nothing` for models where we don't enable thinking, so the
-# `thinking` param is simply omitted from the request.
-function _thinking_config(model::AbstractString)
-    m = lowercase(String(model))
-    if occursin("opus", m) || occursin("sonnet", m)
-        return Dict("type" => "adaptive", "display" => "summarized")
-    end
-    nothing
-end
-
 # Resource reads (`list_resources` / `read_resource`) collapse by default —
 # they are lookup chatter, secondary to the answer, like thinking. Evaluations
 # (`execute_julia_code`) and other tool calls stay expanded. Keyed off
@@ -600,14 +583,19 @@ _collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) =
 
 # Reflection-based discovery of the real-network backend. `AnthropicLlm` lives
 # entirely in the opt-in `ProjecturedLlm` package, which the core stack does not
-# depend on — so we can't name the type. Instead, if that package is loaded and
-# still exposes `AnthropicLlm`, construct one; otherwise return `nothing` and the
+# depend on — so we cannot name the type. If that package is loaded, construct one
+# configured from the assistant's key and model; otherwise return `nothing` and the
 # caller errors (production `main` never fabricates a fake backend).
-function _discover_remote_llm()
+#
+# The backend is built per turn rather than cached on the document, because the key
+# and the model are now the backend's own configuration: caching it would freeze
+# whatever model was selected the first time, and editing `assistant.model` would
+# stop taking effect.
+function _discover_remote_llm(api_key::AbstractString, model::AbstractString)
     for m in values(Base.loaded_modules)
         nameof(m) === :ProjecturedLlm || continue
         isdefined(m, :AnthropicLlm) || continue
-        return Base.invokelatest(getfield(m, :AnthropicLlm))
+        return Base.invokelatest(getfield(m, :AnthropicLlm); api_key = api_key, model = model)
     end
     nothing
 end
@@ -617,39 +605,35 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # API key is empty, so leave key validation to the backend.
     set = editor.tools
     register_default_tools!(set)
-    tools = assistant_tool_schemas(set)
-    # Resolve the backend and key now (not at construction): a `nothing` default
-    # becomes the real-network backend when a key is available *and* the opt-in
-    # `ProjecturedLlm` package is loaded (discovered by reflection). Reading ENV
-    # here — rather than baking it into the precompiled document — is what lets a
-    # key exported before launch take effect. No fallback is fabricated: this is
-    # production code, so it never conjures a fake backend. Tests/examples that
-    # want offline behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm`
-    # from `ProjecturedKernelExample`). Write the resolution back so the live
-    # document reflects the real backend/key (e.g. when inspecting `a.llm`).
+    tools = list_tools(set)
+    # Resolve the backend now (not at construction): with no explicit `llm`, build
+    # the real-network one when a key is available *and* the opt-in `ProjecturedLlm`
+    # package is loaded (found by reflection). Reading ENV here — rather than baking
+    # it into the precompiled document — is what lets a key exported before launch
+    # take effect. No fallback is fabricated: this is production code, so it never
+    # conjures a fake backend. Tests/examples that want offline behaviour pass an
+    # explicit `llm` (a `FakeLlm`/`ScriptedLlm` from `ProjecturedKernelExample`).
     key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
     llm = a.llm
     if llm === nothing
-        llm = isempty(key) ? nothing : _discover_remote_llm()
+        llm = isempty(key) ? nothing : _discover_remote_llm(key, a.model)
         llm === nothing && error(
             "WorkbenchAssistant: no LLM backend available. Set ANTHROPIC_API_KEY " *
             "and load ProjecturedLlm for real Claude, or construct the assistant " *
             "with an explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample " *
             "in tests/examples).")
     end
-    a.llm === llm || (a.llm = llm)
-    a.api_key == key || (a.api_key = key)
     turn_t0 = time()
     iter = 0
     # TEMPORARY: cap the agent loop so it can't run away during debugging.
     max_iters = 5
     @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model tools=length(tools)
 
-    # One assistant turn for the whole response. The SSE handler appends thinking/
+    # One assistant turn for the whole response. The event handler appends thinking/
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
     # below — so the conversation stays strictly alternating user/assistant, with
     # this single turn holding every part in order. `build_messages` re-expands it
-    # into the Anthropic tool_use/tool_result wire shape.
+    # into the tool_use/tool_result message shape.
     turn = ConversationTurn(:assistant)
     push!(a.conversation.turns, turn)
 
@@ -677,9 +661,13 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
 
         @info "[assistant] round $iter: streaming" messages=length(msgs)
         stream_t0 = time()
-        stream_turn(a.llm, a.api_key, a.model, a.system, msgs, tools;
-                    on_event = ev -> _handle_sse_event!(ev, a, turn, state),
-                    thinking = _thinking_config(a.model))
+        # Ask for extended reasoning; whether this backend has it, and what its
+        # parameter looks like, is the adapter's business.
+        stream_turn(llm, LlmRequest(system   = a.system,
+                                    messages = msgs,
+                                    tools    = tools,
+                                    thinking = true);
+                    on_event = ev -> _handle_llm_event!(ev, a, turn, state))
         @info "[assistant] round $iter: stream done" elapsed_s=round(time() - stream_t0; digits=2) stop=state[:stop_reason] parts=length(turn.parts) pending_tools=length(state[:pending_tools])
 
         turn.stop_reason = state[:stop_reason]
@@ -732,86 +720,78 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     end
 end
 
-function _handle_sse_event!(ev, a, turn, state)
-    et = ev.type
-    data = ev.data
-    if et === :content_block_start
-        block_data = get(data, :content_block, nothing)
-        block_data === nothing && return
-        block_type = get(block_data, :type, "")
-        if block_type == "text"
-            part = ConversationPart(TextText(TextString("")))
-            push!(turn.parts, Cell(part))
-            state[:current_block] = part
-        elseif block_type == "thinking"
-            # Collapsed by default — reasoning is verbose and secondary — unless the
-            # assistant opts to keep thinking expanded (`collapse_thinking=false`).
-            part = thinking_part(""; collapsed = a.collapse_thinking)
-            push!(turn.parts, Cell(part))
-            state[:current_thinking] = part
-        elseif block_type == "redacted_thinking"
-            # No deltas follow; the opaque `data` is all there is. Finalize now.
-            part = thinking_part(""; redacted = true,
-                                 data = String(get(block_data, :data, "")))
-            push!(turn.parts, Cell(part))
-        elseif block_type == "tool_use"
-            state[:current_tool] = _PendingToolUse(
-                String(get(block_data, :id, "")),
-                String(get(block_data, :name, "")),
-                Dict{String,Any}(),
-            )
-            state[:tool_input_buf] = IOBuffer()
-        end
-    elseif et === :content_block_delta
-        delta = get(data, :delta, nothing)
-        delta === nothing && return
-        dtype = get(delta, :type, "")
-        if dtype == "text_delta"
-            _append_text_delta!(state[:current_block], String(get(delta, :text, "")))
-        elseif dtype == "thinking_delta"
-            _append_thinking_delta!(state[:current_thinking], String(get(delta, :thinking, "")))
-        elseif dtype == "signature_delta"
-            _set_thinking_signature!(state[:current_thinking], String(get(delta, :signature, "")))
-        elseif dtype == "input_json_delta"
-            print(state[:tool_input_buf], String(get(delta, :partial_json, "")))
-        end
-    elseif et === :content_block_stop
-        ct = state[:current_tool]
+# Materialise one streamed `LlmEvent` into the conversation. Each block kind opens a
+# part, fills it delta by delta, and closes it — so the panel renders the answer as
+# it arrives rather than at the end.
+function _handle_llm_event!(ev::LlmEvent, a, turn, state)
+    if ev isa LlmTextStart
+        part = ConversationPart(TextText(TextString("")))
+        push!(turn.parts, Cell(part))
+        state[:current_block] = part
+
+    elseif ev isa LlmTextDelta
+        _append_text_delta!(state[:current_block], ev.text)
+
+    elseif ev isa LlmTextStop
+        # A finished prose block is re-parsed: fenced code becomes live domain
+        # documents, prose becomes a real Markdown document.
         cb = state[:current_block]
+        if cb isa ConversationPart
+            parts = parse_markdown_blocks(_part_text(cb))
+            isempty(parts) || _replace_last_part!(turn, parts)
+        end
+        state[:current_block] = nothing
+
+    elseif ev isa LlmThinkingStart
+        # Collapsed by default — reasoning is verbose and secondary — unless the
+        # assistant opts to keep thinking expanded (`collapse_thinking = false`).
+        part = thinking_part(""; collapsed = a.collapse_thinking)
+        push!(turn.parts, Cell(part))
+        state[:current_thinking] = part
+
+    elseif ev isa LlmThinkingDelta
+        _append_thinking_delta!(state[:current_thinking], ev.text)
+
+    elseif ev isa LlmThinkingSignature
+        _set_thinking_signature!(state[:current_thinking], ev.signature)
+
+    elseif ev isa LlmThinkingStop
+        # Thinking is plain prose — no markdown parse. Just close the block.
+        state[:current_thinking] = nothing
+
+    elseif ev isa LlmRedactedThinkingBlock
+        # Nothing streams; the opaque payload is all there is.
+        push!(turn.parts, Cell(thinking_part(""; redacted = true, data = ev.data)))
+
+    elseif ev isa LlmToolUseStart
+        state[:current_tool]   = _PendingToolUse(ev.id, ev.name, Dict{String,Any}())
+        state[:tool_input_buf] = IOBuffer()
+
+    elseif ev isa LlmToolInputDelta
+        print(state[:tool_input_buf], ev.json)
+
+    elseif ev isa LlmToolUseStop
+        ct = state[:current_tool]
         if ct isa _PendingToolUse
+            # The argument fragments only become valid JSON once concatenated.
             raw = String(take!(state[:tool_input_buf]))
-            parsed = try
+            ct.input = try
                 nv = _json_native(jsonparse(raw))
                 nv isa Dict{String,Any} ? nv : Dict{String,Any}()
             catch
                 Dict{String,Any}()
             end
-            ct.input = parsed
             push!(state[:pending_tools], ct)
             state[:current_tool] = nothing
-        elseif cb isa ConversationPart
-            parts = parse_markdown_blocks(_part_text(cb))
-            if !isempty(parts)
-                # Replace the streamed scratch part with parsed parts.
-                _replace_last_part!(turn, parts)
-            end
         end
-        # Thinking is plain prose — no markdown parse. Just close the block.
-        state[:current_block] = nothing
-        state[:current_thinking] = nothing
-    elseif et === :message_delta
-        delta = get(data, :delta, nothing)
-        if delta !== nothing
-            sr = get(delta, :stop_reason, nothing)
-            if sr !== nothing && !isnothing(sr)
-                state[:stop_reason] = Symbol(sr)
-            end
-        end
-    elseif et === :message_stop
-        # nothing more to do
-    elseif et === :error
+
+    elseif ev isa LlmTurnEnd
+        state[:stop_reason] = ev.stop_reason
+
+    elseif ev isa LlmFailure
         state[:stop_reason] = :error
     end
+    nothing
 end
 
 function _append_text_delta!(part::ConversationPart, s::AbstractString)
