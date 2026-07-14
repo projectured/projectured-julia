@@ -108,7 +108,61 @@ call them. `SyntaxNode`'s printer becomes the composition of the same pieces `Sy
 `SyntaxSeparation` + `SyntaxDelimitation` + `SyntaxIndentation` + `SyntaxCollapsible` use
 individually. If a fix is needed in the splice logic, there is one place to fix it.
 
-## Phase 1 — optional delimiters on the fat types
+## Phase 1 — optional delimiters on the fat types — **DONE**
+
+**Result: empty spans went from 42.7% of the corpus to 8.7%** (1319 of 3088 → 190 of 2185).
+`julia` 65 empty spans → 1, `xml` 248 → 35, `syntax` 29 → 1, `json_null` from three spans to one.
+
+What landed, beyond the plan:
+
+- **The delimiter defaults live on the fields** (`open::Union{TextString,Nothing} = nothing`, …), and
+  the hand-written keyword constructors only *coerce* (`_text`, `_children`) before delegating to the
+  `@document` keyword constructor — so a default is declared once. `@document` gates its generated
+  keyword constructor on the programmer declaring ≥1 default precisely to leave the zero-positional
+  signature to a struct that coerces; the coercing form takes its content positionally
+  (`SyntaxLeaf(value; …)`), so the two never collide.
+- **An empty delimiter *string* normalizes to absence** in `_text`, so a projection whose delimiter is
+  configuration (YAML's block style, SQL's helpers) needed no edit. A `TextString` is passed through
+  untouched and never inspected — its content is a reactive cell, and one that is empty *now* may not
+  be later (`XmlElement`'s tag close alternates between `" "` and `""`), so dropping its span on a
+  momentary emptiness would mean it could never come back.
+- **`XmlAttribute` was missing from the `mixed` example's dispatch table**, so any element with
+  attributes threw `no projection registered for RXmlAttribute`. That was *every one* of the 93
+  pre-existing domain failures (`mixed` 65, `graph` 28 — graph routes through the mixed projection).
+  One line: `test_domain` 93 failed → **0**.
+- **Eight latently-broken `@reference` literals** in `PrimitiveToSyntax`, `MathToSyntax` and
+  `InsertionToSyntax`: a caret path must terminate in `::Position` and these did not, so they threw
+  the moment they were reached. Nothing reached them before, because the phantom caret on a bare
+  leaf's empty `open` delimiter routed around them — removing the phantom exposed the hole it was
+  hiding (it broke `math_table`'s Enter-into-cell).
+
+Navigation, as predicted: `sql_insert_syntax`, `markdown` and `sql_update_syntax` now walk
+symmetrically end to end, and `mixed` walks at all. `test_text_nav_invariants_all` 219 pass / 34
+broken → **236 / 26**.
+
+### Two things learned the hard way
+
+- **`test_domain` must be in the guard-rail list.** The first Phase 1 commit regressed it 93 → 132
+  and it was missed, because only the visual / nav / typein guards were run. It is in the guard rails
+  below now.
+- **`SyntaxNode`'s children container is load-bearing in two conflicting ways** — recorded in a
+  comment in `Syntax.jl`, because it is not guessable and it cost a day:
+  - a *hand-written* projection's output node needs a `CellVector`: the reference machinery navigates
+    `.children[i]` through its element cells;
+  - a `@projection_template` *blueprint* needs a raw `Vector`: the engine detects a fixed-children
+    node by `getfield(out, f)[] isa Vector` (`ProjectionTemplate._has_fixed_children`) and walks it to
+    resolve the `bound`/`project` markers nested in each child. A `CellVector` is not recognised as a
+    blueprint at all, and the markers reach the printer unresolved.
+
+  So a fixed-children template node **cannot** use the keyword form, and cannot even shorten its
+  7-arg positional call: at arity 4 the macro's Rule C constructor takes over and wraps the vector.
+  `SyntaxNode(nothing, nothing, nothing, [...], 0, false, nothing)` stays until Phase 2, where those
+  nodes become `SyntaxConcatenation([...])` — which is both prettier and more precise, and can define
+  its own children semantics without fighting this.
+
+### The original plan for this phase
+
+## Phase 1 (original) — optional delimiters on the fat types
 
 Contained, unblocks navigation, needs no domain edits. **Absence must be representable before it can
 be factored into a wrapper**, so this comes first either way.
@@ -318,13 +372,21 @@ fine-grained documents coexist permanently, sharing one implementation.
 
 ## Guard rails
 
-These must not regress at any point:
+These must not regress at any point. Baselines **as of the end of Phase 1** (run all of them — the
+first Phase 1 commit regressed `test_domain` unnoticed because it was not on this list):
 
-- `test_text_nav_invariants_all()` — baseline 219 pass / 34 broken. Improvements expected; regressions
-  are not.
+- `test_domain()` — 0 failed / 1 errored / 15 broken.
+- `test_visual()` — 0 failed / 1 broken.
+- `test_kernel()` / `test_base()` — clean.
+- `test_text_nav_invariants_all()` — 236 pass / 0 fail / 26 broken. Improvements expected;
+  regressions are not.
 - `test_typeins()` — 1187 pass / 23 broken. Typing must still work everywhere it does today.
 - `test_table_navigation()` — 63 pass / 0 fail / 1 error / 1 broken.
-- `test_click_roundtrips()` — 26 / 1 / 6.
+- `test_click_roundtrips()` — 27 pass / 2 fail / 4 error.
+- `test_position_navigations()` — 113 fail / 2 error, all of one pre-existing class (105 `under-typed
+  @reference` in Yaml/Sql, 2 `SelectionMismatch`, 1 `MethodError`). Watch the failure *classes*, not
+  the counts: the counts move whenever the reachable-caret set changes, which this work does by
+  design.
 - `PrinterLocalityTest` — the reactive-reuse guard; wrapper layers must not break reconciliation.
 
 ## Deferred
