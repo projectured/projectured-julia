@@ -33,6 +33,8 @@
 #    AR-48 forbids reaching into a sibling module's internals too, and the
 #    same-layer case is enforced per package once its imports are clean. A plain
 #    `import ..XxxModule` is unconstrained.
+# 6. (opt-in via `interface_files`) every declared interface file declares and
+#    never implements, and exports every name it declares (AR-72).
 #
 # Each test package calls `check_layering` with its own src root and declared
 # layer order (`test_kernel_layering()`, `test_base_layering()`, …); this file
@@ -365,12 +367,114 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
     errs
 end
 
+# ── interface-purity checker ───────────────────────────────────────────────
+
+"The name an `abstract type` / `const` / `function f end` declaration introduces, else `nothing`."
+decl_name(s::Symbol) = s
+function decl_name(e::Expr)
+    e.head === :curly && return decl_name(e.args[1])   # abstract type Foo{T}
+    e.head === :<:    && return decl_name(e.args[1])   # abstract type Foo <: Bar
+    nothing
+end
+decl_name(::Any) = nothing
+
+"A `const` may bind only a type expression (`Union{…}`, `Foo{T}`, `Bar`) — a call is state."
+is_type_expr(x) = x isa Symbol || (x isa Expr && x.head in (:curly, :<:, :.))
+
+"""
+    interface_purity_errors(src_root, interface_files, entries) -> Vector{String}
+
+Assert AR-72 over each declared interface file: it *declares*, and never
+*implements*. Legal at top level — inside the `module` block, or in a bare
+fragment file — are the module docstring, an `abstract type`, a `const` type
+alias, an open generic as a bodiless `function f end`, and module plumbing
+(`module` / `export` / `using` / `import` / `include`). Anything carrying a body
+is implementation: a short- or long-form method (a default and an error fallback
+included — a default is behaviour), a macro, a concrete `struct`, a `const` bound
+to a call. It belongs in the sibling file that implements the contract.
+
+Purity is decidable from the AST: a bodiless `function f end` parses to a
+one-argument `Expr(:function)`, a method to a two-argument one.
+
+Also assert the export half of AR-72: every name an interface file declares is
+exported by its owning module (`interface_files` maps the file's path, relative
+to `src_root`, to that module). An interface file has no private half — its
+export list *is* the layer's API surface.
+"""
+function interface_purity_errors(src_root, interface_files, entries)
+    mod_exports = Dict(mod => Set(exports) for (_, mod, _, _, exports) in entries)
+    errs = String[]
+    for (rel, mod) in sort(collect(interface_files))
+        path = joinpath(src_root, rel)
+        isfile(path) || (push!(errs, "$rel: declared an interface file but not on disk"); continue)
+        haskey(mod_exports, mod) || (push!(errs, "$rel: no file defines its owning module $mod"); continue)
+        declared = Symbol[]
+        scan_interface!(errs, declared, rel, parse_file(path), Ref(0))
+        for name in declared
+            name in mod_exports[mod] || push!(errs,
+                "$rel declares $name but $mod does not export it — an interface file " *
+                "has no private half (AR-72); export it, or move it to an implementation file")
+        end
+    end
+    errs
+end
+
+# Walk one interface file's top level, collecting the names it declares and an
+# error per expression that implements rather than declares. `line` tracks the
+# most recent LineNumberNode so a violation can name its line.
+function scan_interface!(errs, declared, rel, x, line)
+    bad(what, fix) = push!(errs, "$rel:$(line[]) $what — an interface file declares, " *
+                                 "it never implements (AR-72); $fix")
+    if x isa LineNumberNode
+        line[] = x.line
+    elseif x isa Expr
+        if x.head in (:toplevel, :block)
+            foreach(a -> scan_interface!(errs, declared, rel, a, line), x.args)
+        elseif x.head === :module
+            scan_interface!(errs, declared, rel, x.args[3], line)
+        elseif x.head === :macrocall && x.args[1] === GlobalRef(Core, Symbol("@doc"))
+            scan_interface!(errs, declared, rel, last(x.args), line)   # the documented form
+        elseif x.head === :abstract
+            name = decl_name(x.args[1])
+            name === nothing || push!(declared, name)
+        elseif x.head === :const
+            assignment = x.args[1]
+            name, value = assignment.args[1], assignment.args[2]
+            if is_type_expr(value)
+                n = decl_name(name)
+                n === nothing || push!(declared, n)
+            else
+                bad("`const $(decl_name(name))` binds a value, not a type alias",
+                    "state and computed constants belong in an implementation file")
+            end
+        elseif x.head === :function
+            if length(x.args) == 1                                     # `function f end`
+                name = decl_name(x.args[1])
+                name === nothing || push!(declared, name)
+            else
+                bad("defines a method", "move the body to the file that implements the contract")
+            end
+        elseif x.head === :(=) && x.args[1] isa Expr &&
+               x.args[1].head in (:call, :where)                       # `f(x) = …`
+            bad("defines a method", "move the body to the file that implements the contract")
+        elseif x.head === :struct
+            bad("defines a concrete struct", "an interface declares only abstract types")
+        elseif x.head === :macro
+            bad("defines a macro", "a macro is implementation")
+        elseif !(x.head in (:export, :using, :import)) &&
+               !(x.head === :call && x.args[1] === :include)
+            bad("is a top-level `$(x.head)` expression", "an interface file only declares")
+        end
+    end
+end
+
 # ── the shared entry point ─────────────────────────────────────────────────
 
 """
     check_layering(src_root, top_file; name = "package",
                    layers = String[], exempt_files = Set{String}(),
-                   check_private_imports = false)
+                   check_private_imports = false,
+                   interface_files = Dict{String, Symbol}())
 
 Run the full static layered-architecture guard for one main package inside
 a `@testset`:
@@ -384,11 +488,15 @@ a `@testset`:
 4. declared `layers` respect their index (skipped when `layers` is empty),
 5. cross-layer symbol imports name only exported symbols (opt-in via
    `check_private_imports = true`, requires `layers`; enable per package once
-   its imports are clean).
+   its imports are clean),
+6. each file in `interface_files` (a path ⇒ owning-module map) declares and
+   never implements, and exports every name it declares (AR-72); the map is
+   per package, so a package opts its interface files in as they come clean.
 """
 function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
-                        check_private_imports = false)
+                        check_private_imports = false,
+                        interface_files = Dict{String, Symbol}())
     @testset "$name layered-architecture guard" begin
         reached, entries = walk_includes(top_file, src_root)
 
@@ -445,6 +553,17 @@ function check_layering(src_root, top_file; name = "package",
                 errs = private_import_errors(entries, layers, exempt_files)
                 if !isempty(errs)
                     println(stderr, "\nCross-layer private-symbol imports:")
+                    foreach(e -> println(stderr, "  ", e), errs)
+                end
+                @test isempty(errs)
+            end
+        end
+
+        if !isempty(interface_files)
+            @testset "interface files declare, never implement" begin
+                errs = interface_purity_errors(src_root, interface_files, entries)
+                if !isempty(errs)
+                    println(stderr, "\nInterface-purity violations (AR-72):")
                     foreach(e -> println(stderr, "  ", e), errs)
                 end
                 @test isempty(errs)
@@ -610,5 +729,64 @@ function test_layering_checkers()
 
         # A per-file exemption suppresses the error for that importer.
         @test isempty(private_import_errors(bad, layers, Set(["document/A.jl"])))
+    end
+
+    @testset "interface_purity_errors separates declaration from implementation" begin
+        no_syms = Pair{Symbol, Vector{Symbol}}[]
+        entries = [("cell/CellModule.jl", :CellModule, Symbol[], no_syms,
+                    [:AbstractCell, :Reference, :is_up_to_date, :step_kind])]
+        interface_files = Dict("cell/Interface.jl" => :CellModule)
+        check(source) = mktempdir() do root
+            mkpath(joinpath(root, "cell"))
+            write(joinpath(root, "cell/Interface.jl"), source)
+            interface_purity_errors(root, interface_files, entries)
+        end
+
+        # A pure interface: docstrings, an abstract type, a type alias, open generics.
+        @test isempty(check("""
+            \"\"\"The vocabulary.\"\"\"
+            abstract type AbstractCell{T} end
+            const Reference = Union{Nothing, AbstractCell}
+            \"\"\"An open generic.\"\"\"
+            function is_up_to_date end
+            """))
+
+        # A default is behaviour — long form, short form, and a `where` method alike.
+        for method in ("function is_up_to_date(c::AbstractCell)\n    true\nend",
+                       "is_up_to_date(c::AbstractCell) = true",
+                       "step_kind(::T) where {T} = :structural")
+            errs = check("abstract type AbstractCell{T} end\n$method\n")
+            @test length(errs) == 1
+            @test occursin("defines a method", errs[1]) && occursin("AR-72", errs[1])
+        end
+
+        # An error fallback is a method too — the loophole this rule closes.
+        @test occursin("defines a method",
+                       only(check("""step_kind(::Val{n}) where {n} = error("no method")\n""")))
+
+        # State, a concrete struct, and a macro are all implementation.
+        @test occursin("binds a value", only(check("const Reference = Ref{Any}(nothing)\n")))
+        @test occursin("concrete struct", only(check("struct Reference end\n")))
+        @test occursin("defines a macro", only(check("macro is_up_to_date(x)\n    x\nend\n")))
+
+        # Module plumbing is not implementation: a module wrapper, imports, an
+        # `include` of the implementation fragment, and a docstring on a generic.
+        @test isempty(check("""
+            \"\"\"CellModule — the contract.\"\"\"
+            module CellModule
+            using ..Other
+            import ..Other: thing
+            export AbstractCell, is_up_to_date
+            abstract type AbstractCell{T} end
+            \"\"\"An open generic.\"\"\"
+            function is_up_to_date end
+            include("Defaults.jl")
+            end
+            """))
+
+        # The export half: a declared name its module does not export.
+        errs = check("abstract type AbstractCell{T} end\nfunction unexported_thing end\n")
+        @test length(errs) == 1
+        @test occursin("does not export it", errs[1]) && occursin("unexported_thing", errs[1])
     end
 end

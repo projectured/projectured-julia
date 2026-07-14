@@ -52,10 +52,15 @@ aspirational, and it is why the AR could be written with a "known remaining inst
 
 ## Steps
 
-- [ ] **1. Teach the guard the rule.** In `package/kernel/test/layering/CheckLayering.jl`: add
+- [x] **1. Teach the guard the rule.** In `package/kernel/test/layering/CheckLayering.jl`: add
   `interface_purity_errors(src_root, interface_files, entries)` and self-tests in
   `test_layering_checkers()`. Not yet wired into `test_kernel_layering()` — the guard would be red
   until the cleanup lands. Run the checker by hand through the following steps.
+
+  *Found while writing it:* `function Base.peek end` is a **syntax error** — a bodiless declaration
+  cannot be qualified. So an interface file can never *declare* a generic it does not own (a `Base`
+  one); it can only state the protocol in its docstring and let the implementors add methods. This
+  settles step 2's `Base.peek` question.
 
 - [ ] **2. cell — `cell/AbstractCell.jl`** (sealed; the user gave explicit permission).
   `is_up_to_date(c::AbstractCell) = true` and `Base.peek(c::AbstractCell) = c[]` become per-kind
