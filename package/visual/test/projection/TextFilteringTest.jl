@@ -5,7 +5,7 @@ function test_text_filtering()
 #   1: "alpha dolor"   2: newline   3: "beta gamma"   4: newline   5: "delta dolor"
 function _fixture()
     nl() = TextNewline(font=font_ubuntu_monospace_regular_20)
-    TextText(
+    TextBlock(
         TextString("alpha dolor", font_ubuntu_monospace_regular_20, color_default),
         nl(),
         TextString("beta gamma", font_ubuntu_monospace_regular_20, color_default),
@@ -16,9 +16,9 @@ end
 
 # `elements[span].content{char}` cursor path (span/char are 1-based / 0-based).
 # Canonical (typed) form: the projection emits the same self-describing
-# `::TextText.elements[..].content::String{..}` checkpoints, so the round-trip
+# `::TextBlock.elements[..].content::String{..}` checkpoints, so the round-trip
 # assertions compare typed-against-typed.
-_ref(span, char) = @reference ::TextText.elements::CellVector[span]::TextString.content::String{char}::Position
+_ref(span, char) = @reference ::TextBlock.elements::CellVector[span]::TextString.content::String{char}::Position
 
 # `elements[span].content[start:stop]` range path.
 _range(span, start, stop) = ConcreteReferencePath(FieldReference("elements"),

@@ -58,9 +58,9 @@ function _is_window_content(ref)
     r2.tail isa EmptyReferencePath
 end
 
-# The editable-text widget projection. A WidgetText whose content is a TextText
+# The editable-text widget projection. A WidgetText whose content is a TextBlock
 # recurses that content through the Text domain, so the combined renderer must
-# also dispatch TextText through TextToGraphics. All caret navigation / text
+# also dispatch TextBlock through TextToGraphics. All caret navigation / text
 # editing then comes from TextToGraphics and the widget only maps the resulting
 # references backward (see make_widget_text_document_example).
 function make_widget_text_projection_example(; measure=truetype_measure_text)
@@ -69,7 +69,7 @@ function make_widget_text_projection_example(; measure=truetype_measure_text)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
-            TextText => TextToGraphics(measure=measure),
+            TextBlock => TextToGraphics(measure=measure),
         ],
     )))
 end

@@ -32,7 +32,7 @@ Available names (see `examples` vector in `ProjecturedExample`):
 domain is modelled after.
 
 ```
-JsonObject ──JsonToSyntax──▶ SyntaxNode ──SyntaxToText──▶ TextText ──TextToGraphics──▶ GraphicsCanvas
+JsonObject ──JsonToSyntax──▶ SyntaxNode ──SyntaxToText──▶ TextBlock ──TextToGraphics──▶ GraphicsCanvas
 ```
 
 The example opens a small JSON object loaded from
@@ -65,7 +65,7 @@ directly shows how a `SyntaxNode` tree looks before and after the text
 rendering step.
 
 ```
-SyntaxNode ──SyntaxToText──▶ TextText ──TextToGraphics──▶ GraphicsCanvas
+SyntaxNode ──SyntaxToText──▶ TextBlock ──TextToGraphics──▶ GraphicsCanvas
 ```
 
 The example builds a hand-crafted `SyntaxNode` tree — a parenthesised
@@ -150,7 +150,7 @@ Julia domain provides types for identifiers, integers, binary operators,
 function calls, if expressions, functions, and blocks.
 
 ```
-JuliaBlock ──JuliaToSyntax──▶ SyntaxNode ──SyntaxToText──▶ TextText ──TextToGraphics──▶ GraphicsCanvas
+JuliaBlock ──JuliaToSyntax──▶ SyntaxNode ──SyntaxToText──▶ TextBlock ──TextToGraphics──▶ GraphicsCanvas
 ```
 
 The example opens a small Julia program fragment. Navigate through the AST

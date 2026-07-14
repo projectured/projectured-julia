@@ -87,9 +87,9 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 `ConsoleBackend` (in [package/visual/main/backend/Console.jl](../../../package/visual/main/backend/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
-`TextText` directly and skips `TextToGraphics`: its pipeline is
+`TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
-a `TextText` rather than a `ScreenDocument`. Highlights:
+a `TextBlock` rather than a `ScreenDocument`. Highlights:
 
 - `write_to_devices` flattens the spans to a character stream, preserving each
   span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`

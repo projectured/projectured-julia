@@ -1,6 +1,6 @@
 function make_line_numbering_document_example()
     newline = TextNewline(font=font_ubuntu_monospace_regular_20)
-    TextText(
+    TextBlock(
         TextString("Lorem ipsum dolor sit amet,", font_ubuntu_monospace_regular_20, color_default),
         newline,
         TextString("consectetur adipiscing elit, sed do eiusmod", font_ubuntu_monospace_regular_20, color_default),

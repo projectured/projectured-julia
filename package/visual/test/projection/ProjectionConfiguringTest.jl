@@ -7,7 +7,7 @@ function test_projection_configuring()
 _font = font_ubuntu_monospace_regular_20
 _mkchange(g, o) = IntentModule.Intent(g, o)
 _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
-_input() = TextText(TextString("alpha dolor", _font, color_default))
+_input() = TextBlock(TextString("alpha dolor", _font, color_default))
 
 @testset "ProjectionConfiguringProjection stacks control above document" begin
 
@@ -80,10 +80,10 @@ end # @testset
     w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{Type,Any}[TextText => TextToGraphics(measure=stub)])))
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure=stub)])))
     proj  = ChainingProjection(pcp, renderer)
 
-    doc   = TextText(TextString("alpha dolor", font, color_default))
+    doc   = TextBlock(TextString("alpha dolor", font, color_default))
     iomap = print_document(proj, nothing, doc, PrinterContext())
 
     # A click that lands on a checkbox routes through renderer → split pane →
@@ -113,10 +113,10 @@ end # @testset
     w2g   = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{Type,Any}[TextText => TextToGraphics(measure=stub)])))
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure=stub)])))
     proj  = ChainingProjection(pcp, renderer)
 
-    doc   = TextText(TextString("alpha dolor", font, color_default))
+    doc   = TextBlock(TextString("alpha dolor", font, color_default))
     ctx   = with_available_size(PrinterContext(); width=Cell(800), height=Cell(600))
     iomap = print_document(proj, nothing, doc, ctx)
 

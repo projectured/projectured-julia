@@ -167,7 +167,7 @@ include("layout/ConstraintSolver.jl")
 include("layout/CollectionToLayout.jl")
 
 # ── Slice 5 — text (styled text + its renderings) ────────────────────────
-# Text is the styled-text domain (TextText/TextString/TextNewline…);
+# Text is the styled-text domain (TextBlock/TextString/TextNewline…);
 # TextToGraphics/TextToString are the render endpoints; the decorators
 # (LineNumbering, WordWrapping, TextFiltering, TextFirstLine,
 # TextHighlighting, SelectionInverting) are Text→Text transforms;

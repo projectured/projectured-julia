@@ -9,12 +9,12 @@ event) and threads it as the `Intent.gesture`. In the SDL pipeline the
 `ScreenToScreen` projection is the seam that unwraps `env.event` and re-roots
 the resulting operation under the window's `content`. A pipeline that has **no**
 screen/window layer — e.g. the `ConsoleBackend`'s `JsonToSyntax → SyntaxToText`
-chain, whose output is a bare `TextText` rooted at the domain document — still
+chain, whose output is a bare `TextBlock` rooted at the domain document — still
 receives the wrapped envelope from the editor but has nothing to unwrap it.
 
 `EnvelopeUnwrappingProjection` is that missing seam in miniature: the printer is
 a transparent passthrough (its output is the inner projection's output, so the
-backend renders the `TextText` directly), and the reader replaces an
+backend renders the `TextBlock` directly), and the reader replaces an
 `EventEnvelope` gesture with its inner `event` before delegating to the inner
 reader. No reference re-rooting is needed because there is no window/content
 nesting above the document.

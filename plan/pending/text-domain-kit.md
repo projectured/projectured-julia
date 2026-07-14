@@ -1,10 +1,10 @@
-# The Text domain: `@domain Text`, a `TextLine` document, and the `TextText` rename
+# The Text domain: `@domain Text`, a `TextLine` document, and the `TextBlock` rename
 
 Three related changes to [package/visual/main/text/Text.jl](../../package/visual/main/text/Text.jl),
 ordered so each lands on its own:
 
 1. **`@domain Text`** — give the text domain the insertion kit every other domain has (AR-15).
-2. **Rename `TextText`** — the stutter is a Lisp transliteration (`text/text`); pick a real name.
+2. **Rename `TextBlock`** — the stutter is a Lisp transliteration (`text/text`); pick a real name.
 3. **`TextLine`** — a line-structured document node, so projections stop re-deriving line
    structure from a flat span list and indentation stops being a fake `TextString`.
 
@@ -35,25 +35,25 @@ rots is already in the tree:
   [InsertionToSyntax.jl:326](../../package/domain/main/insertion/InsertionToSyntax.jl#L326) carries
 
   ```julia
-  # `TextText` is a plain visual document, not an `@domain` kit, so its historic
+  # `TextBlock` is a plain visual document, not an `@domain` kit, so its historic
   # `"text"` short name is a hand-written alias.
-  DomainModule.insertion_aliases(::Type{<:TextText}) = ["text"]
+  DomainModule.insertion_aliases(::Type{<:TextBlock}) = ["text"]
   ```
 
   i.e. the *domain* package reaches down into a *visual* type to patch a missing kit.
 - **A committed `"text"` insertion is unusable — confirmed in the REPL.**
-  `make_insertion_document(TextText)` has no `@insertion` override, so it hits the generic fallback
-  ([Domain.jl:124](../../package/base/main/document/Domain.jl#L124)) → `TextText()` →
-  `length(d.elements) == 0`, `getfield(d, :selection)[] === nothing`. The `@gestures TextText`
+  `make_insertion_document(TextBlock)` has no `@insertion` override, so it hits the generic fallback
+  ([Domain.jl:124](../../package/base/main/document/Domain.jl#L124)) → `TextBlock()` →
+  `length(d.elements) == 0`, `getfield(d, :selection)[] === nothing`. The `@gestures TextBlock`
   `KeyPress` rule routes to `_text_insert` → `_text_selection_range`, which does
   `sel isa ConcreteReferencePath || return nothing` and so declines on a `nothing` selection: **the
   document you just inserted takes no keystrokes.** One `@insertion` line fixes it.
 
   ```
-  resolve_insertion(Document, "text")        = TextText
-  length(make_insertion_document(TextText).elements) = 0
+  resolve_insertion(Document, "text")        = TextBlock
+  length(make_insertion_document(TextBlock).elements) = 0
   getfield(…, :selection)[]                  = nothing
-  insertion_names(TextText)                  = ["TextText", "text text", "text"]
+  insertion_names(TextBlock)                  = ["TextBlock", "text text", "text"]
   TextInsertion in insertion_candidates(Document) = false   # the dead type isn't even a candidate
   ```
 
@@ -72,7 +72,7 @@ In [Text.jl](../../package/visual/main/text/Text.jl):
 - **Delete** the hand-written `abstract type TextDocument <: Document end` and the dead
   `@document struct TextInsertion` — the macro emits both. Drop `TextDocument` from the manual
   `export` list (`@domain` exports the root).
-- **Delete** `DomainModule.insertion_aliases(::Type{<:TextText}) = ["text"]` from
+- **Delete** `DomainModule.insertion_aliases(::Type{<:TextBlock}) = ["text"]` from
   [InsertionToSyntax.jl](../../package/domain/main/insertion/InsertionToSyntax.jl) and its comment.
 - **Layering:** `DomainModule` lives in base ([Domain.jl](../../package/base/main/document/Domain.jl)),
   visual is above base, but **no visual module imports it today**. Add
@@ -84,7 +84,7 @@ In [Text.jl](../../package/visual/main/text/Text.jl):
 ### `@insertion` factories — one, not five *(decided during implementation)*
 
 ```julia
-@insertion TextText = @with_selection TextText([TextString("")]) elements[1].content{0}
+@insertion TextBlock = @with_selection TextBlock([TextString("")]) elements[1].content{0}
 ```
 
 That single line is the bug fix: an inserted text now arrives with one empty span and a caret in it,
@@ -95,9 +95,9 @@ one each for `TextString` / `TextNewline` / `TextSpacing`. The reason: `insertab
 the *type*, not of the scope it is completed in, so a factory makes a span committable at the
 **top-level** `DocumentInsertion` too — where the committed document is the *root*. The natural
 projection routes any `TextDocument` root to the prose chain, whose printer is
-`print_document(::TextToGraphics, _, ::TextText, _)`: a lone `TextString` root is a `MethodError`,
+`print_document(::TextToGraphics, _, ::TextBlock, _)`: a lone `TextString` root is a `MethodError`,
 not a document. Nothing else can reach the span factories, either — the Insert gesture only exists
-on `*Nothing` placeholders, and there is no "insert a span at the caret" gesture in `TextText`.
+on `*Nothing` placeholders, and there is no "insert a span at the caret" gesture in `TextBlock`.
 
 So span-level insertion is a **follow-up** that needs two things this phase does not have: a
 caret-level insert gesture in the Text domain, and either a root-rendering story for a lone span or
@@ -113,22 +113,22 @@ placeholder that renders and takes Insert.
 `@domain Text` emits `insertion_aliases(TextInsertion) = ["text"]`, so at a top-level
 `DocumentInsertion` the name **`"text"` now means "enter the Text domain"**, exactly as `"json"` →
 `JsonInsertion` and `"julia"` → `JuliaInsertion`. The container is then reachable as `"text text"` /
-`"TextText"` at the top level, or as `"text"` / `"Text"` *inside* the Text insertion (the
+`"TextBlock"` at the top level, or as `"text"` / `"Text"` *inside* the Text insertion (the
 `domain_prefix` strip makes the exact match unambiguous there).
 
 Keeping the alias on the container instead would leave two candidates answering exactly to `"text"`
 and make `resolve_insertion` order-dependent. Take the convention.
 
 - Update [DocumentInsertionTest.jl:39](../../package/domain/test/projection/DocumentInsertionTest.jl#L39):
-  `@test "text" in DS.insertion_names(TextText)  # hand-written alias` becomes the assertion that
-  `"text"` resolves to `TextInsertion` and that `TextText` answers to `"Text"` under
+  `@test "text" in DS.insertion_names(TextBlock)  # hand-written alias` becomes the assertion that
+  `"text"` resolves to `TextInsertion` and that `TextBlock` answers to `"Text"` under
   `root = TextDocument`.
 
 ### Rendering the new pair — cheapest correct route
 
 `TextNothing` and `TextInsertion` are `<: TextDocument`, and the **natural projection** routes
 `TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/domain/main/insertion/NaturalProjection.jl#L160))
-— a Text→Graphics chain whose printer is typed `print_document(::TextToGraphics, _, ::TextText, _)`.
+— a Text→Graphics chain whose printer is typed `print_document(::TextToGraphics, _, ::TextBlock, _)`.
 A bare `TextNothing` root would not render.
 
 Every other domain solves this with two lines in its `*ToSyntax` type table pointing at the shared
@@ -154,12 +154,12 @@ only arises via the insertion machinery, which lives in the domain package. Revi
 
 ### Phase 1 checklist — **done**
 
-- [x] Confirm the `make_insertion_document(TextText)` defect in the REPL (empty spans, no selection).
+- [x] Confirm the `make_insertion_document(TextBlock)` defect in the REPL (empty spans, no selection).
 - [x] `const DomainModule = …` in `ProjecturedVisual.jl`; import `@domain` / `@insertion` in `TextModule`.
 - [x] `@domain Text`; delete the hand-written root and the dead `TextInsertion`.
-- [x] `@insertion TextText` only — the span types stay non-candidates (see above).
-- [x] Delete the `insertion_aliases(TextText)` hack from `InsertionToSyntax.jl` (and the now-unused
-      `import ..DomainModule` / `TextText` imports it needed).
+- [x] `@insertion TextBlock` only — the span types stay non-candidates (see above).
+- [x] Delete the `insertion_aliases(TextBlock)` hack from `InsertionToSyntax.jl` (and the now-unused
+      `import ..DomainModule` / `TextBlock` imports it needed).
 - [x] Natural-projection entries: `TextNothing` / `TextInsertion` in **both** tables — the to-syntax
       table (pointing at `InsertionNothingToSyntaxLeaf` / `DomainInsertionToSyntaxLeaf(TextDocument)`)
       and the to-graphics table (routing them to `syntax_to_graphics`, ahead of the abstract
@@ -170,16 +170,16 @@ only arises via the insertion machinery, which lives in the domain package. Revi
 `test_visual_layering()` / `test_domain_layering()` green. `plain_text` (1187/7) and `natural`
 (19801/35) fail identically on the base commit — pre-existing, not regressions. Driven end to end:
 `TextNothing` renders through the natural projection → Insert yields a `TextInsertion` with the
-caret in its buffer → that renders → `"text"` commits a `TextText` with one span and a caret →
+caret in its buffer → that renders → `"text"` commits a `TextBlock` with one span and a caret →
 typing emits a `ReplaceStringRangeOperation` instead of declining.
 
 ---
 
-## Phase 2 — rename `TextText` → **`TextBlock`** *(decided)*
+## Phase 2 — rename the container to **`TextBlock`** — **done**
 
-**Yes, rename it.** `TextText` is a transliteration of the Lisp original's `text/text`; in Julia the
-domain prefix is carried by the type name, so the container reads as a stutter at every one of its
-451 occurrences.
+**Yes, rename it.** The old name was a transliteration of the Lisp original's `text/text`; in Julia
+the domain prefix is carried by the type name, so the container read as a stutter at every one of
+its 451 occurrences.
 
 The type is *a container of styled spans* (`TextString` / `TextNewline` / `TextSpacing` /
 `TextGraphics`) — and, if Phase 3 lands, of `TextLine`s. Candidates:
@@ -198,18 +198,23 @@ breaks into lines, and it reads well at construction sites:
 `TextBlock(TextString("hello"), TextNewline(font=f), TextString("world"))`. (Runner-up was
 `TextFlow`.)
 
-Mechanics:
+Mechanics, as executed:
 
-- Mechanical sweep: **451 occurrences across 86 files** in `package/` + `documentation/`. One
-  commit, no behaviour change. Delegate the sed; verify by loading + `test_visual()`.
-- **Do not rewrite `plan/done/`** — those are history (and another ~300 occurrences). Only source,
-  docs, and `plan/pending/`.
+- One mechanical sweep over `package/`, `documentation/`, `plan/pending/` and `plan/tentative/`;
+  **`plan/done/` left alone** — those are history.
+- **The one trap: `_TextTexture` / `_TextTextureKey`** in
+  [ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — the SDL glyph-texture cache
+  contains the old name as a *substring*, and a naive replace corrupts it into `_TextBlockure`.
+  The sweep used a negative lookahead (`s/TextText(?!ure)/TextBlock/g`), which also carries the
+  compound names across correctly (`PrimitiveStringToTextText` → `…ToTextBlock`,
+  `TextTextToString` → `TextBlockToString`).
 - Nothing structural depends on the name: reference paths are built from *field* names
-  (`elements` / `content`), and `TypeReference` holds the type object, not a string. The one place
-  the name is user-visible is the insertion vocabulary (`"text text"` → `"text block"`), which
-  Phase 1 has already decoupled from the `"text"` alias.
-- Do it **after** Phase 1 (so the new kit isn't written twice) and **before** Phase 3 (so `TextLine`
-  is introduced next to its final-named container).
+  (`elements` / `content`), and `TypeReference` holds the type object, not a string.
+- The name **is** user-visible in one place — the insertion vocabulary, which is derived from it.
+  Inside the Text scope the container is now `block` / `text block` (prefix-free `Block`), not
+  `text`. The bare domain name still commits it, but by *unambiguous prefix* rather than exact
+  match, since it is the scope's only candidate. `DocumentInsertionTest`'s derived-name assertions
+  are the record of this.
 
 ---
 
@@ -263,7 +268,7 @@ Everything in [Text.jl](../../package/visual/main/text/Text.jl) that touches car
 span list — `.elements[i].content{k}`, with an `Int` span index:
 `_text_span_infos`, `_text_span_text`, `_step_left` / `_step_right`, `_word_step_*`,
 `_text_selection_range`, `_text_replace_path`, `_build_selection_path`, `_cursor_position`,
-`text_selection_flat` / `_text_cursor_flat`, plus `splice_value!(::TextText, …)`.
+`text_selection_flat` / `_text_cursor_flat`, plus `splice_value!(::TextBlock, …)`.
 
 With lines the path is `.elements[i].elements[j].content{k}`, so the `Int` span index becomes an
 **index path**. That is the bulk of the work, and it is contained in Text.jl plus

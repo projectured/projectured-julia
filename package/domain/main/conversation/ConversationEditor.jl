@@ -39,7 +39,7 @@ import ..PrimitiveModule: PrimitiveString
 import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
 import ..JsonModule: JsonInsertion, JsonDocument
 import ..XmlModule: XmlInsertion, XmlDocument
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
@@ -148,7 +148,7 @@ struct ComposerNewlineOperation <: Operation
 end
 
 """
-INSERT: commit the active text typein (→ `TextText`, dropped when blank) and
+INSERT: commit the active text typein (→ `TextBlock`, dropped when blank) and
 append a `DocumentInsertion` kind chooser as the new active part.
 """
 struct ComposerInsertPartOperation <: Operation
@@ -186,7 +186,7 @@ end
 
 """
 ENTER in a text typein: finalize the draft — convert every `PrimitiveString`
-part to `TextText`, dropping a trailing blank typein.
+part to `TextBlock`, dropping a trailing blank typein.
 """
 struct ComposerSubmitOperation <: Operation
     draft::ConversationDraft
@@ -226,7 +226,7 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
         if isempty(strip(v))
             deleteat!(d.parts, length(d.parts))    # drop the blank typein
         else
-            p.content = TextText(TextString(v))    # commit the prose
+            p.content = TextBlock(TextString(v))    # commit the prose
         end
     end
     ins = DocumentInsertion("")
@@ -301,7 +301,7 @@ end
     finalize_draft!(draft) -> Bool
 
 Normalize a draft for submission: drop a trailing blank text typein and convert
-every remaining `PrimitiveString` part to committed `TextText` prose. Returns
+every remaining `PrimitiveString` part to committed `TextBlock` prose. Returns
 whether the draft still has any parts (i.e. is worth submitting).
 """
 function finalize_draft!(d::ConversationDraft)
@@ -312,7 +312,7 @@ function finalize_draft!(d::ConversationDraft)
     for i in eachindex(d.parts)
         part = d.parts[i]
         part.content isa PrimitiveString &&
-            (part.content = TextText(TextString(_value(part.content))))
+            (part.content = TextBlock(TextString(_value(part.content))))
     end
     !isempty(d.parts)
 end
@@ -374,7 +374,7 @@ _kind_glyph(::DocumentInsertion) = "+"
 _kind_glyph(::JuliaInsertion)    = "λ"
 _kind_glyph(::JuliaDocument)     = "λ"
 _kind_glyph(::EvaluatorForm)     = "="
-_kind_glyph(::TextText)          = "¶"
+_kind_glyph(::TextBlock)          = "¶"
 _kind_glyph(::JsonDocument)      = "{}"   # JsonInsertion and committed JSON
 _kind_glyph(::XmlDocument)       = "<>"   # XmlInsertion and committed XML
 _kind_glyph(_)                   = "?"
@@ -386,7 +386,7 @@ _kind_label(::DocumentInsertion) = "insert"
 _kind_label(::JuliaInsertion)    = "julia"
 _kind_label(::JuliaDocument)     = "julia"
 _kind_label(f::EvaluatorForm)    = eval_kind_label(f)
-_kind_label(::TextText)          = "text"
+_kind_label(::TextBlock)          = "text"
 _kind_label(_)                   = "doc"
 
 # A header row: a small avatar glyph followed by a styled kind-title label.
@@ -403,7 +403,7 @@ const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
 
 # A zero-width cursor at offset `k` inside span `span` (1-based) of a body
-# `TextText`, in the `.elements[span].content[k:k]` shape `TextToGraphics` reads
+# `TextBlock`, in the `.elements[span].content[k:k]` shape `TextToGraphics` reads
 # to draw its genuine thin-line caret.
 _caret_selection(span::Int, k::Int) =
     ConcreteReferencePath(FieldReference("elements"),
@@ -413,7 +413,7 @@ _caret_selection(span::Int, k::Int) =
 
 # Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
 # `span_len` is the rendered length of that span so the cursor stays in range.
-function _attach_caret!(body::TextText, content, span::Int, span_len)
+function _attach_caret!(body::TextBlock, content, span::Int, span_len)
     set_function!(getfield(body, :selection),
            () -> _caret_selection(span, clamp(_cursor(content), 0, span_len())))
     body
@@ -437,7 +437,7 @@ function _editable_body(c::DocumentInsertion)
         state === :invalid ? color_solarized_red :
         state === :empty   ? color_default      : color_solarized_green
     end)
-    body = TextText([
+    body = TextBlock([
         TextString(_INS_PREFIX, _FONT, color_solarized_gray),
         value_span,
         TextString(() -> name_completion(c).hint, _FONT, color_completion_hint),
@@ -461,7 +461,7 @@ function _editable_body(c)
     ts = TextString(show, _FONT, color_default)
     set_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
-    _attach_caret!(TextText(ts), c, 1, () -> length(show()))
+    _attach_caret!(TextBlock(ts), c, 1, () -> length(show()))
 end
 
 # ── Committed part body — recurse the real content document through the inner

@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20,
                      font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: color_default,
@@ -63,8 +63,8 @@ _ts(f::Function) = TextString(f, _FONT, _TEXT_COL)
 _ts(f::Function, font, color) = TextString(f, font, color)
 _empty_ts() = TextString("", _FONT, _TEXT_COL)
 
-# Flatten a TextText into a single rendered string.
-function _text_to_string(t::TextText)
+# Flatten a TextBlock into a single rendered string.
+function _text_to_string(t::TextBlock)
     io = IOBuffer()
     for span in t.elements
         hasproperty(span, :content) && print(io, span.content)
@@ -74,7 +74,7 @@ end
 _text_to_string(s::AbstractString) = String(s)
 
 # Stringify an arbitrary part content for the Stage-1 syntax rendering.
-_content_to_string(t::TextText) = _text_to_string(t)
+_content_to_string(t::TextBlock) = _text_to_string(t)
 _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
 # ── Top-level conversation: one turn per line ──────────────────────────────────

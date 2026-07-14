@@ -80,7 +80,7 @@ into a layout container).
 
 ### text/ — styled text and its renderings
 
-`Text.jl` (the styled-text domain: TextText/TextString/TextNewline/…),
+`Text.jl` (the styled-text domain: TextBlock/TextString/TextNewline/…),
 `TextToGraphics.jl`, `TextToString.jl` (render endpoints), the
 decorators (`LineNumbering`, `WordWrapping`, `TextFiltering`,
 `TextFirstLine`, `TextHighlighting`, `SelectionInverting`), and the

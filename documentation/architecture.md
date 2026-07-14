@@ -187,7 +187,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRectangularReference` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
-| `Text.jl` | `TextText`, `TextString`, `TextNewline` |
+| `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
 | `Syntax.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
 | `Graphics.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
 | `Widget.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
@@ -289,7 +289,7 @@ composes with any higher-order projection.
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Screen.jl` | `Screen` device |

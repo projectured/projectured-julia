@@ -7,19 +7,19 @@ function test_widget_text_editing()
 _font = font_ubuntu_monospace_regular_20
 _stub(t, f) = (length(t) * 10, 24)
 
-# An editable WidgetText: content is a TextText recursed through the Text domain.
+# An editable WidgetText: content is a TextBlock recursed through the Text domain.
 function _doc()
-    content = TextText(TextString("edit me", _font, color_default))
+    content = TextBlock(TextString("edit me", _font, color_default))
     WidgetText(Point2D(0, 0), content)
 end
 
-# Combined renderer: widget nodes via WidgetToGraphics, the recursed TextText via
+# Combined renderer: widget nodes via WidgetToGraphics, the recursed TextBlock via
 # TextToGraphics.
 function _proj()
     w2g = WidgetToGraphics(_font; measure=_stub)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
-        Pair{Type,Any}[TextText => TextToGraphics(measure=_stub)],
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure=_stub)],
     )))
 end
 
@@ -51,7 +51,7 @@ end
 end
 
 @testset "a disabled WidgetText accepts no edits" begin
-    content = TextText(TextString("edit me", _font, color_default))
+    content = TextBlock(TextString("edit me", _font, color_default))
     doc = WidgetText(Point2D(0, 0), content; enabled=false)
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())

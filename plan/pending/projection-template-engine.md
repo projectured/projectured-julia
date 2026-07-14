@@ -165,7 +165,7 @@ shapes directly, and crucially its *conditional* structure needs no new machiner
   separate-optional-packages layout (the second rebase of this branch).
   - **Gate (no regression vs. the pre-existing SQL baseline on `main`@2d16b33):**
     `test_sql_to_syntax` 18/1 (the 1 error is line 15, a pre-existing
-    `iterate(::TextText)` orphan in the *test*); `test_sql_insert_update_selection`
+    `iterate(::TextBlock)` orphan in the *test*); `test_sql_insert_update_selection`
     13/1 (line 113, a pre-existing `::SqlSelectItem` checkpoint in the WHERE node);
     `test_sql_ddl` 3/3, `test_sql_ddl_selection` 7/7 green. NB
     `test_sql_to_syntax_selection` throws `UndefVarError: test_selection` — that

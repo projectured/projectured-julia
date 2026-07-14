@@ -29,7 +29,7 @@ an abstract type, or a `Union` such as `Union{JsonNull,JsonBool}`.
     tdp = TypeDispatchingProjection(
         JsonDocument  => JsonToSyntax(),
         SyntaxDocument => SyntaxToText(),
-        TextText => TextToGraphics(),
+        TextBlock => TextToGraphics(),
     )
     result = print_document(tdp, some_json_doc)  # uses JsonToSyntax
 """

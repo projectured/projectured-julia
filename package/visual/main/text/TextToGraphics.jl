@@ -20,7 +20,7 @@ module TextToGraphicsModule
 import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument,
+import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument,
                      _build_selection_path, _cursor_position, _is_structural_selection
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
@@ -44,7 +44,7 @@ export TextToGraphics, TextToGraphicsIoMap
     SegCoord(span_idx, char_start, char_end, x, y, font, text, width, height)
 
 One entry per emitted text segment. `span_idx` is the 1-based index of the
-`TextString` element in the input `TextText`. `char_start`/`char_end` are
+`TextString` element in the input `TextBlock`. `char_start`/`char_end` are
 0-based offsets local to that span (exclusive end). `(x, y)` are pixel
 coordinates of the segment's top-left. `width`/`height` are the segment's
 pixel box; for an inline image span (`TextGraphics` — empty `text`, range
@@ -72,7 +72,7 @@ text segment with character range, pixel position, font, and text.
 """
 struct TextToGraphicsIoMap <: IoMap
     projection::Any
-    input::TextText
+    input::TextBlock
     output::GraphicsCanvas
     char_to_coord::Cell  # Cell{Vector{SegCoord}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
@@ -103,7 +103,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceS
 end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives
-# on the Text domain (`read_gesture(::TextText, ::KeyPress)` in `TextModule`).
+# on the Text domain (`read_gesture(::TextBlock, ::KeyPress)` in `TextModule`).
 # Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
 # against `.elements[i].content[range]`) flows back through the chain unchanged.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
@@ -205,19 +205,19 @@ end
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
-    print_document(p::TextToGraphics, styled::TextText) -> Cell{Vector{GraphicsText}}
+    print_document(p::TextToGraphics, styled::TextBlock) -> Cell{Vector{GraphicsText}}
 
-Lay an already-wrapped `TextText` out into reactive `GraphicsText` primitives.
+Lay an already-wrapped `TextBlock` out into reactive `GraphicsText` primitives.
 Lines advance left-to-right; the line breaks come from `TextNewline` elements
 and from `\\n` characters embedded in `TextString` content. The wrap itself —
 splitting at word boundaries when text would overflow — is the job of
 `WordWrapping` upstream.
 
 The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
-relevant cell in the `TextText`, so any value or structural change
+relevant cell in the `TextBlock`, so any value or structural change
 invalidates the layout; recomputation happens only when the `Cell` is read.
 """
-function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
+function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
@@ -390,7 +390,7 @@ end
 # `(x, y, w, h)` or `nothing`. With `collect_spans=false` the span objects are
 # not built (the overlay only needs geometry), but measurement and the coord
 # map still run so caret/highlight placement is identical to the rendered text.
-function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::Bool=true)
+function _layout_text(p::TextToGraphics, styled::TextBlock, sel; collect_spans::Bool=true)
     result = Any[]
     by_key = Dict{Any,Any}()
     occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
@@ -664,13 +664,13 @@ end
 """
     _print_listnode(p, styled, ctx)
 
-When `TextText.elements` is a `ListNode`, produce a top-level
+When `TextBlock.elements` is a `ListNode`, produce a top-level
 `GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`,
 and a `ListNode` of sub-canvases — one per paragraph (spans between
 `TextNewline` nodes). Each paragraph lays out left-to-right; word wrapping
 inside a paragraph is upstream's responsibility.
 """
-function _print_listnode(p::TextToGraphics, styled::TextText, ctx)
+function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
@@ -830,7 +830,7 @@ end
 # ── Selection → cursor position ───────────────────────────────────────
 #
 # `_cursor_position`, `_is_structural_selection`, and `_build_selection_path` are
-# pure `TextText`-selection helpers; they were relocated to `TextModule` (the
+# pure `TextBlock`-selection helpers; they were relocated to `TextModule` (the
 # document layer) and are imported above. They are shared between the
 # geometry-free `read_gesture` (in TextModule) and the geometry-dependent layout
 # / mouse / line-motion code that remains here.
@@ -973,7 +973,7 @@ end
 """
     _highlight_char_range(sel, coord_map) -> (start, stop) or nothing
 
-Extract the flat character range for a box selection from the TextText's
+Extract the flat character range for a box selection from the TextBlock's
 selection. Recognized shapes:
 - `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
   the total character count across all segments.

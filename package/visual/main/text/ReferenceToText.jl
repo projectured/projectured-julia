@@ -1,8 +1,8 @@
 """
     ReferenceToTextModule
 
-Reference → TextText projections. Two projections render a `Reference`
-(the linked-list path defined in `ReferenceModule`) as a `TextText`
+Reference → TextBlock projections. Two projections render a `Reference`
+(the linked-list path defined in `ReferenceModule`) as a `TextBlock`
 document:
 
 - `ReferenceToText` — a single colored line, the same compact shape as
@@ -12,9 +12,9 @@ document:
   step described in English and tagged with the Julia type of the value
   the step is applied to.
 
-Both projections produce a `TextText` whose `selection` is always
+Both projections produce a `TextBlock` whose `selection` is always
 `nothing`; v1 does not map sub-selections between Reference steps and
-TextText spans.
+TextBlock spans.
 """
 module ReferenceToTextModule
 
@@ -30,7 +30,7 @@ import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, Concrete
                           head, tail, evaluate_reference, append_reference
 import ..PointReferenceModule: PointReference
 import ..ProjectionReferenceModule: ProjectionReference
-import ..TextModule: TextDocument, TextText, TextString, TextNewline
+import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_default,
                       color_solarized_gray, color_solarized_cyan,
@@ -82,7 +82,7 @@ _article(name::AbstractString) =
     ReferenceToText(; font=font_ubuntu_monospace_regular_20)
 
 Projection that renders a `Reference` as a single-line, color-coded
-`TextText`. Mirrors the shape of `Base.show` for references but each
+`TextBlock`. Mirrors the shape of `Base.show` for references but each
 token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 """
@@ -176,7 +176,7 @@ function _short_text(p::ReferenceToText, ref)
     else
         _emit_path_short!(spans, p, ref)
     end
-    TextText(spans...)
+    TextBlock(spans...)
 end
 
 print_document(p::ReferenceToText, recursion, ::Nothing, ctx) =
@@ -196,7 +196,7 @@ print_document(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx) =
     ReferenceToHumanReadableText(document; font=font_ubuntu_monospace_regular_20)
 
 Projection that renders a `Reference` as a multi-line narrative
-`TextText`. One phrase per line, in **reverse order** (innermost step
+`TextBlock`. One phrase per line, in **reverse order** (innermost step
 first), with each phrase shaped as
 `the <step-description> of the <parent-type>` where `<parent-type>` is
 the Julia type name of the value the step is applied to.
@@ -328,11 +328,11 @@ _walk_long!(::Vector{Vector{TextDocument}}, ::ReferenceToHumanReadableText,
 
 function _long_text(p::ReferenceToHumanReadableText, ref)
     if ref === nothing
-        return TextText(_tok("no selection", p.font, color_solarized_gray))
+        return TextBlock(_tok("no selection", p.font, color_solarized_gray))
     elseif ref isa EmptyReferencePath
         type_name = p.document === nothing ? "document" : _short_type(typeof(p.document))
         type_color = p.document === nothing ? color_solarized_gray : color_solarized_orange
-        return TextText(
+        return TextBlock(
             _tok("the whole ", p.font, color_solarized_gray),
             _tok(type_name, p.font, type_color),
         )
@@ -350,7 +350,7 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
             push!(spans, TextNewline(font=p.font))
         end
     end
-    TextText(spans...)
+    TextBlock(spans...)
 end
 
 print_document(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =

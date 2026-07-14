@@ -53,7 +53,7 @@ Create a new DocumentLink domain with a global registry document that stores lin
 **Example:**
 ```julia
 # Comment: source is a Text document
-comment_doc = TextText("This needs review")
+comment_doc = TextBlock("This needs review")
 DocumentLinkBinding(
     DocumentLocatorPath(comment_doc),
     DocumentLocatorPath(target_doc, path_to_element)

@@ -2,7 +2,7 @@
     ReferenceInspectorToTextModule
 
 `ReferenceInspectorToText` — projects a `ReferenceInspector` document into a
-two-section `TextText`:
+two-section `TextBlock`:
 
 1. a bold, colored **Compact** header, then the Julia-printed reference on one
    colored line (delegated to `ReferenceToText`);
@@ -30,7 +30,7 @@ import ..ProjectionApiModule: print_document, map_reference_forward,
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
 import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
 import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
-import ..TextModule: TextDocument, TextText, TextString, TextNewline
+import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
 import ..ColorModule: StyleColor, color_solarized_blue
 import ..PrinterContextModule: PrinterContext
@@ -43,7 +43,7 @@ export ReferenceInspectorToText
                                header_font=font_liberation_sans_bold_30,
                                header_color=color_solarized_blue)
 
-Projection over `ReferenceInspector`. Output is a `TextText` stacking the
+Projection over `ReferenceInspector`. Output is a `TextBlock` stacking the
 compact and human-readable renderings of `inspector.reference` under bold
 section headers.
 """
@@ -60,8 +60,8 @@ ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_20,
 _header(text::AbstractString, p::ReferenceInspectorToText) =
     TextString(text, p.header_font, p.header_color)
 
-# Copy the spans of `tt` (a TextText) onto `spans`.
-function _append_spans!(spans::Vector{TextDocument}, tt::TextText)
+# Copy the spans of `tt` (a TextBlock) onto `spans`.
+function _append_spans!(spans::Vector{TextDocument}, tt::TextBlock)
     for i in 1:length(tt.elements)
         push!(spans, tt.elements[i])
     end
@@ -70,7 +70,7 @@ end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
     short_proj = ReferenceToText(font = p.font)
-    out = TextText(() -> begin
+    out = TextBlock(() -> begin
         ref    = input.reference        # tracked: ReferencePath or nothing
         target = input.target
         # Annotate with TypeReference checkpoints so both forms show types.

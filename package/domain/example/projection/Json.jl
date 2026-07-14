@@ -8,7 +8,7 @@ end
 
 # Console variant: the same pipeline as `make_json_projection_example` but
 # **without** the trailing `TextToGraphics` step. It stops at the Text domain
-# (`SyntaxToText` output, a `TextText`), which the `ConsoleBackend` renders to
+# (`SyntaxToText` output, a `TextBlock`), which the `ConsoleBackend` renders to
 # the terminal directly — colors and all. No `measure` is needed because no
 # graphics layout happens.
 #

@@ -18,7 +18,7 @@ _contents(text) = [e.content for e in text.elements if e isa TextString]
 
 @testset "TextHighlighting splits and fills matches" begin
 
-    input = TextText(TextString("alpha beta alpha", _font, color_default))
+    input = TextBlock(TextString("alpha beta alpha", _font, color_default))
     out = print_document(TextHighlighting(r"alpha", color=color_red), input).output
     @test _contents(out) == ["alpha", " beta ", "alpha"]
     fills = [e.fill_color for e in out.elements if e isa TextString]
@@ -30,7 +30,7 @@ end # @testset
 
 @testset "TextHighlighting leaves a no-match span untouched" begin
 
-    input = TextText(TextString("beta gamma", _font, color_default))
+    input = TextBlock(TextString("beta gamma", _font, color_default))
     out = print_document(TextHighlighting(r"alpha", color=color_red), input).output
     @test length(out.elements) == 1
     @test out.elements[1] === input.elements[1]   # same object, not a copy
@@ -39,7 +39,7 @@ end # @testset
 
 @testset "TextHighlighting nothing pattern is pass-through" begin
 
-    input = TextText(
+    input = TextBlock(
         TextString("a", _font, color_default),
         TextNewline(font=_font),
         TextString("b", _font, color_default),
@@ -55,7 +55,7 @@ end # @testset
 @testset "TextHighlighting selection round-trip" begin
 
     proj = TextHighlighting(r"alpha", color=color_red)
-    iomap = print_document(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
+    iomap = print_document(proj, TextBlock(TextString("alpha beta alpha", _font, color_default)))
     segs = iomap.segs[]
     @test length(segs) == 3
     for seg in segs
@@ -72,7 +72,7 @@ end # @testset
 @testset "TextHighlighting reader shifts char range by sub-span start" begin
 
     proj = TextHighlighting(r"alpha", color=color_red)
-    iomap = print_document(proj, TextText(TextString("alpha beta alpha", _font, color_default)))
+    iomap = print_document(proj, TextBlock(TextString("alpha beta alpha", _font, color_default)))
     # Output span 3 is the second "alpha", starting at input char 11.
     edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
     @test edit isa ReplaceStringRangeOperation
@@ -86,9 +86,9 @@ end # @testset
     # `r"a*"` yields empty matches between consonants; they must not produce
     # zero-length sub-spans, hang, or drop characters.
     out = print_document(TextHighlighting(r"a*", color=color_red),
-                           TextText(TextString("banana", _font, color_default))).output
+                           TextBlock(TextString("banana", _font, color_default))).output
     iomap_segs = print_document(TextHighlighting(r"a*", color=color_red),
-                                  TextText(TextString("banana", _font, color_default))).segs[]
+                                  TextBlock(TextString("banana", _font, color_default))).segs[]
     @test all(s.length >= 1 for s in iomap_segs)
     @test join((e.content for e in out.elements if e isa TextString), "") == "banana"
 
@@ -98,7 +98,7 @@ end # @testset
 
     pat = Cell(r"alpha")
     out = print_document(TextHighlighting(pat, color=color_red),
-                           TextText(TextString("alpha beta", _font, color_default))).output
+                           TextBlock(TextString("alpha beta", _font, color_default))).output
     @test _contents(out) == ["alpha", " beta"]
 
     pat[] = r"beta"
@@ -113,14 +113,14 @@ end # @testset
 
     # A plain String source is compiled to a Regex; empty source = no highlights.
     out = print_document(TextHighlighting("alpha", color=color_red),
-                           TextText(TextString("alpha beta", _font, color_default))).output
+                           TextBlock(TextString("alpha beta", _font, color_default))).output
     @test _contents(out) == ["alpha", " beta"]
 
     # case_insensitive adds the `i` flag when the source String is compiled.
     ci = Cell(false)
     src = Cell("ALPHA")
     out2 = print_document(TextHighlighting(src; case_insensitive=ci, color=color_red),
-                            TextText(TextString("alpha beta", _font, color_default))).output
+                            TextBlock(TextString("alpha beta", _font, color_default))).output
     @test _contents(out2) == ["alpha beta"]    # case-sensitive: no match
     ci[] = true
     @test _contents(out2) == ["alpha", " beta"] # now matches

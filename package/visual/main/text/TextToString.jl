@@ -1,7 +1,7 @@
 """
     TextToStringModule
 
-TextText → String projection. Flattens a sequence of styled text spans into
+TextBlock → String projection. Flattens a sequence of styled text spans into
 a plain Julia String by concatenating each span's content. TextString spans
 contribute their content verbatim; TextNewline spans contribute a newline
 character; all other span types are ignored.
@@ -9,13 +9,13 @@ character; all other span types are ignored.
 module TextToStringModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
 import ..CellModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
 import ..PrinterContextModule: make_child_context
-export TextTextToString, TextStringToString, TextNewlineToString, TextToString
+export TextBlockToString, TextStringToString, TextNewlineToString, TextToString
 
 # ── TextStringToString ───────────────────────────────────────────────────────
 
@@ -57,21 +57,21 @@ function read_intent(::TextNewlineToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
-# ── TextTextToString ───────────────────────────────────────────────────────
+# ── TextBlockToString ───────────────────────────────────────────────────────
 
-struct TextTextToString <: Projection end
+struct TextBlockToString <: Projection end
 
-function map_reference_forward(::TextTextToString, iomap, reference)
+function map_reference_forward(::TextBlockToString, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::TextTextToString, iomap, reference)
+function map_reference_backward(::TextBlockToString, iomap, reference)
     return nothing
 end
 
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
-function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
+function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
@@ -86,7 +86,7 @@ function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
     SimpleIoMap(proj, text, output)
 end
 
-function read_intent(::TextTextToString, iomap::SimpleIoMap, op)
+function read_intent(::TextBlockToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
@@ -96,7 +96,7 @@ function TextToString()
     TypeDispatchingProjection(
         TextString  => TextStringToString(),
         TextNewline => TextNewlineToString(),
-        TextText    => TextTextToString(),
+        TextBlock    => TextBlockToString(),
     )
 end
 

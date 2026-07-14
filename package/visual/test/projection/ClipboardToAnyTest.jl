@@ -271,7 +271,7 @@ end
 end
 
 @testset "slice text clipboard" begin
-    # text mode: copy/cut/paste move character ranges over a TextText content; the
+    # text mode: copy/cut/paste move character ranges over a TextBlock content; the
     # slice stores a TextString and the OS clipboard mirrors/falls back.
     buf = Ref("")
     set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
@@ -280,7 +280,7 @@ end
         trange = cpath(FieldReference("elements"), RangeReference(0, 1),
                        FieldReference("content"), RangeReference(6, 11))
         mkslice(; stored=nothing) = begin
-            content = TextText(TextString("hello world"))
+            content = TextBlock(TextString("hello world"))
             content.selection = trange
             s = ClipboardSlice(content, stored)
             s.selection = ConcreteReferencePath(FieldReference("content"), trange)
@@ -331,7 +331,7 @@ end
         @test op.replacement == "OSPASTE"
 
         # An empty caret (no range) declines copy.
-        content = TextText(TextString("hello world"))
+        content = TextBlock(TextString("hello world"))
         content.selection = cpath(FieldReference("elements"), RangeReference(0, 1),
                                   FieldReference("content"), RangeReference(3, 3))
         sc = ClipboardSlice(content)

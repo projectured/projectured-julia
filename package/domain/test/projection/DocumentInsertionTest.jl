@@ -40,10 +40,13 @@ function test_document_insertion()
             @test "text" in DS.insertion_names(TextInsertion)       # @domain alias
             # `text` names the domain entry, so the container answers to its own
             # name — prefix-free inside the Text scope, prefixed outside it.
-            @test DS.insertion_names(TextText) == ["TextText", "text text"]
-            @test DS.insertion_names(TextText; root = TextDocument) ==
-                  ["TextText", "text text", "Text", "text"]
-            @test DS.resolve_insertion(TextDocument, "text") === TextText
+            @test DS.insertion_names(TextBlock) == ["TextBlock", "text block"]
+            @test DS.insertion_names(TextBlock; root = TextDocument) ==
+                  ["TextBlock", "text block", "Block", "block"]
+            @test DS.resolve_insertion(TextDocument, "block") === TextBlock
+            # It is also the only candidate in the scope, so the bare domain name
+            # still commits it by unambiguous prefix.
+            @test DS.resolve_insertion(TextDocument, "text") === TextBlock
             @test DS.domain_prefix(JsonDocument) == "Json"
             @test DS.domain_prefix(TextDocument) == "Text"
             @test DS.domain_prefix(Document) == ""
@@ -133,14 +136,14 @@ function test_document_insertion()
             DS = DomainModule
             # Every committed candidate must land with a usable cursor. The Text
             # container is the regression: without its `@insertion` factory the
-            # generic fallback built a bare `TextText()` — no spans, no selection —
+            # generic fallback built a bare `TextBlock()` — no spans, no selection —
             # and every character gesture declined for want of a caret, so the
             # freshly inserted text took no keystrokes.
-            text = DS.make_insertion_document(TextText)
+            text = DS.make_insertion_document(TextBlock)
             @test length(text.elements) == 1
             @test text.elements[1] isa TextString
             @test string(getfield(text, :selection)[]) ==
-                  "::TextText.elements::CellVector[1]::TextString.content::String{0}::Position"
+                  "::TextBlock.elements::CellVector[1]::TextString.content::String{0}::Position"
             @test text_insert_op(text, "a") isa ReplaceStringRangeOperation
         end
 

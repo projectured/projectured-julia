@@ -3,7 +3,7 @@
 
 The `TextRectangularReference` step type — a reference step representing a
 flat character-range box in the text domain (`start` / `stop` are 0-based
-character offsets into the concatenated text of a `TextText`). Used by the
+character offsets into the concatenated text of a `TextBlock`). Used by the
 syntax-to-text stage to communicate a nested child's whole-element
 selection as a character range to the text-to-graphics stage, which renders
 it as a translucent rectangle.
@@ -26,7 +26,7 @@ export TextRectangularReference
 
 A reference step representing an axis-aligned bounding-box highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
-concatenated text of a `TextText`. Evaluates to the offset pair
+concatenated text of a `TextBlock`. Evaluates to the offset pair
 `(start, stop)` — every reference in the tree is evaluatable, and the
 box's value is its character range independent of what characters happen
 to sit in the current text.

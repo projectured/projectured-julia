@@ -1,20 +1,20 @@
 """
     ConsoleBackendModule
 
-Console backend. Renders a **Text-domain** document (`TextText` and its spans)
+Console backend. Renders a **Text-domain** document (`TextBlock` and its spans)
 straight to a terminal (stdout), preserving the spans' colors via ANSI SGR
 codes, and (interactively) translates terminal keystrokes into the
 backend-agnostic events the projection readers expect. Unlike the SDL backend
 it consumes the Text domain directly — the pipeline stops at `SyntaxToText` and
-does **not** run `TextToGraphics`, so `write_to_devices` receives a `TextText`,
+does **not** run `TextToGraphics`, so `write_to_devices` receives a `TextBlock`,
 not a `ScreenDocument`.
 
 ## Interactivity (Phase 2) and its limits
 
 The **geometry-free** half of caret/text editing now lives on the Text domain
-(`read_gesture(::TextText, gesture)` in `TextModule`), so the console pipeline
+(`read_gesture(::TextBlock, gesture)` in `TextModule`), so the console pipeline
 gets it even though it omits `TextToGraphics`: `SyntaxToText` falls back to the
-output `TextText`'s `read_gesture` when its operation slot is empty (the console
+output `TextBlock`'s `read_gesture` when its operation slot is empty (the console
 case). What this backend drives is therefore:
 
   - **Structural tree navigation** (handled by `SyntaxToText`): arrows move
@@ -207,13 +207,13 @@ _render_span!(::IO, ::ConsoleBackend, ::TextGraphics) = nothing
 _render_span!(::IO, ::ConsoleBackend, ::TextDocument) = nothing
 
 """
-    console_render(backend::ConsoleBackend, text::TextText)
+    console_render(backend::ConsoleBackend, text::TextBlock)
 
 Flatten `text`'s spans into a (optionally colored) character stream and write it
 to `backend.io` in a single flush. The selection highlight is expected to be
 already encoded in the span colors (by `SelectionInverting`).
 """
-function console_render(backend::ConsoleBackend, text::TextText)
+function console_render(backend::ConsoleBackend, text::TextBlock)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
     for span in text.elements
@@ -233,18 +233,18 @@ end
 # ── Device I/O ───────────────────────────────────────────────────────────
 
 """
-    write_to_devices(::ConsoleBackend, devices, text::TextText)
+    write_to_devices(::ConsoleBackend, devices, text::TextBlock)
 
 Render the Text-domain output of the projection pipeline to the terminal.
 """
-DeviceModule.write_to_devices(backend::ConsoleBackend, devices, text::TextText) =
+DeviceModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
     console_render(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
-# and so produces a graphics/screen document instead of a `TextText`).
+# and so produces a graphics/screen document instead of a `TextBlock`).
 function DeviceModule.write_to_devices(::ConsoleBackend, devices, output)
     error("write_to_devices(::ConsoleBackend, …): pipeline output is " *
-          "$(typeof(output)), expected a TextText. The console backend renders " *
+          "$(typeof(output)), expected a TextBlock. The console backend renders " *
           "the Text domain directly — drop the TextToGraphics step from the pipeline.")
 end
 

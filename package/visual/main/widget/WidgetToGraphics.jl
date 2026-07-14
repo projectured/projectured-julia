@@ -835,7 +835,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
 # IoMap for an *editable* WidgetText: its `content` is a Document (typically a
-# `TextText`) recursed through the Text domain, so all caret navigation and text
+# `TextBlock`) recursed through the Text domain, so all caret navigation and text
 # editing is produced by `TextToGraphics`. The widget only re-roots the resulting
 # operations by prepending `content` (see `map_reference_backward`).
 struct WidgetTextToGraphicsCanvasIoMap <: IoMap
@@ -850,7 +850,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
 
-    # Editable form: a Document content (e.g. a TextText) is recursed through the
+    # Editable form: a Document content (e.g. a TextBlock) is recursed through the
     # outer projection chain (which routes it to TextToGraphics). Navigation and
     # editing operations then originate in the Text domain; this projection just
     # maps them backward. Mirrors WidgetScrollPane's content recursion.

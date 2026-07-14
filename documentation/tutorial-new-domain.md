@@ -478,7 +478,7 @@ navigate with `←` / `→` through the title characters. The projection chain i
 ```
 BookmarkList
   ──[BookmarkToSyntax]──▶ SyntaxNode
-  ──[SyntaxToText]──▶ TextText
+  ──[SyntaxToText]──▶ TextBlock
   ──[TextToGraphics]──▶ GraphicsCanvas ──▶ SDL window
 ```
 

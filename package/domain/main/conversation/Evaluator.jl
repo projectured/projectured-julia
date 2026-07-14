@@ -5,7 +5,7 @@ The evaluator document domain — a code form paired with the result of
 evaluating it. Modeled on the Common Lisp ProjecturEd `evaluator.lisp`:
 
 - `EvaluatorForm`     — one `form` (the code, e.g. a `JuliaDocument`) and its
-                        `result` (a result document; `TextText` of the output
+                        `result` (a result document; `TextBlock` of the output
                         for now — richer result documents are future work).
 - `EvaluatorToplevel` — a sequence of `EvaluatorForm`s (a notebook / REPL
                         toplevel).
@@ -21,7 +21,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 
 export EvaluatorDocument, result_text, eval_kind_label
 
@@ -35,7 +35,7 @@ abstract type EvaluatorDocument <: Document end
     EvaluatorForm(form; result, is_error, tool_use_id)
 
 A code form paired with its evaluation result. `form` is the code document
-(a `JuliaDocument`); `result` is the result document (`TextText` for now).
+(a `JuliaDocument`); `result` is the result document (`TextBlock` for now).
 """
 @document struct EvaluatorForm <: EvaluatorDocument
     form::Document
@@ -46,7 +46,7 @@ A code form paired with its evaluation result. `form` is the code document
 end
 
 EvaluatorForm(form::Document;
-              result::Document = TextText(),
+              result::Document = TextBlock(),
               is_error::Bool = false,
               tool_use_id::AbstractString = "",
               tool_name::AbstractString = "execute_julia_code") =
@@ -68,7 +68,7 @@ end
 eval_kind_label(f::EvaluatorForm) = eval_kind_label(f.tool_name)
 
 # Convenience: build a result document from a plain output string.
-result_text(s::AbstractString) = TextText(TextString(String(s)))
+result_text(s::AbstractString) = TextBlock(TextString(String(s)))
 
 # ── EvaluatorToplevel ────────────────────────────────────────────────────────
 

@@ -174,7 +174,7 @@ In the example packages this is wired up for you — see `play_live_example` and
   (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
   injection.
 - The `ConsoleBackend` consumes the **Text** domain directly (no
-  `TextToGraphics`): its `write_to_devices` renders a `TextText` to the terminal
+  `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal
   with ANSI colors, the selection encoded as inverse-video span colors by a
   `SelectionInverting` projection at the end of the pipeline, and
   `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/

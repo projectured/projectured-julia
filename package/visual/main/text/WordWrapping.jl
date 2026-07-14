@@ -16,7 +16,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphics
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
@@ -68,21 +68,21 @@ end
 
 struct WordWrappingIoMap <: IoMap
     projection::Any
-    input::TextText
-    output::TextText
+    input::TextBlock
+    output::TextBlock
     segs::Cell  # Cell{Vector{WrapSeg}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function print_document(p::WordWrapping, recursion, text::TextText, ctx)
+function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
     both = Cell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
-    output = TextText(elements_cv, out_selection)
+    output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
 
@@ -99,7 +99,7 @@ function _wrap_width_cell(p::WordWrapping, ctx)
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSeg}).
-function _wrap(text::TextText, wrap_w::Int, measure_fn::Function)
+function _wrap(text::TextBlock, wrap_w::Int, measure_fn::Function)
     result = TextDocument[]
     segs = WrapSeg[]
     cx = 0
@@ -332,7 +332,7 @@ function _is_structural_ref(ref)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

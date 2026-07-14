@@ -6,7 +6,7 @@
 # blocks fall back to fenced text.
 
 
-function _cp_flat(t::TextText)
+function _cp_flat(t::TextBlock)
     io = IOBuffer()
     for s in t.elements
         hasproperty(s, :content) && s.content isa AbstractString && print(io, s.content)
@@ -45,7 +45,7 @@ function test_parse_markdown_blocks()
         @test any(c -> c isa JsonDocument, contents)          # ```json parsed
         @test any(c -> c isa XmlDocument, contents)           # ```xml parsed
         # Unknown language → fenced text fallback.
-        @test any(c -> c isa TextText && occursin("unknownlang", _cp_flat(c)), contents)
+        @test any(c -> c isa TextBlock && occursin("unknownlang", _cp_flat(c)), contents)
 
         # Prose markdown is parsed into a *structured* document, not flat text:
         # a heading becomes a MarkdownHeading node.
@@ -66,7 +66,7 @@ function test_parse_markdown_blocks()
 
         # Malformed code must not break the turn — falls back to fenced text.
         bad = parse_markdown_blocks("```julia\n(((\n```")
-        @test bad[1].content isa TextText
+        @test bad[1].content isa TextBlock
 
         # Plain prose only → a single Markdown part.
         plain = parse_markdown_blocks("just words")

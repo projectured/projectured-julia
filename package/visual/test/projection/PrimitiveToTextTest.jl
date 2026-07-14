@@ -18,7 +18,7 @@ function test_primitive_to_text()
     b = PrimitiveBool(true)
     p = PrimitiveBoolToText()
     out = print_document(p, nothing, b, nothing).output
-    @test out isa TextText
+    @test out isa TextBlock
     @test length(out.elements) == 1
     @test out.elements[1].content == "true"
     @test out.elements[1].font == font_ubuntu_monospace_regular_20
@@ -52,11 +52,11 @@ end
     @test out.elements[1].content == ""
 end
 
-# ── PrimitiveStringToTextText ────────────────────────────────────────────────────
+# ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
 
 @testset "string prints single span (no quotes)" begin
     s = PrimitiveString("hi")
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     out = print_document(p, nothing, s, nothing).output
     @test length(out.elements) == 1
     @test out.elements[1].content == "hi"
@@ -65,7 +65,7 @@ end
 
 @testset "string reacts to value change" begin
     s = PrimitiveString("hi")
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     out = print_document(p, nothing, s, nothing).output
     @test out.elements[1].content == "hi"
     s.value = "world"
@@ -77,7 +77,7 @@ end
 @testset "selection forward .value[k] → .elements[1].content[k]" begin
     s = PrimitiveString("abc")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     out = print_document(p, nothing, s, nothing).output
     sel = out.selection
     @test sel isa ConcreteReferencePath
@@ -96,7 +96,7 @@ end
 
 @testset "map_reference_forward .value[k]" begin
     s = PrimitiveString("abc")
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = print_document(p, nothing, s, nothing)
     out = map_reference_forward(p, iomap, _value_range(2, 2))
     @test out isa ConcreteReferencePath
@@ -105,7 +105,7 @@ end
 
 @testset "map_reference_backward .elements[1].content[k]" begin
     s = PrimitiveString("abc")
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = print_document(p, nothing, s, nothing)
     inp = map_reference_backward(p, iomap, _elem_content_pos(1, 2))
     @test inp isa ConcreteReferencePath
@@ -119,7 +119,7 @@ end
 @testset "string KeyPress produces ReplaceStringRangeOperation" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     op = read_intent(p, iomap, KeyPress('x'))
     @test op isa ReplaceStringRangeOperation
@@ -132,7 +132,7 @@ end
 @testset "string KeyDown backspace produces op" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     op = read_intent(p, iomap, KeyDown(:backspace, Modifiers()))
     @test op isa ReplaceStringRangeOperation
@@ -143,7 +143,7 @@ end
 @testset "string KeyDown delete produces op" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     op = read_intent(p, iomap, KeyDown(:delete, Modifiers()))
     @test op isa ReplaceStringRangeOperation
@@ -157,7 +157,7 @@ end
     # ctrl flag — the old defensive `ctrl` reject is intentionally gone (matches Text/JSON).
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     evt = KeyPress('x', "x", Modifiers(true, false, false, false))
     op = read_intent(p, iomap, evt)
@@ -168,7 +168,7 @@ end
 @testset "string backspace at start returns nothing" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(0, 0))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     @test read_intent(p, iomap, KeyDown(:backspace, Modifiers())) === nothing
 end
@@ -176,7 +176,7 @@ end
 @testset "string delete at end returns nothing" begin
     s = PrimitiveString("ab")
     set_selection!(s, _value_range(2, 2))
-    p = PrimitiveStringToTextText()
+    p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
     @test read_intent(p, iomap, KeyDown(:delete, Modifiers())) === nothing
 end
@@ -185,9 +185,9 @@ end
 
 @testset "PrimitiveToText composite dispatches per type" begin
     p = PrimitiveToText()
-    @test print_document(p, nothing, PrimitiveBool(true), nothing).output isa TextText
-    @test print_document(p, nothing, PrimitiveNumber(7), nothing).output isa TextText
-    @test print_document(p, nothing, PrimitiveString("x"), nothing).output isa TextText
+    @test print_document(p, nothing, PrimitiveBool(true), nothing).output isa TextBlock
+    @test print_document(p, nothing, PrimitiveNumber(7), nothing).output isa TextBlock
+    @test print_document(p, nothing, PrimitiveString("x"), nothing).output isa TextBlock
 end
 
 end # @testset

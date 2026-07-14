@@ -175,7 +175,7 @@ function test_typeins()
         # The walk builds input-domain cursor targets by field/index name and
         # anchors them at the right slot for each domain's selection convention,
         # including document-domain `TextString` (e.g. `SyntaxLeaf.value`) and
-        # `TextText` (e.g. `BookParagraph.content`). Domains whose projection has
+        # `TextBlock` (e.g. `BookParagraph.content`). Domains whose projection has
         # no string-edit reader (sorting/primitive/object) are covered elsewhere.
         #
         # Every character boundary of every string is typed at (`positions=:all`,

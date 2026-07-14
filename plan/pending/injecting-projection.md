@@ -36,7 +36,7 @@ Because `InjectingProjection` is a pure index-remapping decorator, it never need
 
 ## Problem
 
-A projection pipeline like `JsonToSyntax → SyntaxToText → TextToGraphics` produces tightly coupled spans. For example, `SyntaxLeafToText` creates `TextText([open, value, close])` where indices 1,2,3 are hardwired in reference mapping (`map_reference_forward`/`backward`, `_leaf_cursor`, `_pos_to_selection`). Splicing an extra element between `value` and `close` shifts index 3→4, breaking all downstream reference arithmetic.
+A projection pipeline like `JsonToSyntax → SyntaxToText → TextToGraphics` produces tightly coupled spans. For example, `SyntaxLeafToText` creates `TextBlock([open, value, close])` where indices 1,2,3 are hardwired in reference mapping (`map_reference_forward`/`backward`, `_leaf_cursor`, `_pos_to_selection`). Splicing an extra element between `value` and `close` shifts index 3→4, breaking all downstream reference arithmetic.
 
 The `AnchoredLayout` (see `anchored-layout.md`) solves *overlay* positioning. This plan solves *inline* positioning: splicing elements *into* the collection flow so they participate in word-wrapping and reflow.
 
@@ -190,7 +190,7 @@ TextGraphics(email_canvas; font=base_font)  # dimensions read from email_canvas.
 
 Show/hide of injected elements is handled via reactive cells — no new projection machinery required.
 
-**Global toggle** — a single `Cell{Bool}` that the collector reads, registering a dependency. When toggled, all downstream cells including `TextText.elements` are invalidated; `TextToGraphics` re-lays out the paragraph on the next render:
+**Global toggle** — a single `Cell{Bool}` that the collector reads, registering a dependency. When toggled, all downstream cells including `TextBlock.elements` are invalidated; `TextToGraphics` re-lays out the paragraph on the next render:
 
 ```julia
 show_annotations = Cell(true)
@@ -223,7 +223,7 @@ No iomap rebuilding, no projection changes — the cell system propagates the in
 
 ### Injection point and element domain
 
-`InjectingProjection` operates on `TextText.elements` (a `CellVector`), not on the `TextText` itself. It takes a `TextText` as input and produces a new `TextText` with a modified `elements` collection. The iomap stores the index mapping at the elements level.
+`InjectingProjection` operates on `TextBlock.elements` (a `CellVector`), not on the `TextBlock` itself. It takes a `TextBlock` as input and produces a new `TextBlock` with a modified `elements` collection. The iomap stores the index mapping at the elements level.
 
 ## Phase 3: TextToGraphics TextGraphics Support
 

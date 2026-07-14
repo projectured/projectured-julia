@@ -209,7 +209,7 @@ gets no defaulting, so it must spell out `<: Projection` itself.
 ```julia
 @iomap struct TextToGraphicsIoMap
     projection::Any
-    input::TextText
+    input::TextBlock
     output::GraphicsCanvas
     char_to_coord::Cell
 end

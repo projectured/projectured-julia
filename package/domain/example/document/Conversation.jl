@@ -21,7 +21,7 @@ function make_conversation_document_example()
         ]),
         ConversationTurn(:user, [
             ConversationPart(EvaluatorForm(JuliaIdentifier("factorial(5)");
-                                           result = TextText(TextString("120")))),
+                                           result = TextBlock(TextString("120")))),
         ]),
     ])
 end

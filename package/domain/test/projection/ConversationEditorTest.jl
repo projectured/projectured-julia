@@ -5,8 +5,8 @@
 using ProjecturedKernel.ToolModule: ToolSet
 
 
-# Flatten a TextText to its rendered string.
-function _ce_flatten(t::TextText)
+# Flatten a TextBlock to its rendered string.
+function _ce_flatten(t::TextBlock)
     io = IOBuffer()
     for span in t.elements
         hasproperty(span, :content) && print(io, span.content)
@@ -51,13 +51,13 @@ function test_conversation_editor()
 
             @test length(turn.parts) == 3
             p1, p2, p3 = turn.parts[1].content, turn.parts[2].content, turn.parts[3].content
-            @test p1 isa TextText
+            @test p1 isa TextBlock
             @test _ce_flatten(p1) == "hey assistant, look what I've got"
             @test p2 isa EvaluatorForm
             @test p2.form isa JuliaDocument
             @test !p2.is_error
             @test occursin("4", _ce_flatten(p2.result))
-            @test p3 isa TextText
+            @test p3 isa TextBlock
             @test _ce_flatten(p3) == "see, it's not that complicated"
         end
 

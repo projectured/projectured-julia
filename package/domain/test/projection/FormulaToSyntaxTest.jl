@@ -1,4 +1,4 @@
-# Helper: read the flat string out of a TextText result document.
+# Helper: read the flat string out of a TextBlock result document.
 function _formula_result_string(result)
     buf = IOBuffer()
     for span in result.elements

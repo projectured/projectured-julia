@@ -10,7 +10,7 @@ s1 = TextString("hello", font_ubuntu_monospace_bold_20, color_red)
 s1.content = "hi"
 @test s1.content == "hi"
 
-st = TextText(
+st = TextBlock(
     TextString("aaa", font_ubuntu_monospace_bold_20, color_red),
     TextString("bbb", font_ubuntu_monospace_regular_20, color_blue),
 )
@@ -41,8 +41,8 @@ g = TextGraphics(img, 64, 48)
 @test g.width == 64
 @test g.height == 48
 
-# Mixes cleanly with TextStrings inside a TextText; length / getindex hold.
-st = TextText(
+# Mixes cleanly with TextStrings inside a TextBlock; length / getindex hold.
+st = TextBlock(
     TextString("ab", font_ubuntu_monospace_regular_20, color_red),
     TextGraphics(ImageMemory(nothing), 24, 24),
     TextString("cd", font_ubuntu_monospace_regular_20, color_blue),

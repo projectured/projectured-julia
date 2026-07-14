@@ -12,7 +12,7 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
-import ..TextModule: TextText
+import ..TextModule: TextBlock
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: Llm
@@ -103,14 +103,14 @@ const WORKBENCH_CONSOLE_TITLE = "Console"
 """
     WorkbenchConsole(content)
 
-The console panel.  `content` is a `TextText` value.  Its title is the
+The console panel.  `content` is a `TextBlock` value.  Its title is the
 class-level constant `"Console"`.
 """
 @document struct WorkbenchConsole <: WorkbenchDocument
-    content::TextText = TextText()
+    content::TextBlock = TextBlock()
 end
 
-function WorkbenchConsole(content::TextText)
+function WorkbenchConsole(content::TextBlock)
     WorkbenchConsole(Cell(content), Cell(nothing))
 end
 

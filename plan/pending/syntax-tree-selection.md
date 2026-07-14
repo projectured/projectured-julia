@@ -43,7 +43,7 @@ What it needs:
   `TextRectangularReference`). The `@reference` builder and `@reference_case` need
   surface syntax for it if mappers are to construct/match it.
 - **Syntax side.** Define how a sibling-range selection (`.children[s..e]`) is
-  stored and mapped forward to a flat `[start, end)` on the parent's `TextText`
+  stored and mapped forward to a flat `[start, end)` on the parent's `TextBlock`
   (the box slice already proved the single-child flat-extent path via
   `_syntax_to_flat` + `child_char_ranges`).
 

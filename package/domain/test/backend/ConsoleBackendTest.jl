@@ -157,7 +157,7 @@ function test_console_backend()
 
     # ── character-level text editing through the console pipeline ──────────
     # This is the payoff of moving the geometry-free Text-domain gesture mapping
-    # onto the document (`read_gesture(::TextText, …)`): the console pipeline,
+    # onto the document (`read_gesture(::TextBlock, …)`): the console pipeline,
     # which omits `TextToGraphics`, now gets character cursor movement and
     # insert/delete via `SyntaxToText`'s fallback to `read_gesture(iomap.output,
     # gesture)`. None of these gestures need pixel geometry.

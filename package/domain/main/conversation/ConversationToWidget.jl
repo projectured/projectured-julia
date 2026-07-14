@@ -31,7 +31,7 @@ import ..JuliaModule: JuliaDocument
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_bold_22
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
@@ -81,14 +81,14 @@ function _kind_glyph(content)
     content isa EvaluatorForm      && return "="
     content isa ConversationThinking && return "∴"
     content isa JuliaDocument      && return "λ"
-    content isa TextText           && return "¶"
+    content isa TextBlock           && return "¶"
     return "?"
 end
 function _kind_label(content)
     content isa EvaluatorForm      && return eval_kind_label(content)
     content isa ConversationThinking && return "thinking"
     content isa JuliaDocument      && return "julia"
-    content isa TextText           && return "text"
+    content isa TextBlock           && return "text"
     return "doc"
 end
 
@@ -164,7 +164,7 @@ function print_document(::ConversationPartToWidget,
 end
 
 # An EvaluatorForm renders as its code over its result. The form (a
-# JuliaDocument) and result (a TextText) are embedded directly as layout
+# JuliaDocument) and result (a TextBlock) are embedded directly as layout
 # children so each is recursed through its own projection chain and **sizes to
 # its content** — wrapping them in a fixed-height scroll pane would clip them to
 # one row even when the part is expanded.
@@ -175,15 +175,15 @@ _eval_body(ef::EvaluatorForm) =
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)
 # render an elided placeholder rather than an empty card.
 function _thinking_body(t::ConversationThinking)
-    t.redacted && return TextText(TextString("[redacted thinking]"))
+    t.redacted && return TextBlock(TextString("[redacted thinking]"))
     txt = t.text
-    txt isa TextText && _text_is_empty(txt) &&
-        return TextText(TextString("[no thinking summary]"))
+    txt isa TextBlock && _text_is_empty(txt) &&
+        return TextBlock(TextString("[no thinking summary]"))
     txt
 end
 
-# True when a TextText has no non-empty span content (e.g. `display: "omitted"`).
-function _text_is_empty(t::TextText)
+# True when a TextBlock has no non-empty span content (e.g. `display: "omitted"`).
+function _text_is_empty(t::TextBlock)
     for span in t.elements
         hasproperty(span, :content) || continue
         c = span.content

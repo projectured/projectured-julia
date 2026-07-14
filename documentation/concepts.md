@@ -45,7 +45,7 @@ undoes a meaningful operation, not an accidental character.
 
 A **domain** is a set of data types that belong to one problem area. The JSON
 domain has `JsonObject`, `JsonArray`, `JsonString`, `JsonNumber`, `JsonBool`,
-and `JsonNull`. The text domain has `TextText`, `TextString`, `TextNewline`.
+and `JsonNull`. The text domain has `TextBlock`, `TextString`, `TextNewline`.
 
 Domains are completely independent of each other. A JSON domain type knows
 nothing about how it will be displayed, and a text domain type knows nothing
@@ -90,7 +90,7 @@ Projections are composable. The standard pipeline for JSON looks like:
 ```
 JsonObject
   ──[JsonToSyntax]──▶ SyntaxNode
-  ──[SyntaxToText]──▶ TextText
+  ──[SyntaxToText]──▶ TextBlock
   ──[TextToGraphics]──▶ GraphicsCanvas ──▶ SDL window
 ```
 
@@ -222,7 +222,7 @@ general rather than tied to any one domain or any one display.
   `JsonNumber`, `TextString`, `SyntaxLeaf`, `GraphicsRect`. Each is small,
   typed, and has a clear meaning inside its own domain.
 - **Combination** happens by nesting. A `JsonObject` holds entries that hold
-  strings and child documents; a `TextText` holds a vector of strings and
+  strings and child documents; a `TextBlock` holds a vector of strings and
   newlines; a `GraphicsCanvas` holds shapes. The recursive structure lets a
   primitive grow into an arbitrarily large document without changing how its
   parts behave.
@@ -324,10 +324,10 @@ ReplaceSelectionOperation({2})    # cursor at offset 2 in JsonString domain
 - Writes `{2}` into `JsonString.selection[]`.
 - Since `SyntaxLeaf.selection` is a *computed cell* that reads
   `JsonString.selection`, it is now automatically stale.
-- Since `TextText.selection` is a computed cell that reads `SyntaxLeaf.selection`,
+- Since `TextBlock.selection` is a computed cell that reads `SyntaxLeaf.selection`,
   it too is stale.
 - Since `GraphicsCanvas` contains a cursor `GraphicsRect` whose position depends
-  on `TextText.selection`, it is stale.
+  on `TextBlock.selection`, it is stale.
 
 **Step 6 — The printer re-renders.**
 On the next frame, the editor calls `print_document` again. Because of the

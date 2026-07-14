@@ -22,8 +22,8 @@ _content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReference
     @test [pth.head.name for (_, pth) in iomap.controls] == ["pattern", "case_insensitive"]
     @test iomap.controls[1][1] isa WidgetText
     @test iomap.controls[2][1] isa WidgetCheckbox
-    # The string control is editable: its content is a TextText viewing the field.
-    @test iomap.controls[1][1].content isa TextText
+    # The string control is editable: its content is a TextBlock viewing the field.
+    @test iomap.controls[1][1].content isa TextBlock
     @test iomap.controls[1][1].content.elements[1].content == "dolor"
     @test iomap.controls[2][1].content == false
 
@@ -37,7 +37,7 @@ end # @testset
     # A Text-domain edit on the pattern control: insert "X" at the end (caret at
     # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
     # control is grid child 2 (row 1) → 0-based children[1], then into the
-    # WidgetText's TextText: children[1].content.elements[1].content[5:5].
+    # WidgetText's TextBlock: children[1].content.elements[1].content[5:5].
     ref = ConcreteReferencePath(FieldReference("children"),
             ConcreteReferencePath(RangeReference(1, 2),
               ConcreteReferencePath(FieldReference("content"),

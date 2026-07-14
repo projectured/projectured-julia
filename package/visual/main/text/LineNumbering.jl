@@ -2,7 +2,7 @@
     TextLineNumberingModule
 
 Text → Text projection. Prepends a reactive line-number prefix to every
-line in the input TextText. Lines are delimited by TextNewline elements;
+line in the input TextBlock. Lines are delimited by TextNewline elements;
 each prefix is a plain TextString of the form "<n><separator>" where <n>
 is left-padded to a uniform width derived from the total line count (or an
 explicit width when width > 0).
@@ -10,7 +10,7 @@ explicit width when width > 0).
 module TextLineNumberingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell
@@ -38,7 +38,7 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 # the output element list whenever the input spans change.  For each line
 # (delimited by TextNewline elements) a TextString prefix is inserted before
 # the first span on that line.
-function print_document(p::TextLineNumbering, recursion, text::TextText, ctx)
+function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
     elements_cv = CellVector(() -> begin
         elems = text.elements
         n_newlines = 0
@@ -78,7 +78,7 @@ function print_document(p::TextLineNumbering, recursion, text::TextText, ctx)
         end
         result
     end)
-    SimpleIoMap(p, text, TextText(elements_cv, Cell(nothing)))
+    SimpleIoMap(p, text, TextBlock(elements_cv, Cell(nothing)))
 end
 
 function _line_numbering_span(original::TextString, content::AbstractString)

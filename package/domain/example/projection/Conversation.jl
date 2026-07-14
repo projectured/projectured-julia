@@ -4,7 +4,7 @@
 # is exactly what the assistant panel shows for its scroll-back.
 #
 # Chain: Conversation → Syntax → Text → (WordWrap) → Graphics, with `JuliaDocument`
-# code bodies routed through the Julia projection and `TextText` straight to text.
+# code bodies routed through the Julia projection and `TextBlock` straight to text.
 function make_conversation_projection_example(; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)

@@ -2,7 +2,7 @@
     TextFilteringModule
 
 Text → Text projection. The `grep` of the projection stack: keeps only the
-lines of a `TextText` whose text matches a regex, dropping the rest. Lines are
+lines of a `TextBlock` whose text matches a regex, dropping the rest. Lines are
 delimited by `TextNewline` elements; a line's match string is the concatenation
 of its `TextString` contents (`TextNewline` / `TextSpacing` / `TextGraphics`
 contribute nothing to the match).
@@ -20,7 +20,7 @@ reactive `pattern` cell.
 module TextFilteringModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
@@ -37,7 +37,7 @@ export TextFiltering, TextFilteringIoMap
     TextFiltering(pattern; invert=false)
     TextFiltering(; pattern=nothing, invert=false)
 
-Keep only the lines of the input `TextText` whose text matches `pattern`
+Keep only the lines of the input `TextBlock` whose text matches `pattern`
 (a `Regex`, a pattern string, a `Cell` holding either, or `nothing`).
 
 `pattern` is held in a reactive `Cell`, so updating it re-filters live; a
@@ -83,14 +83,14 @@ unlike a wrap table only the element index is recorded.
 """
 struct TextFilteringIoMap <: IoMap
     projection::Any
-    input::TextText
-    output::TextText
+    input::TextBlock
+    output::TextBlock
     kept::Cell  # Cell{Vector{Int}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function print_document(p::TextFiltering, recursion, text::TextText, ctx)
+function print_document(p::TextFiltering, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     invert_cell = p.invert
@@ -98,7 +98,7 @@ function print_document(p::TextFiltering, recursion, text::TextText, ctx)
     elements_cv = CellVector(() -> both[][1])
     kept_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(kept_cell[], text.selection))
-    output = TextText(elements_cv, out_selection)
+    output = TextBlock(elements_cv, out_selection)
     TextFilteringIoMap(p, text, output, kept_cell)
 end
 
@@ -107,7 +107,7 @@ end
 # input is grouped into logical lines — the run of elements up to and including
 # each TextNewline — and a line's elements are emitted iff its concatenated
 # TextString content matches (XOR invert).
-function _filter(text::TextText, pattern, invert::Bool)
+function _filter(text::TextBlock, pattern, invert::Bool)
     elems = text.elements
     n = length(elems)
     pattern === nothing && return (TextDocument[elems[i] for i in 1:n], collect(1:n))
@@ -203,7 +203,7 @@ read_intent(::TextFiltering, ::TextFilteringIoMap, op::Operation) = op
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

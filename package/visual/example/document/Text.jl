@@ -1,7 +1,7 @@
 function make_text_document_example()
     regular = font_ubuntu_monospace_regular_20
     nl() = TextNewline(font=regular)
-    TextText(
+    TextBlock(
         TextString("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu nunc nibh. Cras imperdiet faucibus tortor ac dictum. Aliquam sit amet justo nec ligula lobortis ornare. Aenean a odio id dolor adipiscing interdum. Maecenas nec nisl neque. Suspendisse interdum rutrum neque, in volutpat orci varius in. Praesent a ipsum ac erat pulvinar adipiscing quis sit amet magna. Etiam semper vulputate mi ac interdum. Nunc a tortor non purus fringilla aliquam.", regular, color_default),
     )
 end
@@ -14,7 +14,7 @@ end
 function make_plain_text_document_example()
     regular = font_ubuntu_monospace_regular_20
     nl() = TextNewline(font=regular)
-    TextText(
+    TextBlock(
         TextString("The quick brown fox", regular, color_default), nl(),
         TextString("jumps over the lazy dog.", regular, color_default), nl(),
         TextString("Move the caret around and", regular, color_default), nl(),
@@ -33,7 +33,7 @@ function make_text_with_image_example()
     regular = font_ubuntu_monospace_regular_20
     photo = _load_inline_image("projectured.png")
     icon  = _load_inline_image("file.png")
-    TextText(
+    TextBlock(
         TextString("Inline images flow with text ", regular, color_default),
         TextGraphics(photo, 64, 64),
         TextString(" and small icons ", regular, color_default),

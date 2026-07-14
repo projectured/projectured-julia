@@ -30,7 +30,7 @@ module WorkbenchAssistantModule
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: read_intent, print_document
 import ..CellModule: Cell
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector
 import ..JuliaModule: JuliaDocument
@@ -148,7 +148,7 @@ end
 # Helpers for input/output mutation
 # ═══════════════════════════════════════════════════════════════════════
 
-function _text_to_string(t::TextText)
+function _text_to_string(t::TextBlock)
     io = IOBuffer()
     for span in t.elements
         if hasproperty(span, :content)
@@ -179,13 +179,13 @@ end
 _text_to_string(d::MarkdownDocument) = _markdown_plain(d)
 
 # Stringify an arbitrary part content (text / Julia placeholder / etc).
-_content_to_string(t::TextText) = _text_to_string(t)
+_content_to_string(t::TextBlock) = _text_to_string(t)
 _content_to_string(d::MarkdownDocument) = _markdown_plain(d)
 _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
 # ── Domain document → source text, via its print chain ─────────────────────────
 # Serialize a structured document by projecting it through `…→syntax→text` and
-# flattening the resulting (possibly nested) TextText — the same rendering the
+# flattening the resulting (possibly nested) TextBlock — the same rendering the
 # editor shows, so the LLM sees exactly the displayed source. Built once.
 
 const _JULIA_TO_TEXT = ChainingProjection(RecursiveProjection(JuliaToSyntax()),
@@ -200,7 +200,7 @@ const _MARKDOWN_TO_TEXT = ChainingProjection(RecursiveProjection(MarkdownToSynta
                                                RecursiveProjection(SyntaxToText()))
 
 _flatten_text!(io, s::TextString) = (c = s.content; c isa AbstractString && print(io, c); nothing)
-_flatten_text!(io, t::TextText)   = (for e in t.elements; _flatten_text!(io, e); end; nothing)
+_flatten_text!(io, t::TextBlock)   = (for e in t.elements; _flatten_text!(io, e); end; nothing)
 _flatten_text!(io, _)             = nothing
 
 function _via_chain(chain, doc)
@@ -226,7 +226,7 @@ _doc_source(c)               = _content_to_string(c)
 # MarkdownDocument is prose the assistant wrote (or a ```markdown block), so it
 # round-trips as its raw markdown *source* — unfenced — which is exactly the text
 # Claude produced.
-_block_text(c::TextText)      = _content_to_string(c)
+_block_text(c::TextBlock)      = _content_to_string(c)
 _block_text(c::JuliaDocument) = "```julia\n" * _doc_source(c) * "\n```"
 _block_text(c::JsonDocument)  = "```json\n"  * _doc_source(c) * "\n```"
 _block_text(c::XmlDocument)   = "```xml\n"   * _doc_source(c) * "\n```"
@@ -681,7 +681,7 @@ end
 # and what this module wants is the *result*, which arrives as an `AgentToolResult`.
 function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     if ev isa LlmTextStart
-        part = ConversationPart(TextText(TextString("")))
+        part = ConversationPart(TextBlock(TextString("")))
         push!(turn.parts, Cell(part))
         state[:current_block] = part
 
@@ -723,23 +723,23 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
 end
 
 function _append_text_delta!(part::ConversationPart, s::AbstractString)
-    # Append to the part's TextText content. Simplest reliable approach:
-    # rebuild a single-span TextText with the accumulated content.
+    # Append to the part's TextBlock content. Simplest reliable approach:
+    # rebuild a single-span TextBlock with the accumulated content.
     current = _content_to_string(part.content)
-    part.content = TextText(TextString(current * String(s)))
+    part.content = TextBlock(TextString(current * String(s)))
     nothing
 end
 
 _append_text_delta!(_, _) = nothing
 
 # Accumulate a thinking_delta into the thinking part's text (rebuild a
-# single-span TextText with the accumulated reasoning, mirroring
+# single-span TextBlock with the accumulated reasoning, mirroring
 # `_append_text_delta!`).
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
     current = _content_to_string(c.text)
-    c.text = TextText(TextString(current * String(s)))
+    c.text = TextBlock(TextString(current * String(s)))
     nothing
 end
 

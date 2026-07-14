@@ -8,14 +8,14 @@ before the pixel-coordinate layout is applied.
 
 The domain includes:
 - **Span types**: `TextString` (text content), `TextNewline` (line break), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
-- **Container type**: `TextText` (sequence of spans)
+- **Container type**: `TextBlock` (sequence of spans)
 - **Base type**: `TextDocument` abstract type for all text documents
 - **Insertion kit** (`@domain Text`): `TextNothing` (the empty-text placeholder) and
   `TextInsertion` (the typed-name buffer Insert opens on it)
 
 Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 - Spans: `.content{k}` — cursor at boundary k within the span's content
-- TextText: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
+- TextBlock: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
 
 Each span has reactive styling fields:
 - `font` — font style (e.g., "bold", "italic", "monospace")
@@ -135,7 +135,7 @@ A single text span. Each field is a reactive `Cell`.
 - `line_color::Cell` — holds border/line color or `nothing`
 - `padding::Cell`    — holds inset/padding value or `nothing`
 
-When a `TextText` selection path descends into a span, the sub-path
+When a `TextBlock` selection path descends into a span, the sub-path
 refers to the cursor within the span's `content` field:  `.content{k}`
 """
 @document struct TextString <: TextDocument
@@ -214,10 +214,10 @@ TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospac
 TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
     TextGraphics(Cell(content), Cell(Int32(0)), Cell(Int32(0)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
-# ── TextText ───────────────────────────────────────────────────────────
+# ── TextBlock ───────────────────────────────────────────────────────────
 
 """
-    TextText(spans)
+    TextBlock(spans)
 
 A sequence of `TextString` spans. The span list is a reactive `Cell`
 holding `Vector{TextString}`, so structural changes (add/remove spans)
@@ -226,21 +226,21 @@ are tracked alongside per-span value changes.
 The `selection` cell holds a path into the span sequence, or `nothing`:
   `.elements[i]`  — cursor within element i
 """
-@document struct TextText <: TextDocument
+@document struct TextBlock <: TextDocument
     elements::CollectionDocument = CellVector()
 end
 
-TextText(spans::Vector{<:TextDocument}) =
-    TextText(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
+TextBlock(spans::Vector{<:TextDocument}) =
+    TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
-TextText(spans::TextDocument...) =
-    TextText(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
+TextBlock(spans::TextDocument...) =
+    TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
-TextText(f::Function) = TextText(CellVector(f), Cell(nothing))
+TextBlock(f::Function) = TextBlock(CellVector(f), Cell(nothing))
 
 # The document a committed `text` insertion becomes. Without this the generic
-# `make_insertion_document` fallback builds a bare `TextText()` — no spans, no
-# selection — and the `@gestures TextText` character rules all decline for want of
+# `make_insertion_document` fallback builds a bare `TextBlock()` — no spans, no
+# selection — and the `@gestures TextBlock` character rules all decline for want of
 # a `.elements[i].content{k}` caret, so the freshly inserted text takes no
 # keystrokes. One empty span with the caret in it is the smallest typeable text.
 #
@@ -248,9 +248,9 @@ TextText(f::Function) = TextText(CellVector(f), Cell(nothing))
 # no factory on purpose: each has a required field, so none is zero-arg
 # constructible, and none is therefore a completion candidate. A factory would
 # make them committable at a *top-level* insertion, where a lone span is the root
-# document — and the text pipeline prints a `TextText`, not a bare span. Making
+# document — and the text pipeline prints a `TextBlock`, not a bare span. Making
 # spans insertable belongs with a caret-level "insert a span here" gesture.
-@insertion TextText = @with_selection TextText([TextString("")]) elements[1].content{0}
+@insertion TextBlock = @with_selection TextBlock([TextString("")]) elements[1].content{0}
 
 
 # ── splice_value! methods for the text representations ──────────────
@@ -258,7 +258,7 @@ TextText(f::Function) = TextText(CellVector(f), Cell(nothing))
 # These are the two non-string representations of `splice_value!` (declared in
 # OperationApiModule). They fire when a replace reference resolves to a field
 # whose *value* is a styled span or a flat span sequence — e.g. a SyntaxLeaf's
-# `open`/`value`/`close` (each a TextString) or a BookParagraph's TextText
+# `open`/`value`/`close` (each a TextString) or a BookParagraph's TextBlock
 # content. When the target is itself a TextString edited by its `content` field,
 # the value read from the field is a plain `String` and the generic
 # AbstractString method handles it — no TextString-target method is needed.
@@ -271,7 +271,7 @@ splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacemen
 # across the concatenated spans. Locate the single `TextString` span the range
 # falls inside and edit it; an empty sequence grows a fresh span. Ranges that
 # straddle two spans are left for a later multi-span editing pass.
-function splice_value!(owner, field::Symbol, text::TextText, s::Int, e::Int, replacement::AbstractString)
+function splice_value!(owner, field::Symbol, text::TextBlock, s::Int, e::Int, replacement::AbstractString)
     pos = 0
     have_span = false
     for span in text.elements
@@ -291,7 +291,7 @@ end
 # ── read_gesture via reified @gestures: geometry-free text editing ───────
 #
 # The projection-independent half of the Text domain's reader, now a reified
-# `@gestures` table on `TextText` (was a `read_gesture(::TextText)` method); the
+# `@gestures` table on `TextBlock` (was a `read_gesture(::TextBlock)` method); the
 # generic `read_bound_gesture` interpreter fires it, so the table that fires is
 # the one gesture-help enumerates. It reads only the span structure
 # (`text.elements`) and the flat-character `text.selection` — never pixel geometry.
@@ -306,7 +306,7 @@ end
 # operation (which reads `text.selection`). The old reader matched these arrows
 # loosely and filtered the declines out by hand; exact matching is equivalent for
 # every tested/real input and lets the absence of a binding be the decline.
-@gestures TextText begin
+@gestures TextBlock begin
     KeyPress(_, t)         => "Insert character"     => _text_insert(doc, t)
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
@@ -403,25 +403,25 @@ end
 
 # ── Reified-gesture operations ────────────────────────────────────────────
 #
-# Each builds the Operation for one `@gestures TextText` rule from the document
+# Each builds the Operation for one `@gestures TextBlock` rule from the document
 # and its selection (the gesture's modifiers are matched in the pattern, so these
 # take no event). They return `nothing` to decline — e.g. when the selection is
 # not a character cursor — so the gesture keeps propagating inward.
 
 # The (elem_idx, content-length) of each TextString span, in element order — the
 # span layout the cursor/word helpers walk.
-_text_span_infos(text::TextText) =
+_text_span_infos(text::TextBlock) =
     [(elem_idx, length(span.content::AbstractString))
      for (elem_idx, span) in enumerate(text.elements) if span isa TextString]
 
 # Span-content lookup (elem_idx → content String) for word-class testing.
-_text_span_text(text::TextText) =
+_text_span_text(text::TextBlock) =
     Dict{Int,String}(elem_idx => String(span.content::AbstractString)
         for (elem_idx, span) in enumerate(text.elements) if span isa TextString)
 
 # Insert (replace the selected range with) `str` at the text cursor. The selection
 # must carry the `.elements[i].content[range]` shape; other shapes decline.
-function _text_insert(text::TextText, str::AbstractString)
+function _text_insert(text::TextBlock, str::AbstractString)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, char_start, char_stop = rng
@@ -429,7 +429,7 @@ function _text_insert(text::TextText, str::AbstractString)
 end
 
 # Backspace / Delete: replace the appropriate character range with "".
-function _text_delete(text::TextText, key::Symbol)
+function _text_delete(text::TextBlock, key::Symbol)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, char_start, char_stop = rng
@@ -457,7 +457,7 @@ function _text_delete(text::TextText, key::Symbol)
 end
 
 # Ctrl+Home / Ctrl+End: cursor to the very start / end of the text.
-function _text_jump(text::TextText, where::Symbol)
+function _text_jump(text::TextBlock, where::Symbol)
     span_infos = _text_span_infos(text)
     isempty(span_infos) && return nothing
     where === :start ?
@@ -466,7 +466,7 @@ function _text_jump(text::TextText, where::Symbol)
 end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion.
-function _text_word_motion(text::TextText, direction::Symbol)
+function _text_word_motion(text::TextBlock, direction::Symbol)
     span_infos = _text_span_infos(text)
     isempty(span_infos) && return nothing
     current = _cursor_position(text.selection)
@@ -481,7 +481,7 @@ end
 # Left / Right: per-character cursor motion. Declines when a whole element is
 # selected (no character cursor to move) so the syntax layer can tree-navigate;
 # clamps in place at a document end.
-function _text_char_motion(text::TextText, direction::Symbol)
+function _text_char_motion(text::TextBlock, direction::Symbol)
     _is_structural_selection(text.selection) && return nothing
     span_infos = _text_span_infos(text)
     isempty(span_infos) && return nothing
@@ -495,7 +495,7 @@ function _text_char_motion(text::TextText, direction::Symbol)
 end
 
 # Extract the i-th span's content when it's a TextString; nothing otherwise.
-function _span_content(text::TextText, span_idx::Int)
+function _span_content(text::TextBlock, span_idx::Int)
     elements = text.elements
     (span_idx < 1 || span_idx > length(elements)) && return nothing
     span = elements[span_idx]
@@ -505,7 +505,7 @@ end
 
 # Parse `text.selection[]` into (span_idx, char_start, char_stop) when it
 # matches `.elements[i].content[s:e]`, else return nothing.
-function _text_selection_range(text::TextText)
+function _text_selection_range(text::TextBlock)
     # Selections are canonical at rest; strip the TypeReference checkpoints
     # (this parser only extracts integer span/char offsets) before the raw
     # structural walk over `.elements[i].content[s:e]`.
@@ -542,13 +542,13 @@ end
 # `plan/done/clipboard-os-bridge-and-run-example-wrapper.md`.
 
 """
-    text_selection_substring(text::TextText) -> Union{String,Nothing}
+    text_selection_substring(text::TextBlock) -> Union{String,Nothing}
 
 The substring currently selected within a single span, or `nothing` when the
 selection is an empty caret, spans no characters, or is not a single-span character
 range. Used by the clipboard to copy / cut text.
 """
-function text_selection_substring(text::TextText)
+function text_selection_substring(text::TextBlock)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     span_idx, a, b = rng
@@ -561,14 +561,14 @@ function text_selection_substring(text::TextText)
 end
 
 """
-    text_insert_op(text::TextText, str) -> Union{Operation,Nothing}
+    text_insert_op(text::TextBlock, str) -> Union{Operation,Nothing}
 
 The `ReplaceStringRangeOperation` that inserts `str` at the text cursor, replacing
 any selected range. `nothing` when the selection is not a character cursor/range.
 The caret advances past the inserted text automatically on evaluation. Used by the
 clipboard to paste text.
 """
-text_insert_op(text::TextText, str::AbstractString) = _text_insert(text, str)
+text_insert_op(text::TextBlock, str::AbstractString) = _text_insert(text, str)
 
 # Parse a flat-character cursor selection (`.elements[i].content{c}`) into a
 # (span, char) NamedTuple, or nothing when the selection is not a character
@@ -576,7 +576,7 @@ text_insert_op(text::TextText, str::AbstractString) = _text_insert(text, str)
 function _cursor_position(sel)
     sel === nothing && return nothing
     @reference_case sel begin
-        ::TextText.elements{s:_}.content{c:_} => (span=s + 1, char=c)
+        ::TextBlock.elements{s:_}.content{c:_} => (span=s + 1, char=c)
     end
 end
 
@@ -589,16 +589,16 @@ function _is_structural_selection(sel)
 end
 
 _build_selection_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 # ── set_function! delegation ───────────────────────────────────────────────
 
 set_function!(s::TextString, f::Function) = (set_function!(getfield(s, :content), f); s)
-set_function!(st::TextText, f::Function) = (set_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
+set_function!(st::TextBlock, f::Function) = (set_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
 
 # ── Selection → flat character range ───────────────────────────────
 #
-# Shared helper: resolve a TextText's selection to a flat half-open char range
+# Shared helper: resolve a TextBlock's selection to a flat half-open char range
 # over the concatenated rendered stream. The console backend and the
 # `SelectionInverting` projection both consume this single source of truth (the
 # graphics pipeline computes its cursor rect from span-local offsets instead).
@@ -612,7 +612,7 @@ text_flat_length(::TextSpacing) = 1
 text_flat_length(::TextDocument) = 0
 
 """
-    text_selection_flat(text::TextText) -> (start, stop, is_cursor) or nothing
+    text_selection_flat(text::TextBlock) -> (start, stop, is_cursor) or nothing
 
 Resolve `text`'s selection to a flat half-open char range `(start, stop)` over
 the concatenated stream (0-based), plus an `is_cursor` flag (a zero-width caret).
@@ -623,7 +623,7 @@ Two shapes occur, both with 0-based offsets:
     character range over the concatenated text;
   • text cursor: `.elements[i].content{a:b}` — add the i-th span's base offset.
 """
-function text_selection_flat(text::TextText)
+function text_selection_flat(text::TextBlock)
     # Selections are canonical at rest (carry TypeReference checkpoints); peel
     # leading ones so the structural checks below see the plain navigation steps.
     sel = text.selection
@@ -635,7 +635,7 @@ function text_selection_flat(text::TextText)
     return _text_cursor_flat(text, sel)
 end
 
-function _text_cursor_flat(text::TextText, sel::ConcreteReferencePath)
+function _text_cursor_flat(text::TextBlock, sel::ConcreteReferencePath)
     (sel.head isa FieldReference && sel.head.name == "elements") || return nothing
     # Skip TypeReference checkpoints between each navigation step.
     t1 = sel.tail

@@ -48,12 +48,12 @@ A `CellVector` renders as a `VerticalLayout` of independent graphics blocks
 (`CellVectorToVerticalLayout` → `VerticalLayoutToGraphicsCanvas`): each element
 re-enters *this* renderer in its own domain (prose→prose, JSON→JSON,
 widget→widget), rather than the whole collection collapsing to one syntax tree.
-So a `CellVector` of mixed content — including `TextText` prose — renders
+So a `CellVector` of mixed content — including `TextBlock` prose — renders
 naturally.
 
 A `ListNode` is **not** treated this way: it stays in the to-syntax fabric
 (`CollectionToSyntax`), because a list may be lazy/infinite and must not be forced
-into a finite layout. A `TextText` placed directly inside a `ListNode` therefore
+into a finite layout. A `TextBlock` placed directly inside a `ListNode` therefore
 still reflects via `ObjectToSyntax` rather than rendering as prose — an accepted
 edge case.
 """

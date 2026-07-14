@@ -42,7 +42,7 @@ existing pipeline, preserving all other steps.
 ## Analysis: Where to Insert
 
 `TextHighlighting` and `TextFiltering` are **Text → Text** projections.  They
-must sit inside the pipeline at a point where the data is a `TextText` — i.e.
+must sit inside the pipeline at a point where the data is a `TextBlock` — i.e.
 **after** any domain-to-text conversion (e.g. `SyntaxToText`) and **before**
 the final rendering to graphics (e.g. `TextToGraphics`).
 
@@ -57,7 +57,7 @@ Typical example pipelines and the insertion point (marked `▸`):
 | `text_filtering_example` | `TextFiltering → TextToGraphics` | `TextToGraphics` |
 
 The common pattern: **insert immediately before the first `TextToGraphics`
-step** (or more generally, the first step that leaves the `TextText` domain).
+step** (or more generally, the first step that leaves the `TextBlock` domain).
 
 ## Design
 
@@ -97,9 +97,9 @@ step added at the right position.
 However, `ProjectionConfiguringProjection` converts its output to a
 `WidgetSplitPane` (control bar + document).  The steps **after** the
 insertion point (starting with `TextToGraphics`) now receive a widget tree,
-not a `TextText`.  This is exactly the situation `make_text_configuring_projection`
+not a `TextBlock`.  This is exactly the situation `make_text_configuring_projection`
 already solves — it wraps the tail in a `RecursiveProjection(TypeDispatchingProjection(...))`
-that dispatches widgets to `WidgetToGraphics` and `TextText` to the remaining
+that dispatches widgets to `WidgetToGraphics` and `TextBlock` to the remaining
 text steps.
 
 So the splice is:
@@ -107,7 +107,7 @@ So the splice is:
 ```
 original[1..i-1]                         # steps before the text→graphics boundary
 ProjectionConfiguringProjection(inner=…) # the control-bar wrapper
-renderer                                 # dispatches widget + TextText to the tail steps
+renderer                                 # dispatches widget + TextBlock to the tail steps
 ```
 
 where `renderer` is built from the original steps `original[i..end]` plus the

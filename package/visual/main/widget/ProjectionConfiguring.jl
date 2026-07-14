@@ -78,7 +78,7 @@ function print_document(p::ProjectionConfiguringProjection, recursion, input, ct
     control_iomap = print_document(p.control, p.control, p.inner, ctx)
     control_widget = control_iomap.output
     # WidgetSplitPane only renders WidgetDocument slots, so a non-widget
-    # projected document (e.g. a TextText) is wrapped in a WidgetScrollPane,
+    # projected document (e.g. a TextBlock) is wrapped in a WidgetScrollPane,
     # which recurses it back through the chain (the assistant-input pattern).
     doc_output = inner_iomap.output
     doc_widget = doc_output isa WidgetDocument ? doc_output : WidgetScrollPane(doc_output)
