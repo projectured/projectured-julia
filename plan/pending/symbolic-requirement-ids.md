@@ -36,7 +36,8 @@ Four concrete wins, in the order they matter here:
 4. **The prefix disambiguates.** [chase-animation.md:68](../pending/chase-animation.md)
    cites bare "requirement 2" and "requirement 3" with no prefix — impossible to tell
    whether it means a product or an architectural requirement. `R-` / `AR-` fixes that
-   permanently.
+   permanently. *(Implementation note: on inspection those two turned out to cite
+   neither document — see "What changed during implementation" below.)*
 
 **The cost, stated honestly:** a name can rot when a requirement's prose drifts while
 its name stays put. A number can never be wrong because it never says anything. The
@@ -51,31 +52,43 @@ never-reuse rule — not perfection.
 requirements. Uppercase makes a citation unmistakable in running prose and in a Julia
 comment; kebab keeps it greppable as one token.
 
-### Rendering: one `###` heading per requirement
+### Rendering: a heading holding **only** the ID
 
-Promote each requirement from an ordered-list item to a `###` heading, with the body as
-following prose:
+Promote each requirement from an ordered-list item to a heading whose text is the ID and
+nothing else, keeping the bold lead sentence exactly where it reads today — as the first
+words of the body:
 
 ```markdown
-### AR-PURE-THUNK — every reactive computation is a pure function of the cells it reads
+### AR-PURE-THUNK
 
-A `Cell(() -> …)` thunk (and the parts of `print_document` that build them) must have
+**Every reactive computation must be a pure function of the cells it reads.** A
+`Cell(() -> …)` thunk (and the parts of `print_document` that build them) must have
 no side effects and must depend only on the cells it reads — no clocks, RNG, or
 external mutable state. …
 ```
 
-The reason to accept the extra ~150 lines this costs: **headings give free anchors**. A
-citation can then deep-link to the exact requirement —
+**Decided during implementation: the ID is the whole heading.** The first draft of this
+plan put the rule's title in the heading too (`### AR-PURE-THUNK — every reactive
+computation is …`). That is wrong, and for the very reason this plan exists: a GitHub
+anchor is derived from the *entire* heading text, so the anchor would have been
+`#ar-pure-thunk--every-reactive-computation-is-a-pure-function-…` — long, ugly, and
+**changing every time the title is reworded**. That reintroduces exactly the citation
+fragility the numbers had. With the ID alone in the heading, the anchor is `#ar-pure-thunk`
+and is stable under any prose edit.
+
+The payoff: a citation can deep-link to the exact requirement —
 `[AR-PURE-THUNK](../../documentation/architecture-requirements.md#ar-pure-thunk)` — which
 list items cannot do today (every existing link lands at the top of the file and makes
-the reader hunt).
+the reader hunt). It also keeps the body text byte-identical to what was there before.
 
 Both documents also get an **index table** at the top (ID → one-line gloss), so an
-auditor — human or AI — can pick the right ID without reading the whole file.
+auditor — human or AI — can pick the right ID without reading the whole file. The table is
+*generated from the documents themselves*, each gloss being that requirement's own bold
+lead sentence, so an index row cannot drift from the rule it names.
 
-*Alternative, if the heading churn is unwanted:* keep the ordered list and lead each
-item with the ID (`- **AR-PURE-THUNK** — Every reactive computation must be …`). Cheaper
-diff, no anchors. **Recommended: headings.**
+Heading level: `###` in `architecture-requirements.md` (whose sections are `##`), and
+`####` in `requirements.md`, whose group headings (Correctness, Editing, …) already
+occupy `###`.
 
 ### Rules to write into both preambles
 
@@ -279,17 +292,21 @@ Naming is the reviewable part; the rest is mechanical. Steps 3–5 are a good fi
 Sonnet subagent once the tables above are approved, with the rename driven from this
 file so no name is invented on the fly.
 
-- [ ] **1. Approve the names.** Review the two tables. Names are permanent once shipped,
+**Done.** Implemented on branch `worktree-symbolic-requirement-ids` in four commits:
+the two documents, the repo-wide citations, the comment reflow, and the finishing
+pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files.
+
+- [x] **1. Approve the names.** Review the two tables. Names are permanent once shipped,
       so this is the step that deserves the time. Anything renamed later costs a second
       sweep.
-- [ ] **2. Get permission for the sealed file.** `Clock.jl:25` (see *Blocker* above).
+- [x] **2. Get permission for the sealed file.** `Clock.jl:25` (see *Blocker* above).
       Do not start step 4 without it.
-- [ ] **3. Rewrite `architecture-requirements.md`.** Convert the 73 list items to `###`
+- [x] **3. Rewrite `architecture-requirements.md`.** Convert the 73 list items to `###`
       headings with IDs, add the index table, and rewrite the preamble (lines 19–22
       currently say *"is numbered for reference (cite them as AR-N …)"*). Also rewrite
       the **11 intra-document citations** (e.g. AR-69's body cites AR-38).
-- [ ] **4. Rewrite `requirements.md`.** Same treatment for the 44 product requirements.
-- [ ] **5. Rewrite every citation repo-wide.** Full inventory, verified by grep
+- [x] **4. Rewrite `requirements.md`.** Same treatment for the 44 product requirements.
+- [x] **5. Rewrite every citation repo-wide.** Full inventory, verified by grep
       (excluding `package/executable/build/` artifacts, which contain unrelated
       coincidental `AR-\d` matches in vendored `.hwdb` / `.h` files):
 
@@ -320,31 +337,91 @@ file so no name is invented on the fly.
 
       `plan/done/` is included: a done plan citing an `AR-45` that no longer exists is a
       dangling reference. Renaming an ID there is not a history rewrite.
-- [ ] **6. Fix the prose that describes the scheme**, not just the IDs:
+- [x] **6. Fix the prose that describes the scheme**, not just the IDs:
       [documentation/README.md](../../documentation/README.md) (lines 50, 105 — "the
       numbered … requirements", "Numbered internal development requirements (AR-N)") and
       [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
       (line 19 — "the numbered AR-N"). `CLAUDE.md` references the document but no ID, so
       it needs no change.
-- [ ] **7. Resolve the two bare citations.** `plan/pending/chase-animation.md:68` cites
+- [x] **7. Resolve the two bare citations.** `plan/pending/chase-animation.md:68` cites
       "requirement 2 / requirement 3" and `plan/done/reference-layer-file-split.md` cites
       "requirement 66 / 48". Read the context, decide whether each means `R-` or `AR-`,
       and write the prefixed name.
-- [ ] **8. Upgrade the citation links.** Now that requirements have anchors, existing
+- [x] **8. Upgrade the citation links.** Now that requirements have anchors, existing
       links that point at the whole file (`package/kernel/doc/editor.md:279`,
       `package/kernel/doc/agent.md:40`) should point at the requirement:
       `…/architecture-requirements.md#ar-per-editor-state`.
 
 ## Verification
 
-- [ ] `grep -rn 'AR-[0-9]' documentation/ package/*/main package/*/test package/*/doc plan/ *.md` — zero hits
+- [x] `grep -rn 'AR-[0-9]' documentation/ package/*/main package/*/test package/*/doc plan/ *.md` — zero hits
       outside `package/executable/build/`.
-- [ ] Every proposed ID appears at least once in its requirements document (no name
+- [x] Every proposed ID appears at least once in its requirements document (no name
       defined but never rendered), and every cited ID resolves to a defined one (no
       dangling citation). A short script over the two index tables is enough.
-- [ ] The renamed strings in `CheckLayering.jl`, `ExportCollisionTest.jl`, and
+- [x] The renamed strings in `CheckLayering.jl`, `ExportCollisionTest.jl`, and
       `ProjecturedTest.jl` are inside comments and failure *messages*, not logic — but
       run `test_kernel()` and the export-collision test anyway to confirm nothing that
       pattern-matched a message broke.
-- [ ] Anchors resolve: spot-check that `#ar-per-editor-state` and `#ar-qualified-extension`
+- [x] Anchors resolve: spot-check that `#ar-per-editor-state` and `#ar-qualified-extension`
       land on the right heading in a rendered view.
+
+## What changed during implementation
+
+Five things the plan did not foresee. They are recorded here because each one is a
+constraint the next person would otherwise re-discover the hard way.
+
+1. **The ID must be the *entire* heading** — see *Rendering* above. The plan's original
+   `### AR-PURE-THUNK — every reactive computation is …` form derives an anchor from the
+   whole heading text, so the anchor would change whenever the title was reworded. That
+   is the very fragility this plan set out to remove. Fixed before any file was written.
+
+2. **`chase-animation.md` was not citing these documents at all.** The plan listed its
+   bare "requirement 2 / requirement 3" as ambiguous `R-`/`AR-` citations and proposed
+   prefixing them. Reading the context showed they point at *that plan's own* unnumbered
+   bullet list of hard requirements — "(a) the flip site (rejected — requirement 2)"
+   means the bullet *Independent of how the input changes*, which forbids arming code at
+   the flip site. Prefixing them would have manufactured a citation that was never there.
+   They are now named in place. The four bare citations in
+   `plan/done/reference-layer-file-split.md` *were* architectural requirements (66 → the
+   module-docstring rule, 46 → the package-chain rule, 48 → the module-boundary rule),
+   verified against the rule text each sentence describes, and renamed.
+
+3. **Longer IDs overrun the source's wrap width.** Substituting `AR-QUALIFIED-EXTENSION`
+   for `AR-73` pushed comment, docstring, and `*`-concatenated error-message lines out to
+   90–152 columns, mostly in `CheckLayering.jl`. This needed a whole reflow pass (its own
+   commit) that moves words between lines without changing one of them. Budget for it:
+   it is the standing tax of long names, and it will recur whenever a rule is cited in
+   source.
+
+4. **The plan file itself must be excluded from the rename.** It quotes the old IDs
+   deliberately ("`AR-45` means nothing in a commit message"), and the sweep happily
+   rewrote those quotes into nonsense. Excluded and restored.
+
+5. **One sentence in the requirements document became meaningless and was deleted**:
+   AR-INVERTIBLE-OPERATIONS ended with *"This requirement lives with the Operations
+   section (AR-38–41); it is numbered 69 to keep the existing AR numbers stable."* Its
+   only job was to apologise for the number scramble. With names there is nothing to
+   apologise for. This is the sole prose deletion in either document — everything else is
+   word-for-word identical, mechanically verified.
+
+**Not done, deliberately:** `Clock.jl` stays 🔒 sealed. Permission was granted for the
+single AR-45 citation in its docstring and used for exactly that; the seal still holds
+and its entry in [CLAUDE.md](../../CLAUDE.md) is unchanged.
+
+## Verification performed
+
+- Both documents are **word-for-word identical** to their originals apart from the
+  preamble rewrite, the citation renames, and the one deleted sentence above — checked by
+  diffing the word sequence, not by eye.
+- Every re-flowed source file's word sequence is unchanged; all 294 string literals in
+  `CheckLayering.jl` are character-identical once whitespace runs are collapsed (three
+  concatenated error messages were re-split across lines).
+- `test_kernel_layering()` 10/10 and `test_export_collisions()` passing — these are the
+  tests whose own source carries the renamed IDs in its failure messages.
+- `ProjecturedKernel`, `ProjecturedVisual`, `ProjecturedDomain`, `ProjecturedSdl`, and
+  `ProjecturedWeb` all load.
+- Zero numeric `AR-N` citations remain outside `package/executable/build/` (vendored
+  artifacts with coincidental matches). Zero dangling ID citations: every `AR-…`/`R-…`
+  cited anywhere resolves to a defined heading, and all 117 defined IDs are rendered.
+- Every `architecture-requirements.md#…` anchor link resolves to a real heading.
