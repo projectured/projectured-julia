@@ -34,7 +34,7 @@ import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
@@ -67,20 +67,22 @@ _kw(text, font, color) = SyntaxLeaf(TextString(text, font, color))
 
 _kw(text, style::StyleText) = _kw(text, style.font, style.color)
 
-_space_node(f::Function) =
-    SyntaxNode("", "", " ", f)
+# A run of clauses joined by a separator, and nothing else — no delimiters, no
+# indentation. That is exactly a separation.
+_space_node(f::Function) = SyntaxSeparation(f; separator=" ")
 
-_comma_node(f::Function) =
-    SyntaxNode("", "", ", ", f)
+_comma_node(f::Function) = SyntaxSeparation(f; separator=", ")
 
-_comma_body(f::Function) =
-    SyntaxNode("", "", ",", f; indentation=1)
+# These three lay each child out on its own indented line, which is *per-child*
+# indentation — the separator and the line chrome interleaved by one node. A
+# `SyntaxIndentation` has a single child and indents that one thing, so it cannot
+# express this and these stay `SyntaxNode`s. That is the combined type earning its
+# keep, not a gap (see plan/pending/simplest-syntax-document.md).
+_comma_body(f::Function) = SyntaxNode(f; sep=",", indentation=1)
 
-_newline_body(f::Function) =
-    SyntaxNode("", "", "", f; indentation=1)
+_newline_body(f::Function) = SyntaxNode(f; indentation=1)
 
-_newline_body_compact(f::Function) =
-    SyntaxNode("", "", "", f; indentation=-1)
+_newline_body_compact(f::Function) = SyntaxNode(f; indentation=-1)
 
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 

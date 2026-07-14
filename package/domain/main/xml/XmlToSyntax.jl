@@ -45,7 +45,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bol
 import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
                       color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
@@ -119,9 +119,7 @@ end
                             open=TextString("</", p.delim),
                             close=TextString(">", p.delim))
 
-    SyntaxNode(nothing, nothing, nothing,
-               [ tag_leaf, attrs_node, body_node, close_leaf ],
-               0, false, nothing)
+    SyntaxConcatenation([ tag_leaf, attrs_node, body_node, close_leaf ])
 end
 
 # ── Structural-caret navigation (the one bit the template engine can't supply) ─

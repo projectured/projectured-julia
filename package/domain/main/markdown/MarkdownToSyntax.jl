@@ -43,7 +43,7 @@ import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -209,15 +209,13 @@ end
 end
 
 @projection_template MarkdownLinkToSyntaxNode MarkdownLink (prj, doc) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(collection(:content);
-                     open=TextString("[", prj.bracket_style),
-                     close=TextString("]", prj.bracket_style)),
-          SyntaxLeaf(bound(:url, String,
-                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
-                     open=TextString("(", prj.bracket_style),
-                     close=TextString(")", prj.bracket_style)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxNode(collection(:content);
+                                     open=TextString("[", prj.bracket_style),
+                                     close=TextString("]", prj.bracket_style)),
+                          SyntaxLeaf(bound(:url, String,
+                                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
+                                     open=TextString("(", prj.bracket_style),
+                                     close=TextString(")", prj.bracket_style)) ])
 
 # ── MarkdownImageToSyntaxNode (source `![alt](url)`) ──────────────────────────
 
@@ -228,16 +226,14 @@ end
 end
 
 @projection_template MarkdownImageToSyntaxNode MarkdownImage (prj, doc) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxLeaf(bound(:alt, String,
-                           hinted_text(() -> doc.alt, () -> isempty(doc.alt), "alt", prj.alt_style));
-                     open=TextString("![", prj.bracket_style),
-                     close=TextString("]", prj.bracket_style)),
-          SyntaxLeaf(bound(:url, String,
-                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
-                     open=TextString("(", prj.bracket_style),
-                     close=TextString(")", prj.bracket_style)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxLeaf(bound(:alt, String,
+                                           hinted_text(() -> doc.alt, () -> isempty(doc.alt), "alt", prj.alt_style));
+                                     open=TextString("![", prj.bracket_style),
+                                     close=TextString("]", prj.bracket_style)),
+                          SyntaxLeaf(bound(:url, String,
+                                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
+                                     open=TextString("(", prj.bracket_style),
+                                     close=TextString(")", prj.bracket_style)) ])
 
 # ── MarkdownCodeBlockToSyntaxNode (fenced; shared) ────────────────────────────
 

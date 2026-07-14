@@ -575,15 +575,40 @@ stays a `SyntaxNode`. The inventory gives the clear-cut cases:
   `SyntaxConcatenation(f::Function)` stores `f` raw, and a hand-written projection that wants
   reactive children says so explicitly: `SyntaxConcatenation(CellVector(f))`.
 
-  Still to do for julia: `JuliaBlock`'s `indentation=1` → `SyntaxIndentation`.
-- **SQL** — the six helpers: `_kw` → bare leaf; `_space_node` / `_comma_node` → `SyntaxSeparation`.
-  **But `_comma_body` / `_newline_body` / `_newline_body_compact` must STAY `SyntaxNode`s** — see
-  "Per-child indentation is not decomposable" below. 16 of 22 node rules still drop their empty
-  delimiters.
-- **Markdown** — the five `sep=""` types → `SyntaxConcatenation`.
-- **JSON / YAML / XML** — entry nodes with explicit `TextString("")` open/close → `SyntaxSeparation`;
-  array/object `indentation=` → `SyntaxIndentation`.
-- The rest: object, book, conversation, filesystem, dbcatalog, formula, math, gesturemap.
+  **`JuliaBlock` stays a `SyntaxNode`** — the plan was wrong about it, for the same reason it was
+  wrong about SQL's `_comma_body`. It is `SyntaxNode(collection(:statements); indentation=1)`: each
+  statement on its own indented line, which is *per-child* indentation, and a `SyntaxIndentation` has
+  exactly one child and indents that one thing (see "Per-child indentation is not decomposable"). It
+  is already in the clean keyword form with no empty delimiters. Julia is **done**.
+- **SQL — DONE.** `_kw` was already a bare leaf. `_space_node` / `_comma_node` are
+  `SyntaxSeparation`s — after Phase 1 their `""` delimiters were already absent, so they were pure
+  separations wearing empty strings. `_comma_body` / `_newline_body` / `_newline_body_compact`
+  **stay `SyntaxNode`s** (per-child indentation is not decomposable — see below) but drop their empty
+  positional arguments for the keyword form.
+- **Markdown / XML — DONE.** The remaining 3 positional connector nodes are `SyntaxConcatenation`s.
+- **The empty-delimiter sweep is finished.** Phase 1 already normalised every `""` delimiter to
+  absence, so there are no `sep=""` types left to convert and no `TextString("")` open/close left to
+  drop — `grep 'SyntaxNode(nothing, nothing, nothing'` and `grep 'sep=""'` both return nothing across
+  every domain. What remained was the *positional* connector form, and that is now gone: **27 nodes**
+  (julia 24, markdown 2, xml 1) are `SyntaxConcatenation`s.
+- **Array/object `indentation=` does NOT become `SyntaxIndentation`.** Every one of them is per-child
+  indentation. See below.
+- Still open, opportunistic: object, book, conversation, filesystem, dbcatalog, formula, math,
+  gesturemap — none of them has an empty delimiter left, so the remaining gain is precision (a node
+  that only sequences saying so) and cells, not spans.
+
+### What Phase 3 bought
+
+Rendering is **byte-for-byte identical** for every affected example — `julia`, `markdown`, `xml`,
+`mixed`, and all four `sql_*` — verified by hashing `print_example` before and after. That is the
+invariant: the fine-grained types are drop-ins.
+
+The gain is **cells**, not spans (Phase 1 took the spans). `SyntaxNode` carries 7 reactive cells
+(open, close, sep, children, indentation, collapsed, selection); `SyntaxConcatenation` carries 2 and
+`SyntaxSeparation` 3. `test_domain`'s pass count falls 110182 → 109673 — the printer walker asserts
+once per cell, so the reactive graph across the domain examples is **509 cells smaller**. Fail /
+Error / Broken are unchanged throughout, as are `test_visual`, `test_text_nav_invariants_all` and
+`test_typeins`.
 
 There is no Phase 4. `SyntaxLeaf` and `SyntaxNode` keep every field they have; the combined and the
 fine-grained documents coexist permanently, sharing one implementation.
