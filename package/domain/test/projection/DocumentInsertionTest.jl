@@ -160,10 +160,10 @@ function test_document_insertion()
             node = iom.output
             # Structure: node open/close carry the label, the inner leaf the
             # typed value (reactive colour) and the pale continuation hint.
-            @test node isa SyntaxNode
-            @test node.open.content == "Insert a new "
-            @test node.close.content == " here"
-            leaf = node.children[1]
+            @test node isa SyntaxDelimitation      # one leaf behind a prefix/suffix, not a sequence
+            @test node.opening_delimiter.content == "Insert a new "
+            @test node.closing_delimiter.content == " here"
+            leaf = node.content
             @test leaf isa SyntaxLeaf
             # Empty buffer: neutral colour, no hint.
             @test leaf.value.font_color == color_default
@@ -181,14 +181,14 @@ function test_document_insertion()
             ins.value = "zzz"
             @test leaf.value.font_color == color_solarized_red
             @test leaf.close.content == ""
-            # The value cursor round-trips through children[1].
+            # The value cursor round-trips through the wrapper's `.content`.
             fwd = map_reference_forward(proj, iom, _ins_vpath(2))
             @test fwd !== nothing
             back = map_reference_backward(proj, iom, fwd)
             @test ReferenceModule.strip_reference_types(back) ==
                   ReferenceModule.strip_reference_types(_ins_vpath(2))
             # The node selection follows the insertion's own cursor.
-            @test string(node.selection) == ".children[1].value{0}"
+            @test string(node.selection) == ".content.value{0}"
         end
 
         @testset "type domain name -> domain insertion" begin
@@ -255,7 +255,7 @@ function test_document_insertion()
             end
             @test jins.value == "str"
             # Unambiguous prefix-free hint + green, and Enter commits JsonString.
-            leaf = jiom.output.children[1]
+            leaf = jiom.output.content
             @test leaf.close.content == "ing"
             @test leaf.value.font_color == color_solarized_green
             commit = read_intent(jproj, jiom, KeyDown(:return, Modifiers()))

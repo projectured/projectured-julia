@@ -54,7 +54,7 @@ import ..SqlDocumentModule: SqlInsertion
 import ..TextModule: TextString
 import ..JuliaParserModule: juliaparse
 import ..SqlParserModule: sqlparse
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument, SyntaxDelimitation
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
@@ -141,21 +141,22 @@ _typed_color(p, state::Symbol) =
 
 # ── Selection mapping ─────────────────────────────────────────────────────────
 #
-# The output is a SyntaxNode (label delimiters) wrapping one SyntaxLeaf (typed
-# value + hint), so the `value{k}` char cursor maps through `children[1]`.
+# The output is a SyntaxDelimitation (the label's prefix/suffix) around one SyntaxLeaf
+# (typed value + hint), so the `value{k}` char cursor maps through `.content` — a wrapper
+# addresses its single child there, not at `.children[1]`.
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         value{k} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
-            @reference ::SyntaxNode.children::CellVector[1].^(inner)
+            @reference ::SyntaxDelimitation.content.^(inner)
         end
     end
 end
 
 function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        ::SyntaxNode.children[1].leaf_path... => @reference_case leaf_path begin
+        ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
     end
@@ -176,18 +177,17 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
                       Cell(p.hint.font), Cell(p.hint.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # The inner leaf's selection is the insertion's own (`value{k}` is the
-    # leaf-local grammar too); the node routes it through `children[1]`.
+    # leaf-local grammar too); the wrapper routes it through `.content`.
     leaf = SyntaxLeaf(typed; close=hint, selection=getfield(ins, :selection))
     node_selection = Cell(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReferencePath || return nothing
         is_introduced_reference(path) && return path
-        ConcreteReferencePath(FieldReference("children"),
-            ConcreteReferencePath(ElementReference(1), path))
+        ConcreteReferencePath(FieldReference("content"), path)
     end)
-    SimpleIoMap(p, ins, SyntaxNode(SyntaxDocument[leaf];
-        open=TextString(p.prefix, p.label),
-        close=TextString(p.suffix, p.label),
+    SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
+        opening_delimiter=TextString(p.prefix, p.label),
+        closing_delimiter=TextString(p.suffix, p.label),
         selection=node_selection))
 end
 
