@@ -14,20 +14,28 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 
 - ⬜ `ProjecturedKernel.jl` — module root, the layer diagram
 - **Layer 1 — cell** (`cell/`)
-  - 🔒 `cell/CellLayer.jl`
+  - ⬜ `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
-  - 🔒 `cell/CellModule.jl`
-  - 🔒 `cell/AbstractCell.jl`
+  - ⬜ `cell/CellModule.jl`
+  - ⬜ `cell/AbstractCell.jl`
   - 🔒 `cell/ReactiveCell.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
-  - 🔒 `cell/CellStruct.jl`
+  - ⬜ `cell/StructPlan.jl`
+  - ⬜ `cell/CellStruct.jl`
   - 🔒 `cell/Clock.jl`
 - **Layer 2 — document** (`document/`)
-  - 🔒 `document/DocumentLayer.jl`
-  - 🔒 `document/DocumentModule.jl`
-  - 🔒 `document/Interface.jl`
-  - 🔒 `document/Document.jl`
+  - ⬜ `document/DocumentLayer.jl`
+  - ⬜ `document/DocumentModule.jl`
+  - ⬜ `document/Document.jl`
+  - ⬜ `document/DocumentTrait.jl`
+  - ⬜ `document/DocumentKind.jl`
+  - ⬜ `document/DocumentCopy.jl`
+  - ⬜ `document/DocumentSync.jl`
+  - ⬜ `document/DocumentMacro.jl`
+  - ⬜ `document/DocumentWalk.jl`
+  - ⬜ `document/DocumentSearch.jl`
+  - ⬜ `document/DocumentShow.jl`
   - 🔒 `document/Forward.jl`
 - **Layer 3 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`

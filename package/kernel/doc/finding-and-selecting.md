@@ -40,6 +40,26 @@ The string/regex form matches the rendered text of leaf values (e.g. a `JsonStri
 that `JsonString`. A scalar match with no enclosing document is dropped. Pass `raw=true` to
 opt out: `search_documents(doc, "Alice"; raw=true)` returns `["Alice"]` (the bare string).
 
+### One walk, two strategies
+
+`search_documents` and `search_references` are not two implementations. They are the same
+traversal — `walk_document` in the document layer — under two strategies that differ in
+exactly one thing: **what a visited node's *location* is.** `ValueWalk` says the location is
+the node itself; `PathWalk` (which lives in the reference layer, because the document layer
+cannot name a `ReferencePath`) says it is the path to the node. Everything else — how to
+descend a collection, a dict, a struct; where to stop; how to fold a scalar match up to its
+enclosing document — is written once.
+
+That difference has one consequence worth knowing, and it is not a quirk:
+
+> **A node reachable by two paths is reported once by `search_documents` and twice by
+> `search_references`.**
+
+It is *one object* but *two places*, and a place is what a selection names — so both places
+must be reported if you intend to put a cursor in one of them. Conversely, reporting the same
+object twice would tell you nothing new. This is the `visit_policy` of each strategy
+(`:once_per_object` vs `:once_per_path`), and it is why the two cannot be collapsed into one.
+
 Struct and collection nodes have no textual form, so they never match a string/regex query.
 Reach for a predicate when you need to match by type or shape, or to match a leaf
 *exactly* (`v -> v == "Alice"`) rather than as a substring. A predicate that matches a

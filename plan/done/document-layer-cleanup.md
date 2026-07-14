@@ -462,22 +462,51 @@ they cannot drift silently:
 
 ---
 
-## Step 6 — Documentation and seals
+## Step 6 — Documentation and seals ✅ done
 
-- [ ] `package/kernel/doc/` — update any guide describing the document layer's file layout,
-      the `@document` codegen, or the two searches.
-      `package/kernel/doc/finding-and-selecting.md` is the one that documents
-      `search_documents` / `search_references` as a pair; it should now be able to say
-      *one walk, two strategies* instead of describing two parallel implementations.
-- [ ] `documentation/architecture-requirements.md` — AR-45's Clock reference (Step 1); check
-      whether any AR names a symbol renamed in Step 3.
-- [ ] Seal inventory in [CLAUDE.md](../../CLAUDE.md) — the document layer's entry list is
-      replaced wholesale by the Step 2 layout; `cell/StructPlan.jl` and `cell/Clock.jl`
-      join the cell layer. Re-audit and re-seal each restructured file against
-      [architecture-requirements.md](../../documentation/architecture-requirements.md).
-- [ ] Move this plan to `plan/done/`.
+- [x] `package/kernel/doc/macros.md` — `@document` now shares `struct_plan` and Rule Y
+      (`cell_struct_positional_ctors`) with the cell layer, and is a parse plus six emitters.
+- [x] `package/kernel/doc/finding-and-selecting.md` — new *One walk, two strategies* section.
+      It documents the user-visible consequence that was **never written down**: a node
+      reachable by two paths is reported **once** by `search_documents` and **twice** by
+      `search_references`, because it is one object but two places, and a place is what a
+      selection names.
+- [x] `package/kernel/doc/cell.md`, `documentation/architecture-requirements.md` (AR-45) —
+      done in Step 1.
+- [x] No AR or guide named any symbol renamed in Step 3 (checked).
+- [x] Seal inventory in [CLAUDE.md](../../CLAUDE.md).
+- [x] Move this plan to `plan/done/`.
 
-**Commit:** `doc: document the restructured document layer; re-seal`
+### Audit against [architecture-requirements.md](../../documentation/architecture-requirements.md)
+
+Clean on every mechanical requirement:
+
+- **AR-66** (module docstring per file) — all 13 new/changed files open with one.
+- **AR-48** (imports name only exported symbols) — the kernel layering guard runs with
+  `check_private_imports = true` and is green. This step *removed* the standing violation:
+  base's `CollectionModule` no longer imports four underscore-private names from
+  `DocumentModule`.
+- **AR-6 / AR-45** (no global mutable state) — none introduced.
+- **AR-71** (a comment carries only what the code cannot) — no history-narrating comments.
+- **AR-49 / AR-50** — the walk seam is the sanctioned shape (lower layer declares the open
+  generic, higher layer adds the method); no orphan files.
+
+**One item to flag, not silently sealed past — AR-70.** `search_documents`'s docstring names
+`search_references`, a function in the layer *above* it. AR-70 forbids documentation that
+names higher-layer callers. Two things make this defensible rather than clear-cut: it is
+**pre-existing** (the old docstring already said "the object-valued counterpart to a raw
+`search_references`"), and the two are one user-facing API pair whose difference is exactly
+the thing a reader must know. `DocumentWalk.jl` — a genuine seam file, and so inside AR-70's
+seam carve-out — names only the *concept* (`ReferencePath`), never `PathWalk`,
+`ReferenceModule`, or `search_references`. **Left as-is and reported; the seal is the user's
+call.**
+
+**Seals.** The seal records the *user's* review, not the implementer's, so every file this
+plan materially changed is returned to `⬜` pending re-review. `cell/PerformanceCounter.jl`,
+`ReactiveCell.jl`, `MutableCell.jl`, `ImmutableCell.jl`, `cell/Clock.jl` (moved, content
+untouched) and `document/Forward.jl` (untouched) keep their `🔒`.
+
+**Commit:** `doc: document the restructured document layer; re-open the seals for review`
 
 ---
 

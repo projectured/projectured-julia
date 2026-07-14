@@ -24,10 +24,15 @@ or IoMap vocabulary.
 `@iomap` and `@projection` are exactly `@cell_struct` plus their default
 supertype: they inject `<: IoMap` / `<: Projection` when none is written and
 delegate to the cell layer's assembler (`cell_struct_exprs`). `@document`
-generates its own kind-parameterized stem (see below) and reuses the cell
-layer's keyword-constructor builders (`cell_struct_kw_params`, `cell_struct_kwctor`). Use
-`@cell_struct` directly for a transparent-Cell struct that is none of the
-three framework kinds.
+generates its own kind-parameterized stem (see below), but shares the cell
+layer's codegen kit for everything that is not document-specific: the field
+parse (`struct_plan`, which reads the three field forms into a `StructPlan`),
+the keyword-constructor builders (`cell_struct_kw_params`,
+`cell_struct_kwctor`), and **Rule Y** (`cell_struct_positional_ctors` — filling
+a trailing run of defaults positionally is a rule about any cell struct, not
+about documents). `@document` is then a parse plus six emitters, each a pure
+function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
+that is none of the three framework kinds.
 
 ## Default base supertype
 
