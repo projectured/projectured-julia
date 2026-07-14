@@ -37,7 +37,7 @@ import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
-import ..KeyboardModule: KeyDown, is_ctrl
+import ..EventModule: KeyDown, is_ctrl
 
 export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 

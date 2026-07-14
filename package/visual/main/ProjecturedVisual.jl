@@ -65,8 +65,7 @@ const ProjectionReferenceApiModule = ProjecturedKernel.ProjectionReferenceModule
 # PointReferenceModule is defined locally by this package's graphics slice
 # (`include("graphics/PointReference.jl")` below).
 const OperationModule = ProjecturedKernel.OperationModule
-const GestureModule = ProjecturedKernel.GestureModule
-const GestureApiModule = ProjecturedKernel.GestureModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const BackendModule = ProjecturedKernel.BackendModule
 const BackendApiModule = ProjecturedKernel.BackendModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
@@ -80,11 +79,8 @@ const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
-const KeyboardModule = ProjecturedKernel.KeyboardModule
-const MouseModule = ProjecturedKernel.MouseModule
-const ModifiersModule = ProjecturedKernel.ModifiersModule
-const EventCaseModule = ProjecturedKernel.GestureModule
-const GestureBindingModule = ProjecturedKernel.GestureModule
+const EventModule = ProjecturedKernel.EventModule
+const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
@@ -103,9 +99,7 @@ const EnvelopeUnwrappingProjectionModule = ProjecturedBase.EnvelopeUnwrappingPro
 const FocusingProjectionModule = ProjecturedBase.FocusingProjectionModule
 const ReversingProjectionModule = ProjecturedBase.ReversingProjectionModule
 const ConstantProjectionModule = ProjecturedBase.ConstantProjectionModule
-const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const DisplayModule = ProjecturedKernel.DisplayModule
-const DeviceApiModule = ProjecturedKernel.DeviceModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule

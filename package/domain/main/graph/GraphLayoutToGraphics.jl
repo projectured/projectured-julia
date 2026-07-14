@@ -34,7 +34,7 @@ import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..MouseModule: MousePress
+import ..EventModule: MousePress
 
 export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap

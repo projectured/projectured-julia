@@ -60,8 +60,8 @@ import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
-import ..EventCaseModule: var"@event_case"
+import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
+import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
@@ -75,8 +75,8 @@ import ..PrinterContextModule: make_child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
-import ..KeyboardModule: KeyDown
-import ..ModifiersModule: Modifiers
+import ..EventModule: KeyDown
+import ..EventModule: Modifiers
 import ..GestureBindingModule: read_document_gesture, read_node_gesture
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,

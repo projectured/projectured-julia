@@ -43,10 +43,11 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.OperationModule
-using ProjecturedKernel.KeyboardModule
-using ProjecturedKernel.ModifiersModule
-using ProjecturedKernel.MouseModule
-using ProjecturedKernel.GestureModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventPatternModule
+using ProjecturedKernel.GestureBindingModule
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 
 # ── shared static layering guard ────────────────────────────────────────────
@@ -64,10 +65,10 @@ include("reference/ReferenceBuilderTest.jl")
 include("reference/ReferenceEvalTest.jl")
 include("operation/RerootingTest.jl")
 include("operation/TraversalTest.jl")
-include("device/GestureModuleTest.jl")
-include("device/EventCaseTest.jl")
-include("device/GestureBindingTest.jl")
-include("device/GestureRecognizerTest.jl")
+include("event/EventModuleTest.jl")
+include("event/EventCaseTest.jl")
+include("gesture/GestureRecognizerTest.jl")
+include("binding/GestureBindingTest.jl")
 include("backend/HeadlessBackendTest.jl")
 include("agent/AgentSeamTest.jl")
 
@@ -93,8 +94,9 @@ function test_kernel_layering()
     main = normpath(dirname(pathof(ProjecturedKernel)))
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
-                   layers = ["cell", "document", "reference", "selection", "operation",
-                             "device", "backend", "projection", "agent", "editor"],
+                   layers = ["cell", "event", "device", "gesture", "backend",
+                             "document", "reference", "selection", "operation",
+                             "binding", "projection", "agent", "editor"],
                    check_private_imports = true,
                    # A layer's contract file, and its owning module. The projection
                    # layer declares two contracts, so it has two.
@@ -131,10 +133,10 @@ function test_kernel()
         test_reference_eval()
         test_rerooting()
         test_traversal()
-        test_gesture_module()
+        test_event_module()
         test_event_case()
-        test_gesture_binding()
         test_gesture_recognizer()
+        test_gesture_binding()
         test_headless_backend()
         test_agent_seam()
     end
@@ -147,7 +149,7 @@ export check_layering, test_layering_checkers
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_eval, test_rerooting,
-       test_traversal, test_gesture_module, test_event_case,
+       test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,

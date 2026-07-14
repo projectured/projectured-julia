@@ -20,7 +20,7 @@ import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 export TextLineNumbering, LineNumbering
 
 # ── TextLineNumbering ──────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 """
     ReferenceModule
 
-Layer 3 of the kernel — **paths into documents**. A reference is a linked list
+**Paths into documents**. A reference is a linked list
 of typed steps (`RangeReference`, `FieldReference`, `TypeReference`, …),
 forming a `ReferencePath` (an `EmptyReferencePath` or a
 `ConcreteReferencePath`) that addresses one location inside a document tree.

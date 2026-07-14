@@ -1,7 +1,7 @@
 """
     AgentModule
 
-Layer 9 of the kernel — the **agent control surface** (side-stack). An *agent
+The **agent control surface** (side-stack). An *agent
 server* is a channel that lets an external AI agent inspect and manipulate a
 running editor — conceptually another device/backend that reads operations
 from an agent and writes document state back. Independent of the editor loop

@@ -1,7 +1,7 @@
 """
     BackendModule
 
-Abstract backend interface — layer 7, independent sibling of the device
+Abstract backend interface — an independent sibling of the device
 layer. A `Backend` encapsulates everything needed to initialise, shut down,
 read input from, and write output to a particular display/input system.
 Concrete subtypes and the methods of the generic functions declared here

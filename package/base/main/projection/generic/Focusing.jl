@@ -12,7 +12,8 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: set_function!
-import ..GestureModule: GestureBinding, KeyDownPattern
+import ..GestureBindingModule: GestureBinding
+import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 
 export FocusingProjection, ReplaceFocusPartOperation

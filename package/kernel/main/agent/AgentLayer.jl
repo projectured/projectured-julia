@@ -1,4 +1,4 @@
-# ── Agent layer (layer 9 — the AI control surface, side-stack) ─────────────
+# ── Agent layer — the AI control surface (side-stack) ──────────────────────
 # The ordered include list of the agent layer; a fragment of ProjecturedKernel.
 # AgentModule declares the make_agent_server / start_agent_server! /
 # stop_agent_server! seam the editor loop reaches through. Llm, ToolRegistry,

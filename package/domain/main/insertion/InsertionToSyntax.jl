@@ -38,9 +38,9 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..SelectionApiModule: with_selection
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyPress, KeyDown
-import ..MouseModule: MousePress
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown
+import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainModule
 import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
@@ -64,7 +64,8 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, var"@gestures"
+import ..GestureBindingModule: GestureBinding, var"@gestures"
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,

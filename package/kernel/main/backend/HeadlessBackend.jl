@@ -20,7 +20,7 @@ event or returns `nothing` when the queue drains.
 This backend is deliberately document-agnostic — it uses only the abstract
 `Document` type (opaque payload) and the device I/O generics, no concrete
 document is imported. That is the seam pressure that keeps the backend layer
-document-free at layer 7.
+document-free.
 """
 module HeadlessBackendModule
 

@@ -1,17 +1,19 @@
 """
     DeviceModule
 
-The device *interface* — the first module of layer 6. Declares the batch I/O
-used to render a document to, and poll input from, a set of devices. These are
-pure interface stubs: a concrete backend adds the methods, dispatching on its
-own backend type (e.g. `write_to_devices(::SomeBackend, devices, doc)`). The
-interface itself names no backend type, so `Device` does not depend on
-`Backend` — the two abstractions are independent siblings, and only a
-concrete implementation binds them together.
+The device *interface* — the contract for rendering a document to, and polling
+input from, a set of devices, plus the concrete devices an editor is given
+(`Keyboard`, `Mouse`, `Screen`, one fragment file each).
+
+`read_from_devices` and `write_to_devices` are pure interface stubs: a concrete
+implementation adds the methods, dispatching on its own type. The interface names
+no such type, so a device does not depend on whatever drives it — the two
+abstractions are independent siblings, and only the implementation binds them
+together.
 """
 module DeviceModule
 
-export Device, write_to_devices, read_from_devices
+export Device, Keyboard, Mouse, Screen, write_to_devices, read_from_devices
 
 """
     Device
@@ -33,10 +35,14 @@ function write_to_devices end
 """
     read_from_devices(backend, devices) -> event or nothing
 
-Poll all input devices in one shot and return the next event, or `nothing`.
-A concrete backend adds a method dispatched on its own type (typically polling a
+Poll all input devices in one shot and return the next event, or `nothing`. A
+concrete backend adds a method dispatched on its own type (typically polling a
 shared event queue and classifying events across device types).
 """
 function read_from_devices end
+
+include("Keyboard.jl")
+include("Mouse.jl")
+include("Screen.jl")
 
 end # module

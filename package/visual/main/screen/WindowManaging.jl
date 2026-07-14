@@ -27,7 +27,7 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, WindowResize, WindowClose, WindowDefocus, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
-import ..GestureModule: EventEnvelope
+import ..EventModule: EventEnvelope
 import ..OperationModule: CompoundOperation
 
 export WindowManagingProjection, WindowManagingProjectionIoMap

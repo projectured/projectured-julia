@@ -1,15 +1,9 @@
-# ── Device layer (layer 6 — input devices, events, gestures) ───────────────
+# ── Device layer — the input/output devices and their batch I/O seam ───────
 # The ordered include list of the device layer; a fragment of ProjecturedKernel.
-# The DeviceModule interface, the modifier/keyboard/mouse event types, and
-# GestureModule (the @event_case macro + parser and the reified
-# GestureBinding/@gestures DSL). GestureModule owns EventEnvelope, so the
-# editor and gesture layers don't depend on a concrete document type.
-# ScreenDevice (Screen + WindowQuit, both defined here) and GestureRecognizer
-# (device event types + EventEnvelope only) close the layer.
+# DeviceModule declares the `Device` contract — `read_from_devices` /
+# `write_to_devices`, which a concrete backend implements — and the concrete
+# devices an editor is given (`Keyboard`, `Mouse`, `Screen`), one fragment each.
+#
+# A device is *where events come from*; it interprets none of them, so this layer
+# names no document, no operation, and no backend type.
 include("Device.jl")
-include("Modifiers.jl")
-include("Keyboard.jl")
-include("Mouse.jl")
-include("GestureModule.jl")
-include("ScreenDevice.jl")
-include("GestureRecognizer.jl")

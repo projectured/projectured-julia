@@ -13,7 +13,8 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..GestureBindingModule: KeyDownPattern, matches, GestureBinding, get_instance_gesture_bindings
+import ..EventPatternModule: KeyDownPattern, matches
+import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,

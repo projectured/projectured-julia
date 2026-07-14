@@ -53,8 +53,9 @@ using ..OperationModule
 # type, neither of which the kernel can name. Base imports `RuleIoMap` +
 # `AtomicWiring` from this module to preserve the same dispatch behaviour.
 using ..DocumentModule
-using ..GestureModule
-using ..KeyboardModule
+using ..EventModule
+using ..EventPatternModule
+using ..GestureBindingModule
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 

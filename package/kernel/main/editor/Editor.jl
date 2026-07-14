@@ -14,14 +14,11 @@ using ..IntentModule
 using ..IoMapApiModule
 using ..DeviceModule
 using ..BackendModule
-using ..ScreenDeviceModule
-using ..GestureModule
+using ..EventModule
 using ..PerformanceCounterModule
 using ..ClockModule
 using ..PrinterContextModule
 using ..DocumentModule
-using ..KeyboardModule
-using ..MouseModule
 using ..OperationModule
 # `import`, not `using`: this module adds the Editor method to the invalidation seam.
 import ..OperationModule: invalidate_projection!

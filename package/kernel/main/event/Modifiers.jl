@@ -1,20 +1,14 @@
-"""
-    ModifiersModule
-
-Shared modifier-key state used by both keyboard and mouse events.
-"""
-module ModifiersModule
-
-export Modifiers
+# Fragment of `EventModule` — the modifier-key state shared by keyboard and
+# mouse events.
 
 """
     Modifiers(ctrl, shift, alt, meta)
 
 Immutable struct carrying the state of the four common modifier keys.
-- `ctrl`  — either Ctrl key (KMOD_LCTRL | KMOD_RCTRL)
-- `shift` — either Shift key (KMOD_LSHIFT | KMOD_RSHIFT)
-- `alt`   — either Alt/Option key (KMOD_LALT | KMOD_RALT)
-- `meta`  — Super/Windows/Command key (KMOD_LGUI | KMOD_RGUI)
+- `ctrl`  — either Ctrl key
+- `shift` — either Shift key
+- `alt`   — either Alt/Option key
+- `meta`  — Super/Windows/Command key
 
 Convenience constructors:
 - `Modifiers()` — all false (no modifier held)
@@ -30,5 +24,3 @@ end
 # Keyword constructor — any subset of fields, all defaulting to false.
 Modifiers(; ctrl::Bool=false, shift::Bool=false, alt::Bool=false, meta::Bool=false) =
     Modifiers(ctrl, shift, alt, meta)
-
-end # module

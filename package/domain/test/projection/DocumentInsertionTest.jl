@@ -107,7 +107,7 @@ function test_document_insertion()
                            (JsonNothing, JsonInsertion),
                            (XmlNothing, XmlInsertion),
                            (JuliaNothing, JuliaInsertion))
-                op = GestureModule.read_document_gesture(N(), KeyDown(:insert, Modifiers()))
+                op = GestureBindingModule.read_document_gesture(N(), KeyDown(:insert, Modifiers()))
                 @test op isa CompoundOperation
                 written = _written_doc(op)
                 @test written isa I

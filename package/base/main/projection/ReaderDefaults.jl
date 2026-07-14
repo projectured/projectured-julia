@@ -16,7 +16,7 @@ import ProjecturedKernel.ProjectionApiModule: read_intent, map_reference_backwar
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
-import ProjecturedKernel.KeyboardModule: KeyDown, KeyPress
+import ProjecturedKernel.EventModule: KeyDown, KeyPress
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 

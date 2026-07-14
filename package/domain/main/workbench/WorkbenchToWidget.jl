@@ -50,8 +50,8 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..KeyboardModule: KeyDown, KeyPress
-import ..GestureApiModule: read_gesture
+import ..EventModule: KeyDown, KeyPress
+import ..GestureBindingModule: read_gesture
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..CollectionModule: CellVector
 import ..ReferenceBuilderModule: var"@reference", var"@step"

@@ -22,8 +22,8 @@ reachable from a production build.
 module ProjecturedKernelExample
 
 using ProjecturedKernel.CellModule
-using ProjecturedKernel.KeyboardModule
-using ProjecturedKernel.ModifiersModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule: write_image, record_video
 import ProjecturedKernel.LlmModule: Llm, stream_turn
 

@@ -55,8 +55,9 @@ import ..DomainModule: resolve_insertion, make_insertion_document
 import ..DocumentInsertionToSyntaxModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
-import ..KeyboardModule: KeyDown, KeyPress
-import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, matches
+import ..EventModule: KeyDown, KeyPress
+import ..GestureBindingModule: GestureBinding
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern, matches
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 

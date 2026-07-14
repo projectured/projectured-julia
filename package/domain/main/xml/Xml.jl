@@ -17,7 +17,8 @@ using ..ReferenceModule
 using ..ProjectionReferenceModule
 using ..OperationModule
 using ..SelectionModule
-using ..GestureModule
+using ..EventPatternModule
+using ..GestureBindingModule
 using ..DomainModule
 
 @domain Xml

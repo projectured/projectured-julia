@@ -24,7 +24,7 @@ using SimpleDirectMediaLayer.LibSDL2
 import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, write_image,
                         render_canvas, decode_image, get_pointer_position
 import ProjecturedDomain.DisplayModule: get_display_size, set_display_size_provider!
-import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
+import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
@@ -36,11 +36,12 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
-import ProjecturedDomain.ScreenDeviceModule: Screen, WindowQuit
+import ProjecturedDomain.DeviceModule: Screen
+import ProjecturedDomain.EventModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.ModifiersModule: Modifiers
-import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedDomain.EventModule: Modifiers
+import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedDomain.ImageModule: ImageFile
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation

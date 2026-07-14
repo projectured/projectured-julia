@@ -36,13 +36,13 @@ itself does not resolve the selection or emit a reverse-video attribute).
 module ConsoleBackendModule
 
 import ..BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ..DeviceApiModule: Device, read_from_devices, write_to_devices
+import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
 import ..ColorModule: StyleColor, color_default, color_equal
 import ..FontModule: StyleFont
-import ..ModifiersModule: Modifiers
-import ..KeyboardModule: KeyDown, KeyPress
-import ..ScreenDeviceModule: WindowQuit
+import ..EventModule: Modifiers
+import ..EventModule: KeyDown, KeyPress
+import ..EventModule: WindowQuit
 import ..ScreenDocumentModule: EventEnvelope
 
 export ConsoleBackend, console_render

@@ -60,11 +60,11 @@ import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
 import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 import ..ToolRegistryModule: list_tools, list_resources, call_tool, read_resource,
                               get_anthropic_tool_schema, Tool
-import ..KeyboardModule: KeyPress
-import ..EventCaseModule: var"@event_case"
+import ..EventModule: KeyPress
+import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..LlmModule: Llm, stream_turn
 import ..McpModule: execute_julia_code, get_last_evaluated_value, register_default_tools_and_resources!

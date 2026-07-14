@@ -44,8 +44,8 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationRerootingModule: reroot_operation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyPress, KeyDown
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
        YamlToSyntax

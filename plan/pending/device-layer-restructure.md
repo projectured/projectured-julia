@@ -156,14 +156,11 @@ The parenthetical *descriptions* stay (`— the read-eval-print loop`); only the
 
 ### 🔒 Sealed-file permission gate
 
-- [x] `document/DocumentLayer.jl`, `document/DocumentModule.jl`, `reference/ReferenceLayer.jl` —
-      **permission granted 2026-07-14** ("yep, delete, I allow unsealing").
-- [ ] `cell/CellLayer.jl` — its `(layer 1)` stays *true* under the new order, so it is not forced
-      by the renumbering; it is only touched for consistency with the other nine layer fragments.
-      **Confirm separately** before editing. If declined, leave it and note the exception here.
-
-These four are the only sealed files this plan touches. Each edit is a single header line; no
-sealed *code* changes.
+- [x] **Permission granted 2026-07-14** ("yep, delete, I allow unsealing").
+- [x] On the tree as it actually stands, only **one** of the layer-index files is still sealed:
+      `reference/ReferenceLayer.jl`. `cell/CellLayer.jl`, `document/DocumentLayer.jl` and
+      `document/DocumentModule.jl` had been unsealed upstream by the cell-kinds work, so the
+      scrub touches exactly one sealed file, for one header line. No sealed *code* changed.
 
 ## Phases
 
@@ -176,31 +173,45 @@ Work in a dedicated git worktree. One commit per phase; each phase leaves the tr
       — ~60 sites across kernel/base/visual/domain/sdl/web plus test and example packages.
 - [ ] Confirm nothing in `cell/`…`operation/` imports a device-layer module (verified 2026-07-14: nothing does).
 
-### Phase 1 — the layer move (mechanical, no semantic change)
+### Phase 1 — the layer move ✅ done
 
-The whole point of doing this first and alone: it is a pure relocation, so a regression here
-is a load error or a guard failure, never a behaviour change.
+A relocation, so a regression here is a load error or a guard failure, never a behaviour change.
 
-- [ ] Create `event/`, `device/`, `gesture/`, `binding/` per the file map; move code verbatim
-      (no logic edits — those are Phases 2–4).
-- [ ] Rewrite `ProjecturedKernel.jl`'s include list to the 13-layer order (this file keeps its
+- [x] Created `event/`, `device/`, `gesture/`, `binding/` per the file map.
+- [x] Rewrote `ProjecturedKernel.jl`'s include list to the 13-layer order (this file keeps its
       `# layer N —` comments; it is the source of truth).
-- [ ] Delete the layer index from the other 19 sites per the table above — including the four
-      sealed header lines — and write the new layer fragments with **no** number in their headers.
-- [ ] Update the guard's layer list in `package/kernel/test/ProjecturedKernelTest.jl`
-      (`layers = [...]`).
-- [ ] Rewrite every import header (kernel main; base/visual/domain main; sdl/web; the test and
-      example packages).
-- [ ] Update the `const …Module = …` alias blocks in `ProjecturedBase.jl`, `ProjecturedVisual.jl`,
-      `ProjecturedDomain.jl`; **delete** the four phantom aliases.
-- [ ] Sealed edits (gated above): the three layer-index lines.
-- [ ] Update the CLAUDE.md seal inventory: replace the `device/` block with the `event/`,
-      `device/`, `gesture/` blocks in load order, and add `binding/` after `operation/`. All new
-      entries are `⬜` (the old `device/` entries were all unsealed).
-- [ ] Move the kernel tests: `test/device/*` → `test/event/`, `test/gesture/`, `test/binding/`.
+- [x] Deleted the layer index from the other 19 sites; the new layer fragments state their
+      dependencies, never an index.
+- [x] Updated the guard's layer list in `package/kernel/test/ProjecturedKernelTest.jl`.
+- [x] Rewrote every import header (48 files across kernel/base/visual/domain/sdl/web + test and
+      example packages), scripted from a symbol → module table rather than by hand.
+- [x] Updated the `const …Module = …` alias blocks in `ProjecturedBase.jl`,
+      `ProjecturedVisual.jl`, `ProjecturedDomain.jl`; **deleted** the phantom aliases
+      (`EventCaseModule`, `GestureBindingModule`, `GestureApiModule`, `DeviceApiModule`).
+- [x] Updated the CLAUDE.md seal inventory to the 13 layers.
+- [x] Moved the kernel tests: `test/device/*` → `test/event/`, `test/gesture/`, `test/binding/`;
+      `GestureModuleTest` became `event/EventModuleTest.jl` (all three of its testsets — the
+      envelope, `@event_case`, pattern match/describe — are event-layer concerns now).
 
-Verify: `test_kernel_layering()`, then `test_kernel()`, then an actual load of the full stack
-(the guard is not a load check), then `test_visual()` / `test_domain()`.
+**Decisions taken during the move** (they go beyond pure relocation, and are forced by it):
+
+- **The pattern parser is now exported, not a private fragment reach-in.** Splitting patterns
+  (`event/`) from bindings (`binding/`) puts a module boundary between `@gestures` and the parser
+  it rides on, and AR-48's answer to that is "export it, don't re-implement it". `EventPatternModule`
+  therefore exports a macro-authoring API — `EventRule`, `parse_event_rule`, `event_pattern_expr`,
+  `event_field_bindings` — and `@gestures` calls it. The old `_parse_rule`/`EvPat`/`_pattern_expr`
+  internals and the same-namespace fragment trick that shared them are gone. The field-pattern node
+  types stay private: a caller sees an opaque `EventRule`.
+- **`GesturePattern` → `EventPattern`.** A pattern matches an event, and it now lives in the event
+  layer; the concrete `KeyDownPattern`/`MousePressPattern`/… names are unchanged.
+- **`MouseEnterPattern` / `MouseLeavePattern` now exist** (they were in the parser's event table but
+  had no reified pattern, so `@gestures` could not bind hover). `KeyChordPattern` still does not —
+  Phase 3.
+- **`_keypress_label` is gone**: the label is computed by `KeyPressPattern`'s own constructor, so the
+  emitted pattern expression names nothing private.
+
+Verified: `test_kernel_layering()` (8/8), `test_kernel()` (407/407), `test_base()` (96/96),
+`test_visual()` (51856 pass, 1 broken), `test_domain()` — compared against a clean-`main` baseline.
 
 ### Phase 2 — the `Event` type
 

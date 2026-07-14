@@ -20,7 +20,8 @@ import ..CellModule: Cell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..GestureBindingModule: GestureBinding, describe
+import ..GestureBindingModule: GestureBinding
+import ..EventPatternModule: describe
 
 export GestureRow, gesture_map
 

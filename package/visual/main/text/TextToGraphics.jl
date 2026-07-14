@@ -33,10 +33,10 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyDown, KeyPress
-import ..MouseModule: MousePress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyDown, KeyPress
+import ..EventModule: MousePress
+import ..EventPatternModule: var"@event_case"
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 

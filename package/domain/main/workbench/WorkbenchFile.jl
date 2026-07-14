@@ -19,7 +19,7 @@ module WorkbenchFileModule
 import ..OperationApiModule: Operation, evaluate_operation
 import ..WorkbenchModule: WorkbenchEditor
 import ..DocumentFileModule: write_document_file, read_document_file
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 
 export SaveWorkbenchEditorOperation, ReloadWorkbenchEditorOperation

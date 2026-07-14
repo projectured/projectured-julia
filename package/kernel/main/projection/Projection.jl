@@ -32,9 +32,8 @@ using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule
 using ..PrinterContextModule
-using ..KeyboardModule
-using ..MouseModule
-using ..GestureModule
+using ..EventModule
+using ..GestureBindingModule
 
 export @projection, pure_print
 

@@ -28,13 +28,15 @@ alias first, then an unambiguous prefix).
 module DomainModule
 
 import InteractiveUtils: subtypes
-import ..GestureModule
+import ..EventPatternModule
+import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document"
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           EmptyReferencePath
 import ..SelectionModule: with_selection
 import ..OperationModule: replace_document
-import ..GestureModule: GestureBinding, KeyDownPattern, get_document_gesture_bindings_own
+import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
+import ..EventPatternModule: KeyDownPattern
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 
 export var"@domain", var"@insertion",
@@ -462,7 +464,7 @@ macro domain(name, opts...)
         # The Insert-key gesture on the placeholder. Same registry seam as
         # `@gestures` (a method, not a mutable table, so it survives
         # precompilation), emitted directly to avoid nesting that macro.
-        :($GestureModule.get_document_gesture_bindings_own(::Type{$noth}) =
+        :($GestureBindingModule.get_document_gesture_bindings_own(::Type{$noth}) =
               $(GestureBinding)[$(_insert_gesture_binding)($ins, $tag)]),
     ))
     out

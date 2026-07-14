@@ -31,9 +31,9 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ReferencePath
 import ..OperationModule: Operation, evaluate_operation
 
-# `EventEnvelope` lives in GestureModule and is re-exported from here to
-# keep existing importers resolving.
-import ..GestureModule: EventEnvelope
+# `EventEnvelope` is the kernel's event vocabulary; re-exported here so a window
+# consumer gets the envelope and the window events from one module.
+import ..EventModule: EventEnvelope
 export EventEnvelope, WindowClose, WindowResize, WindowDefocus, OpenWindowOperation,
        OpenPopupOperation, CloseWindowOperation, ResizeWindowOperation
 
@@ -103,9 +103,6 @@ projected.
     modal::Bool = false
     content::Document
 end
-
-# `EventEnvelope` lives in GestureModule; still exported from this module
-# via the import at the top.
 
 # ── WindowClose ────────────────────────────────────────────────────
 

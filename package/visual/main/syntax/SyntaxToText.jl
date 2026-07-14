@@ -30,10 +30,10 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
-import ..MouseModule: MousePress
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyDown
+import ..EventPatternModule: var"@event_case"
+import ..EventModule: MousePress
 export SyntaxLeafToText, SyntaxNodeToText, SyntaxListToText, SyntaxToText,
        SyntaxNodeToTextIoMap, _syntax_to_flat
 

@@ -1,2 +1,2 @@
-# ── Reference layer (layer 3) — a fragment of ProjecturedKernel ────────────
+# ── Reference layer — a fragment of ProjecturedKernel ──────────────────────
 include("ReferenceModule.jl")

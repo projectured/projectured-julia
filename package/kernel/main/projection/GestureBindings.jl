@@ -4,17 +4,18 @@
 The three projection-typed gesture-seam methods —
 `get_projection_gesture_bindings`, `read_projection_gesture`, and the
 default `collect_gesture_bindings(p::Projection, …)`. They dispatch on
-`::Projection`, so they live here in the projection layer beside their type;
-keeping them in the device layer's `GestureModule` would force it to import
-`Projection` from `..ProjectionApiModule`, an upward edge. The reified
-GestureBinding container and the document-typed methods stay in
-`GestureModule`.
+`::Projection`, so they live here beside that type: the binding layer owns the
+reified `GestureBinding` container and the document-typed methods, and cannot
+name `Projection` without an upward edge. A projection contributes its own
+gestures by adding methods here — the seam pattern, with the framework below and
+the per-projection methods above.
 """
 module ProjectionGestureBindingsModule
 
 using ..ProjectionApiModule
 using ..DocumentModule
-using ..GestureModule
+using ..EventPatternModule
+using ..GestureBindingModule
 
 export get_projection_gesture_bindings, read_projection_gesture,
        collect_gesture_bindings

@@ -29,7 +29,7 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default

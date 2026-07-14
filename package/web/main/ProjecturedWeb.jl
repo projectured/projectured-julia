@@ -16,7 +16,7 @@ using JSON3
 using Base64: base64encode
 
 import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
+import ProjecturedDomain.DeviceModule: Device, read_from_devices, write_to_devices
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
@@ -26,12 +26,12 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.CellModule: Cell, is_up_to_date
-import ProjecturedDomain.ScreenDeviceModule: WindowQuit
+import ProjecturedDomain.EventModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
                                WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.ModifiersModule: Modifiers
-import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MouseMove, MouseScroll
+import ProjecturedDomain.EventModule: Modifiers
+import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the SDL-free TrueType measurer, so the web backend needs no SDL/SDL_ttf at all.
 # `truetype_measure_text` is the shared font-metrics utility (TrueTypeModule),

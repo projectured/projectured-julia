@@ -31,14 +31,14 @@ import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
-import ..EventCaseModule: var"@event_case"
+import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
+import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
 import ..PointReferenceModule: PointReference
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this
 # module, so layout containers can share Tab traversal with the widget readers.
 import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
