@@ -310,7 +310,7 @@ So the tracker constructs **no** widget-specific operation — it only delivers
 `WidgetButton` reader is what maps `MouseEnter` → `hovered = true` and
 `MouseLeave` → clear `hovered`/`pressed`. A different widget can react to the
 same crossings differently. `MouseEnter` / `MouseLeave` are first-class
-(synthesised, not backend) pointer gestures in `MouseModule`; the tracker
+(synthesised, not backend) pointer gestures in `EventModule`; the tracker
 mirrors `HoverProbeProjection` in shape.
 
 To make this work, the container readers route `MouseEnter` / `MouseLeave` /

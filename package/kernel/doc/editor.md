@@ -236,7 +236,7 @@ See [the operations guide](operation.md) for examples.
 The material above is *how* to run and script an editor. The rest of this guide
 is the layer's **structure** — where the code lives and what it depends on.
 
-Layer 10 of the kernel is the **read-eval-print loop** described under
+Layer 13 of the kernel is the **read-eval-print loop** described under
 [The Read-Eval-Print loop](#the-read-eval-print-loop) above: it pulls together
 every lower layer into the frame-by-frame drive — read from the device, evaluate
 the gesture into an operation, apply the operation to the document, print the
@@ -250,9 +250,9 @@ Playback.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeli
 ```
 
 The gesture recognizer that synthesises `MousePress` from MouseDown/MouseUp
-pairs and `KeyChord` from KeyDown sequences lives in `device/` (its
-dependencies are device event types + `EventEnvelope`, no editor
-coupling). The global animation clock `TimeModule` lives in `cell/`
+pairs and `KeyChord` from KeyDown sequences lives in `gesture/` (its only
+dependency is `EventModule`, no editor coupling). The global animation clock
+`TimeModule` lives in `cell/`
 (every animated projection reads it, so it belongs beside the engine it
 depends on). What's left in `editor/` is the loop and its scripted
 playback. Alongside the four visible sub-steps, `read!` also folds
@@ -265,14 +265,13 @@ that subscribed to `get_reactive_editor_time()`.
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
   `Intent`, `IoMap`.
-- `..DeviceModule` — `Device`, `read_from_devices`, `write_to_devices`.
+- `..DeviceModule` — `Device`, `Screen`, `read_from_devices`, `write_to_devices`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`.
-- `..ScreenDeviceModule` — `Screen`, `WindowQuit`.
-- `..GestureModule` — `EventEnvelope`.
+- `..EventModule` — `EventEnvelope`, `WindowQuit`, and the event type
+  predicates (`KeyDown`, `MousePress`, …).
 - `..PerformanceCounterModule` — the counters bumped inline in the loop.
 - `..TimeModule` — `tick_editor_time!`.
 - `..DocumentModule` — the abstract `Document` type.
-- `..KeyboardModule`, `..MouseModule` — event type predicates.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
 - `..AgentModule` — the make_agent_server/start/stop seam driven by

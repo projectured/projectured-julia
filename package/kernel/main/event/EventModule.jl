@@ -23,7 +23,7 @@ consumer matching one need not care which side of that line it came from.
 """
 module EventModule
 
-export Event, DeviceEvent, SyntheticEvent,
+export Event, DeviceEvent, SyntheticEvent, EVENT_TYPES,
        Modifiers, get_modifiers, is_ctrl, is_shift, is_alt, is_meta,
        KeyDown, KeyUp, KeyPress, KeyChord,
        MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave, MouseScroll,
@@ -85,5 +85,27 @@ is_ctrl(event::Event)  = get_modifiers(event).ctrl
 is_shift(event::Event) = get_modifiers(event).shift
 is_alt(event::Event)   = get_modifiers(event).alt
 is_meta(event::Event)  = get_modifiers(event).meta
+
+"""
+    EVENT_TYPES
+
+Every concrete event type this module defines, read off its own exports. Whatever
+consumes the vocabulary as a whole — a pattern language, a serializer, a
+documentation table — derives from this rather than keeping a second list that can
+drift from the structs.
+"""
+function _concrete_event_types()
+    types = Type[]
+    for name in names(@__MODULE__)
+        # `names` lists every exported name, EVENT_TYPES itself included — and it is
+        # not bound yet while its own initializer runs.
+        isdefined(@__MODULE__, name) || continue
+        value = getproperty(@__MODULE__, name)
+        value isa Type && value <: Event && isconcretetype(value) && push!(types, value)
+    end
+    Tuple(types)
+end
+
+const EVENT_TYPES = _concrete_event_types()
 
 end # module

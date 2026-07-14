@@ -38,22 +38,16 @@ Fire the first reified `get_projection_gesture_bindings(projection, iomap)`
 binding whose pattern `matches` the event and whose `applicable`
 precondition holds; a binding whose `operation` returns `nothing` is
 skipped so a later one may still fire. The projection-layer analogue of
-`read_document_gesture`: a projection whose reader delegates here (e.g.
+`read_bound_gesture`: a projection whose reader delegates here (e.g.
 Clipboard) *fires* the very table `collect_gesture_bindings` *shows*.
 """
 function read_projection_gesture(projection, iomap, event)
     bindings = get_projection_gesture_bindings(projection, iomap)
     isempty(bindings) && return nothing
     input = hasproperty(iomap, :input) ? iomap.input : nothing
-    sel = (input !== nothing && hasfield(typeof(input), :selection)) ?
-          getfield(input, :selection)[] : nothing
-    for b in bindings
-        if matches(b.pattern, event) && b.applicable(input, sel)
-            op = b.operation(input, event)
-            op === nothing || return op
-        end
-    end
-    return nothing
+    selection = (input !== nothing && hasfield(typeof(input), :selection)) ?
+                getfield(input, :selection)[] : nothing
+    return fire_gesture_bindings(bindings, input, selection, event)
 end
 
 """

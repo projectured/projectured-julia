@@ -11,8 +11,8 @@ types and modules, `!` for mutation, and avoiding abbreviations.
 
 ## Files and modules
 
-- **Module = filename + `Module`.** `Keyboard.jl` defines `KeyboardModule`,
-  `DocumentApi.jl` defines `DocumentApiModule`. Grep-by-guess must work in
+- **Module = filename + `Module`.** `Device.jl` defines `DeviceModule`,
+  `ProjectionApi.jl` defines `ProjectionApiModule`. Grep-by-guess must work in
   both directions — with no per-folder exceptions.
 - **`Api` is a layer marker carried in the filename.** Every file in `api/`
   ends in `Api` (`DocumentApi.jl`, `BackendApi.jl`), so the rule above yields

@@ -70,8 +70,9 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      10 layers: cell → document → reference → selection →
-        │                      operation → device → backend → projection → agent → editor
+        ▲                      13 layers: cell → event → device → gesture → backend →
+        │                      document → reference → selection → operation → binding →
+        │                      projection → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         ▲                      3 layers: document (Collection, DocumentCore, Primitive,
@@ -290,9 +291,10 @@ composes with any higher-order projection.
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
-| `device/ScreenDevice.jl` | `Screen` device; `WindowQuit` |
-| `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
-| `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
+| `device/Screen.jl` | `Screen` device |
+| `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
+| `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
+| `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
 | `agent/Mcp.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
@@ -314,24 +316,31 @@ ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄─�
    (opt-in)                                                        (opt-in)
 ```
 
-**Inside ProjecturedKernel — 10 layers**, in include order; each imports only layers
+**Inside ProjecturedKernel — 13 layers**, in include order; each imports only layers
 above it in this list:
 
 ```
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
- 2 document    the Document supertype, @document, the is_element_collection /
+ 2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers,
+               KeyDown/KeyPress/Mouse*/Window*, EventEnvelope), the event pattern
+               language (EventPattern, matches, describe, @event_case)
+ 3 device      Device abstract + Keyboard / Mouse / Screen, the read_from_devices /
+               write_to_devices seam
+ 4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 5 backend     the Backend / Display seam and HeadlessBackend
+ 6 document    the Document supertype, @document, the is_element_collection /
                is_opaque traits, search_documents, Clock
- 3 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
+ 7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case DSLs
- 4 selection   get_selection / set_selection! / clear_selection! / with_selection
- 5 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
- 6 device      Keyboard / Mouse / Screen events, modifiers, gestures, @gestures
- 7 backend     the Backend / Display seam and HeadlessBackend
- 8 projection  the four interface functions, Intent, the IO maps, @projection,
+ 8 selection   get_selection / set_selection! / clear_selection! / with_selection
+ 9 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+10 binding     GestureBinding, the per-document-type registry, @gestures /
+               @gesture_set, read_gesture / read_bound_gesture
+11 projection  the four interface functions, Intent, the IO maps, @projection,
                ProjectionTemplate, ProjectionReference
- 9 agent       the agent control surface: ToolRegistry and the Llm / Mcp seams
-10 editor      run_editor!, the read-eval-print loop, Playback
+12 agent       the agent control surface: ToolRegistry and the Llm / Mcp seams
+13 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
 **Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble
@@ -422,7 +431,7 @@ slice→slice edges stay acyclic.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
-| References | `reference/` (layer 3) | ✅ |
+| References | `reference/` (layer 7) | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

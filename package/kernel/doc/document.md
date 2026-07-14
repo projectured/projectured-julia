@@ -1,6 +1,6 @@
 # The document layer
 
-Layer 2 of the kernel — the **document contract** every concrete document
+Layer 6 of the kernel — the **document contract** every concrete document
 subtypes and every projection consumes. This page is the layer's structural
 overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
@@ -78,9 +78,10 @@ needs a `let d = …; with_selection(d, @reference(d, …)) end`.
 `read_gesture(document, gesture) -> Union{Operation, Nothing}` is the
 projection-independent half of a domain's reader: it maps a backend-agnostic
 gesture to an operation expressed against `document`'s own reference
-vocabulary. The catch-all implementation on `::Document` lives in the device
-layer's `GestureModule` — it walks the reified `@gestures` table, so a domain
-authored with `@gestures` needs no hand-written `read_gesture`.
+vocabulary. The catch-all implementation on `::Document` lives in the binding
+layer's `GestureBindingModule`, via `read_bound_gesture` — it walks the
+reified `@gestures` table, so a domain authored with `@gestures` needs no
+hand-written `read_gesture`.
 
 ## The shared machinery
 

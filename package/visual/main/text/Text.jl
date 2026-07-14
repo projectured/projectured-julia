@@ -281,7 +281,7 @@ end
 #
 # The projection-independent half of the Text domain's reader, now a reified
 # `@gestures` table on `TextText` (was a `read_gesture(::TextText)` method); the
-# generic `read_document_gesture` interpreter fires it, so the table that fires is
+# generic `read_bound_gesture` interpreter fires it, so the table that fires is
 # the one gesture-help enumerates. It reads only the span structure
 # (`text.elements`) and the flat-character `text.selection` — never pixel geometry.
 # The geometry-DEPENDENT gestures (visual up/down, plain Home/End, mouse clicks)

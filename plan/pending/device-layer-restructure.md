@@ -245,21 +245,56 @@ Verified: `test_kernel_layering()` 8/8, `test_kernel()` 407/407, `test_base()` 9
 backends (`ProjecturedSdl`, `ProjecturedWeb`) load — they construct events, so a load is the check
 that matters for them.
 
-### Phase 3 — the pattern language
+### Phase 3 — the pattern language ✅ done
 
-- [ ] Derive the event-field table from the types (`fieldnames` minus `:modifiers`) instead of
-      hand-maintaining `_EVENT_TYPES`, so pattern support cannot drift from the event structs again.
-- [ ] Collapse the eight near-identical `GesturePattern` structs (plus the `@eval` loop generating
-      three of them) into one generic `EventPattern{E<:Event}` holding a field-constraint
-      `NamedTuple` — one `matches`, one `describe`. Keep `KeyDownPattern(...)`, `KeyPressPattern(...)`,
-      … as convenience constructors returning `EventPattern{KeyDown}` etc., so the ~10 hand-written
-      construction sites in base/visual/domain are unaffected.
-- [ ] This closes the gap: `MouseEnter`/`MouseLeave`/`KeyChord` patterns now exist.
-- [ ] The pattern language lives in `event/EventPattern.jl`, so `binding/` imports it as an
-      exported name — the private-parser fragment hack disappears (AR-48).
+- [x] The event-field table is derived, not declared. `EventModule` computes `EVENT_TYPES` by
+      reading its **own exports** (every exported concrete `Event` subtype), and the pattern
+      language derives each type's positional fields from `fieldnames` minus `:modifiers`. An event
+      is matchable the moment the event layer exports it, with the fields it actually has — the two
+      cannot drift.
+      *(Not `InteractiveUtils.subtypes`: the kernel has zero dependencies and that would add one,
+      for a fact the module already knows about itself.)*
+- [x] The ten near-identical pattern structs (and the two `@eval` loops generating six of them)
+      collapse into one generic `EventPattern{E<:Event}` — a field-constraint `NamedTuple`, the
+      modifier constraint, an optional guard, and an optional `label`. One `matches`, one
+      `describe`. `KeyDownPattern(...)`, `KeyPressPattern(...)`, `MousePressPattern(...)` survive as
+      constructors with unchanged signatures, so the ~49 construction sites in base/visual/domain
+      are untouched.
+- [x] **All 15 event types are now matchable**, `KeyChord` and the window events included — they
+      had no reified pattern before. `describe` falls back to the type name for an event with no
+      phrasing of its own, so a new event type is never *unnameable*.
+- [x] The pattern's optional `label` is kept: a guard has no rendering of its own, and a
+      digits-only `KeyPress` reads better as `"0-9"` than as `"character"`.
 
-Verify: `test_kernel()`, `test_domain()` (the `@gestures` domains), `test_gesture_map` /
-GestureMapTest.
+Verified: `test_kernel()` 407/407, `test_visual()` unchanged, `test_domain()` identical to baseline.
+
+### Phase 4 — binding-layer cleanup ✅ done
+
+- [x] One exported `fire_gesture_bindings(bindings, target, selection, event)`. The loop had been
+      written three times — `_fire_gestures`, and again inline inside `read_projection_gesture`,
+      which could not reach the private helper across the module boundary. Exporting it is AR-48's
+      answer, and now the document side and the projection side provably fire the same way.
+- [x] `read_document_gesture` + `read_node_gesture` fold into `read_bound_gesture(target, event
+      [, selection])`. They differed only in where the selection came from, which is now an
+      optional argument. (The selection is still read *after* the empty-table check, so asking "any
+      bindings?" does not register a reactive dependency on a cell it will not use.)
+- [x] `_GESTURE_CACHE` deleted (AR-6/AR-45: a process-global `IdDict`, and not thread-safe). The
+      supertype walk is a handful of `append!`s per event.
+- [x] `is_help_gesture` left the kernel. "F1 means help" is an *intent*, and the input stack must
+      not hold one; it is now `HELP_GESTURE = KeyDownPattern(:f1)` plus a one-line predicate owned
+      by `GestureHelpDecorator`, the projection whose summons it is.
+
+### Phase 5 — documentation ✅ done
+
+- [x] Eleven guides updated (`kernel/doc/devices-and-backends.md` most heavily — its device/event
+      tables and internals are now four sections), plus `documentation/architecture.md`,
+      `concepts.md`, `terminology.md`, and the stale layer indices in `reference.md`,
+      `operation.md`, `agent.md`.
+- [x] The AR-70/AR-71 scrub happened *during* Phases 1–2 rather than after: every moved file was
+      rewritten, so the SDL constants in `Modifiers.jl`/`Keyboard.jl`, the
+      `WidgetHoverTrackingProjection` reference in `Mouse.jl`, the `ScreenDocument` path in
+      `ScreenDevice.jl`, the "Stage 1 / Stage 2 / ported in `document/Json.jl`" narration in
+      `GestureBinding.jl`, and `pop_gesture!`'s "the backend's *old* behaviour" all went with them.
 
 ### Phase 4 — binding-layer cleanup (the AR defects)
 
@@ -294,7 +329,34 @@ Verify: `test_kernel()`, `test_domain()`, `test_repl` on a `@gestures` domain (j
       `package/kernel/doc/devices-and-backends.md` (the device/event tables), and the layer diagram
       in `ProjecturedKernel.jl`'s docstring (AR-60).
 
-### Phase 6 — decision gate: does `@event_case` survive? (optional; may become its own plan)
+### Phase 6 — decision gate: does `@event_case` survive? ✅ audited — **it survives**
+
+**Decision: keep `@event_case`. The proposed collapse is wrong, and the audit is what says so.**
+
+The idea was that `@event_case` and `@gestures` parse the same grammar and differ only in
+compiling vs reifying, so the compiled one is redundant. The 8 use sites say otherwise. `@gestures`
+binds a gesture to an **`Operation`** — that is the shape of a `GestureBinding`. `@event_case` is a
+first-match dispatch whose result is *whatever the arm needs to return*, and in practice that is
+often not an operation at all:
+
+- `LayoutToGraphics` routes by event kind to a child (`MousePress => _route_click(entries, event)`)
+  — the arm's job is to *pick a recipient*, not to build an edit.
+- `TextToGraphics` has arms returning a `:decline` sentinel, which is how a reader says "not mine,
+  keep looking" — an `Operation`-shaped hole cannot express it.
+- `ProjecturedSdl` uses it to *translate* a platform event, which is not binding at all.
+
+Forcing these through `GestureBinding` would mean inventing an operation to mean "declined" or "I
+routed it", which is worse than the duplication it removes. The two macros are not the same tool:
+one dispatches on an event, the other binds an event to an edit.
+
+**What the audit does support**, as a separate piece of work: the `@event_case` arms that *do*
+return an `Operation` (the geometry arms in `WidgetToGraphics`, 18 blocks) could move to
+`get_projection_gesture_bindings`, which would make them inspectable — today the gesture-help
+projection cannot see a single mouse gesture, because they are all compiled into `@event_case`
+bodies. That is a per-site judgment across ~20 sites, not a mechanical collapse, and it belongs in
+its own plan.
+
+#### Original framing (kept for the record)
 
 `@event_case` and `@gestures` parse the same grammar with the same parser; one compiles to `isa`
 chains (fast, **invisible**), the other reifies to data (inspectable). Once patterns are generic

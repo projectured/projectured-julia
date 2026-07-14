@@ -20,7 +20,7 @@ The pieces:
 - **`@gestures DocumentType begin … end`** — the declarative authoring form
   ([`Gestures.jl`](Gestures.jl), a fragment of this module). It emits the
   `get_document_gesture_bindings_own` method holding the reified table. Firing is
-  then a *single generic interpreter* ([`read_document_gesture`](@ref), wired into
+  then a *single generic interpreter* ([`read_bound_gesture`](@ref), wired into
   [`read_gesture`](@ref)) that walks that very table — so what *fires* is provably
   the set that is *shown*.
 """
@@ -33,8 +33,7 @@ using ..DocumentModule
 export GestureBinding,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings, get_applicable_gesture_bindings,
-       read_gesture, read_document_gesture, read_node_gesture,
-       is_help_gesture,
+       fire_gesture_bindings, read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"
 
 """
@@ -65,9 +64,7 @@ end
 # Own bindings are held in `get_document_gesture_bindings_own(::Type{T})` *methods*
 # (emitted by `@gestures`), not a mutable table, so they persist across
 # precompilation — mutating a Dict at a module's load time would be lost.
-# `get_document_gesture_bindings` walks the supertype chain over those methods,
-# caching the merged result in a runtime Dict (caches repopulate at runtime, so they
-# are precompile-safe).
+# `get_document_gesture_bindings` walks the supertype chain over those methods.
 # ─────────────────────────────────────────────────────────────────────────
 
 """
@@ -78,20 +75,21 @@ The bindings declared *directly* on type `T` by `@gestures T …` (default empty
 """
 get_document_gesture_bindings_own(::Type) = GestureBinding[]
 
-const _GESTURE_CACHE = IdDict{Type,Vector{GestureBinding}}()
-
 """
     get_document_gesture_bindings(T::Type)  -> Vector{GestureBinding}
     get_document_gesture_bindings(document) -> Vector{GestureBinding}
 
 Every binding that applies to document type `T`: `T`'s own bindings, most specific
 first, followed by each supertype's, walking up the chain. The result is the reified
-table the [`read_document_gesture`](@ref) interpreter fires and an inspector shows —
+table the [`read_bound_gesture`](@ref) interpreter fires and an inspector shows —
 one source of truth.
+
+The walk is recomputed per call rather than memoised: a process-wide cache keyed by
+type is exactly the kind of module-level mutable state that ties independent editors
+together (AR-6, AR-45), and appending a handful of vectors costs nothing next to the
+event that provoked it.
 """
 function get_document_gesture_bindings(T::Type)
-    cached = get(_GESTURE_CACHE, T, nothing)
-    cached === nothing || return cached
     result = GestureBinding[]
     S = T
     while true
@@ -104,7 +102,6 @@ function get_document_gesture_bindings(T::Type)
         S === Any && break
         S = supertype(S)
     end
-    _GESTURE_CACHE[T] = result
     return result
 end
 get_document_gesture_bindings(document::Document) =
@@ -117,18 +114,27 @@ Per-*instance* gesture bindings carried by `document` itself, checked ahead of t
 per-type table so an instance can add, override (by shadowing a same-pattern
 default), or suppress behavior. Default empty, so any object that does not opt in
 behaves as if it had none. Because the default is empty and untyped it also serves
-values that are not `Document`s — see [`read_node_gesture`](@ref).
+values that are not `Document`s — pass such a target's selection to
+[`read_bound_gesture`](@ref) explicitly.
 """
 get_instance_gesture_bindings(document) = GestureBinding[]
 
-# Shared firing loop: the first binding whose pattern `matches` and whose
-# `applicable` precondition holds (for `document` + `selection`) and whose
-# `operation` returns non-`nothing` wins. A binding whose operation returns `nothing`
-# is a finer event-dependent decline and is skipped so a later binding may still fire.
-function _fire_gestures(bindings, document, selection, event)
-    for b in bindings
-        if matches(b.pattern, event) && b.applicable(document, selection)
-            operation = b.operation(document, event)
+"""
+    fire_gesture_bindings(bindings, target, selection, event) -> Operation | Nothing
+
+The firing loop: the first binding whose pattern `matches` the event, whose
+`applicable` precondition holds for `target` + `selection`, and whose `operation`
+returns non-`nothing`, wins. A binding whose operation returns `nothing` is a finer
+event-dependent decline and is skipped, so a later binding may still fire.
+
+This is the one place a table of bindings becomes an operation. Anything holding
+bindings — a document, an instance, a projection — fires them through here rather
+than walking them itself, so *what fires* cannot drift from what a listing shows.
+"""
+function fire_gesture_bindings(bindings, target, selection, event)
+    for binding in bindings
+        if matches(binding.pattern, event) && binding.applicable(target, selection)
+            operation = binding.operation(target, event)
             operation === nothing || return operation
         end
     end
@@ -136,38 +142,39 @@ function _fire_gestures(bindings, document, selection, event)
 end
 
 """
-    read_document_gesture(document, event) -> Operation | Nothing
+    read_bound_gesture(target, event) -> Operation | Nothing
+    read_bound_gesture(target, event, selection) -> Operation | Nothing
 
-Fire the first matching binding for `document`, checking its per-instance
-[`get_instance_gesture_bindings`](@ref) first and then its per-type
-[`get_document_gesture_bindings`](@ref) table (walking the supertype chain),
-evaluated against the current selection. Instance bindings therefore shadow
-same-pattern type defaults. This is the single interpreter that backs
-[`read_gesture`](@ref) for every `@gestures`-declared type; an object with neither
-instance nor type bindings yields `nothing`.
+Fire the first matching binding for `target`, checking its per-instance
+[`get_instance_gesture_bindings`](@ref) ahead of its per-type
+[`get_document_gesture_bindings`](@ref) table (which walks the supertype chain), so
+an instance can add to, shadow, or suppress the type's defaults.
+
+`selection` defaults to `target`'s own — pass it explicitly for a target that has
+none of its own, such as a node whose identity is its path inside an enclosing tree
+(then it is usually the enclosing document's). A target with neither instance nor
+type bindings yields `nothing`.
 """
-function read_document_gesture(document, event)
-    instance = get_instance_gesture_bindings(document)
-    type = get_document_gesture_bindings(typeof(document))
-    (isempty(instance) && isempty(type)) && return nothing
-    selection = getfield(document, :selection)[]
-    bindings = isempty(instance) ? type : (isempty(type) ? instance : vcat(instance, type))
-    return _fire_gestures(bindings, document, selection, event)
+function read_bound_gesture(target, event, selection)
+    bindings = _gesture_bindings(target)
+    isempty(bindings) && return nothing
+    return fire_gesture_bindings(bindings, target, selection, event)
 end
 
-"""
-    read_node_gesture(node, event, selection) -> Operation | Nothing
-
-The selection-agnostic sibling of [`read_document_gesture`](@ref) for values that are
-not `Document`s and so carry no `selection` field of their own — a node whose
-identity is its path inside an enclosing tree. Fires `node`'s
-[`get_instance_gesture_bindings`](@ref) against the explicitly supplied `selection`
-(usually the enclosing document's).
-"""
-function read_node_gesture(node, event, selection)
-    bindings = get_instance_gesture_bindings(node)
+function read_bound_gesture(target, event)
+    bindings = _gesture_bindings(target)
+    # Read the selection only once a binding could fire: reading a cell to answer
+    # "no bindings" would register a dependency on it for nothing.
     isempty(bindings) && return nothing
-    return _fire_gestures(bindings, node, selection, event)
+    return fire_gesture_bindings(bindings, target, getfield(target, :selection)[], event)
+end
+
+# The instance's own bindings ahead of its type's, so an instance shadows a
+# same-pattern default.
+function _gesture_bindings(target)
+    instance = get_instance_gesture_bindings(target)
+    type = get_document_gesture_bindings(typeof(target))
+    isempty(instance) ? type : (isempty(type) ? instance : vcat(instance, type))
 end
 
 """
@@ -194,7 +201,7 @@ function read_gesture end
 
 # The projection-independent reader for any `@gestures`-declared document is the
 # table interpreter. Documents with no registered gestures get `nothing`.
-read_gesture(document::Document, event) = read_document_gesture(document, event)
+read_gesture(document::Document, event) = read_bound_gesture(document, event)
 
 """
     get_applicable_gesture_bindings(document, bindings) -> Vector{GestureBinding}
@@ -206,13 +213,6 @@ function get_applicable_gesture_bindings(document, bindings)
     selection = getfield(document, :selection)[]
     GestureBinding[b for b in bindings if b.applicable(document, selection)]
 end
-
-"""
-    is_help_gesture(event) -> Bool
-
-True when `event` is the gesture that summons the gesture-help window (F1).
-"""
-is_help_gesture(event) = event isa KeyDown && event.key === :f1
 
 include("Gestures.jl")   # the @gestures / @gesture_set authoring DSL
 

@@ -366,7 +366,7 @@ set_function!(n::SyntaxNode, f::Function) = (set_function!(getfield(n.children, 
 #
 # The projection-independent half of the Syntax domain's reader, now a reified
 # `@gestures` table on `SyntaxNode` (was a `read_gesture(::SyntaxNode)` method).
-# The generic `read_gesture` interpreter (`read_document_gesture`) fires it, so
+# The generic `read_gesture` interpreter (`read_bound_gesture`) fires it, so
 # the table that *fires* is exactly the one gesture-help enumerates. Any projection
 # whose input is a `SyntaxNode` (e.g. `SyntaxToText`) reaches it through that
 # interpreter; the geometry/output-driven mouse hit-testing for collapse glyphs

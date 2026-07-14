@@ -344,7 +344,7 @@ end
 
 set_function!(w::WidgetButton, f::Function) = (set_function!(getfield(w, :content), f); w)
 
-# Per-instance gesture bindings (see `get_instance_gesture_bindings` / `read_document_gesture`).
+# Per-instance gesture bindings (see `get_instance_gesture_bindings` / `read_bound_gesture`).
 get_instance_gesture_bindings(w::WidgetButton) = w.gestures
 
 """
@@ -1538,7 +1538,7 @@ struct WidgetTreeNode
     gestures::Any
 end
 # A node is a plain value (not a `Document`), so it has no `selection`; its
-# per-instance `gestures` are fired by `read_node_gesture` against the enclosing
+# per-instance `gestures` are fired by `read_bound_gesture` against the enclosing
 # tree's selection. `gestures` defaults empty so existing 2-/3-arg calls are
 # unaffected; pass `gestures=[…]` to give a node its own behavior (e.g. a
 # right-click / Enter binding that opens what the node stands for).
@@ -1579,7 +1579,7 @@ WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=Gestur
                Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
-# `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_document_gesture`.
+# `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_bound_gesture`.
 get_instance_gesture_bindings(w::WidgetTree) = w.gestures
 
 # ── Operations ─────────────────────────────────────────────────────────────

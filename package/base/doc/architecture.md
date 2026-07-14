@@ -146,10 +146,8 @@ even though `CellModule` is not defined by any base file.
 
 - `..CellModule`, `..DocumentModule`, `..ReferenceModule`,
   `..OperationModule` (kernel).
-- `..MouseModule`, `..ModifiersModule` (kernel — the mouse gesture + modifier
-  types `DraggingProjection`'s reader dispatches on).
-- `..GestureModule` (kernel — alias only; unused now that `ScreenDocument`
-  lives in `visual`, not here).
+- `..EventModule` (kernel — the mouse event + modifier types
+  `DraggingProjection`'s reader dispatches on).
 - `..BackendModule` (kernel — alias only; the `Backend` abstract a future
   serialization framework might target, currently unused).
 
