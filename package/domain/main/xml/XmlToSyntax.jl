@@ -119,7 +119,7 @@ end
                             open=TextString("</", p.delim),
                             close=TextString(">", p.delim))
 
-    SyntaxNode(TextString(""), TextString(""), TextString(""),
+    SyntaxNode(nothing, nothing, nothing,
                [ tag_leaf, attrs_node, body_node, close_leaf ],
                0, false, nothing)
 end

@@ -10,6 +10,7 @@ function JsonXmlToSyntax()
         JsonObjectEntry => CopyingProjection(),
         Vector{Cell}    => CopyingProjection(),
         XmlText         => XmlTextToSyntaxLeaf(),
+        XmlAttribute    => XmlAttributeToSyntaxNode(),
         XmlElement      => XmlElementToSyntaxNode(),
     ))
 end

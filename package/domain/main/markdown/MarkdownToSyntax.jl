@@ -127,8 +127,7 @@ end
 @projection_template MarkdownEmphasisToSyntaxNode MarkdownEmphasis (prj, doc) ->
     SyntaxNode(collection(:content);
                open=TextString("*", prj.marker_style),
-               close=TextString("*", prj.marker_style),
-               sep=TextString(""))
+               close=TextString("*", prj.marker_style))
 
 @projection struct MarkdownStrongToSyntaxNode
     marker_style::StyleText = StyleText(_MONO, color_solarized_gray)
@@ -137,15 +136,14 @@ end
 @projection_template MarkdownStrongToSyntaxNode MarkdownStrong (prj, doc) ->
     SyntaxNode(collection(:content);
                open=TextString("**", prj.marker_style),
-               close=TextString("**", prj.marker_style),
-               sep=TextString(""))
+               close=TextString("**", prj.marker_style))
 
 # ── MarkdownParagraphToSyntaxNode (shared by both styles) ─────────────────────
 
 @projection struct MarkdownParagraphToSyntaxNode end
 
 @projection_template MarkdownParagraphToSyntaxNode MarkdownParagraph (prj, doc) ->
-    SyntaxNode(collection(:content); sep=TextString(""), indentation=0)
+    SyntaxNode(collection(:content); indentation=0)
 
 # ── MarkdownHeadingToSyntaxNode (source; `#…` open marker) ─────────────────────
 
@@ -156,7 +154,7 @@ end
 @projection_template MarkdownHeadingToSyntaxNode MarkdownHeading (prj, doc) ->
     SyntaxNode(collection(:content);
                open=TextString(() -> "#"^clamp(doc.level, 1, 6) * " ", prj.hash_style),
-               sep=TextString(""), indentation=0)
+               indentation=0)
 
 # ── MarkdownQuoteToSyntaxNode ─────────────────────────────────────────────────
 # `open_marker`/`sep_marker` prefix each quoted line (`> ` source, `▏ ` rendered).
@@ -211,11 +209,10 @@ end
 end
 
 @projection_template MarkdownLinkToSyntaxNode MarkdownLink (prj, doc) ->
-    SyntaxNode(TextString(""), TextString(""), TextString(""),
+    SyntaxNode(nothing, nothing, nothing,
         [ SyntaxNode(collection(:content);
                      open=TextString("[", prj.bracket_style),
-                     close=TextString("]", prj.bracket_style),
-                     sep=TextString("")),
+                     close=TextString("]", prj.bracket_style)),
           SyntaxLeaf(bound(:url, String,
                            hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
                      open=TextString("(", prj.bracket_style),
@@ -231,7 +228,7 @@ end
 end
 
 @projection_template MarkdownImageToSyntaxNode MarkdownImage (prj, doc) ->
-    SyntaxNode(TextString(""), TextString(""), TextString(""),
+    SyntaxNode(nothing, nothing, nothing,
         [ SyntaxLeaf(bound(:alt, String,
                            hinted_text(() -> doc.alt, () -> isempty(doc.alt), "alt", prj.alt_style));
                      open=TextString("![", prj.bracket_style),
@@ -253,7 +250,7 @@ end
 end
 
 @projection_template MarkdownCodeBlockToSyntaxNode MarkdownCodeBlock (prj, doc) ->
-    SyntaxNode(TextString(prj.open_fence, prj.fence_style), TextString(prj.close_fence, prj.fence_style), TextString(""),
+    SyntaxNode(TextString(prj.open_fence, prj.fence_style), TextString(prj.close_fence, prj.fence_style), nothing,
         [ SyntaxLeaf(bound(:language, String,
                            hinted_text(() -> doc.language, () -> isempty(doc.language), "lang", prj.lang_style))),
           SyntaxLeaf(bound(:code, String,

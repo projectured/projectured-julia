@@ -199,14 +199,41 @@ SyntaxSeparation(separator::TextString) =
 # absent delimiter stays absent: `nothing` means the document has no such
 # delimiter, and the printer emits no span for it — as opposed to `TextString("")`,
 # which would emit an empty span carrying a caret that renders nowhere.
+#
+# An *empty* string delimiter means the same thing as no delimiter — it renders
+# nothing — so it normalizes to absence. This is what lets a projection whose
+# delimiter is configuration (`open::String = ""` for YAML's block style, say)
+# stay written as it is and still emit no span.
+#
+# A `TextString` is passed through untouched, never inspected: its content is a
+# reactive cell, and one that is empty *now* may not be later (XmlElement's tag
+# close alternates between `" "` and `""` as attributes come and go). Dropping its
+# span on the strength of a momentary emptiness would mean it could never come
+# back — so an emptiable delimiter must be a `TextString`, and a statically absent
+# one must be `nothing`.
 _text(t::TextString) = t
-_text(s::AbstractString) = TextString(s)
+_text(s::AbstractString) = isempty(s) ? nothing : TextString(s)
 _text(::Nothing) = nothing
 
 # Normalize the `children` argument of `SyntaxNode` to the `CellVector` the inner
 # constructor stores. A `@projection_template` marker (e.g. `collection(:field)`)
 # or any other object is passed through untouched, for the `@document` inner ctor
 # to wrap in a `Cell` (the same shape the positional 7-arg form produces).
+#
+# NOTE: the container type is load-bearing in two conflicting ways, so do not
+# "simplify" this without reading both:
+#
+#   * a hand-written projection's *output* node needs a `CellVector`, because the
+#     reference machinery navigates `.children[i]` through its element cells;
+#   * a `@projection_template` *blueprint* needs a raw `Vector`, because the engine
+#     detects a fixed-children node by `getfield(out, f)[] isa Vector`
+#     (ProjectionTemplate.jl `_has_fixed_children`) and walks it to resolve the
+#     `bound`/`project` markers nested in each child. A `CellVector` there is not
+#     recognised as a blueprint at all and the markers reach the printer unresolved.
+#
+# That is why a fixed-children template node is written in the positional 7-arg
+# form (which stores the vector raw) rather than the keyword form, and why
+# `SyntaxNode([...])` does not work inside a template today.
 _children(c::CellVector) = c
 _children(c::Vector{Cell}) = CellVector(c)
 _children(c::AbstractVector) = CellVector(Cell[Cell(x) for x in c])
@@ -274,10 +301,10 @@ SyntaxLeaf(open::TextString, close::TextString, value::TextString, selection) =
     SyntaxLeaf(open, close, value, 0, false, selection)
 
 SyntaxLeaf(open::AbstractString, close::AbstractString, value::AbstractString) =
-    SyntaxLeaf(TextString(open), TextString(close), TextString(value), 0, false, nothing)
+    SyntaxLeaf(_text(open), _text(close), TextString(value), 0, false, nothing)
 
 SyntaxLeaf(open::AbstractString, close::AbstractString, f::Function) =
-    SyntaxLeaf(TextString(open), TextString(close), TextString(f, font_ubuntu_monospace_regular_20, color_default), 0, false, nothing)
+    SyntaxLeaf(_text(open), _text(close), TextString(f, font_ubuntu_monospace_regular_20, color_default), 0, false, nothing)
 
 # ── Node ─────────────────────────────────────────────────────────────────
 
@@ -343,16 +370,16 @@ SyntaxNode(open::TextString, close::TextString, sep::TextString,
 
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
-    SyntaxNode(TextString(open), TextString(close), TextString(sep),
+    SyntaxNode(_text(open), _text(close), _text(sep),
                CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
 
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString;
       indentation::Int = 0) =
-    SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(), indentation, false, nothing)
+    SyntaxNode(_text(open), _text(close), _text(sep), CellVector(), indentation, false, nothing)
 
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       f::Function; indentation::Int = 0) =
-    SyntaxNode(TextString(open), TextString(close), TextString(sep), CellVector(f), indentation, false, nothing)
+    SyntaxNode(_text(open), _text(close), _text(sep), CellVector(f), indentation, false, nothing)
 
 # Text-replace edits on a SyntaxLeaf (`open`/`value`/`close`) or SyntaxNode
 # (`open`/`close`/`sep`) are handled generically by `splice_value!`: each of

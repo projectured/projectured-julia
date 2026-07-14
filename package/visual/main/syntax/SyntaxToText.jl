@@ -495,7 +495,7 @@ function _splice_node(node::SyntaxNode, p::SyntaxNodeToText, deco, cims)
     open_index = 0                       # 0 when the node has no such delimiter
     close_index = 0
     nid = objectid(node)                 # structural-slot key prefix for deco spans
-    deco_font = _deco_font(node, cims)   # whitespace decorations track content size
+    deco_font = _deco_font(node)         # whitespace decorations track content size
     indent = node.indentation
 
     # optional inline expand/collapse marker, before the open delimiter
@@ -573,16 +573,16 @@ end
 # Whitespace decorations track the content's font, because TextToGraphics measures
 # every span and takes the line's max — a decoration carrying a stale default font
 # would pin the line height when the content font shrinks. A node's own delimiter
-# is the natural source, but a node may now have none (a bare concatenation), so
-# fall back to the first span it actually lays out.
-function _deco_font(node::SyntaxNode, cims)
+# is the source; a node with none falls back to the default font, which is exactly
+# what it used to get (the delimiter was then a `TextString("")`, and a bare
+# `TextString` carries the default font).
+#
+# Deliberately does NOT consult the children: reading a child's spans here would
+# force its output cells during the parent's splice, making the printer eager
+# where it is meant to be lazy.
+function _deco_font(node::SyntaxNode)
     for d in (node.open, node.sep, node.close)
         d === nothing || return d.font
-    end
-    for cim in cims
-        for s in cim.output.elements
-            s isa TextString && return s.font
-        end
     end
     font_ubuntu_monospace_regular_20
 end

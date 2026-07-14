@@ -611,7 +611,7 @@ end
 # the fixed-node KeySlot mapping keys on the field name only, so it is agnostic to
 # whether the rendered value is a `TextString` or a `TextGraphics`.
 @projection_template BookPictureToSyntaxLeaf BookPicture (prj, doc) ->
-    SyntaxNode(TextString(""), TextString(""), TextString("\n", prj.placeholder),
+    SyntaxNode(nothing, nothing, TextString("\n", prj.placeholder),
         [ SyntaxLeaf(bound(:title, String,
                            TextString(() -> isempty(doc.title) ? "untitled" : doc.title, prj.style))),
           SyntaxLeaf(bound(:content, String,
