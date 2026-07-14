@@ -184,12 +184,17 @@ end
     @test nav(KeyDown(:down,  Modifiers(alt=true)), _wt_cell(2, 2)) == ".rows[3][2]"
 
     # On an in-cell cursor a *plain* arrow keeps editing the text (declined here →
-    # routed into content), while Alt+arrow first promotes to the whole cell.
-    incell = ConcreteReferencePath(FieldReference("rows"),
-                 ConcreteReferencePath(ElementReference(2),
-                     ConcreteReferencePath(ElementReference(2),
-                         ConcreteReferencePath(FieldReference("value"), EmptyReferencePath()))))
-    # @broken: pre-existing drift; Alt+arrow promotion from in-cell cursor
+    # routed into content), while Alt+arrow first promotes to the whole cell. The
+    # cursor is whatever Enter drops into the cell: `rows[2][2]` holds a
+    # `MathBinaryOperation`, so it lands on a leaf nested inside the cell content,
+    # not on a field of the cell itself.
+    incell = let
+        clear_selection!(doc)
+        set_selection!(doc, _wt_cell(2, 2))
+        op = read_intent(proj, print_document(proj, doc), KeyDown(:return, Modifiers()))
+        op.path
+    end
+    # @broken: Alt+arrow does not promote an in-cell cursor to the whole cell
     @test_broken nav(KeyDown(:down, Modifiers(alt=true)), incell) == ".rows[3][2]"
     @test !startswith(nav(KeyDown(:down, Modifiers()), incell), ".rows[3][2]")
 
