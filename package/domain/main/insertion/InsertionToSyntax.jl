@@ -42,7 +42,6 @@ import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyPress, KeyDown
 import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
-import ..DomainModule
 import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
                        insertion_candidates, complete_insertion, resolve_insertion,
                        make_insertion_document
@@ -52,7 +51,7 @@ import ..JuliaModule: JuliaInsertion, JuliaDocument,
 import ..JsonModule: JsonInsertion
 import ..XmlModule: XmlInsertion
 import ..SqlDocumentModule: SqlInsertion
-import ..TextModule: TextText, TextString
+import ..TextModule: TextString
 import ..JuliaParserModule: juliaparse
 import ..SqlParserModule: sqlparse
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument
@@ -323,10 +322,6 @@ end
 # (`"JsonString"` / `"json string"`), and construction goes through
 # `make_insertion_document` dispatch. The historic short names (`"julia"`,
 # `"json"`, …) live on as `insertion_aliases` emitted by each `@domain`.
-
-# `TextText` is a plain visual document, not an `@domain` kit, so its historic
-# `"text"` short name is a hand-written alias.
-DomainModule.insertion_aliases(::Type{<:TextText}) = ["text"]
 
 """
     default_factory(name) -> Document | nothing

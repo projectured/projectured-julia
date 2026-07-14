@@ -81,28 +81,32 @@ In [Text.jl](../../package/visual/main/text/Text.jl):
   `import ..DomainModule: @domain, @insertion` in `TextModule`. No new dependency edge — base is
   already below visual.
 
-### `@insertion` factories — the part that makes the kit *work*
-
-Without these, `insertion_candidates(TextDocument)` contains **only `TextText`**: every other span
-type has a required field (`TextString.content`, `TextNewline.font`, `TextSpacing.size`,
-`TextGraphics.content`), so `_zero_arg_constructible` says no and `insertable` drops them. Declare
-the factories so the Text domain can actually be completed over:
+### `@insertion` factories — one, not five *(decided during implementation)*
 
 ```julia
-@insertion TextText    = @with_selection TextText([TextString("")]) elements[1].content{0}
-@insertion TextString  = @with_selection TextString("") content{0}
-@insertion TextNewline = TextNewline(font = font_ubuntu_monospace_regular_20)
-@insertion TextSpacing = TextSpacing(1)
-# TextGraphics needs an image; either scaffold one or opt it out:
-#   DomainModule.insertable(::Type{TextGraphics}) = false
+@insertion TextText = @with_selection TextText([TextString("")]) elements[1].content{0}
 ```
 
-The `TextText` line is the bug fix: an inserted text now arrives with one empty span and a caret in
-it, so you can type immediately.
+That single line is the bug fix: an inserted text now arrives with one empty span and a caret in it,
+so you can type immediately.
 
-**Payoff beyond compliance:** Insert on a `TextNothing` opens a `TextInsertion` whose candidates are
-the Text span types — which is the first way to insert a `TextSpacing`, a `TextNewline` or a
-`TextGraphics` **by keyboard**. You cannot *type* an image; you can name one.
+**The span types deliberately get no factory** — a change from the original sketch, which proposed
+one each for `TextString` / `TextNewline` / `TextSpacing`. The reason: `insertable` is a property of
+the *type*, not of the scope it is completed in, so a factory makes a span committable at the
+**top-level** `DocumentInsertion` too — where the committed document is the *root*. The natural
+projection routes any `TextDocument` root to the prose chain, whose printer is
+`print_document(::TextToGraphics, _, ::TextText, _)`: a lone `TextString` root is a `MethodError`,
+not a document. Nothing else can reach the span factories, either — the Insert gesture only exists
+on `*Nothing` placeholders, and there is no "insert a span at the caret" gesture in `TextText`.
+
+So span-level insertion is a **follow-up** that needs two things this phase does not have: a
+caret-level insert gesture in the Text domain, and either a root-rendering story for a lone span or
+a way to scope a candidate to a domain root. `TextGraphics` needs no explicit opt-out — with no
+factory and a required `content` field it was never a candidate.
+
+The Text insertion is still worth having: it is the `"text"` domain entry (two steps to a text, the
+same shape as `"json"` → `JsonInsertion` → `"string"`), and `TextNothing` is a real empty-text
+placeholder that renders and takes Insert.
 
 ### The `"text"` alias moves — a behaviour change to accept deliberately
 
@@ -148,15 +152,26 @@ table, no visual-layer rendering work.**
 only arises via the insertion machinery, which lives in the domain package. Revisit if we ever want
 "delete the last span of a text" to leave an editable empty document.
 
-### Phase 1 checklist
+### Phase 1 checklist — **done**
 
 - [x] Confirm the `make_insertion_document(TextText)` defect in the REPL (empty spans, no selection).
-- [ ] `const DomainModule = …` in `ProjecturedVisual.jl`; import `@domain` / `@insertion` in `TextModule`.
-- [ ] `@domain Text`; delete the hand-written root and the dead `TextInsertion`.
-- [ ] `@insertion` factories for `TextText` / `TextString` / `TextNewline` / `TextSpacing`; decide `TextGraphics`.
-- [ ] Delete the `insertion_aliases(TextText)` hack from `InsertionToSyntax.jl`.
-- [ ] Two natural-projection table entries for `TextNothing` / `TextInsertion`.
-- [ ] Update `DocumentInsertionTest.jl`; run `test_visual()` and the insertion tests.
+- [x] `const DomainModule = …` in `ProjecturedVisual.jl`; import `@domain` / `@insertion` in `TextModule`.
+- [x] `@domain Text`; delete the hand-written root and the dead `TextInsertion`.
+- [x] `@insertion TextText` only — the span types stay non-candidates (see above).
+- [x] Delete the `insertion_aliases(TextText)` hack from `InsertionToSyntax.jl` (and the now-unused
+      `import ..DomainModule` / `TextText` imports it needed).
+- [x] Natural-projection entries: `TextNothing` / `TextInsertion` in **both** tables — the to-syntax
+      table (pointing at `InsertionNothingToSyntaxLeaf` / `DomainInsertionToSyntaxLeaf(TextDocument)`)
+      and the to-graphics table (routing them to `syntax_to_graphics`, ahead of the abstract
+      `TextDocument => prose_chain`).
+- [x] Update `DocumentInsertionTest.jl`; add the "a committed insertion is editable" regression test.
+
+**Verified:** `test_document_insertion()` 113/113; `test_example(text_example)` 1585/1585;
+`test_visual_layering()` / `test_domain_layering()` green. `plain_text` (1187/7) and `natural`
+(19801/35) fail identically on the base commit — pre-existing, not regressions. Driven end to end:
+`TextNothing` renders through the natural projection → Insert yields a `TextInsertion` with the
+caret in its buffer → that renders → `"text"` commits a `TextText` with one span and a caret →
+typing emits a `ReplaceStringRangeOperation` instead of declining.
 
 ---
 

@@ -10,6 +10,8 @@ The domain includes:
 - **Span types**: `TextString` (text content), `TextNewline` (line break), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
 - **Container type**: `TextText` (sequence of spans)
 - **Base type**: `TextDocument` abstract type for all text documents
+- **Insertion kit** (`@domain Text`): `TextNothing` (the empty-text placeholder) and
+  `TextInsertion` (the typed-name buffer Insert opens on it)
 
 Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 - Spans: `.content{k}` — cursor at boundary k within the span's content
@@ -27,6 +29,8 @@ module TextModule
 import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
+import ..DomainModule: @domain, @insertion
+import ..SelectionModule: @with_selection
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
@@ -39,25 +43,18 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: var"@gestures"
-export TextDocument, set_function!, text_flat_length, text_selection_flat, hinted_text,
+export set_function!, text_flat_length, text_selection_flat, hinted_text,
        text_selection_substring, text_insert_op
 
-# ── TextDocument (base) ───────────────────────────────────────────────────
+# ── The Text domain kit ───────────────────────────────────────────────────
+#
+# `TextDocument` (the exported abstract root every concrete text type subtypes;
+# `@document` injects the `selection::Reference` field the `Document` contract
+# requires), `TextNothing` (the empty-text placeholder), `TextInsertion` (the
+# typed-name buffer completing over the Text candidates), the Insert-key gesture
+# turning one into the other, and the traits wiring them together.
 
-"""
-    TextDocument
-
-Abstract base type for all text document types. Every concrete text type
-subtypes `TextDocument`; `@document` injects the `selection::Reference` field the
-`Document` contract requires.
-"""
-abstract type TextDocument <: Document end
-
-# ── TextInsertion ────────────────────────────────────────────────────
-
-@document struct TextInsertion <: TextDocument
-    value::Any = nothing
-end
+@domain Text
 
 # ── TextNewline ─────────────────────────────────────────────────────
 
@@ -240,6 +237,20 @@ TextText(spans::TextDocument...) =
     TextText(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
 TextText(f::Function) = TextText(CellVector(f), Cell(nothing))
+
+# The document a committed `text` insertion becomes. Without this the generic
+# `make_insertion_document` fallback builds a bare `TextText()` — no spans, no
+# selection — and the `@gestures TextText` character rules all decline for want of
+# a `.elements[i].content{k}` caret, so the freshly inserted text takes no
+# keystrokes. One empty span with the caret in it is the smallest typeable text.
+#
+# The span types (`TextString`, `TextNewline`, `TextSpacing`, `TextGraphics`) get
+# no factory on purpose: each has a required field, so none is zero-arg
+# constructible, and none is therefore a completion candidate. A factory would
+# make them committable at a *top-level* insertion, where a lone span is the root
+# document — and the text pipeline prints a `TextText`, not a bare span. Making
+# spans insertable belongs with a caret-level "insert a span here" gesture.
+@insertion TextText = @with_selection TextText([TextString("")]) elements[1].content{0}
 
 
 # ── splice_value! methods for the text representations ──────────────

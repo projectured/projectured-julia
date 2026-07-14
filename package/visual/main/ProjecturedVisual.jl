@@ -77,6 +77,7 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
+const DomainModule = ProjecturedBase.DomainModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const EventModule = ProjecturedKernel.EventModule
