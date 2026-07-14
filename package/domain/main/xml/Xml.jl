@@ -80,24 +80,16 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 
 # ── Authoring gestures ──────────────────────────────────────────────────────
 #
-# A raw key on a whole XML node edits the tree. The reader runs last-to-first, so a
-# key the text layer absorbed as a character edit never reaches these gestures — an
-# ordinary character typed into a tag name or a text node stays a character. Each
-# gesture reads `doc`'s own selection and emits a `doc`-relative operation.
-#
-# `<` and `"` are the exception: neither can occur *in* a tag name, so they mean
-# "insert a child" even while the caret is in one. They are declared `override` to
-# claim the key back from the text layer.
+# The reader runs last-to-first, so a key the text layer absorbed never reaches these
+# gestures — a character typed into a tag name stays a character. `<` and `"` are the
+# exception: neither can occur *in* a tag name, so they mean "insert a child" even
+# while the caret is in one, and are declared `override` to claim the key back.
 
-# The node the cursor is on, or nothing.
 _xml_selected(doc) = try_evaluate_reference(doc, getfield(doc, :selection)[])
 
-# Only an insertion placeholder is replaceable: `"` becomes an empty text node,
-# `<` an empty element, `@` an empty attribute, each with its cursor pre-placed.
-# The keys are non-alphanumeric because the insertion is a typed-name buffer: a
-# letter goes into the buffer instead of firing a gesture.
+# Only an insertion placeholder is replaceable. The keys are non-alphanumeric because
+# the insertion is a typed-name buffer: a letter goes into the buffer instead.
 _xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
-_xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
@@ -107,14 +99,12 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
-    KeyPress('"') => "Replace with text"        => _xml_replace(doc, make_insertion_document(XmlText))
-    KeyPress('<') => "Replace with an element"  => _xml_replace(doc, make_insertion_document(XmlElement))
-    KeyPress('@') => "Replace with an attribute" => _xml_replace(doc, make_insertion_document(XmlAttribute))
+    KeyPress('"') => "Replace with text"        => replace_selected_document(doc, make_insertion_document(XmlText))
+    KeyPress('<') => "Replace with an element"  => replace_selected_document(doc, make_insertion_document(XmlElement))
+    KeyPress('@') => "Replace with an attribute" => replace_selected_document(doc, make_insertion_document(XmlAttribute))
 end
 
-# Append a child at the end and drop the cursor into it — the cursor each insertion
-# factory above already declares. `<`/`"` decline when an insertion is selected,
-# letting the replace gestures win.
+# `<`/`"` decline when an insertion is selected, letting the replace gestures win.
 _xml_insert_element(e) = _xml_replaceable(e, nothing) ? nothing :
     append_insertion_operation(e, :children, XmlElement)
 _xml_insert_text(e) = _xml_replaceable(e, nothing) ? nothing :

@@ -36,6 +36,7 @@ import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           append_reference, concat_references, annotate_reference_types,
                           reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
+import ..ProjectionReferenceModule: named_node_reference
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
 import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
 import ..EventPatternModule: KeyDownPattern
@@ -45,7 +46,8 @@ export var"@domain", var"@insertion",
        insertion_root, nothing_document, insertion_document, domain_prefix,
        domain_insertion, insertable, insertion_aliases, make_insertion_document,
        insertion_names, insertion_candidates, complete_insertion, resolve_insertion,
-       insert_document_operation, append_insertion_operation, move_to_field
+       insert_document_operation, append_insertion_operation, move_to_field,
+       replace_selected_document
 
 # ── Traits ────────────────────────────────────────────────────────────────────
 #
@@ -340,6 +342,20 @@ pre-placed at the start of its `value` buffer.
 """
 insert_document_operation(::Type{I}) where {I} =
     replace_document(EmptyReferencePath(), with_selection(I(), _INSERTION_CURSOR))
+
+"""
+    replace_selected_document(document, replacement) -> Operation
+
+Replace the document the caret **names** with `replacement` — the type-to-replace
+gesture every domain spells the same way (`n` for null, `[` for an array).
+
+"Names" is the whole content of this verb: a caret on a projection-introduced token —
+a bracket, a placeholder — names the node it was printed for, not a node of its own,
+so it normalizes to ∅ (see [`named_node_reference`](@ref)). `replacement` carries its
+own cursor, so nothing else needs placing.
+"""
+replace_selected_document(document, replacement) =
+    replace_document(named_node_reference(get_selection(document)), replacement)
 
 """
     append_insertion_operation(document, field::Symbol, T::Type) -> Operation

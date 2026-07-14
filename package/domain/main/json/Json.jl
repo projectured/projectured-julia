@@ -95,36 +95,21 @@ JsonObject(pairs::Pair{<:AbstractString}...) =
 
 # ── Authoring gestures ──────────────────────────────────────────────────────
 #
-# The JSON authoring command set: type a printable key on a whole JSON value to
-# replace it, `,` to insert an element/entry, Tab to move from a key to its value.
-# Gestures are root-relative: each reads `doc`'s own selection and emits a
-# `doc`-relative operation that resolves to the actual (possibly nested) target.
-#
-# A gesture here fires only on a key the *output* layers left unclaimed — the
-# reader runs last-to-first, so a printable key that the text layer turned into a
-# character edit never reaches the domain. That is why nothing below asks whether
-# the caret sits inside a string: if it does, `,` was already a comma.
+# Nothing here asks whether the caret sits inside a string. It cannot be: the reader
+# runs last-to-first, so a key the text layer turned into a character edit never
+# reaches the domain — if the caret were in a string, `,` was already a comma.
 
-# Replace the currently-selected value with `newdoc` (whose cursor is pre-placed via
-# `with_selection`).
-_replace(doc, newdoc) =
-    replace_document(named_node_reference(getfield(doc, :selection)[]), newdoc)
-
-# Block precondition for the type-to-replace set: the caret names a whole JSON
-# value whose target exists and is replaceable (values / array elements / root —
-# not a key/value entry wrapper).
 function _json_replaceable(doc, sel)
     sel === nothing && return false
-    # An introduced caret names the focused node. Enable type-to-replace there for a
-    # `JsonInsertion` placeholder or a container (you are on its bracket / brace), but
-    # not on a concrete scalar's own quotes / keyword — a whole-element selection is
-    # the way to retype an existing value.
+    # On an introduced caret, retype a placeholder or a container (you are on its
+    # bracket) but not a scalar's own quotes — retyping a scalar wants the whole
+    # element selected.
     if is_introduced_reference(sel)
         return doc isa JsonInsertion || doc isa JsonArray || doc isa JsonObject
     end
     target = try_evaluate_reference(doc, sel)
     target === nothing && return false
-    return !(target isa JsonObjectEntry)
+    return !(target isa JsonObjectEntry)   # an entry is retyped through its value
 end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
@@ -140,15 +125,15 @@ end
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
-    KeyPress('n') => "Replace with null"   => _replace(doc, @with_selection JsonNull())
-    KeyPress('f') => "Replace with false"  => _replace(doc, make_insertion_document(JsonBool))
-    KeyPress('t') => "Replace with true"   => _replace(doc, @with_selection JsonBool(true))
-    KeyPress('"') => "Replace with a string" => _replace(doc, make_insertion_document(JsonString))
-    KeyPress('[') => "Replace with an array" => _replace(doc, make_insertion_document(JsonArray))
-    KeyPress(':') => "Replace with an object entry" => _replace(doc, make_insertion_document(JsonObjectEntry))
-    KeyPress('{') => "Replace with an object" => _replace(doc, make_insertion_document(JsonObject))
+    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @with_selection JsonNull())
+    KeyPress('f') => "Replace with false"  => replace_selected_document(doc, make_insertion_document(JsonBool))
+    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @with_selection JsonBool(true))
+    KeyPress('"') => "Replace with a string" => replace_selected_document(doc, make_insertion_document(JsonString))
+    KeyPress('[') => "Replace with an array" => replace_selected_document(doc, make_insertion_document(JsonArray))
+    KeyPress(':') => "Replace with an object entry" => replace_selected_document(doc, make_insertion_document(JsonObjectEntry))
+    KeyPress('{') => "Replace with an object" => replace_selected_document(doc, make_insertion_document(JsonObject))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
-        _replace(doc, @with_selection JsonNumber(parse(Int, string(c))) value{1})
+        replace_selected_document(doc, @with_selection JsonNumber(parse(Int, string(c))) value{1})
 end
 
 @gestures JsonArray begin

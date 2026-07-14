@@ -95,37 +95,21 @@ YamlMapping(pairs::Pair{<:AbstractString}...) =
 
 # ── Authoring gestures ──────────────────────────────────────────────────────
 #
-# The YAML authoring command set mirrors JSON's (YAML is a JSON superset): type a
-# printable key on a whole YAML value to replace it, `,` to insert an element/entry,
-# Tab to move from a key to its value. Gestures are root-relative: each reads
-# `doc`'s own selection and emits a `doc`-relative operation that resolves to the
-# actual (possibly nested) target.
-#
-# A gesture here fires only on a key the *output* layers left unclaimed — the
-# reader runs last-to-first, so a printable key that the text layer turned into a
-# character edit never reaches the domain. That is why nothing below asks whether
-# the caret sits inside a string: if it does, `,` was already a comma.
+# The command set mirrors JSON's — YAML is a JSON superset. As there, nothing asks
+# whether the caret sits inside a string: the reader runs last-to-first, so a key the
+# text layer turned into a character edit never reaches the domain.
 
-# Replace the currently-selected value with `newdoc` (whose cursor is pre-placed via
-# `with_selection`).
-_replace(doc, newdoc) =
-    replace_document(named_node_reference(getfield(doc, :selection)[]), newdoc)
-
-# Block precondition for the type-to-replace set: the caret names a whole YAML
-# value whose target exists and is replaceable (values / sequence elements / root —
-# not a mapping entry wrapper).
 function _yaml_replaceable(doc, sel)
     sel === nothing && return false
-    # An introduced caret names the focused node. Enable type-to-replace there for a
-    # `YamlInsertion` placeholder or a container (you are on its marker / brace), but
-    # not on a concrete scalar's own quotes / keyword — a whole-element selection is
-    # the way to retype an existing value.
+    # On an introduced caret, retype a placeholder or a container (you are on its
+    # marker) but not a scalar's own quotes — retyping a scalar wants the whole
+    # element selected.
     if is_introduced_reference(sel)
         return doc isa YamlInsertion || doc isa YamlSequence || doc isa YamlMapping
     end
     target = try_evaluate_reference(doc, sel)
     target === nothing && return false
-    return !(target isa YamlMappingEntry)
+    return !(target isa YamlMappingEntry)   # an entry is retyped through its value
 end
 
 # ── Insertion factories ─────────────────────────────────────────────────────
@@ -141,15 +125,15 @@ end
 
 @gestures YamlDocument begin
     when(_yaml_replaceable(doc, sel))
-    KeyPress('n') => "Replace with null"   => _replace(doc, @with_selection YamlNull())
-    KeyPress('f') => "Replace with false"  => _replace(doc, make_insertion_document(YamlBool))
-    KeyPress('t') => "Replace with true"   => _replace(doc, @with_selection YamlBool(true))
-    KeyPress('"') => "Replace with a string" => _replace(doc, make_insertion_document(YamlString))
-    KeyPress('-') => "Replace with a sequence" => _replace(doc, make_insertion_document(YamlSequence))
-    KeyPress(':') => "Replace with a mapping entry" => _replace(doc, make_insertion_document(YamlMappingEntry))
-    KeyPress('{') => "Replace with a mapping" => _replace(doc, make_insertion_document(YamlMapping))
+    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @with_selection YamlNull())
+    KeyPress('f') => "Replace with false"  => replace_selected_document(doc, make_insertion_document(YamlBool))
+    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @with_selection YamlBool(true))
+    KeyPress('"') => "Replace with a string" => replace_selected_document(doc, make_insertion_document(YamlString))
+    KeyPress('-') => "Replace with a sequence" => replace_selected_document(doc, make_insertion_document(YamlSequence))
+    KeyPress(':') => "Replace with a mapping entry" => replace_selected_document(doc, make_insertion_document(YamlMappingEntry))
+    KeyPress('{') => "Replace with a mapping" => replace_selected_document(doc, make_insertion_document(YamlMapping))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
-        _replace(doc, @with_selection YamlNumber(parse(Int, string(c))) value{1})
+        replace_selected_document(doc, @with_selection YamlNumber(parse(Int, string(c))) value{1})
 end
 
 @gestures YamlSequence begin
