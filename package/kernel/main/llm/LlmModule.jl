@@ -24,7 +24,7 @@ turn.
 
 Concrete backends live outside `main`: the real one in the opt-in `ProjecturedLlm`
 package, the fakes (`FakeLlm`, `ScriptedLlm`) in `ProjecturedKernelExample`, never
-in a `main` package (AR-68).
+in a `main` package (AR-NO-TEST-DOUBLES-IN-MAIN).
 """
 module LlmModule
 

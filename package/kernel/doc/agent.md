@@ -37,7 +37,7 @@ A `Tool` is a name, a description, abstractly-described parameters, and a handle
 Anthropic's `input_schema` is `ProjecturedLlm`'s job, rendering it into MCP's
 parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
 
-**One `ToolSet` per editor** ([AR-45](../../../documentation/architecture-requirements.md)).
+**One `ToolSet` per editor** ([AR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md)).
 `Editor` owns one. Nothing here is process-global: not the tool list, not the
 resource list, not the scratch module `execute_julia_code` evaluates into, not its
 last result. Two editors in one process therefore cannot see each other's tools or
@@ -46,7 +46,7 @@ evaluate code into each other's namespace.
 *The one carve-out*, stated where it lives: the guide and API indexes are
 process-global lazily-built caches. They are derived read-only from source files
 that do not change while the process runs, and are identical for every editor —
-the same principled exception AR-45 grants the wall clock.
+the same principled exception AR-PER-EDITOR-STATE grants the wall clock.
 
 ## Layer 13 — `llm/`: how the editor talks to a model
 
@@ -81,7 +81,7 @@ has no dependencies at all and so has none.
 
 Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
 `ProjecturedLlm` (`package/llm`), and the `FakeLlm` / `ScriptedLlm` doubles in
-`ProjecturedKernelExample` — never in a `main` package (AR-68). The workbench
+`ProjecturedKernelExample` — never in a `main` package (AR-NO-TEST-DOUBLES-IN-MAIN). The workbench
 assistant finds the real one by reflection when `ProjecturedLlm` is loaded, so
 nothing in the core stack names a concrete backend.
 

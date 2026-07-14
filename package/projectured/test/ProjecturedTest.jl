@@ -164,7 +164,7 @@ function test_all()
     test_base()
     test_visual()
     test_domain()
-    # AR-73's precondition, and cross-package by nature: no name is exported by
+    # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no name is exported by
     # two modules with different bindings, so bare `using ..XxxModule` can never
     # become ambiguous. The per-package guards cannot see this.
     test_export_collision_checker()

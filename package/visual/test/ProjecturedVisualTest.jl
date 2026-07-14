@@ -136,7 +136,7 @@ function test_visual_layering()
     # is not under a src/), so derive the package root from `pathof`.
     main = normpath(dirname(pathof(ProjecturedVisual)))
     check_layering(main, joinpath(main, "ProjecturedVisual.jl"); name = "visual",
-                   # AR-73: files migrated to bare `using ..Xxx` + qualified
+                   # AR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx` + qualified
                    # extension (`Xxx.f(…) = …`). Opt-in, and it grows as the sweep
                    # proceeds; when it covers every file the parameter goes.
                    qualified_files = Set([

@@ -7,11 +7,11 @@ owns their concept, and move `PointReference` / `TextRectangularReference` /
 
 ## Motivations
 
-- **Placement (AR-46/47).** Three step types are named after concepts owned by
+- **Placement (AR-PACKAGE-CHAIN/47).** Three step types are named after concepts owned by
   higher packages: `TextRectangularReference` (visual/text),
   `PointReference` (visual/graphics), `ProjectionReference` (kernel/projection,
   layer 7). All three currently sit in kernel/reference (layer 3).
-- **Consistency (AR-9).** Some step types are `@document`, others are plain
+- **Consistency (AR-FIELDS-ARE-CELLS).** Some step types are `@document`, others are plain
   `struct`. There is no principled split; make every step type `@document`.
 - **Extensibility.** `evaluate_reference`, `get_valid_reference_prefix`, and
   `annotate_reference_types` all hardcode `step isa RangeReference / … / …`

@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # ExportCollisionTest.jl
 #
-# AR-73 rests on bare `using ..XxxModule`: a file names a sibling module and
+# AR-QUALIFIED-EXTENSION rests on bare `using ..XxxModule`: a file names a sibling module and
 # takes its exports, with no symbol list. That is only safe while two modules
 # never export the same name for two *different* things.
 #
@@ -17,10 +17,10 @@
 # `CheckLayering.jl` cannot see it: the one instance that ever existed
 # (`NothingToSyntaxLeaf`, the insertion placeholder vs. the `nothing` leaf)
 # spanned visual and domain. Hence a dynamic check here, in the umbrella — the
-# lowest package whose API reaches all four (AR-47).
+# lowest package whose API reaches all four (AR-LOWEST-PACKAGE).
 # ═══════════════════════════════════════════════════════════════════════════
 
-"The Projectured package roots whose modules AR-73's bare `using` can pull in."
+"The Projectured package roots whose modules AR-QUALIFIED-EXTENSION's bare `using` can pull in."
 const PROJECT_ROOTS = Set([:Projectured, :ProjecturedKernel, :ProjecturedBase,
                            :ProjecturedVisual, :ProjecturedDomain])
 
@@ -74,7 +74,7 @@ function export_collisions(roots, own_roots = PROJECT_ROOTS)
             "$sym is exported with $(length(bindings)) distinct bindings by " *
             join(sort([string(nameof(m)) for m in ms]), ", ") *
             " — a file that bare-`using`s two of these gets UndefVarError on use; " *
-            "give the more specific concept a qualified name (AR-73)")
+            "give the more specific concept a qualified name (AR-QUALIFIED-EXTENSION)")
     end
     errs
 end
@@ -82,7 +82,7 @@ end
 """
     test_export_collisions()
 
-AR-73's precondition: no name is exported by two modules with different
+AR-QUALIFIED-EXTENSION's precondition: no name is exported by two modules with different
 bindings, so bare `using ..XxxModule` can never become ambiguous. See
 `export_collisions`.
 """
@@ -90,7 +90,7 @@ function test_export_collisions()
     @testset "no cross-module export collisions" begin
         errs = export_collisions([Projectured])
         if !isempty(errs)
-            println(stderr, "\nExport collisions (AR-73):")
+            println(stderr, "\nExport collisions (AR-QUALIFIED-EXTENSION):")
             foreach(e -> println(stderr, "  ", e), errs)
         end
         @test isempty(errs)

@@ -433,7 +433,7 @@ which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
 
-`BackendInterface.jl` is an **interface file** (AR-72): it declares and never implements,
+`BackendInterface.jl` is an **interface file** (AR-INTERFACE-DECLARES-ONLY): it declares and never implements,
 so every generic there is a bodiless `function f end`. The one behaviour the
 contract supplies for itself sits beside it in `BackendDefaults.jl` —
 `get_pointer_position` answers `(-1, -1)` for a backend that adds no method,

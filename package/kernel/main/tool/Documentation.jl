@@ -468,12 +468,12 @@ function _index_api()
     entries
 end
 
-# **Accepted AR-45 carve-out.** These two are process-global lazily-built caches,
+# **Accepted AR-PER-EDITOR-STATE carve-out.** These two are process-global lazily-built caches,
 # not per-editor state. They are derived read-only from source files that do not
 # change while the process runs, and are identical for every editor — the same
-# principled exception AR-45 grants the wall clock: one writer, read-only
+# principled exception AR-PER-EDITOR-STATE grants the wall clock: one writer, read-only
 # thereafter, a genuine singleton. No editor can observe another's writes through
-# them, which is the cross-editor conflict AR-45 exists to prevent.
+# them, which is the cross-editor conflict AR-PER-EDITOR-STATE exists to prevent.
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 

@@ -58,12 +58,12 @@ package of its DAG whose API it hard-references"*):
 
 **One process-global registry.** `ToolRegistryModule._TOOLS` / `._RESOURCES` are module-level
 `const` vectors, and `Mcp.jl` adds `_SCRATCH` (a shared scratch module for
-`execute_julia_code`) and `LAST_VALUE`. AR-45 forbids exactly this — *"never in a module-level
+`execute_julia_code`) and `LAST_VALUE`. AR-PER-EDITOR-STATE forbids exactly this — *"never in a module-level
 `const` cell, `Ref`, `Dict`, or counter … one process must run many editors at once"*. Two
 editors in one process today share one tool set, one scratch namespace, and one last-value.
 
 **One test double in `main`.** `backend/HeadlessBackend.jl`'s scripted event queue is canned
-input — AR-68 / the no-test-doubles-in-`main` rule. (The device-layer plan noted this and
+input — AR-NO-TEST-DOUBLES-IN-MAIN / the no-test-doubles-in-`main` rule. (The device-layer plan noted this and
 deliberately left it.)
 
 ## The enforcement change this design needs
@@ -147,7 +147,7 @@ backend/                             layer 5 — the rendering-target seam
   Display.jl
   NullBackend.jl                     was HeadlessBackend: draws nothing, real backend.
                                      Its scripted event queue is a test double and leaves
-                                     for package/kernel/example (AR-68).
+                                     for package/kernel/example (AR-NO-TEST-DOUBLES-IN-MAIN).
 
 document/                            layer 6 — the document contract
   DocumentLayer.jl
@@ -210,7 +210,7 @@ tool/                                layer 12 — the capability surface. No LLM
   ToolLayer.jl
   ToolModule.jl
   Tool.jl                            ▸ interface file — Tool, Resource, ToolSet
-  ToolSet.jl                         register!/list/find/call — ON AN INSTANCE (AR-45),
+  ToolSet.jl                         register!/list/find/call — ON AN INSTANCE (AR-PER-EDITOR-STATE),
                                      replacing the process-global _TOOLS/_RESOURCES
   CodeExecution.jl                   execute_julia_code + its scratch module, per ToolSet
   Documentation.jl                   guides, module/type/function docs, search_documentation,
@@ -238,7 +238,7 @@ agent/                               layer 14 — the glue: llm + tools + a targ
 
 editor/                              layer 15 — the read-eval-print loop
   EditorLayer.jl
-  Editor.jl                          gains `tools::ToolSet` (AR-45: state on the instance)
+  Editor.jl                          gains `tools::ToolSet` (AR-PER-EDITOR-STATE: state on the instance)
   Playback.jl
 ```
 
@@ -532,13 +532,13 @@ example files only to follow their subject (`test/agent/` gains the agent-loop t
 
 | From | To | Forced by |
 | --- | --- | --- |
-| `kernel/agent/ToolRegistry.jl` | `kernel/tool/` (Tool, ToolSet — per-editor) | AR-45; the tool surface is independent of both LLM and MCP |
+| `kernel/agent/ToolRegistry.jl` | `kernel/tool/` (Tool, ToolSet — per-editor) | AR-PER-EDITOR-STATE; the tool surface is independent of both LLM and MCP |
 | `kernel/agent/Mcp.jl` | `kernel/tool/{CodeExecution,Documentation,DefaultTools}.jl` | it contains no MCP |
 | `kernel/agent/Llm.jl` | `kernel/llm/` (+ neutral events, request struct) | a provider seam shaped like one provider is not a seam |
 | `kernel/agent/Agent.jl` | `kernel/agent/AgentServer.jl` | it is the inbound hosting seam, not the agent |
 | `domain/workbench/WorkbenchAssistant.jl` (loop) | `kernel/agent/AgentLoop.jl` | the agent loop is kernel-shaped: it names no domain document |
 | `domain/workbench/WorkbenchAssistant.jl` (UI) | `domain/composite/conversation/ConversationToWidget.jl` | a chat surface is a projection |
-| `kernel/backend/HeadlessBackend.jl` (scripted queue) | `kernel/example/` | AR-68 — no test doubles in `main` |
+| `kernel/backend/HeadlessBackend.jl` (scripted queue) | `kernel/example/` | AR-NO-TEST-DOUBLES-IN-MAIN — no test doubles in `main` |
 | `base/backend/DefaultBackend.jl` | `kernel/backend/BackendDefaults.jl` | lowest-home rule; nothing imports it |
 | `domain/gesturemap/` | `visual/decorator/gesturemap/` | lowest-home rule; it names no domain type |
 | `domain/naturalformat/` | `base/serialization/` | the rules already place persistence frameworks in base |

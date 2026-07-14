@@ -97,7 +97,7 @@ one source of truth.
 
 The walk is recomputed per call rather than memoised: a process-wide cache keyed by
 type is exactly the kind of module-level mutable state that ties independent editors
-together (AR-6, AR-45), and appending a handful of vectors costs nothing next to the
+together (AR-NO-PROJECTION-GLOBALS, AR-PER-EDITOR-STATE), and appending a handful of vectors costs nothing next to the
 event that provoked it.
 """
 function get_document_gesture_bindings(T::Type)

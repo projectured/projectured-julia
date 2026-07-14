@@ -45,7 +45,7 @@ Holds the state for a read-eval-print loop:
                    `register_default_tools!(editor.tools)` fills it with the
                    built-ins on first use. Per editor, so two editors in one
                    process neither share a tool list nor evaluate code into each
-                   other's namespace (AR-45).
+                   other's namespace (AR-PER-EDITOR-STATE).
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)

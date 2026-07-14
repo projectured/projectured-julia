@@ -86,7 +86,7 @@ must be a topological order over the real `import ..XxxModule` edges, every src
 file reached exactly once, files under a declared layer folder may only
 import from layers of index ≤ their own, cross-layer symbol imports may
 name only exported symbols, and every interface file declares without
-implementing (AR-72).
+implementing (AR-INTERFACE-DECLARES-ONLY).
 """
 function test_kernel_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
@@ -110,7 +110,7 @@ function test_kernel_layering()
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionApi.jl" => :ProjectionApiModule,
                        "projection/IoMapApi.jl"      => :IoMapApiModule),
-                   # AR-73: files migrated to bare `using ..Xxx` + qualified
+                   # AR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx` + qualified
                    # extension (`Xxx.f(…) = …`). Opt-in, and it grows as the
                    # sweep proceeds; when it covers every file the parameter goes.
                    qualified_files = Set([

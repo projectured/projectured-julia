@@ -30,19 +30,19 @@
 # 5. (opt-in via `check_private_imports`) every cross-layer
 #    `import ..XxxModule: sym` names only symbols the target module exports.
 #    Same-layer neighbours are still exempt here, but that is **transitional**:
-#    AR-48 forbids reaching into a sibling module's internals too, and the
+#    AR-MODULE-BOUNDARY-IS-API forbids reaching into a sibling module's internals too, and the
 #    same-layer case is enforced per package once its imports are clean. A plain
 #    `import ..XxxModule` is unconstrained.
 # 6. (opt-in via `interface_files`) every declared interface file declares and
-#    never implements, and exports every name it declares (AR-72).
+#    never implements, and exports every name it declares (AR-INTERFACE-DECLARES-ONLY).
 # 7. every `XxxModule.sym` qualification names an exported symbol. This is the
 #    other half of (5): a qualified reference bypasses the export list entirely,
-#    and under AR-73 qualification is how a file extends another module's
-#    generic — so without this check AR-48 would hold for import headers and be
+#    and under AR-QUALIFIED-EXTENSION qualification is how a file extends another module's
+#    generic — so without this check AR-MODULE-BOUNDARY-IS-API would hold for import headers and be
 #    unenforced exactly where it now matters most.
 # 8. (opt-in via `qualified_files`) a migrated file names siblings with bare
 #    `using ..XxxModule` only — never `import ..XxxModule` or a symbol list
-#    (AR-73).
+#    (AR-QUALIFIED-EXTENSION).
 #
 # Each test package calls `check_layering` with its own src root and declared
 # layer order (`test_kernel_layering()`, `test_base_layering()`, …); this file
@@ -198,7 +198,7 @@ function walk_includes(top_file, src_root)
         my_owner = name === nothing ? owner : name
         my_owner === nothing || (file_owner[rel] = my_owner)
         # This file's *own* import headers, before children are folded in — the
-        # AR-73 lint is per file, and a fragment's imports would otherwise be
+        # AR-QUALIFIED-EXTENSION lint is per file, and a fragment's imports would otherwise be
         # attributed to the module file that includes it.
         file_imports[rel] = copy(sym_imports)
         # Recurse into includes, aggregating fragment imports/exports upward.
@@ -351,9 +351,9 @@ imports (neighbours inside one layer may share internals), plain
 `exempt_files` (transitional per-file exemption).
 
 Qualified private access (`XxxModule._name`) reaches just as far and is *not*
-covered here — that is `qualified_reference_errors`' job, and under AR-73
+covered here — that is `qualified_reference_errors`' job, and under AR-QUALIFIED-EXTENSION
 qualification is the normal way to extend another module's generic, so the two
-checks are the two halves of AR-48.
+checks are the two halves of AR-MODULE-BOUNDARY-IS-API.
 """
 function private_import_errors(entries, layers, exempt_files = Set{String}())
     idx_of_layer = Dict(l => i for (i, l) in enumerate(layers))
@@ -373,7 +373,7 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
             haskey(mod_exports, dep) || continue  # dep exempt (package alias)
             dep_idx = mod_layer[dep]
             dep_idx === nothing && continue     # dep exempt (non-layers folder)
-            dep_idx == my_idx && continue       # same layer — exempt for now (transitional; AR-48 forbids this, staged per package)
+            dep_idx == my_idx && continue       # same layer — exempt for now (transitional; AR-MODULE-BOUNDARY-IS-API forbids this, staged per package)
             for s in syms
                 s in mod_exports[dep] || push!(errs,
                     "$rel ($mod, layer \"$(layers[my_idx])\") imports non-exported " *
@@ -385,7 +385,7 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
     errs
 end
 
-# ── qualified-reference checker (AR-48 at the qualification site) ──────────
+# ── qualified-reference checker (AR-MODULE-BOUNDARY-IS-API at the qualification site) ──────────
 
 """
     qualified_reference_errors(src_root, file_owner, entries, layers,
@@ -395,10 +395,10 @@ Assert that every `XxxModule.sym` written in a file names a symbol `XxxModule`
 exports.
 
 `import ..Mod: sym` is not the only way to reach into another module — `Mod.sym`
-in the body reaches just as far, and bypasses the export list *entirely*. AR-73
+in the body reaches just as far, and bypasses the export list *entirely*. AR-QUALIFIED-EXTENSION
 makes qualification the normal way to extend another module's generic
 (`ReferenceModule.step_kind(s::PointReference) = …`), so without this check the
-migration would quietly open a hole exactly where AR-48 matters most: "the
+migration would quietly open a hole exactly where AR-MODULE-BOUNDARY-IS-API matters most: "the
 module boundary *is* the API boundary" would hold for import headers and be
 unenforced everywhere else.
 
@@ -406,7 +406,7 @@ Exempt, mirroring `private_import_errors`: a module qualifying *itself* (a
 fragment naming its own module), deps no entry defines (`Base`, stdlib, package
 aliases), importers or deps outside the declared `layers` folders, and
 `exempt_files`. Unlike `private_import_errors` there is **no same-layer
-exemption** — a qualified reference is new syntax introduced by AR-73, so there
+exemption** — a qualified reference is new syntax introduced by AR-QUALIFIED-EXTENSION, so there
 is no legacy to grandfather and it is held to the rule from the start.
 
 `layers` may be empty (visual and domain declare a slice DAG, not layer
@@ -454,12 +454,12 @@ function qualified_reference_errors(src_root, file_owner, entries, layers,
     errs
 end
 
-# ── AR-73 import-form lint ─────────────────────────────────────────────────
+# ── AR-QUALIFIED-EXTENSION import-form lint ─────────────────────────────────────────────────
 
 """
     relative_import_errors(src_root, qualified_files) -> Vector{String}
 
-AR-73: a file names a sibling module with **bare `using ..Xxx`** and extends its
+AR-QUALIFIED-EXTENSION: a file names a sibling module with **bare `using ..Xxx`** and extends its
 generics by qualification (`Xxx.f(…) = …`). Two forms are banned:
 
 - `import ..Xxx` (any form) — `import` is what makes a bare `f(…) = …` silently
@@ -468,7 +468,7 @@ generics by qualification (`Xxx.f(…) = …`). Two forms are banned:
   imported to be extended"), which is the whole point: the new-vs-extend
   distinction becomes machine-checked rather than a convention.
 - `using ..Xxx: a, b` — a symbol list is noise, and the export list is already
-  the module's declared API (AR-48). Bare `using` also binds the module *name*,
+  the module's declared API (AR-MODULE-BOUNDARY-IS-API). Bare `using` also binds the module *name*,
   which a symbol list does not — and that binding is what qualification needs.
 
 `qualified_files` is an **opt-in** set: only files listed in it are held to the
@@ -488,24 +488,24 @@ function relative_import_errors(src_root, qualified_files)
     for rel in sort(collect(qualified_files))
         path = joinpath(src_root, rel)
         if !isfile(path)
-            push!(errs, "$rel is listed as AR-73-migrated but is not on disk")
+            push!(errs, "$rel is listed as AR-QUALIFIED-EXTENSION-migrated but is not on disk")
             continue
         end
         for stmt in collect_exprs(x -> x.head in (:import, :using), parse_file(path))
             for arg in stmt.args
                 dep = relative_module(arg)
-                dep === nothing && continue     # absolute (Base/stdlib/package) — not AR-73's business
+                dep === nothing && continue     # absolute (Base/stdlib/package) — not AR-QUALIFIED-EXTENSION's business
                 syms = imported_symbols(arg)
                 if stmt.head === :import
                     push!(errs,
                         "$rel uses `import ..$dep" *
                         (isempty(syms) ? "" : ": $(join(syms, ", "))") *
-                        "` — AR-73 wants bare `using ..$dep`, extending by " *
+                        "` — AR-QUALIFIED-EXTENSION wants bare `using ..$dep`, extending by " *
                         "qualification (`$dep.f(…) = …`)")
                 elseif !isempty(syms)
                     push!(errs,
-                        "$rel uses `using ..$dep: $(join(syms, ", "))` — AR-73 wants bare " *
-                        "`using ..$dep`; the export list is already the module's API (AR-48), " *
+                        "$rel uses `using ..$dep: $(join(syms, ", "))` — AR-QUALIFIED-EXTENSION wants bare " *
+                        "`using ..$dep`; the export list is already the module's API (AR-MODULE-BOUNDARY-IS-API), " *
                         "and only the bare form binds `$dep` for qualification")
                 end
             end
@@ -531,7 +531,7 @@ is_type_expr(x) = x isa Symbol || (x isa Expr && x.head in (:curly, :<:, :.))
 """
     interface_purity_errors(src_root, interface_files, entries) -> Vector{String}
 
-Assert AR-72 over each declared interface file: it *declares*, and never
+Assert AR-INTERFACE-DECLARES-ONLY over each declared interface file: it *declares*, and never
 *implements*. Legal at top level — inside the `module` block, or in a bare
 fragment file — are the module docstring, an `abstract type`, a `const` type
 alias, an open generic as a bodiless `function f end`, and module plumbing
@@ -543,7 +543,7 @@ to a call. It belongs in the sibling file that implements the contract.
 Purity is decidable from the AST: a bodiless `function f end` parses to a
 one-argument `Expr(:function)`, a method to a two-argument one.
 
-Also assert the export half of AR-72: every name an interface file declares is
+Also assert the export half of AR-INTERFACE-DECLARES-ONLY: every name an interface file declares is
 exported by its owning module (`interface_files` maps the file's path, relative
 to `src_root`, to that module). An interface file has no private half — its
 export list *is* the layer's API surface.
@@ -560,7 +560,7 @@ function interface_purity_errors(src_root, interface_files, entries)
         for name in declared
             name in mod_exports[mod] || push!(errs,
                 "$rel declares $name but $mod does not export it — an interface file " *
-                "has no private half (AR-72); export it, or move it to an implementation file")
+                "has no private half (AR-INTERFACE-DECLARES-ONLY); export it, or move it to an implementation file")
         end
     end
     errs
@@ -571,7 +571,7 @@ end
 # most recent LineNumberNode so a violation can name its line.
 function scan_interface!(errs, declared, rel, x, line)
     bad(what, fix) = push!(errs, "$rel:$(line[]) $what — an interface file declares, " *
-                                 "it never implements (AR-72); $fix")
+                                 "it never implements (AR-INTERFACE-DECLARES-ONLY); $fix")
     if x isa LineNumberNode
         line[] = x.line
     elseif x isa Expr
@@ -638,13 +638,13 @@ a `@testset`:
    `check_private_imports = true`, requires `layers`; enable per package once
    its imports are clean),
 6. each file in `interface_files` (a path ⇒ owning-module map) declares and
-   never implements, and exports every name it declares (AR-72); the map is
+   never implements, and exports every name it declares (AR-INTERFACE-DECLARES-ONLY); the map is
    per package, so a package opts its interface files in as they come clean,
-7. every `XxxModule.sym` qualification names an exported symbol (AR-48's other
+7. every `XxxModule.sym` qualification names an exported symbol (AR-MODULE-BOUNDARY-IS-API's other
    half — always runs, since qualification is new syntax with no legacy to
    grandfather; `layers` only drives its exemptions),
 8. each file in `qualified_files` uses bare `using ..Xxx` and never
-   `import ..Xxx` / `using ..Xxx: a, b` (AR-73); the set is opt-in and grows as
+   `import ..Xxx` / `using ..Xxx: a, b` (AR-QUALIFIED-EXTENSION); the set is opt-in and grows as
    the migration proceeds.
 """
 function check_layering(src_root, top_file; name = "package",
@@ -718,7 +718,7 @@ function check_layering(src_root, top_file; name = "package",
             @testset "interface files declare, never implement" begin
                 errs = interface_purity_errors(src_root, interface_files, entries)
                 if !isempty(errs)
-                    println(stderr, "\nInterface-purity violations (AR-72):")
+                    println(stderr, "\nInterface-purity violations (AR-INTERFACE-DECLARES-ONLY):")
                     foreach(e -> println(stderr, "  ", e), errs)
                 end
                 @test isempty(errs)
@@ -729,7 +729,7 @@ function check_layering(src_root, top_file; name = "package",
             errs = qualified_reference_errors(src_root, file_owner, entries,
                                               layers, exempt_files)
             if !isempty(errs)
-                println(stderr, "\nQualified non-exported access (AR-48):")
+                println(stderr, "\nQualified non-exported access (AR-MODULE-BOUNDARY-IS-API):")
                 foreach(e -> println(stderr, "  ", e), errs)
             end
             @test isempty(errs)
@@ -739,7 +739,7 @@ function check_layering(src_root, top_file; name = "package",
             @testset "migrated files use bare `using`, never `import`" begin
                 errs = relative_import_errors(src_root, qualified_files)
                 if !isempty(errs)
-                    println(stderr, "\nImport-form violations (AR-73):")
+                    println(stderr, "\nImport-form violations (AR-QUALIFIED-EXTENSION):")
                     foreach(e -> println(stderr, "  ", e), errs)
                 end
                 @test isempty(errs)
@@ -933,7 +933,7 @@ function test_layering_checkers()
                        "step_kind(::T) where {T} = :structural")
             errs = check("abstract type AbstractCell{T} end\n$method\n")
             @test length(errs) == 1
-            @test occursin("defines a method", errs[1]) && occursin("AR-72", errs[1])
+            @test occursin("defines a method", errs[1]) && occursin("AR-INTERFACE-DECLARES-ONLY", errs[1])
         end
 
         # An error fallback is a method too — the loophole this rule closes.
@@ -979,7 +979,7 @@ function test_layering_checkers()
             qualified_reference_errors(root, owner, ents, layers)
         end
 
-        # Qualifying an exported name is the AR-73 extension form — clean.
+        # Qualifying an exported name is the AR-QUALIFIED-EXTENSION extension form — clean.
         @test isempty(check("B.pub(x::Int) = 1\n"))
 
         # Qualifying a non-exported name reaches past the module boundary.
@@ -998,7 +998,7 @@ function test_layering_checkers()
         @test isempty(check("Base.show(io::IO, x::Int) = nothing\nMOI.optimize!(m) = m\n"))
 
         # Unlike private_import_errors there is NO same-layer exemption: qualification
-        # is new syntax under AR-73, so there is no legacy to grandfather.
+        # is new syntax under AR-QUALIFIED-EXTENSION, so there is no legacy to grandfather.
         same_layer = [("cell/B.jl", :B, Symbol[], no_syms, [:pub]),
                       ("cell/A.jl", :A, Symbol[], no_syms, Symbol[])]
         same_owner = Dict("cell/B.jl" => :B, "cell/A.jl" => :A)
@@ -1020,7 +1020,7 @@ function test_layering_checkers()
         end)
     end
 
-    @testset "relative_import_errors enforces the AR-73 import form" begin
+    @testset "relative_import_errors enforces the AR-QUALIFIED-EXTENSION import form" begin
         check(source) = mktempdir() do root
             mkpath(joinpath(root, "cell"))
             write(joinpath(root, "cell/A.jl"), source)
@@ -1033,7 +1033,7 @@ function test_layering_checkers()
         # `import ..B: f` — the form the rule exists to kill.
         errs = check("import ..B: f, g\n")
         @test length(errs) == 1
-        @test occursin("import ..B", errs[1]) && occursin("AR-73", errs[1])
+        @test occursin("import ..B", errs[1]) && occursin("AR-QUALIFIED-EXTENSION", errs[1])
 
         # Bare `import ..B` is banned too: bare `using` already binds the name.
         @test occursin("import ..B", only(check("import ..B\n")))
@@ -1041,7 +1041,7 @@ function test_layering_checkers()
         # A `using` symbol list is banned as well — noise, and it does not bind `B`.
         @test occursin("using ..B: f", only(check("using ..B: f\n")))
 
-        # Absolute imports (Base, stdlib, external packages) are not AR-73's business.
+        # Absolute imports (Base, stdlib, external packages) are not AR-QUALIFIED-EXTENSION's business.
         @test isempty(check("import Base\nusing Test\nimport MathOptInterface as MOI\n"))
 
         # A file not in the opt-in set is untouched by the lint.
