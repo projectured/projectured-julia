@@ -400,4 +400,92 @@ end # let
 
 end # @testset "SyntaxConcatenation"
 
+@testset "SyntaxSeparation" begin
+
+# A separation is a concatenation that also puts something between the children.
+let
+_S2T = SyntaxToTextModule
+s2st = RecursiveProjection(SyntaxToText())
+
+@testset "joins its children with the separator" begin
+    s = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")];
+                         separator=", ")
+    out = print_document(s2st, s).output
+    @test join(x.content for x in out.elements) == "a, b, c"
+    @test render(s) == "a, b, c"
+    # n children, n-1 separators, and nothing else.
+    @test length(out.elements) == 5
+    @test syntax_separator(s).first === :separator      # its own field name, not `sep`
+end
+
+@testset "an absent separator is a concatenation" begin
+    # The separator is the whole difference between the two types, so without one
+    # they must render identically.
+    kids() = SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]
+    bare = SyntaxSeparation(kids())
+    @test syntax_separator(bare) === nothing
+    @test render(bare) == render(SyntaxConcatenation(kids()))
+    @test [x.content for x in print_document(s2st, bare).output.elements] == ["a", "b"]
+    # An empty separator string means the same thing as none.
+    @test syntax_separator(SyntaxSeparation(kids(); separator="")) === nothing
+end
+
+@testset "a cursor maps onto the separator, an edit does not map back to it" begin
+    # One `separator` field renders n-1 spans. Forward, `.separator{k}` is placed on
+    # the FIRST occurrence. Backward, no span maps to `.separator` at all — no single
+    # one of them *is* the separator, and an edit there would change them all.
+    s = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")];
+                         separator=", ")
+    iomap = print_document(s2st, s)
+
+    fwd = map_reference_forward(iomap.projection, iomap,
+              @reference(s, separator{0}))
+    span_idx, _ = _S2T._parse_text_elem_path(fwd)
+    @test span_idx == 2                       # the first separator, right after child 1
+
+    # Backward from inside that first separator: projection-introduced chrome, NOT
+    # `.separator{k}` — the same treatment SyntaxNode's `sep` already gets.
+    back = map_reference_backward(iomap.projection, iomap, _S2T._text_elem_path(2, 1))
+    @test back !== nothing
+    @test strip_reference_types(back).head isa ProjectionReference
+end
+
+@testset "nested in a node: every caret round-trips" begin
+    inner = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; separator="|")
+    node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
+    p = _S2T.SyntaxCompoundToText()
+    iomap = print_document(s2st, node)
+    @test join(x.content for x in iomap.output.elements) == "(x,a|b)"
+    for k in 0:_S2T._subtree_len(node, p, 0)
+        sel = map_reference_backward(iomap.projection, iomap,
+                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+    end
+end
+
+@testset "separation inside an indentation-bearing node" begin
+    # SQL's `_comma_body` shape: a separated list laid out on indented lines.
+    body = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]; separator=",")
+    node = SyntaxNode(SyntaxDocument[body]; open="[", close="]", indentation=1)
+    @test occursin("\n  1,2", join(x.content for x in print_document(s2st, node).output.elements))
+end
+
+@testset "tree navigation walks into and out of a separation" begin
+    inner = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; separator="|")
+    node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
+    op_path(sel, key) = begin
+        clear_selection!(node)
+        set_selection!(node, sel)
+        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, Modifiers()))
+        op isa ReplaceSelectionOperation ? op.path : op
+    end
+    sep_el = @reference(node, children[2])
+    inner1 = @reference(node, children[2].children[1])
+    @test is_reference_equal(op_path(sep_el, :down), inner1)   # descend into it
+    @test is_reference_equal(op_path(inner1, :up),   sep_el)   # and back out
+end
+end # let
+
+end # @testset "SyntaxSeparation"
+
 end # test_syntax_to_text

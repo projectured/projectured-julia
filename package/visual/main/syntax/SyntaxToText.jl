@@ -17,7 +17,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
-                       SyntaxConcatenation,
+                       SyntaxConcatenation, SyntaxSeparation,
                        syntax_children, syntax_opening, syntax_closing,
                        syntax_separator, syntax_indentation, syntax_collapsed,
                        syntax_collapsible
@@ -1036,6 +1036,7 @@ function SyntaxToText(; indent_size::Int = 2,
         SyntaxLeaf          => SyntaxLeafToText(),
         SyntaxNode          => compound,
         SyntaxConcatenation => compound,
+        SyntaxSeparation    => compound,
         ListNode            => SyntaxListToText(),
     )
 end

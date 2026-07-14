@@ -236,31 +236,49 @@ SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
 # not emit and a caret the mappers decline.
 
 """
-    SyntaxSeparation
+    SyntaxSeparation(children; separator, selection)
 
-Concatenates multiple syntax documents with a separator between each.
-Used to join documents with a specific separator string.
+Sequences its children with a separator between each, and nothing else: no
+delimiters, no indentation, no collapse. It renders as its children, joined.
+
+A `SyntaxConcatenation` that also puts something between the children — which is
+what a domain means when it writes a node with only a `sep` set (SQL's `_comma_node`,
+Markdown's inline runs). An absent separator makes it a concatenation, so `separator`
+is what distinguishes the two; a bare `String` is auto-wrapped and an empty one
+normalizes to absence, like every other delimiter.
 
 # Fields
 
-- `children::CellVector` — holds the child `SyntaxDocument` nodes
-- `separator::TextString` — the separator text string
+- `separator::Union{TextString,Nothing}` — what goes between the children
+- `children::CellVector` — the child `SyntaxDocument`s
 
-# Constructors
+The separator renders between every *pair* of children — n−1 spans for one field —
+so a cursor may be placed in it (`.separator{k}` maps onto the first occurrence) but
+an edit cannot be mapped back onto it: no single span *is* "the" separator. It maps
+back as projection-introduced chrome, exactly as `SyntaxNode`'s `sep` does.
 
-- `SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString)`
-- `SyntaxSeparation(separator::TextString)` — empty separation with separator
+The field order is not cosmetic: the defaulted `separator` must precede the required
+`children`, exactly as `SyntaxNode`'s delimiters do. `@document`'s Rule Y generates a
+positional constructor per arity from `required_count` upward, where `required_count`
+counts the fields *before the trailing run of defaulted ones*. With `children` first,
+that run is `separator, selection`, `required_count` is 1, and the generated arity-1
+`SyntaxSeparation(Any)` collides head-on with the coercing keyword constructor below —
+a fatal method overwrite during precompilation. Leading with `separator` puts the
+required field last, so generation starts at arity 2 and the arity-1 form is ours.
 """
-@document struct SyntaxSeparation <: SyntaxDocument
+@document struct SyntaxSeparation <: SyntaxCompound
+    separator::Union{TextString,Nothing} = nothing
     children::CellVector
-    separator::TextString
 end
 
-SyntaxSeparation(children::Vector{<:SyntaxDocument}, separator::TextString) =
-    SyntaxSeparation(CellVector(Cell[Cell(c) for c in children]), separator, nothing)
+# Same shape as `SyntaxNode`'s: `children` leads positionally, everything else is a
+# keyword, and the constructor only *coerces* before delegating — so every default is
+# declared once, on the field.
+SyntaxSeparation(children; separator=nothing, kwargs...) =
+    SyntaxSeparation(; children=_children(children), separator=_text(separator), kwargs...)
 
-SyntaxSeparation(separator::TextString) =
-    SyntaxSeparation(CellVector(), separator, nothing)
+syntax_separator(s::SyntaxSeparation) =
+    s.separator === nothing ? nothing : (:separator => s.separator)
 
 # ── Constructor helpers ────────────────────────────────────────────────────
 #

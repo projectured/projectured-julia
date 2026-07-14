@@ -305,10 +305,24 @@ Do them in dependency order, one commit each, each with its own tests:
   1187/0/23, `test_table_navigation` 63/0/1 err/1, `test_click_roundtrips` 27/2/4).
 - **2.2 `SyntaxConcatenation` — DONE, but not the way this plan said.** See "What 2.2 changed about
   the plan" below: there is **one projection for every compound**, not one per wrapper type.
-- **2.3 `SyntaxSeparation`** — concatenation plus separator spans between children. Now nearly free:
-  make it a `SyntaxCompound`, answer `syntax_separator(s) = :separator => s.separator`, register it.
-  The separator machinery (forward-maps to the first occurrence, backward-maps as projection-introduced
-  chrome) is already generic over the field name.
+- **2.3 `SyntaxSeparation` — DONE.** As predicted, nearly free: subtype `SyntaxCompound`, answer
+  `syntax_separator(s) = :separator => s.separator`, register it in the dispatch table, test. No new
+  printer, mapper, reader or metric — the separator machinery was already generic over the field name,
+  and it correctly maps `.separator{k}` forward onto the first occurrence while mapping backward as
+  projection-introduced chrome. An absent separator makes it render exactly as a `SyntaxConcatenation`,
+  which is the whole difference between the two types and is asserted as such.
+
+  **Field order is load-bearing — `separator` must precede `children`.** `@document`'s Rule Y
+  ([StructPlan.jl](../../package/kernel/main/cell/StructPlan.jl)) generates a positional constructor
+  per arity from `required_count` upward, where `required_count` counts the fields *before the trailing
+  run of defaulted ones*. Declared `children, separator=nothing`, the trailing run is
+  `separator, selection`, `required_count` is 1, and the generated arity-1 `SyntaxSeparation(Any)`
+  collides head-on with the coercing keyword constructor — a **fatal method overwrite during
+  precompilation**, not a warning. Leading with the defaulted `separator` (exactly as `SyntaxNode`
+  leads with `open`/`close`/`sep`) puts the required field last, so generation starts at arity 2 and
+  the arity-1 form is ours. This is the same trap as the Phase 1 note about Rule Y and `req == 0`,
+  reached from the other side: there the danger is *widening* the gate, here it is *field order*
+  changing what the gate computes.
 - **2.4 `SyntaxDelimitation`** — open/close spans around a single child. **Each delimiter is
   independently optional**: `opening_delimiter` and `closing_delimiter` are both
   `Union{TextString,Nothing}`, and either may be present while the other is absent (an opening `"("`
@@ -408,14 +422,28 @@ by re-adding a dummy `Cell`, which restores the count to 110766 precisely. **New
 baseline: 110182 pass / 0 fail / 1 error / 15 broken.** `test_visual` rises to 49294+ (28 new
 `SyntaxConcatenation` assertions); every other guard rail is unchanged to the assertion.
 
-### Still open, for 2.3–2.7
+### Still open, for 2.4–2.7
 
 - **The single-child wrappers are a different problem.** `SyntaxDelimitation` / `SyntaxIndentation` /
   `SyntaxCollapsible` / `SyntaxNavigation` have a `content`, not `children`, so they are **not**
-  `SyntaxCompound`s and the machinery above does not cover them. They need the `.content`-hop
-  transparency the plan flags below (tree navigation must step over a wrapper without treating it as a
-  child level). Decide whether to model them as one-child compounds — which would make them fall out of
-  the existing machinery for free — or to build the transparency mechanism.
+  `SyntaxCompound`s and the machinery above does not address them (it addresses a child as
+  `.children[i]`; a `.content` field has no `[i]`).
+
+  **Settled direction: model them as one-child compounds.** `syntax_children(d) = [d.content]`, plus
+  one new member on the contract for *how a compound addresses its child* — a sequence answers
+  `.children[i]`, a wrapper answers `.content`. Printer, both mappers, both readers, click resolution
+  and the flat metric then work on them unchanged. Four path-shape matchers (`_is_tree_selection`,
+  `_promote_to_structural`, `_descend_to_text_cursor`, `_resolve_collapsible`) currently match the
+  literal `"children"` field name and grow a `.content` case.
+
+  **A wrapper being a navigable tree level is probably right, not a cost.** Selecting a
+  `SyntaxDelimitation` means "the parenthesized thing, *including* its parens", which is a genuinely
+  different selection from selecting its content. The earlier worry — that tree navigation would walk
+  through layers of chrome — assumed domains would rebuild `SyntaxNode`s as wrapper stacks. **They will
+  not** (see Phase 3: a domain moves to a wrapper only where the combined type does not fit; JSON's
+  array stays a `SyntaxNode`), so real stacks are 1–2 deep. `SyntaxIndentation` is the one doubtful
+  case — its own spans are pure whitespace, so stopping on it may be a nuisance level. If it proves so,
+  a per-type `syntax_transparent` knob can hide it. Do not build that up front.
 - **`SyntaxConcatenation` in a `@projection_template` blueprint still does not work.** The Phase 1
   lesson stands: a blueprint needs a raw `Vector` (`ProjectionTemplate._has_fixed_children` tests
   `getfield(out, f)[] isa Vector`) while a hand-written projection's output needs a `CellVector`, and
