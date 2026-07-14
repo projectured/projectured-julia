@@ -23,34 +23,39 @@ The `deps` direction (downstream → upstream) is fine: it points at the long-li
 document, which is alive anyway. It is the `dependents` direction (upstream → downstream)
 that must not own.
 
-## What leaks, and what does not
+## What leaks
 
-Measured on the `json` example (`plan/` scratch scripts, 2026-07-14):
+Measured on the `json` example, 2026-07-14:
 
-| | live (post-GC) | `dependents` on document cells |
+| change | live (post-GC) | pinned edges |
 |---|---|---|
-| one pipeline, 348 selection moves (**the editor's steady state**) | 706 MB → 706 MB | 36 470 → 36 470 |
-| one caret walk (`_walk_cursor` re-prints per keystroke) | +690 MB **per walk** | +36 317 **per walk** |
-| five walks | 723 → 3 478 MB, linear | 36 317 → 181 585, linear |
+| 348 **selection moves**, one pipeline | 706 MB → 706 MB | flat |
+| 200 **structural edits** (insert a node, remove it), one pipeline | +100 kB **per edit**, linear | +3.4 **per edit**, linear |
+| one **caret walk** (`_walk_cursor` re-prints per keystroke) | +690 MB **per walk** | +36 317 **per walk** |
+| five caret walks | 723 → 3 478 MB, linear | 36 317 → 181 585, linear |
 
-**The editor's steady state does not leak.** Recomputation detaches and re-registers its
-own edges correctly, so moving the caret through a live pipeline is flat in both memory
-and edge count.
+**Selection moves are flat — but that is an OPTIMIZATION, not a property.** The printers go
+to deliberate lengths to reuse cells across a selection change (`_DecoCache`, span
+stability, IoMap identity keyed on the child object), so the selection path happens not to
+create new cells and therefore has nothing to leak. Every change that reuse does *not* cover
+leaks. Do not read that row as "the editor is fine".
 
-**Discarded pipelines leak, in full.** `print_document` builds a fresh pipeline; each of
-its cells registers itself in the `dependents` of every document cell it reads; when the
+**Structural edits leak.** Insert a node and remove it again, 200 times, through a single
+pipeline: the live pipeline's own cell count never moves (3908 throughout), but the number
+of dependency edges hanging off those live cells grows linearly. Those edges are *dead*
+cells — the discarded sub-pipeline of the removed node — pinned by the surviving pipeline.
+~3.4 edges and ~100 kB per edit, for ever. A long editing session is a slow leak.
+
+**Re-printing leaks the whole pipeline.** `print_document` builds a fresh one; each of its
+cells registers itself in the `dependents` of every document cell it reads; when the
 pipeline is thrown away nothing detaches it. `_walk_cursor` re-prints once per keystroke
-([ClickRoundtripTest.jl](../../package/visual/test/editor/ClickRoundtripTest.jl)), so a
-walk retains one whole pipeline per caret.
+([ClickRoundtripTest.jl](../../package/visual/test/editor/ClickRoundtripTest.jl)), so a walk
+retains one whole pipeline per caret. That is why the suites are so heavy — on `main`:
+`typeins` 5.3 GB, `click_roundtrips` 4.1 GB, `nav_invariants` 3.5 GB peak RSS.
 
-That is why the suites are so heavy — on `main`: `typeins` 5.3 GB, `click_roundtrips`
-4.1 GB, `nav_invariants` 3.5 GB peak RSS. (On the syntax branch `nav_invariants` is
-7.4 GB, but that is **not** a regression: Phase 1 fixed examples that previously threw
-immediately — `mixed` alone now walks 499 carets where it used to die — so more walks
-actually run. Every phase after Phase 1 is flat.)
-
-Anything that re-prints leaks, so this is not only a test artifact: a projection change or
-a document swap in the editor leaks the old pipeline too.
+(On the syntax branch `nav_invariants` is 7.4 GB, but that is **not** a regression: Phase 1
+fixed examples that previously threw immediately — `mixed` alone now walks 499 carets where
+it used to die — so more walks actually run. Every phase after Phase 1 is flat.)
 
 ## The detector
 
@@ -72,12 +77,25 @@ computation, so this is on the hot path. Do not patch it casually.
    reactive read path cost ~2×, so this must be benchmarked before and after.
 2. **Explicit disposal** — keep `dependents` strong, add `dispose!(iomap)` that walks a
    discarded pipeline and calls the existing `_detach_upstream!` on each of its cells; make
-   every re-printing caller invoke it. Leaves the hot path untouched, but correctness then
-   rests on discipline: the leak returns wherever someone forgets.
+   every re-printing caller invoke it. Leaves the hot path untouched, but correctness rests
+   on discipline: the leak returns wherever someone forgets.
+
+   **Weakened by the structural-edit finding.** Disposal is tractable for a whole discarded
+   pipeline, which has an owner and an obvious moment of death. It is *not* tractable for the
+   cells a printer sheds mid-recompute: there is no `iomap` to dispose, no owner, and no
+   moment — a node is simply rebuilt and its old spans become garbage. Those are exactly the
+   ~3.4 edges per structural edit, and disposal cannot reach them. So (2) fixes the tests and
+   leaves the editor leaking.
+
+**Recommendation: (1).** The structural-edit leak is inside a single live pipeline, where
+there is nothing to "dispose" — only (1) reaches it.
 
 ## Open questions
 
-- Benchmark the read path (`Base.getindex(::ReactiveCell)`) before committing to (1).
-- Does anything other than tests re-print in a loop? If the editor only ever re-prints on a
-  projection change, (2) may be enough in practice — but (1) is still the correct model.
-- A weak set can make GC timing observable; the detector may need to force GC (it does).
+- Benchmark the read path (`Base.getindex(::ReactiveCell)`) before committing to (1). This is
+  the one real objection: `dependents` is written on every cell read inside a computation, and
+  the cell-kinds work found runtime branches there cost ~2×.
+- A weak set makes GC timing observable; the detector already forces GC, but invalidation must
+  tolerate entries that have been collected.
+- `deps` (downstream → upstream) can stay strong: it points at the long-lived document, which
+  is alive anyway. Only `dependents` must weaken.

@@ -79,15 +79,22 @@ x[] = 999          # x is no longer a dep after last eval
     # links before re-evaluating. A cell that is simply *discarded* never recomputes
     # again, so its edges are never removed and the upstream cell pins it for ever.
     #
-    # That is a real leak, not a theoretical one. A projection pipeline is rebuilt from
-    # scratch on every `print_document`, and each of its cells registers itself in the
-    # `dependents` of every document cell it reads — so a document ends up holding on to
-    # every pipeline it has ever been printed through. Measured on the `json` example,
-    # one caret walk (which re-prints once per keystroke) retains 36_317 dependency
-    # edges and ~690 MB of live, post-GC memory, and it grows linearly with every walk.
-    # The editor's steady state — one pipeline, selection moves only — does NOT leak:
-    # recomputation detaches and re-registers correctly. It is discarded pipelines that
-    # are never let go.
+    # That is a real leak, not a theoretical one, and it is not confined to tests.
+    # Measured on the `json` example:
+    #
+    #   - a **structural edit** (insert a node, remove it again) leaves ~3.4 dead cells
+    #     pinned and ~100 kB of live memory behind — every edit, for ever. The live
+    #     pipeline's own cell count does not move; what grows is the number of dead cells
+    #     hanging off it.
+    #   - a **re-print** leaks the whole pipeline: `print_document` builds a fresh one and
+    #     each of its cells registers itself in the `dependents` of every document cell it
+    #     reads. One caret walk (which re-prints per keystroke) retains 36_317 edges and
+    #     ~690 MB of live, post-GC memory, linearly per walk.
+    #
+    # Moving the *selection* through a live pipeline is flat — but only because the
+    # printers go to deliberate lengths to reuse cells across a selection change
+    # (`_DecoCache`, span stability, IoMap identity). That is an optimization, not a
+    # property: every change it does not cover leaks.
     source = Cell(1)
     before = length(getfield(source, :dependents))
 
