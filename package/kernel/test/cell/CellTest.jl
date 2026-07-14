@@ -68,6 +68,50 @@ flag[] = false
 x[] = 999          # x is no longer a dep after last eval
 @test is_up_to_date(cond)  # cond should still be valid
 
+# ── the dependency edge must not own the reader ─────────────────────────
+
+@testset "an upstream cell does not retain a discarded downstream cell" begin
+    # `dependents` exists to propagate INVALIDATION downstream. It must not keep the
+    # downstream cell ALIVE — an upstream cell has no business owning its readers.
+    #
+    # Today it does: `dependents` is a strong `Set{ReactiveCell}`, and the only place
+    # an edge is ever removed is `recompute!`, which detaches a cell's own upstream
+    # links before re-evaluating. A cell that is simply *discarded* never recomputes
+    # again, so its edges are never removed and the upstream cell pins it for ever.
+    #
+    # That is a real leak, not a theoretical one. A projection pipeline is rebuilt from
+    # scratch on every `print_document`, and each of its cells registers itself in the
+    # `dependents` of every document cell it reads — so a document ends up holding on to
+    # every pipeline it has ever been printed through. Measured on the `json` example,
+    # one caret walk (which re-prints once per keystroke) retains 36_317 dependency
+    # edges and ~690 MB of live, post-GC memory, and it grows linearly with every walk.
+    # The editor's steady state — one pipeline, selection moves only — does NOT leak:
+    # recomputation detaches and re-registers correctly. It is discarded pipelines that
+    # are never let go.
+    source = Cell(1)
+    before = length(getfield(source, :dependents))
+
+    # A throwaway "pipeline": computed cells that read `source`, are forced once, and
+    # are then dropped. Built inside a function so that nothing roots them afterwards.
+    function build_and_drop!(src)
+        for _ in 1:100
+            c = Cell(() -> src[] + 1)
+            c[]                       # forcing registers `c` in `src.dependents`
+        end
+        nothing
+    end
+    build_and_drop!(source)
+    @test length(getfield(source, :dependents)) == before + 100   # they registered
+
+    # They are now unreachable and can never recompute, so nothing will ever detach
+    # them. The only thing still pointing at them is `source.dependents` itself.
+    GC.gc(true); GC.gc(true)
+
+    # @broken: `dependents` strongly owns its readers, so a discarded pipeline is pinned
+    # by the document for ever; the edge needs to be weak. See plan/pending/reactive-dependents-leak.md
+    @test_broken length(getfield(source, :dependents)) == before
+end
+
 # ── cell kinds ──────────────────────────────────────────────────────────
 
 @testset "typed ReactiveCell" begin
