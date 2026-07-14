@@ -109,7 +109,12 @@ function test_kernel_layering()
                        "backend/BackendInterface.jl" => :BackendModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionApi.jl" => :ProjectionApiModule,
-                       "projection/IoMapApi.jl"      => :IoMapApiModule))
+                       "projection/IoMapApi.jl"      => :IoMapApiModule),
+                   # AR-73: files migrated to bare `using ..Xxx` + qualified
+                   # extension (`Xxx.f(…) = …`). Opt-in, and it grows as the
+                   # sweep proceeds; when it covers every file the parameter goes.
+                   qualified_files = Set([
+                       "projection/ProjectionReference.jl"]))   # the reference-step seam
 end
 
 """

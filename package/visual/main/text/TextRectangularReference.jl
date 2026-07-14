@@ -16,8 +16,8 @@ here alongside the type.
 """
 module TextRectangularReferenceModule
 
-import ..CellModule: Cell, @cell_struct
-import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step
+using ..CellModule
+using ..ReferenceModule
 
 export TextRectangularReference
 
@@ -36,10 +36,10 @@ to sit in the current text.
     stop::Int
 end
 
-step_kind(::TextRectangularReference) = :structural
+ReferenceModule.step_kind(::TextRectangularReference) = :structural
 
 # A rectangular text range's descended value is the range itself.
-evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
+ReferenceModule.evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
 
 Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) =
     a.start == b.start && a.stop == b.stop

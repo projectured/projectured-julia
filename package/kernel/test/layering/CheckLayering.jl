@@ -408,6 +408,10 @@ aliases), importers or deps outside the declared `layers` folders, and
 `exempt_files`. Unlike `private_import_errors` there is **no same-layer
 exemption** — a qualified reference is new syntax introduced by AR-73, so there
 is no legacy to grandfather and it is held to the rule from the start.
+
+`layers` may be empty (visual and domain declare a slice DAG, not layer
+indices): the layer folders only drive the *exemptions*, so with no layers
+declared nothing is exempt and every file is checked.
 """
 function qualified_reference_errors(src_root, file_owner, entries, layers,
                                     exempt_files = Set{String}())
@@ -422,8 +426,11 @@ function qualified_reference_errors(src_root, file_owner, entries, layers,
     for rel in sort(collect(keys(file_owner)))
         rel in exempt_files && continue
         owner = file_owner[rel]
-        my_idx = get(idx_of_layer, layer_of(rel), nothing)
-        my_idx === nothing && continue          # file exempt (non-layers folder)
+        # With layers declared, a file outside them is exempt (as in `layer_errors`).
+        # With none declared, there is nothing to be outside of — check everything.
+        if !isempty(layers) && get(idx_of_layer, layer_of(rel), nothing) === nothing
+            continue
+        end
         ast = parse_file(joinpath(src_root, rel))
         # `Mod.sym` parses to `Expr(:., :Mod, QuoteNode(:sym))`. A nested
         # `a.b.c` has an Expr (not a Symbol) head, so only the innermost
@@ -436,7 +443,8 @@ function qualified_reference_errors(src_root, file_owner, entries, layers,
             sym isa Symbol || continue          # `Mod.:(==)` etc. — not a plain name
             dep === owner && continue           # a fragment naming its own module
             haskey(mod_exports, dep) || continue  # not a module of this package
-            mod_layer[dep] === nothing && continue  # dep exempt (non-layers folder)
+            isempty(layers) || mod_layer[dep] !== nothing ||
+                continue                        # dep exempt (non-layers folder)
             sym in mod_exports[dep] && continue
             push!(errs,
                 "$rel ($owner) qualifies non-exported $dep.$sym — export it from " *
@@ -633,8 +641,8 @@ a `@testset`:
    never implements, and exports every name it declares (AR-72); the map is
    per package, so a package opts its interface files in as they come clean,
 7. every `XxxModule.sym` qualification names an exported symbol (AR-48's other
-   half — runs whenever `layers` is declared, since qualification is new syntax
-   with no legacy to grandfather),
+   half — always runs, since qualification is new syntax with no legacy to
+   grandfather; `layers` only drives its exemptions),
 8. each file in `qualified_files` uses bare `using ..Xxx` and never
    `import ..Xxx` / `using ..Xxx: a, b` (AR-73); the set is opt-in and grows as
    the migration proceeds.
@@ -717,16 +725,14 @@ function check_layering(src_root, top_file; name = "package",
             end
         end
 
-        if !isempty(layers)
-            @testset "qualified references name only exported symbols" begin
-                errs = qualified_reference_errors(src_root, file_owner, entries,
-                                                  layers, exempt_files)
-                if !isempty(errs)
-                    println(stderr, "\nQualified non-exported access (AR-48):")
-                    foreach(e -> println(stderr, "  ", e), errs)
-                end
-                @test isempty(errs)
+        @testset "qualified references name only exported symbols" begin
+            errs = qualified_reference_errors(src_root, file_owner, entries,
+                                              layers, exempt_files)
+            if !isempty(errs)
+                println(stderr, "\nQualified non-exported access (AR-48):")
+                foreach(e -> println(stderr, "  ", e), errs)
             end
+            @test isempty(errs)
         end
 
         if !isempty(qualified_files)

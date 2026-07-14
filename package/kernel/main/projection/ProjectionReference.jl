@@ -19,9 +19,6 @@ module ProjectionReferenceModule
 
 using ..CellModule
 using ..ReferenceModule
-# `import`, not `using`: this module adds methods to the five reference seams.
-import ..ReferenceModule: step_kind, evaluate_step,
-                          dsl_build_step, dsl_match_step, dsl_step_subpath_args
 
 export ProjectionReference
 
@@ -39,11 +36,11 @@ the tree is evaluatable.
     output_path::ReferencePath
 end
 
-step_kind(::ProjectionReference) = :structural
+ReferenceModule.step_kind(::ProjectionReference) = :structural
 
 # A projection step descends to the location the projection introduced —
 # reified as the output path within that projection's output.
-evaluate_step(step::ProjectionReference, document) = step.output_path
+ReferenceModule.evaluate_step(step::ProjectionReference, document) = step.output_path
 
 Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
     a.projection === b.projection && a.output_path == b.output_path
@@ -53,13 +50,13 @@ Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
 # `.proj(projection, subpath)` — argument 2 is a subpath, so both DSL parsers
 # parse it as a reference path (not a value). This is the only kernel-side
 # coupling the reference layer needs; the parsers stay ignorant of `.proj` itself.
-dsl_step_subpath_args(::Val{:proj}) = (2,)
+ReferenceModule.dsl_step_subpath_args(::Val{:proj}) = (2,)
 
-dsl_build_step(::Val{:proj}, projex, outpathex) =
+ReferenceModule.dsl_build_step(::Val{:proj}, projex, outpathex) =
     :($(GlobalRef(ProjectionReferenceModule, :ProjectionReference))($projex, $outpathex))
 
-function dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound,
-                        gen_value_match, gen_path_match)
+function ReferenceModule.dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound,
+                                        gen_value_match, gen_path_match)
     projpat, outpath = argpats[1], argpats[2]
     projexpr = :($hex.projection)
     outpathexpr = :($hex.output_path)
