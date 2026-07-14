@@ -488,4 +488,133 @@ end # let
 
 end # @testset "SyntaxSeparation"
 
+@testset "Syntax wrappers" begin
+
+# The four single-child wrappers are compounds like any other: they have a child, they
+# lay out their own spans around it, and they are a level of the tree. The only thing
+# that distinguishes them is how they address that child — `.content`, not `.children[i]`.
+let
+_S2T = SyntaxToTextModule
+s2st = RecursiveProjection(SyntaxToText())
+
+@testset "a wrapper is a compound with exactly one child" begin
+    d = SyntaxDelimitation(SyntaxLeaf("x"); opening_delimiter="(", closing_delimiter=")")
+    @test d isa SyntaxWrapper
+    @test d isa SyntaxCompound
+    @test !(d isa SyntaxSequence)
+    @test length(syntax_children(d)) == 1
+    @test syntax_opening(d).first === :opening_delimiter   # its own field name
+    @test syntax_closing(d).first === :closing_delimiter
+end
+
+@testset "each wrapper lays out the one job it owns" begin
+    leaf = SyntaxLeaf("x")
+    @test render(SyntaxDelimitation(leaf; opening_delimiter="(", closing_delimiter=")")) == "(x)"
+    @test render(SyntaxNavigation(leaf)) == "x"          # an anchor, no spans of its own
+    @test render(SyntaxCollapsible(leaf)) == "x"
+    @test render(SyntaxIndentation(leaf; indentation=1)) == "x"   # chrome is not in `render`
+
+    # Delimiters are independently optional — an opener with no closer is a real thing.
+    @test render(SyntaxDelimitation(leaf; opening_delimiter="#")) == "#x"
+    @test render(SyntaxDelimitation(leaf; closing_delimiter=";")) == "x;"
+    # And an absent delimiter emits NO span, so it offers no caret.
+    bare = print_document(s2st, SyntaxDelimitation(leaf)).output
+    @test [x.content for x in bare.elements] == ["x"]
+
+    # The indentation wrapper puts its child on its own indented line.
+    ind = print_document(s2st, SyntaxIndentation(leaf; indentation=1)).output
+    @test occursin("\n  x", join(x.content for x in ind.elements))
+end
+
+@testset "only a collapsible wrapper can collapse" begin
+    leaf = SyntaxLeaf("x")
+    @test syntax_collapsible(SyntaxCollapsible(leaf))
+    @test !syntax_collapsible(SyntaxDelimitation(leaf))
+    @test !syntax_collapsible(SyntaxIndentation(leaf))
+    # A non-collapsible wrapper is never handed a fold marker (it would be a dead glyph).
+    p_on = _S2T.SyntaxCompoundToText(expanded_marker=TextString("▾"),
+                                     collapsed_marker=TextString("▸"))
+    @test _S2T._active_marker(p_on, SyntaxIndentation(leaf)) === nothing
+    @test _S2T._active_marker(p_on, SyntaxCollapsible(leaf)) !== nothing
+    # Collapsed, the child is replaced by the ellipsis.
+    folded = print_document(s2st, SyntaxCollapsible(leaf; collapsed=true)).output
+    @test !occursin("x", join(c.content for c in folded.elements))
+end
+
+@testset "a caret round-trips through a .content hop" begin
+    # The whole point: a wrapper adds a `.content` step to every path beneath it, and
+    # every caret must still map back to a selection that forward-maps onto the same
+    # character. This is what would break if the mappers still matched `.children[i]`.
+    inner = SyntaxDelimitation(SyntaxLeaf("ab"); opening_delimiter="(", closing_delimiter=")")
+    node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="[", close="]", sep=",")
+    p = _S2T.SyntaxCompoundToText()
+    iomap = print_document(s2st, node)
+    @test join(c.content for c in iomap.output.elements) == "[x,(ab)]"
+    for k in 0:_S2T._subtree_len(node, p, 0)
+        sel = map_reference_backward(iomap.projection, iomap,
+                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+    end
+end
+
+@testset "wrappers stack" begin
+    text(d) = join(c.content for c in print_document(s2st, d).output.elements)
+    kids() = SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]
+
+    # A delimited, indented, separated list, stacked out of three wrappers.
+    stacked = SyntaxDelimitation(
+                  SyntaxIndentation(
+                      SyntaxSeparation(kids(); separator=","),
+                      indentation = 1);
+                  opening_delimiter = "[", closing_delimiter = "]")
+    @test text(stacked) == "[\n  1,2\n]"
+
+    # ── The stack is NOT a decomposition of the combined node ────────────────────
+    #
+    # `SyntaxNode`'s indentation puts EACH CHILD on its own indented line, emitting
+    # `sep, newline, indent, child` — separator and line chrome interleaved, by one
+    # node. `SyntaxIndentation` has exactly one child and indents THAT ONE THING.
+    # Split across two nodes the two spans cannot interleave: whichever wrapper is
+    # outer emits its spans outside the other's. So neither stacking order reproduces
+    # it, and that is inherent, not a bug.
+    #
+    # Which is the whole point of keeping the combined type: a per-child indented,
+    # separated list IS the combination fitting, and `SyntaxNode` is the right tool
+    # for it. The wrappers are for where it does not fit.
+    combined = SyntaxNode(kids(); open="[", close="]", sep=",", indentation=1)
+    @test text(combined) == "[\n  1,\n  2\n]"
+    @test text(stacked) != text(combined)
+
+    # The other stacking order puts the separator on a line of its own — also not it.
+    other = SyntaxDelimitation(
+                SyntaxSeparation(SyntaxDocument[SyntaxIndentation(SyntaxLeaf("1"); indentation=1),
+                                                SyntaxIndentation(SyntaxLeaf("2"); indentation=1)];
+                                 separator=",");
+                opening_delimiter="[", closing_delimiter="]")
+    @test text(other) == "[\n  1\n,\n  2\n]"
+end
+
+@testset "tree navigation walks into and out of a wrapper" begin
+    # A wrapper IS a level of the tree: selecting a SyntaxDelimitation means "the
+    # parenthesised thing, including its parens", which is a different selection from
+    # selecting its content.
+    inner = SyntaxDelimitation(SyntaxLeaf("a"); opening_delimiter="(", closing_delimiter=")")
+    node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="[", close="]", sep=",")
+    op_path(sel, key) = begin
+        clear_selection!(node)
+        set_selection!(node, sel)
+        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, Modifiers()))
+        op isa ReplaceSelectionOperation ? op.path : op
+    end
+    wrapper = @reference(node, children[2])            # the delimitation
+    content = @reference(node, children[2].content)    # the leaf inside it
+
+    @test is_reference_equal(op_path(wrapper, :down), content)   # descend through .content
+    @test is_reference_equal(op_path(content, :up),   wrapper)   # and back out
+    @test SyntaxModule._is_tree_selection(content)               # a .content step is a tree step
+end
+end # let
+
+end # @testset "Syntax wrappers"
+
 end # test_syntax_to_text

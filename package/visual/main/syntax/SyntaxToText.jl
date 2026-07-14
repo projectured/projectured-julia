@@ -18,9 +18,11 @@ import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
                        SyntaxConcatenation, SyntaxSeparation,
+                       SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
+                       SyntaxNavigation,
                        syntax_children, syntax_opening, syntax_closing,
                        syntax_separator, syntax_indentation, syntax_collapsed,
-                       syntax_collapsible
+                       syntax_collapsible, syntax_child_path, peel_child_step
 import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
@@ -175,7 +177,7 @@ read_intent(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
 # any node with at least one child. Projection instances can pass a custom
 # `marker_eligible` predicate to restrict this further (e.g. the filesystem
 # pipeline marks only directory header nodes, not the indented body wrapper).
-_default_marker_eligible(node) = length(node.children) > 0
+_default_marker_eligible(node) = length(syntax_children(node)) > 0
 
 # Default ellipsis glyph for a collapsed node's body. Uses the DejaVu mono
 # font (which carries the … glyph) and a muted gray so the placeholder reads
@@ -292,15 +294,12 @@ function _child_elem_range(iomap::SyntaxCompoundToTextIoMap, child_i::Int, tail)
     (1 <= child_i <= length(ranges)) || return nothing
     base = ranges[child_i]
     tail isa EmptyReferencePath && return base
-    tail isa ConcreteReferencePath || return nothing
-    h = tail.head
-    (h isa FieldReference && h.name == "children") || return nothing
-    r = tail.tail
-    r isa ConcreteReferencePath || return nothing
-    gj = _rr_start(r.head); gj === nothing && return nothing
+    step = peel_child_step(tail)
+    step === nothing && return nothing
+    gj, gtail = step
     cim = iomap.child_iomaps[][child_i]
     cim isa SyntaxCompoundToTextIoMap || return nothing
-    sub = _child_elem_range(cim, gj + 1, r.tail)
+    sub = _child_elem_range(cim, gj, gtail)
     sub === nothing && return nothing
     offset = base.start - 1
     return (sub.start + offset):(sub.stop + offset)
@@ -343,16 +342,13 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
         return map_reference_forward(p, iomap, inner)
     end
     h isa FieldReference || return nothing
-    rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
-    fname = h.name
-    if fname == "children"
+    # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
+    step = peel_child_step(reference)
+    if step !== nothing
         syntax_collapsed(node) && return nothing   # a collapsed node lays out no children
-        ci = _rr_start(rest.head); ci === nothing && return nothing
-        child_i = ci + 1
+        child_i, ctail = step
         cims = iomap.child_iomaps[]
         (1 <= child_i <= length(cims)) || return nothing
-        ctail = rest.tail
         # Whole-element (∅-terminating) selection → a parent-flat rectangle over
         # the child subtree's spliced (widened) spans.
         rng = _child_elem_range(iomap, child_i, ctail)
@@ -368,6 +364,9 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
         inner === nothing && return nothing
         return _shift_child_cursor(inner, elements, iomap.child_elem_ranges[][child_i])
     end
+    rest = reference.tail
+    rest isa ConcreteReferencePath || return nothing
+    fname = h.name
     k = _rr_start(rest.head); k === nothing && return nothing
     # The separator renders between every pair of children; a cursor on it is placed
     # at the first occurrence (right after child 1).
@@ -389,14 +388,9 @@ _child_tree_path(idx::Int) =
     ConcreteReferencePath(FieldReference("elements"),
         ConcreteReferencePath(RangeReference(idx - 1, idx), EmptyReferencePath()))
 
-# `.children[i]` into `doc`, carrying `inner` beneath it. The type checkpoint is the
-# compound's OWN type — a literal `@reference ::SyntaxNode.children…` would stamp
-# every compound's paths as `SyntaxNode`. `ElementReference(i)` is `RangeReference(i-1, i)`,
-# and a `::T` checkpoint folds onto the node it follows, so this is exactly what that
-# form lowers to.
-_prepend_child(doc::SyntaxCompound, i::Int, inner) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReference("children"),
-        ConcreteReferencePath(CellVector, RangeReference(i - 1, i), inner))
+# The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
+# for a wrapper. The compound answers; this file does not care which it is.
+_prepend_child(doc::SyntaxCompound, i::Int, inner) = syntax_child_path(doc, i, inner)
 
 # A cursor in one of this compound's own delimiter spans: `.<field>{c}`.
 _own_span_path(doc::SyntaxCompound, field::Symbol, c::Int) =
@@ -1037,6 +1031,10 @@ function SyntaxToText(; indent_size::Int = 2,
         SyntaxNode          => compound,
         SyntaxConcatenation => compound,
         SyntaxSeparation    => compound,
+        SyntaxDelimitation  => compound,
+        SyntaxIndentation   => compound,
+        SyntaxCollapsible   => compound,
+        SyntaxNavigation    => compound,
         ListNode            => SyntaxListToText(),
     )
 end
@@ -1245,29 +1243,26 @@ function _syntax_to_flat(node::SyntaxCompound, path::ReferencePath, p::SyntaxCom
                 char_count += _subtree_len(children[1], p, depth)
             end
             return char_count + k
-        elseif fname == "children"
-            # A collapsed node lays out no children, so a `.children[i]…` input
-            # reference has no image in the rendered text.
-            syntax_collapsed(node) && return -1
-            h2 = rest.head
-            h2 isa RangeReference || return -1
-            child_i = h2.start + 1
-            (1 <= child_i <= length(children)) || return -1
-            rest2 = rest.tail
-            sep_len = _own_len(separator)
-            char_count = lead
-            child_depth = indent != 0 ? depth + 1 : depth
-            for i in 1:child_i
-                i > 1 && (char_count += sep_len)
-                indent != 0 && (char_count += 1 + child_depth * p.indent_size)
-                if i == child_i
-                    f = _syntax_to_flat(children[i], rest2, p, child_depth)
-                    f < 0 && return -1
-                    return char_count + f
-                end
-                char_count += _subtree_len(children[i], p, child_depth)
+        end
+        # A step into a child. A collapsed node lays out none, so such a reference has
+        # no image in the rendered text.
+        step = peel_child_step(path)
+        step === nothing && return -1
+        syntax_collapsed(node) && return -1
+        child_i, rest2 = step
+        (1 <= child_i <= length(children)) || return -1
+        sep_len = _own_len(separator)
+        char_count = lead
+        child_depth = indent != 0 ? depth + 1 : depth
+        for i in 1:child_i
+            i > 1 && (char_count += sep_len)
+            indent != 0 && (char_count += 1 + child_depth * p.indent_size)
+            if i == child_i
+                f = _syntax_to_flat(children[i], rest2, p, child_depth)
+                f < 0 && return -1
+                return char_count + f
             end
-            return -1
+            char_count += _subtree_len(children[i], p, child_depth)
         end
         return -1
     end
@@ -1342,21 +1337,18 @@ function _resolve_collapsible(node::SyntaxCompound, path)
     # Selections are canonical (carry TypeReference checkpoints); strip them so
     # the plain structural skeleton (.children[i]...) is what we walk below.
     p = strip_reference_types(path)
-    while p isa ConcreteReferencePath
-        h = p.head
-        (h isa FieldReference && h.name == "children") || break
-        t = p.tail
-        t isa ConcreteReferencePath || break
-        idx = t.head
-        idx isa RangeReference || break
-        i = idx.start + 1
+    while true
+        step = peel_child_step(p)
+        step === nothing && break
+        i, tail = step
         children = syntax_children(cur)
+        children === nothing && break
         (1 <= i <= length(children)) || break
         child = children[i]
         child isa SyntaxCompound || break
         syntax_collapsible(child) && (best = child)
         cur = child
-        p = strip_reference_types(t.tail)
+        p = strip_reference_types(tail)
     end
     best
 end

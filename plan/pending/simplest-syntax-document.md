@@ -427,28 +427,70 @@ by re-adding a dummy `Cell`, which restores the count to 110766 precisely. **New
 baseline: 110182 pass / 0 fail / 1 error / 15 broken.** `test_visual` rises to 49294+ (28 new
 `SyntaxConcatenation` assertions); every other guard rail is unchanged to the assertion.
 
-### Still open, for 2.4–2.7
+## 2.4–2.7 — the four single-child wrappers — **DONE**
 
-- **The single-child wrappers are a different problem.** `SyntaxDelimitation` / `SyntaxIndentation` /
-  `SyntaxCollapsible` / `SyntaxNavigation` have a `content`, not `children`, so they are **not**
-  `SyntaxCompound`s and the machinery above does not address them (it addresses a child as
-  `.children[i]`; a `.content` field has no `[i]`).
+`SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible` and `SyntaxNavigation` are now
+one-child compounds, exactly as settled. They needed **no printer, no IoMap, no mapper, no reader and
+no flat metric of their own** — they get all of it from the compound machinery.
 
-  **Settled direction: model them as one-child compounds.** `syntax_children(d) = [d.content]`, plus
-  one new member on the contract for *how a compound addresses its child* — a sequence answers
-  `.children[i]`, a wrapper answers `.content`. Printer, both mappers, both readers, click resolution
-  and the flat metric then work on them unchanged. Four path-shape matchers (`_is_tree_selection`,
-  `_promote_to_structural`, `_descend_to_text_cursor`, `_resolve_collapsible`) currently match the
-  literal `"children"` field name and grow a `.content` case.
+`SyntaxCompound` split into two kinds, which is the only place they genuinely differ:
 
-  **A wrapper being a navigable tree level is probably right, not a cost.** Selecting a
-  `SyntaxDelimitation` means "the parenthesized thing, *including* its parens", which is a genuinely
-  different selection from selecting its content. The earlier worry — that tree navigation would walk
-  through layers of chrome — assumed domains would rebuild `SyntaxNode`s as wrapper stacks. **They will
-  not** (see Phase 3: a domain moves to a wrapper only where the combined type does not fit; JSON's
-  array stays a `SyntaxNode`), so real stacks are 1–2 deep. `SyntaxIndentation` is the one doubtful
-  case — its own spans are pure whitespace, so stopping on it may be a nuisance level. If it proves so,
-  a per-type `syntax_transparent` knob can hide it. Do not build that up front.
+- **`SyntaxSequence`** — children in a `children::CellVector`, addressed `.children[i]`
+  (`SyntaxNode`, `SyntaxConcatenation`, `SyntaxSeparation`).
+- **`SyntaxWrapper`** — exactly one child in `content`, addressed `.content`
+  (the four above).
+
+The contract grew one member in each direction: `syntax_child_path(doc, i, inner)` **builds** the step
+down into a child (the compound answers `.children[i]` or `.content`), and `peel_child_step(path)`
+**parses** one back off a path. Every matcher that used to spell `FieldReference("children")` literally
+— `_is_tree_selection`, `_promote_to_structural`, `_descend_to_text_cursor`, `_tree_navigate`,
+`_resolve_collapsible`, `map_reference_forward`, `_child_elem_range`, `_syntax_to_flat` — now goes
+through that pair and no longer knows which kind of compound it is walking. `peel_child_step` is
+structural (no document), because `_is_tree_selection` and `_promote_to_structural` are handed a path
+with nothing to ask.
+
+A wrapper is a real level of the tree, and that is right: selecting a `SyntaxDelimitation` means *"the
+parenthesised thing, including its parens"*, which is a different selection from selecting its content.
+Only `SyntaxCollapsible` answers `syntax_collapsible`, so no other wrapper is ever handed a fold marker
+that would do nothing when clicked.
+
+Field order again: each wrapper's defaulted fields precede its required `content`, for the Rule Y
+reason recorded under 2.3.
+
+### Per-child indentation is not decomposable — the combined type earns its keep
+
+Stacking wrappers **cannot** reproduce `SyntaxNode`'s indented, separated list, and this is inherent:
+
+| built as | renders |
+|---|---|
+| `SyntaxNode(kids; open="[", close="]", sep=",", indentation=1)` | `[\n  1,\n  2\n]` |
+| `Delimitation(Indentation(Separation(kids, ",")))` | `[\n  1,2\n]` |
+| `Delimitation(Separation([Indentation(1), Indentation(2)], ","))` | `[\n  1\n,\n  2\n]` |
+
+`SyntaxNode` emits `sep, newline, indent, child` — the separator and the line chrome **interleaved, by
+one node**. Split across two nodes, the separator belongs to the separation and the chrome to the
+indentation, and whichever is outer emits its spans outside the other's. There is no stacking order
+that interleaves them. `SyntaxIndentation` has exactly one child and indents *that one thing*; it is a
+different (and perfectly good) job.
+
+**So a per-child indented, separated list IS the combination fitting, and `SyntaxNode` is the right
+tool for it.** This is not a gap to close — it is the reason the combined type exists, and it narrows
+Phase 3: SQL's `_comma_body` / `_newline_body` / `_newline_body_compact` and every domain's indented
+list stay `SyntaxNode`s. Asserted in `SyntaxToTextTest` so nobody "fixes" it later.
+
+### Still open
+
+- **`SyntaxNavigation` does nothing yet.** It is a compound with one child and no spans, so it renders
+  as its content and is a selectable tree level — which is *most* of "the `∅` whole-element anchor"
+  the plan asked for, but it has no behaviour of its own beyond that. Decide whether it needs any.
+- **A wrapper's decoration font.** `_deco_font` deliberately does not consult the children (reading a
+  child's spans during the parent's splice would make the printer eager where it must be lazy), so a
+  `SyntaxIndentation` with no delimiters of its own gives its newline/indent spans the *default* font
+  rather than the content's. On a `SyntaxNode` the delimiters supplied it. Harmless until a domain
+  puts an indentation wrapper around content at a non-default size, where it would pin the line height.
+- **`SyntaxIndentation` as a nuisance tree level.** Its own spans are pure whitespace, so stopping on
+  it in tree navigation may be noise. If it proves so, a per-type `syntax_transparent` knob can hide
+  it. Not built — do not build it up front.
 - ~~**`SyntaxConcatenation` in a `@projection_template` blueprint does not work.**~~ **FIXED.** See
   "The template-blueprint gap" below. The Phase 1 lesson — that a fixed-children template node cannot
   use the keyword form — **no longer holds**, and the 7-arg positional form is no longer forced.
@@ -515,9 +557,10 @@ stays a `SyntaxNode`. The inventory gives the clear-cut cases:
 
 - **Julia** — 19 connector nodes → `SyntaxConcatenation`; `JuliaBlock`'s `indentation=1` →
   `SyntaxIndentation`. The biggest single win (61.9% of julia's spans are empty).
-- **SQL** — the six helpers: `_kw` → bare leaf; `_space_node` / `_comma_node` → `SyntaxSeparation`;
-  `_comma_body` / `_newline_body` / `_newline_body_compact` → `SyntaxSeparation` +
-  `SyntaxIndentation`. 16 of 22 node rules drop their empty delimiters.
+- **SQL** — the six helpers: `_kw` → bare leaf; `_space_node` / `_comma_node` → `SyntaxSeparation`.
+  **But `_comma_body` / `_newline_body` / `_newline_body_compact` must STAY `SyntaxNode`s** — see
+  "Per-child indentation is not decomposable" below. 16 of 22 node rules still drop their empty
+  delimiters.
 - **Markdown** — the five `sep=""` types → `SyntaxConcatenation`.
 - **JSON / YAML / XML** — entry nodes with explicit `TextString("")` open/close → `SyntaxSeparation`;
   array/object `indentation=` → `SyntaxIndentation`.
