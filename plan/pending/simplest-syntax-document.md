@@ -70,7 +70,7 @@ empty string instead of as *absence*. That is the same fact as the 42.7%.
 `SyntaxNodeToText` today does **five jobs at once**. The six wrappers are exactly those five jobs,
 separated — so Phase 2 is a **factoring of existing code**, not new duplication:
 
-| wrapper | the job it takes over from `SyntaxNodeToText` | reference steps it owns |
+| document | the job it takes over from `SyntaxNodeToText` | reference steps it owns |
 |---|---|---|
 | `SyntaxConcatenation` | splicing children's spans into one element list (`child_elem_ranges`) | `.children[i].^(inner)` |
 | `SyntaxSeparation` | the same, plus a separator span *between* children (n−1 of them) | `.children[i].^(inner)`, `.separator{k}` |
@@ -79,8 +79,34 @@ separated — so Phase 2 is a **factoring of existing code**, not new duplicatio
 | `SyntaxCollapsible` | the expand/collapse marker span, the ellipsis, `marker_eligible`, `ToggleCollapseOperation`, marker click hit-testing | `.content.^(inner)` |
 | `SyntaxNavigation` | the whole-element (`∅`) tree-selection anchor | `.content.^(inner)` |
 
-End state: `SyntaxLeaf` carries a value, `SyntaxNode` carries children, and everything else is applied
-only where it is meant. `JsonNull` → one span. Julia's connectors → `SyntaxConcatenation(children)`.
+…plus the Syntax domain's two missing **atoms** (see below):
+
+| document | what it is | reference steps |
+|---|---|---|
+| `SyntaxNothing` | the domain's empty placeholder — the rendering of a *nothing* value, exactly as `JsonNothing` / `JuliaNothing` / `DocumentNothing` are for theirs | none (`∅` only) |
+| `SyntaxInsertion` | the domain's typed-name insertion buffer (`value::String`) | `.value{k}` |
+
+### Overlap between these documents is intentional
+
+`SyntaxLeaf` (value + delimiters + indentation + collapsed) and `SyntaxNode` (children + delimiters +
+separator + indentation + collapsed) **stay exactly as they are**, combining several of the concerns
+above in one document. That is a feature, not a redundancy to eliminate: a domain that wants a
+delimited, indented, collapsible node should say so in one document rather than stack four wrappers.
+
+**A domain picks whichever document fits it best.** JSON's object keeps being a `SyntaxNode`; Julia's
+19 connector nodes become `SyntaxConcatenation`; SQL's `_comma_body` becomes a `SyntaxSeparation`
+inside a `SyntaxIndentation`. There is no forced march to the fine-grained types and no end state in
+which the combined types disappear.
+
+### One shared implementation
+
+The combined types and the fine-grained ones are **implemented on the same core**, not side by side.
+Phase 2.1 extracts the machinery currently buried in `SyntaxNodeToText` — child splicing and
+`child_elem_ranges`, separator emission, delimiter spans, the `indent_indices` splice-widening, the
+collapse marker — into helpers, and then *both* `SyntaxNodeToText` and the new wrapper projections
+call them. `SyntaxNode`'s printer becomes the composition of the same pieces `SyntaxConcatenation` +
+`SyntaxSeparation` + `SyntaxDelimitation` + `SyntaxIndentation` + `SyntaxCollapsible` use
+individually. If a fix is needed in the splice logic, there is one place to fix it.
 
 ## Phase 1 — optional delimiters on the fat types
 
@@ -164,18 +190,55 @@ Make the wrappers real. Each gets the full projection surface, following the sha
 
 Do them in dependency order, one commit each, each with its own tests:
 
-- **2.1 `SyntaxConcatenation`** — the core splice. **Extract** the child-splicing loop out of
-  `SyntaxNodeToText` into a shared helper both use; do not copy it.
-- **2.2 `SyntaxSeparation`** — concatenation plus separator spans between children.
-- **2.3 `SyntaxDelimitation`** — open/close spans around a single child. **Its delimiters should be
-  required, not defaulted to `TextString("")`**: a document with no delimiter simply is not wrapped.
-  (One-sided delimitation, via `nothing` on one side, is fine.)
-- **2.4 `SyntaxIndentation`** — the newline/indent chrome and the `indent_indices` + splice-widening
-  machinery, lifted wholesale out of `SyntaxNodeToText`. **This is where the width-0 indent slot
-  lives**, so the deferred indent-slot problem becomes localized to one projection.
-- **2.5 `SyntaxCollapsible`** — the marker span, ellipsis, `marker_eligible`,
-  `ToggleCollapseOperation` and the marker-click hit-testing, lifted out of `SyntaxNodeToText`.
-- **2.6 `SyntaxNavigation`** — the `∅` whole-element anchor.
+- **2.1 Extract the shared core.** Pull child splicing + `child_elem_ranges`, separator emission,
+  delimiter spans, `indent_indices` splice-widening, and the collapse marker out of
+  `SyntaxNodeToText` into helpers. Re-express `SyntaxNodeToText` in terms of them — it must be a pure
+  refactor, with the whole suite unchanged, before any new type is added. Everything below then
+  *calls* these helpers rather than reimplementing them.
+- **2.2 `SyntaxConcatenation`** — the core splice, over `children`.
+- **2.3 `SyntaxSeparation`** — concatenation plus separator spans between children.
+- **2.4 `SyntaxDelimitation`** — open/close spans around a single child. **Each delimiter is
+  independently optional**: `opening_delimiter` and `closing_delimiter` are both
+  `Union{TextString,Nothing}`, and either may be present while the other is absent (an opening `"("`
+  with no closer, a trailing `";"` with no opener). Absent means *no span emitted and no caret* — not
+  `TextString("")`, which is the bug this whole plan exists to remove. The reference maps must
+  therefore decline `.opening_delimiter{k}` when there is no opener, and the span indices are
+  dynamic (0, 1 or 2 own spans around the content).
+- **2.5 `SyntaxIndentation`** — the newline/indent chrome and the `indent_indices` + splice-widening
+  machinery. **This is where the width-0 indent slot lives**, so the deferred indent-slot problem
+  becomes localized to one projection.
+- **2.6 `SyntaxCollapsible`** — the marker span, ellipsis, `marker_eligible`,
+  `ToggleCollapseOperation` and the marker-click hit-testing.
+- **2.7 `SyntaxNavigation`** — the `∅` whole-element anchor.
+- **2.8 `SyntaxNothing` + `SyntaxInsertion`** — the domain's missing atoms; see below.
+
+### 2.8 in detail — the Syntax domain's Nothing / Insertion pair
+
+Every domain is supposed to have an empty placeholder and an insertion buffer: `@domain`
+([Domain.jl:396](../../package/base/main/document/Domain.jl#L396)) generates
+`XNothing` (the empty placeholder), `XInsertion` (`value::String = ""`, the typed-name buffer), the
+Insert-key gesture that turns one into the other, and the traits wiring (`nothing_document`,
+`insertion_document`, `domain_prefix`, …). `DocumentNothing`, `JsonNothing` and `JuliaNothing` all
+exist. **The Syntax domain has neither** — `SyntaxInsertion` is declared in `Syntax.jl` but has no
+traits, no gesture, no printer, and is never constructed; `SyntaxNothing` does not exist at all. The
+Syntax domain is directly editable (there is a `syntax` example), so it needs both.
+
+So: adopt the convention rather than hand-rolling it — `@domain Syntax root = SyntaxDocument
+insertion = SyntaxInsertion`, generating `SyntaxNothing` and adopting the existing root/insertion.
+`@domain`'s docstring explicitly notes the projection-table entries are *not* generated, so add
+`SyntaxNothing => SyntaxNothingToText()` and `SyntaxInsertion => SyntaxInsertionToText()` to the
+`TypeDispatchingProjection` at
+[SyntaxToText.jl:818](../../package/visual/main/syntax/SyntaxToText.jl#L818).
+
+**Layering constraint — check this first.** The existing renderers for these two roles,
+`NothingToSyntaxLeaf` and `InsertionToSyntaxLeaf` (with the `_nothing_label` helper that turns
+`JsonNothing` into "empty json"), live in
+[package/domain/main/insertion/InsertionToSyntax.jl](../../package/domain/main/insertion/InsertionToSyntax.jl)
+— the **domain** package, which sits *above* visual. `SyntaxToText` is in visual and cannot import
+them. Options, decide before writing code: move the label helper (and possibly the generic
+Nothing/Insertion renderers) down to base or visual so both layers share one implementation, or give
+`SyntaxNothingToText` its own. Prefer sharing — a second `_nothing_label` is exactly the kind of
+duplication this plan is trying to remove.
 
 ### Design decisions to settle in Phase 2 — do not skip these
 
@@ -193,9 +256,12 @@ Do them in dependency order, one commit each, each with its own tests:
 - **Layering cost.** Each wrapper is another projection layer per node — more iomaps, more cells.
   `PrinterLocalityTest` is the guard; watch it for reconciliation loss.
 
-## Phase 3 — migrate the domains to the simplest document
+## Phase 3 — let each domain pick the document that fits
 
-One domain per commit, easiest first, re-baselining each time. The inventory gives the work-list:
+Opportunistic, one domain per commit, re-baselining each time. This is **not** a forced march: a
+domain moves to a finer-grained document only where that document says what it means more directly
+than the combined one. Where a `SyntaxNode` is genuinely a delimited, separated, indented node, it
+stays a `SyntaxNode`. The inventory gives the clear-cut cases:
 
 - **Julia** — 19 connector nodes → `SyntaxConcatenation`; `JuliaBlock`'s `indentation=1` →
   `SyntaxIndentation`. The biggest single win (61.9% of julia's spans are empty).
@@ -207,12 +273,8 @@ One domain per commit, easiest first, re-baselining each time. The inventory giv
   array/object `indentation=` → `SyntaxIndentation`.
 - The rest: object, book, conversation, filesystem, dbcatalog, formula, math, gesturemap.
 
-## Phase 4 — (optional, later) shed the fat fields
-
-Once every domain is migrated, `SyntaxLeaf` can lose `open` / `close` / `indentation` / `collapsed`,
-and `SyntaxNode` can lose `open` / `close` / `sep` / `indentation` / `collapsed` — at which point
-`SyntaxNode` *is* `SyntaxConcatenation`, and one of the two goes away. Do not attempt before Phase 3
-is complete.
+There is no Phase 4. `SyntaxLeaf` and `SyntaxNode` keep every field they have; the combined and the
+fine-grained documents coexist permanently, sharing one implementation.
 
 ## Guard rails
 
@@ -238,6 +300,4 @@ These must not regress at any point:
   step addressing a *flat character offset* instead would make the duplicate unrepresentable. That is
   the real fix for the caret model; this plan stops manufacturing spans that should never have
   existed.
-- **`SyntaxInsertion`** is also unconstructed and has no printer. It is not one of the six; decide
-  separately whether it belongs with the insertion machinery (`DocumentInsertionToSyntaxModule`) or
-  should be retired.
+Nothing else. `SyntaxNothing` and `SyntaxInsertion` are **not** deferred — they are Phase 2.8.
