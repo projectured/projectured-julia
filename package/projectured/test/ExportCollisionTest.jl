@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # ExportCollisionTest.jl
 #
-# AR-QUALIFIED-EXTENSION rests on bare `using ..XxxModule`: a file names a sibling module and
-# takes its exports, with no symbol list. That is only safe while two modules
+# AR-QUALIFIED-EXTENSION rests on bare `using ..XxxModule`: a file names a
+# sibling module and takes its exports, with no symbol list. That is only
+# safe while two modules
 # never export the same name for two *different* things.
 #
 # Julia's rule: a name exported by several modules resolves silently when every
@@ -20,7 +21,8 @@
 # lowest package whose API reaches all four (AR-LOWEST-PACKAGE).
 # ═══════════════════════════════════════════════════════════════════════════
 
-"The Projectured package roots whose modules AR-QUALIFIED-EXTENSION's bare `using` can pull in."
+"The Projectured package roots whose modules AR-QUALIFIED-EXTENSION's bare
+`using` can pull in."
 const PROJECT_ROOTS = Set([:Projectured, :ProjecturedKernel, :ProjecturedBase,
                            :ProjecturedVisual, :ProjecturedDomain])
 

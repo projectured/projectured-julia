@@ -21,8 +21,9 @@ drives it locally on behalf of an LLM, the opt-in `ProjecturedMcp` package
 exposes it over the Model Context Protocol, and a human calls the same functions
 from the REPL.
 
-**One `ToolSet` per editor** (AR-PER-EDITOR-STATE). Nothing here is process-global: the tool
-list, the resource list, the code-execution scratch namespace, and its last
+**One `ToolSet` per editor** (AR-PER-EDITOR-STATE). Nothing here is
+process-global: the tool list, the resource list, the code-execution scratch
+namespace, and its last
 result all live on the `ToolSet` instance an `Editor` owns, so two editors in one
 process never share a tool registry or evaluate into each other's namespace.
 """

@@ -468,8 +468,8 @@ function _index_api()
     entries
 end
 
-# **Accepted AR-PER-EDITOR-STATE carve-out.** These two are process-global lazily-built caches,
-# not per-editor state. They are derived read-only from source files that do not
+# **Accepted AR-PER-EDITOR-STATE carve-out.** These two are process-global lazily-built
+# caches, not per-editor state. They are derived read-only from source files that do not
 # change while the process runs, and are identical for every editor — the same
 # principled exception AR-PER-EDITOR-STATE grants the wall clock: one writer, read-only
 # thereafter, a genuine singleton. No editor can observe another's writes through

@@ -164,9 +164,10 @@ function test_all()
     test_base()
     test_visual()
     test_domain()
-    # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no name is exported by
-    # two modules with different bindings, so bare `using ..XxxModule` can never
-    # become ambiguous. The per-package guards cannot see this.
+    # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
+    # name is exported by two modules with different bindings, so bare `using
+    # ..XxxModule` can never become ambiguous. The per-package guards cannot
+    # see this.
     test_export_collision_checker()
     test_export_collisions()
     # Umbrella integration: everything below needs the example registry, the

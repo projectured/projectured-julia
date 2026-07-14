@@ -16,9 +16,9 @@ end
 
 # Apply an operation to the draft. No real editor is needed for the logic, but the
 # stand-in must carry a `ToolSet`: the composer's evaluate operation runs code
-# through the editor's own tools (AR-PER-EDITOR-STATE — they live on the editor, never in a
-# global). One set for the file, so the code-execution scratch namespace is built
-# once rather than per operation.
+# through the editor's own tools (AR-PER-EDITOR-STATE — they live on the editor,
+# never in a global). One set for the file, so the code-execution scratch
+# namespace is built once rather than per operation.
 const _CE_TOOLS = ToolSet()
 _ce_apply!(op) = evaluate_operation((tools = _CE_TOOLS,), op)
 _ce_type!(draft, s) = for ch in s

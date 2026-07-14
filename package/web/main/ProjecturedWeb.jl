@@ -15,8 +15,9 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-# The backend + device contracts (AR-QUALIFIED-EXTENSION): bare `using`, extended by qualification
-# below. A bare `using` of an alias binds the module's *real* name, so the
+# The backend + device contracts (AR-QUALIFIED-EXTENSION): bare `using`,
+# extended by qualification below. A bare `using` of an alias binds the
+# module's *real* name, so the
 # extension sites read BackendModule.* / DeviceModule.*.
 using ProjecturedDomain.BackendApiModule
 using ProjecturedDomain.DeviceModule

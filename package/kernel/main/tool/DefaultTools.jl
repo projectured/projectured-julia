@@ -10,9 +10,9 @@ read-only documentation resources (the guides, and each module/type's docs).
 Idempotent: registering again replaces entries rather than duplicating them.
 
 Every handler **closes over `set`**, which is how the code-execution tool reaches
-its own scratch namespace and last value without a registry global (AR-PER-EDITOR-STATE) and
-without threading a context argument through the `(target, args)` handler
-signature every other tool is happy with.
+its own scratch namespace and last value without a registry global
+(AR-PER-EDITOR-STATE) and without threading a context argument through the
+`(target, args)` handler signature every other tool is happy with.
 """
 function register_default_tools!(set::ToolSet)
     register_tool!(set, Tool(
