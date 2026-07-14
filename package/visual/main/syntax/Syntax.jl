@@ -272,20 +272,21 @@ The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
   `.close{k}`  — cursor at boundary k of the close delimiter, if present
 """
 @document struct SyntaxLeaf <: SyntaxDocument
-    open::Union{TextString,Nothing}
-    close::Union{TextString,Nothing}
+    open::Union{TextString,Nothing} = nothing
+    close::Union{TextString,Nothing} = nothing
     value::TextString
-    indentation::Int
-    collapsed::Bool
+    indentation::Int = 0
+    collapsed::Bool = false
 end
 
 # Canonical keyword constructor: `value` leads positionally and is left untyped
 # so it also accepts a `bound(…)`/marker object from `@projection_template`
-# builders. open/close auto-wrap a bare string via `_text`, and stay `nothing`
-# when omitted.
-SyntaxLeaf(value; open=nothing, close=nothing,
-           indentation::Int=0, collapsed=false, selection=nothing) =
-    SyntaxLeaf(_text(open), _text(close), value, indentation, collapsed, selection)
+# builders. Its only job is to coerce the delimiters through `_text` (auto-wrap a
+# bare string, normalize an empty one to absence) and hand the rest to the
+# `@document` keyword constructor, so every default is declared once — on the
+# field — and never restated here.
+SyntaxLeaf(value; open=nothing, close=nothing, kwargs...) =
+    SyntaxLeaf(; open=_text(open), close=_text(close), value=value, kwargs...)
 
 # Bare-string / function content ergonomics route through the keyword form so
 # they inherit the same defaults.
@@ -338,22 +339,21 @@ The `selection` cell routes a cursor into the rendered node, or `nothing`:
                         clears all other children and propagates the rest into child i
 """
 @document struct SyntaxNode <: SyntaxDocument
-    open::Union{TextString,Nothing}
-    close::Union{TextString,Nothing}
-    sep::Union{TextString,Nothing}
+    open::Union{TextString,Nothing} = nothing
+    close::Union{TextString,Nothing} = nothing
+    sep::Union{TextString,Nothing} = nothing
     children::CellVector
-    indentation::Int
-    collapsed::Bool
+    indentation::Int = 0
+    collapsed::Bool = false
 end
 
-# Canonical keyword constructor: `children` leads positionally; `_children`
-# normalizes a Vector/CellVector/Function builder and passes a marker through
-# untouched. open/close/sep auto-wrap a bare string via `_text`, and stay
-# `nothing` when omitted.
-SyntaxNode(children; open=nothing, close=nothing, sep=nothing,
-           indentation::Int=0, collapsed=false, selection=nothing) =
-    SyntaxNode(_text(open), _text(close), _text(sep), _children(children),
-               indentation, collapsed, selection)
+# Canonical keyword constructor: `children` leads positionally. Its only job is to
+# coerce — the delimiters through `_text`, the children through `_children` — and
+# hand the rest to the `@document` keyword constructor, so every default is
+# declared once, on the field, and never restated here.
+SyntaxNode(children; open=nothing, close=nothing, sep=nothing, kwargs...) =
+    SyntaxNode(; open=_text(open), close=_text(close), sep=_text(sep),
+                 children=_children(children), kwargs...)
 
 # Positional delimiter forms, kept for callers that use them instead of keywords.
 SyntaxNode(open::TextString, close::TextString, sep::TextString,
