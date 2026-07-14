@@ -41,9 +41,9 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
-import ..MouseModule: MouseMove, MouseEnter, MouseLeave
+import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 # The focus-path helpers live in WidgetModule (document layer), available for the
 # top-level Tab wrap-around rule.
 import ..WidgetModule: first_focusable_path, last_focusable_path

@@ -1,21 +1,23 @@
 """
     TextToStringModule
 
-TextText → String projection. Flattens a sequence of styled text spans into
+TextBlock → String projection. Flattens a sequence of styled text spans into
 a plain Julia String by concatenating each span's content. TextString spans
 contribute their content verbatim; TextNewline spans contribute a newline
-character; all other span types are ignored.
+character; a TextLine contributes its indentation and its own spans, and the
+enclosing block emits the break it implies (a separator: `n` lines, `n-1`
+breaks). All other span types are ignored.
 """
 module TextToStringModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
 import ..CellModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
 import ..PrinterContextModule: make_child_context
-export TextTextToString, TextStringToString, TextNewlineToString, TextToString
+export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
 
 # ── TextStringToString ───────────────────────────────────────────────────────
 
@@ -57,27 +59,65 @@ function read_intent(::TextNewlineToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
-# ── TextTextToString ───────────────────────────────────────────────────────
+# ── TextLineToString ──────────────────────────────────────────────────────────
 
-struct TextTextToString <: Projection end
+struct TextLineToString <: Projection end
 
-function map_reference_forward(::TextTextToString, iomap, reference)
+function map_reference_forward(::TextLineToString, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::TextTextToString, iomap, reference)
+function map_reference_backward(::TextLineToString, iomap, reference)
+    return nothing
+end
+
+# A line contributes its indentation and its spans — but *not* its break: that is
+# a separator between elements, so the enclosing block emits it (see
+# `text_flat_offsets`, the same rule).
+function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
+    child_iomaps = Cell(() -> [print_child(recursion, elem,
+                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                               for (i, elem) in enumerate(line.elements)])
+    output = Cell(() -> begin
+        buf = IOBuffer()
+        print(buf, ' '^line.indentation)
+        for iomap in child_iomaps[]
+            s = iomap.output[]
+            s isa AbstractString && print(buf, s)
+        end
+        String(take!(buf))
+    end)
+    SimpleIoMap(proj, line, output)
+end
+
+function read_intent(::TextLineToString, iomap::SimpleIoMap, op)
+    return nothing
+end
+
+# ── TextBlockToString ───────────────────────────────────────────────────────
+
+struct TextBlockToString <: Projection end
+
+function map_reference_forward(::TextBlockToString, iomap, reference)
+    return nothing
+end
+
+function map_reference_backward(::TextBlockToString, iomap, reference)
     return nothing
 end
 
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
-function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
+function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin
         buf = IOBuffer()
-        for iomap in child_iomaps[]
+        elements = text.elements
+        for (i, iomap) in enumerate(child_iomaps[])
+            # The break a TextLine implies, emitted between elements.
+            (i > 1 && elements[i] isa TextLine) && print(buf, '\n')
             s = iomap.output[]
             s isa AbstractString && print(buf, s)
         end
@@ -86,7 +126,7 @@ function print_document(proj::TextTextToString, recursion, text::TextText, ctx)
     SimpleIoMap(proj, text, output)
 end
 
-function read_intent(::TextTextToString, iomap::SimpleIoMap, op)
+function read_intent(::TextBlockToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
@@ -96,7 +136,8 @@ function TextToString()
     TypeDispatchingProjection(
         TextString  => TextStringToString(),
         TextNewline => TextNewlineToString(),
-        TextText    => TextTextToString(),
+        TextLine    => TextLineToString(),
+        TextBlock   => TextBlockToString(),
     )
 end
 

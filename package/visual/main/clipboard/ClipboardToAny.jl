@@ -51,14 +51,16 @@ import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
-import ..TextModule: TextText, TextString, text_selection_substring, text_insert_op
+import ..TextModule: TextBlock, TextString, text_selection_substring, text_insert_op
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
-                          evaluate_reference, head, tail, strip_reference_types
+                          evaluate_reference, try_evaluate_reference, head, tail,
+                          strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
-import ..GestureBindingModule: GestureBinding, KeyDownPattern
+import ..GestureBindingModule: GestureBinding
+import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
 import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
@@ -82,7 +84,7 @@ out to the OS clipboard. When `from_text` (a `String -> Document`) is set, `Ctrl
 falls back to the OS clipboard if the internal slice is empty. Both default to
 `nothing`, in which case there is no OS-clipboard interaction at all.
 
-When `text` is `true`, the wrapped `content` is treated as a `TextText` and
+When `text` is `true`, the wrapped `content` is treated as a `TextBlock` and
 copy/cut/paste operate on **character ranges** instead of document nodes: copy/cut
 store the selected substring (as a `TextString`) in the slice and mirror it to the
 OS clipboard; paste splices the slice's text (or, if the slice is empty, the OS
@@ -92,7 +94,7 @@ mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
     to_text::Any          # Document -> String, or nothing  (copy/cut/note mirror → OS)
     from_text::Any        # String -> Document, or nothing   (paste fallback ← OS)
-    text::Bool            # text-range copy/cut/paste over a TextText content (+ OS)
+    text::Bool            # text-range copy/cut/paste over a TextBlock content (+ OS)
 end
 ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from_text=nothing, text::Bool=false) =
     ClipboardSliceToAnyProjection(Cell(display_slice), to_text, from_text, text)
@@ -308,7 +310,7 @@ function _os_paste_document(p)
     doc isa Document ? doc : nothing
 end
 
-# ── Text mode (TextText content) ───────────────────────────────────────────────
+# ── Text mode (TextBlock content) ───────────────────────────────────────────────
 # In text mode copy/cut/paste move *character ranges*, not document nodes. The
 # slice stores the copied text as a TextString (the ProjecturEd clipboard); the OS
 # clipboard is always mirrored on copy/cut and used as the paste fallback. Edits are
@@ -320,11 +322,11 @@ _slice_text(d::TextString)     = (c = d.content; c isa AbstractString ? String(c
 _slice_text(d::PrimitiveString) = (v = d.value;  v isa AbstractString ? String(v) : nothing)
 _slice_text(d)                 = nothing
 
-# Copy/cut/paste over a TextText content. Each returns `nothing` to decline (no
-# TextText content, or no usable character selection), so the caller falls through.
+# Copy/cut/paste over a TextBlock content. Each returns `nothing` to decline (no
+# TextBlock content, or no usable character selection), so the caller falls through.
 function _text_clipboard_copy(p, input)
     content = input.content
-    content isa TextText || return nothing
+    content isa TextBlock || return nothing
     sub = text_selection_substring(content)
     sub === nothing && return nothing
     CompoundOperation(Any[
@@ -336,7 +338,7 @@ end
 
 function _text_clipboard_cut(p, input)
     content = input.content
-    content isa TextText || return nothing
+    content isa TextBlock || return nothing
     sub = text_selection_substring(content)
     sub === nothing && return nothing
     del = text_insert_op(content, "")              # replace the selected range with "" = delete
@@ -350,7 +352,7 @@ end
 
 function _text_clipboard_paste(p, input)
     content = input.content
-    content isa TextText || return nothing
+    content isa TextBlock || return nothing
     str = _slice_text(input.slice)                 # primary: the ProjecturEd clipboard
     str === nothing && (str = os_clipboard_read())  # fallback: the OS clipboard
     str === nothing && return nothing
@@ -364,7 +366,8 @@ end
 function _selected(input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing, nothing
-    obj = try evaluate_reference(input, sel) catch; return nothing, nothing end
+    obj = try_evaluate_reference(input, sel, missing)
+    obj === missing && return nothing, nothing
     sel, obj
 end
 
@@ -374,9 +377,9 @@ end
 # the user's original selection on the copied source. When the projection has a
 # `to_text` converter, the copy is also mirrored to the OS clipboard.
 function _clipboard_copy(p, input)
-    # Text mode is exclusive over a TextText content: never fall through to the node
+    # Text mode is exclusive over a TextBlock content: never fall through to the node
     # path (which would `evaluate_reference` a character selection).
-    (p.text && input.content isa TextText) && return _text_clipboard_copy(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     payload = copy_document(obj)
@@ -391,7 +394,7 @@ end
 
 # Cut: store the live object in the slice and blank out its source position.
 function _clipboard_cut(p, input)
-    (p.text && input.content isa TextText) && return _text_clipboard_cut(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_cut(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     ops = Any[
@@ -406,7 +409,7 @@ end
 # original selection after the slice write (see `_clipboard_copy`).
 function _clipboard_note(p, input)
     # for text, "note" == copy the substring (text mode is exclusive)
-    (p.text && input.content isa TextText) && return _text_clipboard_copy(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     ops = Any[
@@ -422,7 +425,7 @@ end
 # letting it follow the slice's stale inner selection). When the internal slice is
 # empty, fall back to the OS clipboard via the projection's `from_text` converter.
 function _clipboard_paste(p, input)
-    (p.text && input.content isa TextText) && return _text_clipboard_paste(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
     slice = input.slice
@@ -444,7 +447,7 @@ end
 # produces a fresh document per read, so it needs no extra copy. In text mode it is
 # identical to paste (splicing a string needs no copy).
 function _clipboard_paste_copy(p, input)
-    (p.text && input.content isa TextText) && return _text_clipboard_paste(p, input)
+    (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing
     slice = input.slice

@@ -35,11 +35,11 @@ import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, PositionReference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
@@ -150,8 +150,7 @@ end
 # forward mapper handles field references but not our own projection wrap). Everything
 # else defers to the generic template mapper.
 function map_reference_forward(p::XmlElementToSyntaxNode, iomap::RuleIoMap, reference)
-    reference isa ConcreteReferencePath && reference.head isa ProjectionReference &&
-        return reference
+    is_introduced_reference(reference) && return reference
     invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
 end
 
@@ -163,7 +162,7 @@ function XmlToSyntax()
         XmlAttribute => XmlAttributeToSyntaxNode(),
         XmlElement   => XmlElementToSyntaxNode(),
         XmlInsertion => XmlInsertionToSyntaxLeaf(),
-        XmlNothing   => NothingToSyntaxLeaf(),
+        XmlNothing   => InsertionNothingToSyntaxLeaf(),
     )
 end
 

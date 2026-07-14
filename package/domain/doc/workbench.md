@@ -24,7 +24,7 @@ All subtype `WorkbenchDocument` (`<: Document`).
 | `WorkbenchWorkbench(navigation_page, editing_page, information_page, control_page)` | Top-level container; four pages |
 | `WorkbenchPage(elements::CellVector)` | One column; holds a sequence of panels |
 | `WorkbenchNavigator(workspace::Workspace)` | The "Navigator" panel — file/document tree |
-| `WorkbenchConsole(content::TextText)` | The "Console" panel — text output |
+| `WorkbenchConsole(content::TextBlock)` | The "Console" panel — text output |
 | `WorkbenchDescriptor(content::ReferencePath)` | The "Descriptor" panel — describes the node referenced by `content` |
 | `WorkbenchOperator()` | The "Operator" panel |
 | `WorkbenchSearcher()` | The "Searcher" panel |

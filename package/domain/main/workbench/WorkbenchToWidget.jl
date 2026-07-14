@@ -10,7 +10,7 @@ hierarchy to a widget tree.
     WorkbenchPage       → WidgetTabbedPane with one tab per panel
     WorkbenchNavigator  → WidgetScrollPane wrapping a WidgetComposite of folders
     WorkbenchConsole    → WidgetScrollPane wrapping projected content
-    WorkbenchDescriptor → WidgetScrollPane wrapping a TextText that renders the content reference
+    WorkbenchDescriptor → WidgetScrollPane wrapping a TextBlock that renders the content reference
     WorkbenchOperator   → empty WidgetScrollPane
     WorkbenchSearcher   → empty WidgetScrollPane
     WorkbenchEvaluator  → WidgetScrollPane wrapping projected content
@@ -39,7 +39,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, Wid
                        WidgetScrollPane, WidgetComposite, Point2D, Inset, inset_default,
                        SelectTabOperation
 import ..LayoutModule: LayoutConstraint
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
@@ -50,8 +50,8 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..KeyboardModule: KeyDown, KeyPress
-import ..GestureApiModule: read_gesture
+import ..EventModule: KeyDown, KeyPress
+import ..GestureBindingModule: read_gesture
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
 import ..CollectionModule: CellVector
 import ..ReferenceBuilderModule: var"@reference", var"@step"
@@ -305,7 +305,7 @@ end
 
 function print_document(::WorkbenchDescriptorToWidgetScrollPane,
                            recursion, d::WorkbenchDescriptor, ctx)
-    text = TextText(
+    text = TextBlock(
         TextString(() -> string(d.content),
                    font_ubuntu_monospace_regular_20, color_default),
     )

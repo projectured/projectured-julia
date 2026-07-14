@@ -5,14 +5,14 @@ Opt-in package providing the MCP (Model Context Protocol) server transport for
 ProjecturEd. Depends on `ProjecturedKernel`; `using ProjecturedMcp` registers the
 `:mcp` agent-server methods and exposes `McpServer`.
 
-The dependency-free editor tools and their registration (`execute_julia_code`,
-`register_default_tools_and_resources!`, the documentation/API search tools) live
-in core `ProjecturedKernel.McpModule`. Only the MCP *transport* — the `McpServer`, the
-HTTP transport lifecycle, and the registry→MCP wire-format bridges — needs
+The editor tools themselves (`execute_julia_code`, the documentation/API search
+tools, `register_default_tools!`) are not an MCP concept and live in the kernel's
+`ToolModule`; each editor owns a `ToolSet` of them. Only the MCP *transport* — the
+`McpServer`, the HTTP lifecycle, and the `ToolSet`→MCP wire-format bridges — needs
 `ModelContextProtocol` and therefore lives here.
 
 The editor loop never names `McpServer`: it goes through the generic
-`AgentModule` control surface (`make_agent_server(:mcp, editor)` etc.), whose
+`AgentServerModule` seam (`make_agent_server(:mcp, editor)` etc.), whose
 `:mcp` methods this package registers.
 """
 module ProjecturedMcp
@@ -20,9 +20,9 @@ module ProjecturedMcp
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
-import ProjecturedKernel.ToolRegistryModule: Tool, Resource, list_tools, list_resources
-import ProjecturedKernel.McpModule: register_default_tools_and_resources!
-import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
+                                     list_tools, list_resources, register_default_tools!
+import ProjecturedKernel.AgentServerModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
 
@@ -41,7 +41,7 @@ const DEFAULT_MCP_INSTRUCTIONS =
 """
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS)
 
-An MCP server bound to an editor. Start/stop it through the `AgentModule`
+An MCP server bound to an editor. Start/stop it through the `AgentServerModule`
 generics (`start_agent_server!` / `stop_agent_server!`).
 """
 mutable struct McpServer
@@ -55,7 +55,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
         name        = "projectured",
         version     = "0.1.0",
         description = "MCP server for ProjecturEd — a projectional editor built in Julia.",
-        resources   = _make_resources(),
+        resources   = _make_resources(editor),
     )
     # `mcp_server` does not expose `instructions`, but `ServerConfig` does —
     # and that's the field the MCP `initialize` handler delivers to clients,
@@ -75,7 +75,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
 end
 
 # Agent control-surface factory methods: the editor loop drives the MCP server
-# through the generic AgentModule interface without naming `McpServer`.
+# through the generic AgentServerModule interface without naming `McpServer`.
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
 start_agent_server!(mcp::McpServer) = mcp_start!(mcp)
 stop_agent_server!(mcp::McpServer) = mcp_stop!(mcp)
@@ -123,12 +123,14 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    mcp_tools(editor, tools = list_tools()) -> Vector{MCPTool}
+    mcp_tools(editor, tools) -> Vector{MCPTool}
 
-Render the given registry tools into the `MCPTool` shape expected by the MCP
-server, binding each handler to `editor`.
+Render the given tools into the `MCPTool` shape the MCP server expects, binding
+each handler to `editor`. This is the MCP half of the same job `ProjecturedLlm`
+does for the Messages API: a `Tool` is provider-neutral, and each transport
+renders it into its own wire format.
 """
-function mcp_tools(editor, tools::AbstractVector{Tool} = list_tools())
+function mcp_tools(editor, tools::AbstractVector{Tool})
     out = MCPTool[]
     for t in tools
         params = ToolParameter[
@@ -157,12 +159,12 @@ function mcp_tools(editor, tools::AbstractVector{Tool} = list_tools())
 end
 
 """
-    mcp_resources(resources = list_resources()) -> Vector{MCPResource}
+    mcp_resources(resources) -> Vector{MCPResource}
 
-Render the given registry resources as `MCPResource` objects whose data
-providers return `TextResourceContents` containing the body.
+Render the given resources as `MCPResource` objects whose data providers return
+`TextResourceContents` carrying the body.
 """
-function mcp_resources(resources::AbstractVector{Resource} = list_resources())
+function mcp_resources(resources::AbstractVector{Resource})
     out = MCPResource[]
     for r in resources
         let res = r
@@ -182,14 +184,16 @@ function mcp_resources(resources::AbstractVector{Resource} = list_resources())
     out
 end
 
+# The editor's own ToolSet is what MCP publishes — one per editor, so an MCP
+# server serves exactly the tools of the editor it is bound to.
 function _make_tools(editor)
-    register_default_tools_and_resources!()
-    mcp_tools(editor, list_tools())
+    register_default_tools!(editor.tools)
+    mcp_tools(editor, list_tools(editor.tools))
 end
 
-function _make_resources()
-    register_default_tools_and_resources!()
-    mcp_resources(list_resources())
+function _make_resources(editor)
+    register_default_tools!(editor.tools)
+    mcp_resources(list_resources(editor.tools))
 end
 
 end # module Mcp

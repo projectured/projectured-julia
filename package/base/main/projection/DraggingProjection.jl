@@ -41,8 +41,8 @@ import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationRerootingModule: reroot_operation
-import ..MouseModule: MouseDown, MouseUp, MouseMove, MousePress
-import ..ModifiersModule: Modifiers
+import ..EventModule: MouseDown, MouseUp, MouseMove, MousePress
+import ..EventModule: Modifiers
 
 export DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
 

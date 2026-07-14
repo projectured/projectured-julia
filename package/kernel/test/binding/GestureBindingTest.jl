@@ -113,19 +113,19 @@ function test_gesture_binding()
         @test arr[2].description == "make negative"   # then inherited
     end
 
-    @testset "read_document_gesture fires the matching, applicable binding" begin
+    @testset "read_bound_gesture fires the matching, applicable binding" begin
         leaf = GestureProbeLeaf()
         leaf.selection = EmptyReferencePath()
-        @test read_document_gesture(leaf, KeyPress('n')) == MarkOperation(:neg)
-        @test read_document_gesture(leaf, KeyPress('7')) == MarkOperation(Symbol('7'))
-        @test read_document_gesture(leaf, KeyDown(:period, Modifiers(ctrl=true))) == MarkOperation(:toggle)
+        @test read_bound_gesture(leaf, KeyPress('n')) == MarkOperation(:neg)
+        @test read_bound_gesture(leaf, KeyPress('7')) == MarkOperation(Symbol('7'))
+        @test read_bound_gesture(leaf, KeyDown(:period, Modifiers(ctrl=true))) == MarkOperation(:toggle)
         # An unbound gesture yields nothing.
-        @test read_document_gesture(leaf, KeyPress('z')) === nothing
+        @test read_bound_gesture(leaf, KeyPress('z')) === nothing
     end
 
     @testset "applicable precondition gates firing (and greys help rows)" begin
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
-        @test read_document_gesture(leaf, KeyPress('n')) === nothing
+        @test read_bound_gesture(leaf, KeyPress('n')) === nothing
         @test isempty(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf)))
         leaf.selection = EmptyReferencePath()
         @test length(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf))) == 4

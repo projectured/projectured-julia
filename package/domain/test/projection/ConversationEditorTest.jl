@@ -2,9 +2,11 @@
 # the gesture→operation reader and the part-growing operations that turn a draft
 # `ConversationTurn` into a finished sequence of parts.
 
+using ProjecturedKernel.ToolModule: ToolSet
 
-# Flatten a TextText to its rendered string.
-function _ce_flatten(t::TextText)
+
+# Flatten a TextBlock to its rendered string.
+function _ce_flatten(t::TextBlock)
     io = IOBuffer()
     for span in t.elements
         hasproperty(span, :content) && print(io, span.content)
@@ -12,8 +14,13 @@ function _ce_flatten(t::TextText)
     String(take!(io))
 end
 
-# Apply an operation to the draft (no real editor needed for the logic).
-_ce_apply!(op) = evaluate_operation(nothing, op)
+# Apply an operation to the draft. No real editor is needed for the logic, but the
+# stand-in must carry a `ToolSet`: the composer's evaluate operation runs code
+# through the editor's own tools (AR-PER-EDITOR-STATE — they live on the editor,
+# never in a global). One set for the file, so the code-execution scratch
+# namespace is built once rather than per operation.
+const _CE_TOOLS = ToolSet()
+_ce_apply!(op) = evaluate_operation((tools = _CE_TOOLS,), op)
 _ce_type!(draft, s) = for ch in s
     _ce_apply!(ComposerInputOperation(draft, string(ch)))
 end
@@ -44,13 +51,13 @@ function test_conversation_editor()
 
             @test length(turn.parts) == 3
             p1, p2, p3 = turn.parts[1].content, turn.parts[2].content, turn.parts[3].content
-            @test p1 isa TextText
+            @test p1 isa TextBlock
             @test _ce_flatten(p1) == "hey assistant, look what I've got"
             @test p2 isa EvaluatorForm
             @test p2.form isa JuliaDocument
             @test !p2.is_error
             @test occursin("4", _ce_flatten(p2.result))
-            @test p3 isa TextText
+            @test p3 isa TextBlock
             @test _ce_flatten(p3) == "see, it's not that complicated"
         end
 

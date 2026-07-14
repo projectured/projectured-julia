@@ -39,6 +39,7 @@ using ..IoMapApiModule
 # module-qualified `ProjectionApiModule.print_document` method-definition name
 # (see the macro).
 using ..ProjectionApiModule
+using ..IntentModule
 # `import`, not `using`: this module adds RuleIoMap methods to the three seams.
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent
 using ..ReferenceModule
@@ -53,8 +54,9 @@ using ..OperationModule
 # type, neither of which the kernel can name. Base imports `RuleIoMap` +
 # `AtomicWiring` from this module to preserve the same dispatch behaviour.
 using ..DocumentModule
-using ..GestureModule
-using ..KeyboardModule
+using ..EventModule
+using ..EventPatternModule
+using ..GestureBindingModule
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
 
@@ -364,7 +366,7 @@ function _key_leaf_sel(doc, in_field::Symbol)
     fname = String(in_field)
     Cell(() -> begin
         sel = doc.selection
-        sel isa ConcreteReferencePath && sel.head isa ProjectionReference && return sel
+        is_introduced_reference(sel) && return sel
         core = sel
         if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == fname
             return ConcreteReferencePath(FieldReference("value"), core.tail)
@@ -822,7 +824,7 @@ function _atomic_forward(p, w, reference)
     reference === nothing && return nothing
     core = reference
     # unwrap this projection's own introduced step (both opaque & transparent)
-    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+    if is_introduced_reference(core, p)
         return core.head.output_path
     end
     if w.bound_field === nothing
@@ -879,7 +881,7 @@ function _node_forward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole ⇒ ::Out
-    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+    if is_introduced_reference(core, p)
         return reference                                                   # keep wrapped
     end
     if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.coll_input_field)
@@ -991,7 +993,7 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 # delegating maps ∅ back to the whole parent (∅), colliding with the
                 # root and stalling tree navigation. Represent it as an opaque
                 # structural position — a ProjectionReference into this node's output —
-                # so it round-trips distinctly (forward via `_own_introduced`;
+                # so it round-trips distinctly (forward via `is_introduced_reference`;
                 # `SyntaxToText._syntax_to_flat` renders it transparently). A *deeper*
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReferencePath &&
@@ -1011,19 +1013,15 @@ end
 # this the cursor on an introduced token of a fixed/conditional node fails to
 # forward-project (selection → nothing), so no caret renders and relative navigation
 # and typein die (the Julia `function`/`if`/operator tokens are all such positions).
-_own_introduced(p, reference) =
-    reference isa ConcreteReferencePath && reference.head isa ProjectionReference &&
-    reference.head.projection === p
-
 _fixed_forward(p, w, iomap, reference) =
-    _own_introduced(p, reference) ? reference :
+    is_introduced_reference(reference, p) ? reference :
     _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
 _fixed_backward(p, w, iomap, reference) =
     _slots_backward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.intype, reference)
 
 # Conditional node: read the current (slots, store) from the reactive state cell.
 _conditional_forward(p, w, iomap, reference) =
-    _own_introduced(p, reference) ? reference :
+    is_introduced_reference(reference, p) ? reference :
     (st = iomap.child_iomaps[]; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
 _conditional_backward(p, w, iomap, reference) =
     (st = iomap.child_iomaps[]; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
@@ -1040,7 +1038,7 @@ function _mixed_forward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
-    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+    if is_introduced_reference(core, p)
         return reference
     end
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
@@ -1127,7 +1125,7 @@ function _inline_forward(p, w, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
-    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+    if is_introduced_reference(core, p)
         return reference
     end
     if core isa ConcreteReferencePath && core.head isa FieldReference && Symbol(core.head.name) === w.bound_field
@@ -1170,7 +1168,7 @@ function _sections_forward(p, w, iomap, reference)
     secs = iomap.child_iomaps[]
     core = reference
     core isa EmptyReferencePath && return _typed(w.outtype)
-    if core isa ConcreteReferencePath && core.head isa ProjectionReference && core.head.projection === p
+    if is_introduced_reference(core, p)
         return reference
     end
     (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
@@ -1326,6 +1324,10 @@ function _focused_child(w::SectionsWiring, iomap, sel)
     nothing
 end
 
+# Innermost-first, bubbling to the nearest enclosing structural node: delegate to the
+# selected child's projection (lifting its operation back into this node's input
+# domain), and only when the child declines fall back to this node's own reified
+# gestures.
 function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown})
     input = iomap.input
     input isa Document || return nothing
@@ -1341,6 +1343,61 @@ function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDo
     # Own-level handling: the nearest enclosing node's reified gestures, and the
     # override seam (a node that must special-case a gesture does so here).
     return read_gesture(input, evt)
+end
+
+# A gesture an output layer already turned into an operation. Only `override` bindings
+# fire (`fire_gesture_bindings` skips the rest once `claimed !== nothing`), so this is
+# inert for every ordinary gesture and the caller goes on to translate the claimed
+# operation.
+#
+# The descent is a private walk over `RuleIoMap` children rather than the `read_intent`
+# recursion the unclaimed path uses, for two reasons. A hand-written reader takes an
+# *untyped* payload argument and would mistake a `ClaimedGesture` for an event; and the
+# claimed operation is expressed in the *enclosing* stage's output vocabulary, so a
+# child that translated it rather than declining would map a reference it does not own.
+# Nothing is lost: only a template node hosts gestures, and gestures are all this is
+# looking for.
+function read_intent(p::Projection, iomap::RuleIoMap, c::ClaimedGesture)
+    c.gesture isa Union{KeyPress, KeyDown} || return nothing
+    return _read_override_gesture(iomap, c.gesture, c.operation)
+end
+
+function _read_override_gesture(iomap::RuleIoMap, evt, claimed)
+    input = iomap.input
+    input isa Document || return nothing
+    sel = getfield(input, :selection)[]
+    if sel !== nothing
+        fc = _focused_child(iomap.wiring, iomap, sel)
+        if fc !== nothing && fc[1] isa RuleIoMap
+            child, steps = fc
+            child_op = _read_override_gesture(child, evt, claimed)
+            child_op === nothing || return reroot_operation(child_op, steps)
+        end
+    end
+    return read_gesture(input, evt; claimed)
+end
+
+"""
+    template_read_intent(p, recursion, change::Intent, iomap) -> Intent
+
+The 4-arg reader [`@projection_template`](@ref) emits for each template projection. It
+offers this node's input domain the gesture *before* translating an operation the output
+layers already produced for it — the seam an `override` binding fires through — and
+otherwise behaves exactly like the generic bridge in `ProjectionModule`.
+
+Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
+wrappers `RecursiveProjection` / `TypeDispatchingProjection` hand a leaf its own iomap
+and already carry 4-arg methods of their own, so a method keyed on the iomap would be
+ambiguous with every one of them.
+"""
+function template_read_intent(p, recursion, change::Intent, iomap)
+    if iomap isa RuleIoMap && change.operation !== nothing &&
+       change.gesture isa Union{KeyPress, KeyDown}
+        override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
+        override === nothing || return Intent(change.gesture, override)
+    end
+    payload = change.operation === nothing ? change.gesture : change.operation
+    return Intent(change.gesture, read_intent(p, iomap, payload))
 end
 
 # The `KeyPress`/`KeyDown` and `ReplaceSelectionOperation` disambiguations for
@@ -1369,7 +1426,9 @@ end
     @projection_template ProjName InType (p, doc) -> <builder body>
 
 Emit `print_document(p::ProjName, recursion, doc::InType, ctx)` that runs the
-builder through `rule_print`.
+builder through `rule_print`, and the matching 4-arg
+[`template_read_intent`](@ref) reader — the seam an `override` gesture fires
+through.
 """
 macro projection_template(projname, intype, builder)
     quote
@@ -1383,6 +1442,13 @@ macro projection_template(projname, intype, builder)
         # local one → a confusing MethodError at dispatch time.
         function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             $(rule_print)(p, recursion, doc, ctx, $(esc(builder)))
+        end
+
+        # Without this the projection falls to the generic bridge, which collapses the
+        # `Intent` to a single payload and so can only ever translate a claimed
+        # operation — the input domain never sees the key that caused it.
+        function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
+            $(template_read_intent)(p, recursion, change, iomap)
         end
     end
 end

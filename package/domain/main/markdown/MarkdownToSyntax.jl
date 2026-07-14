@@ -50,7 +50,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, ElementReference,
                           EmptyReferencePath
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -300,7 +300,7 @@ function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::Markdow
     style = get_property(ctx, :md_style, p.style)
     sel = Cell(() -> begin
         s = t.selection
-        s isa ConcreteReferencePath && s.head isa ProjectionReference && return s
+        is_introduced_reference(s) && return s
         map_reference_forward(p, nothing, s)
     end)
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))

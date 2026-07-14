@@ -29,7 +29,7 @@ import ..SqlDocumentModule: SqlNothing, SqlSelectStatement, SqlSelectClause, Sql
                             SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                             SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
                             SqlStatementList, SqlInsertion
-import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf, NothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -1964,7 +1964,7 @@ function SqlToSyntax()
     jt = SqlJoinTypeToSyntaxLeaf()
     TypeDispatchingProjection(
         SqlInsertion            => SqlInsertionToSyntaxLeaf(),
-        SqlNothing              => NothingToSyntaxLeaf(),
+        SqlNothing              => InsertionNothingToSyntaxLeaf(),
         SqlSelectStatement      => SqlSelectStatementToSyntaxNode(),
         SqlSelectClause         => SqlSelectClauseToSyntaxNode(),
         SqlFromClause           => SqlFromClauseToSyntaxNode(),

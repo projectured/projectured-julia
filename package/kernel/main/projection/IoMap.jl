@@ -10,8 +10,21 @@ module IoMapModule
 
 using ..CellModule
 using ..IoMapApiModule
+# `import`, not `using`: this module answers the three accessors for every IoMap
+# that follows the field convention below.
+import ..IoMapApiModule: get_iomap_projection, get_iomap_input, get_iomap_output
 
 export SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
+
+# The field convention every IoMap keeps unless it says otherwise: it stores the
+# `projection` that produced it and the `input`/`output` it maps between under
+# those names. Read with `getfield`, not property access, so the accessor yields
+# the stored slot itself for a plain struct (`SimpleIoMap`) and for an `@iomap`
+# cell-struct alike — property access on the latter would unwrap the Cell. An
+# IoMap that stores a correspondence differently overrides the accessor it changes.
+get_iomap_projection(iomap::IoMap) = getfield(iomap, :projection)
+get_iomap_input(iomap::IoMap) = getfield(iomap, :input)
+get_iomap_output(iomap::IoMap) = getfield(iomap, :output)
 
 """
     SimpleIoMap(projection, input, output)

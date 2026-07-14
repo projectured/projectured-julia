@@ -1,12 +1,12 @@
 """
     SelectionInvertingModule
 
-Text → Text projection. Bakes the input `TextText`'s own selection into the
+Text → Text projection. Bakes the input `TextBlock`'s own selection into the
 spans as **inverse video** — swapping `font_color` ↔ `fill_color` over the
 selected character range, and widening a zero-width caret to a one-character
 block. Because the selection becomes ordinary span color, any backend that
 renders the Text domain shows it; in particular the console backend, which
-renders `TextText` straight to the terminal and has no separate cursor/highlight
+renders `TextBlock` straight to the terminal and has no separate cursor/highlight
 layer the way `TextToGraphics` does.
 
 It is the structural twin of `TextHighlighting`: both split `TextString`s at
@@ -24,7 +24,7 @@ Text-domain backends (console), opt-in elsewhere.
 module SelectionInvertingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, text_flat_length, text_selection_flat
+import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat
 import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
@@ -43,7 +43,7 @@ export SelectionInverting, SelectionInvertingIoMap, SelSeg
                          default_fg=color_solarized_content_lighter,
                          block_cursor=true)
 
-Encode the input `TextText`'s selection into span colors as inverse video.
+Encode the input `TextBlock`'s selection into span colors as inverse video.
 
   - `default_bg` — concrete background color used as the inverted *foreground*
     when the original span has no `fill_color`. Inversion needs an explicit
@@ -88,19 +88,19 @@ end
 
 struct SelectionInvertingIoMap <: IoMap
     projection::Any
-    input::TextText
-    output::TextText
+    input::TextBlock
+    output::TextBlock
     segs::Cell  # Cell{Vector{SelSeg}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function print_document(p::SelectionInverting, recursion, text::TextText, ctx)
+function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
     both = Cell(() -> _invert(p, text))   # (elements, segs)
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
-    output = TextText(elements_cv, out_selection)
+    output = TextBlock(elements_cv, out_selection)
     SelectionInvertingIoMap(p, text, output, segs_cell)
 end
 
@@ -109,7 +109,7 @@ end
 # (identity); otherwise each span overlapping the selected flat range is split at
 # the boundaries and the in-range sub-spans are restyled to inverse video. No
 # character is inserted or removed, so `SelSeg` is a piecewise offset map.
-function _invert(p::SelectionInverting, text::TextText)
+function _invert(p::SelectionInverting, text::TextBlock)
     sel = text_selection_flat(text)
     # Widen a zero-width caret to a one-char block so it is visible.
     hl = sel === nothing ? nothing :
@@ -283,7 +283,7 @@ read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

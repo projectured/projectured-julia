@@ -1,20 +1,20 @@
 """
     ConsoleBackendModule
 
-Console backend. Renders a **Text-domain** document (`TextText` and its spans)
+Console backend. Renders a **Text-domain** document (`TextBlock` and its spans)
 straight to a terminal (stdout), preserving the spans' colors via ANSI SGR
 codes, and (interactively) translates terminal keystrokes into the
 backend-agnostic events the projection readers expect. Unlike the SDL backend
 it consumes the Text domain directly — the pipeline stops at `SyntaxToText` and
-does **not** run `TextToGraphics`, so `write_to_devices` receives a `TextText`,
+does **not** run `TextToGraphics`, so `write_to_devices` receives a `TextBlock`,
 not a `ScreenDocument`.
 
 ## Interactivity (Phase 2) and its limits
 
 The **geometry-free** half of caret/text editing now lives on the Text domain
-(`read_gesture(::TextText, gesture)` in `TextModule`), so the console pipeline
+(`read_gesture(::TextBlock, gesture)` in `TextModule`), so the console pipeline
 gets it even though it omits `TextToGraphics`: `SyntaxToText` falls back to the
-output `TextText`'s `read_gesture` when its operation slot is empty (the console
+output `TextBlock`'s `read_gesture` when its operation slot is empty (the console
 case). What this backend drives is therefore:
 
   - **Structural tree navigation** (handled by `SyntaxToText`): arrows move
@@ -35,15 +35,14 @@ itself does not resolve the selection or emit a reverse-video attribute).
 """
 module ConsoleBackendModule
 
-import ..BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ..DeviceApiModule: Device, read_from_devices, write_to_devices
-import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
-import ..ColorModule: StyleColor, color_default, color_equal
-import ..FontModule: StyleFont
-import ..ModifiersModule: Modifiers
-import ..KeyboardModule: KeyDown, KeyPress
-import ..ScreenDeviceModule: WindowQuit
-import ..ScreenDocumentModule: EventEnvelope
+# The alias is how visual reaches the kernel's backend contract; a bare
+# `using` binds the module's *real* name, so extensions qualify BackendModule.
+using ..BackendApiModule
+using ..DeviceModule
+using ..TextModule
+using ..ColorModule
+using ..FontModule
+using ..EventModule
 
 export ConsoleBackend, console_render
 
@@ -91,7 +90,7 @@ ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=tr
 # reflects incoming bytes (without `start_reading` the internal buffer is never
 # filled and the poll always sees zero). No-op (and harmless) when `input` is
 # not a TTY, e.g. an `IOBuffer` in tests.
-function initialize_backend!(backend::ConsoleBackend)
+function BackendModule.initialize_backend!(backend::ConsoleBackend)
     _set_raw!(backend, true)
     io = backend.input
     if io isa Base.TTY
@@ -104,7 +103,7 @@ function initialize_backend!(backend::ConsoleBackend)
     return nothing
 end
 
-function quit_backend!(backend::ConsoleBackend)
+function BackendModule.quit_backend!(backend::ConsoleBackend)
     io = backend.input
     if io isa Base.TTY
         try
@@ -139,7 +138,7 @@ The console pipeline never measures text (there is no `TextToGraphics` to lay
 out), but the `Backend` interface requires the method. Return a character-cell
 estimate: one cell per character, one row tall.
 """
-measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
+BackendModule.measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
 
 # ── ANSI styling ─────────────────────────────────────────────────────────
 
@@ -208,16 +207,27 @@ _render_span!(::IO, ::ConsoleBackend, ::TextGraphics) = nothing
 _render_span!(::IO, ::ConsoleBackend, ::TextDocument) = nothing
 
 """
-    console_render(backend::ConsoleBackend, text::TextText)
+    console_render(backend::ConsoleBackend, text::TextBlock)
 
 Flatten `text`'s spans into a (optionally colored) character stream and write it
 to `backend.io` in a single flush. The selection highlight is expected to be
 already encoded in the span colors (by `SelectionInverting`).
 """
-function console_render(backend::ConsoleBackend, text::TextText)
+function console_render(backend::ConsoleBackend, text::TextBlock)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
-    for span in text.elements
+    for (i, span) in enumerate(text.elements)
+        # A TextLine implies its break: it is a *separator*, so every line but a
+        # leading one starts by ending the previous one. Its indentation is a
+        # property of the line, printed here rather than carried in a span.
+        if span isa TextLine
+            i > 1 && print(buf, '\n')
+            print(buf, ' '^span.indentation)
+            for inner in span.elements
+                _render_span!(buf, backend, inner)
+            end
+            continue
+        end
         _render_span!(buf, backend, span)
     end
     frame = String(take!(buf))
@@ -234,18 +244,18 @@ end
 # ── Device I/O ───────────────────────────────────────────────────────────
 
 """
-    write_to_devices(::ConsoleBackend, devices, text::TextText)
+    write_to_devices(::ConsoleBackend, devices, text::TextBlock)
 
 Render the Text-domain output of the projection pipeline to the terminal.
 """
-write_to_devices(backend::ConsoleBackend, devices, text::TextText) =
+DeviceModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
     console_render(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
-# and so produces a graphics/screen document instead of a `TextText`).
-function write_to_devices(::ConsoleBackend, devices, output)
+# and so produces a graphics/screen document instead of a `TextBlock`).
+function DeviceModule.write_to_devices(::ConsoleBackend, devices, output)
     error("write_to_devices(::ConsoleBackend, …): pipeline output is " *
-          "$(typeof(output)), expected a TextText. The console backend renders " *
+          "$(typeof(output)), expected a TextBlock. The console backend renders " *
           "the Text domain directly — drop the TextToGraphics step from the pipeline.")
 end
 
@@ -257,7 +267,7 @@ backend-agnostic event wrapped in an `EventEnvelope`. The window id is the
 sentinel `:console` (there is no `WindowDocument`). Returns `nothing` when no
 complete event is buffered.
 """
-function read_from_devices(backend::ConsoleBackend, devices)
+function DeviceModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
     event = _next_event!(backend.inbuf)
     event === nothing && return nothing

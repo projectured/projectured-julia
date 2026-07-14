@@ -25,11 +25,11 @@ and widget focus all become uniform because "editable parameter" and
 Before                              After
 ─────────────────────────────────   ────────────────────────────────────
 editor.document                     editor.document
-  = TextText("alpha dolor")           = HighlightedContent(
+  = TextBlock("alpha dolor")           = HighlightedContent(
                                           pattern = "dolor",
                                           case_insensitive = false,
                                           color = color_yellow,
-                                          content = TextText("alpha dolor"),
+                                          content = TextBlock("alpha dolor"),
                                           selection = nothing)
 editor.projection
   = ChainingProjection(              editor.projection
@@ -61,7 +61,7 @@ HighlightedContent(
     content = FilteredContent(
         pattern = ...,
         invert = ...,
-        content = TextText(...)))
+        content = TextBlock(...)))
 ```
 
 **Do not** merge these into a single flat `TextView` document with combined
@@ -138,7 +138,7 @@ untouched under Path 1):
    `visual/src/text/HighlightedContent.jl`, alongside a
    `HighlightedContentToText` projection that reads its config from
    `iomap.input.{pattern,case_insensitive,color}` and produces the same
-   highlighted `TextText` output the existing `TextHighlighting` projection
+   highlighted `TextBlock` output the existing `TextHighlighting` projection
    produces.
 3. **Introduce `FilteredContent`.** Symmetric: `visual/src/text/
    FilteredContent.jl` + `FilteredContentToText`.
@@ -152,12 +152,12 @@ untouched under Path 1):
    composer (e.g. via `WorkbenchToWidget`'s pane machinery) already covers
    this before writing a new one.
 5. **Retarget `make_text_configuring_projection`.** Now takes
-   `content_doc` (a `TextText`), returns `(wrapper_doc, projection)` where
+   `content_doc` (a `TextBlock`), returns `(wrapper_doc, projection)` where
    `wrapper_doc = HighlightedContent(pattern="dolor", content=content_doc)`
    and `projection` is the composer + renderer chain.
 6. **Gallery.** Update `Gallery.jl:149,151` — the two `text_highlighting=true` /
    `text_filtering=true` branches — to also swap `document` (currently the
-   plain `TextText`) with the wrapper doc.
+   plain `TextBlock`) with the wrapper doc.
 7. **Rewrite `ProjectionConfiguringTest.jl`.** The 5 testsets test pcp
    semantics; they get rewritten around the composer + wrapper-doc model.
    The `@test_broken` typing subtest becomes a normal `@test` and passes.

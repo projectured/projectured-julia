@@ -35,10 +35,10 @@ import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ReferencePath,
                           reference_node_type
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..KeyboardModule: KeyDown
+import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
@@ -697,8 +697,7 @@ end
 # fallback re-introduces the wrapper when the move lands on introduced structure
 # again. A native SyntaxNode selection never carries this head, so it is a no-op there.
 _unwrap_projection_ref(sel) =
-    (sel isa ConcreteReferencePath && sel.head isa ProjectionReference) ?
-        sel.head.output_path : sel
+    is_introduced_reference(sel) ? sel.head.output_path : sel
 
 # A bare `∅` handed back by a child's own navigation means "the child node itself".
 # Spliced under a child step it has to carry that child's type, because selections are

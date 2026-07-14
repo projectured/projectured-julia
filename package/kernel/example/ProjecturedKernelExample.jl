@@ -22,10 +22,14 @@ reachable from a production build.
 module ProjecturedKernelExample
 
 using ProjecturedKernel.CellModule
-using ProjecturedKernel.KeyboardModule
-using ProjecturedKernel.ModifiersModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule: write_image, record_video
-import ProjecturedKernel.LlmModule: Llm, stream_turn
+import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
+    LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
+    LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
+    LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
+    LlmTurnEnd
 
 include("Harness.jl")
 include("LlmFake.jl")     # FakeLlm — canned-reply test double (no network)

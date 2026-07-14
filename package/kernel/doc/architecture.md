@@ -28,15 +28,20 @@ guards, docs, and tests:
 
 ```
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
-Layer 2  — document/   the Document contract + @document + the editor clock
-Layer 3  — reference/  reference paths + @reference / @reference_case DSLs
-Layer 4  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
-Layer 5  — operation/  Operation + evaluate_operation + the traversal and reroot seams
-Layer 6  — device/     Device/Modifiers/Keyboard/Mouse + GestureModule + EventEnvelope
-Layer 7  — backend/    Backend + Display + HeadlessBackend
-Layer 8  — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + gesture bindings (the concrete combinators live in ProjecturedBase)
-Layer 9  — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
-Layer 10 — editor/     the run_editor! loop + Playback
+Layer 2  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
+Layer 3  — device/     Device abstract + Keyboard/Mouse/Screen + the read_from_devices/write_to_devices seam
+Layer 4  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
+Layer 5  — backend/    Backend + Display + HeadlessBackend
+Layer 6  — document/   the Document contract + @document + the editor clock
+Layer 7  — reference/  reference paths + @reference / @reference_case DSLs
+Layer 8  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
+Layer 9  — operation/  Operation + evaluate_operation + the traversal and reroot seams
+Layer 10 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
+Layer 11 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
+Layer 12 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 13 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 14 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 15 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -55,7 +60,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The ten layers *are* the dependency diagram.** A layer imports only layers below
+**The fifteen layers *are* the dependency diagram.** A layer imports only layers below
 it, and that is the whole rule — the static guard enforces exactly it, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -68,13 +73,13 @@ layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReference` (layer 8), `PointReference` and
+the clearest case: `ProjectionReference` (layer 11), `PointReference` and
 `TextRectangularReference` (both in `ProjecturedVisual`) all subtype it and register
-their navigation through `evaluate_step`, with no edit to layer 3.
+their navigation through `evaluate_step`, with no edit to layer 7.
 
-**The agent surface is a side-stack.** The editor (layer 10) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/Agent.jl`
-(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
+**The agent stack is a side-stack.** The editor (layer 15) reaches it only through
+the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
+(`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.
 
@@ -83,12 +88,12 @@ hubs — the modules a consolidation must keep cheap to import — are:
 
 | Hub | Layer | Imported by |
 | --- | --- | --- |
-| `DocumentModule` | 2 | 11 kernel files |
-| `ReferenceModule` | 3 | 10 |
+| `DocumentModule` | 6 | 11 kernel files |
+| `ReferenceModule` | 7 | 10 |
 | `CellModule` | 1 | 10 |
-| `OperationModule` | 5 | 9 |
-| `KeyboardModule` | 6 | 7 |
-| `ProjectionApiModule` | 8 | 6 |
+| `OperationModule` | 9 | 9 |
+| `EventModule` | 2 | 7 |
+| `ProjectionApiModule` | 11 | 6 |
 
 ## The interface files are the extension SPI
 
@@ -128,7 +133,7 @@ julia --project=package/kernel/test package/kernel/test/runtests.jl
 
 Depth ≠ include index. A module's *earliest safe position* is its longest path from
 a dependency-free source, and that is not the same as where it sits in the include
-list: `PerformanceCounterModule`, `ModifiersModule`, `ToolRegistryModule` and the
+list: `PerformanceCounterModule`, `EventModule`, `ToolModule` and the
 interface files are sources (they import nothing), while `EditorModule` is deepest
 — it pulls in nearly every layer. The guard enforces only the real constraint
 (every module precedes its users), not one specific linearization, so a file may
@@ -141,14 +146,19 @@ Each layer lives in its own folder under [main/](../main/):
 | Folder | Holds |
 | --- | --- |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounter` (see [cell.md](cell.md)) |
+| `event/` | the input event vocabulary — `EventModule` (Modifiers, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, EventEnvelope) and `EventPatternModule` (`EventPattern`, `@event_case`) |
+| `device/` | `DeviceModule` — `Device`, `Keyboard`, `Mouse`, `Screen`, the `read_from_devices`/`write_to_devices` seam |
+| `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
+| `backend/` | Backend, Display, HeadlessBackend |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) and the editor clock (`Clock.jl`) |
 | `reference/` | the step/path contract (`Interface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
-| `device/` | Modifiers, Keyboard, Mouse, `GestureModule` (EventCase + GestureBinding), GestureRecognizer, ScreenDevice, Device |
-| `backend/` | Backend, Display, HeadlessBackend |
+| `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `projection/` | the projection interface and infrastructure only — ProjectionApi, IoMapApi, Intent, IoMap, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
-| `agent/` | Agent, Llm, ToolRegistry, Mcp |
+| `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
+| `llm/` | `LlmModule` — Llm, `stream_turn`/`tool_schema`, LlmMessage/LlmRequest, LlmEvent |
+| `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
 | `editor/` | Editor (the `run_editor!` loop), Playback |
 
 ## How the kernel is consumed

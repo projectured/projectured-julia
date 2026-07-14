@@ -30,9 +30,19 @@
 # 5. (opt-in via `check_private_imports`) every cross-layer
 #    `import ..XxxModule: sym` names only symbols the target module exports.
 #    Same-layer neighbours are still exempt here, but that is **transitional**:
-#    AR-48 forbids reaching into a sibling module's internals too, and the
-#    same-layer case is enforced per package once its imports are clean. A plain
-#    `import ..XxxModule` is unconstrained.
+#    AR-MODULE-BOUNDARY-IS-API forbids reaching into a sibling module's internals too,
+#    and the same-layer case is enforced per package once its imports are clean. A
+#    plain `import ..XxxModule` is unconstrained.
+# 6. (opt-in via `interface_files`) every declared interface file declares and
+#    never implements, and exports every name it declares (AR-INTERFACE-DECLARES-ONLY).
+# 7. every `XxxModule.sym` qualification names an exported symbol. This is the
+#    other half of (5): a qualified reference bypasses the export list entirely, and
+#    under AR-QUALIFIED-EXTENSION qualification is how a file extends another module's
+#    generic — so without this check AR-MODULE-BOUNDARY-IS-API would hold for import
+#    headers and be unenforced exactly where it now matters most.
+# 8. (opt-in via `qualified_files`) a migrated file names siblings with bare
+#    `using ..XxxModule` only — never `import ..XxxModule` or a symbol list
+#    (AR-QUALIFIED-EXTENSION).
 #
 # Each test package calls `check_layering` with its own src root and declared
 # layer order (`test_kernel_layering()`, `test_base_layering()`, …); this file
@@ -160,11 +170,14 @@ function walk_includes(top_file, src_root)
     reached = String[]
     entries = Tuple{String, Symbol, Vector{Symbol},
                     Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
+    file_owner = Dict{String, Symbol}()
+    file_imports = Dict{String, Vector{Pair{Symbol, Vector{Symbol}}}}()
 
-    # Descend into `file`. `in_module` says whether a module-file ancestor
-    # encloses it; returns the `(imports, sym_imports, exports)` to fold into
-    # that ancestor (all empty for module files, which emit an entry instead).
-    function descend(file, in_module)
+    # Descend into `file`. `owner` is the module whose namespace encloses it
+    # (`nothing` for the top file's layer fragments); returns the
+    # `(imports, sym_imports, exports)` to fold into that ancestor (all empty
+    # for module files, which emit an entry instead).
+    function descend(file, owner)
         rel = relpath(file, src_root)
         push!(reached, rel)
         ast = parse_file(file)
@@ -172,27 +185,33 @@ function walk_includes(top_file, src_root)
         if length(mods) > 1
             error("$rel defines $(length(mods)) modules; expected 0 (fragment) or 1 (module)")
         end
-        if length(mods) == 1 && in_module
+        if length(mods) == 1 && owner !== nothing
             error("$rel defines a module but is included inside another module file")
         end
+        name = length(mods) == 1 ? mods[1].args[2]::Symbol : nothing
         body = length(mods) == 1 ? mods[1].args[3] : ast
         imports, includes, sym_imports, exports = collect_edges(body)
-        if length(mods) == 0 && !in_module && !isempty(imports)
+        if length(mods) == 0 && owner === nothing && !isempty(imports)
             error("$rel is a layer fragment with relative imports; only module files may import ..Xxx")
         end
+        # A module file owns itself; a fragment inherits its enclosing module.
+        my_owner = name === nothing ? owner : name
+        my_owner === nothing || (file_owner[rel] = my_owner)
+        # This file's *own* import headers, before children are folded in — the
+        # AR-QUALIFIED-EXTENSION lint is per file, and a fragment's imports would
+        # otherwise be attributed to the module file that includes it.
+        file_imports[rel] = copy(sym_imports)
         # Recurse into includes, aggregating fragment imports/exports upward.
         for inc in includes
             child_path = joinpath(dirname(file), inc)
             isfile(child_path) || error("$rel includes \"$inc\" but the file does not exist")
-            child_imports, child_syms, child_exports =
-                descend(child_path, in_module || length(mods) == 1)
+            child_imports, child_syms, child_exports = descend(child_path, my_owner)
             append!(imports, child_imports)
             append!(sym_imports, child_syms)
             append!(exports, child_exports)
         end
-        if length(mods) == 1
+        if name !== nothing
             # Module file: emit an entry, but do not propagate deps upward.
-            name = mods[1].args[2]::Symbol
             push!(entries, (rel, name, unique(imports), sym_imports, unique(exports)))
             (Symbol[], Pair{Symbol, Vector{Symbol}}[], Symbol[])
         else
@@ -214,9 +233,9 @@ function walk_includes(top_file, src_root)
     for inc in top_includes
         child_path = joinpath(dirname(top_file), inc)
         isfile(child_path) || error("top include \"$inc\" not found on disk")
-        descend(child_path, false)
+        descend(child_path, nothing)
     end
-    reached, entries
+    reached, entries, file_owner, file_imports
 end
 
 """
@@ -331,9 +350,10 @@ imports (neighbours inside one layer may share internals), plain
 `layers` folders, deps no entry defines (package aliases), and
 `exempt_files` (transitional per-file exemption).
 
-Known limitation: qualified private access (`XxxModule._name` in code or
-macro output) is not caught — today's only instances are same-module fragment
-self-references; this check keeps the common import-header path honest.
+Qualified private access (`XxxModule._name`) reaches just as far and is *not*
+covered here — that is `qualified_reference_errors`' job, and under AR-QUALIFIED-EXTENSION
+qualification is the normal way to extend another module's generic, so the two
+checks are the two halves of AR-MODULE-BOUNDARY-IS-API.
 """
 function private_import_errors(entries, layers, exempt_files = Set{String}())
     idx_of_layer = Dict(l => i for (i, l) in enumerate(layers))
@@ -353,7 +373,9 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
             haskey(mod_exports, dep) || continue  # dep exempt (package alias)
             dep_idx = mod_layer[dep]
             dep_idx === nothing && continue     # dep exempt (non-layers folder)
-            dep_idx == my_idx && continue       # same layer — exempt for now (transitional; AR-48 forbids this, staged per package)
+            # same layer — exempt for now (transitional; AR-MODULE-BOUNDARY-IS-API
+            # forbids this, staged per package)
+            dep_idx == my_idx && continue
             for s in syms
                 s in mod_exports[dep] || push!(errs,
                     "$rel ($mod, layer \"$(layers[my_idx])\") imports non-exported " *
@@ -365,12 +387,255 @@ function private_import_errors(entries, layers, exempt_files = Set{String}())
     errs
 end
 
+# ── qualified-reference checker (AR-MODULE-BOUNDARY-IS-API at the
+# qualification site) ──────────
+
+"""
+    qualified_reference_errors(src_root, file_owner, entries, layers,
+                               exempt_files = Set{String}()) -> Vector{String}
+
+Assert that every `XxxModule.sym` written in a file names a symbol `XxxModule`
+exports.
+
+`import ..Mod: sym` is not the only way to reach into another module —
+`Mod.sym` in the body reaches just as far, and bypasses the export list
+*entirely*. AR-QUALIFIED-EXTENSION makes qualification the normal way to extend
+another module's generic (`ReferenceModule.step_kind(s::PointReference) = …`),
+so without this check the migration would quietly open a hole exactly where
+AR-MODULE-BOUNDARY-IS-API matters most: "the module boundary *is* the API
+boundary" would hold for import headers and be unenforced everywhere else.
+
+Exempt, mirroring `private_import_errors`: a module qualifying *itself* (a
+fragment naming its own module), deps no entry defines (`Base`, stdlib, package
+aliases), importers or deps outside the declared `layers` folders, and
+`exempt_files`. Unlike `private_import_errors` there is **no same-layer
+exemption** — a qualified reference is new syntax introduced by
+AR-QUALIFIED-EXTENSION, so there is no legacy to grandfather and it is held to
+the rule from the start.
+
+`layers` may be empty (visual and domain declare a slice DAG, not layer
+indices): the layer folders only drive the *exemptions*, so with no layers
+declared nothing is exempt and every file is checked.
+"""
+function qualified_reference_errors(src_root, file_owner, entries, layers,
+                                    exempt_files = Set{String}())
+    idx_of_layer = Dict(l => i for (i, l) in enumerate(layers))
+    mod_layer = Dict{Symbol, Union{Int, Nothing}}()
+    mod_exports = Dict{Symbol, Set{Symbol}}()
+    for (rel, mod, _, _, exports) in entries
+        mod_layer[mod] = get(idx_of_layer, layer_of(rel), nothing)
+        mod_exports[mod] = Set(exports)
+    end
+    errs = String[]
+    for rel in sort(collect(keys(file_owner)))
+        rel in exempt_files && continue
+        owner = file_owner[rel]
+        # With layers declared, a file outside them is exempt (as in `layer_errors`).
+        # With none declared, there is nothing to be outside of — check everything.
+        if !isempty(layers) && get(idx_of_layer, layer_of(rel), nothing) === nothing
+            continue
+        end
+        ast = parse_file(joinpath(src_root, rel))
+        # `Mod.sym` parses to `Expr(:., :Mod, QuoteNode(:sym))`. A nested
+        # `a.b.c` has an Expr (not a Symbol) head, so only the innermost
+        # `Mod.sym` — the one that can name a module — is considered.
+        quals = collect_exprs(x -> x.head === :. && length(x.args) == 2 &&
+                                   x.args[1] isa Symbol && x.args[2] isa QuoteNode, ast)
+        for e in quals
+            dep = e.args[1]::Symbol
+            sym = e.args[2].value
+            sym isa Symbol || continue          # `Mod.:(==)` etc. — not a plain name
+            dep === owner && continue           # a fragment naming its own module
+            haskey(mod_exports, dep) || continue  # not a module of this package
+            isempty(layers) || mod_layer[dep] !== nothing ||
+                continue                        # dep exempt (non-layers folder)
+            sym in mod_exports[dep] && continue
+            push!(errs,
+                "$rel ($owner) qualifies non-exported $dep.$sym — export it from " *
+                "..$dep, or share it via same-module fragments / a seam below both users")
+        end
+    end
+    errs
+end
+
+# ── AR-QUALIFIED-EXTENSION import-form lint
+# ─────────────────────────────────────────────────
+
+"""
+    relative_import_errors(src_root, qualified_files) -> Vector{String}
+
+AR-QUALIFIED-EXTENSION: a file names a sibling module with **bare `using
+..Xxx`** and extends its generics by qualification (`Xxx.f(…) = …`). Two forms
+are banned:
+
+- `import ..Xxx` (any form) — `import` is what makes a bare `f(…) = …` silently
+  *extend* another layer's generic instead of defining a new function. After
+  `using`, the compiler rejects it outright ("function Xxx.f must be explicitly
+  imported to be extended"), which is the whole point: the new-vs-extend
+  distinction becomes machine-checked rather than a convention.
+- `using ..Xxx: a, b` — a symbol list is noise, and the export list is already
+  the module's declared API (AR-MODULE-BOUNDARY-IS-API). Bare `using` also
+  binds the module *name*, which a symbol list does not — and that binding is
+  what qualification needs.
+
+`qualified_files` is an **opt-in** set: only files listed in it are held to the
+rule. The migration is file-by-file, and an opt-in set that grows is honest
+about the remaining work in a way a shrinking exemption list covering ~1400
+import lines would not be. When the sweep is done the set covers every file and
+the parameter can go away.
+
+Parses the listed files directly rather than reusing `walk_includes`' folded
+`sym_imports`: the migration proceeds one *file* at a time (fragments included,
+whose imports fold into the module file that includes them), and `collect_edges`
+deliberately treats `import` and `using` alike, so it cannot tell the two banned
+forms apart.
+"""
+function relative_import_errors(src_root, qualified_files)
+    errs = String[]
+    for rel in sort(collect(qualified_files))
+        path = joinpath(src_root, rel)
+        if !isfile(path)
+            push!(errs, "$rel is listed as migrated to AR-QUALIFIED-EXTENSION but is not on disk")
+            continue
+        end
+        for stmt in collect_exprs(x -> x.head in (:import, :using), parse_file(path))
+            for arg in stmt.args
+                dep = relative_module(arg)
+                # absolute (Base/stdlib/package) — not AR-QUALIFIED-EXTENSION's business
+                dep === nothing && continue
+                syms = imported_symbols(arg)
+                if stmt.head === :import
+                    push!(errs,
+                        "$rel uses `import ..$dep" *
+                        (isempty(syms) ? "" : ": $(join(syms, ", "))") *
+                        "` — AR-QUALIFIED-EXTENSION wants bare `using ..$dep`, " *
+                        "extending by " *
+                        "qualification (`$dep.f(…) = …`)")
+                elseif !isempty(syms)
+                    push!(errs,
+                        "$rel uses `using ..$dep: $(join(syms, ", "))` — " *
+                        "AR-QUALIFIED-EXTENSION wants bare `using ..$dep`; the " *
+                        "export list is already the module's API " *
+                        "(AR-MODULE-BOUNDARY-IS-API), and only the bare form binds " *
+                        "`$dep` for qualification")
+                end
+            end
+        end
+    end
+    errs
+end
+
+# ── interface-purity checker ───────────────────────────────────────────────
+
+"The name an `abstract type` / `const` / `function f end` declaration introduces, else `nothing`."
+decl_name(s::Symbol) = s
+function decl_name(e::Expr)
+    e.head === :curly && return decl_name(e.args[1])   # abstract type Foo{T}
+    e.head === :<:    && return decl_name(e.args[1])   # abstract type Foo <: Bar
+    nothing
+end
+decl_name(::Any) = nothing
+
+"A `const` may bind only a type expression (`Union{…}`, `Foo{T}`, `Bar`) — a call is state."
+is_type_expr(x) = x isa Symbol || (x isa Expr && x.head in (:curly, :<:, :.))
+
+"""
+    interface_purity_errors(src_root, interface_files, entries) -> Vector{String}
+
+Assert AR-INTERFACE-DECLARES-ONLY over each declared interface file: it *declares*,
+and never *implements*. Legal at top level — inside the `module` block, or in a bare
+fragment file — are the module docstring, an `abstract type`, a `const` type
+alias, an open generic as a bodiless `function f end`, and module plumbing
+(`module` / `export` / `using` / `import` / `include`). Anything carrying a body
+is implementation: a short- or long-form method (a default and an error fallback
+included — a default is behaviour), a macro, a concrete `struct`, a `const` bound
+to a call. It belongs in the sibling file that implements the contract.
+
+Purity is decidable from the AST: a bodiless `function f end` parses to a
+one-argument `Expr(:function)`, a method to a two-argument one.
+
+Also assert the export half of AR-INTERFACE-DECLARES-ONLY: every name an
+interface file declares is exported by its owning module (`interface_files`
+maps the file's path, relative
+to `src_root`, to that module). An interface file has no private half — its
+export list *is* the layer's API surface.
+"""
+function interface_purity_errors(src_root, interface_files, entries)
+    mod_exports = Dict(mod => Set(exports) for (_, mod, _, _, exports) in entries)
+    errs = String[]
+    for (rel, mod) in sort(collect(interface_files))
+        path = joinpath(src_root, rel)
+        isfile(path) || (push!(errs, "$rel: declared an interface file but not on disk"); continue)
+        haskey(mod_exports, mod) || (push!(errs, "$rel: no file defines its owning module $mod"); continue)
+        declared = Symbol[]
+        scan_interface!(errs, declared, rel, parse_file(path), Ref(0))
+        for name in declared
+            name in mod_exports[mod] || push!(errs,
+                "$rel declares $name but $mod does not export it — an interface file " *
+                "has no private half (AR-INTERFACE-DECLARES-ONLY); export it, or move " *
+                "it to an implementation file")
+        end
+    end
+    errs
+end
+
+# Walk one interface file's top level, collecting the names it declares and an
+# error per expression that implements rather than declares. `line` tracks the
+# most recent LineNumberNode so a violation can name its line.
+function scan_interface!(errs, declared, rel, x, line)
+    bad(what, fix) = push!(errs, "$rel:$(line[]) $what — an interface file declares, " *
+                                 "it never implements (AR-INTERFACE-DECLARES-ONLY); $fix")
+    if x isa LineNumberNode
+        line[] = x.line
+    elseif x isa Expr
+        if x.head in (:toplevel, :block)
+            foreach(a -> scan_interface!(errs, declared, rel, a, line), x.args)
+        elseif x.head === :module
+            scan_interface!(errs, declared, rel, x.args[3], line)
+        elseif x.head === :macrocall && x.args[1] === GlobalRef(Core, Symbol("@doc"))
+            scan_interface!(errs, declared, rel, last(x.args), line)   # the documented form
+        elseif x.head === :abstract
+            name = decl_name(x.args[1])
+            name === nothing || push!(declared, name)
+        elseif x.head === :const
+            assignment = x.args[1]
+            name, value = assignment.args[1], assignment.args[2]
+            if is_type_expr(value)
+                n = decl_name(name)
+                n === nothing || push!(declared, n)
+            else
+                bad("`const $(decl_name(name))` binds a value, not a type alias",
+                    "state and computed constants belong in an implementation file")
+            end
+        elseif x.head === :function
+            if length(x.args) == 1                                     # `function f end`
+                name = decl_name(x.args[1])
+                name === nothing || push!(declared, name)
+            else
+                bad("defines a method", "move the body to the file that implements the contract")
+            end
+        elseif x.head === :(=) && x.args[1] isa Expr &&
+               x.args[1].head in (:call, :where)                       # `f(x) = …`
+            bad("defines a method", "move the body to the file that implements the contract")
+        elseif x.head === :struct
+            bad("defines a concrete struct", "an interface declares only abstract types")
+        elseif x.head === :macro
+            bad("defines a macro", "a macro is implementation")
+        elseif !(x.head in (:export, :using, :import)) &&
+               !(x.head === :call && x.args[1] === :include)
+            bad("is a top-level `$(x.head)` expression", "an interface file only declares")
+        end
+    end
+end
+
 # ── the shared entry point ─────────────────────────────────────────────────
 
 """
     check_layering(src_root, top_file; name = "package",
                    layers = String[], exempt_files = Set{String}(),
-                   check_private_imports = false)
+                   check_private_imports = false,
+                   interface_files = Dict{String, Symbol}(),
+                   qualified_files = Set{String}())
 
 Run the full static layered-architecture guard for one main package inside
 a `@testset`:
@@ -384,13 +649,25 @@ a `@testset`:
 4. declared `layers` respect their index (skipped when `layers` is empty),
 5. cross-layer symbol imports name only exported symbols (opt-in via
    `check_private_imports = true`, requires `layers`; enable per package once
-   its imports are clean).
+   its imports are clean),
+6. each file in `interface_files` (a path ⇒ owning-module map) declares and
+   never implements, and exports every name it declares
+   (AR-INTERFACE-DECLARES-ONLY); the map is per package, so a package opts its
+   interface files in as they come clean,
+7. every `XxxModule.sym` qualification names an exported symbol
+   (AR-MODULE-BOUNDARY-IS-API's other half — always runs, since qualification is new
+   syntax with no legacy to grandfather; `layers` only drives its exemptions),
+8. each file in `qualified_files` uses bare `using ..Xxx` and never
+   `import ..Xxx` / `using ..Xxx: a, b` (AR-QUALIFIED-EXTENSION); the set is opt-in
+   and grows as the migration proceeds.
 """
 function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
-                        check_private_imports = false)
+                        check_private_imports = false,
+                        interface_files = Dict{String, Symbol}(),
+                        qualified_files = Set{String}())
     @testset "$name layered-architecture guard" begin
-        reached, entries = walk_includes(top_file, src_root)
+        reached, entries, file_owner, _ = walk_includes(top_file, src_root)
 
         @testset "every src file is included exactly once" begin
             @test length(reached) == length(unique(reached))
@@ -445,6 +722,38 @@ function check_layering(src_root, top_file; name = "package",
                 errs = private_import_errors(entries, layers, exempt_files)
                 if !isempty(errs)
                     println(stderr, "\nCross-layer private-symbol imports:")
+                    foreach(e -> println(stderr, "  ", e), errs)
+                end
+                @test isempty(errs)
+            end
+        end
+
+        if !isempty(interface_files)
+            @testset "interface files declare, never implement" begin
+                errs = interface_purity_errors(src_root, interface_files, entries)
+                if !isempty(errs)
+                    println(stderr, "\nInterface-purity violations (AR-INTERFACE-DECLARES-ONLY):")
+                    foreach(e -> println(stderr, "  ", e), errs)
+                end
+                @test isempty(errs)
+            end
+        end
+
+        @testset "qualified references name only exported symbols" begin
+            errs = qualified_reference_errors(src_root, file_owner, entries,
+                                              layers, exempt_files)
+            if !isempty(errs)
+                println(stderr, "\nQualified non-exported access (AR-MODULE-BOUNDARY-IS-API):")
+                foreach(e -> println(stderr, "  ", e), errs)
+            end
+            @test isempty(errs)
+        end
+
+        if !isempty(qualified_files)
+            @testset "migrated files use bare `using`, never `import`" begin
+                errs = relative_import_errors(src_root, qualified_files)
+                if !isempty(errs)
+                    println(stderr, "\nImport-form violations (AR-QUALIFIED-EXTENSION):")
                     foreach(e -> println(stderr, "  ", e), errs)
                 end
                 @test isempty(errs)
@@ -610,5 +919,157 @@ function test_layering_checkers()
 
         # A per-file exemption suppresses the error for that importer.
         @test isempty(private_import_errors(bad, layers, Set(["document/A.jl"])))
+    end
+
+    @testset "interface_purity_errors separates declaration from implementation" begin
+        no_syms = Pair{Symbol, Vector{Symbol}}[]
+        entries = [("cell/CellModule.jl", :CellModule, Symbol[], no_syms,
+                    [:AbstractCell, :Reference, :is_up_to_date, :step_kind])]
+        interface_files = Dict("cell/Interface.jl" => :CellModule)
+        check(source) = mktempdir() do root
+            mkpath(joinpath(root, "cell"))
+            write(joinpath(root, "cell/Interface.jl"), source)
+            interface_purity_errors(root, interface_files, entries)
+        end
+
+        # A pure interface: docstrings, an abstract type, a type alias, open generics.
+        @test isempty(check("""
+            \"\"\"The vocabulary.\"\"\"
+            abstract type AbstractCell{T} end
+            const Reference = Union{Nothing, AbstractCell}
+            \"\"\"An open generic.\"\"\"
+            function is_up_to_date end
+            """))
+
+        # A default is behaviour — long form, short form, and a `where` method alike.
+        for method in ("function is_up_to_date(c::AbstractCell)\n    true\nend",
+                       "is_up_to_date(c::AbstractCell) = true",
+                       "step_kind(::T) where {T} = :structural")
+            errs = check("abstract type AbstractCell{T} end\n$method\n")
+            @test length(errs) == 1
+            @test occursin("defines a method", errs[1]) && occursin("AR-INTERFACE-DECLARES-ONLY", errs[1])
+        end
+
+        # An error fallback is a method too — the loophole this rule closes.
+        @test occursin("defines a method",
+                       only(check("""step_kind(::Val{n}) where {n} = error("no method")\n""")))
+
+        # State, a concrete struct, and a macro are all implementation.
+        @test occursin("binds a value", only(check("const Reference = Ref{Any}(nothing)\n")))
+        @test occursin("concrete struct", only(check("struct Reference end\n")))
+        @test occursin("defines a macro", only(check("macro is_up_to_date(x)\n    x\nend\n")))
+
+        # Module plumbing is not implementation: a module wrapper, imports, an
+        # `include` of the implementation fragment, and a docstring on a generic.
+        @test isempty(check("""
+            \"\"\"CellModule — the contract.\"\"\"
+            module CellModule
+            using ..Other
+            import ..Other: thing
+            export AbstractCell, is_up_to_date
+            abstract type AbstractCell{T} end
+            \"\"\"An open generic.\"\"\"
+            function is_up_to_date end
+            include("Defaults.jl")
+            end
+            """))
+
+        # The export half: a declared name its module does not export.
+        errs = check("abstract type AbstractCell{T} end\nfunction unexported_thing end\n")
+        @test length(errs) == 1
+        @test occursin("does not export it", errs[1]) && occursin("unexported_thing", errs[1])
+    end
+
+    @testset "qualified_reference_errors flags non-exported qualification" begin
+        layers = ["cell", "document"]
+        no_syms = Pair{Symbol, Vector{Symbol}}[]
+        entries = [("cell/B.jl",     :B, Symbol[], no_syms, [:pub]),
+                   ("document/A.jl", :A, Symbol[], no_syms, Symbol[])]
+        file_owner = Dict("cell/B.jl" => :B, "document/A.jl" => :A)
+        check(source; owner = file_owner, ents = entries) = mktempdir() do root
+            mkpath(joinpath(root, "cell"));  mkpath(joinpath(root, "document"))
+            write(joinpath(root, "cell/B.jl"), "module B\nexport pub\nend\n")
+            write(joinpath(root, "document/A.jl"), source)
+            qualified_reference_errors(root, owner, ents, layers)
+        end
+
+        # Qualifying an exported name is the AR-QUALIFIED-EXTENSION
+        # extension form — clean.
+        @test isempty(check("B.pub(x::Int) = 1\n"))
+
+        # Qualifying a non-exported name reaches past the module boundary.
+        errs = check("B._priv(x::Int) = 1\n")
+        @test length(errs) == 1
+        @test occursin("B._priv", errs[1]) && occursin("non-exported", errs[1])
+
+        # Reaching a private name for a *read*, not just an extension, counts too.
+        @test occursin("B._secret", only(check("f() = B._secret\n")))
+
+        # A module qualifying itself is a fragment self-reference, not a breach.
+        self = Dict("cell/B.jl" => :B, "document/A.jl" => :B)   # A.jl is a fragment of B
+        @test isempty(check("B._priv(x::Int) = 1\n"; owner = self))
+
+        # `Base.show` and other non-package modules are none of our business.
+        @test isempty(check("Base.show(io::IO, x::Int) = nothing\nMOI.optimize!(m) = m\n"))
+
+        # Unlike private_import_errors there is NO same-layer exemption:
+        # qualification is new syntax under AR-QUALIFIED-EXTENSION, so there is no
+        # legacy to grandfather.
+        same_layer = [("cell/B.jl", :B, Symbol[], no_syms, [:pub]),
+                      ("cell/A.jl", :A, Symbol[], no_syms, Symbol[])]
+        same_owner = Dict("cell/B.jl" => :B, "cell/A.jl" => :A)
+        errs = mktempdir() do root
+            mkpath(joinpath(root, "cell"))
+            write(joinpath(root, "cell/B.jl"), "module B\nexport pub\nend\n")
+            write(joinpath(root, "cell/A.jl"), "B._priv(x::Int) = 1\n")
+            qualified_reference_errors(root, same_owner, same_layer, layers)
+        end
+        @test length(errs) == 1
+
+        # A per-file exemption suppresses it.
+        @test isempty(mktempdir() do root
+            mkpath(joinpath(root, "cell"));  mkpath(joinpath(root, "document"))
+            write(joinpath(root, "cell/B.jl"), "module B\nexport pub\nend\n")
+            write(joinpath(root, "document/A.jl"), "B._priv(x::Int) = 1\n")
+            qualified_reference_errors(root, file_owner, entries, layers,
+                                       Set(["document/A.jl"]))
+        end)
+    end
+
+    @testset "relative_import_errors enforces the AR-QUALIFIED-EXTENSION import form" begin
+        check(source) = mktempdir() do root
+            mkpath(joinpath(root, "cell"))
+            write(joinpath(root, "cell/A.jl"), source)
+            relative_import_errors(root, Set(["cell/A.jl"]))
+        end
+
+        # Bare `using ..B` is the one blessed form.
+        @test isempty(check("using ..B\nB.f(x::Int) = 1\n"))
+
+        # `import ..B: f` — the form the rule exists to kill.
+        errs = check("import ..B: f, g\n")
+        @test length(errs) == 1
+        @test occursin("import ..B", errs[1]) && occursin("AR-QUALIFIED-EXTENSION", errs[1])
+
+        # Bare `import ..B` is banned too: bare `using` already binds the name.
+        @test occursin("import ..B", only(check("import ..B\n")))
+
+        # A `using` symbol list is banned as well — noise, and it does not bind `B`.
+        @test occursin("using ..B: f", only(check("using ..B: f\n")))
+
+        # Absolute imports (Base, stdlib, external packages) are not
+        # AR-QUALIFIED-EXTENSION's business.
+        @test isempty(check("import Base\nusing Test\nimport MathOptInterface as MOI\n"))
+
+        # A file not in the opt-in set is untouched by the lint.
+        @test isempty(mktempdir() do root
+            mkpath(joinpath(root, "cell"))
+            write(joinpath(root, "cell/A.jl"), "import ..B: f\n")
+            relative_import_errors(root, Set{String}())
+        end)
+
+        # A listed file that is not on disk is itself an error — the set must stay honest.
+        @test occursin("not on disk",
+                       only(mktempdir(root -> relative_import_errors(root, Set(["gone.jl"])))))
     end
 end

@@ -27,7 +27,7 @@
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedBase.CollectionModule: CellVector
 using ProjecturedVisual.FontModule: StyleFont
-using ProjecturedVisual.TextModule: TextString, TextText
+using ProjecturedVisual.TextModule: TextString, TextBlock
 using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 #                     its `.content`. This is the document-domain `TextString`
 #                     case (e.g. `SyntaxLeaf.value`): the cursor convention is
 #                     `.value{k}`, one level above the raw `.content` String.
-#       :texttext   — `cursor` resolves to a `TextText`; the characters are the
+#       :texttext   — `cursor` resolves to a `TextBlock`; the characters are the
 #                     flattened concatenation of its `TextString` spans, and the
 #                     cursor convention is a flat `.content{k}` offset across
 #                     them (e.g. `BookParagraph.content`).
@@ -107,8 +107,8 @@ function _walk_strings!(node, path, visited, refs)
             # Document-domain TextString: cursor anchors at the field, the
             # characters are its `.content`. Do not descend further.
             push!(refs, (cursor=field_path, kind=:textstring))
-        elseif val isa TextText
-            # Document-domain TextText: cursor is a flat offset across spans,
+        elseif val isa TextBlock
+            # Document-domain TextBlock: cursor is a flat offset across spans,
             # anchored at the field. Do not descend into the spans.
             push!(refs, (cursor=field_path, kind=:texttext))
         elseif val isa AbstractString
@@ -126,7 +126,7 @@ function _read_target_string(document, target)
         v isa TextString || return nothing
         return v.content
     elseif target.kind == :texttext
-        v isa TextText || return nothing
+        v isa TextBlock || return nothing
         buf = IOBuffer()
         for span in v.elements
             span isa TextString && print(buf, span.content)
@@ -275,7 +275,7 @@ end
 # inserted it: delete the range `[k, k + length(ch))`. One operation covers all three
 # target kinds, because `evaluate_operation` hands the field's value to
 # `splice_value!`, which dispatches on its representation — plain String, `TextString`
-# span, or the flat offset across a `TextText`'s spans (where the insert lands in the
+# span, or the flat offset across a `TextBlock`'s spans (where the insert lands in the
 # first span containing the offset and this delete hits that same span).
 function _typein_undo!(document, target, k::Int, ch)
     undo = ReplaceStringRangeOperation(

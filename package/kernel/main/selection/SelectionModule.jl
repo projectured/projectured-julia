@@ -1,7 +1,7 @@
 """
     SelectionModule
 
-Layer 4 of the kernel — **selection**: a document's current-focus state,
+**Selection**: a document's current-focus state,
 expressed as a reference path stored on the document's `selection` field. The
 primitives read (`get_selection`), clear (`clear_selection!`), set
 (`set_selection!` / `with_selection`), and replace (`replace_selection!`) that
@@ -13,8 +13,8 @@ path that no longer matches the live document is rejected with `SelectionMismatc
 *before any cell is written*, so applying a selection either matches and takes
 effect or fails atomically — it is never half-applied.
 
-A selection's payload is a `ReferencePath` (layer 3) stored on a `Document`
-(layer 2), which is why these primitives live one layer above references and the
+A selection's payload is a `ReferencePath` stored on a `Document`, which is why
+these primitives live above references and the
 document contract.
 
 `clear_selection!` / `set_selection!` are open generics: a document that stores

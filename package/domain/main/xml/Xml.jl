@@ -17,7 +17,8 @@ using ..ReferenceModule
 using ..ProjectionReferenceModule
 using ..OperationModule
 using ..SelectionModule
-using ..GestureModule
+using ..EventPatternModule
+using ..GestureBindingModule
 using ..DomainModule
 
 @domain Xml
@@ -79,23 +80,16 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 
 # ── Authoring gestures ──────────────────────────────────────────────────────
 #
-# A raw key on a whole XML node edits the tree; a character cursor inside text is
-# consumed upstream, so these never fire mid-edit. Each gesture reads `doc`'s own
-# selection and emits a `doc`-relative operation.
+# The reader runs last-to-first, so a key the text layer absorbed never reaches these
+# gestures — a character typed into a tag name stays a character. `<` and `"` are the
+# exception: neither can occur *in* a tag name, so they mean "insert a child" even
+# while the caret is in one, and are declared `override` to claim the key back.
 
-# The node the cursor is on, or nothing.
-function _xml_selected(doc)
-    sel = getfield(doc, :selection)[]
-    sel === nothing && return nothing
-    try evaluate_reference(doc, sel) catch; nothing end
-end
+_xml_selected(doc) = try_evaluate_reference(doc, getfield(doc, :selection)[])
 
-# Only an insertion placeholder is replaceable: `"` becomes an empty text node,
-# `<` an empty element, `@` an empty attribute, each with its cursor pre-placed.
-# The keys are non-alphanumeric because the insertion is a typed-name buffer: a
-# letter goes into the buffer instead of firing a gesture.
+# Only an insertion placeholder is replaceable. The keys are non-alphanumeric because
+# the insertion is a typed-name buffer: a letter goes into the buffer instead.
 _xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
-_xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc)
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
@@ -105,57 +99,35 @@ _xml_replace(doc, newdoc) = replace_document(getfield(doc, :selection)[], newdoc
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))
-    KeyPress('"') => "Replace with text"        => _xml_replace(doc, make_insertion_document(XmlText))
-    KeyPress('<') => "Replace with an element"  => _xml_replace(doc, make_insertion_document(XmlElement))
-    KeyPress('@') => "Replace with an attribute" => _xml_replace(doc, make_insertion_document(XmlAttribute))
+    KeyPress('"') => "Replace with text"        => replace_selected_document(doc, make_insertion_document(XmlText))
+    KeyPress('<') => "Replace with an element"  => replace_selected_document(doc, make_insertion_document(XmlElement))
+    KeyPress('@') => "Replace with an attribute" => replace_selected_document(doc, make_insertion_document(XmlAttribute))
 end
 
-# Append a child at the end and drop the cursor into it. `<`/`"` decline when an
-# insertion is selected, letting the replace gestures above win.
-function _xml_insert_element(e)
-    _xml_replaceable(e, nothing) && return nothing
-    n = length(e.children)
-    insert_elements(@reference(e, children), n, Any[XmlElement("")], @reference ::XmlElement.children::CellVector[n + 1]::XmlElement.tag::String{0}::Position)
-end
-function _xml_insert_text(e)
-    _xml_replaceable(e, nothing) && return nothing
-    n = length(e.children)
-    insert_elements(@reference(e, children), n, Any[XmlText("")], @reference ::XmlElement.children::CellVector[n + 1]::XmlText.content::String{0}::Position)
-end
-function _xml_insert_node(e)
-    n = length(e.children)
-    insert_elements(@reference(e, children), n, Any[XmlInsertion()], @reference ::XmlElement.children::CellVector[n + 1]::XmlInsertion)
-end
+# `<`/`"` decline when an insertion is selected, letting the replace gestures win.
+_xml_insert_element(e) = _xml_replaceable(e, nothing) ? nothing :
+    append_insertion_operation(e, :children, XmlElement)
+_xml_insert_text(e) = _xml_replaceable(e, nothing) ? nothing :
+    append_insertion_operation(e, :children, XmlText)
+_xml_insert_node(e) = append_insertion_operation(e, :children, XmlInsertion)
 
 # A new attribute may be added only from the element itself, its tag, or an
 # existing attribute — never while editing a child.
 _xml_in_attr_context(sel) =
     sel isa EmptyReferencePath ||
-    (sel isa ConcreteReferencePath &&
-     (sel.head isa ProjectionReference ||
-      (sel.head isa FieldReference && (sel.head.name == "tag" || sel.head.name == "attrs"))))
+    is_introduced_reference(sel) ||
+    (sel isa ConcreteReferencePath && sel.head isa FieldReference &&
+     (sel.head.name == "tag" || sel.head.name == "attrs"))
 
-function _xml_insert_attr(e)
-    _xml_in_attr_context(getfield(e, :selection)[]) || return nothing
-    n = length(e.attrs)
-    insert_elements(@reference(e, attrs), n, Any[XmlAttribute("", "")], @reference ::XmlElement.attrs::CellVector[n + 1]::XmlAttribute.name::String{0}::Position)
-end
-
-# `=` moves the cursor from an attribute name to its value.
-function _xml_attr_value(e)
-    sel = getfield(e, :selection)[]
-    sel === nothing && return nothing
-    @reference_case sel begin
-        ::XmlElement.attrs{s:_}.name.rest... => ReplaceSelectionOperation(@reference(e, attrs[s + 1].value{0}))
-    end
-end
+_xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?
+    append_insertion_operation(e, :attrs, XmlAttribute) : nothing
 
 @gestures XmlElement begin
-    KeyPress('<')    => "Insert an element"       => _xml_insert_element(doc)
-    KeyPress('"')    => "Insert text"             => _xml_insert_text(doc)
-    KeyDown(:insert) => "Insert a node"           => _xml_insert_node(doc)
-    KeyDown(:space)  => "Insert an attribute"     => _xml_insert_attr(doc)
-    KeyPress('=')    => "Move to attribute value" => _xml_attr_value(doc)
+    override(KeyPress('<')) => "Insert an element"       => _xml_insert_element(doc)
+    override(KeyPress('"')) => "Insert text"             => _xml_insert_text(doc)
+    KeyDown(:insert)        => "Insert a node"           => _xml_insert_node(doc)
+    KeyDown(:space)         => "Insert an attribute"     => _xml_insert_attr(doc)
+    KeyPress('=')           => "Move to attribute value" => move_to_field(doc, :name, :value)
 end
 
 end # module

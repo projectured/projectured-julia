@@ -24,7 +24,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
                           PositionReference, ReferencePath,
                           EmptyReferencePath, append_reference, is_element_reference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
@@ -46,7 +46,7 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
         # SyntaxCompoundToText._syntax_to_flat can extract the flat position via its
         # `h isa ProjectionReference` branch — same pattern as JsonToSyntax's
         # `_node_forward` which also returns the wrapped reference unchanged.
-        if core.head isa ProjectionReference && core.head.projection === p
+        if is_introduced_reference(core, p)
             return reference
         end
         # Structural child path: [j].rest → .children[j-1].rest (SyntaxNode domain).

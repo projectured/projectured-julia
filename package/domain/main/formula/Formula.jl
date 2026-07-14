@@ -13,7 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
                       JuliaNothing, JuliaSymbol, JuliaChar,
@@ -60,7 +60,7 @@ environment; see [`wire_result!`](@ref).
 end
 
 # Convenience: build a result document from a value.
-formula_result_text(s) = TextText(TextString(_value_string(s)))
+formula_result_text(s) = TextBlock(TextString(_value_string(s)))
 
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
@@ -328,7 +328,7 @@ end
 
 Evaluate `formula.code` in a sandbox module with every referenced formula's name
 bound to its (recursively evaluated) value, returning a result document
-(`TextText`). Reading a dependency's `result` inside this thunk registers the
+(`TextBlock`). Reading a dependency's `result` inside this thunk registers the
 reactive dependency. A re-entry guard returns an error result on a cycle.
 """
 function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
@@ -356,7 +356,7 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
     end
 end
 
-# Read the scalar value out of a result document (a TextText of one TextString).
+# Read the scalar value out of a result document (a TextBlock of one TextString).
 # This is what a dependent formula consumes; parse it back to a number/bool/string.
 function _result_value(result)
     s = _result_string(result)
@@ -371,7 +371,7 @@ function _result_value(result)
 end
 
 function _result_string(result)
-    result isa TextText || return string(result)
+    result isa TextBlock || return string(result)
     buf = IOBuffer()
     for span in result.elements
         span isa TextString && print(buf, span.content)

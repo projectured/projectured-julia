@@ -14,8 +14,8 @@
 # caller that wants the *paths* to them names it by a `ReferencePath` — but
 # reference paths live a layer above this one, so the walk cannot build them. The
 # seam is what keeps the walk below the reference layer while still serving it
-# (AR-49: the lower layer declares the open generic, the higher layer adds the
-# method, and dispatch is the registration).
+# (AR-FRAMEWORKS-SINK: the lower layer declares the open generic, the higher layer
+# adds the method, and dispatch is the registration).
 
 """
     DocumentWalk

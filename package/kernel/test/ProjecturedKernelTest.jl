@@ -43,10 +43,11 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.OperationModule
-using ProjecturedKernel.KeyboardModule
-using ProjecturedKernel.ModifiersModule
-using ProjecturedKernel.MouseModule
-using ProjecturedKernel.GestureModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.EventPatternModule
+using ProjecturedKernel.GestureBindingModule
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 
 # ── shared static layering guard ────────────────────────────────────────────
@@ -64,10 +65,10 @@ include("reference/ReferenceBuilderTest.jl")
 include("reference/ReferenceEvalTest.jl")
 include("operation/RerootingTest.jl")
 include("operation/TraversalTest.jl")
-include("device/GestureModuleTest.jl")
-include("device/EventCaseTest.jl")
-include("device/GestureBindingTest.jl")
-include("device/GestureRecognizerTest.jl")
+include("event/EventModuleTest.jl")
+include("event/EventCaseTest.jl")
+include("gesture/GestureRecognizerTest.jl")
+include("binding/GestureBindingTest.jl")
 include("backend/HeadlessBackendTest.jl")
 include("agent/AgentSeamTest.jl")
 
@@ -83,8 +84,9 @@ include("editor/NavigationTest.jl")
 Static layered-architecture guard for `ProjecturedKernel`: the top include list
 must be a topological order over the real `import ..XxxModule` edges, every src
 file reached exactly once, files under a declared layer folder may only
-import from layers of index ≤ their own, and cross-layer symbol imports may
-name only exported symbols.
+import from layers of index ≤ their own, cross-layer symbol imports may
+name only exported symbols, and every interface file declares without
+implementing (AR-INTERFACE-DECLARES-ONLY).
 """
 function test_kernel_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
@@ -92,9 +94,29 @@ function test_kernel_layering()
     main = normpath(dirname(pathof(ProjecturedKernel)))
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
-                   layers = ["cell", "document", "reference", "selection", "operation",
-                             "device", "backend", "projection", "agent", "editor"],
-                   check_private_imports = true)
+                   layers = ["cell", "event", "device", "gesture", "backend",
+                             "document", "reference", "selection", "operation",
+                             "binding", "projection", "tool", "llm", "agent", "editor"],
+                   check_private_imports = true,
+                   # A layer's contract file, and its owning module. The projection
+                   # layer declares two contracts, so it has two.
+                   interface_files = Dict(
+                       "cell/AbstractCell.jl"        => :CellModule,
+                       "document/Document.jl"        => :DocumentModule,
+                       "reference/Interface.jl"      => :ReferenceModule,
+                       "selection/Interface.jl"      => :SelectionModule,
+                       "operation/Interface.jl"      => :OperationModule,
+                       "backend/BackendInterface.jl" => :BackendModule,
+                       "device/Device.jl"            => :DeviceModule,
+                       "projection/ProjectionApi.jl" => :ProjectionApiModule,
+                       "projection/IoMapApi.jl"      => :IoMapApiModule),
+                   # AR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx`
+                   # + qualified extension (`Xxx.f(…) = …`). Opt-in, and it grows
+                   # as the sweep proceeds; when it covers every file the
+                   # parameter goes.
+                   qualified_files = Set([
+                       "projection/ProjectionReference.jl",   # the reference-step seam
+                       "backend/HeadlessBackend.jl"]))        # the backend seam
 end
 
 """
@@ -118,10 +140,10 @@ function test_kernel()
         test_reference_eval()
         test_rerooting()
         test_traversal()
-        test_gesture_module()
+        test_event_module()
         test_event_case()
-        test_gesture_binding()
         test_gesture_recognizer()
+        test_gesture_binding()
         test_headless_backend()
         test_agent_seam()
     end
@@ -134,7 +156,7 @@ export check_layering, test_layering_checkers
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_eval, test_rerooting,
-       test_traversal, test_gesture_module, test_event_case,
+       test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,

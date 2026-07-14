@@ -2,9 +2,9 @@
     TextToGraphicsModule
 
 Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
-left-to-right and breaks the line only on explicit `TextNewline` elements or
-embedded `\\n` characters. Word wrapping itself lives in `WordWrapping`,
-inserted upstream of `TextToGraphics` in the pipeline.
+left-to-right and breaks the line at a `TextLine` element, at an explicit
+`TextNewline` element, or at an embedded `\\n` character. Word wrapping itself
+lives in `WordWrapping`, inserted upstream of `TextToGraphics` in the pipeline.
 
 A coordinate table in the IoMap records the character range and pixel
 position of each emitted segment. The reader uses it for keyboard navigation
@@ -20,8 +20,8 @@ module TextToGraphicsModule
 import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument,
-                     _build_selection_path, _cursor_position, _is_structural_selection
+import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
+                     SpanPath, _build_selection_path, _cursor_coord, _is_structural_selection
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
@@ -33,18 +33,19 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyDown, KeyPress
-import ..MouseModule: MousePress
-import ..EventCaseModule: var"@event_case"
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyDown, KeyPress
+import ..EventModule: MousePress
+import ..EventPatternModule: var"@event_case"
 import ..IoMapApiModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
 """
-    SegCoord(span_idx, char_start, char_end, x, y, font, text, width, height)
+    SegCoord(span_path, char_start, char_end, x, y, font, text, width, height)
 
-One entry per emitted text segment. `span_idx` is the 1-based index of the
-`TextString` element in the input `TextText`. `char_start`/`char_end` are
+One entry per emitted text segment. `span_path` is the segment's span as an index
+path into the input `TextBlock` (a `SpanPath`): `[i]` for a top-level span, `[i, j]`
+for span `j` of the `TextLine` at element `i`. `char_start`/`char_end` are
 0-based offsets local to that span (exclusive end). `(x, y)` are pixel
 coordinates of the segment's top-left. `width`/`height` are the segment's
 pixel box; for an inline image span (`TextGraphics` — empty `text`, range
@@ -53,7 +54,7 @@ left/right halves, the cursor sits at `x + width`, and the clickable y-band
 covers the whole image.
 """
 struct SegCoord
-    span_idx::Int
+    span_path::SpanPath
     char_start::Int
     char_end::Int
     x::Int
@@ -72,7 +73,7 @@ text segment with character range, pixel position, font, and text.
 """
 struct TextToGraphicsIoMap <: IoMap
     projection::Any
-    input::TextText
+    input::TextBlock
     output::GraphicsCanvas
     char_to_coord::Cell  # Cell{Vector{SegCoord}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
@@ -103,7 +104,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceS
 end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives
-# on the Text domain (`read_gesture(::TextText, ::KeyPress)` in `TextModule`).
+# on the Text domain (`read_gesture(::TextBlock, ::KeyPress)` in `TextModule`).
 # Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
 # against `.elements[i].content[range]`) flows back through the chain unchanged.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
@@ -122,7 +123,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePr
     # A click always becomes a plain character cursor; whole-element promotion
     # (Alt+click) is decided in SyntaxToText, where the tree is in hand.
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, char_pos))
+    return ReplaceSelectionOperation(_build_selection_path(sc.span_path, char_pos))
 end
 
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
@@ -150,27 +151,27 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
-    any(span -> span isa TextString, styled.elements) || return nothing
+    _has_text_span(styled) || return nothing
 
-    current = _cursor_position(styled.selection)
+    current = _cursor_coord(styled.selection)
     current === nothing && return nothing
 
     @event_case evt begin
         when(KeyDown(k), k === :home || k === :end) => begin
             coord_map = iomap.char_to_coord[]
             isempty(coord_map) && return nothing
-            seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+            seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
             seg_idx === nothing && return nothing
             current_y = coord_map[seg_idx].y
             line_segs = filter(sc -> sc.y == current_y, coord_map)
             sc = k === :home ? line_segs[1] : line_segs[end]
             new_char = k === :home ? sc.char_start : sc.char_end
-            return ReplaceSelectionOperation(_build_selection_path(sc.span_idx, new_char))
+            return ReplaceSelectionOperation(_build_selection_path(sc.span_path, new_char))
         end
         when(KeyDown(k), k === :up || k === :down) => begin
             coord_map = iomap.char_to_coord[]
             isempty(coord_map) && return nothing
-            seg_idx = findfirst(sc -> sc.span_idx == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
+            seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
             seg_idx === nothing && return nothing
             cur_sc   = coord_map[seg_idx]
             cursor_x = _seg_cursor_x(cur_sc, current.char, p.measure)
@@ -196,7 +197,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                     best_sc   = sc
                 end
             end
-            return ReplaceSelectionOperation(_build_selection_path(best_sc.span_idx, best_pos))
+            return ReplaceSelectionOperation(_build_selection_path(best_sc.span_path, best_pos))
         end
     end
     return evt
@@ -205,19 +206,19 @@ end
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
 
 """
-    print_document(p::TextToGraphics, styled::TextText) -> Cell{Vector{GraphicsText}}
+    print_document(p::TextToGraphics, styled::TextBlock) -> Cell{Vector{GraphicsText}}
 
-Lay an already-wrapped `TextText` out into reactive `GraphicsText` primitives.
+Lay an already-wrapped `TextBlock` out into reactive `GraphicsText` primitives.
 Lines advance left-to-right; the line breaks come from `TextNewline` elements
 and from `\\n` characters embedded in `TextString` content. The wrap itself —
 splitting at word boundaries when text would overflow — is the job of
 `WordWrapping` upstream.
 
 The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
-relevant cell in the `TextText`, so any value or structural change
+relevant cell in the `TextBlock`, so any value or structural change
 invalidates the layout; recomputation happens only when the `Cell` is read.
 """
-function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
+function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
@@ -243,10 +244,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
     # The caret/highlight stay a single selection-driven `overlay`, laid out in
     # absolute coordinates over the whole stack, so a pure caret move still
     # invalidates only the two overlay rects (dimension A): the spans never read
-    # the selection. `overlay` re-runs the full layout via `_layout_text` to locate
-    # the caret/highlight identically to the per-line spans (`collect_spans=false`
-    # skips building the span objects).
-    overlay = Cell(() -> _layout_text(p, styled, styled.selection; collect_spans=false))
+    # the selection. `overlay` re-runs the same `_layout_group` pass the lines do,
+    # so the caret lands exactly where the glyph it sits against was drawn.
+    #
+    # The block's prevailing font sizes a blank line that has no font of its own
+    # (an empty `TextLine`). It lives in its own cell because only such a line
+    # reads it: a font edit still re-lays out just the lines that render glyphs.
+    block_font = Cell(() -> _block_font(styled))
+    overlay = Cell(() -> _layout_overlay(p, styled, styled.selection, block_font))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
@@ -263,25 +268,10 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
     set_function!(getfield(highlight_rect, :w), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[3])))
     set_function!(getfield(highlight_rect, :h), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[4])))
 
-    # Group elements into lines at `TextNewline` boundaries. Reads only the element
-    # structure and types (the slot values / `isa TextNewline`), never `.content`,
-    # so it is invariant under content edits. Each group carries its spans tagged
-    # with their global element index (for `SegCoord.span_idx`) and the terminating
-    # newline (for an empty line's fallback height).
-    lines_cell = Cell(function ()
-        groups = NamedTuple[]
-        cur = Tuple{Int,Any}[]
-        for (gi, el) in enumerate(styled.elements)
-            if el isa TextNewline
-                push!(groups, (spans = cur, newline = el))
-                cur = Tuple{Int,Any}[]
-            else
-                push!(cur, (gi, el))
-            end
-        end
-        push!(groups, (spans = cur, newline = nothing))
-        groups
-    end)
+    # The block resolved into visual lines (see `_line_groups`). Reads only the
+    # element structure, the element types and a line's indentation — never a span's
+    # `.content` — so it is invariant under content edits.
+    lines_cell = Cell(() -> _line_groups(styled))
 
     # Per-line reactive cells, built once per line index and reused. A line's
     # `layout` reads only that line's spans' content; its `y` chains off the
@@ -293,7 +283,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
     line_cells = Dict{Int,NamedTuple}()
     function get_line_cells(L::Int)
         haskey(line_cells, L) && return line_cells[L]
-        line_layout = Cell(() -> _layout_line(p, lines_cell[][L]))
+        line_layout = Cell(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
         line_h = Cell(() -> Int32(line_layout[].height))
         line_y = if L == 1
             Cell(Int32(0))
@@ -353,7 +343,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
             lc = get_line_cells(L)
             ly = Int(lc.y[])
             for sc in lc.layout[].coord_map
-                push!(out, SegCoord(sc.span_idx, sc.char_start, sc.char_end,
+                push!(out, SegCoord(sc.span_path, sc.char_start, sc.char_end,
                                     sc.x, sc.y + ly, sc.font, sc.text, sc.width, sc.height))
             end
         end
@@ -382,45 +372,95 @@ function print_document(p::TextToGraphics, recursion, styled::TextText, ctx)
     TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
 end
 
-# Lay `styled` out into spans + a coordinate map, and (when `sel !== nothing`)
-# locate the caret and selection highlight. Shared by the selection-independent
-# `layout` cell (sel=nothing) and the selection-only `overlay` cell. Returns a
-# NamedTuple `(spans, coord_map, width, height, span_flat_offsets, cursor,
-# highlight)` where `cursor` is `(x, y, h)` or `nothing` and `highlight` is
-# `(x, y, w, h)` or `nothing`. With `collect_spans=false` the span objects are
-# not built (the overlay only needs geometry), but measurement and the coord
-# map still run so caret/highlight placement is identical to the rendered text.
-function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::Bool=true)
+# ── Line grouping ─────────────────────────────────────────────────────────────
+#
+# The block resolved into visual lines — the one grouping both layout passes read,
+# so the rendered lines and the caret/highlight overlay can never disagree about
+# where a span sits.
+#
+# A group is one visual line: the spans that render on it (each tagged with its
+# `SpanPath`, so a span inside a `TextLine` addresses `[i, j]`), the `indentation`
+# it opens with, the `TextNewline` element that terminates it (or `nothing`), and
+# whether an implicit line break precedes it.
+#
+# Lines arrive by two mechanisms and the grouping honours both:
+#   • a `TextNewline` *element* terminates the current line;
+#   • a `TextLine` element carries a line of its own and implies a break *before*
+#     itself unless it leads the block — the separator rule of `text_flat_offsets`
+#     and `TextBlockToString`, so `n` lines render with `n-1` breaks.
+# `is_line` marks the second kind: only such a line, when empty, still occupies a
+# row. The empty group a trailing `TextNewline` leaves behind must not, or every
+# newline-terminated block would grow a phantom blank line.
+#
+# Block-level spans that follow a `TextLine` join the line it opened (a block is
+# meant to hold either spans or lines; a mixed one degrades, it does not error).
+#
+# A span's `.content` is never read here — only the element structure, the element
+# types and a line's indentation — so the grouping survives content edits
+# untouched, which is what keeps a line's layout local to that line.
+function _line_groups(styled::TextBlock)
+    groups = NamedTuple[]
+    spans = Tuple{SpanPath,Any}[]
+    indentation = 0
+    break_before = false
+    is_line = false
+    for (i, element) in enumerate(styled.elements)
+        if element isa TextNewline
+            push!(groups, (spans = spans, newline = element, indentation = indentation,
+                           break_before = break_before, is_line = is_line))
+            spans = Tuple{SpanPath,Any}[]
+            indentation = 0
+            break_before = false
+            is_line = false
+        elseif element isa TextLine
+            if i > 1
+                push!(groups, (spans = spans, newline = nothing, indentation = indentation,
+                               break_before = break_before, is_line = is_line))
+                spans = Tuple{SpanPath,Any}[]
+            end
+            indentation = element.indentation
+            break_before = i > 1
+            is_line = true
+            for (j, span) in enumerate(element.elements)
+                push!(spans, (Int[i, j], span))
+            end
+        else
+            push!(spans, (Int[i], element))
+        end
+    end
+    push!(groups, (spans = spans, newline = nothing, indentation = indentation,
+                   break_before = break_before, is_line = is_line))
+    groups
+end
+
+# ── Layout engine (wrap-free) ─────────────────────────────────────────────────
+
+# Lay one line group's spans out, with `y0` as the vertical origin. The single span
+# loop both passes run: a line's reactive sub-canvas calls it line-relative
+# (`y0 = 0`, `collect_spans = true`) and with no caret; the overlay calls it once
+# per group with the running absolute y and the caret to locate (`collect_spans =
+# false` — it needs the geometry, not the glyphs). Sharing the loop is what keeps
+# the caret on the character it was placed against.
+#
+# `cursor_pos` is a `(span::SpanPath, char)` caret, or `nothing`. The returned
+# `cursor` is `(x, y, h)` when it fell inside this group. An embedded '\n' inside a
+# span still breaks into sub-lines within the group (the renderer cannot draw a
+# multi-line glyph run); the group's `height` covers them all.
+function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
+                       collect_spans::Bool, block_font::Cell)
     result = Any[]
     by_key = Dict{Any,Any}()
     occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
                                # span (one TextString at several flat positions)
                                # gets a distinct stable key per occurrence.
     coord_map = SegCoord[]
-    span_flat_offsets = Dict{Int,Int}()  # elem_idx → cumulative flat char offset
-    cumulative_flat = 0
-    cx = p.start_x
-    cy = p.start_y
+    cursor = nothing
+    cx = p.start_x + _indent_width(p, group, block_font)
+    cy = y0
     max_cx = cx
     line_h = 0
 
-    cursor_pos = _cursor_position(sel)
-    cursor_x = -1
-    cursor_y = -1
-    cursor_line_h = 0
-
-    for (elem_idx, span) in enumerate(styled.elements)  # reads styled.elements cell
-        span_flat_offsets[elem_idx] = cumulative_flat
-        if span isa TextNewline
-            max_cx = max(max_cx, cx)   # fold this line's extent in before reset
-            cx = p.start_x
-            # An empty line (no glyphs since the previous break) still
-            # occupies one line of height; fall back to the font's height
-            # so blank lines are not collapsed to zero.
-            cy += line_h > 0 ? line_h : p.measure(" ", span.font::StyleFont)[2]
-            line_h = 0
-            continue
-        end
+    for (path, span) in group.spans
         if span isa TextGraphics
             img_w = Int(span.width::Int32)
             img_h = Int(span.height::Int32)
@@ -428,62 +468,44 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
             # live nested canvas for a pre-projected GraphicsCanvas (widget etc.).
             collect_spans && push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
             # Record a SegCoord for hit-testing: atomic position (0..1)
-            push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
-            cumulative_flat += 1  # image spans occupy 1 char in the flat space
+            push!(coord_map, SegCoord(path, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
             line_h = max(line_h, img_h)
-            # Handle cursor at this image span
-            if cursor_pos !== nothing && cursor_x < 0 &&
-               cursor_pos.span == elem_idx
-                if cursor_pos.char == 0
-                    cursor_x = cx
-                else
-                    cursor_x = cx + img_w
-                end
-                cursor_y = cy
-                cursor_line_h = line_h
+            if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path
+                # The caret sits before or after the image, never inside it.
+                cursor = (cursor_pos.char == 0 ? cx : cx + img_w, cy, max(line_h, 1))
             end
             cx += img_w
             continue
         end
         span isa TextString || continue
-        span_idx = elem_idx                            # 1-based index in elements
         span_oid = objectid(span)
         span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
-        char_offset = 0                               # local offset within this span
-        txt  = span.content::AbstractString             # reads span content cell
-        cumulative_flat += length(txt)
-        sf   = span.font::StyleFont                     # reads span font cell
-        col  = span.font_color::StyleColor              # reads span font_color cell
+        char_offset = 0                                 # local offset within this span
+        txt = span.content::AbstractString               # reads span content cell
+        sf  = span.font::StyleFont                       # reads span font cell
+        col = span.font_color::StyleColor                # reads span font_color cell
+        at_caret(k) = cursor === nothing && cursor_pos !== nothing &&
+                      cursor_pos.span == path && cursor_pos.char == k
 
         lines = split(txt, '\n')
         for (li, line) in enumerate(lines)
             # Hard newline embedded in the span content.
             if li > 1
-                # cursor BEFORE the \n (char_offset still points to \n pos)
-                if cursor_pos !== nothing && cursor_x < 0 &&
-                   cursor_pos.span == span_idx && cursor_pos.char == char_offset
-                    cursor_x = cx
-                    cursor_y = cy
-                    cursor_line_h = line_h
-                end
-                max_cx = max(max_cx, cx)   # fold this line's extent in before reset
+                # caret BEFORE the '\n' (char_offset still points at it)
+                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
+                max_cx = max(max_cx, cx)   # fold this sub-line's extent in before the reset
                 cx = p.start_x
-                # Empty line keeps one line of height (see TextNewline above).
+                # An empty sub-line still keeps one row of height.
                 cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
                 line_h = 0
-                char_offset += 1  # count the \n
-                # cursor AFTER the \n (now at beginning of next line)
-                if cursor_pos !== nothing && cursor_x < 0 &&
-                   cursor_pos.span == span_idx && cursor_pos.char == char_offset
-                    cursor_x = cx
-                    cursor_y = cy
-                    cursor_line_h = line_h
-                end
+                char_offset += 1           # count the '\n'
+                # caret AFTER the '\n' — now at the start of the next sub-line
+                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
             end
 
             isempty(line) && continue
 
-            # No wrap: emit the whole line as a single segment.
+            # No wrap: emit the whole sub-line as a single segment.
             seg_w, seg_h = p.measure(line, sf)
             line_h = max(line_h, seg_h)
             seg_x = cx
@@ -501,115 +523,130 @@ function _layout_text(p::TextToGraphics, styled::TextText, sel; collect_spans::B
                 push!(result, tpl)
                 by_key[tpl.key] = tpl
             end
-            push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
-            if cursor_pos !== nothing && cursor_x < 0 &&
-               cursor_pos.span == span_idx &&
-               cursor_pos.char >= seg_char_start && cursor_pos.char <= seg_char_start + seg_len
+            push!(coord_map, SegCoord(path, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
+            if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path &&
+               seg_char_start <= cursor_pos.char <= seg_char_start + seg_len
                 local_pos = cursor_pos.char - seg_char_start
-                cursor_x = seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0)
-                cursor_y = cy
-                cursor_line_h = line_h
+                cursor = (seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0),
+                          cy, max(line_h, 1))
             end
             cx += seg_w
             char_offset += seg_len
         end
     end
 
-    cursor = cursor_x >= 0 ? (cursor_x, cursor_y, max(cursor_line_h, 1)) : nothing
+    max_cx = max(max_cx, cx)
+    height = cy + line_h - y0
+    if isempty(coord_map) && (group.newline !== nothing || group.is_line)
+        # A blank line still occupies one row, sized by the font it has no glyph to
+        # take one from. The empty group left behind by a *trailing* newline is not
+        # a line at all, and keeps its zero height.
+        font = _line_height_font(group, block_font)
+        height = font === nothing ? 0 : p.measure(" ", font)[2]
+    end
+    (spans = result, by_key = by_key, coord_map = coord_map,
+     width = max_cx, height = height, cursor = cursor)
+end
+
+# Locate the caret and the selection highlight over the whole block, in the same
+# absolute coordinates the line sub-canvases render into — by running the very
+# layout the lines run, group by group.
+#
+# `span_flat_offsets` maps a span's `SpanPath` to the flat character offset it
+# starts at: the space a `TextRectangularReference` box is expressed in. A
+# `TextLine` contributes its implicit break and its indentation to that space (the
+# rule of `text_flat_offsets`), because the projection that emits the line counts
+# both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
+# into the block at wrap points and the box space must stay invariant under them.
+function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
+    cursor_pos = _cursor_coord(sel)
+    coord_map = SegCoord[]
+    span_flat_offsets = Dict{SpanPath,Int}()
+    cursor = nothing
+    y = p.start_y
+    flat = 0
+
+    for group in _line_groups(styled)
+        group.break_before && (flat += 1)
+        flat += group.indentation
+        for (path, span) in group.spans
+            span_flat_offsets[path] = flat
+            flat += _box_flat_length(span)
+        end
+        laid = _layout_group(p, group, y, cursor_pos, false, block_font)
+        append!(coord_map, laid.coord_map)
+        cursor === nothing && (cursor = laid.cursor)
+        y += laid.height
+    end
 
     highlight = nothing
     hl_range = _highlight_char_range(sel, coord_map)
-    if hl_range !== nothing
-        highlight = _compute_highlight_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p)
-    end
-
-    max_cx = max(max_cx, cx)
-    (spans = result, by_key = by_key, coord_map = coord_map, width = max_cx, height = cy + line_h,
-     span_flat_offsets = span_flat_offsets, cursor = cursor, highlight = highlight)
+    hl_range === nothing ||
+        (highlight = _compute_highlight_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
+    (cursor = cursor, highlight = highlight)
 end
 
-# Lay out ONE visual line (a `(spans, newline)` group from `lines_cell`) into
-# placements + a coordinate map, in coordinates *relative* to the line origin
-# `(start_x, 0)`. `group.spans` is a vector of `(global_elem_idx, span)` tuples;
-# `global_elem_idx` becomes the `SegCoord.span_idx` so the reader's character
-# positions stay in the input element's index space. Embedded '\n' inside a span
-# still breaks into multiple sub-lines within this group (the renderer cannot draw
-# a multi-line glyph run), advancing `cy`; the group's sub-canvas spans the full
-# height. This is the per-line counterpart of `_layout_text`'s inner span loop,
-# minus the caret/highlight (those live in the global `overlay`). An all-empty
-# group falls back to the terminating newline's font height so a blank line still
-# occupies one row.
-function _layout_line(p::TextToGraphics, group)
-    result = Any[]
-    by_key = Dict{Any,Any}()
-    occ = Dict{UInt64,Int}()
-    coord_map = SegCoord[]
-    cx = p.start_x
-    cy = 0
-    max_cx = cx
-    line_h = 0
+# The flat character length a span contributes to the box space (see
+# `_layout_overlay`): an image occupies exactly one column, matching how
+# `SyntaxToText` counts one for an embedded graphic.
+_box_flat_length(span::TextString) = length(span.content::AbstractString)
+_box_flat_length(::TextGraphics) = 1
+_box_flat_length(::TextDocument) = 0
 
-    for (elem_idx, span) in group.spans
-        if span isa TextGraphics
-            img_w = Int(span.width::Int32)
-            img_h = Int(span.height::Int32)
-            push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
-            push!(coord_map, SegCoord(elem_idx, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
-            line_h = max(line_h, img_h)
-            cx += img_w
-            continue
-        end
-        span isa TextString || continue
-        span_idx = elem_idx
-        span_oid = objectid(span)
-        span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
-        char_offset = 0
-        txt = span.content::AbstractString
-        sf  = span.font::StyleFont
-        col = span.font_color::StyleColor
-
-        lines = split(txt, '\n')
-        for (li, line) in enumerate(lines)
-            if li > 1
-                max_cx = max(max_cx, cx)
-                cx = p.start_x
-                cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
-                line_h = 0
-                char_offset += 1
-            end
-            isempty(line) && continue
-            seg_w, seg_h = p.measure(line, sf)
-            line_h = max(line_h, seg_h)
-            seg_x = cx
-            seg_char_start = char_offset
-            seg_len = length(line)
-            fpl = _fill_placement(span, (span_oid, span_occ, li, :fill), seg_x, cy, seg_w, seg_h)
-            if fpl !== nothing
-                push!(result, fpl)
-                by_key[fpl.key] = fpl
-            end
-            tpl = (kind = :text, key = (span_oid, span_occ, li),
-                   text = String(line), x = seg_x, y = cy, font = sf, color = col)
-            push!(result, tpl)
-            by_key[tpl.key] = tpl
-            push!(coord_map, SegCoord(span_idx, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
-            cx += seg_w
-            char_offset += seg_len
-        end
+# Pixel width of a line's leading indentation. The indent is a property of the
+# `TextLine`, not a span, so it carries no font of its own: measure it in the font
+# of the line's first glyph span — an indented line is a code line, so that is the
+# font the indent would have had.
+function _indent_width(p::TextToGraphics, group, block_font::Cell)
+    group.indentation > 0 || return 0
+    for (_, span) in group.spans
+        font = _element_font(span)
+        font === nothing || return p.measure(" "^group.indentation, font)[1]
     end
-
-    max_cx = max(max_cx, cx)
-    height = cy + line_h
-    if isempty(coord_map) && group.newline !== nothing
-        # A blank line still occupies one row (matches `_layout_text`).
-        height = p.measure(" ", group.newline.font::StyleFont)[2]
-    end
-    (spans = result, by_key = by_key, coord_map = coord_map, width = max_cx, height = height)
+    font = block_font[]
+    font === nothing ? 0 : p.measure(" "^group.indentation, font)[1]
 end
+
+# The font an empty line is sized with. A flat block carries it on the
+# `TextNewline` that terminates the line; a `TextLine` has none, so fall back to
+# the block's prevailing font.
+_line_height_font(group, block_font::Cell) =
+    group.newline === nothing ? block_font[] : group.newline.font::StyleFont
+
+# The block's prevailing font — the first font any element offers, in document
+# order, or `nothing` for a block that has none. It sizes an empty `TextLine`,
+# which has neither a glyph nor a terminating newline to read one from.
+function _block_font(styled::TextBlock)
+    for element in styled.elements
+        font = _element_font(element)
+        font === nothing || return font
+    end
+    nothing
+end
+
+_element_font(span::TextString) = span.font::StyleFont
+_element_font(span::TextGraphics) = span.font::StyleFont
+_element_font(newline::TextNewline) = newline.font::StyleFont
+_element_font(::TextDocument) = nothing
+
+function _element_font(line::TextLine)
+    for span in line.elements
+        font = _element_font(span)
+        font === nothing || return font
+    end
+    nothing
+end
+
+# At least one `TextString` to put a caret in, at either depth.
+_has_text_span(styled::TextBlock) =
+    any(styled.elements) do element
+        element isa TextString ||
+            (element isa TextLine && any(span -> span isa TextString, element.elements))
+    end
 
 # ── Persistent per-segment graphics (printer locality — dimension C) ───────────
 #
-# `_layout_text` emits a *placement* (a stable key + geometry/content values) per
+# `_layout_group` emits a *placement* (a stable key + geometry/content values) per
 # text/fill segment instead of a graphic. The element builder turns each placement
 # into a GraphicsText/GraphicsRect that is created ONCE per key and reused across
 # re-layouts; its fields are `set_function!` cells that read the placement back out of the
@@ -664,13 +701,13 @@ end
 """
     _print_listnode(p, styled, ctx)
 
-When `TextText.elements` is a `ListNode`, produce a top-level
+When `TextBlock.elements` is a `ListNode`, produce a top-level
 `GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`,
 and a `ListNode` of sub-canvases — one per paragraph (spans between
 `TextNewline` nodes). Each paragraph lays out left-to-right; word wrapping
 inside a paragraph is upstream's responsibility.
 """
-function _print_listnode(p::TextToGraphics, styled::TextText, ctx)
+function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
@@ -829,11 +866,10 @@ end
 
 # ── Selection → cursor position ───────────────────────────────────────
 #
-# `_cursor_position`, `_is_structural_selection`, and `_build_selection_path` are
-# pure `TextText`-selection helpers; they were relocated to `TextModule` (the
-# document layer) and are imported above. They are shared between the
-# geometry-free `read_gesture` (in TextModule) and the geometry-dependent layout
-# / mouse / line-motion code that remains here.
+# `_cursor_coord`, `_is_structural_selection`, and `_build_selection_path` are pure
+# `TextBlock`-selection helpers living in `TextModule` (the document layer); they
+# are imported above. They are shared between the geometry-free `read_gesture` (in
+# TextModule) and the geometry-dependent layout / mouse / line-motion code here.
 
 function _make_sdl(text, x, y, font, color::StyleColor)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
@@ -913,7 +949,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h2 isa PointReference || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(seg.span_idx, char_pos))
+    return ReplaceSelectionOperation(_build_selection_path(seg.span_path, char_pos))
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the
@@ -973,7 +1009,7 @@ end
 """
     _highlight_char_range(sel, coord_map) -> (start, stop) or nothing
 
-Extract the flat character range for a box selection from the TextText's
+Extract the flat character range for a box selection from the TextBlock's
 selection. Recognized shapes:
 - `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
   the total character count across all segments.
@@ -1004,12 +1040,12 @@ Bounding box over all `SegCoord`s whose character range overlaps
 overlaps. The caller paints it as the persistent highlight rect (light blue,
 ~25% alpha, rounded).
 """
-function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{Int,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
     x0, y0 = typemax(Int), typemax(Int)
     x1, y1 = 0, 0
     found = false
     for sc in coord_map
-        base = get(span_flat_offsets, sc.span_idx, 0)
+        base = get(span_flat_offsets, sc.span_path, 0)
         abs_start = base + sc.char_start
         abs_end = base + sc.char_end
         # Check overlap with [hl_start, hl_stop)

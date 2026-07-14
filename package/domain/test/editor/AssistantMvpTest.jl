@@ -25,11 +25,14 @@
 # composite's `elements` *without* re-running `print_document`.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.McpModule: register_default_tools_and_resources!
+using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
 using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc
-import ProjecturedKernel.LlmModule: stream_turn
+import ProjecturedKernel.LlmModule: stream_turn,
+    LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
+    LlmToolUse, LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
+    LlmTurnEnd
 import ProjecturedKernel.CellModule: Cell
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
@@ -103,7 +106,7 @@ function _mvp_enter!(a::WorkbenchAssistant)
     iomap = print_document(chain, a)
     op = read_intent(chain, iomap, KeyDown(:return, Modifiers()))
     op === nothing && return nothing
-    evaluate_operation((document=a,), op)
+    evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op
 end
 
@@ -217,15 +220,15 @@ end
 
 function _mvp_test_resource_collapse()
     @testset "resource-read tool part collapsed by default" begin
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "read_resource",
-                             """{"uri":"resource://guides"}"""),
+                             Dict("uri" => "resource://guides")),
             _final_text_script("Read it."),
         ])
         a = WorkbenchAssistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("look it up")]))
-        _run_agent_loop!((document = a,), a)
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -311,7 +314,8 @@ function _mvp_test_thinking_stream()
     @testset "thinking block captured from stream" begin
         a = WorkbenchAssistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("hi")]))
-        _run_agent_loop!((document = a,), a)
+        tools = register_default_tools!(ToolSet())
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -370,29 +374,23 @@ function _mvp_test_collapse_click()
 
         # Thinking part header → toggles the thinking part's domain node. It is
         # collapsed by default, so the click expands it.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_think isa ToggleCollapseOperation
+        @test op_think isa ToggleCollapseOperation
         @test doc.turns[2].parts[1].content isa ConversationThinking
         @test doc.turns[2].parts[1].collapsed == true
         evaluate_operation((document = doc,), op_think)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[2].parts[1].collapsed == false
+        @test doc.turns[2].parts[1].collapsed == false
 
         # Turn header → toggles the turn's domain node.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_turn isa ToggleCollapseOperation
+        @test op_turn isa ToggleCollapseOperation
         @test doc.turns[1].collapsed == false
         evaluate_operation((document = doc,), op_turn)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[1].collapsed == true
+        @test doc.turns[1].collapsed == true
 
         # Part header → toggles the part's domain node.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_part isa ToggleCollapseOperation
+        @test op_part isa ToggleCollapseOperation
         @test doc.turns[2].parts[2].collapsed == false
         evaluate_operation((document = doc,), op_part)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[2].parts[2].collapsed == true
+        @test doc.turns[2].parts[2].collapsed == true
     end
 end
 
@@ -407,42 +405,30 @@ end
 #   turn 2: LLM emits a final text reply
 #       → ConversationAssistantMessage with a text block appended
 
+# A script entry pairs an `LlmEvent` with the delay `ScriptedLlm` sleeps after
+# emitting it (0.0 defers to the backend-wide `delay`). Mirrors the private
+# `ProjecturedKernelExample._ev` helper, re-created here since it isn't exported.
+_ev(event::LlmEvent, delay::Real = 0.0) = (event = event, delay = Float64(delay))
+
 function _tool_use_script(tool_id::AbstractString, tool_name::AbstractString,
-                          input_json::AbstractString)
+                          input::AbstractDict)
     NamedTuple[
-        (type = :message_start, data = Dict{Symbol,Any}()),
-        (type = :content_block_start,
-         data = Dict{Symbol,Any}(:content_block =>
-                                  Dict{Symbol,Any}(:type => "tool_use",
-                                                    :id   => String(tool_id),
-                                                    :name => String(tool_name)))),
-        (type = :content_block_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:type         => "input_json_delta",
-                                                    :partial_json => String(input_json)))),
-        (type = :content_block_stop, data = Dict{Symbol,Any}()),
-        (type = :message_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:stop_reason => "tool_use"))),
-        (type = :message_stop, data = Dict{Symbol,Any}()),
+        _ev(LlmToolUseStart(String(tool_id), String(tool_name))),
+        # The finished call arrives with its arguments already parsed — that is the
+        # adapter's job, so a fake supplies them directly rather than re-serialising
+        # them to JSON only to have someone parse them back.
+        _ev(LlmToolUseStop(LlmToolUse(String(tool_id), String(tool_name),
+                                      Dict{String,Any}(input)))),
+        _ev(LlmTurnEnd(:tool_use)),
     ]
 end
 
 function _final_text_script(text::AbstractString)
     NamedTuple[
-        (type = :message_start, data = Dict{Symbol,Any}()),
-        (type = :content_block_start,
-         data = Dict{Symbol,Any}(:content_block =>
-                                  Dict{Symbol,Any}(:type => "text"))),
-        (type = :content_block_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:type => "text_delta",
-                                                    :text => String(text)))),
-        (type = :content_block_stop, data = Dict{Symbol,Any}()),
-        (type = :message_delta,
-         data = Dict{Symbol,Any}(:delta =>
-                                  Dict{Symbol,Any}(:stop_reason => "end_turn"))),
-        (type = :message_stop, data = Dict{Symbol,Any}()),
+        _ev(LlmTextStart()),
+        _ev(LlmTextDelta(String(text))),
+        _ev(LlmTextStop()),
+        _ev(LlmTurnEnd(:end_turn)),
     ]
 end
 
@@ -455,7 +441,7 @@ end
 
 function _mvp_test_scripted_builders()
     @testset "ScriptedLlm timestamped builders" begin
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
         # Multi-line code with an embedded quote — stresses the JSON escaper.
         code = "v = 6 * 7\nstring(\"n=\", v)"
         llm = ScriptedLlm([
@@ -468,7 +454,7 @@ function _mvp_test_scripted_builders()
         ]; delay = 0.0)
         a = WorkbenchAssistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute")]))
-        _run_agent_loop!((document = a,), a)
+        _run_agent_loop!((document = a, tools = tools), a)
 
         reply = a.conversation.turns[end]
         @test reply.role === :assistant
@@ -491,11 +477,11 @@ end
 function _mvp_test_tool_use_roundtrip()
     @testset "Tool-use round-trip via ScriptedLlm" begin
         # Make sure execute_julia_code is registered.
-        register_default_tools_and_resources!()
+        tools = register_default_tools!(ToolSet())
 
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "execute_julia_code",
-                             """{"code":"1+1"}"""),
+                             Dict("code" => "1+1")),
             _final_text_script("Done."),
         ])
         a = WorkbenchAssistant(; llm = llm)
@@ -506,7 +492,7 @@ function _mvp_test_tool_use_roundtrip()
         # `evaluate_operation(editor, op)` plumbing — the tool dispatch in
         # the loop receives this as `editor` (the FakeLlm script's `1+1`
         # doesn't read it, but the wiring is what's under test).
-        _run_agent_loop!((document=a,), a)
+        _run_agent_loop!((document=a, tools=tools), a)
 
         msgs = a.conversation.turns
         # Expected sequence in the turn/part model:

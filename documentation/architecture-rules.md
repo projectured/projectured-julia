@@ -16,7 +16,7 @@ the rules don't answer it, extend the rules, don't improvise.
 These are the *placement* rules (where code lives). For the *invariants and
 conventions* every change must respect — reactivity, the projection contract,
 references/selection, operations, testing — see
-[architecture-requirements.md](architecture-requirements.md) (the numbered AR-N
+[architecture-requirements.md](architecture-requirements.md) (the `AR-…`
 development requirements).
 
 ## The four levels of division
@@ -239,7 +239,10 @@ precedent) or sink the seam below both users as exported API (the `@cell_struct`
 precedent), never lend it across a module boundary. The guard enforces the
 cross-*layer* case today; the same-layer case (a sibling module reaching into a
 neighbour's internals) is the next enforcement phase, turned on per package once
-its same-layer internal imports are cleaned up. The guard is implemented **once** — the shared
+its same-layer internal imports are cleaned up. It also parses each file a package
+names as an **interface file** and asserts it declares without implementing, and
+exports every name it declares (requirement #72) — the kernel's nine contract files
+today. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
 — and each test package applies it to its main package

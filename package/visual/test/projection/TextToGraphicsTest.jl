@@ -27,7 +27,7 @@ _rects(c) = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h), color = e.color) for (
 @testset "TextToGraphics" begin
 
 # basic layout (wrapping is now done by WordWrapping upstream)
-st_wrap = TextText(
+st_wrap = TextBlock(
     TextString("Hello world this is a long text", font_ubuntu_monospace_regular_20, color_red),
 )
 m = _test_measure(10, 18)
@@ -39,7 +39,7 @@ texts = _texts(sdl_cell)
 @test texts[2].y == 18  # second line
 
 # newline handling
-st_nl = TextText(
+st_nl = TextBlock(
     TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_20, color_white),
 )
 sdl_nl = print_document(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
@@ -53,7 +53,7 @@ items_nl = _texts(sdl_nl)
 @test items_nl[3].y == 40
 
 # color preservation
-st_color = TextText(
+st_color = TextBlock(
     TextString("red text", font_ubuntu_monospace_regular_20, color_red),
     TextString(" blue text", font_ubuntu_monospace_regular_20, color_blue),
 )
@@ -68,7 +68,7 @@ items_c = _texts(sdl_color)
 
 # reactivity: a text change invalidates that line's segment vector (but, by
 # per-line locality, NOT the top-level line list — see the locality testset).
-st_react = TextText(
+st_react = TextBlock(
     TextString("short", font_ubuntu_monospace_regular_20, color_white),
 )
 sdl_react = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
@@ -81,7 +81,7 @@ items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
 # hex color parsing
-st_hex = TextText(TextString("hex", font_ubuntu_monospace_regular_20, StyleColor(1.0, 0.53, 0.0, 1.0)))
+st_hex = TextBlock(TextString("hex", font_ubuntu_monospace_regular_20, StyleColor(1.0, 0.53, 0.0, 1.0)))
 sdl_hex = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
 # StyleColor is now carried through unchanged (no byte round-trip).
@@ -91,12 +91,12 @@ end # @testset "TextToGraphics"
 
 @testset "TextToGraphics ListNode path" begin
 
-# Build a TextText with ListNode elements: two paragraphs separated by TextNewline
+# Build a TextBlock with ListNode elements: two paragraphs separated by TextNewline
 node = ListNode(TextString("Hello world", font_ubuntu_monospace_regular_20, color_red))
 push!(node, TextNewline(font=font_ubuntu_monospace_regular_20))
 push!(node, TextString("Second paragraph", font_ubuntu_monospace_regular_20, color_blue))
 
-tt = TextText()
+tt = TextBlock()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
@@ -147,7 +147,7 @@ set_function!(getfield(node2, :next), () -> begin
     node3
 end)
 
-tt = TextText()
+tt = TextBlock()
 tt.elements = node
 
 p = TextToGraphics(measure=_test_measure(10, 20))
@@ -168,7 +168,7 @@ end # @testset "TextToGraphics ListNode lazy evaluation"
 @testset "TextToGraphics inline image" begin
 
 m = _test_measure(10, 18)
-st = TextText(
+st = TextBlock(
     TextString("ab", font_ubuntu_monospace_regular_20, color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", font_ubuntu_monospace_regular_20, color_white),
@@ -199,7 +199,7 @@ end # @testset "TextToGraphics inline image"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-st = TextText(
+st = TextBlock(
     TextString("ab", font_ubuntu_monospace_regular_20, color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", font_ubuntu_monospace_regular_20, color_white),
@@ -228,7 +228,7 @@ m = _test_measure(10, 18)
 hl = TextString("hi", font_ubuntu_monospace_regular_20, color_red)
 hl.fill_color = color_blue              # a highlighted span opts into a swatch
 plain = TextString("xy", font_ubuntu_monospace_regular_20, color_red)
-st = TextText(hl, plain)
+st = TextBlock(hl, plain)
 canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Exactly one *visible* rect — the filled span; the default-`nothing` span gets
@@ -257,7 +257,7 @@ end # @testset "TextToGraphics fill_color rect"
 # edited line) and never an earlier line.
 m = _test_measure(10, 20)
 nl() = TextNewline(font=font_ubuntu_monospace_regular_20)
-st = TextText(
+st = TextBlock(
     TextString("alpha", font_ubuntu_monospace_regular_20, color_white), nl(),
     TextString("beta",  font_ubuntu_monospace_regular_20, color_white), nl(),
     TextString("gamma", font_ubuntu_monospace_regular_20, color_white),
@@ -295,5 +295,49 @@ st.elements[5].content = "gamma!"          # element 5 = the 3rd TextString
 @test _texts(lines[3])[1].text == "gamma!"
 
 end # @testset "TextToGraphics per-line locality"
+
+@testset "TextToGraphics lays out TextLine blocks" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+_span(s) = TextString(s, font_ubuntu_monospace_regular_20, color_white)
+mkblock() = TextBlock(TextLine(_span("hello"); indentation = 2), TextLine(_span("world")))
+
+# One row per line, the break between them implied by the second line. The indent
+# shifts its line and belongs to no span — two spaces at 10px each.
+canvas = print_document(p, mkblock()).output
+@test [(t.text, t.x, t.y) for t in _texts(canvas)] == [("hello", 20, 0), ("world", 0, 18)]
+@test Int(canvas.h) == 36
+
+# The coordinate table addresses a span inside a line by its index path.
+@test [sc.span_path for sc in print_document(p, mkblock()).char_to_coord[]] == [[1, 1], [2, 1]]
+
+# The caret lands on the character it was placed against: past the indent on an
+# indented line, and on the right row for the line below.
+caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
+@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0))) == [(20, 0, 18)]
+@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[2, 1], 3))) == [(30, 18, 18)]
+
+# A click on the second row selects inside *that line's* span; Down crosses into
+# it; End goes to the end of the line the caret is already on.
+iomap = print_document(p, with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0)))
+click = read_intent(p, iomap, MousePress(:left, 31, 20))
+@test click isa ReplaceSelectionOperation
+@test TextModule._cursor_coord(click.path) == (span = [2, 1], char = 3)
+@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:down, Modifiers())).path).span == [2, 1]
+@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:end, Modifiers())).path) == (span = [1, 1], char = 5)
+
+# A blank line keeps its row. It has neither a glyph nor a terminating
+# `TextNewline` to take a height from, so the block's prevailing font sizes it.
+blank = print_document(p, TextBlock(TextLine(_span("a")), TextLine(), TextLine(_span("b")))).output
+@test Int(blank.h) == 54
+@test [t.y for t in _texts(blank)] == [0, 36]
+
+# The empty group a *trailing* newline leaves behind is not a line, and must not
+# grow a phantom blank row.
+trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = font_ubuntu_monospace_regular_20))).output
+@test Int(trailing.h) == 18
+
+end # @testset "TextToGraphics lays out TextLine blocks"
 
 end # test_text_to_graphics

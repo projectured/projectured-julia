@@ -46,13 +46,15 @@ const Reference = Union{Nothing, ReferencePath}
 """
     step_kind(step) -> Symbol
 
-Classify a reference step: `:structural` (descends to a child or
-synthetic value) or `:checkpoint` (stays on the current node, asserts an
-invariant). The default is `:structural` — every step must be evaluatable
-under the "types always present" invariant; a step type that doesn't opt
-into `:checkpoint` is expected to implement `evaluate_step`.
+Classify a reference step: `:structural` (descends to a child or synthetic
+value) or `:checkpoint` (stays on the current node, asserts an invariant).
+Every step type answers for itself, beside its `evaluate_step` — there is no
+default, so a new step type that forgets to classify itself fails loudly at the
+first path walk rather than being silently treated as structural. A
+`:structural` step must be evaluatable under the "types always present"
+invariant.
 """
-step_kind(::ReferenceStep) = :structural
+function step_kind end
 
 """
     evaluate_step(step, document) -> child
@@ -74,7 +76,9 @@ function evaluate_step end
 # neither parser names a step type it does not own. A step type registers a
 # `::Val{:name}` method for its `.name(args...)` surface syntax in the package
 # that defines it; the kernel registers none — its own steps (`.field`, `[i]`,
-# `{k}`, `::T`) are built-in grammar, not seam entries.
+# `{k}`, `::T`) are built-in grammar, not seam entries. Each seam's fallback for
+# an unregistered name lives with the DSL that reaches it (`ReferenceSyntax.jl`,
+# `ReferenceBuilder.jl`, `ReferenceCase.jl`).
 
 """
     dsl_build_step(::Val{name}, escaped_args...) -> Expr
@@ -83,12 +87,10 @@ Return the expression that constructs the step type mapped to `.name(args...)`
 in the `@reference` DSL. `escaped_args` are `esc`'d Julia expressions ready
 to splice into the returned constructor call. Each package registers a
 `::Val{:name}` method for its own step types; none live in the kernel's reference
-layer (`.point` / `.proj` register in the packages that own them).
+layer (`.point` / `.proj` register in the packages that own them). An unregistered
+name is an error the builder raises.
 """
 function dsl_build_step end
-
-dsl_build_step(::Val{n}, args...) where {n} =
-    error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
 
 """
     dsl_match_step(::Val{name}, hex, argpats, rest_success, bound,
@@ -107,23 +109,19 @@ internals: their signatures are
 
 Each package registers a `::Val{:name}` method for its own step types; none
 live in the kernel's reference layer (`.point` / `.proj` register in the packages
-that own them).
+that own them). An unregistered name is an error the matcher raises.
 """
 function dsl_match_step end
-
-dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
-    error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
 
 """
     dsl_step_subpath_args(::Val{name}) -> Tuple{Vararg{Int}}
 
 The 1-based argument positions of a `.name(args...)` DSL step that are
-**subpaths** (parsed as reference paths) rather than value expressions. Default
-`()` — every argument is a value. A step type whose surface syntax takes a
-subpath argument at position `n` registers `(n,)` here, so neither DSL parser
-needs to name the step. Consulted by
+**subpaths** (parsed as reference paths) rather than value expressions — `()`
+unless a step type says otherwise, i.e. every argument is a value. A step type
+whose surface syntax takes a subpath argument at position `n` registers `(n,)`
+here, so neither DSL parser needs to name the step. Consulted by
 both the `@reference_case` pattern parser and the `@reference` / `@step`
 construction parser.
 """
 function dsl_step_subpath_args end
-dsl_step_subpath_args(::Val) = ()

@@ -1,4 +1,4 @@
-# ── Projection layer (layer 8 — interface & infrastructure) ────────────────
+# ── Projection layer — interface & infrastructure ──────────────────────────
 # The concrete projection algebra (the generic + higher-order combinators) is
 # domain-independent framework and lives in `package/base`; this layer keeps
 # only the interface, the IO maps, the gesture-binding machinery, the

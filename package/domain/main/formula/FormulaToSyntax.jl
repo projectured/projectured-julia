@@ -97,7 +97,7 @@ end
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
 #
 # The `code` child is recursed through the shared `recursion` (it is a mix of
-# Julia nodes and FormulaReferences); the `result` is a computed `TextText`, so it
+# Julia nodes and FormulaReferences); the `result` is a computed `TextBlock`, so it
 # is flattened into a self-contained result leaf rather than recursed (mirrors how
 # EvaluatorForm renders its result). Only `code` therefore needs School-A
 # delegation; its output child index depends on the mode.
@@ -109,7 +109,7 @@ end
     result::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
-# Flatten a result TextText into a single rendered string.
+# Flatten a result TextBlock into a single rendered string.
 function _result_to_string(result)
     buf = IOBuffer()
     for span in result.elements

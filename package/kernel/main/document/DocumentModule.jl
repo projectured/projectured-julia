@@ -1,7 +1,7 @@
 """
     DocumentModule
 
-Layer 2 of the kernel — the **document contract**: the `Document` abstract
+The **document contract**: the `Document` abstract
 type, the `@document`/`@forward*` codegen macros, and the shared value
 protocol every concrete document reuses (`copy_document`, `sync_document!`).
 It also carries the reflection walk over a document tree (`search_documents`,

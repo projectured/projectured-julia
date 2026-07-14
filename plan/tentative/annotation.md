@@ -85,7 +85,7 @@ Notes:
   the editor edits). It is not a copy; reactivity through the cells keeps
   the layer in sync with edits.
 - `body` is intentionally a `Document`, not a string. An annotation can be
-  a `TextText`, a `JsonObject` (structured review metadata), a
+  a `TextBlock`, a `JsonObject` (structured review metadata), a
   `ConversationConversation` (threaded discussion), a `BookParagraph`, etc.
 - `anchor` is a full `ReferencePath`, so it can point at a field, an
   element, a character range, or a projection-introduced position.
@@ -271,7 +271,7 @@ The first three are enough for v1. The tooltip-style overlap with the
 - Right-click → "Add annotation" (or Ctrl-' / configurable) on the
   inner pipeline produces a `CollectionInsertOperation` on
   `layer.annotations` with `anchor` set to the backward-mapped click
-  position and `body` set to an empty `TextText` (or whichever default
+  position and `body` set to an empty `TextBlock` (or whichever default
   body the visual prescribes).
 - Existing editing gestures work on the new annotation body the moment
   it is selected, because it's just another document.

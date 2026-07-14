@@ -1,17 +1,8 @@
-"""
-    DeviceModule
-
-The device *interface* — the first module of layer 6. Declares the batch I/O
-used to render a document to, and poll input from, a set of devices. These are
-pure interface stubs: a concrete backend adds the methods, dispatching on its
-own backend type (e.g. `write_to_devices(::SomeBackend, devices, doc)`). The
-interface itself names no backend type, so `Device` does not depend on
-`Backend` — the two abstractions are independent siblings, and only a
-concrete implementation binds them together.
-"""
-module DeviceModule
-
-export Device, write_to_devices, read_from_devices
+# Fragment of `DeviceModule` — the device **contract**: the `Device` supertype
+# every device subtypes, and the two batch I/O generics a concrete backend
+# answers with a method dispatched on its own type. The concrete devices an
+# editor is given live in the sibling `Keyboard.jl` / `Mouse.jl` / `Screen.jl`
+# fragments.
 
 """
     Device
@@ -31,12 +22,13 @@ doing nothing.
 function write_to_devices end
 
 """
-    read_from_devices(backend, devices) -> event or nothing
+    read_from_devices(backend, devices) -> EventEnvelope or nothing
 
-Poll all input devices in one shot and return the next event, or `nothing`.
-A concrete backend adds a method dispatched on its own type (typically polling a
-shared event queue and classifying events across device types).
+Poll all input devices in one shot and return the next event — an `EventEnvelope`
+carrying a `DeviceEvent` — or `nothing` when there is none. A concrete backend
+adds a method dispatched on its own type (typically polling a shared event queue
+and classifying events across device types), and it is where a platform's raw
+events are translated into that vocabulary: a device reports only what happened,
+never a gesture derived from several events.
 """
 function read_from_devices end
-
-end # module

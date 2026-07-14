@@ -62,14 +62,14 @@ projection is replaced by a `ProjectionConfiguringProjection` that stacks an
 editable control bar for a `TextHighlighting` (resp. `TextFiltering`)
 projection above the projected text. Editing the controls re-highlights /
 re-filters live; `Ctrl+F` toggles the bar, `Escape` hides it. Expects a
-`TextText` document (the text examples). The two flags are mutually exclusive.
+`TextBlock` document (the text examples). The two flags are mutually exclusive.
 
 When `clipboard=true`, each example is wrapped in a `ClipboardSlice` and the
 clipboard projection is stacked on top of the example's own pipeline (the
 introspection wrapper pattern), so the selection-driven copy / cut / note /
 paste flow (`Ctrl+C` / `Ctrl+X` / `Ctrl+N` / `Ctrl+V`, `Ctrl+/` to toggle the
 stored slice) works over any example. `clipboard_collection=true` uses a
-`ClipboardCollection` (the elements view) instead. For a `TextText` example the
+`ClipboardCollection` (the elements view) instead. For a `TextBlock` example the
 wrapper enables **text mode**: copy / cut / paste operate on character ranges,
 the ProjecturEd clipboard is the primary store, and the **OS clipboard** is
 mirrored on copy/cut and used as the paste fallback (needs `xclip`/`xsel`/`wl-*`).
@@ -135,17 +135,17 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
             # the clipboard projection on top of the example's own pipeline. The
             # seeded selection (set on the bare document above) now lives behind the
             # clipboard's `content`; the selection-lifting loop below re-roots it.
-            # For a TextText document, enable text mode: copy/cut/paste over character
+            # For a TextBlock document, enable text mode: copy/cut/paste over character
             # ranges, with the OS clipboard mirrored on copy/cut and used as the paste
             # fallback (the projectured slice is the primary store).
-            is_text    = document isa TextText
+            is_text    = document isa TextBlock
             document   = make_clipboard_document(document; collection=clipboard_collection)
             projection = make_clipboard_projection(projection; collection=clipboard_collection, text=is_text)
         elseif text_highlighting
             # Stack a TextHighlighting control bar above the (text) document; the
             # example's own projection is replaced by the configuring pipeline.
             # A default pattern makes the highlight (and the case_insensitive
-            # toggle's effect) visible out of the box. Expects a TextText document.
+            # toggle's effect) visible out of the box. Expects a TextBlock document.
             projection = make_text_configuring_projection(TextHighlighting("dolor"))
         elseif text_filtering
             projection = make_text_configuring_projection(TextFiltering("dolor"))
@@ -314,7 +314,7 @@ end
 # ── Tooltip variant ──────────────────────────────────────────────────────
 #
 # Wrap a domain document in a `TooltipSource` whose `content` is a
-# *reactive* `TextText`: the elements thunk re-reads `doc.selection`
+# *reactive* `TextBlock`: the elements thunk re-reads `doc.selection`
 # every frame and rebuilds the colored spans via `ReferenceToText`. The
 # `TooltipDecoratorProjection` reader watches the wrapped document and
 # emits `OpenWindowOperation` / `CloseWindowOperation` as the selection
@@ -324,7 +324,7 @@ end
 function _make_tooltip_source(doc; id::Symbol)
     short_proj = ReferenceToText()
     long_proj  = ReferenceToHumanReadableText(document = doc)
-    content = TextText(() -> begin
+    content = TextBlock(() -> begin
         sel = doc.selection
         ctx = PrinterContext()
         short = print_document(short_proj, nothing, sel, ctx).output
@@ -375,7 +375,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
             WindowDocument => ScreenToScreen(),
             CellVector     => CopyingProjection(),
             TooltipSource  => decorator,
-            TextText       => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+            TextBlock       => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
         ),
     )
@@ -414,7 +414,7 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
             ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
                                                        WordWrapping(measure=measure),
                                                        TextToGraphics(measure=measure)),
-            TextText           => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
+            TextBlock           => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any                => ref_dispatch,
         ),
     )
@@ -426,15 +426,15 @@ end
 Render a Text-domain document to the terminal via the `ConsoleBackend`,
 preserving the spans' colors. This is the console counterpart to
 `run_example`: it bypasses SDL and the `ScreenDocument`/window machinery and
-prints the bare `TextText` produced by the projection.
+prints the bare `TextBlock` produced by the projection.
 
 Defaults to the JSON example projected through
 `make_json_console_projection_example` — the json pipeline **without** the
-`TextToGraphics` step, so its output is a `TextText` the console can render.
+`TextToGraphics` step, so its output is a `TextBlock` the console can render.
 
 Keywords:
   - `document`    — the domain document (default: a fresh JSON example doc).
-  - `projection`  — a projection whose output is a `TextText` (default: the
+  - `projection`  — a projection whose output is a `TextBlock` (default: the
                     json→syntax→text console projection).
   - `ansi`        — emit ANSI color codes (default `true`).
   - `clear`       — clear the screen before each frame. Defaults to `false` for

@@ -26,7 +26,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..YamlModule: YamlDocument, YamlNothing, YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
@@ -44,8 +44,8 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..OperationRerootingModule: reroot_operation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyPress, KeyDown
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
        YamlToSyntax
@@ -288,7 +288,7 @@ function YamlToSyntax(; style::Symbol = :block)
         YamlSequence     => sequence,
         YamlMapping      => mapping,
         YamlInsertion    => YamlInsertionToSyntaxLeaf(),
-        YamlNothing      => NothingToSyntaxLeaf(),
+        YamlNothing      => InsertionNothingToSyntaxLeaf(),
         YamlMappingEntry => CopyingProjection(),
         Vector{Cell}     => CopyingProjection(),
     )

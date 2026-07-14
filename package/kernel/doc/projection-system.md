@@ -71,7 +71,7 @@ recurses via `recursion` ([§ Recursion across projections](#recursion-across-pr
 and the reader and both mappers recurse via the stored child IoMaps
 ([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
 Every projection in the tree now honours it. `SyntaxCompoundToText`/`SyntaxListToText`
-were the last holdouts (they flattened the syntax subtree into one flat `TextText`);
+were the last holdouts (they flattened the syntax subtree into one flat `TextBlock`);
 the delegation refactor in `plan/done/syntaxtotext-delegation.md` converted them to
 School A — a worked before/after example of this contract.
 
@@ -257,7 +257,7 @@ geometry-free editing for free. The console pipeline (`… → SyntaxToText →
 EnvelopeUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
 which — when its operation slot is still empty (the console case) and it does not
 handle the gesture as a syntax gesture — falls back to
-`read_gesture(iomap.output, gesture)` on the output `TextText` and maps the
+`read_gesture(iomap.output, gesture)` on the output `TextBlock` and maps the
 result backward. In SDL the operation slot is already filled by `TextToGraphics`,
 so that fallback is a no-op and SDL behaviour is unchanged.
 
@@ -401,7 +401,7 @@ See [higher-order projections](higher-order-projections.md) and
 A typical pipeline looks like:
 
 ```
-JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToText──► TextText ──TextToGraphics──► GraphicsCanvas ──► SDL window
+JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToText──► TextBlock ──TextToGraphics──► GraphicsCanvas ──► SDL window
    ▲  (selection shared)                                                                    │
    └─────────────────── read_intent chain ◄──── KeyPress / MouseClick ─────────────────┘
 ```

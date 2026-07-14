@@ -21,10 +21,13 @@ using ProjecturedDomain
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
-import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text, write_image,
-                        render_canvas, decode_image, get_pointer_position
-import ProjecturedDomain.DisplayModule: get_display_size, set_display_size_provider!
-import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
+# The backend + device contracts (AR-QUALIFIED-EXTENSION): bare `using`,
+# extended by qualification below. A bare `using` of an alias binds the
+# module's *real* name, so the
+# extension sites read BackendModule.* / DeviceModule.*.
+using ProjecturedDomain.BackendApiModule
+using ProjecturedDomain.DisplayModule
+using ProjecturedDomain.DeviceModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
@@ -36,11 +39,12 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
-import ProjecturedDomain.ScreenDeviceModule: Screen, WindowQuit
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.ModifiersModule: Modifiers
-import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedDomain.EventModule: WindowQuit
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedDomain.EventModule: EventEnvelope, WindowClose, WindowResize, WindowDefocus
+import ProjecturedDomain.EventModule: Modifiers
+import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedDomain.ImageModule: ImageFile
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
@@ -528,7 +532,7 @@ Current global mouse position in screen pixels (the same coordinate space as
 through `_to_logical`: window positions and global mouse coordinates are both
 in SDL screen coordinates.
 """
-function get_pointer_position(::SdlBackend)
+function BackendModule.get_pointer_position(::SdlBackend)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetGlobalMouseState(x_ref, y_ref)
     (Int(x_ref[]), Int(y_ref[]))
@@ -1755,7 +1759,7 @@ size (for crispness) and the device measurement is divided back by
 [`_DISPLAY_SCALE`](@ref). Font handles are cached in the module-level
 [`_font_cache`](@ref).
 """
-function measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
+function BackendModule.measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
     isempty(text) && return (0, font_logical_size(font))
     primary = _get_font(font)
     emoji = _get_emoji_font(font_device_size(font))
@@ -1817,7 +1821,7 @@ end
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
 # through the generic BackendApiModule seams without naming SdlBackendModule, so the
 # SDL backend can move into an optional extension.
-render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
+BackendModule.render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
 
 # ════════════════════════════════════════════════════════════════════════
 # Offscreen rendering / write_image
@@ -1942,7 +1946,7 @@ function _close_offscreen_renderer(off)
     nothing
 end
 
-function write_image(canvas::GraphicsCanvas, filename::AbstractString;
+function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
@@ -2012,7 +2016,7 @@ write_image(doc, proj, "snapshot.png"; width=1200, height=800)  # fixed 1200×80
 
 Throws if the projection output is not a `GraphicsCanvas`.
 """
-function write_image(document, projection, filename::AbstractString;
+function BackendModule.write_image(document, projection, filename::AbstractString;
                      width::Union{Nothing,Integer} = nothing,
                      height::Union{Nothing,Integer} = nothing,
                      max_width::Integer = 1200,
@@ -2144,7 +2148,7 @@ end
 # Application lifecycle
 # ════════════════════════════════════════════════════════════════════════
 
-function initialize_backend!(backend::SdlBackend)
+function BackendModule.initialize_backend!(backend::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
@@ -2153,7 +2157,7 @@ function initialize_backend!(backend::SdlBackend)
     _DEBUG_DIRTY[]    = backend.debug_dirty
 end
 
-function quit_backend!(::SdlBackend)
+function BackendModule.quit_backend!(::SdlBackend)
     SDL_StopTextInput()
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()
@@ -2194,7 +2198,7 @@ id or refers to a window the backend does not track.
 The backend emits only raw events; the `MousePress` click is synthesised from
 the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
 """
-function read_from_devices(backend::SdlBackend, devices)
+function DeviceModule.read_from_devices(backend::SdlBackend, devices)
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
@@ -2321,7 +2325,7 @@ least one `Screen` entry — `Screen` itself carries no per-window
 state and exists only to indicate that the editor wants to render
 onto a display.
 """
-function write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+function DeviceModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     desired_ids = Set{Symbol}()
     for w in screen.windows
         w isa WindowDocument || continue
@@ -2503,7 +2507,7 @@ function decode_image_file!(img::ImageFile)
 end
 
 # Image decode via the generic seam.
-decode_image(filename::AbstractString) = sdl_decode_image(filename)
+BackendModule.decode_image(filename::AbstractString) = sdl_decode_image(filename)
 
 # Register SDL as the real display-size provider so `get_display_size()` returns the
 # actual display once this package is loaded. This mutates a Ref owned by

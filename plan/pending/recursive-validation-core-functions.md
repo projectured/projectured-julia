@@ -75,7 +75,7 @@ was performed (the four functions plus every private helper they call).
   `recursion` but **never invokes it**. It calls `_collect_spans` (≈ L778) →
   `_collect_child_spans` (≈ L765) which **dispatches on the child's concrete type**
   (`SyntaxNode` vs `SyntaxLeaf`) and recurses over the whole subtree, flattening it
-  into one flat `TextText` span array. This is printer-side "School B".
+  into one flat `TextBlock` span array. This is printer-side "School B".
 - `SyntaxListToText` does the same via `_syntax_list_to_text_node` (≈ L422) →
   `_render_syntax_to_spans` (≈ L472).
 - The mapper / reader flat-character walkers (`_syntax_to_flat`, `_subtree_len`,

@@ -23,7 +23,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
                        syntax_children, syntax_opening, syntax_closing,
                        syntax_separator, syntax_indentation, syntax_collapsed,
                        syntax_collapsible, syntax_child_path, peel_child_step
-import ..TextModule: TextText, TextString, TextNewline, TextGraphics, TextDocument
+import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -36,10 +36,10 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyDown
-import ..EventCaseModule: var"@event_case"
-import ..MouseModule: MousePress
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyDown
+import ..EventPatternModule: var"@event_case"
+import ..EventModule: MousePress
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap, _syntax_to_flat
 
@@ -112,8 +112,8 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     return nothing
 end
 
-# Selection mapping (SyntaxLeaf → TextText, one span per present field):
-# leaf.selection[] is translated to a TextText span cursor, where the element
+# Selection mapping (SyntaxLeaf → TextBlock, one span per present field):
+# leaf.selection[] is translated to a TextBlock span cursor, where the element
 # index of each field is its position among the fields the leaf actually renders
 # (so on a bare leaf `.value` is element 1, on a delimited leaf element 2):
 #   .open[k]       →  the open span   (only if the leaf has an opening delimiter)
@@ -129,7 +129,7 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
     end)
-    SimpleIoMap(p, leaf, TextText(CellVector(() -> _leaf_spans(leaf)), sel))
+    SimpleIoMap(p, leaf, TextBlock(CellVector(() -> _leaf_spans(leaf)), sel))
 end
 
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -138,7 +138,7 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelecti
     return ReplaceSelectionOperation(input_path)
 end
 
-# Translate a TextText-domain `ReplaceStringRangeOperation` (referencing
+# Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
 # `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op (`.value[s:e]`).
 # Only an edit landing on the *value* span is accepted; editing into an open/close
 # delimiter span is deferred — those are typically projection-introduced
@@ -213,7 +213,7 @@ SyntaxCompoundToText(; indent_size::Int = 2,
 struct SyntaxCompoundToTextIoMap <: IoMap
     projection::Any
     input::SyntaxCompound
-    output::TextText
+    output::TextBlock
     # Cell{Vector{IoMap}}: one IoMap per (expanded) child, in order — the result
     # of `print_child`-ing each `node.children[i]`. Empty when collapsed. Storing
     # them lets the mappers/reader peel the one `.children[i]` step this projection
@@ -506,7 +506,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # selection thunk close over a cell that is filled in below (the standard
     # forward-reference break, as in CollectionToSyntax/BookToSyntax).
     iomap_cell = Cell(nothing)
-    output = TextText(
+    output = TextBlock(
         CellVector(() -> spans[].elements),
         Cell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
 
@@ -695,7 +695,7 @@ function _deco_font(node::SyntaxCompound)
     font_ubuntu_monospace_regular_20
 end
 
-# The output TextText cursor, composed from this node's own selection and its
+# The output TextBlock cursor, composed from this node's own selection and its
 # children's composed selections (Settled decision 5). Precedence, structural
 # wins: (1) node.selection ∅ → whole-node highlight; (2)/(3) forward-map
 # node.selection through this projection's own mapper — a path ending in ∅ under
@@ -754,7 +754,7 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # gesture and `read_intent(p, iomap, gesture)` only handled the syntax
     # (tree-navigation) subset. When that yields nothing, the gesture may still be
     # a geometry-free Text-domain edit/navigation (character insert/delete,
-    # left/right cursor, …). Ask the *output* TextText's `read_gesture` for a
+    # left/right cursor, …). Ask the *output* TextBlock's `read_gesture` for a
     # text-domain operation and route it back through this projection's existing
     # operation-typed readers, which map the `.elements[i].content[…]` reference
     # to the enclosing syntax leaf.
@@ -923,7 +923,7 @@ function _ends_in_field_range(path)
 end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
-# ListNode(SyntaxDocument) → TextText with ListNode elements.
+# ListNode(SyntaxDocument) → TextBlock with ListNode elements.
 # Each element is projected one level down via `print_child(recursion, …)` and its
 # output spans are spliced into the lazy ListNode chain, with a `TextNewline`
 # separator between elements. The ListNode structure is preserved lazily.
@@ -941,7 +941,7 @@ end
 """
     print_document(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
-Convert a `ListNode(SyntaxDocument)` to a `TextText` with `ListNode` elements.
+Convert a `ListNode(SyntaxDocument)` to a `TextBlock` with `ListNode` elements.
 Each syntax element is projected through `recursion` (so a nested `SyntaxNode`
 renders exactly as it would standalone — with its own newlines/indentation),
 and its output spans are spliced in, `TextNewline`-separated.
@@ -949,7 +949,7 @@ and its output spans are spliced in, `TextNewline`-separated.
 function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     cache = IdDict{ListNode, ListNode}()
     out_head = _syntax_list_to_text_node(ln, recursion, ctx, cache)
-    SimpleIoMap(p, ln, TextText(out_head, Cell(nothing)))
+    SimpleIoMap(p, ln, TextBlock(out_head, Cell(nothing)))
 end
 
 # `cache` maps each input ListNode to the first output node of its rendered
@@ -1369,7 +1369,7 @@ function _click_flat_pos(iomap::SyntaxCompoundToTextIoMap, path)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 # Parse a tree selection path: .elements[i]∅  (element ref without .content{k}).
 # Returns span_idx (1-based) or nothing.

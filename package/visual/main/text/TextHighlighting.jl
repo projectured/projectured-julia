@@ -2,7 +2,7 @@
     TextHighlightingModule
 
 Text → Text projection. The "highlight all" of a search box: keeps every line of
-a `TextText` and paints a background swatch behind the regex matches by setting
+a `TextBlock` and paints a background swatch behind the regex matches by setting
 `fill_color` on the matched sub-spans (rendered as a background `GraphicsRect` by
 `TextToGraphics`).
 
@@ -18,7 +18,7 @@ a pattern is set on the reactive `pattern` cell.
 module TextHighlightingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString
+import ..TextModule: TextBlock, TextDocument, TextString
 import ..ColorModule: StyleColor, color_yellow
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
@@ -88,14 +88,14 @@ end
 
 struct TextHighlightingIoMap <: IoMap
     projection::Any
-    input::TextText
-    output::TextText
+    input::TextBlock
+    output::TextBlock
     segs::Cell  # Cell{Vector{HighlightSeg}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function print_document(p::TextHighlighting, recursion, text::TextText, ctx)
+function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     color = p.color
@@ -103,7 +103,7 @@ function print_document(p::TextHighlighting, recursion, text::TextText, ctx)
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
-    output = TextText(elements_cv, out_selection)
+    output = TextBlock(elements_cv, out_selection)
     TextHighlightingIoMap(p, text, output, segs_cell)
 end
 
@@ -112,7 +112,7 @@ end
 # TextString is split at match boundaries into alternating unmatched / matched
 # sub-spans, matched runs carrying the highlight fill. Non-text elements pass
 # through untouched.
-function _highlight(text::TextText, pattern, color::StyleColor)
+function _highlight(text::TextBlock, pattern, color::StyleColor)
     result = TextDocument[]
     segs = HighlightSeg[]
     fill_cell = Cell(color)
@@ -264,7 +264,7 @@ read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

@@ -9,7 +9,7 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[backend/Backend.jl](../../../package/kernel/main/backend/Backend.jl) and
+[backend/BackendInterface.jl](../../../package/kernel/main/backend/BackendInterface.jl) and
 [device/Device.jl](../../../package/kernel/main/device/Device.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
@@ -24,9 +24,9 @@ projection pipeline, or domains changes.
 
 | Device | Defined in | Purpose |
 |---|---|---|
-| `Screen` | `device/ScreenDevice.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
-| `Keyboard` | `device/Keyboard.jl` | Input — emits `KeyPress(char::Char)` for character input and `KeyDown(key::Symbol, modifiers::Modifiers)` for navigation |
-| `Mouse` | `device/Mouse.jl` | Input — emits `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
+| `Screen` | `device/Screen.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
+| `Keyboard` | `device/Keyboard.jl` | Input — polled for `KeyPress(char::Char)` (character input) and `KeyDown(key::Symbol, modifiers::Modifiers)` (navigation) events, defined in `event/KeyboardEvent.jl` |
+| `Mouse` | `device/Mouse.jl` | Input — polled for `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` events, defined in `event/MouseEvent.jl` |
 
 Each is a stateless singleton struct. The editor holds a `Vector{Device}`
 that is passed to every backend call.
@@ -54,12 +54,12 @@ any specific backend.
 ```julia
 abstract type Backend end
 
-# Backend interface (api/BackendApi.jl)
+# Backend interface (backend/BackendInterface.jl)
 initialize_backend!(::Backend)                    # set up libraries, allocate caches
 quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
 
-# Device I/O interface (api/DeviceApi.jl) — driven by the backend
+# Device I/O interface (device/Device.jl) — driven by the backend
 read_from_devices(::Backend, devices)           # poll → EventEnvelope
 write_to_devices(::Backend, devices, document)  # render the output
 ```
@@ -87,9 +87,9 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 `ConsoleBackend` (in [package/visual/main/backend/Console.jl](../../../package/visual/main/backend/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
-`TextText` directly and skips `TextToGraphics`: its pipeline is
+`TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
-a `TextText` rather than a `ScreenDocument`. Highlights:
+a `TextBlock` rather than a `ScreenDocument`. Highlights:
 
 - `write_to_devices` flattens the spans to a character stream, preserving each
   span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
@@ -260,8 +260,8 @@ itself never sees the backend type.
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
 3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
    document)` bootstrap in `editor/Editor.jl` (`Device[Screen(), Keyboard(), Mouse()]`).
-4. If it emits novel events, declare backend-agnostic event structs alongside
-   the device so projection readers can match on them.
+4. If it emits novel events, declare backend-agnostic event structs in
+   `package/kernel/main/event/` so projection readers can match on them.
 
 ## Adding a new backend
 
@@ -280,94 +280,131 @@ is the contract that keeps backends interchangeable.
 # Internals
 
 The remainder of this guide documents the kernel-internal module structure
-behind the two abstractions: the **device layer** (layer 6) and the **backend
-layer** (layer 7). They are independent siblings — the two abstractions only
-come together in a concrete implementation.
+behind the two abstractions: **devices** — the input event vocabulary, the
+device types, and gesture recognition, spread across three layers (`event/`,
+`device/`, `gesture/`) — and the **backend layer**. They are independent
+siblings — the event/device/gesture layers name no backend type, and the two
+abstractions only come together in a concrete implementation. Gesture
+*bindings*, where a gesture acquires meaning against a document, are a
+separate, much higher layer (`binding/`); see
+[below](#gesture-bindings-a-separate-higher-layer).
 
-## The device layer (layer 6)
+## The event layer (layer 2)
 
-Layer 6 of the kernel — **input devices, events, and gestures**.
+Layer 2 of the kernel — **input events and the pattern language**. The layer
+depends on nothing: an event is data, and knows neither the device that
+produced it nor the document it will end up changing.
 
-The layer lives in [main/device/](../../../package/kernel/main/device/) as a set of small modules
-plus one aggregator (`GestureModule`) covering the gesture machinery:
+The layer lives in [main/event/](../../../package/kernel/main/event/):
 
 ```
-Device.jl                (DeviceModule)       — Device abstract + batch I/O generics
-Display.jl               (DisplayModule)      — display-size query + provider glue
-Modifiers.jl             (ModifiersModule)    — the Ctrl/Shift/Alt/Meta struct
-Keyboard.jl              (KeyboardModule)     — Keyboard device + key event types
-Mouse.jl                 (MouseModule)        — Mouse device + mouse event types
-ScreenDevice.jl          (ScreenDeviceModule) — Screen display device + WindowQuit
-GestureModule.jl         (GestureModule)      — aggregator (owns rehomed EventEnvelope)
-        ├─ EventCase.jl        — the @event_case macro + parser
-        └─ GestureBinding.jl   — reified GestureBinding, @gestures DSL,
-                                 read_gesture(::Document) interpreter
-GestureRecognizer.jl     (GestureRecognizerModule) — MousePress + KeyChord synthesis
+EventModule.jl   (EventModule)        — the input event vocabulary, five fragments:
+        ├─ Modifiers.jl       — the Ctrl/Shift/Alt/Meta struct
+        ├─ KeyboardEvent.jl   — KeyDown, KeyUp, KeyPress, KeyChord
+        ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
+        │                       MouseEnter, MouseLeave, MouseScroll
+        ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
+        └─ EventEnvelope.jl   — an event plus the id of the window it came from
+EventPattern.jl  (EventPatternModule) — the event pattern language: the reified
+                                        EventPattern, matches/describe, the
+                                        @event_case macro, and the parser API
+                                        @gestures is built on
 ```
 
-### DeviceModule
+### EventModule
 
-`DeviceModule` (`device/Device.jl`) declares the abstract *Device* type and
-the batch I/O generics `write_to_devices` / `read_from_devices`. Here, the
-"interface + implementation" split that would otherwise justify a separate
-pure-stub module is handled by fragments sharing one module namespace
-instead. `ProjecturedDomain` keeps `DeviceApiModule` as an alias for
-`DeviceModule` so opt-in packages depending on the old name keep resolving.
+Every concrete event subtypes either `DeviceEvent` (what a device reports —
+`KeyDown`, `MouseDown`, `WindowClose`, …) or `SyntheticEvent` (derived from
+several device events by whoever holds the state spanning them — `MousePress`
+from a down/up pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave`
+from motion crossing a boundary); both are `Event`s. `get_modifiers` (and
+`is_ctrl`/`is_shift`/`is_alt`/`is_meta` on top of it) is defined once over
+`Event`, so it works for mouse events as well as keyboard ones.
+`WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
+concrete `ScreenDocument` in `visual` — a window event is report-only input
+vocabulary, not a document type; the window *document* and its operations
+(`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `visual/screen/`.
 
-### GestureModule
+### EventPatternModule
 
-`GestureModule` aggregates two fragments that are only ever imported
-together: the `EventCase` fragment (`device/EventCase.jl`) declares the
-`@event_case` dispatch-table macro and its pattern parser; the
-`GestureBinding` fragment (`device/GestureBinding.jl`) defines the reified
-`GestureBinding` data type, the `@gestures` DSL, and the catch-all
-`read_gesture(::Document, …)` interpreter. `GestureBinding` reaches into
-`EventCase`'s private parser internals (`_parse_rule`, `EvPat`, …) — a
-documented cross-module private edge that sharing one module namespace turns
-into a plain same-namespace reference. The `@gestures` DSL and `@event_case`
-DSL share the same parser without any private cross-module import; generated
-`@gestures` expansions emit `GestureModule.get_document_gesture_bindings_own`.
+One surface syntax for saying "this kind of event, with these field values
+and these modifiers held", ridden by two consumers: an
+[`EventPattern`](../../../package/kernel/main/event/EventPattern.jl) is
+*data* answering `matches(pattern, event)` and `describe(pattern)` — the
+per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
+type and its most-constrained field, all producing the one generic
+`EventPattern{E<:Event}` struct; [`@event_case`](../../../package/kernel/main/event/EventPattern.jl)
+compiles a table of `pattern => result` rules straight to `isa`/field tests,
+first match wins. Both ride on one parser — exported as a macro-authoring API
+(`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
+`@gestures` DSL in the binding layer reuses the surface syntax instead of
+reimplementing it. The field table each pattern may bind is *derived* from
+`EventModule`'s own exports, so a new event type is matchable the moment it
+is exported, with no entry to add here.
 
 ### EventEnvelope
 
-`EventEnvelope` wraps every backend event with the id of the window it came
-from. It lives in `GestureModule`, not in the concrete `ScreenDocumentModule`
-document, because it is a protocol type consumed by the editor loop, the
-gesture recognizer, and the envelope-unwrapping projection — a plain struct
+`EventEnvelope` wraps every event with the id of the window it came from. It
+lives in `EventModule`, not in the concrete `ScreenDocumentModule` document,
+because it is a protocol type consumed by the editor loop, the gesture
+recognizer, and the envelope-unwrapping projection — a plain struct
 declaration for a protocol type has no business living inside a concrete
 document; keeping it here means the kernel has no edge onto `ScreenDocument`.
-`ScreenDocumentModule` re-exports the name via an `import ..GestureModule:
-EventEnvelope` block, so existing importers resolve either way. Window
-*events/ops* (`WindowClose`, `WindowResize`, `OpenWindowOperation`,
-`CloseWindowOperation`, `ResizeWindowOperation`) stay with `ScreenDocument` in
-`visual` — those *are* concrete document types, and belong with the document.
 
 (This is the canonical statement of the `EventEnvelope`-placement rationale;
 other package docs defer here rather than repeat it.)
 
-### GestureRecognizer
+## The device layer (layer 3)
 
-`GestureRecognizer.jl` (`device/GestureRecognizer.jl`) synthesises
-`MousePress` from a MouseDown/MouseUp pair within a click threshold and
-`KeyChord` from a KeyDown sequence — a pure function of device events plus
-`EventEnvelope`, with no editor or document coupling; its location in
-`device/` matches its dependencies.
+Layer 3 of the kernel — **the input/output devices and their batch I/O
+seam**. A device is *where events come from*; it interprets none of them, so
+this layer names no document, no operation, and no backend type — it has no
+imports of its own.
 
-### Downward edges
+The layer lives in [main/device/](../../../package/kernel/main/device/):
 
-- `..CellModule` (Display; nothing else).
-- `..DocumentModule: Document` (GestureBinding fragment; Document is opaque
-  payload here — the seam gets its `read_gesture` catch-all method locally,
-  since the open generic now lives in this module).
-- `..ProjectionApiModule: Projection` — a documented downward private seam
-  the GestureBinding fragment uses for its projection-collector fallback.
-  Removed once the projection API folds into the projection layer.
+```
+DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
+        ├─ Device.jl    — Device abstract + read_from_devices/write_to_devices
+        ├─ Keyboard.jl  — the Keyboard device
+        ├─ Mouse.jl     — the Mouse device
+        └─ Screen.jl    — the Screen device
+```
 
-That is the full import surface. No backend, no editor, no operation.
+`read_from_devices` and `write_to_devices` are pure interface stubs: a
+concrete backend adds the methods, dispatching on its own type. The interface
+names no such type, so a device does not depend on whatever drives it — the
+device and backend abstractions are independent siblings, and only a
+concrete implementation binds them together.
 
-## The backend layer (layer 7)
+## The gesture layer (layer 4)
 
-Layer 7 of the kernel — **rendering targets**. The layer carries the abstract
+Layer 4 of the kernel — **recognising gestures in the event stream**:
+combinations and sequences that only exist across several events (a click, a
+multi-click, a key chord) become one synthesised event. Recognition is an
+endofunction on the event stream — events in, events out — so this layer
+names no document and no operation; what a gesture *means* is decided by
+whoever binds it, in the `binding/` layer far above.
+
+The layer lives in [main/gesture/](../../../package/kernel/main/gesture/) as
+one module:
+
+```
+GestureRecognizer.jl (GestureRecognizerModule) — MousePress + KeyChord synthesis
+```
+
+`GestureRecognizer` is a stateful event → gesture recogniser:
+`recognize_gesture!` consumes one `EventEnvelope`, updating click/multi-click
+and chord-buffer state, and either returns the envelope to forward, enqueues
+a synthesised one (a completed click), or absorbs the event (a chord prefix,
+still incomplete); `pop_gesture!` is the consumer-facing pull, draining any
+pending synthesised gestures ahead of new raw input. A gesture is *only* a
+combination of events — it carries no intent. Its only import is
+`EventModule`.
+
+## The backend layer (layer 5)
+
+Layer 5 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type, the batch generics, the display-size seam, and the
 dependency-free `HeadlessBackend` that CI and documentation examples run
 against.
@@ -375,7 +412,9 @@ against.
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
 ```
-Backend.jl          (BackendModule)         — Backend abstract + batch generics
+BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
+BackendInterface.jl (BackendModule)         — Backend abstract + batch generics
+BackendDefaults.jl  (BackendModule)         — the one behaviour the contract supplies itself
 Display.jl          (DisplayModule)         — display-size query + provider indirection
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
@@ -394,8 +433,17 @@ which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
 
+`BackendInterface.jl` is an **interface file** (AR-INTERFACE-DECLARES-ONLY): it declares and never implements,
+so every generic there is a bodiless `function f end`. The one behaviour the
+contract supplies for itself sits beside it in `BackendDefaults.jl` —
+`get_pointer_position` answers `(-1, -1)` for a backend that adds no method,
+because "this display system cannot report a pointer" is a legal answer rather
+than a missing implementation. The batch generics deliberately have no such
+fallback: an unimplemented `measure_text` or `write_image` must raise a
+`MethodError` rather than fabricate a result.
+
 No document is imported here. The batch I/O generics are duck-typed on the
-`document` argument, so the layer stays document-free at layer 7.
+`document` argument, so the layer stays document-free.
 
 ### DisplayModule
 
@@ -420,8 +468,8 @@ A dependency-free in-memory backend with a scripted event source:
 
 The backend is deliberately **document-agnostic** — it uses only the
 abstract `Document` type (opaque payload) and the device I/O generics; no
-concrete document is imported. That is the pressure that keeps
-`backend/` layer-6 clean.
+concrete document is imported. That is the pressure that keeps the backend
+layer clean.
 
 ### Downward edges
 
@@ -430,3 +478,43 @@ concrete document is imported. That is the pressure that keeps
 
 That is the whole import surface. No document, reference, operation,
 projection, agent, or editor.
+
+## Gesture bindings: a separate, higher layer
+
+Recognising a gesture and giving it *meaning* are different heights: a
+gesture is a combination of events and carries no intent, but deciding what a
+`MousePress` does to a `JsonArray` needs `Document` and `Operation`. That
+pulls gesture bindings up to layer 10 — `binding/` — above `document/`,
+`reference/`, `selection/`, and `operation/`, rather than beside the
+event/device/gesture layers above.
+
+The layer lives in [main/binding/](../../../package/kernel/main/binding/):
+
+```
+GestureBinding.jl (GestureBindingModule) — GestureBinding, the per-document-type
+                                           registry, read_gesture / read_bound_gesture
+        └─ Gestures.jl — the @gestures / @gesture_set authoring DSL
+```
+
+A `GestureBinding` is reified *data*: an `EventPattern` (what fires it, and
+how it is described) + `operation(document, event) -> Operation | Nothing` +
+an `applicable(document, selection) -> Bool` precondition + a human
+`description` + a `domain` tag — the same declaration both fires the edit and
+can be listed to a user. [`@gestures`](../../../package/kernel/main/binding/Gestures.jl)
+emits the `get_document_gesture_bindings_own` method holding a type's own
+table; `get_document_gesture_bindings` walks it plus every supertype's.
+`fire_gesture_bindings(bindings, target, selection, event)` is the one firing
+loop — the first binding whose pattern matches, whose precondition holds, and
+whose operation returns non-`nothing`, wins — shared by
+`read_bound_gesture(target, event[, selection])` (the catch-all behind
+`read_gesture(::Document, event)`) and the projection layer's own
+gesture-binding reader, so *what fires* cannot drift from what a listing
+shows. `read_bound_gesture`'s optional third argument covers a target whose
+selection comes from elsewhere (e.g. a node addressed by path inside its
+enclosing document), so one entry point serves both.
+
+### Downward edges
+
+- `..EventModule`, `..EventPatternModule` — the pattern a binding matches on.
+- `..DocumentModule: Document` — the catch-all `read_gesture(::Document, …)`
+  method.

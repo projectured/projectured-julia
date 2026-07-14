@@ -13,8 +13,8 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 """
 module PointReferenceModule
 
-import ..CellModule: Cell, @cell_struct
-import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step, dsl_build_step, dsl_match_step
+using ..CellModule
+using ..ReferenceModule
 
 export PointReference
 
@@ -32,11 +32,11 @@ that coordinate in the current document.
     y::Int
 end
 
-step_kind(::PointReference) = :structural
+ReferenceModule.step_kind(::PointReference) = :structural
 
 # Every reference descends to a value; a point step's value is its
 # coordinate pair.
-evaluate_step(step::PointReference, document) = (step.x, step.y)
+ReferenceModule.evaluate_step(step::PointReference, document) = (step.x, step.y)
 
 Base.:(==)(a::PointReference, b::PointReference) = a.x == b.x && a.y == b.y
 
@@ -46,11 +46,11 @@ end
 
 # ── DSL registrations ──────────────────────────────────────────────────────
 
-dsl_build_step(::Val{:point}, xex, yex) =
+ReferenceModule.dsl_build_step(::Val{:point}, xex, yex) =
     :($(GlobalRef(PointReferenceModule, :PointReference))(Int($xex), Int($yex)))
 
-function dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound,
-                        gen_value_match, gen_path_match)
+function ReferenceModule.dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound,
+                                        gen_value_match, gen_path_match)
     xpat, ypat = argpats[1], argpats[2]
     xexpr = :($hex.x)
     yexpr = :($hex.y)

@@ -7,7 +7,7 @@ means** — a JSON null is one span, not three; a Julia connector node says "con
 ## The problem
 
 **42.7% of every text span in the corpus is empty** — 1319 of 3088. Measured by flattening each
-example's pipeline to its `TextText` and counting zero-length `TextString`s:
+example's pipeline to its `TextBlock` and counting zero-length `TextString`s:
 
 | example | spans | empty | | example | spans | empty |
 |---|---|---|---|---|---|---|

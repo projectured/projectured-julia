@@ -78,8 +78,8 @@ end
 # ProjectionConfiguringProjection so a control bar for its parameters stacks
 # above the projected text, then render the resulting widget+text tree. The
 # combined renderer dispatches widget nodes through WidgetToGraphics and the
-# projected `TextText` slot through TextToGraphics — the introspection pattern.
-# Expects a TextText document (the text examples).
+# projected `TextBlock` slot through TextToGraphics — the introspection pattern.
+# Expects a TextBlock document (the text examples).
 function make_text_configuring_projection(inner_text_projection;
                                           measure=truetype_measure_text,
                                           font=font_ubuntu_monospace_regular_20)
@@ -88,7 +88,7 @@ function make_text_configuring_projection(inner_text_projection;
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
-            TextText => TextToGraphics(measure=measure),
+            TextBlock => TextToGraphics(measure=measure),
         ],
     )))
     ChainingProjection(

@@ -25,6 +25,7 @@ function test_document_insertion()
             @test default_factory("julia") isa JuliaInsertion
             @test default_factory("json")  isa JsonInsertion
             @test default_factory("sql")   isa SqlInsertion
+            @test default_factory("text")  isa TextInsertion
             @test default_factory("zzz")   === nothing
             @test default_completion("jso") == "n"
             @test default_completion("xyz") == ""
@@ -36,8 +37,23 @@ function test_document_insertion()
             @test DS.insertion_names(JsonObjectEntry; root = JsonDocument) ==
                   ["JsonObjectEntry", "json object entry", "ObjectEntry", "object entry"]
             @test "julia" in DS.insertion_names(JuliaInsertion)     # @domain alias
-            @test "text" in DS.insertion_names(TextText)            # hand-written alias
+            @test "text" in DS.insertion_names(TextInsertion)       # @domain alias
+            # `text` names the domain entry, so the container answers to its own
+            # name — prefix-free inside the Text scope, prefixed outside it.
+            @test DS.insertion_names(TextBlock) == ["TextBlock", "text block"]
+            @test DS.insertion_names(TextBlock; root = TextDocument) ==
+                  ["TextBlock", "text block", "Block", "block"]
+            @test DS.resolve_insertion(TextDocument, "block") === TextBlock
+            # It is also the only candidate in the scope, so the bare domain name
+            # still commits it by unambiguous prefix. That holds only because
+            # `TextLine` opts out: it is zero-arg constructible, so without the
+            # opt-out it would be a candidate — one that makes `text` ambiguous,
+            # and that commits a lone line as a *root* document.
+            @test !DS.insertable(TextLine)
+            @test !(TextLine in DS.insertion_candidates(TextDocument))
+            @test DS.resolve_insertion(TextDocument, "text") === TextBlock
             @test DS.domain_prefix(JsonDocument) == "Json"
+            @test DS.domain_prefix(TextDocument) == "Text"
             @test DS.domain_prefix(Document) == ""
         end
 
@@ -93,7 +109,8 @@ function test_document_insertion()
             DS = DomainModule
             # Generated placeholders exist and are excluded from candidates.
             @test JsonNothing <: JsonDocument && XmlNothing <: XmlDocument &&
-                  YamlNothing <: YamlDocument && SqlNothing <: SqlDocument
+                  YamlNothing <: YamlDocument && SqlNothing <: SqlDocument &&
+                  TextNothing <: TextDocument
             @test !DS.insertable(JsonNothing)
             @test !(JsonNothing in DS.insertion_candidates(JsonDocument))
             # Traits pair each placeholder with its insertion, both ways.
@@ -106,8 +123,9 @@ function test_document_insertion()
             for (N, I) in ((DocumentNothing, DocumentInsertion),
                            (JsonNothing, JsonInsertion),
                            (XmlNothing, XmlInsertion),
+                           (TextNothing, TextInsertion),
                            (JuliaNothing, JuliaInsertion))
-                op = GestureModule.read_document_gesture(N(), KeyDown(:insert, Modifiers()))
+                op = GestureBindingModule.read_bound_gesture(N(), KeyDown(:insert, Modifiers()))
                 @test op isa CompoundOperation
                 written = _written_doc(op)
                 @test written isa I
@@ -117,6 +135,21 @@ function test_document_insertion()
                 @test string(getfield(written, :selection)[]) ==
                       "::$(nameof(I)).value::String{0}::Position"
             end
+        end
+
+        @testset "a committed insertion is editable" begin
+            DS = DomainModule
+            # Every committed candidate must land with a usable cursor. The Text
+            # container is the regression: without its `@insertion` factory the
+            # generic fallback built a bare `TextBlock()` — no spans, no selection —
+            # and every character gesture declined for want of a caret, so the
+            # freshly inserted text took no keystrokes.
+            text = DS.make_insertion_document(TextBlock)
+            @test length(text.elements) == 1
+            @test text.elements[1] isa TextString
+            @test string(getfield(text, :selection)[]) ==
+                  "::TextBlock.elements::CellVector[1]::TextString.content::String{0}::Position"
+            @test text_insert_op(text, "a") isa ReplaceStringRangeOperation
         end
 
         @testset "rendered completion feedback" begin

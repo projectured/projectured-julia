@@ -181,13 +181,13 @@ _wy(px::Integer) = px
 make_widget_label_document_example() =
     WidgetLabel(Point2D(40, 40), "Hello, label")
 
-# WidgetText — an editable text widget. Its content is a TextText, so the widget
+# WidgetText — an editable text widget. Its content is a TextBlock, so the widget
 # recurses it through the Text domain and all caret navigation / text editing
 # comes from TextToGraphics (the widget only maps the resulting references
 # backward). Click to place the cursor, then type / backspace to edit. Render
 # with make_widget_text_projection_example.
 function make_widget_text_document_example()
-    content = TextText(TextString("edit me", font_ubuntu_monospace_regular_20, color_default))
+    content = TextBlock(TextString("edit me", font_ubuntu_monospace_regular_20, color_default))
     WidgetText(Point2D(40, 40), content;
                border=Inset(1, 1, 1, 1),
                padding=Inset(8, 8, 12, 12))

@@ -12,7 +12,7 @@ import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, NothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
@@ -128,7 +128,7 @@ function JsonToSyntax()
         JsonArray       => JsonArrayToSyntaxNode(),
         JsonObject      => JsonObjectToSyntaxNode(),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
-        JsonNothing     => NothingToSyntaxLeaf(),
+        JsonNothing     => InsertionNothingToSyntaxLeaf(),
         JsonObjectEntry => CopyingProjection(),
         Vector{Cell}    => CopyingProjection(),
     )

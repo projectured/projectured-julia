@@ -11,7 +11,7 @@ module ChainingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
 import ..IntentModule: Intent
-import ..GestureModule: GestureBinding
+import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
@@ -130,26 +130,19 @@ backwards through the earlier steps translating that change into each step's inp
 domain. The gesture rides along for free — it is a field of the threaded `Intent`,
 constant at every step. A nothing-change short-circuits.
 
-**Input-domain authoring gestures get first say.** A printable key can be a text
-edit (output domain) *or* a structural authoring gesture (input domain). Before
-threading any output-domain operation back, give the **first** stage — the
-input-domain projection — a direct read of the raw gesture. When it recognizes
-the gesture (returns an operation) that wins, overriding whatever the output
-layers would produce (e.g. JSON `,` inserts a sibling instead of a literal comma,
-even when the caret sits on a delimiter where the text edit would otherwise die).
-When it declines (no operation — `,` while editing a string, or an ordinary
-character) the normal output→input threading runs and the text edit / navigation
-is produced as before. Only at the start of a read (`change.operation === nothing`)
-so a re-entrant thread is not re-overridden, and only with output stages present
-(`n ≥ 2`) since a single stage already handles its own gesture.
+Reading is **last to first**, the mirror of printing. A step that produces no
+operation passes the raw gesture on to the step before it, so the input-domain
+stage — the last one visited, the one that owns the meaning of an edit — gets its
+say on any key the output layers decline (a `,` on a delimiter where the text edit
+would die becomes a JSON sibling insert). A step *also* sees the gesture when an
+operation has already been produced, so it can supersede a claimed key rather than
+translate it: that is the `override` flag on a `GestureBinding`, not a privilege
+the chain hands out. A structural gesture therefore never has to reconstruct what
+the output layers would have done in order to decline — if they did anything, they
+already did it.
 """
 function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
     n = length(seq.projections)
-    g = change.gesture
-    if n >= 2 && g !== nothing && change.operation === nothing
-        first_out = read_intent(seq.projections[1], recursion, Intent(g, nothing), iomap.step_iomaps[1][])
-        first_out.operation === nothing || return first_out
-    end
     start_i = n
     out = read_intent(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
     while out.operation === nothing && start_i > 1

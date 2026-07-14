@@ -38,11 +38,10 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
 import ..SelectionApiModule: with_selection
-import ..GestureApiModule: read_gesture
-import ..KeyboardModule: KeyPress, KeyDown
-import ..MouseModule: MousePress
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown
+import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
-import ..DomainModule
 import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
                        insertion_candidates, complete_insertion, resolve_insertion,
                        make_insertion_document
@@ -52,7 +51,7 @@ import ..JuliaModule: JuliaInsertion, JuliaDocument,
 import ..JsonModule: JsonInsertion
 import ..XmlModule: XmlInsertion
 import ..SqlDocumentModule: SqlInsertion
-import ..TextModule: TextText, TextString
+import ..TextModule: TextString
 import ..JuliaParserModule: juliaparse
 import ..SqlParserModule: sqlparse
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument
@@ -61,10 +60,11 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, Position
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
-import ..GestureBindingModule: GestureBinding, KeyDownPattern, KeyPressPattern, var"@gestures"
+import ..GestureBindingModule: GestureBinding, var"@gestures"
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
@@ -75,7 +75,7 @@ import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
-       JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, NothingToSyntaxLeaf,
+       JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, name_completion,
        julia_completion, julia_scaffold
 
@@ -181,7 +181,7 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     node_selection = Cell(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReferencePath || return nothing
-        path.head isa ProjectionReference && return path
+        is_introduced_reference(path) && return path
         ConcreteReferencePath(FieldReference("children"),
             ConcreteReferencePath(ElementReference(1), path))
     end)
@@ -322,10 +322,6 @@ end
 # (`"JsonString"` / `"json string"`), and construction goes through
 # `make_insertion_document` dispatch. The historic short names (`"julia"`,
 # `"json"`, …) live on as `insertion_aliases` emitted by each `@domain`.
-
-# `TextText` is a plain visual document, not an `@domain` kit, so its historic
-# `"text"` short name is a hand-written alias.
-DomainModule.insertion_aliases(::Type{<:TextText}) = ["text"]
 
 """
     default_factory(name) -> Document | nothing
@@ -473,7 +469,7 @@ green when it parses as a complete statement, red otherwise.
 SqlInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(_sql_commit; completion = _parse_completion(sqlparse))
 
-# ── NothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
+# ── InsertionNothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
 
 # "JsonNothing" → "empty json"; the universal `DocumentNothing` → "empty document".
 function _nothing_label(doc)
@@ -483,21 +479,21 @@ function _nothing_label(doc)
 end
 
 """
-    NothingToSyntaxLeaf()
+    InsertionNothingToSyntaxLeaf()
 
 The shared leaf for the `@domain` `*Nothing` placeholders: a muted italic
 `empty json` / `empty xml` label. Printer-only — raw input falls through the
 generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
-struct NothingToSyntaxLeaf <: Projection
+struct InsertionNothingToSyntaxLeaf <: Projection
     style::StyleText
 end
 
-NothingToSyntaxLeaf() =
-    NothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
+InsertionNothingToSyntaxLeaf() =
+    InsertionNothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
 
-print_document(p::NothingToSyntaxLeaf, recursion, doc, ctx) =
+print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx) =
     SimpleIoMap(p, doc, SyntaxLeaf(TextString(_nothing_label(doc), p.style);
         selection=getfield(doc, :selection)))
 

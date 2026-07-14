@@ -17,6 +17,11 @@ end
 # `MethodError`, which is the contract).
 Base.getindex(c::ImmutableCell) = c.value
 
+# The value is held outright: nothing can be stale, and an untracked read is the
+# plain read (there is no dependency to register in the first place).
+is_up_to_date(::ImmutableCell) = true
+Base.peek(c::ImmutableCell) = c[]
+
 function Base.show(io::IO, c::ImmutableCell)
     print(io, "ImmutableCell(")
     show(io, c.value)

@@ -11,9 +11,19 @@ types and modules, `!` for mutation, and avoiding abbreviations.
 
 ## Files and modules
 
-- **Module = filename + `Module`.** `Keyboard.jl` defines `KeyboardModule`,
-  `DocumentApi.jl` defines `DocumentApiModule`. Grep-by-guess must work in
+- **Module = filename + `Module`.** `Display.jl` defines `DisplayModule`,
+  `ProjectionApi.jl` defines `ProjectionApiModule`. Grep-by-guess must work in
   both directions — with no per-folder exceptions.
+- **A module that owns a folder of fragments is `<Concept>Module.jl` itself.**
+  A layer's primary module carries only its docstring, its export list, and its
+  ordered `include`s (`DocumentModule.jl`, `BackendModule.jl`, `DeviceModule.jl`),
+  so `<Concept>.jl` is free to be the contract fragment it includes first
+  (`Document.jl`, `Device.jl`). The rule above still reads in both directions —
+  the module is the file name, the `Module` suffix already spelled out. Where a
+  folder holds several modules and the bare concept name would be ambiguous, the
+  contract fragment takes the prefix too (`BackendInterface.jl`); where the folder
+  holds one, the bare `Interface.jl` says it (`reference/`, `selection/`,
+  `operation/`).
 - **`Api` is a layer marker carried in the filename.** Every file in `api/`
   ends in `Api` (`DocumentApi.jl`, `BackendApi.jl`), so the rule above yields
   its `XApiModule` directly — no special case.

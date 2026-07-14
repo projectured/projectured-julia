@@ -144,3 +144,41 @@ end
 
 end # @testset "XmlToSyntax reader commands"
 end # test_xml_to_syntax_reader
+
+# The reader runs last-to-first, so a printable key the *output* layers turn into a
+# character edit never reaches the domain. `<` and `"` inside a tag name are the
+# exception: a tag cannot contain them, so the XML gestures claim those keys even
+# though the text layer would happily absorb them — an `override` binding. The
+# single-stage tests above cannot see this (with one stage there is no text layer to
+# override), so drive the whole chain.
+function test_xml_override_gestures()
+@testset "XmlToSyntax override gestures (full chain)" begin
+
+chain = ChainingProjection(RecursiveProjection(XmlToSyntax()),
+                           RecursiveProjection(SyntaxToText()),
+                           TextToGraphics(measure = truetype_measure_text))
+
+read_key(doc, sel, evt) = begin
+    set_selection!(doc, sel)
+    read_intent(chain, print_document(chain, doc), evt)
+end
+
+@testset "an ordinary key inside a tag name is a character edit" begin
+    e = XmlElement("div", XmlDocument[XmlText("hi")])
+    @test read_key(e, @reference(e, tag{1}), KeyPress('x')) isa ReplaceStringRangeOperation
+end
+
+@testset "`<` / `\"` inside a tag name still insert a child (override)" begin
+    e = XmlElement("div", XmlDocument[XmlText("hi")])
+    @test read_key(e, @reference(e, tag{1}), KeyPress('<')) isa CompoundOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('"')) isa CompoundOperation
+end
+
+@testset "`<` / `\"` on a whole element insert a child" begin
+    e = XmlElement("div", XmlDocument[XmlText("hi")])
+    @test read_key(e, EmptyReferencePath(), KeyPress('<')) isa CompoundOperation
+    @test read_key(e, EmptyReferencePath(), KeyPress('"')) isa CompoundOperation
+end
+
+end # @testset "XmlToSyntax override gestures (full chain)"
+end # test_xml_override_gestures

@@ -58,7 +58,7 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
         ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
 
     info_page = WorkbenchPage([
-        WorkbenchConsole(TextText(
+        WorkbenchConsole(TextBlock(
             TextString("Welcome to ProjecturEd!", font_ubuntu_monospace_regular_20, color_default),
         )),
         descriptor,

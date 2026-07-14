@@ -48,7 +48,7 @@ import ..CollectionModule: CellVector
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, WidgetCard, Point2D
 import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..StyleTextModule: StyleText
@@ -240,7 +240,7 @@ end
 _type_title(obj) = String(nameof(typeof(obj)))
 _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items")
 
-# An editable text control: a WidgetText whose TextText content is a read-only,
+# An editable text control: a WidgetText whose TextBlock content is a read-only,
 # reactive view of `cell` (so a change to the parameter re-renders it), with the
 # caret pinned to the end of the text. WidgetText recurses a Document content
 # through the Text domain, so caret navigation and editing originate in
@@ -250,7 +250,7 @@ _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items
 function _editable_text_control(p::ObjectToWidget, cell::Cell)
     ts = TextString("", p.style)
     set_function!(getfield(ts, :content), () -> _as_string(cell[]))
-    tt = TextText(ts)
+    tt = TextBlock(ts)
     set_function!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
     WidgetText(Point2D(0, 0), tt)
 end

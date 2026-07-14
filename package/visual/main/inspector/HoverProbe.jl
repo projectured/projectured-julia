@@ -38,7 +38,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseMove, MousePress
+import ..EventModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..ReferenceInspectorDocumentModule: ReferenceInspector

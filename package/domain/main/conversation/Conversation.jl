@@ -12,7 +12,7 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
-import ..TextModule: TextText, TextString
+import ..TextModule: TextBlock, TextString
 import ..ReferenceModule: Reference, ReferencePath
 
 export ConversationDocument, thinking_part
@@ -36,7 +36,7 @@ end
 ConversationPart(content::Document; collapsed::Bool = false) =
     ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
 ConversationPart(s::AbstractString; collapsed::Bool = false) =
-    ConversationPart(Cell(TextText(TextString(String(s)))), Cell(collapsed), Cell(nothing))
+    ConversationPart(Cell(TextBlock(TextString(String(s)))), Cell(collapsed), Cell(nothing))
 
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ ConversationThinking(text::AbstractString;
                      signature::AbstractString = "",
                      redacted::Bool = false,
                      data::AbstractString = "") =
-    ConversationThinking(TextText(TextString(String(text)));
+    ConversationThinking(TextBlock(TextString(String(text)));
                          signature = signature, redacted = redacted, data = data)
 
 # Convenience: a thinking part. Collapsed by default — reasoning is verbose and

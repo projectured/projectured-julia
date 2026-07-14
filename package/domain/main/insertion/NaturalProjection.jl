@@ -48,12 +48,12 @@ A `CellVector` renders as a `VerticalLayout` of independent graphics blocks
 (`CellVectorToVerticalLayout` → `VerticalLayoutToGraphicsCanvas`): each element
 re-enters *this* renderer in its own domain (prose→prose, JSON→JSON,
 widget→widget), rather than the whole collection collapsing to one syntax tree.
-So a `CellVector` of mixed content — including `TextText` prose — renders
+So a `CellVector` of mixed content — including `TextBlock` prose — renders
 naturally.
 
 A `ListNode` is **not** treated this way: it stays in the to-syntax fabric
 (`CollectionToSyntax`), because a list may be lazy/infinite and must not be forced
-into a finite layout. A `TextText` placed directly inside a `ListNode` therefore
+into a finite layout. A `TextBlock` placed directly inside a `ListNode` therefore
 still reflects via `ObjectToSyntax` rather than rendering as prose — an accepted
 edge case.
 """
@@ -86,7 +86,8 @@ import ..JuliaModule: JuliaDocument
 import ..BookModule: BookDocument
 import ..PrimitiveModule: PrimitiveDocument
 import ..FileSystemModule: FileSystemDocument
-import ..TextModule: TextDocument
+import ..TextModule: TextDocument, TextNothing, TextInsertion
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 
 export NaturalToGraphics, natural_to_syntax_dispatch
 
@@ -109,6 +110,13 @@ function natural_to_syntax_dispatch()
             BookDocument       => BookToSyntax(),
             PrimitiveDocument  => PrimitiveToSyntax(),
             FileSystemDocument => FileSystemToSyntax(),
+            # The Text domain's `@domain` pair. Text has no `TextToSyntax` table of
+            # its own to carry them (it *is* the layer syntax prints to), and both
+            # renderers live here, so its two entries live here — ahead of the
+            # `TextDocument` prose route below, which prints a span sequence and
+            # would not know what to do with a placeholder or a name buffer.
+            TextNothing        => InsertionNothingToSyntaxLeaf(),
+            TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument),
         ],
         CollectionToSyntax().dispatch,   # CellVector, ListNode
         ObjectToSyntax().dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
@@ -157,7 +165,13 @@ function NaturalToGraphics(; measure::Function,
         LayoutToGraphics().dispatch,   # layouts before widgets: a WidgetTable builds a GridLayout
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
         Pair{Type,Any}[
-            TextDocument => prose_chain,
+            # The Text placeholder / name buffer are `TextDocument`s, but they are not
+            # prose: they route through the syntax fabric, whose table renders them
+            # with the shared `@domain` leaves. Exact types, so they win over the
+            # abstract `TextDocument` entry below.
+            TextNothing   => syntax_to_graphics,
+            TextInsertion => syntax_to_graphics,
+            TextDocument  => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,
             # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.

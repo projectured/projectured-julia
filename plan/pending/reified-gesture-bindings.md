@@ -79,7 +79,7 @@ This unifies three existing plans into one staged line of work:
   `next_gesture!` in `Editor.read!`.
 - ✅ **`document_read` seam** — declared in `program/src/api/DocumentApi.jl`
   (`document_read(document, gesture) -> Operation|Nothing`), documented as *"the
-  projection-independent half of a domain's reader."* Implemented for `TextText`
+  projection-independent half of a domain's reader."* Implemented for `TextBlock`
   (`program/src/document/Text.jl`) and `SyntaxNode` (`program/src/document/Syntax.jl`);
   delegated to from `SyntaxToText` / `TextToGraphics`.
 - ✅ **`@event_case`** — the first-match pattern table over event structs
@@ -182,7 +182,7 @@ right after `EventCase.jl`.
   a binding whose `operation` returns `nothing`). It is wired in as the
   `document_read(::Document, ::Any)` catch-all (the `= nothing` default was
   removed from `api/DocumentApi.jl`), so **what fires is provably the set that is
-  shown**. Concrete `document_read(::SyntaxNode/::TextText, …)` methods remain
+  shown**. Concrete `document_read(::SyntaxNode/::TextBlock, …)` methods remain
   more specific and still win.
 
 ## Stage 2 — generic fallback + `projection_gestures` seam + collector (kernel) ✅
@@ -349,7 +349,7 @@ directly, already independent of `_multi_window_projection`).
 - **Decision (2026-06-24): gestures match modifiers _exactly_.** A gesture is
   identified by its exact modifier set, so `Left`, `Shift+Left`, `Ctrl+Left`,
   `Alt+Left` are *distinct* gestures and an unbound combination simply declines.
-  This is what let SyntaxNode **and** TextText reify with **no kernel change**: the
+  This is what let SyntaxNode **and** TextBlock reify with **no kernel change**: the
   modifier logic lives in the pattern (exact), and the only thing operations need —
   the selection — they already get via `doc.selection`. The old readers matched
   bare arrows *loosely* (any modifiers) and filtered the declines out by hand;
@@ -368,8 +368,8 @@ directly, already independent of `_multi_window_projection`).
   rules live in the operation (reads `doc.selection`, returns `nothing` to decline).
   Behaviour unchanged: `test_tree_navigations` (40), `_complete` (144),
   `test_syntax_to_text` (124), `test_syntax_tree_selection` (29) all green.
-- ✅ **`TextText` reified (2026-06-24).** Its `document_read` is now an
-  `@gestures TextText` table — char insert (`KeyPress(_, t)`), Ctrl+. collapse,
+- ✅ **`TextBlock` reified (2026-06-24).** Its `document_read` is now an
+  `@gestures TextBlock` table — char insert (`KeyPress(_, t)`), Ctrl+. collapse,
   Backspace/Delete, Ctrl+Home/End jump, Ctrl+Left/Right word-motion, Left/Right
   char-motion — and the method plus the `_text_keypress_op`/`_text_delete_op`
   helpers were replaced by per-rule operation helpers (`_text_insert`,
@@ -433,7 +433,7 @@ directly, already independent of `_multi_window_projection`).
     `LayoutToGraphics` (enumeration-only — the click hit-testing stays geometry-coupled;
     the *keyboard* parts already delegate to `document_read`).
 - ✅ **Document-level `@gestures PrimitiveString` (2026-06-25, `efcdcf9`)** — char
-  insert / Backspace / Delete were duplicated verbatim in `PrimitiveStringToTextText`
+  insert / Backspace / Delete were duplicated verbatim in `PrimitiveStringToTextBlock`
   and `PrimitiveStringToSyntaxLeaf` (both producing a `StringReplaceRangeOperation` in
   the `value[range]` vocabulary). Reified once at the document level; both projections
   reach it through the generic `document_read` fallback and their per-projection readers

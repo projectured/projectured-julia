@@ -14,14 +14,11 @@ using ..EditorModule: Editor, read!, evaluate!, print!, perf!
 using ..PerformanceCounterModule
 using ..ProjectionApiModule
 using ..IntentModule
-using ..GestureModule
+using ..EventModule
 using ..OperationModule
 using ..ReferenceModule
 using ..BackendModule
 using ..DeviceModule
-using ..ScreenDeviceModule
-using ..KeyboardModule
-using ..MouseModule
 
 export play_live!
 

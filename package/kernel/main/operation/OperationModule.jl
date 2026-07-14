@@ -1,7 +1,7 @@
 """
     OperationModule
 
-Layer 5 of the kernel — **changing documents**. Operations are the reified
+**Changing documents**. Operations are the reified
 edits the reader side of the projection pipeline produces and
 `evaluate_operation` applies. This module holds the abstract `Operation`
 supertype and the `evaluate_operation` / `invalidate_projection!` generics

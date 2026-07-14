@@ -340,6 +340,11 @@ function _gen_step_match(hex, tex, step::PatStepExtension, rest_success, bound::
                    _gen_value_match, _gen_path_match)
 end
 
+# The seam's answer for a name no package registered: this DSL is where an unknown
+# `.name(…)` pattern is first reachable, so this is where it is reported.
+dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
+    error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
+
 # `^(expr)` interpolates a whole path to compare against, so it is only meaningful as the
 # *sole* step of a pattern — `_gen_path_match` / `_gen_prefix_match` intercept it there.
 # Reaching per-step dispatch means it was written mid-chain (`a.^(p).b`, `a.b.^(p)`), which

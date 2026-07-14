@@ -270,7 +270,7 @@ end
 @testset "plain arrows with a character cursor are not tree navigation" begin
     # A character cursor inside a leaf must not do tree navigation.
     # :down has no text-domain meaning at console level → declines.
-    # :right is handled by the console fallback (read_gesture on output TextText)
+    # :right is handled by the console fallback (read_gesture on output TextBlock)
     # and returns a character-level cursor move, not a tree step.
     cursor = @reference(node, children[1].value{2})
     @test read_key(cursor, :down) === nothing

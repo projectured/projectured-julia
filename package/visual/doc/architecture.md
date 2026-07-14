@@ -12,7 +12,7 @@ Sits between base and domain in the dependency chain
 about presenting/arranging/drawing?"* — anything screen-, window-,
 graphics-, layout-, text-, widget-, or syntax-related lives here. The one
 deliberate exception: the Screen *device* and display-size seam stay in
-the kernel (`device/ScreenDevice.jl` + `backend/Display.jl`) because
+the kernel (`device/Screen.jl` + `backend/Display.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
 ## The 11 slices and their include order
@@ -54,15 +54,17 @@ the slice.
 ### screen/ — the window model
 
 `ScreenDocument.jl` (multi-window document holding `WindowDocument`s +
-window events/ops), `WindowManaging.jl` (the higher-order projection
-that wraps a projection over ScreenDocument input to lift open/close/
-resize/defocus operations up from below). The couple travels together:
-WindowManaging references ScreenDocument's types.
+window operations — `OpenWindowOperation`, `OpenPopupOperation`,
+`CloseWindowOperation`, `ResizeWindowOperation`), `WindowManaging.jl` (the
+higher-order projection that wraps a projection over ScreenDocument input to
+lift open/close/resize/defocus operations up from below). The couple travels
+together: WindowManaging references ScreenDocument's types.
 
-`EventEnvelope` (which wraps every event with a window id) does **not**
-live here — it lives in the kernel's `GestureModule`, because it is a
-protocol type consumed by the editor loop and gesture recognizer, not a
-document concept.
+The window *events* (`WindowClose`, `WindowResize`, `WindowDefocus`,
+`WindowQuit`) do **not** live here — they live with the rest of the input
+vocabulary in the kernel's `EventModule`, alongside `EventEnvelope` (which
+wraps every event with a window id): both are protocol types consumed by the
+editor loop and gesture recognizer, not document concepts.
 
 ### graphics/ — the retained drawing target
 
@@ -78,7 +80,7 @@ into a layout container).
 
 ### text/ — styled text and its renderings
 
-`Text.jl` (the styled-text domain: TextText/TextString/TextNewline/…),
+`Text.jl` (the styled-text domain: TextBlock/TextString/TextNewline/…),
 `TextToGraphics.jl`, `TextToString.jl` (render endpoints), the
 decorators (`LineNumbering`, `WordWrapping`, `TextFiltering`,
 `TextFirstLine`, `TextHighlighting`, `SelectionInverting`), and the

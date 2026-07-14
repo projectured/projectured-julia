@@ -23,7 +23,7 @@ spreadsheet's `A1`) is just one naming convention among others.
 
 ## Goals (from the request)
 
-1. **Embeddable anywhere.** A formula can live in a `TableCell`, inside `TextText`
+1. **Embeddable anywhere.** A formula can live in a `TableCell`, inside `TextBlock`
    prose, or nested in any domain — not just a grid.
 2. **Code / result / both.** A formula is displayed as its source code, as its
    evaluated value, or as both. The user can switch.
@@ -112,7 +112,7 @@ FormulaDocument (abstract)
 - `FormulaFormula <: FormulaDocument`
   - `name::String` — display name; literal, or a thunk derived from grid coords.
   - `code::Document` — the body, a `JuliaDocument` (may contain `FormulaReference`s).
-  - `result::Document` — *computed* result document (a `TextText`, or a Julia
+  - `result::Document` — *computed* result document (a `TextBlock`, or a Julia
     literal node for richer display). Wired as a `Cell(() -> evaluate(...))`.
   - `display_mode::Symbol` — `:code` | `:result` | `:both`.
   - `selection::Reference`
@@ -280,7 +280,7 @@ consistent with how other domains add structural operations.
 **⏳ OPEN (verified absent):** No Formula type is used in any Table/Tabular/Text
 domain or projection (grep for `Formula` across `package/domain/src/document/`
 and `.../projection/` returns only `FormulaToSyntax.jl`). No example or test
-embeds a `FormulaFormula` in a `TableCell` or in `TextText` prose. The claim
+embeds a `FormulaFormula` in a `TableCell` or in `TextBlock` prose. The claim
 "no host domain needs changes" is plausible but unexercised.
 
 - **Table.** A `TableCell.content` holds a `FormulaFormula`; the table's name
@@ -376,7 +376,7 @@ helpers — do not lean on `test_all`:
 - Navigate into a reference to jump to its target (follow the link).
 - Spill ranges / array formulas (`A1:A3`).
 - Named ranges and multiple sheets (multiple `FormulaEnvironment`s).
-- Richer result documents (tables, charts) instead of `TextText`.
+- Richer result documents (tables, charts) instead of `TextBlock`.
 - Auto-recalc ordering surfaced in the UI; error display for `#REF!`-style states.
 </content>
 </invoke>

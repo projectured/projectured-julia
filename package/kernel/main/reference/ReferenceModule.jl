@@ -1,7 +1,7 @@
 """
     ReferenceModule
 
-Layer 3 of the kernel — **paths into documents**. A reference is a linked list
+**Paths into documents**. A reference is a linked list
 of typed steps (`RangeReference`, `FieldReference`, `TypeReference`, …),
 forming a `ReferencePath` (an `EmptyReferencePath` or a
 `ConcreteReferencePath`) that addresses one location inside a document tree.
@@ -74,7 +74,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        FieldReference, Position,
        RangeReference, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
-       evaluate_reference, is_valid_reference, is_element_reference,
+       evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference,
        is_position_reference, is_reference_equal, is_prefix_of,
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,

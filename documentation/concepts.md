@@ -45,7 +45,7 @@ undoes a meaningful operation, not an accidental character.
 
 A **domain** is a set of data types that belong to one problem area. The JSON
 domain has `JsonObject`, `JsonArray`, `JsonString`, `JsonNumber`, `JsonBool`,
-and `JsonNull`. The text domain has `TextText`, `TextString`, `TextNewline`.
+and `JsonNull`. The text domain has `TextBlock`, `TextString`, `TextNewline`.
 
 Domains are completely independent of each other. A JSON domain type knows
 nothing about how it will be displayed, and a text domain type knows nothing
@@ -90,7 +90,7 @@ Projections are composable. The standard pipeline for JSON looks like:
 ```
 JsonObject
   ──[JsonToSyntax]──▶ SyntaxNode
-  ──[SyntaxToText]──▶ TextText
+  ──[SyntaxToText]──▶ TextBlock
   ──[TextToGraphics]──▶ GraphicsCanvas ──▶ SDL window
 ```
 
@@ -177,17 +177,17 @@ as one editing model.
 
 The code follows the concept DAG rather than the closure — each open
 interface sinks to the lowest layer where every concept it mentions is
-already introduced (AR-47), so a reader in load order never hits an
+already introduced (AR-LOWEST-PACKAGE), so a reader in load order never hits an
 undefined name:
 
 | Concept | Home in the kernel | What it defines |
 |---|---|---|
-| `Document` | layer 2 — `document/Interface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
-| `Reference` | layer 3 — `reference/Interface.jl` | the `ReferenceStep` / `ReferencePath` abstract types and the step seam. The concrete steps live in `reference/ReferenceStep.jl`, the path structure in `reference/ReferencePath.jl`, the value protocol in `reference/ReferenceEvaluation.jl`, and the `@reference` DSL in `reference/ReferenceBuilder.jl`. |
-| Selection generics | layer 4 — `selection/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 5) calls down into this layer. |
-| `Operation` | layer 5 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |
-| `gesture` and `read_gesture` | layer 6 — `device/GestureBinding.jl` | the reified gesture patterns, the `@gestures` registry, the `read_gesture(document, gesture)` open seam and its `@gestures`-driven catch-all. |
-| `projection` | layer 8 — `projection/Projection.jl` | the `Projection` abstract type, the four interface functions (`print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`), and the `@projection` macro. |
+| `Document` | layer 6 — `document/Interface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
+| `Reference` | layer 7 — `reference/Interface.jl` | the `ReferenceStep` / `ReferencePath` abstract types and the step seam. The concrete steps live in `reference/ReferenceStep.jl`, the path structure in `reference/ReferencePath.jl`, the value protocol in `reference/ReferenceEvaluation.jl`, and the `@reference` DSL in `reference/ReferenceBuilder.jl`. |
+| Selection generics | layer 8 — `selection/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 9) calls down into this layer. |
+| `Operation` | layer 9 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |
+| `gesture` and `read_gesture` | layer 10 — `binding/GestureBinding.jl` | the reified gesture patterns, the `@gestures` registry, the `read_gesture(document, gesture)` open seam and its `@gestures`-driven catch-all (`read_bound_gesture`). |
+| `projection` | layer 11 — `projection/Projection.jl` | the `Projection` abstract type, the four interface functions (`print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`), and the `@projection` macro. |
 
 The umbrella package (`Projectured`) re-exports every name from every home, so
 downstream code that writes `using Projectured` sees the cluster flat and does
@@ -222,7 +222,7 @@ general rather than tied to any one domain or any one display.
   `JsonNumber`, `TextString`, `SyntaxLeaf`, `GraphicsRect`. Each is small,
   typed, and has a clear meaning inside its own domain.
 - **Combination** happens by nesting. A `JsonObject` holds entries that hold
-  strings and child documents; a `TextText` holds a vector of strings and
+  strings and child documents; a `TextBlock` holds a vector of strings and
   newlines; a `GraphicsCanvas` holds shapes. The recursive structure lets a
   primitive grow into an arbitrarily large document without changing how its
   parts behave.
@@ -324,10 +324,10 @@ ReplaceSelectionOperation({2})    # cursor at offset 2 in JsonString domain
 - Writes `{2}` into `JsonString.selection[]`.
 - Since `SyntaxLeaf.selection` is a *computed cell* that reads
   `JsonString.selection`, it is now automatically stale.
-- Since `TextText.selection` is a computed cell that reads `SyntaxLeaf.selection`,
+- Since `TextBlock.selection` is a computed cell that reads `SyntaxLeaf.selection`,
   it too is stale.
 - Since `GraphicsCanvas` contains a cursor `GraphicsRect` whose position depends
-  on `TextText.selection`, it is stale.
+  on `TextBlock.selection`, it is stale.
 
 **Step 6 — The printer re-renders.**
 On the next frame, the editor calls `print_document` again. Because of the

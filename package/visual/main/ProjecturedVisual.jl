@@ -65,8 +65,7 @@ const ProjectionReferenceApiModule = ProjecturedKernel.ProjectionReferenceModule
 # PointReferenceModule is defined locally by this package's graphics slice
 # (`include("graphics/PointReference.jl")` below).
 const OperationModule = ProjecturedKernel.OperationModule
-const GestureModule = ProjecturedKernel.GestureModule
-const GestureApiModule = ProjecturedKernel.GestureModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const BackendModule = ProjecturedKernel.BackendModule
 const BackendApiModule = ProjecturedKernel.BackendModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
@@ -78,13 +77,11 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
+const DomainModule = ProjecturedBase.DomainModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
-const KeyboardModule = ProjecturedKernel.KeyboardModule
-const MouseModule = ProjecturedKernel.MouseModule
-const ModifiersModule = ProjecturedKernel.ModifiersModule
-const EventCaseModule = ProjecturedKernel.GestureModule
-const GestureBindingModule = ProjecturedKernel.GestureModule
+const EventModule = ProjecturedKernel.EventModule
+const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
@@ -103,16 +100,13 @@ const EnvelopeUnwrappingProjectionModule = ProjecturedBase.EnvelopeUnwrappingPro
 const FocusingProjectionModule = ProjecturedBase.FocusingProjectionModule
 const ReversingProjectionModule = ProjecturedBase.ReversingProjectionModule
 const ConstantProjectionModule = ProjecturedBase.ConstantProjectionModule
-const ScreenDeviceModule = ProjecturedKernel.ScreenDeviceModule
 const DisplayModule = ProjecturedKernel.DisplayModule
-const DeviceApiModule = ProjecturedKernel.DeviceModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule
 const LlmModule = ProjecturedKernel.LlmModule
-const McpModule = ProjecturedKernel.McpModule
-const ToolRegistryModule = ProjecturedKernel.ToolRegistryModule
-const AgentApiModule = ProjecturedKernel.AgentModule
+const ToolModule = ProjecturedKernel.ToolModule
+const AgentServerModule = ProjecturedKernel.AgentServerModule
 const AgentModule = ProjecturedKernel.AgentModule
 # Base's document-shaped projections used by visual bridges (Sorting is
 # imported from CollectionToSyntax indirectly, but exposing it costs nothing).
@@ -173,7 +167,7 @@ include("layout/ConstraintSolver.jl")
 include("layout/CollectionToLayout.jl")
 
 # ── Slice 5 — text (styled text + its renderings) ────────────────────────
-# Text is the styled-text domain (TextText/TextString/TextNewline…);
+# Text is the styled-text domain (TextBlock/TextString/TextNewline…);
 # TextToGraphics/TextToString are the render endpoints; the decorators
 # (LineNumbering, WordWrapping, TextFiltering, TextFirstLine,
 # TextHighlighting, SelectionInverting) are Text→Text transforms;

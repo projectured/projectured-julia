@@ -27,7 +27,7 @@ import ..IdentityProjectionModule: IdentityProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference
 import ..PointReferenceModule: PointReference
 import ..OperationModule: ReplaceSelectionOperation
-import ..MouseModule: MousePress
+import ..EventModule: MousePress
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 
 # ── Predicates ──────────────────────────────────────────────────────────────

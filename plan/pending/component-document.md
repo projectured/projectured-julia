@@ -8,7 +8,7 @@ The full UI layer stack:
 
 | Layer | What it is | Examples |
 |-------|-----------|----------|
-| Document | Domain data, no UI concerns | `DbCatalogRdbms`, `JsonDocument`, `TextText` |
+| Document | Domain data, no UI concerns | `DbCatalogRdbms`, `JsonDocument`, `TextBlock` |
 | Widget | Atomic UI primitives, layout & rendering | `WidgetSplitPane`, `WidgetScrollPane`, `WidgetText` |
 | Component | Composed from widgets, delivers user-facing behavior | master-detail, form, toolbar+content, etc. |
 | Workbench | Application-level shell | `WorkbenchWorkbench`, `WorkbenchEditor` |

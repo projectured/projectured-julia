@@ -20,7 +20,7 @@ series. Several were documented as "pre-existing" in recent commit messages.
    `test_text_navigations_complete` compares `string(enumerated)` (plain skeleton,
    e.g. `.elements[1].content{0}`) against `visited::Set{String}` built from
    navigation selections, which are now **canonical (checkpointed)**, e.g.
-   `::TextText.elements[1].content::String{189}`. Never matches.
+   `::TextBlock.elements[1].content::String{189}`. Never matches.
    **Fix:** normalise modulo checkpoints — store `strip_reference_types` form in
    `visited` (test/src/editor/TextNavigationTest.jl). Intent-preserving.
 
@@ -46,7 +46,7 @@ series. Several were documented as "pre-existing" in recent commit messages.
    `assistant` message emitted. **Decide:** regression in production vs. test needs
    blessing — determine from the serialization code.
 
-6. **SqlToSyntax test orphans.** `SqlToSyntaxTest.jl:15` iterates a `TextText`
+6. **SqlToSyntax test orphans.** `SqlToSyntaxTest.jl:15` iterates a `TextBlock`
    (`out` shape changed); `test_sql_to_syntax_selection` calls undefined
    `test_selection`. **Fix:** update/remove the orphaned test code.
 
@@ -83,7 +83,7 @@ series. Several were documented as "pre-existing" in recent commit messages.
     JsonObject no longer forwards → threw → swallowed by try/catch → empty tool
     input → `KeyError("code")` → `is_error=true`. Fixed by iterating `j.entries`.
     Test updated to the correct 2-turn shape (single assistant turn carrying
-    `[EvaluatorForm(code="1+1", result≈"2"), TextText("Done.")]`). 55/55 green.
+    `[EvaluatorForm(code="1+1", result≈"2"), TextBlock("Done.")]`). 55/55 green.
   - [x] **Selection-forwarding cluster (click round-trips / cursor re-render)** —
     forward-project the input selection onto each projection's output so a cursor
     re-renders after `set_selection!`:

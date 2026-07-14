@@ -70,8 +70,9 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      10 layers: cell → document → reference → selection →
-        │                      operation → device → backend → projection → agent → editor
+        ▲                      15 layers: cell → event → device → gesture → backend →
+        │                      document → reference → selection → operation → binding →
+        │                      projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         ▲                      3 layers: document (Collection, DocumentCore, Primitive,
@@ -144,9 +145,10 @@ directly (`SdlBackend()`) where the package is a dependency, or let
 `ProjecturedBase.default_backend` pick a loaded `Backend` subtype by type-name
 reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
 `ProjecturedDomain` (they need nothing external) — only **live ODBC
-querying** lives in `Odbc`. Likewise the agent *registry and tools* are
-kernel-resident (in the agent layer); only the MCP transport and the
-Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
+querying** lives in `Odbc`. Likewise each editor's *tool surface* is
+kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
+kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
+the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 > Per-file paths cited in the module inventory below sometimes reflect an
 > older single-package layout; the code now lives across the four
@@ -185,7 +187,7 @@ Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRectangularReference` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
-| `Text.jl` | `TextText`, `TextString`, `TextNewline` |
+| `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
 | `Syntax.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
 | `Graphics.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
 | `Widget.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
@@ -287,13 +289,14 @@ composes with any higher-order projection.
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextText`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
-| `device/ScreenDevice.jl` | `Screen` device; `WindowQuit` |
-| `device/Keyboard.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
-| `device/Mouse.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` |
-| `agent/Mcp.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `device/Screen.jl` | `Screen` device |
+| `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
+| `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
+| `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
+| `agent/AgentServer.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
 
@@ -314,24 +317,36 @@ ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄─�
    (opt-in)                                                        (opt-in)
 ```
 
-**Inside ProjecturedKernel — 10 layers**, in include order; each imports only layers
+**Inside ProjecturedKernel — 15 layers**, in include order; each imports only layers
 above it in this list:
 
 ```
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
- 2 document    the Document supertype, @document, the is_element_collection /
+ 2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers,
+               KeyDown/KeyPress/Mouse*/Window*, EventEnvelope), the event pattern
+               language (EventPattern, matches, describe, @event_case)
+ 3 device      Device abstract + Keyboard / Mouse / Screen, the read_from_devices /
+               write_to_devices seam
+ 4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 5 backend     the Backend / Display seam and HeadlessBackend
+ 6 document    the Document supertype, @document, the is_element_collection /
                is_opaque traits, search_documents, Clock
- 3 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
+ 7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case DSLs
- 4 selection   get_selection / set_selection! / clear_selection! / with_selection
- 5 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
- 6 device      Keyboard / Mouse / Screen events, modifiers, gestures, @gestures
- 7 backend     the Backend / Display seam and HeadlessBackend
- 8 projection  the four interface functions, Intent, the IO maps, @projection,
+ 8 selection   get_selection / set_selection! / clear_selection! / with_selection
+ 9 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+10 binding     GestureBinding, the per-document-type registry, @gestures /
+               @gesture_set, read_gesture / read_bound_gesture
+11 projection  the four interface functions, Intent, the IO maps, @projection,
                ProjectionTemplate, ProjectionReference
- 9 agent       the agent control surface: ToolRegistry and the Llm / Mcp seams
-10 editor      run_editor!, the read-eval-print loop, Playback
+12 tool        the editor's capability surface: Tool / Resource / ToolSet,
+               execute_julia_code, doc/API search, register_default_tools!
+13 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
+               LlmMessage / LlmRequest, LlmEvent
+14 agent       the AI control surface: AgentServerModule (inbound, the MCP
+               seam) and AgentModule (outbound, the Agent and run_turn! loop)
+15 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
 **Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble
@@ -422,7 +437,7 @@ slice→slice edges stay acyclic.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
-| References | `reference/` (layer 3) | ✅ |
+| References | `reference/` (layer 7) | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

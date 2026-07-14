@@ -57,9 +57,9 @@ document; an **external sampler driven by the loop** reads the cell and the disk
 and reconciles them; the **projection** is an ordinary bidirectional
 text projection over that cell (no I/O of its own).
 
-This mirrors `PrimitiveStringToTextText`
+This mirrors `PrimitiveStringToTextBlock`
 ([package/domain/src/projection/primitive/PrimitiveToText.jl](../../package/domain/src/projection/primitive/PrimitiveToText.jl))
-almost exactly — a string value rendered as a single editable `TextText` span,
+almost exactly — a string value rendered as a single editable `TextBlock` span,
 with editing reified once as `@gestures` on the document and reached through the
 generic `document_read` fallback.
 
@@ -84,7 +84,7 @@ plugged in — the same way `Device`/`Backend` are abstract in the kernel
                                                        ▼
    FileSystemSynchronizer  ◄── synchronize!(s) once/frame ──  FileSystemFileToText
    (domain/editor, side-effecting)                            (pure, bidirectional)
-                                                              TextText ── … ── Graphics
+                                                              TextBlock ── … ── Graphics
 ```
 
 - **Document**: `FileSystemFile` gains a `content::String` field (a reactive
@@ -163,7 +163,7 @@ out-of-range offset defensively, but clamping at the source is the clean fix.)
 ### File (new): `package/domain/src/projection/primitive/FileSystemFileToText.jl`
 
 A pure, bidirectional projection from `FileSystemFile` to a single-span
-`TextText`, modeled directly on `PrimitiveStringToTextText`. It does **no** I/O —
+`TextBlock`, modeled directly on `PrimitiveStringToTextBlock`. It does **no** I/O —
 it only reads the reactive `content` cell, so when the synchronizer rewrites that
 cell the rendered text recomputes for free.
 
@@ -180,7 +180,7 @@ map_reference_backward(::FileSystemFileToText, iomap, ref) = _backward_content(r
 
 function projection_print(p::FileSystemFileToText, recursion, f::FileSystemFile, ctx)
     span = TextString(() -> something(f.content, ""), p.style)        # reads the cell
-    out  = TextText(CellVector(() -> TextDocument[span]),
+    out  = TextBlock(CellVector(() -> TextDocument[span]),
                     Cell(() -> _content_selection_to_text(f)))
     SimpleIoMap(p, f, out)
 end
@@ -384,7 +384,7 @@ this clearly — silent data loss in either direction is the thing to avoid.
    clamped in range.
 5. **Projection** (`package/test/src/projection/FileSystemFileToTextTest.jl`, new,
    registered in `ProjecturedTest.jl`): `test_printer`/`test_reader` over
-   `make_filesystem_file_example()` — print yields a `TextText` whose span content
+   `make_filesystem_file_example()` — print yields a `TextBlock` whose span content
    equals the file text; typing a character reads back a
    `StringReplaceRangeOperation` on `content{…}`; selection round-trips via the two
    reference mappers. Reuse the `walk_printer_output` / reader walkers per
@@ -399,7 +399,7 @@ are deterministic and fast. Tests must use the session scratch dir for temp file
 | File | Change |
 |---|---|
 | `package/domain/src/document/FileSystem.jl` | `content` field on `FileSystemFile`; `@gestures FileSystemFile`; `_file_content_*`, `clamp_file_selection!` helpers |
-| `package/domain/src/projection/primitive/FileSystemFileToText.jl` | **new** — bidirectional content↔TextText projection |
+| `package/domain/src/projection/primitive/FileSystemFileToText.jl` | **new** — bidirectional content↔TextBlock projection |
 | `package/domain/src/editor/FileSystemSynchronizer.jl` | **new** — loop-driven disk⇄cell reconciler |
 | `package/domain/src/ProjecturedDomain.jl` | include the two new domain files |
 | `package/kernel/src/api/Synchronizer.jl` | **new** — abstract `Synchronizer` + generic `synchronize!` |

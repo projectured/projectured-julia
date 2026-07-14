@@ -73,16 +73,16 @@ JsonDocument => SequentialProjection(
 )
 ```
 
-The `inner` runs `… → TextText`; the configuring projection stacks the control
+The `inner` runs `… → TextBlock`; the configuring projection stacks the control
 bar above it and emits a `WidgetSplitPane`; the trailing `renderer` (a
-`RecursiveProjection(TypeDispatchingProjection(w2g.dispatch + TextText⇒TextToGraphics))`,
+`RecursiveProjection(TypeDispatchingProjection(w2g.dispatch + TextBlock⇒TextToGraphics))`,
 i.e. the same renderer shape `combined_w2g` already is) turns it into graphics.
 A `nothing`/empty pattern is a pass-through, so a configured stage can sit
 permanently in the chain and stay idle until the user types in its control bar.
 
 > These go in the **per-document-type pipeline** because they are inherently
 > about text rendering and only make sense for text-bearing content (console,
-> editors whose tail is a `TextText`). The inner text projection must be
+> editors whose tail is a `TextBlock`). The inner text projection must be
 > downstream of `SyntaxToText`; the configuring wrapper + renderer replace the
 > bare `TextToGraphics` tail.
 

@@ -27,11 +27,32 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
-import ..GestureBindingModule: is_help_gesture
+import ..EventPatternModule: KeyDownPattern, matches
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..GestureMapModule: gesture_map
 
-export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap
+export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap,
+       HELP_GESTURE, is_help_gesture
+
+"""
+    HELP_GESTURE
+
+The gesture that summons the help window: F1, with any modifiers. It is an ordinary
+reified pattern, owned here rather than by the input vocabulary — an event carries no
+intent, so "F1 means help" is this projection's decision and no one else's.
+
+Lisp binds help to Ctrl-H; F1 is unambiguous here, where Ctrl-? would need
+`Ctrl+Shift+/` handling. A key chord would work too, once a chord table entry and a
+chord pattern exist.
+"""
+const HELP_GESTURE = KeyDownPattern(:f1)
+
+"""
+    is_help_gesture(event) -> Bool
+
+True when `event` is the gesture that summons the help window.
+"""
+is_help_gesture(event) = matches(HELP_GESTURE, event)
 
 """
     GestureHelpState(open=false)

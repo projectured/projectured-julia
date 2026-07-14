@@ -32,7 +32,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
-import ..TextModule: TextDocument, TextString, TextText, TextGraphics
+import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
@@ -42,7 +42,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                          ReferencePath, EmptyReferencePath, append_reference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..OperationModule: ReplaceSelectionOperation
@@ -429,7 +429,7 @@ end
 
 # ── BookParagraphToSyntaxLeaf ─────────────────────────────────────────────────
 #
-# Maps BookParagraph → SyntaxLeaf.  The paragraph content (a TextText or
+# Maps BookParagraph → SyntaxLeaf.  The paragraph content (a TextBlock or
 # plain string) is rendered flat into the leaf value span.
 #
 # Selection forward:  .content → .value
@@ -444,7 +444,7 @@ end
 # `.content` field is rendered flat into the leaf's `.value` span, so a `.content`
 # cursor maps to `.value` and back. The engine derives every reader from the
 # `bound(:content, …)` wiring. Type-in on the flat span is spliced back into the
-# paragraph's `content` (a TextText) generically by `splice_value!`.
+# paragraph's `content` (a TextBlock) generically by `splice_value!`.
 @projection_template BookParagraphToSyntaxLeaf BookParagraph (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
                      TextString(() -> _render_paragraph_content(doc.content), prj.style)))
@@ -481,7 +481,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
 
     sel = Cell(() -> begin
         path = b.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return b.selection
+        is_introduced_reference(path) && return b.selection
         @reference_case path begin
             ::BookList.elements{s:_}.rest... => begin
                 child_i = s + 1
@@ -649,7 +649,7 @@ end
 
 function _render_paragraph_content(content)
     content === nothing && return ""
-    content isa TextText || return string(content)
+    content isa TextBlock || return string(content)
     buf = IOBuffer()
     for span in content.elements
         span isa TextString && print(buf, span.content)

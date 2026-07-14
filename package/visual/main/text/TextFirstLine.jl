@@ -1,7 +1,7 @@
 """
     TextFirstLineModule
 
-Text → Text projection. Keeps only the **first visual line** of a `TextText`:
+Text → Text projection. Keeps only the **first visual line** of a `TextBlock`:
 the span prefix up to the first line break, where a break is either
 
 - a standalone `TextNewline` span, or
@@ -26,7 +26,7 @@ edits/selection inside the first line land on the real underlying span.
 module TextFirstLineModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextText, TextDocument, TextString, TextNewline, TextGraphics
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
@@ -43,7 +43,7 @@ export TextFirstLine, TextFirstLineIoMap
 """
     TextFirstLine()
 
-`TextText → TextText` projection that keeps the first visual line only.
+`TextBlock → TextBlock` projection that keeps the first visual line only.
 Stateless — the cut is recomputed reactively from the input spans.
 """
 struct TextFirstLine <: Projection end
@@ -56,24 +56,24 @@ struct TextFirstLine <: Projection end
 # end of input with no truncation); `trunc_len` is that span's kept char count.
 struct TextFirstLineIoMap <: IoMap
     projection::Any
-    input::TextText
-    output::TextText
+    input::TextBlock
+    output::TextBlock
     info::Cell  # Cell{NamedTuple{(:kept,:trunc_span,:trunc_len)}}
 end
 
 # ── Print ─────────────────────────────────────────────────────────────────────
 
-function print_document(p::TextFirstLine, recursion, text::TextText, ctx)
+function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
     both = Cell(() -> _first_line(text))
     elements_cv = CellVector(() -> both[][1])
     info_cell = Cell(() -> both[][2])
     out_selection = Cell(() -> _forward(info_cell[], text.selection))
-    output = TextText(elements_cv, out_selection)
+    output = TextBlock(elements_cv, out_selection)
     TextFirstLineIoMap(p, text, output, info_cell)
 end
 
 # Returns (output_elements::Vector{TextDocument}, info::NamedTuple).
-function _first_line(text::TextText)
+function _first_line(text::TextBlock)
     result = TextDocument[]
     trunc_span = 0
     trunc_len = 0
@@ -170,7 +170,7 @@ read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
 # ── Path helpers (mirrors WordWrapping) ───────────────────────────────────────
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextText.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)

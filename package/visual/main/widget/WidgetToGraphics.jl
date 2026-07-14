@@ -60,8 +60,8 @@ import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..MouseModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
-import ..EventCaseModule: var"@event_case"
+import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
+import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
@@ -75,9 +75,9 @@ import ..PrinterContextModule: make_child_context, with_available_size
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
-import ..KeyboardModule: KeyDown
-import ..ModifiersModule: Modifiers
-import ..GestureBindingModule: read_document_gesture, read_node_gesture
+import ..EventModule: KeyDown
+import ..EventModule: Modifiers
+import ..GestureBindingModule: read_bound_gesture
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
@@ -835,7 +835,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
 # IoMap for an *editable* WidgetText: its `content` is a Document (typically a
-# `TextText`) recursed through the Text domain, so all caret navigation and text
+# `TextBlock`) recursed through the Text domain, so all caret navigation and text
 # editing is produced by `TextToGraphics`. The widget only re-roots the resulting
 # operations by prepending `content` (see `map_reference_backward`).
 struct WidgetTextToGraphicsCanvasIoMap <: IoMap
@@ -850,7 +850,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
 
-    # Editable form: a Document content (e.g. a TextText) is recursed through the
+    # Editable form: a Document content (e.g. a TextBlock) is recursed through the
     # outer projection chain (which routes it to TextToGraphics). Navigation and
     # editing operations then originate in the Text domain; this projection just
     # maps them backward. Mirrors WidgetScrollPane's content recursion.
@@ -982,7 +982,7 @@ _checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
 function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
-    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _checkbox_toggle(w)
 end
 
@@ -992,7 +992,7 @@ end
 function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
-    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     _checkbox_toggle(w)
 end
@@ -1090,7 +1090,7 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     # (right-click, shift-click, …), override a built-in (same pattern shadows it),
     # or suppress one (map the pattern to `DoNothingOperation()`). An empty table returns
     # `nothing` immediately, so a plain button behaves exactly as before.
-    op = read_document_gesture(w, evt)
+    op = read_bound_gesture(w, evt)
     op === nothing || return op
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? _button_primary_op(w) : nothing
@@ -1486,7 +1486,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     # Per-instance gestures win over the built-in click/submenu handling (an enabled
     # item only, matching the built-in gate). Hover crossings below are unaffected.
     if _menu_item_enabled(w)
-        op = read_document_gesture(w, evt)
+        op = read_bound_gesture(w, evt)
         op === nothing || return op
     end
     if evt isa MousePress
@@ -3510,14 +3510,14 @@ end
 function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
-    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _switch_toggle(w)
 end
 
 function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
-    op = read_document_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
     _switch_toggle(w)
 end
@@ -5300,7 +5300,7 @@ map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 # hover / nav below is the fallback.
 function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
     w = iomap.input
-    op = read_document_gesture(w, evt)
+    op = read_bound_gesture(w, evt)
     op === nothing || return op
     nop = _wtree_node_gesture(iomap, evt)
     nop === nothing || return nop
@@ -5337,8 +5337,7 @@ end
 # pointer for a `MousePress` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
 # `get_instance_gesture_bindings` against the enclosing tree's selection. A node has no
-# `selection` of its own, hence `read_node_gesture` rather than
-# `read_document_gesture`.
+# `selection` of its own, hence the explicit-selection `read_bound_gesture`.
 function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
     w = iomap.input
     geom = iomap.geometry[]
@@ -5357,7 +5356,7 @@ function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
     path === nothing && return nothing
     node = _wtree_node_at(w, path)
     node === nothing && return nothing
-    return read_node_gesture(node, g, w.selection)
+    return read_bound_gesture(node, g, w.selection)
 end
 
 # A left click on a parent row's chevron column toggles its collapse; anywhere

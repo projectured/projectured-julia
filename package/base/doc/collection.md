@@ -35,7 +35,7 @@ every domain and is domain-independent — Collection and Primitive pass; see
 [architecture.md](architecture.md) for the full membership rule. Two related
 types that might look like they belong here do not: `ScreenDocument` lives in
 `visual/screen/` (window things are visual) and `EventEnvelope` lives in the
-kernel's `GestureModule` (it is a protocol type consumed by the editor loop,
+kernel's `EventModule` (it is a protocol type consumed by the editor loop,
 not a document). The rationale for those placements is documented in
 [devices-and-backends.md](../../../package/kernel/doc/devices-and-backends.md).
 

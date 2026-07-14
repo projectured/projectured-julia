@@ -105,9 +105,20 @@ end
     @test selof(arr[1]) isa ConcreteReferencePath
 end
 
-@testset "digit gating: a character cursor in a number declines" begin
+@testset "digit gating: the chain gates the digit, not the domain" begin
+    # On its own the domain replaces the number: a gesture that reconstructs what the
+    # text layer *would have* done in order to decline is exactly what reading
+    # last-to-first removes. The gating is real, but it belongs to the chain — the text
+    # layer claims a digit first, so the domain never sees one mid-number.
     num = JsonNumber(42)
-    @test read_key(num, @reference(num, value{1}), KeyPress('5')) === nothing
+    @test read_key(num, @reference(num, value{1}), KeyPress('5')) isa CompoundOperation
+
+    chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
+                               RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = truetype_measure_text))
+    n = JsonNumber(42)
+    set_selection!(n, @reference(n, value{1}))
+    @test read_intent(chain, print_document(chain, n), KeyPress('5')) isa ReplaceNumberRangeOperation
 end
 
 @testset "array insert appends an insertion and selects it" begin
@@ -139,9 +150,12 @@ end
     obj = JsonObject("a" => JsonNumber(1))
     op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, Modifiers()))
     @test op isa ReplaceSelectionOperation
-    # The Tab op selects the entry's value whole, carrying its folded types.
+    # The Tab op selects the entry's value whole, carrying its folded types. The
+    # terminal checkpoint is the value's *concrete* type, not the declared `Document`
+    # field type — that is the canonical annotated form, and what `set_selection!`
+    # stores for this path either way.
     @test is_reference_equal(op.path,
-          @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document)
+          @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::JsonNumber)
     # Tab outside a key does nothing.
     @test read_key(obj, whole, KeyDown(:tab, Modifiers())) === nothing
 end

@@ -100,6 +100,7 @@ function __init__()
     initialize_backend!(SdlBackend())
 end
 
+include("ExportCollisionTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/ExampleSweeps.jl")
 include("editor/PrinterLocalityTest.jl")
@@ -163,6 +164,12 @@ function test_all()
     test_base()
     test_visual()
     test_domain()
+    # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
+    # name is exported by two modules with different bindings, so bare `using
+    # ..XxxModule` can never become ambiguous. The per-package guards cannot
+    # see this.
+    test_export_collision_checker()
+    test_export_collisions()
     # Umbrella integration: everything below needs the example registry, the
     # editor loop, or an opt-in backend package (Sdl/Tulip/Odbc/Video).
     test_gesture_recognizer()
@@ -209,6 +216,7 @@ end
 
 export test_all
 export test_kernel, test_base, test_visual, test_domain
+export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene

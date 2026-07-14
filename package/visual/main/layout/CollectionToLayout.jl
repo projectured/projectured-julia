@@ -11,7 +11,7 @@ in a `ChainingProjection`, the layout renderer then recurses each element
 through the surrounding `recursion` (the natural renderer), so every element is
 rendered in its *own* domain — prose as prose, JSON as JSON, a widget as a
 widget — instead of every element being forced through the to-syntax fabric.
-This is what lets a `CellVector` of mixed content (including `TextText`) render
+This is what lets a `CellVector` of mixed content (including `TextBlock`) render
 naturally; see the natural-projection plan.
 
 Because the rewrap does not recurse, the reference maps only relocate the head:

@@ -28,20 +28,26 @@ alias first, then an unambiguous prefix).
 module DomainModule
 
 import InteractiveUtils: subtypes
-import ..GestureModule
+import ..EventPatternModule
+import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document"
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath
-import ..SelectionModule: with_selection
-import ..OperationModule: replace_document
-import ..GestureModule: GestureBinding, KeyDownPattern, get_document_gesture_bindings_own
+                          EmptyReferencePath, ElementReference, PositionReference,
+                          append_reference, concat_references, annotate_reference_types,
+                          reference_node_type, try_evaluate_reference
+import ..SelectionModule: with_selection, get_selection
+import ..ProjectionReferenceModule: named_node_reference
+import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
+import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
+import ..EventPatternModule: KeyDownPattern
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 
 export var"@domain", var"@insertion",
        insertion_root, nothing_document, insertion_document, domain_prefix,
        domain_insertion, insertable, insertion_aliases, make_insertion_document,
        insertion_names, insertion_candidates, complete_insertion, resolve_insertion,
-       insert_document_operation
+       insert_document_operation, append_insertion_operation, move_to_field,
+       replace_selected_document
 
 # ── Traits ────────────────────────────────────────────────────────────────────
 #
@@ -337,6 +343,90 @@ pre-placed at the start of its `value` buffer.
 insert_document_operation(::Type{I}) where {I} =
     replace_document(EmptyReferencePath(), with_selection(I(), _INSERTION_CURSOR))
 
+"""
+    replace_selected_document(document, replacement) -> Operation
+
+Replace the document the caret **names** with `replacement` — the type-to-replace
+gesture every domain spells the same way (`n` for null, `[` for an array).
+
+"Names" is the whole content of this verb: a caret on a projection-introduced token —
+a bracket, a placeholder — names the node it was printed for, not a node of its own,
+so it normalizes to ∅ (see [`named_node_reference`](@ref)). `replacement` carries its
+own cursor, so nothing else needs placing.
+"""
+replace_selected_document(document, replacement) =
+    replace_document(named_node_reference(get_selection(document)), replacement)
+
+"""
+    append_insertion_operation(document, field::Symbol, T::Type) -> Operation
+
+Append a fresh `T` to `document`'s `field` collection and leave the cursor where that
+`T` says it goes.
+
+The cursor is not a parameter because it is not a choice: `make_insertion_document(T)`
+already carries the selection its `@insertion` factory declared — `XmlText` opens at
+`content{0}`, `XmlAttribute` at `name{0}`, a bare placeholder like `JsonInsertion` at
+no position at all, meaning "selected whole". Appending concatenates that embedded
+selection onto the new element's path, so the eight hand-written appenders across
+JSON / YAML / XML — each of which re-derived the very cursor its own insertion factory
+had already declared — are one call.
+"""
+function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T}
+    inserted = make_insertion_document(T)
+    n = length(getproperty(document, field))
+    # Annotate the field path against the document (it exists); the new element cannot
+    # be annotated that way — it is not in the document yet — so its terminal type
+    # checkpoint comes from the insertion itself.
+    field_path = annotate_reference_types(document,
+        ConcreteReferencePath(FieldReference(String(field)), EmptyReferencePath()))
+    element_path = concat_references(field_path,
+        ConcreteReferencePath(ElementReference(n + 1),
+                              EmptyReferencePath(reference_node_type(inserted))))
+    inner = get_selection(inserted)
+    cursor = inner === nothing ? element_path : concat_references(element_path, inner)
+    insert_elements(field_path, n, Any[inserted], cursor)
+end
+
+"""
+    move_to_field(document, selection, from::Symbol, to::Symbol) -> Operation | Nothing
+
+Move the cursor from inside `document`'s `from` field to its sibling `to` field —
+JSON/YAML's Tab (key → value) and XML's `=` (attribute name → value). `nothing` when
+the caret is not in a `from` field.
+
+Where in `to` the cursor lands is decided by what `to` *is*, not by an argument: a
+child document is named whole (there is no text to be inside of), a primitive text
+field takes a caret at its start. That is exactly the difference the three hand-written
+versions encoded by hand — JSON and YAML landed on `.value` whole because it is a
+`Document`, XML on `value{0}` because it is a `String`.
+"""
+move_to_field(document, from::Symbol, to::Symbol) =
+    move_to_field(document, get_selection(document), from, to)
+
+function move_to_field(document, selection, from::Symbol, to::Symbol)
+    prefix = _prefix_before_field(selection, String(from))
+    prefix === nothing && return nothing
+    target = annotate_reference_types(document,
+        concat_references(prefix, ConcreteReferencePath(FieldReference(String(to)),
+                                                        EmptyReferencePath())))
+    value = try_evaluate_reference(document, target)
+    value === nothing && return nothing
+    cursor = value isa Document ? target :
+        annotate_reference_types(document, append_reference(target, PositionReference(0)))
+    ReplaceSelectionOperation(cursor)
+end
+
+# The path down to (but not including) the step naming `field` — the enclosing element,
+# whose sibling field the caret is moving to. `nothing` if no such step is on the path.
+_prefix_before_field(path::EmptyReferencePath, field) = nothing
+function _prefix_before_field(path::ConcreteReferencePath, field)
+    h = path.head
+    h isa FieldReference && h.name == field && return EmptyReferencePath(path.type)
+    rest = _prefix_before_field(path.tail, field)
+    rest === nothing && return nothing
+    ConcreteReferencePath(path.type, h, rest)
+end
+
 _insert_gesture_binding(::Type{I}, tag::String) where {I} = GestureBinding(
     KeyDownPattern(:insert, nothing, nothing),
     (doc, event) -> insert_document_operation(I),
@@ -462,7 +552,7 @@ macro domain(name, opts...)
         # The Insert-key gesture on the placeholder. Same registry seam as
         # `@gestures` (a method, not a mutable table, so it survives
         # precompilation), emitted directly to avoid nesting that macro.
-        :($GestureModule.get_document_gesture_bindings_own(::Type{$noth}) =
+        :($GestureBindingModule.get_document_gesture_bindings_own(::Type{$noth}) =
               $(GestureBinding)[$(_insert_gesture_binding)($ins, $tag)]),
     ))
     out

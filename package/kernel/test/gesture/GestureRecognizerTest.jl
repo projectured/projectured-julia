@@ -11,10 +11,10 @@
 using Test
 using ProjecturedKernel
 using ProjecturedKernel.GestureRecognizerModule: GestureRecognizer, recognize_gesture!, pop_gesture!
-using ProjecturedKernel.GestureModule: EventEnvelope
-using ProjecturedKernel.MouseModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-using ProjecturedKernel.KeyboardModule: KeyDown, KeyPress, KeyChord
-using ProjecturedKernel.ModifiersModule: Modifiers
+using ProjecturedKernel.EventModule: EventEnvelope
+using ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+using ProjecturedKernel.EventModule: KeyDown, KeyPress, KeyChord
+using ProjecturedKernel.EventModule: Modifiers
 
 # A controllable clock: returns whatever `t[]` currently holds.
 _mk_clock(t::Ref{Float64}) = () -> t[]

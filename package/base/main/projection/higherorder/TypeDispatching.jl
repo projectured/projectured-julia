@@ -11,7 +11,7 @@ module TypeDispatchingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
 import ..IntentModule: Intent
-import ..GestureModule: GestureBinding
+import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export TypeDispatchingProjection
 
@@ -29,7 +29,7 @@ an abstract type, or a `Union` such as `Union{JsonNull,JsonBool}`.
     tdp = TypeDispatchingProjection(
         JsonDocument  => JsonToSyntax(),
         SyntaxDocument => SyntaxToText(),
-        TextText => TextToGraphics(),
+        TextBlock => TextToGraphics(),
     )
     result = print_document(tdp, some_json_doc)  # uses JsonToSyntax
 """

@@ -58,7 +58,7 @@ end
 # ── Content ──────────────────────────────────────────────────────────────
 
 """
-A prose paragraph. `content` is typically a `TextText`; `alignment` is one of
+A prose paragraph. `content` is typically a `TextBlock`; `alignment` is one of
 `:left`, `:center`, `:right`, or `:justified`.
 """
 @document struct BookParagraph <: BookDocument
@@ -87,7 +87,7 @@ A figure with an optional `title`. `content` is an image value or path;
 end
 
 # Text-replace edits need no per-type method: `title`/`author`/`numbering` are
-# plain strings, and a paragraph's `content` is a `TextText` whose representation
+# plain strings, and a paragraph's `content` is a `TextBlock` whose representation
 # locates and splices the right span.
 
 end # module

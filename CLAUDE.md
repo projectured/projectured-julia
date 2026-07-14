@@ -13,6 +13,10 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 ### `package/kernel/main/` seal status
 
 - ⬜ `ProjecturedKernel.jl` — module root, the layer diagram
+
+The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
+include order — the source files state their dependencies, never their index.
+
 - **Layer 1 — cell** (`cell/`)
   - ⬜ `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
@@ -25,7 +29,33 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `cell/StructPlan.jl`
   - ⬜ `cell/CellStruct.jl`
   - 🔒 `cell/Clock.jl`
-- **Layer 2 — document** (`document/`)
+- **Layer 2 — event** (`event/`)
+  - ⬜ `event/EventLayer.jl`
+  - ⬜ `event/EventModule.jl`
+  - ⬜ `event/Modifiers.jl`
+  - ⬜ `event/KeyboardEvent.jl`
+  - ⬜ `event/MouseEvent.jl`
+  - ⬜ `event/WindowEvent.jl`
+  - ⬜ `event/EventEnvelope.jl`
+  - ⬜ `event/EventPattern.jl`
+- **Layer 3 — device** (`device/`)
+  - ⬜ `device/DeviceLayer.jl`
+  - ⬜ `device/DeviceModule.jl`
+  - ⬜ `device/Device.jl`
+  - ⬜ `device/Keyboard.jl`
+  - ⬜ `device/Mouse.jl`
+  - ⬜ `device/Screen.jl`
+- **Layer 4 — gesture** (`gesture/`)
+  - ⬜ `gesture/GestureLayer.jl`
+  - ⬜ `gesture/GestureRecognizer.jl`
+- **Layer 5 — backend** (`backend/`)
+  - ⬜ `backend/BackendLayer.jl`
+  - ⬜ `backend/BackendModule.jl`
+  - ⬜ `backend/BackendInterface.jl`
+  - ⬜ `backend/BackendDefaults.jl`
+  - ⬜ `backend/Display.jl`
+  - ⬜ `backend/HeadlessBackend.jl`
+- **Layer 6 — document** (`document/`)
   - ⬜ `document/DocumentLayer.jl`
   - ⬜ `document/DocumentModule.jl`
   - ⬜ `document/Document.jl`
@@ -38,7 +68,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `document/DocumentSearch.jl`
   - ⬜ `document/DocumentShow.jl`
   - 🔒 `document/Forward.jl`
-- **Layer 3 — reference** (`reference/`)
+- **Layer 7 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
   - ⬜ `reference/ReferenceModule.jl`
   - ⬜ `reference/Interface.jl`
@@ -49,34 +79,22 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
-- **Layer 4 — selection** (`selection/`)
+- **Layer 8 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`
   - ⬜ `selection/SelectionModule.jl`
   - ⬜ `selection/Interface.jl`
   - ⬜ `selection/Selection.jl`
-- **Layer 5 — operation** (`operation/`)
+- **Layer 9 — operation** (`operation/`)
   - ⬜ `operation/OperationLayer.jl`
   - ⬜ `operation/OperationModule.jl`
   - ⬜ `operation/Interface.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
-- **Layer 6 — device** (`device/`)
-  - ⬜ `device/DeviceLayer.jl`
-  - ⬜ `device/Device.jl`
-  - ⬜ `device/Modifiers.jl`
-  - ⬜ `device/Keyboard.jl`
-  - ⬜ `device/Mouse.jl`
-  - ⬜ `device/GestureModule.jl`
-  - ⬜ `device/EventCase.jl`
-  - ⬜ `device/GestureBinding.jl`
-  - ⬜ `device/ScreenDevice.jl`
-  - ⬜ `device/GestureRecognizer.jl`
-- **Layer 7 — backend** (`backend/`)
-  - ⬜ `backend/BackendLayer.jl`
-  - ⬜ `backend/Backend.jl`
-  - ⬜ `backend/Display.jl`
-  - ⬜ `backend/HeadlessBackend.jl`
-- **Layer 8 — projection** (`projection/`)
+- **Layer 10 — binding** (`binding/`)
+  - ⬜ `binding/BindingLayer.jl`
+  - ⬜ `binding/GestureBinding.jl`
+  - ⬜ `binding/Gestures.jl`
+- **Layer 11 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReference.jl`
   - ⬜ `projection/ProjectionApi.jl`
@@ -88,13 +106,27 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/Projection.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 9 — agent** (`agent/`)
+- **Layer 12 — tool** (`tool/`)
+  - ⬜ `tool/ToolLayer.jl`
+  - ⬜ `tool/ToolModule.jl`
+  - ⬜ `tool/Tool.jl`
+  - ⬜ `tool/ToolSet.jl`
+  - ⬜ `tool/CodeExecution.jl`
+  - ⬜ `tool/Documentation.jl`
+  - ⬜ `tool/DefaultTools.jl`
+- **Layer 13 — llm** (`llm/`)
+  - ⬜ `llm/LlmLayer.jl`
+  - ⬜ `llm/LlmModule.jl`
+  - ⬜ `llm/Llm.jl`
+  - ⬜ `llm/LlmMessage.jl`
+  - ⬜ `llm/LlmEvent.jl`
+- **Layer 14 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
+  - ⬜ `agent/AgentServer.jl`
+  - ⬜ `agent/AgentModule.jl`
   - ⬜ `agent/Agent.jl`
-  - ⬜ `agent/Llm.jl`
-  - ⬜ `agent/ToolRegistry.jl`
-  - ⬜ `agent/Mcp.jl`
-- **Layer 10 — editor** (`editor/`)
+  - ⬜ `agent/AgentLoop.jl`
+- **Layer 15 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Playback.jl`

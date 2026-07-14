@@ -2,7 +2,7 @@
 # test/projection/HoverProbeTest.jl
 #
 # Hover click-reference inspector:
-#   - test_reference_inspector_text: ReferenceInspector → TextText renders both
+#   - test_reference_inspector_text: ReferenceInspector → TextBlock renders both
 #     the compact and human-readable sections (and a "no target" line for a
 #     nothing reference).
 #   - test_hover_probe: a MouseMove fed to HoverProbeProjection produces an
@@ -14,14 +14,14 @@
 # ProjecturedTest module scope; included after it).
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedVisual.TextModule: TextText, TextString
+using ProjecturedVisual.TextModule: TextBlock, TextString
 
 _inspector_text(ref, target) =
     print_document(ReferenceInspectorToText(),
                      ReferenceInspector(reference = ref, target = target)).output
 
 # Concatenate the plain content of every TextString span (skips newlines).
-function _flatten_text(tt::TextText)
+function _flatten_text(tt::TextBlock)
     io = IOBuffer()
     for i in 1:length(tt.elements)
         s = tt.elements[i]
@@ -33,7 +33,7 @@ end
 """
     test_reference_inspector_text()
 
-ReferenceInspector renders to a labelled two-section TextText.
+ReferenceInspector renders to a labelled two-section TextBlock.
 """
 function test_reference_inspector_text()
     @testset "ReferenceInspectorToText" begin
@@ -42,7 +42,7 @@ function test_reference_inspector_text()
         ref = ReferencePath(FieldReference("entries"), ElementReference(1))
 
         out = _inspector_text(ref, doc)
-        @test out isa TextText
+        @test out isa TextBlock
         flat = _flatten_text(out)
         @test occursin("Compact", flat)
         @test occursin("Human-readable", flat)
@@ -53,9 +53,9 @@ function test_reference_inspector_text()
         @test occursin("::", flat)
         @test occursin("which is", flat)
 
-        # A nothing reference degrades gracefully (no crash, still a TextText).
+        # A nothing reference degrades gracefully (no crash, still a TextBlock).
         none = _inspector_text(nothing, doc)
-        @test none isa TextText
+        @test none isa TextBlock
         @test occursin("Compact", _flatten_text(none))
 
         # The full follower-window content chain (the one the dispatcher runs

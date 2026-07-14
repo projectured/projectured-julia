@@ -2,13 +2,13 @@
     IntentModule
 
 The backward-flowing unit of the reader pipeline — the reader-side protocol data
-type `Intent`. It is a concrete data vehicle, not an interface to implement —
-it lives beside the interface stubs at the head of the projection layer, and
-readers import `Intent` from here directly.
+types `Intent` and `ClaimedGesture`. They are concrete data vehicles, not interfaces
+to implement — they live beside the interface stubs at the head of the projection
+layer, and readers import them from here directly.
 """
 module IntentModule
 
-export Intent
+export Intent, ClaimedGesture
 
 """
     Intent(gesture, operation = nothing)
@@ -36,5 +36,34 @@ struct Intent
 end
 
 Intent(gesture) = Intent(gesture, nothing)
+
+"""
+    ClaimedGesture(gesture, operation)
+
+A reader **payload**: `gesture`, offered to a projection that has already been
+handed an `operation` an *output* layer produced for it.
+
+Reading runs last-to-first, so by the time a change reaches an input-domain
+projection the output layers have had their say — a printable key they understood is
+already a character edit. That is the good default: it is what makes JSON's `,` a
+literal comma inside a string without a guard, and why a structural gesture never has
+to reconstruct what the text layer would have done in order to decline.
+
+A few keys cannot be text in their own context and must win anyway (XML's `<` inside
+a tag name inserts a child element). The generic reader bridge offers this payload to
+such a projection *before* translating the claimed operation; only `override`
+bindings fire for it (see `fire_gesture_bindings`), so it is inert for every ordinary
+gesture. A projection with nothing to say returns `nothing` and the claimed operation
+is translated exactly as before.
+
+It is a payload rather than a fifth generic function on purpose: descent rides
+`read_intent`, which already dispatches on what the payload *is* — a raw event, an
+`Operation`, or (now) a claimed event. The recursion contract forbids a new function
+to descend with (see `ProjectionApiModule`).
+"""
+struct ClaimedGesture
+    gesture::Any
+    operation::Any
+end
 
 end # module

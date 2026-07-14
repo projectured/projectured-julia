@@ -7,7 +7,7 @@
 > `package/domain/src/projection/...`. None of the canonical renames have been
 > applied:
 > - **`prj`** appears **0 times** anywhere under `package/domain/src/projection/`;
->   first param is still `p::...` (~200×) plus one stray `proj::TextTextToString`
+>   first param is still `p::...` (~200×) plus one stray `proj::TextBlockToString`
 >   and the type-only `::T` forms.
 > - 2nd param is still **`recursion`** (169×), not `rec`.
 > - printer-input 3rd param is still a wide single-letter spread

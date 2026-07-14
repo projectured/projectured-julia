@@ -3,7 +3,7 @@
 
 The `TextRectangularReference` step type — a reference step representing a
 flat character-range box in the text domain (`start` / `stop` are 0-based
-character offsets into the concatenated text of a `TextText`). Used by the
+character offsets into the concatenated text of a `TextBlock`). Used by the
 syntax-to-text stage to communicate a nested child's whole-element
 selection as a character range to the text-to-graphics stage, which renders
 it as a translucent rectangle.
@@ -16,8 +16,8 @@ here alongside the type.
 """
 module TextRectangularReferenceModule
 
-import ..CellModule: Cell, @cell_struct
-import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step
+using ..CellModule
+using ..ReferenceModule
 
 export TextRectangularReference
 
@@ -26,7 +26,7 @@ export TextRectangularReference
 
 A reference step representing an axis-aligned bounding-box highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
-concatenated text of a `TextText`. Evaluates to the offset pair
+concatenated text of a `TextBlock`. Evaluates to the offset pair
 `(start, stop)` — every reference in the tree is evaluatable, and the
 box's value is its character range independent of what characters happen
 to sit in the current text.
@@ -36,10 +36,10 @@ to sit in the current text.
     stop::Int
 end
 
-step_kind(::TextRectangularReference) = :structural
+ReferenceModule.step_kind(::TextRectangularReference) = :structural
 
 # A rectangular text range's descended value is the range itself.
-evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
+ReferenceModule.evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
 
 Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) =
     a.start == b.start && a.stop == b.stop

@@ -15,8 +15,12 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-import ProjecturedDomain.BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ProjecturedDomain.DeviceApiModule: Device, read_from_devices, write_to_devices
+# The backend + device contracts (AR-QUALIFIED-EXTENSION): bare `using`,
+# extended by qualification below. A bare `using` of an alias binds the
+# module's *real* name, so the
+# extension sites read BackendModule.* / DeviceModule.*.
+using ProjecturedDomain.BackendApiModule
+using ProjecturedDomain.DeviceModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
@@ -26,12 +30,11 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.CellModule: Cell, is_up_to_date
-import ProjecturedDomain.ScreenDeviceModule: WindowQuit
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
-                               WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.ModifiersModule: Modifiers
-import ProjecturedDomain.KeyboardModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.MouseModule: MouseDown, MouseUp, MouseMove, MouseScroll
+import ProjecturedDomain.EventModule: EventEnvelope, Modifiers,
+                               WindowQuit, WindowClose, WindowResize, WindowDefocus
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedDomain.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the SDL-free TrueType measurer, so the web backend needs no SDL/SDL_ttf at all.
 # `truetype_measure_text` is the shared font-metrics utility (TrueTypeModule),
@@ -744,7 +747,7 @@ end
 # Backend interface
 # ════════════════════════════════════════════════════════════════════════
 
-function initialize_backend!(backend::WebBackend)
+function BackendModule.initialize_backend!(backend::WebBackend)
     # Text metrics come from the pure-Julia TrueType measurer (truetype_measure_text),
     # so no SDL/SDL_ttf initialisation is needed — the web backend is SDL-free.
     backend.server = HTTP.listen!(backend.host, backend.port) do http
@@ -758,7 +761,7 @@ function initialize_backend!(backend::WebBackend)
     return nothing
 end
 
-function quit_backend!(backend::WebBackend)
+function BackendModule.quit_backend!(backend::WebBackend)
     conn = backend.conn
     if conn !== nothing
         try; close(conn.outbox); catch; end
@@ -779,11 +782,11 @@ end
 # `_FONT_ZOOM` via `font_logical_size`), so web layout reflows with Ctrl+Alt zoom
 # for free (no-op at the default font zoom). Web has no display-scale knob — full
 # zoom is the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
-measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
+BackendModule.measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
     truetype_measure_text(text, font)
 
 # Non-blocking poll: hand back the next decoded event, or nothing.
-read_from_devices(backend::WebBackend, devices) =
+DeviceModule.read_from_devices(backend::WebBackend, devices) =
     isready(backend.inbound) ? take!(backend.inbound) : nothing
 
 # `primary` marks the in-tab window (the first `WindowDocument` in list order):
@@ -803,7 +806,7 @@ A window is sent in full on first paint / after a forced resync; otherwise only 
 are closed. The message is `{type:"update", full:[…], patches:[…], close:[…]}`;
 nothing is sent when no client is connected or no window changed.
 """
-function write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
+function DeviceModule.write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
     conn = backend.conn
     conn === nothing && return nothing  # no client; a resync on (re)connect sends full
 
@@ -855,7 +858,7 @@ function write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
 end
 
 # Fail loud on a miswired pipeline whose output is not a ScreenDocument.
-function write_to_devices(::WebBackend, devices, output)
+function DeviceModule.write_to_devices(::WebBackend, devices, output)
     error("write_to_devices(::WebBackend, …): pipeline output is $(typeof(output)), " *
           "expected a ScreenDocument. The web backend renders the multi-window " *
           "screen pipeline (same as the SDL backend).")

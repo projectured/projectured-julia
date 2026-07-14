@@ -51,6 +51,11 @@ function _gen_build_step(step::RefExtension)
     return dsl_build_step(Val(step.name), args...)
 end
 
+# The seam's answer for a name no package registered: this DSL is where an unknown
+# `.name(…)` is first reachable, so this is where it is reported.
+dsl_build_step(::Val{n}, args...) where {n} =
+    error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
+
 # The construction reading of a subpath argument: `^(expr)` splices an already-computed
 # `ReferencePath` directly; anything else is an ordinary path. (The matcher reads a bare
 # symbol here as a whole-path *binder* instead — the one place the two DSLs genuinely

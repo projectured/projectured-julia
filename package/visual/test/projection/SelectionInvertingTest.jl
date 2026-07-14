@@ -18,16 +18,16 @@ _contents(text) = [e.content for e in text.elements if e isa TextString]
 _fills(text)    = [e.fill_color for e in text.elements if e isa TextString]
 _fgs(text)      = [e.font_color for e in text.elements if e isa TextString]
 
-# Build a one-span TextText carrying a selection.
+# Build a one-span TextBlock carrying a selection.
 function _doc(content, sel; fg=color_red, fill=nothing)
     span = TextString(Cell(content), Cell(_font), Cell(fg), Cell(fill),
                       Cell(nothing), Cell(nothing), Cell(nothing))
-    TextText(CellVector(Cell[Cell(span)]), Cell(sel))
+    TextBlock(CellVector(Cell[Cell(span)]), Cell(sel))
 end
 
 @testset "SelectionInverting nothing selection is pass-through" begin
 
-    input = TextText(
+    input = TextBlock(
         TextString("a", _font, color_default),
         TextNewline(font=_font),
         TextString("b", _font, color_default),
@@ -144,12 +144,12 @@ end # @testset
 
 @testset "SelectionInverting out-of-range spans untouched (multi-span)" begin
 
-    input = TextText(
+    input = TextBlock(
         TextString("foo", _font, color_red),
         TextString("bar", _font, color_green),
     )
     # Flat range [3:6) selects the whole second span via a whole-element ref.
-    input = TextText(CellVector(Cell[Cell(input.elements[1]), Cell(input.elements[2])]),
+    input = TextBlock(CellVector(Cell[Cell(input.elements[1]), Cell(input.elements[2])]),
                      Cell(ConcreteReferencePath(TextRectangularReference(3, 6), EmptyReferencePath())))
     out = print_document(SelectionInverting(), input).output
     @test _contents(out) == ["foo", "bar"]

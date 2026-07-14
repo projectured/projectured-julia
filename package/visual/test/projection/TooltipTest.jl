@@ -40,7 +40,7 @@ end
 
 @testset "open on trigger" begin
     show[] = true
-    op = read_intent(projection, iomap, EventEnvelope(:default, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2          # output mirrors input
@@ -55,7 +55,7 @@ end
 end
 
 @testset "no-op when already open" begin
-    op = read_intent(projection, iomap, EventEnvelope(:default, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -63,7 +63,7 @@ end
 
 @testset "close on trigger off" begin
     show[] = false
-    op = read_intent(projection, iomap, EventEnvelope(:default, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 1
     @test length(iomap.output.windows) == 1
@@ -72,7 +72,7 @@ end
 
 @testset "re-open after close" begin
     show[] = true
-    op = read_intent(projection, iomap, EventEnvelope(:default, :tick))
+    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -106,18 +106,18 @@ projection = RecursiveProjection(
 iomap = print_document(projection, screen)
 
 # First open.
-read_intent(projection, iomap, EventEnvelope(:default, :tick))
+read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 1 && screen.windows[2].width == 3
 
 # Re-open with new geometry: deco won't fire a second open (is_open=true),
 # so to verify duplicate-id update semantics, flip closed and re-open.
 show[] = false
-read_intent(projection, iomap, EventEnvelope(:default, :tick))
+read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 1
 pos[] = (50, 60, 70, 80)
 show[] = true
-read_intent(projection, iomap, EventEnvelope(:default, :tick))
+read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 50 && screen.windows[2].width == 70
 
