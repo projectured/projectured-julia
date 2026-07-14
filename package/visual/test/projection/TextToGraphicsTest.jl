@@ -296,4 +296,48 @@ st.elements[5].content = "gamma!"          # element 5 = the 3rd TextString
 
 end # @testset "TextToGraphics per-line locality"
 
+@testset "TextToGraphics lays out TextLine blocks" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+_span(s) = TextString(s, font_ubuntu_monospace_regular_20, color_white)
+mkblock() = TextBlock(TextLine(_span("hello"); indentation = 2), TextLine(_span("world")))
+
+# One row per line, the break between them implied by the second line. The indent
+# shifts its line and belongs to no span — two spaces at 10px each.
+canvas = print_document(p, mkblock()).output
+@test [(t.text, t.x, t.y) for t in _texts(canvas)] == [("hello", 20, 0), ("world", 0, 18)]
+@test Int(canvas.h) == 36
+
+# The coordinate table addresses a span inside a line by its index path.
+@test [sc.span_path for sc in print_document(p, mkblock()).char_to_coord[]] == [[1, 1], [2, 1]]
+
+# The caret lands on the character it was placed against: past the indent on an
+# indented line, and on the right row for the line below.
+caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
+@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0))) == [(20, 0, 18)]
+@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[2, 1], 3))) == [(30, 18, 18)]
+
+# A click on the second row selects inside *that line's* span; Down crosses into
+# it; End goes to the end of the line the caret is already on.
+iomap = print_document(p, with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0)))
+click = read_intent(p, iomap, MousePress(:left, 31, 20))
+@test click isa ReplaceSelectionOperation
+@test TextModule._cursor_coord(click.path) == (span = [2, 1], char = 3)
+@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:down, Modifiers())).path).span == [2, 1]
+@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:end, Modifiers())).path) == (span = [1, 1], char = 5)
+
+# A blank line keeps its row. It has neither a glyph nor a terminating
+# `TextNewline` to take a height from, so the block's prevailing font sizes it.
+blank = print_document(p, TextBlock(TextLine(_span("a")), TextLine(), TextLine(_span("b")))).output
+@test Int(blank.h) == 54
+@test [t.y for t in _texts(blank)] == [0, 36]
+
+# The empty group a *trailing* newline leaves behind is not a line, and must not
+# grow a phantom blank row.
+trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = font_ubuntu_monospace_regular_20))).output
+@test Int(trailing.h) == 18
+
+end # @testset "TextToGraphics lays out TextLine blocks"
+
 end # test_text_to_graphics

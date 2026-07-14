@@ -151,7 +151,7 @@ function test_click_roundtrip(label, document, projection)
                 # the cursor round-trip for those glyphs.
                 op isa ToggleCollapseOperation && continue
                 if !(op isa ReplaceSelectionOperation)
-                    push!(errors, "click ($cx,$cy) span=$(sc.span_idx) char=$k produced no ReplaceSelectionOperation")
+                    push!(errors, "click ($cx,$cy) span=$(sc.span_path) char=$k produced no ReplaceSelectionOperation")
                     continue
                 end
                 clear_selection!(document)
@@ -165,7 +165,7 @@ function test_click_roundtrip(label, document, projection)
                 new_t2g = _find_text_iomap(new_iomap)
                 cursor = new_t2g === nothing ? nothing : _find_cursor_rect(new_t2g)
                 if cursor === nothing
-                    push!(errors, "no cursor after click ($cx,$cy) span=$(sc.span_idx) char=$k")
+                    push!(errors, "no cursor after click ($cx,$cy) span=$(sc.span_path) char=$k")
                     continue
                 end
                 # Vertical: cursor on the clicked band, or exactly one band away

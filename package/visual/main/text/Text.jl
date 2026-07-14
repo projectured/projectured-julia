@@ -261,14 +261,6 @@ A block's elements are meant to be *either* spans *or* lines, not a mix. Mixing
 degrades gracefully rather than erroring (a line still breaks before itself), but
 the flat character offsets get hard to reason about, and no projection produces
 such a block.
-
-!!! warning "Not laid out by TextToGraphics yet"
-    `TextToString` and the console backend render lines; the **graphics** pipeline
-    does not — `TextToGraphics` addresses spans by a flat `Int` element index
-    (`SegCoord.span_idx`) and silently skips an element it does not recognize, so
-    a line-structured block renders blank there. No projection emits a `TextLine`
-    yet, so nothing hits this; teaching `TextToGraphics` the index path is the
-    next step (see `plan/`).
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
@@ -298,11 +290,8 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 # A span's coordinate within a block is an *index path*, not a single index:
 # `[i]` is the i-th element of the block, `[i, j]` the j-th span of the
 # `TextLine` at element i. The cursor, word-motion and editing helpers all walk
-# these, so a block of lines and a flat block of spans are the same code.
-#
-# `_cursor_position` and `_build_selection_path(::Int, ::Int)` keep the flat
-# `Int` span index: `TextToGraphics` builds carets from `SegCoord.span_idx` and
-# lays out flat blocks only.
+# these, so a block of lines and a flat block of spans are the same code — as does
+# `TextToGraphics`, which keys its coordinate table (`SegCoord.span_path`) by them.
 const SpanPath = Vector{Int}
 
 # The document a committed `text` insertion becomes. Without this the generic
@@ -680,19 +669,9 @@ clipboard to paste text.
 """
 text_insert_op(text::TextBlock, str::AbstractString) = _text_insert(text, str)
 
-# Parse a flat-character cursor selection (`.elements[i].content{c}`) into a
-# (span::Int, char) NamedTuple, or nothing when the selection is not a character
-# cursor. The *flat* reading, kept for `TextToGraphics`, which lays out flat
-# blocks and addresses spans by their element index.
-function _cursor_position(sel)
-    sel === nothing && return nothing
-    @reference_case sel begin
-        ::TextBlock.elements{s:_}.content{c:_} => (span=s + 1, char=c)
-    end
-end
-
-# The same caret as an index path (`span::SpanPath`), so a caret inside a
-# `TextLine` reads as `[i, j]`. This is what the cursor/word/editing helpers use.
+# Parse a character-cursor selection into a `(span::SpanPath, char)` NamedTuple, or
+# nothing when the selection is not a character cursor. A caret inside a `TextLine`
+# reads as `[i, j]`, one at block level as `[i]`.
 function _cursor_coord(sel)
     sel === nothing && return nothing
     @reference_case sel begin
@@ -710,10 +689,10 @@ function _is_structural_selection(sel)
 end
 
 _build_selection_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
+    _build_selection_path(Int[span_idx], char_idx)
 
-# The same caret from an index path: one `elements` hop per index, so a span
-# inside a `TextLine` gets the deeper path. Only the two depths a block can
+# The caret at `char_idx` in the span at `path`: one `elements` hop per index, so a
+# span inside a `TextLine` gets the deeper path. Only the two depths a block can
 # actually hold exist, so the checkpointed `@reference` form is written out for
 # each rather than assembled step by step.
 function _build_selection_path(path::SpanPath, char_idx::Int)
