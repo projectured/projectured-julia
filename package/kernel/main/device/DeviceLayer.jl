@@ -6,4 +6,4 @@
 #
 # A device is *where events come from*; it interprets none of them, so this layer
 # names no document, no operation, and no backend type.
-include("Device.jl")
+include("DeviceModule.jl")

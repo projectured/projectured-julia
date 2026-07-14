@@ -364,8 +364,8 @@ imports of its own.
 The layer lives in [main/device/](../../../package/kernel/main/device/):
 
 ```
-Device.jl   (DeviceModule) — Device abstract + read_from_devices/write_to_devices,
-                             plus the concrete devices, one fragment each:
+DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
+        ├─ Device.jl    — Device abstract + read_from_devices/write_to_devices
         ├─ Keyboard.jl  — the Keyboard device
         ├─ Mouse.jl     — the Mouse device
         └─ Screen.jl    — the Screen device

@@ -1,19 +1,8 @@
-"""
-    DeviceModule
-
-The device *interface* — the contract for rendering a document to, and polling
-input from, a set of devices, plus the concrete devices an editor is given
-(`Keyboard`, `Mouse`, `Screen`, one fragment file each).
-
-`read_from_devices` and `write_to_devices` are pure interface stubs: a concrete
-implementation adds the methods, dispatching on its own type. The interface names
-no such type, so a device does not depend on whatever drives it — the two
-abstractions are independent siblings, and only the implementation binds them
-together.
-"""
-module DeviceModule
-
-export Device, Keyboard, Mouse, Screen, write_to_devices, read_from_devices
+# Fragment of `DeviceModule` — the device **contract**: the `Device` supertype
+# every device subtypes, and the two batch I/O generics a concrete backend
+# answers with a method dispatched on its own type. The concrete devices an
+# editor is given live in the sibling `Keyboard.jl` / `Mouse.jl` / `Screen.jl`
+# fragments.
 
 """
     Device
@@ -43,9 +32,3 @@ events are translated into that vocabulary: a device reports only what happened,
 never a gesture derived from several events.
 """
 function read_from_devices end
-
-include("Keyboard.jl")
-include("Mouse.jl")
-include("Screen.jl")
-
-end # module
