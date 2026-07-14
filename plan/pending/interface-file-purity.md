@@ -62,7 +62,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   one); it can only state the protocol in its docstring and let the implementors add methods. This
   settles step 2's `Base.peek` question.
 
-- [ ] **2. cell — `cell/AbstractCell.jl`** (sealed; the user gave explicit permission).
+- [x] **2. cell — `cell/AbstractCell.jl`** (sealed; the user gave explicit permission).
   `is_up_to_date(c::AbstractCell) = true` and `Base.peek(c::AbstractCell) = c[]` become per-kind
   methods in `MutableCell.jl` and `ImmutableCell.jl` (`ReactiveCell.jl` already overrides both).
   The abstract-type fallbacks disappear entirely — no subtype outside the three kinds exists — and
