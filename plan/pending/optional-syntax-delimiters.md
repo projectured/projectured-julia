@@ -42,17 +42,41 @@ handful of others actually carry delimiters.
    span. Removing the delimiter removes the caret honestly, which the stepper hack could not.
 3. **Wasted work.** Every empty span is a reactive cell, an iomap entry, and a layout element.
 
-### What is NOT the fix
+### The wrapper types are not dead weight — they are the model being hand-rolled
 
 The Syntax domain declares six wrapper types — `SyntaxDelimitation`, `SyntaxIndentation`,
-`SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` — that look like a
-compositional model in which each projection assembles exactly the structure it needs. **They are
-dead code**: zero uses outside their own definitions, no `print_document`, no `render`, no reference
-mapping. Reviving them (leaf = value only, delimiters/indentation/collapse as wrappers) is the purest
-answer to "simplest document required", but it means teaching `SyntaxToText` six more types,
-rewriting every domain projection, and adding a `.content` hop to every reference path — deeper
-paths, for a selection model that is already the hard part. **Decided: not now.** They stay as a
-recorded future direction; see "Deferred" below.
+`SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` — that describe a
+compositional model in which each projection assembles exactly the structure it needs. None is
+currently *constructible in practice*: they have no `print_document`, no `render`, and no reference
+mapping, and no projection imports them.
+
+But a full inventory of all ~340 syntax construction sites shows the domains are **reimplementing
+them ad hoc on top of the fat types**:
+
+- **`SyntaxConcatenation`** — `JuliaToSyntax` builds 19 "connector" nodes as literally
+  `SyntaxNode(TextString(""), TextString(""), TextString(""), [...])`: no delimiters, no separator,
+  purely to sequence a fixed child list (`JuliaBinaryOp` L143, `JuliaIf` L474/475, `JuliaFunction`
+  L494/495, …). `SqlWhereFilterConditionToSyntaxNode` (L768) is a one-child, no-delimiter node — an
+  identity wrapper. `MarkdownStyledInline` (L368) omits all three.
+- **`SyntaxSeparation`** — Markdown sets `sep=TextString("")` on five inline/paragraph types
+  (L128, 138, 148, 157, 368) just to join runs; SQL's `_comma_node` / `_space_node` helpers (L71-74)
+  pass bare `""` open/close with only a real `sep`.
+- **`SyntaxIndentation`** — zero uses, yet every domain sets `indentation=` as an inline field on the
+  node it is already constructing (`JsonArray` 1, `FileSystemDirectory` body 2, `DbCatalog` −1,
+  `YamlMapping` `prj.indent` −1, `JuliaBlock` 1, SQL `_comma_body` 1 / `_newline_body_compact` −1).
+- **`SyntaxDelimitation`** — the SQL helpers, all six of them (L66-83), pass bare `""` for open/close.
+
+So the empty-delimiter problem and the unused-wrapper problem are the *same* problem seen from two
+ends: the fat types force every node to carry delimiter slots, so "I need no delimiters" is expressed
+as an empty string rather than as absence.
+
+**Decided: keep all six types.** Reviving them properly (leaf = value only; delimiters, indentation,
+collapse, separation as wrappers) is the purest answer to "the simplest document required", but it
+means teaching `SyntaxToText` six more types, rewriting every domain projection, and adding a
+`.content` hop to every reference path — deeper paths, for a selection model that is already the hard
+part. That is a separate, larger plan. This plan does the contained half: stop *materializing* what
+is not there. It moves the code toward the wrapper model rather than away from it — a bare
+`SyntaxNode` with no delimiters becomes, structurally, a concatenation.
 
 ## The design
 
@@ -136,13 +160,34 @@ Guard rails (these must not regress):
 - `test_typeins()` stays at 1187 pass / 23 broken — typing must still work everywhere it did.
 - `test_click_roundtrips()` stays at 26/1/6.
 
-### 7 — The dead wrapper types
+### 7 — Leave the wrapper types alone
 
-Confirm with the user, then remove the six unused types from `Syntax.jl` (they advertise a design
-that does not exist and will mislead the next reader), or annotate them as a deliberate future
-direction. **Do not silently leave them as-is.**
+`SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`,
+`SyntaxConcatenation`, `SyntaxSeparation` **stay**. They are not to be deleted. They are the
+compositional model the domains are currently hand-rolling (see above), and the target of the
+follow-up plan below. The only change here is a comment in `Syntax.jl` recording that status, so the
+next reader does not mistake "unused" for "unwanted".
 
 ## Deferred
+
+- **The compositional wrapper model.** The natural end state: `SyntaxLeaf` carries a value and
+  nothing else, `SyntaxNode` carries children and nothing else, and `SyntaxDelimitation` /
+  `SyntaxIndentation` / `SyntaxCollapsible` / `SyntaxSeparation` / `SyntaxConcatenation` /
+  `SyntaxNavigation` are applied only where a projection actually needs them — so JSON's null is one
+  leaf, and Julia's 19 connector nodes say `SyntaxConcatenation(children)` instead of
+  `SyntaxNode(TextString(""), TextString(""), TextString(""), children, 0, false, nothing)`. Blocked
+  on: `SyntaxToText` printers/readers for six more types, and a reference model that tolerates a
+  `.content` hop per wrapper. Optional delimiters (this plan) is the step that makes the fat types
+  *behave* like the thin ones, and is a prerequisite either way — absence has to be representable
+  before it can be factored out.
+
+- **A value-only leaf.** The inventory found the fully-undelimited leaves are the overwhelming
+  majority: every Julia identifier/keyword/operator token, every SQL keyword (`_kw`), JSON
+  null/bool/number, all four YAML scalars, `PrimitiveBool`/`PrimitiveNumber`, `MathVariable`,
+  `NothingToSyntaxLeaf`, the filesystem/dbcatalog/book/gesturemap leaves. Delimited leaves are the
+  exception: JSON strings and keys, XML tags and attribute values, Julia strings/chars/symbols,
+  Markdown code/link/image, SQL's parenthesized AND/OR/NOT. Once delimiters are optional this
+  distinction is visible in the data, which is what a value-only type would formalize.
 
 - **The width-0 indent slot.** `SyntaxToText` emits an empty `TextString` before each close delimiter
   so ancestors always have a slot to widen and element counts do not depend on depth
