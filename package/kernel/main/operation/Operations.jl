@@ -428,7 +428,7 @@ function _selection_owner_node(root, sel)
     sel === nothing && return nothing
     p = strip_reference_types(sel)
     while true
-        v = try evaluate_reference(root, p) catch; nothing end
+        v = try_evaluate_reference(root, p)
         v isa Document && return v
         p isa EmptyReferencePath && return root
         (p, _) = _split_terminal_step(p)

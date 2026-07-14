@@ -39,6 +39,29 @@ function evaluate_reference(document, path::ConcreteReferencePath)
     evaluate_reference(child, rest)
 end
 
+"""
+    try_evaluate_reference(document, path::ReferencePath, default = nothing) -> node | default
+
+`evaluate_reference` for a path that may not resolve: `default` instead of a throw.
+
+A path is not a guarantee. It can name a node that no longer exists (the document
+changed under a stale selection), or one that never existed in `document` at all (a
+projection-introduced position, whose head is a `ProjectionReference` with no input
+pre-image). A caller that is *asking whether* the path resolves — a gesture
+precondition deciding whether it has a target — wants an answer, not an exception.
+"""
+function try_evaluate_reference(document, path::ReferencePath, default = nothing)
+    try
+        evaluate_reference(document, path)
+    catch
+        default
+    end
+end
+
+# A selection is `nothing` when there is none, and "no selection" resolves to no node —
+# so callers asking about a document's current selection need no separate guard.
+try_evaluate_reference(document, ::Nothing, default = nothing) = default
+
 # ── Document-aware validity ──────────────────────────────────────────────
 
 """

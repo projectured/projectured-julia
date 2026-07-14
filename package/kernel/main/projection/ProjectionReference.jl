@@ -20,7 +20,7 @@ module ProjectionReferenceModule
 using ..CellModule
 using ..ReferenceModule
 
-export ProjectionReference
+export ProjectionReference, is_introduced_reference, named_node_reference
 
 """
     ProjectionReference(projection, output_path)
@@ -37,6 +37,41 @@ the tree is evaluatable.
 end
 
 ReferenceModule.step_kind(::ProjectionReference) = :structural
+
+"""
+    is_introduced_reference(reference) -> Bool
+    is_introduced_reference(reference, projection) -> Bool
+
+Does `reference` point at a **projection-introduced** element — a delimiter, a
+bracket, an indentation, a placeholder — rather than at anything in the input
+document? Such a reference is headed by a `ProjectionReference` and has no input
+pre-image, so `evaluate_reference` against the input throws (see
+[`try_evaluate_reference`](@ref)).
+
+This is the caret that sits *on the projection's own output*: the cursor is on a
+comma the projection printed, not on any node the document contains. The two-argument
+form additionally asks whether it was `projection` that introduced it, which is how a
+projection recognizes its *own* output positions while mapping references.
+"""
+is_introduced_reference(reference) =
+    reference isa ConcreteReferencePath && reference.head isa ProjectionReference
+
+is_introduced_reference(reference, projection) =
+    is_introduced_reference(reference) && reference.head.projection === projection
+
+"""
+    named_node_reference(reference) -> ReferencePath
+
+The reference of the document node this caret **names**.
+
+A caret on a projection-introduced element names the whole node it was printed for —
+you are on a container's bracket, or on a placeholder — so it normalizes to `∅`, the
+enclosing document itself. Any other reference already names a node and is returned
+unchanged. Structural gestures ask this before acting, because the introduced
+reference itself does not resolve against the input document.
+"""
+named_node_reference(reference) =
+    is_introduced_reference(reference) ? EmptyReferencePath() : reference
 
 # A projection step descends to the location the projection introduced —
 # reified as the output path within that projection's output.

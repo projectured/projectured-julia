@@ -55,7 +55,8 @@ import ..TextModule: TextBlock, TextString, text_selection_substring, text_inser
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference,
-                          evaluate_reference, head, tail, strip_reference_types
+                          evaluate_reference, try_evaluate_reference, head, tail,
+                          strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
 import ..GestureBindingModule: GestureBinding
@@ -365,7 +366,8 @@ end
 function _selected(input)
     sel = input.selection
     (sel === nothing || sel isa EmptyReferencePath) && return nothing, nothing
-    obj = try evaluate_reference(input, sel) catch; return nothing, nothing end
+    obj = try_evaluate_reference(input, sel, missing)
+    obj === missing && return nothing, nothing
     sel, obj
 end
 

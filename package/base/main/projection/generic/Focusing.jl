@@ -148,7 +148,10 @@ function _longest_prefix_of_type(document, sel::ReferencePath, part_type)
     path = EmptyReferencePath()
     for step in sel
         path = append_reference(path, step)
-        node = try evaluate_reference(document, path) catch; break end
+        # `missing` (not `nothing`): a path that resolves to an empty field *is* a
+        # resolution, and must not end the walk.
+        node = try_evaluate_reference(document, path, missing)
+        node === missing && break
         node isa part_type && (best = path)
     end
     best

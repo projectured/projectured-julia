@@ -74,7 +74,7 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
        FieldReference, Position,
        RangeReference, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
-       evaluate_reference, is_valid_reference, is_element_reference,
+       evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference,
        is_position_reference, is_reference_equal, is_prefix_of,
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,

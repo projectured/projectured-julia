@@ -105,35 +105,26 @@ JsonObject(pairs::Pair{<:AbstractString}...) =
 # character edit never reaches the domain. That is why nothing below asks whether
 # the caret sits inside a string: if it does, `,` was already a comma.
 
-# A projection-introduced caret: the cursor sits on a part the projection added
-# (a delimiter, separator, or the `JsonInsertion` placeholder), so its head is a
-# `ProjectionReference` with no document pre-image (`evaluate_reference` throws).
-# Structural gestures treat such a caret as naming the whole focused node.
-_is_introduced(sel) = sel isa ConcreteReferencePath && sel.head isa ProjectionReference
-
-# Replace the currently-selected value with `newdoc` (whose cursor is pre-placed
-# via `with_selection`). An introduced caret targets the whole focused node, so
-# normalize it to `∅` (the proj-wrapped ref does not resolve for replacement).
+# Replace the currently-selected value with `newdoc` (whose cursor is pre-placed via
+# `with_selection`).
 _replace(doc, newdoc) =
-    replace_document(_is_introduced(getfield(doc, :selection)[]) ?
-                     EmptyReferencePath() : getfield(doc, :selection)[], newdoc)
+    replace_document(named_node_reference(getfield(doc, :selection)[]), newdoc)
 
 # Block precondition for the type-to-replace set: the caret names a whole JSON
 # value whose target exists and is replaceable (values / array elements / root —
 # not a key/value entry wrapper).
 function _json_replaceable(doc, sel)
     sel === nothing && return false
-    # An introduced caret (on a delimiter / placeholder) names the focused node.
-    # Enable type-to-replace there for a `JsonInsertion` placeholder or a container
-    # (you are on its bracket / brace), but not on a concrete scalar's own quotes /
-    # keyword — a whole-element selection is the way to retype an existing value.
-    if _is_introduced(sel)
+    # An introduced caret names the focused node. Enable type-to-replace there for a
+    # `JsonInsertion` placeholder or a container (you are on its bracket / brace), but
+    # not on a concrete scalar's own quotes / keyword — a whole-element selection is
+    # the way to retype an existing value.
+    if is_introduced_reference(sel)
         return doc isa JsonInsertion || doc isa JsonArray || doc isa JsonObject
     end
-    target = try evaluate_reference(doc, sel) catch; nothing end
+    target = try_evaluate_reference(doc, sel)
     target === nothing && return false
-    target isa JsonObjectEntry && return false
-    return true
+    return !(target isa JsonObjectEntry)
 end
 
 # Append a JsonInsertion and select it whole, ready to type-to-replace.

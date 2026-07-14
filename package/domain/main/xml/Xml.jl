@@ -90,11 +90,7 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 # claim the key back from the text layer.
 
 # The node the cursor is on, or nothing.
-function _xml_selected(doc)
-    sel = getfield(doc, :selection)[]
-    sel === nothing && return nothing
-    try evaluate_reference(doc, sel) catch; nothing end
-end
+_xml_selected(doc) = try_evaluate_reference(doc, getfield(doc, :selection)[])
 
 # Only an insertion placeholder is replaceable: `"` becomes an empty text node,
 # `<` an empty element, `@` an empty attribute, each with its cursor pre-placed.
@@ -137,9 +133,9 @@ end
 # existing attribute — never while editing a child.
 _xml_in_attr_context(sel) =
     sel isa EmptyReferencePath ||
-    (sel isa ConcreteReferencePath &&
-     (sel.head isa ProjectionReference ||
-      (sel.head isa FieldReference && (sel.head.name == "tag" || sel.head.name == "attrs"))))
+    is_introduced_reference(sel) ||
+    (sel isa ConcreteReferencePath && sel.head isa FieldReference &&
+     (sel.head.name == "tag" || sel.head.name == "attrs"))
 
 function _xml_insert_attr(e)
     _xml_in_attr_context(getfield(e, :selection)[]) || return nothing
