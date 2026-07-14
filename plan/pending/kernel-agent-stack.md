@@ -176,34 +176,83 @@ its markdown parsing. It loses:
 
 One commit per phase; each phase leaves the tree loading and its tests green.
 
-### Phase 1 — `tool/` layer, and the ToolSet ⬜
+### Phase 1 — `tool/` layer, and the ToolSet ✅ done (`999a98ce`)
 
-- [ ] New `kernel/tool/` (6 files). `agent/ToolRegistry.jl` and `agent/Mcp.jl` are deleted.
-- [ ] `ToolSet` instance replaces `_TOOLS` / `_RESOURCES` / `_SCRATCH` / `LAST_VALUE` (AR-45).
-- [ ] `list_resources` / `read_resource` become registered tools.
-- [ ] `get_anthropic_tool_schema` deleted from the kernel (lands in `ProjecturedLlm`, Phase 2).
-- [ ] `Editor` gains `tools::ToolSet`.
-- [ ] Update: `ProjecturedMcp`, `WorkbenchAssistant`, `Workbench`, `Evaluator`,
-      `ConversationEditor`, `Formula`, `McpTest`, `AssistantMvpTest`.
-- Verify: `test_kernel()`, `test_kernel_layering()`, `test_domain()`; load the full stack.
+- [x] New `kernel/tool/` (7 files: layer fragment, module, and five fragments).
+      `agent/ToolRegistry.jl` and `agent/Mcp.jl` are deleted.
+- [x] `ToolSet` instance replaces `_TOOLS` / `_RESOURCES` / `_SCRATCH` / `LAST_VALUE` (AR-45).
+- [x] `list_resources` / `read_resource` become registered tools.
+- [x] `Editor` gains `tools::ToolSet`.
+- [x] Updated: `ProjecturedMcp`, `WorkbenchAssistant`, `ConversationEditor`, the package alias
+      blocks, `McpTest`, `AssistantMvpTest`.
+- Verified: `test_kernel` 425/425, `test_kernel_layering` 10/10, `test_mcp_tools` 118/1 broken,
+  `test_mcp_resources` 22/22, `test_assistant_mvp` 62/7 broken — 0 fail, 0 error. The broken
+  counts are exactly the pre-existing `@test_broken` markers.
 
-### Phase 2 — `llm/` layer, and the neutral seam ⬜
+**Decisions taken during the phase:**
 
-- [ ] New `kernel/llm/` (4 files): `Llm`, `LlmMessage`, `LlmEvent`, `LlmRequest`, `tool_schema`.
-- [ ] Rewrite `ProjecturedLlm`: `AnthropicLlm` holds `api_key`/`model`; maps SSE → `LlmEvent`;
-      renders `LlmMessage` → JSON and `Tool` → schema; owns `_thinking_config`.
-- [ ] Rewrite the example doubles (`FakeLlm` / `ScriptedLlm`) to emit `LlmEvent`s.
-- [ ] `build_messages` returns `Vector{LlmMessage}`.
-- Verify: `test_domain()` (the assistant tests drive `ScriptedLlm`), full-stack load with
-  `ProjecturedLlm`.
+- **No interface file.** The plan called `tool/Tool.jl` a contract file, but AR-72 forbids an
+  interface file from holding concrete structs, and `Tool`/`Resource`/`ToolSet` are concrete.
+  The layer therefore declares no contract (as `binding/` already does), and the guard's
+  `interface_files` map is unchanged. Same for `agent/AgentServer.jl`, whose `Val` dispatch and
+  error fallback are method bodies.
+- **`get_anthropic_tool_schema` parked in `LlmModule` for one phase** rather than deleted, so
+  the tree stays green: the domain still drove the Anthropic-shaped `stream_turn` until Phase 2
+  replaced it. Phase 2 deleted it.
+- **The tests' stand-in editors now carry a `tools` field.** No test constructs a real `Editor`
+  (they pass `Dict`, `nothing`, or `(document = a,)`), so `editor.tools` had to be provided:
+  `(document = a, tools = register_default_tools!(ToolSet()))`. This is the honest consequence
+  of AR-45 — a stand-in must now supply what a real editor supplies.
+- **`clear_registry!` deleted, not ported.** It existed for test isolation and had zero call
+  sites; a fresh `ToolSet()` is the isolation now.
 
-### Phase 3 — `agent/` layer, and the loop ⬜
+### Phase 2 — `llm/` layer, and the neutral seam ✅ done (`9ea13892`)
 
-- [ ] `agent/Agent.jl` + `AgentLoop.jl` (new) + `AgentServer.jl` (today's `Agent.jl`).
-- [ ] `_run_agent_loop!` → `run_turn!`; the domain keeps a thin `_launch_agent_turn!` that
-      builds the `Agent`, supplies `messages`, and sinks events into the conversation.
-- Verify: `test_domain()`, `AssistantMvpTest`, and a live `run_example("workbench")`
-  (reactive-reuse bugs pass direct-read tests and fail live).
+- [x] New `kernel/llm/` (5 files): `Llm` + `stream_turn` + `tool_schema`, the `LlmMessage` /
+      `LlmContent` model, the `LlmEvent` model, `LlmRequest`.
+- [x] `ProjecturedLlm` rewritten: `AnthropicLlm` holds `api_key`/`model`/`base_url`/`max_tokens`;
+      translates SSE → `LlmEvent`; renders `LlmMessage` → JSON and `Tool` → schema; owns the
+      thinking parameter. **Every trace of Anthropic's protocol is now inside `package/llm`.**
+- [x] The example doubles (`FakeLlm` / `ScriptedLlm`) emit `LlmEvent`s; the scripted builders lose
+      the `message_start`/`message_stop` envelope.
+- [x] `build_messages` returns `Vector{LlmMessage}`; `_handle_sse_event!` becomes
+      `_handle_llm_event!`, dispatching on event types instead of poking at
+      `ev.data[:delta][:partial_json]`.
+- Verified: `test_kernel` 425/425, guard 10/10, `test_assistant_mvp` 62/7 broken, `test_mcp_tools`
+  118/1 broken, `test_mcp_resources` 22/22 — 0 fail, 0 error. `ProjecturedLlm` loads and renders.
+
+**Decisions taken during the phase:**
+
+- **The backend is built per turn, not cached on the document.** With the model on the backend,
+  writing the resolved `AnthropicLlm` back to `assistant.llm` (as the old code did) would freeze
+  whichever model was first selected, and editing `assistant.model` would silently stop working.
+  `assistant.llm` stays the *injection* point for tests/examples; production resolves per turn.
+- **A known gap is held constant, not fixed.** `build_messages` replays every tool call as
+  `execute_julia_code` with a `code` argument, whatever tool it actually was — so a
+  `read_resource` call re-serialises with an empty code string. Fixing it needs `EvaluatorForm`
+  to keep the tool's raw input, which is a behaviour change, not a move. Marked in the source.
+
+### Phase 3 — `agent/` layer, and the loop ⬜ next
+
+- [ ] **`LlmToolUseStop` carries the parsed call** — `LlmToolUseStop(tool_use::LlmToolUse)`
+      instead of an empty marker. *Discovered while starting the phase:* the loop must turn a
+      tool call's argument JSON into a `Dict` to invoke `call_tool`, and **the kernel has no JSON
+      parser** (it has zero dependencies; the domain reaches for its own `jsonparse`, which the
+      kernel cannot). Every provider adapter necessarily owns a JSON parser, so the adapter
+      accumulates the `input_json` fragments and delivers a *parsed* call. The kernel then never
+      sees JSON at all, and the domain's `_json_native(jsonparse(raw))` buffering disappears.
+      `LlmToolInputDelta` stays — arguments really do stream, and a UI may want to show it — but
+      the loop ignores it.
+- [ ] `agent/Agent.jl` (the `Agent`: llm, tools, system, max_rounds, thinking) + `AgentLoop.jl`
+      (`run_turn!`) + `AgentServer.jl` (today's `Agent.jl`, renamed to `AgentServerModule`).
+- [ ] `run_turn!(agent, target; messages, on_event) -> stop_reason` owns the *control flow*:
+      rounds, the cap, collecting tool calls, dispatching them through the `ToolSet`, and the
+      stop-reason decision. It emits an `AgentToolResult` event so the caller can materialise the
+      result. It does **not** own conversation serialization or rendering.
+- [ ] `_run_agent_loop!` becomes a thin adapter: build the `Agent`, pass `messages =
+      () -> build_messages(a.conversation)`, and sink events into the conversation.
+- Verify: `test_domain()`, `AssistantMvpTest`, and a live `run_example("workbench")` (reactive
+  reuse bugs pass direct-read tests and fail live).
 
 ### Phase 4 — docs, guard, seal list ⬜
 
