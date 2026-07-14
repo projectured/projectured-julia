@@ -74,49 +74,51 @@ x[] = 999          # x is no longer a dep after last eval
     # `dependents` exists to propagate INVALIDATION downstream. It must not keep the
     # downstream cell ALIVE — an upstream cell has no business owning its readers.
     #
-    # Today it does: `dependents` is a strong `Set{ReactiveCell}`, and the only place
-    # an edge is ever removed is `recompute!`, which detaches a cell's own upstream
-    # links before re-evaluating. A cell that is simply *discarded* never recomputes
-    # again, so its edges are never removed and the upstream cell pins it for ever.
+    # It used to: `dependents` was a strong `Set{ReactiveCell}`, and the only place an
+    # edge was ever removed is `recompute!`, which detaches a cell's own upstream links
+    # before re-evaluating. A cell that is simply *discarded* never recomputes again, so
+    # its edges were never removed and the upstream cell pinned it for ever. A document
+    # thus held on to every pipeline it had ever been printed through (~690 MB per caret
+    # walk of the `json` example), and to every span a printer shed while recomputing
+    # (~100 kB per structural edit, for ever). See plan/pending/reactive-dependents-leak.md.
     #
-    # That is a real leak, not a theoretical one, and it is not confined to tests.
-    # Measured on the `json` example:
-    #
-    #   - a **structural edit** (insert a node, remove it again) leaves ~3.4 dead cells
-    #     pinned and ~100 kB of live memory behind — every edit, for ever. The live
-    #     pipeline's own cell count does not move; what grows is the number of dead cells
-    #     hanging off it.
-    #   - a **re-print** leaks the whole pipeline: `print_document` builds a fresh one and
-    #     each of its cells registers itself in the `dependents` of every document cell it
-    #     reads. One caret walk (which re-prints per keystroke) retains 36_317 edges and
-    #     ~690 MB of live, post-GC memory, linearly per walk.
-    #
-    # Moving the *selection* through a live pipeline is flat — but only because the
-    # printers go to deliberate lengths to reuse cells across a selection change
-    # (`_DecoCache`, span stability, IoMap identity). That is an optimization, not a
-    # property: every change it does not cover leaks.
+    # The edge is now a `Vector{WeakRef}`, so a discarded reader is collectable.
     source = Cell(1)
-    before = length(getfield(source, :dependents))
+    live(c) = count(w -> w.value !== nothing, getfield(c, :dependents))
+    @test live(source) == 0
 
-    # A throwaway "pipeline": computed cells that read `source`, are forced once, and
-    # are then dropped. Built inside a function so that nothing roots them afterwards.
+    # A throwaway "pipeline": computed cells that read `source`, are forced once, and are
+    # then dropped. Built inside a function so that nothing roots them afterwards. A
+    # `WeakRef` to the first one is handed back so we can ask whether it was collected —
+    # a far sharper question than a count, which the *most recent* cell can spoil by
+    # lingering in a stack slot after the function returns.
     function build_and_drop!(src)
-        for _ in 1:100
+        first_ref = nothing
+        for i in 1:100
             c = Cell(() -> src[] + 1)
-            c[]                       # forcing registers `c` in `src.dependents`
+            c[]                       # forcing registers `c` as a dependent of `src`
+            i == 1 && (first_ref = WeakRef(c))
         end
-        nothing
+        first_ref::WeakRef
     end
-    build_and_drop!(source)
-    @test length(getfield(source, :dependents)) == before + 100   # they registered
+    discarded = build_and_drop!(source)
+    @test live(source) == 100                     # they registered
 
-    # They are now unreachable and can never recompute, so nothing will ever detach
-    # them. The only thing still pointing at them is `source.dependents` itself.
+    # They are now unreachable and can never recompute, so nothing will ever detach them.
+    # The only thing still pointing at them is `source.dependents` — weakly.
     GC.gc(true); GC.gc(true)
+    @test discarded.value === nothing             # ...so the reader really was collected
+    @test live(source) <= 1                       # (the last cell may linger in a stack slot)
 
-    # @broken: `dependents` strongly owns its readers, so a discarded pipeline is pinned
-    # by the document for ever; the edge needs to be weak. See plan/pending/reactive-dependents-leak.md
-    @test_broken length(getfield(source, :dependents)) == before
+    # The emptied slots are pruned by the next scan, which registration is doing anyway,
+    # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.
+    keep = Cell(() -> source[] + 1)
+    keep[]
+    @test length(getfield(source, :dependents)) == live(source)
+
+    # And the weak edge still propagates invalidation to a reader that IS alive.
+    source[] = 41
+    @test keep[] == 42
 end
 
 # ── cell kinds ──────────────────────────────────────────────────────────

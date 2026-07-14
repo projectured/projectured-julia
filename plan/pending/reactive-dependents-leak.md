@@ -1,10 +1,28 @@
-# The reactive dependency edge owns its reader
+# The reactive dependency edge owns its reader — **FIXED**
 
-`ReactiveCell.dependents` is a strong `Set{ReactiveCell}`. An upstream cell therefore
-**owns** every downstream cell that has ever read it, and a document ends up pinning
-every projection pipeline it has ever been printed through.
+`ReactiveCell.dependents` was a strong `Set{ReactiveCell}`. An upstream cell therefore
+**owned** every downstream cell that had ever read it, and a document pinned every
+projection pipeline it had ever been printed through, plus every span a printer shed while
+recomputing.
 
-This is a real leak, on `main`, and it is what makes the test suite eat memory.
+It is now a `Vector{WeakRef}`: the edge propagates invalidation and owns nothing.
+
+## What it bought
+
+Identical behaviour, on every suite, to the assertion — and a third to a sixth of the memory:
+
+| suite | peak RSS before | after | result |
+|---|---|---|---|
+| `test_typeins` | 5.27 GB | **0.89 GB** | 1187 / 23 broken — unchanged |
+| `test_click_roundtrips` | 4.07 GB | **1.00 GB** | 26 / 1 / 6 — unchanged |
+| `test_text_nav_invariants_all` | 3.54 GB | **1.00 GB** | 219 / 34 broken — unchanged |
+| `test_domain` | 1.94 GB | **1.37 GB** | 125990 / 93 / 1 / 9 — unchanged |
+
+(Loading the packages alone costs 0.64 GB, so the suites now barely allocate above their
+own baseline. The 93 `test_domain` failures are pre-existing on `main` — they are the
+`XmlAttribute` ones Phase 1 fixes on the syntax branch — and are untouched by this.)
+
+`test_kernel` 431 / 0 / 0 / 0, `test_base` 97, `test_visual` 51895 / 0 / 0 / 1.
 
 ## The mechanism
 
