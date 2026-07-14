@@ -32,7 +32,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", project, collection
@@ -140,13 +140,11 @@ end
 end
 
 @projection_template JuliaBinaryOpToSyntaxNode JuliaBinaryOp (p, m) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:left),
-                 SyntaxLeaf(TextString(() -> _julia_operator_string(m.operator), p.op);
-                            open=TextString(" ", p.op.font, color_default),
-                            close=TextString(" ", p.op.font, color_default)),
-                 project(:right) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:left),
+                          SyntaxLeaf(TextString(() -> _julia_operator_string(m.operator), p.op);
+                                     open=TextString(" ", p.op.font, color_default),
+                                     close=TextString(" ", p.op.font, color_default)),
+                          project(:right) ])
 
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
@@ -155,10 +153,8 @@ end
 end
 
 @projection_template JuliaUnaryOpToSyntaxNode JuliaUnaryOp (p, u) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)),
-                 project(:operand) ],
-               0, false, nothing)
+    SyntaxConcatenation([ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)),
+                          project(:operand) ])
 
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
@@ -172,13 +168,11 @@ end
 # a function name → render it through a function-coloured identifier leaf; anything
 # else (a field access, an expression) recurses through its own projection.
 @projection_template JuliaCallToSyntaxNode JuliaCall (p, c) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ project(:callee; as = v -> v isa JuliaIdentifier ? JuliaIdentifierToSyntaxLeaf(p.callee) : nothing),
-          SyntaxNode(collection(:arguments);
-                     open=TextString("(", p.delim),
-                     close=TextString(")", p.delim),
-                     sep=TextString(", ", p.delim)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ project(:callee; as = v -> v isa JuliaIdentifier ? JuliaIdentifierToSyntaxLeaf(p.callee) : nothing),
+                          SyntaxNode(collection(:arguments);
+                                     open=TextString("(", p.delim),
+                                     close=TextString(")", p.delim),
+                                     sep=TextString(", ", p.delim)) ])
 
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
@@ -187,17 +181,15 @@ end
 end
 
 @projection_template JuliaTernaryToSyntaxNode JuliaTernary (p, t) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:condition),
-                 SyntaxLeaf(TextString("?", p.op);
-                            open=TextString(" ", p.op.font, color_default),
-                            close=TextString(" ", p.op.font, color_default)),
-                 project(:then_branch),
-                 SyntaxLeaf(TextString(":", p.op);
-                            open=TextString(" ", p.op.font, color_default),
-                            close=TextString(" ", p.op.font, color_default)),
-                 project(:else_branch) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:condition),
+                          SyntaxLeaf(TextString("?", p.op);
+                                     open=TextString(" ", p.op.font, color_default),
+                                     close=TextString(" ", p.op.font, color_default)),
+                          project(:then_branch),
+                          SyntaxLeaf(TextString(":", p.op);
+                                     open=TextString(" ", p.op.font, color_default),
+                                     close=TextString(" ", p.op.font, color_default)),
+                          project(:else_branch) ])
 
 # ── JuliaIndexToSyntaxNode ──────────────────────────────────────────────────
 
@@ -206,13 +198,11 @@ end
 end
 
 @projection_template JuliaIndexToSyntaxNode JuliaIndex (p, x) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ project(:collection),
-          SyntaxNode(collection(:indices);
-                     open=TextString("[", p.delim),
-                     close=TextString("]", p.delim),
-                     sep=TextString(", ", p.delim)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ project(:collection),
+                          SyntaxNode(collection(:indices);
+                                     open=TextString("[", p.delim),
+                                     close=TextString("]", p.delim),
+                                     sep=TextString(", ", p.delim)) ])
 
 # ── JuliaFieldAccessToSyntaxNode ────────────────────────────────────────────
 
@@ -221,11 +211,9 @@ end
 end
 
 @projection_template JuliaFieldAccessToSyntaxNode JuliaFieldAccess (p, f) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:object),
-                 SyntaxLeaf(TextString(".", p.dot)),
-                 project(:field) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:object),
+                          SyntaxLeaf(TextString(".", p.dot)),
+                          project(:field) ])
 
 # ── JuliaTupleToSyntaxNode ──────────────────────────────────────────────────
 
@@ -259,12 +247,10 @@ end
 
 # F2: the child list depends on the optional `step` — a reactive marker thunk.
 @projection_template JuliaRangeToSyntaxNode JuliaRange (p, r) ->
-    SyntaxNode(nothing, nothing, nothing,
-        () -> r.step === nothing ?
-            [ project(:start), SyntaxLeaf(TextString(":", p.op)), project(:stop) ] :
-            [ project(:start), SyntaxLeaf(TextString(":", p.op)),
-              project(:step),  SyntaxLeaf(TextString(":", p.op)), project(:stop) ],
-        0, false, nothing)
+    SyntaxConcatenation(() -> r.step === nothing ?
+                            [ project(:start), SyntaxLeaf(TextString(":", p.op)), project(:stop) ] :
+                            [ project(:start), SyntaxLeaf(TextString(":", p.op)),
+                              project(:step),  SyntaxLeaf(TextString(":", p.op)), project(:stop) ])
 
 # ── JuliaTypeAnnotationToSyntaxNode ─────────────────────────────────────────
 
@@ -273,11 +259,9 @@ end
 end
 
 @projection_template JuliaTypeAnnotationToSyntaxNode JuliaTypeAnnotation (p, t) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:value),
-                 SyntaxLeaf(TextString("::", p.op)),
-                 project(:type) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:value),
+                          SyntaxLeaf(TextString("::", p.op)),
+                          project(:type) ])
 
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
@@ -286,13 +270,11 @@ end
 end
 
 @projection_template JuliaAssignmentToSyntaxNode JuliaAssignment (p, a) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:target),
-                 SyntaxLeaf(TextString(() -> _julia_operator_string(a.operator), p.op);
-                            open=TextString(" ", p.op.font, color_default),
-                            close=TextString(" ", p.op.font, color_default)),
-                 project(:value) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:target),
+                          SyntaxLeaf(TextString(() -> _julia_operator_string(a.operator), p.op);
+                                     open=TextString(" ", p.op.font, color_default),
+                                     close=TextString(" ", p.op.font, color_default)),
+                          project(:value) ])
 
 # ── JuliaForIteratorToSyntaxNode ────────────────────────────────────────────
 
@@ -301,13 +283,11 @@ end
 end
 
 @projection_template JuliaForIteratorToSyntaxNode JuliaForIterator (p, it) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ project(:variable),
-                 SyntaxLeaf(TextString("in", p.keyword);
-                            open=TextString(" ", p.keyword.font, color_default),
-                            close=TextString(" ", p.keyword.font, color_default)),
-                 project(:iterable) ],
-               0, false, nothing)
+    SyntaxConcatenation([ project(:variable),
+                          SyntaxLeaf(TextString("in", p.keyword);
+                                     open=TextString(" ", p.keyword.font, color_default),
+                                     close=TextString(" ", p.keyword.font, color_default)),
+                          project(:iterable) ])
 
 # ── JuliaForToSyntaxNode ────────────────────────────────────────────────────
 
@@ -317,15 +297,11 @@ end
 end
 
 @projection_template JuliaForToSyntaxNode JuliaFor (p, f) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(nothing, nothing, nothing,
-              [ SyntaxLeaf(TextString("for", p.keyword);
-                           close=TextString(" ", p.keyword.font, color_default)),
-                SyntaxNode(collection(:iterators); sep=TextString(", ", p.delim)) ],
-              0, false, nothing),
-          project(:body),
-          SyntaxLeaf(TextString("end", p.keyword)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("for", p.keyword);
+                                                           close=TextString(" ", p.keyword.font, color_default)),
+                                                SyntaxNode(collection(:iterators); sep=TextString(", ", p.delim)) ]),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
 
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
@@ -334,15 +310,11 @@ end
 end
 
 @projection_template JuliaWhileToSyntaxNode JuliaWhile (p, w) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(nothing, nothing, nothing,
-              [ SyntaxLeaf(TextString("while", p.keyword);
-                           close=TextString(" ", p.keyword.font, color_default)),
-                project(:condition) ],
-              0, false, nothing),
-          project(:body),
-          SyntaxLeaf(TextString("end", p.keyword)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("while", p.keyword);
+                                                           close=TextString(" ", p.keyword.font, color_default)),
+                                                project(:condition) ]),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
 
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
@@ -352,13 +324,11 @@ end
 
 # F2: bare `return` vs `return <value>` — a reactive marker thunk on optional `value`.
 @projection_template JuliaReturnToSyntaxNode JuliaReturn (p, r) ->
-    SyntaxNode(nothing, nothing, nothing,
-        () -> r.value === nothing ?
-            [ SyntaxLeaf(TextString("return", p.keyword)) ] :
-            [ SyntaxLeaf(TextString("return", p.keyword);
-                         close=TextString(" ", p.keyword.font, color_default)),
-              project(:value) ],
-        0, false, nothing)
+    SyntaxConcatenation(() -> r.value === nothing ?
+                            [ SyntaxLeaf(TextString("return", p.keyword)) ] :
+                            [ SyntaxLeaf(TextString("return", p.keyword);
+                                         close=TextString(" ", p.keyword.font, color_default)),
+                              project(:value) ])
 
 # ── JuliaLambdaToSyntaxNode ─────────────────────────────────────────────────
 
@@ -368,13 +338,11 @@ end
 end
 
 @projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(collection(:parameters);
-                     open=TextString("(", p.delim),
-                     close=TextString(") -> ", p.arrow),
-                     sep=TextString(", ", p.delim)),
-          project(:body) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxNode(collection(:parameters);
+                                     open=TextString("(", p.delim),
+                                     close=TextString(") -> ", p.arrow),
+                                     sep=TextString(", ", p.delim)),
+                          project(:body) ])
 
 # ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
 
@@ -388,11 +356,9 @@ end
 # expression), so the node has no recursive children; reference mapping uses the
 # template's generic ∅↔∅ default (see the note above the composite table).
 @projection_template JuliaUsingToSyntaxNode JuliaUsing (p, u) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ SyntaxLeaf(TextString(() -> string(u.keyword), p.keyword);
-                            close=TextString(" ", p.keyword.font, color_default)),
-                 SyntaxLeaf(TextString(() -> string(u.path), p.path)) ],
-               0, false, nothing)
+    SyntaxConcatenation([ SyntaxLeaf(TextString(() -> string(u.keyword), p.keyword);
+                                     close=TextString(" ", p.keyword.font, color_default)),
+                          SyntaxLeaf(TextString(() -> string(u.path), p.path)) ])
 
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
@@ -421,25 +387,22 @@ end
 # F2 + F1: an optional `catch`/`catch <var>`/`finally` child list (reactive marker
 # thunk), where the `catch <var>` form is a nested header sub-node.
 @projection_template JuliaTryToSyntaxNode JuliaTry (p, t) ->
-    SyntaxNode(nothing, nothing, nothing,
-        () -> begin
-            kids = Any[ SyntaxLeaf(TextString("try", p.keyword)), project(:body) ]
-            if t.catch_branch !== nothing
-                push!(kids, t.catch_var === nothing ?
-                    SyntaxLeaf(TextString("catch", p.keyword)) :
-                    SyntaxNode(nothing, nothing, nothing,
-                        [ SyntaxLeaf(TextString("catch", p.keyword);
-                                     close=TextString(" ", p.keyword.font, color_default)),
-                          project(:catch_var) ], 0, false, nothing))
-                push!(kids, project(:catch_branch))
-            end
-            if t.finally_branch !== nothing
-                push!(kids, SyntaxLeaf(TextString("finally", p.keyword)), project(:finally_branch))
-            end
-            push!(kids, SyntaxLeaf(TextString("end", p.keyword)))
-            kids
-        end,
-        0, false, nothing)
+    SyntaxConcatenation(() -> begin
+                            kids = Any[ SyntaxLeaf(TextString("try", p.keyword)), project(:body) ]
+                            if t.catch_branch !== nothing
+                                push!(kids, t.catch_var === nothing ?
+                                    SyntaxLeaf(TextString("catch", p.keyword)) :
+                                    SyntaxConcatenation([ SyntaxLeaf(TextString("catch", p.keyword);
+                                                                     close=TextString(" ", p.keyword.font, color_default)),
+                                                          project(:catch_var) ]))
+                                push!(kids, project(:catch_branch))
+                            end
+                            if t.finally_branch !== nothing
+                                push!(kids, SyntaxLeaf(TextString("finally", p.keyword)), project(:finally_branch))
+                            end
+                            push!(kids, SyntaxLeaf(TextString("end", p.keyword)))
+                            kids
+                        end)
 
 # ── JuliaBeginToSyntaxNode ──────────────────────────────────────────────────
 
@@ -448,11 +411,9 @@ end
 end
 
 @projection_template JuliaBeginToSyntaxNode JuliaBegin (p, b) ->
-    SyntaxNode(nothing, nothing, nothing,
-               [ SyntaxLeaf(TextString("begin", p.keyword)),
-                 project(:body),
-                 SyntaxLeaf(TextString("end", p.keyword)) ],
-               0, false, nothing)
+    SyntaxConcatenation([ SyntaxLeaf(TextString("begin", p.keyword)),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
 
 # ── JuliaBlockToSyntaxNode ──────────────────────────────────────────────────
 
@@ -471,17 +432,13 @@ end
 end
 
 @projection_template JuliaIfToSyntaxNode JuliaIf (p, m) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(nothing, nothing, nothing,
-              [ SyntaxLeaf(TextString("if", p.keyword);
-                           close=TextString(" ", p.keyword.font, color_default)),
-                project(:condition) ],
-              0, false, nothing),
-          project(:then_branch),
-          SyntaxLeaf(TextString("else", p.keyword)),
-          project(:else_branch),
-          SyntaxLeaf(TextString("end", p.keyword)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("if", p.keyword);
+                                                           close=TextString(" ", p.keyword.font, color_default)),
+                                                project(:condition) ]),
+                          project(:then_branch),
+                          SyntaxLeaf(TextString("else", p.keyword)),
+                          project(:else_branch),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
 
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
@@ -491,19 +448,15 @@ end
 end
 
 @projection_template JuliaFunctionToSyntaxNode JuliaFunction (p, f) ->
-    SyntaxNode(nothing, nothing, nothing,
-        [ SyntaxNode(nothing, nothing, nothing,
-              [ SyntaxLeaf(TextString("function", p.keyword);
-                           close=TextString(" ", p.keyword.font, color_default)),
-                project(:name),
-                SyntaxNode(collection(:params);
-                           open=TextString("(", p.delim),
-                           close=TextString(")", p.delim),
-                           sep=TextString(", ", p.delim)) ],
-              0, false, nothing),
-          project(:body),
-          SyntaxLeaf(TextString("end", p.keyword)) ],
-        0, false, nothing)
+    SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("function", p.keyword);
+                                                           close=TextString(" ", p.keyword.font, color_default)),
+                                                project(:name),
+                                                SyntaxNode(collection(:params);
+                                                           open=TextString("(", p.delim),
+                                                           close=TextString(")", p.delim),
+                                                           sep=TextString(", ", p.delim)) ]),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
 
 # ── Reference mapping & readers ─────────────────────────────────────────────
 #

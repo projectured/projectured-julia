@@ -555,8 +555,27 @@ domain moves to a finer-grained document only where that document says what it m
 than the combined one. Where a `SyntaxNode` is genuinely a delimited, separated, indented node, it
 stays a `SyntaxNode`. The inventory gives the clear-cut cases:
 
-- **Julia** — 19 connector nodes → `SyntaxConcatenation`; `JuliaBlock`'s `indentation=1` →
-  `SyntaxIndentation`. The biggest single win (61.9% of julia's spans are empty).
+- **Julia — DONE (the connector nodes).** All **24** of them (not 19 — the inventory undercounted
+  the nested ones) are now `SyntaxConcatenation([...])` instead of
+  `SyntaxNode(nothing, nothing, nothing, [...], 0, false, nothing)`. The example renders
+  **byte-for-byte identically** (`print_example("julia")` hashes the same before and after), which is
+  the invariant that matters: a concatenation is a drop-in for a bare node.
+
+  The win is not spans — Phase 1 already took julia from 65 empty spans to 1. It is **cells**:
+  `SyntaxNode` carries 7 (open, close, sep, children, indentation, collapsed, selection),
+  `SyntaxConcatenation` carries 2. Five fewer reactive cells per node, and `test_domain`'s pass count
+  drops by exactly 130 — the printer walker asserts once per cell, so that is 26 connector-node
+  instances × 5. The reactive graph is 130 cells smaller and the code says what it means.
+
+  **Three of them are children *thunks*** (`return` vs `return <value>` — the F2
+  conditional-children shape), and they forced a real constraint into `SyntaxConcatenation`: a bare
+  `Function` must be stored **as it is**. The engine recognises a conditional-children node by
+  finding an unevaluated `Function` in the field; coercing it into a `CellVector` replaces it with a
+  cell-wrapping thunk and the markers it returns are never resolved. So
+  `SyntaxConcatenation(f::Function)` stores `f` raw, and a hand-written projection that wants
+  reactive children says so explicitly: `SyntaxConcatenation(CellVector(f))`.
+
+  Still to do for julia: `JuliaBlock`'s `indentation=1` → `SyntaxIndentation`.
 - **SQL** — the six helpers: `_kw` → bare leaf; `_space_node` / `_comma_node` → `SyntaxSeparation`.
   **But `_comma_body` / `_newline_body` / `_newline_body_compact` must STAY `SyntaxNode`s** — see
   "Per-child indentation is not decomposable" below. 16 of 22 node rules still drop their empty
