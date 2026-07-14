@@ -264,8 +264,10 @@ the tell: an unnamed concept gets rewritten, not reused. No raw
       primitive text field takes a caret at its start. That is exactly what the three
       versions encoded by hand (JSON/YAML `.value` whole because it is a `Document`, XML
       `value{0}` because it is a `String`), so it needs no policy argument.
-- [ ] **Type-to-replace from the domain kit.** See the finding below — the premise does
-      not survive contact.
+- **Type-to-replace from the domain kit — dropped as obsolete.** The finding below is why:
+  the premise does not survive contact. What this item was really reaching for — the
+  domains stop hand-rolling their authoring — arrived instead as the four domain-kit verbs
+  (`insert` / `append` / `move` / `replace`), which is where the duplication actually was.
 
 **Two things the extraction surfaced.**
 
@@ -280,8 +282,8 @@ to exactly this when it stores it, so the hand-written checkpoint was being repl
 storage anyway. (Verified directly: `set_selection!(obj, …value::Document)` reads back as
 `…value::JsonNumber`.) One test pinned the pre-refinement form; updated.
 
-**Finding — the `insertion_key` trait does not pay for itself as specified.** The plan
-claims it "deletes both `@gestures <X>Document` blocks and `_replace` / `_replace_number`
+**Finding — the `insertion_key` trait does not pay for itself, and is obsolete.** The plan
+claimed it "deletes both `@gestures <X>Document` blocks and `_replace` / `_replace_number`
 entirely". It cannot:
 
 - A `Type → Char` trait is **not injective and cannot seed a value**. `t`/`f` are two keys
@@ -292,10 +294,12 @@ entirely". It cannot:
   `KeyPress('"') => … make_insertion_document(JsonString)` becomes
   `insertion_key(::Type{JsonString}) = '"'`. No line is saved.
 
-So the real payoff is not tidiness but **lowering the barrier for a new domain** (declare
-keys, get type-to-replace without authoring gestures) — a different goal from the one the
-plan states, and it costs new `@domain` emission plus a `replaceable(doc, sel)` precondition
-trait. Worth doing deliberately, not as a cleanup. Left open for a decision.
+Stripped of the line-count argument, all it offered was **lowering the barrier for a new
+domain** — and the domain-kit verbs deliver that without a new `@domain` emission or a
+`replaceable(doc, sel)` precondition trait. A gesture table that reads
+`KeyPress('[') => replace_selected_document(doc, make_insertion_document(JsonArray))` is
+already declarative; moving the key into a trait would only move the same line elsewhere
+while leaving the value-carrying rows (`t`, digits) behind as an exception. Dropped.
 
 ## Expected outcome
 
