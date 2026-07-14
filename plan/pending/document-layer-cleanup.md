@@ -90,7 +90,7 @@ load-bearing for the rationale above.
 
 ---
 
-## Step 2 — Split `Document.jl` into one-concern files (pure motion)
+## Step 2 — Split `Document.jl` into one-concern files (pure motion) ✅ done
 
 `Document.jl` is 703 lines holding five unrelated jobs. Split it *before* changing anything
 in it, so the substantive steps that follow each land in one small file and review as one
@@ -112,7 +112,6 @@ Target layout:
 | `DocumentCopy.jl` | `copy_document`, both arities | 90 |
 | `DocumentSync.jl` | `sync_document!`, `_same_wrapper`, `_shadow_elem`, `_document_cell_kind` | 70 |
 | `DocumentTrait.jl` | `is_element_collection`, `is_opaque` | 30 |
-| `DocumentWalk.jl` | *(empty placeholder — Step 4 fills it)* | — |
 | `DocumentSearch.jl` | `search_documents` + `_search_documents!`, `_is_search_leaf`, `_search_text`, `_text_query`, `_deref_cell` | 110 |
 | `DocumentShow.jl` | `Base.show(::Document)`, `DOCUMENT_SHOW_MAX_DEPTH` | 35 |
 | `Forward.jl` | unchanged | 120 |
@@ -124,17 +123,27 @@ Notes:
   old 703-line `Document.jl` ceases to exist.
 - Include order in `DocumentModule.jl`: `Document.jl` first (everything refers to the
   supertype), then `DocumentTrait.jl`, `DocumentKind.jl`, `DocumentCopy.jl`,
-  `DocumentSync.jl`, `DocumentMacro.jl`, `DocumentWalk.jl`, `DocumentSearch.jl`,
-  `DocumentShow.jl`, `Forward.jl`.
+  `DocumentSync.jl`, `DocumentMacro.jl`, `DocumentSearch.jl`, `DocumentShow.jl`,
+  `Forward.jl`.
 - All fragments keep sharing `DocumentModule`'s namespace, so nothing is imported between
   them and the private helpers stay reachable exactly as today.
 
-- [ ] Create the files, move the code, add the header docstrings.
-- [ ] Rewrite `DocumentModule.jl`'s docstring: it currently names its "three fragments"
+- [x] Create the files, move the code, add the header docstrings.
+- [x] Rewrite `DocumentModule.jl`'s docstring: it currently names its "three fragments"
       explicitly and must now describe the new set.
 
 **Verify:** `test_kernel_layering()`, `test_kernel()`.
 **Commit:** `refactor: split the document layer into one-concern fragments`
+
+### Deviation — no empty `DocumentWalk.jl` placeholder
+
+The original table listed an empty `DocumentWalk.jl` for Step 4 to fill. Dropped: AR-50 says
+*"a file nothing imports gets wired in or deleted before it gets a home — no orphan shapes
+the structure"*, and an empty placeholder is exactly that orphan. Step 4 creates the file
+when it has content to put in it.
+
+Motion was verified mechanically, not by eye: the sorted set of top-level definitions across
+the eight new fragments is identical to that of the two files they replace.
 
 ---
 

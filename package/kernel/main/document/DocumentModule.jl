@@ -9,11 +9,20 @@ with the `is_element_collection` / `is_opaque` traits that steer it) — the
 value-collecting search that needs no reference machinery. The kernel defines
 only this contract; it carries no concrete documents.
 
-Three fragments share this namespace, each documented at its own definition:
-[`Interface.jl`](Interface.jl) (the `Document` type + selection-field
-obligation), [`Document.jl`](Document.jl) (`@document` and the value
-protocol), and [`Forward.jl`](Forward.jl) (the `@forward*` delegating-method
-helpers).
+The module is a set of fragments sharing this namespace, each documented at
+its own definition:
+
+| Fragment | Contract |
+|---|---|
+| [`Document.jl`](Document.jl) | the `Document` supertype |
+| [`DocumentTrait.jl`](DocumentTrait.jl) | `is_element_collection` / `is_opaque` — the traits that steer a walk |
+| [`DocumentKind.jl`](DocumentKind.jl) | the cell-kind vocabulary the value protocol is written against |
+| [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving or kind-converting |
+| [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
+| [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
+| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting reflection walk |
+| [`DocumentShow.jl`](DocumentShow.jl) | the depth-limited debug `show` |
+| [`Forward.jl`](Forward.jl) | `@forward*` — delegating-method helpers |
 """
 module DocumentModule
 
@@ -23,10 +32,15 @@ export Document, copy_document, sync_document!, is_element_collection,
        is_opaque, search_documents,
        @document, @forward, @forward_vector, @forward_map
 
-# Interface.jl first — the machinery in Document.jl and Forward.jl refers to
-# the `Document` supertype it declares.
-include("Interface.jl")
+# Document.jl first — every fragment below refers to the `Document` supertype.
 include("Document.jl")
+include("DocumentTrait.jl")
+include("DocumentKind.jl")
+include("DocumentCopy.jl")
+include("DocumentSync.jl")
+include("DocumentMacro.jl")
+include("DocumentSearch.jl")
+include("DocumentShow.jl")
 include("Forward.jl")
 
 end # module
