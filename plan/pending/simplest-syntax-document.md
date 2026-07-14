@@ -130,12 +130,52 @@ SyntaxLeaf(value; open=nothing, close=nothing, …)
 spans = TextDocument[s for s in (leaf.open, leaf.value, leaf.close) if s !== nothing]
 ```
 
-### 1.1 — Audit the fixed-layout assumptions
+### 1.1 — Audit the fixed-layout assumptions — **done**
 
-Before changing anything, list everything that assumes a fixed leaf/node span layout, and record the
-list here. Known: `SyntaxLeafToText` hardcodes `span_idx == 1 → .open`, `2 → .value`, `3 → .close` in
-both reference maps — **on a bare leaf, index 1 becomes `.value`**. Also `_leaf_cursor`,
-`_flat_to_text_elem_path`, `marker_index`, `child_elem_ranges`, `render`, `splice_value!`.
+Every place that assumes a fixed span layout. Line numbers as of `4c000502`.
+
+**A. `SyntaxLeafToText` hardcodes the three-span triple** — on a bare leaf, index 1 becomes `.value`:
+
+| where | assumption |
+|---|---|
+| `map_reference_forward` L47-56 | `_text_elem_path(1\|2\|3, s)` for `.open` / `.value` / `.close` (and the two `proj(_, …)` arms) |
+| `map_reference_backward` L58-68 | `span_idx == 1 → .open`, `== 2 → .value`, `== 3 → .close` |
+| `print_document` L79-87 | `TextDocument[leaf.open, leaf.value, leaf.close]` — twice (the span list and the cursor's `_flat_to_text_elem_path`) |
+| `read_intent(::ReplaceStringRangeOperation)` L100-112 | `span_idx == 2` is the guard that an edit lands on `.value` |
+| `_leaf_cursor` L910-931 | `length(leaf.open.content) + k` — reads `.open` unconditionally |
+
+**B. `SyntaxNodeToText` identifies its own chrome by POSITION** — which is precisely what breaks when
+a delimiter is absent:
+
+| where | assumption |
+|---|---|
+| `map_reference_forward` L262-271 | `.open` → element `marker_index[] + 1`; `.close` → element `length(elements)`; `.sep` → `child_elem_ranges[1].stop + 1` |
+| `_backward_zone` L350-351 | `j == marker_index[] + 1 → .open`; `j == length(elements) → .close`; anything else → projection-introduced flat offset |
+| `print_document` L440-490 | pushes `node.open`, a `node.sep` before each child after the first, and `node.close` unconditionally |
+
+**Decision:** stop inferring by position. The printer already knows where it put each span, so
+**record the element indices in the IoMap** — `open_index`, `close_index`, `sep_indices` (0 / empty
+when absent) — and have both maps read them. This is not extra scaffolding for Phase 1: it is exactly
+what Phase 2's shared core needs, since a `SyntaxDelimitation` wrapping a `SyntaxSeparation` cannot
+possibly locate its delimiters positionally either.
+
+**C. `Syntax.jl`:**
+
+- `render(leaf)` L351-353 and `render(node)` L355-358 read `.open.content` / `.sep.content` /
+  `.close.content` unconditionally.
+- the `_text` helper L199-200 needs a `nothing` pass-through (`_text(::Nothing) = nothing`).
+- `splice_value!` (TextModule) splices a TextString field; an absent delimiter has none. This needs no
+  guard in practice — with no span there is no caret and no reachable edit — but assert it rather
+  than assume it.
+
+**D. `@document` does not enforce or convert field types**, so `Union{TextString,Nothing}` is safe:
+`TextNewline` carries `font_color::StyleColor = ""` next to `fill_color::StyleColor = nothing`, and
+`Union{X,Nothing}` document fields are already idiomatic (`JuliaFor.step::Union{Document,Nothing}`,
+`JsonNumber.value::Union{Real,Nothing}`, `JuliaReturn.value::Union{Document,Nothing} = nothing`).
+
+**E. `_anchor_nonempty` L193-198** (elem → flat → elem) exists *solely* to re-anchor a caret off an
+empty span. It is the workaround for the bug this phase removes. Keep it for now — the width-0 indent
+slot still needs it — but it should shrink to nothing once that is gone.
 
 ### 1.2 — `Syntax.jl`: optional delimiter fields
 
