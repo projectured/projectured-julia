@@ -80,9 +80,14 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 
 # ── Authoring gestures ──────────────────────────────────────────────────────
 #
-# A raw key on a whole XML node edits the tree; a character cursor inside text is
-# consumed upstream, so these never fire mid-edit. Each gesture reads `doc`'s own
-# selection and emits a `doc`-relative operation.
+# A raw key on a whole XML node edits the tree. The reader runs last-to-first, so a
+# key the text layer absorbed as a character edit never reaches these gestures — an
+# ordinary character typed into a tag name or a text node stays a character. Each
+# gesture reads `doc`'s own selection and emits a `doc`-relative operation.
+#
+# `<` and `"` are the exception: neither can occur *in* a tag name, so they mean
+# "insert a child" even while the caret is in one. They are declared `override` to
+# claim the key back from the text layer.
 
 # The node the cursor is on, or nothing.
 function _xml_selected(doc)
@@ -152,11 +157,11 @@ function _xml_attr_value(e)
 end
 
 @gestures XmlElement begin
-    KeyPress('<')    => "Insert an element"       => _xml_insert_element(doc)
-    KeyPress('"')    => "Insert text"             => _xml_insert_text(doc)
-    KeyDown(:insert) => "Insert a node"           => _xml_insert_node(doc)
-    KeyDown(:space)  => "Insert an attribute"     => _xml_insert_attr(doc)
-    KeyPress('=')    => "Move to attribute value" => _xml_attr_value(doc)
+    override(KeyPress('<')) => "Insert an element"       => _xml_insert_element(doc)
+    override(KeyPress('"')) => "Insert text"             => _xml_insert_text(doc)
+    KeyDown(:insert)        => "Insert a node"           => _xml_insert_node(doc)
+    KeyDown(:space)         => "Insert an attribute"     => _xml_insert_attr(doc)
+    KeyPress('=')           => "Move to attribute value" => _xml_attr_value(doc)
 end
 
 end # module

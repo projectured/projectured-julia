@@ -9,6 +9,7 @@
 #         when(<precondition over doc, sel>)          # optional, block-level
 #         PATTERN => "human description" => rhs        # description optional
 #         when(PATTERN, guard) => "desc" => rhs        # per-rule event guard
+#         override(PATTERN) => "desc" => rhs           # claims a key the output layers took
 #         ...
 #     end
 #
@@ -16,6 +17,13 @@
 # `PATTERN => ("desc" => rhs)`. In `rhs` and in the precondition, `doc` is the
 # document and `sel` the selection; bound pattern variables (e.g. `c` in
 # `KeyPress(c)`) are in scope in `rhs` and in the per-rule guard.
+#
+# `override(…)` wraps a pattern (composing with `when(PATTERN, guard)` inside it) and
+# sets `GestureBinding.override`: the binding fires even when an output layer already
+# turned the key into an operation. Reserve it for a key that cannot be text in its
+# own context — XML's `<` inside a tag name. Without it a key the text layer absorbed
+# never reaches the document at all, which is what lets an ordinary structural gesture
+# skip the "am I inside a string?" guard entirely.
 
 # Parse a `@gestures` / `@gesture_set` body into `(applicable_expr, items)`: the
 # block precondition closure expression and the ordered list of table entries — each
@@ -40,9 +48,19 @@ function _parse_gesture_block(entries, domain::String)
             push!(items, :($(esc(e.args[2]))...))
             continue
         end
-        # A rule: PATTERN => [ "desc" => ] rhs  (or when(PATTERN, guard) => …).
+        # A rule: PATTERN => [ "desc" => ] rhs  (or when(PATTERN, guard) => …), with the
+        # pattern optionally wrapped in `override(…)`. Unwrap that first so the event
+        # parser sees the plain rule.
         (e isa Expr && e.head == :call && e.args[1] == :(=>)) ||
             error("@gestures: expected `PATTERN => rhs`, `splice(set)`, or `when(expr)`, got `$e`")
+        override = false
+        lhs = e.args[2]
+        if lhs isa Expr && lhs.head == :call && lhs.args[1] == :override
+            length(lhs.args) == 2 ||
+                error("@gestures: `override` wraps exactly one pattern, got `$lhs`")
+            override = true
+            e = Expr(:call, :(=>), lhs.args[2], e.args[3])
+        end
         rule = parse_event_rule(e)
         rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
 
@@ -69,7 +87,7 @@ function _parse_gesture_block(entries, domain::String)
         description_expr = description === nothing ? :(describe($pattern)) : description
 
         push!(items, :(GestureBinding($pattern, $operation, _applicable,
-                                      $description_expr, $domain)))
+                                      $description_expr, $domain, $override)))
     end
 
     applicable = precondition === nothing ?
@@ -88,6 +106,10 @@ of:
     the event pattern syntax, `rhs` builds the operation with `doc`, `event` and any
     bound pattern variables in scope.
   - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
+  - `override(PATTERN) => …` — a rule that claims its key even when an output layer
+    already turned it into an operation (see [`GestureBinding`](@ref)). Without it, a
+    printable key the text layer absorbed never reaches the document — so an ordinary
+    structural rule needs no guard against firing mid-text.
   - `when(<expr over doc, sel>)` — an optional block-level `applicable` precondition
     (event-independent).
   - `splice(set)` — splice a reusable `Vector{GestureBinding}` (typically a

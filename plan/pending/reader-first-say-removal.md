@@ -156,26 +156,77 @@ Driving the full chain by hand shows the regression is real:
 
 - [x] New `test_xml_override_gestures()` (`XmlToSyntaxTest.jl`) drives the **full chain**
       and pins all four rows. The two override rows are `@test_broken` until Phase 2.
-- [ ] `MousePress` routing: `test_repl` covers clicks and did not move, but the workbench
-      navigator and `test_split_pane_drag` still want a look (that suite has pre-existing
-      failures — compare against a stashed baseline, not against zero).
+- [x] `MousePress` routing: **the pre-pass was breaking it.** First-say pre-offered a raw
+      `MousePress` to stage 1 *before any geometry was resolved*. Dropping it repaired
+      collapse-on-header-click: the six `@test_broken` markers in `AssistantMvpTest.jl`
+      ("collapse-on-header click routing regressed") now pass and are promoted to `@test`.
+      `test_split_pane_drag` and the workbench click/key tests are unchanged.
 
 Commit: `refactor: read last→first — drop ChainingProjection's input-domain "first say"`
 
-### Phase 2 — the override seam (restores XML, on purpose this time)
-- [ ] `GestureBinding`: add `override::Bool`; outer constructor defaults it to `false`.
-- [ ] `fire_gesture_bindings(bindings, target, selection, event, claimed)`: skip
-      non-`override` bindings when `claimed !== nothing`. Thread `claimed` through
-      `read_bound_gesture` / `read_gesture`, defaulting to `nothing` (so the ~15
-      `read_bound_gesture` call sites in `WidgetToGraphics` are unaffected).
-- [ ] `@gestures` / `@gesture_set`: parse an `override(PATTERN) => …` rule form
-      (`Gestures.jl:_parse_gesture_block`), setting the flag.
-- [ ] `ProjectionTemplate`: add the 4-arg `read_intent(p, recursion, change::Intent,
-      iomap::RuleIoMap)` described above; keep the existing 3-arg raw-gesture method as
-      the `operation === nothing` path.
-- [ ] `Xml.jl`: mark `<` (insert element) — and `"` / `:insert` / `:space` / `=` if the
-      tests show they need it — as `override`.
-- [ ] Un-break the XML assertions from Phase 1; re-run the Phase 0 tests.
+### Phase 2 — the override seam (restores XML, on purpose this time) ✅ done
+- [x] `GestureBinding`: add `override::Bool`; outer constructor defaults it to `false`.
+- [x] `fire_gesture_bindings(bindings, target, selection, event, claimed)`: skip
+      non-`override` bindings when `claimed !== nothing`. Threaded `claimed` through
+      `read_bound_gesture` / `read_gesture` as a **keyword** defaulting to `nothing`.
+      Safe because `read_gesture` turned out to have exactly *one* method (the reified-table
+      interpreter) — the `read_gesture(::TextText, …)` the `Console.jl` comment names does
+      not exist, so no hand-written method chokes on the new kwarg.
+- [x] `@gestures` / `@gesture_set`: parse an `override(PATTERN) => …` rule form.
+- [x] `ProjectionTemplate`: the 4-arg reader, plus the `ClaimedGesture` payload.
+- [x] `Xml.jl`: `<` and `"` marked `override`. `:insert` / `:space` / `=` did **not** need
+      it — they are not printable characters the text layer would claim.
+- [x] Un-broke the XML assertions from Phase 1; re-ran the Phase 0 tests: **every count
+      identical to baseline** (json 225/225/160, yaml 224+1f/225/138+3f, xml 225/225/516),
+      and `test_xml_override_gestures` is now 37/37 with no `@test_broken`.
+
+**Where the 4-arg reader hangs — three decisions the obvious design gets wrong.**
+
+*It is emitted per concrete projection type, not keyed on `RuleIoMap`.* A method
+`read_intent(p::Projection, recursion, ::Intent, iomap::RuleIoMap)` is ambiguous with
+`RecursiveProjection`/`TypeDispatching`'s own 4-arg methods (more specific in arg 1, less
+in arg 4) — and those wrappers are transparent, so they *do* get handed a `RuleIoMap`.
+So `@projection_template` emits the 4-arg entry (74 of them, one per template projection),
+each delegating to `template_read_intent`. This is also why the fix cannot simply live in
+the generic bridge: `Projection.jl` loads before `ProjectionTemplate.jl` and cannot name
+`RuleIoMap`.
+
+*The gesture rides `read_intent` as a `ClaimedGesture` payload, not a fifth generic
+function.* Descent already dispatches on what the payload *is* (raw event / `Operation`);
+a new function to descend with would be a new interface obligation on every projection.
+
+*But the claimed-gesture descent is a private `RuleIoMap`-only walk
+(`_read_override_gesture`), not the `read_intent` recursion the unclaimed path uses.*
+Two reasons, either one fatal:
+  - ~40 hand-written readers take an **untyped** payload argument
+    (`read_intent(p::TextToGraphics, iomap::…, evt)`). A `ClaimedGesture` reaching one is
+    either mistaken for an event or ambiguous with the `RuleIoMap` method.
+  - The claimed operation is expressed in the **enclosing** stage's output vocabulary. A
+    child that translated it instead of declining would map a reference it does not own.
+Nothing is lost by the private walk: only a template node hosts gestures, and a gesture is
+all this is looking for.
+
+**Full-suite diff against the pristine baseline `afd65682`** (per-package suites; the
+targeted json/yaml/xml tests alone would have missed both findings below):
+
+| suite | baseline | Phase 1+2 |
+|---|---|---|
+| kernel | 425 / 425 | 425 / 425 |
+| base | 97 / 97 | 97 / 97 |
+| visual | 51846 pass, 1 broken | 51846 pass, 1 broken |
+| domain | 125963 P / 93 F / 1 E / 15 B | 125975 P / 93 F / 1 E / 9 B |
+
+No new failure or error anywhere; domain's 93 F / 1 E (`mixed`, `graph`,
+`TableNavigation`) are pre-existing. The two things that *did* move:
+
+- **`JsonToSyntaxTest`'s "digit gating"** asserted that a digit at a character cursor in a
+  number *declines* — at a **single stage**, where there is no text layer. That was
+  `_replace_number`'s guard, and it is exactly the reconstruction this plan removes. The
+  gating is real but belongs to the chain: single-stage now yields a `CompoundOperation`
+  (the domain replaces), the full chain a `ReplaceNumberRangeOperation` (the text layer
+  claims the digit). Rewritten to pin both. Same class as the XML finding, opposite sign —
+  a single-stage test cannot see a cross-stage rule.
+- **Six `@test_broken` markers now pass** (see Phase 1's MousePress item).
 
 Commit: `feat: gesture bindings can override a claimed key (replaces "first say")`
 

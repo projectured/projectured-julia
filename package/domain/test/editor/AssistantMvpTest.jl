@@ -374,29 +374,23 @@ function _mvp_test_collapse_click()
 
         # Thinking part header → toggles the thinking part's domain node. It is
         # collapsed by default, so the click expands it.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_think isa ToggleCollapseOperation
+        @test op_think isa ToggleCollapseOperation
         @test doc.turns[2].parts[1].content isa ConversationThinking
         @test doc.turns[2].parts[1].collapsed == true
         evaluate_operation((document = doc,), op_think)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[2].parts[1].collapsed == false
+        @test doc.turns[2].parts[1].collapsed == false
 
         # Turn header → toggles the turn's domain node.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_turn isa ToggleCollapseOperation
+        @test op_turn isa ToggleCollapseOperation
         @test doc.turns[1].collapsed == false
         evaluate_operation((document = doc,), op_turn)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[1].collapsed == true
+        @test doc.turns[1].collapsed == true
 
         # Part header → toggles the part's domain node.
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken op_part isa ToggleCollapseOperation
+        @test op_part isa ToggleCollapseOperation
         @test doc.turns[2].parts[2].collapsed == false
         evaluate_operation((document = doc,), op_part)
-        # @broken: pre-existing drift; collapse-on-header click routing regressed
-        @test_broken doc.turns[2].parts[2].collapsed == true
+        @test doc.turns[2].parts[2].collapsed == true
     end
 end
 

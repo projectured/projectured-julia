@@ -105,9 +105,20 @@ end
     @test selof(arr[1]) isa ConcreteReferencePath
 end
 
-@testset "digit gating: a character cursor in a number declines" begin
+@testset "digit gating: the chain gates the digit, not the domain" begin
+    # On its own the domain replaces the number: a gesture that reconstructs what the
+    # text layer *would have* done in order to decline is exactly what reading
+    # last-to-first removes. The gating is real, but it belongs to the chain — the text
+    # layer claims a digit first, so the domain never sees one mid-number.
     num = JsonNumber(42)
-    @test read_key(num, @reference(num, value{1}), KeyPress('5')) === nothing
+    @test read_key(num, @reference(num, value{1}), KeyPress('5')) isa CompoundOperation
+
+    chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
+                               RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = truetype_measure_text))
+    n = JsonNumber(42)
+    set_selection!(n, @reference(n, value{1}))
+    @test read_intent(chain, print_document(chain, n), KeyPress('5')) isa ReplaceNumberRangeOperation
 end
 
 @testset "array insert appends an insertion and selects it" begin

@@ -170,11 +170,8 @@ end
 
 @testset "`<` / `\"` inside a tag name still insert a child (override)" begin
     e = XmlElement("div", XmlDocument[XmlText("hi")])
-    # @broken: the `override` seam does not exist yet — with the reader reading
-    # last-to-first, the text layer claims these keys and the XML gestures never see
-    # them. Restored by `GestureBinding.override` (plan/pending/reader-first-say-removal.md).
-    @test_broken read_key(e, @reference(e, tag{1}), KeyPress('<')) isa CompoundOperation
-    @test_broken read_key(e, @reference(e, tag{1}), KeyPress('"')) isa CompoundOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('<')) isa CompoundOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('"')) isa CompoundOperation
 end
 
 @testset "`<` / `\"` on a whole element insert a child" begin
