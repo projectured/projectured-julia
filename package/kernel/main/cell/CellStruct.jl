@@ -93,67 +93,32 @@ result must be escaped by the calling macro so the emitted bare names resolve at
 the expansion site.
 """
 function cell_struct_exprs(structdef)
-    structdef isa Expr && structdef.head === :struct ||
-        error("@cell_struct expects a struct definition")
-    name_expr = structdef.args[2]
-    struct_name = (name_expr isa Expr && name_expr.head === :(<:)) ?
-        name_expr.args[1] : name_expr
-    body = structdef.args[3]
-    cell_fields = Symbol[]
-    defaults = Pair{Symbol, Any}[]   # field => default-value expr (declaration order)
-    for (i, ex) in enumerate(body.args)
-        if ex isa Symbol
-            push!(cell_fields, ex)
-            body.args[i] = :($(ex)::Cell)
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(cell_fields, ex.args[1])
-            ex.args[2] = :Cell
-        elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
-            # `name = v` / `name::T = v` — @kwdef-style default. Strip the default
-            # out of the struct body and remember it for the keyword ctor.
-            lhs = ex.args[1]
-            fname = lhs isa Symbol ? lhs : lhs.args[1]
-            push!(cell_fields, fname)
-            push!(defaults, fname => ex.args[2])
-            body.args[i] = :($(fname)::Cell)
-        end
-    end
-    isempty(cell_fields) && return structdef
+    plan = struct_plan(structdef)
+    isempty(plan.field_names) && return structdef
 
-    cell_set = Set(cell_fields)
+    # Every field is a `Cell`; the declared types are documentation only.
+    retype_fields!(plan, fill(:Cell, length(plan.field_names)))
 
-    # Collect all field names/types for the auto-wrapping constructor.
-    all_fields = Tuple{Symbol, Any}[]
-    for ex in body.args
-        if ex isa Symbol
-            push!(all_fields, (ex, nothing))
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2
-            push!(all_fields, (ex.args[1], ex.args[2]))
-        end
-    end
+    cell_set = Set(plan.field_names)
+    body = plan.structdef.args[3]
 
     # Replace the default inner constructor with one that auto-wraps non-Cell
     # values into Cell for Cell-typed fields.
-    if !isempty(all_fields)
-        push!(body.args,
-              cell_struct_autowrap_ctor(struct_name, [f[1] for f in all_fields], cell_set))
-    end
+    push!(body.args, cell_struct_autowrap_ctor(plan.name, plan.field_names, cell_set))
 
     # getproperty / setproperty! read/write through the Cell fields.
-    getprop, setprop = cell_struct_property_accessors(struct_name, cell_fields)
+    getprop, setprop = cell_struct_property_accessors(plan.name, plan.field_names)
 
     # Keyword constructor (only when ≥1 default is declared) that forwards into
     # the positional inner ctor above, so Cell auto-wrapping is unchanged. Fields
     # without a default become required keywords, à la `Base.@kwdef`.
     extra = Any[]
-    if !isempty(defaults)
-        default_map = Dict(defaults)
-        field_names = [f[1] for f in all_fields]
-        push!(extra, cell_struct_kwctor(struct_name, field_names,
-                                 cell_struct_kw_params(field_names, default_map)))
+    if !isempty(plan.defaults)
+        push!(extra, cell_struct_kwctor(plan.name, plan.field_names,
+                                        cell_struct_kw_params(plan.field_names, plan.defaults)))
     end
 
-    Expr(:block, :(Base.@__doc__ $structdef), getprop, setprop, extra...)
+    Expr(:block, :(Base.@__doc__ $(plan.structdef)), getprop, setprop, extra...)
 end
 
 """

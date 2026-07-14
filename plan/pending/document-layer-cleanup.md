@@ -328,7 +328,7 @@ to it), and the cyclic-graph counts (2 nodes / 64 paths).
 
 ---
 
-## Step 5 — Factor `@document` into a plan and emitters
+## Step 5 — Factor `@document` into a plan and emitters ✅ done
 
 `@document` is one 260-line function that parses fields, injects `selection`, and then
 inline-emits the parametric stem, the auto-wrapping inner constructor, the accessors, the
@@ -369,12 +369,19 @@ Note what it shares with the cell layer, which already exports a codegen kit
   `cell_struct_positional_ctors(plan, target_name)` moved down beside
   `cell_struct_kwctor`. Export the lot — `@document` is an out-of-module consumer, so they
   are public by AR-48.
-- [ ] `cell_struct_exprs` consumes `struct_plan` instead of its own inline parser.
-      **`@cell_struct` gains Rule Y for free** — it has no principled reason not to have
-      it, and today it doesn't only because the rule was written on the document side.
-      *(If this turns out to change an existing `@cell_struct` call site's dispatch, stop
-      and reconsider: it may need to be opt-in. Check `Clock`, and every other
-      `@cell_struct` in the repo, before committing.)*
+- [x] `cell_struct_exprs` consumes `struct_plan` instead of its own inline parser.
+
+  **Decision — `@cell_struct` does NOT gain Rule Y.** The plan floated this as free. It
+  isn't, and it buys nothing. Every `@cell_struct` call site in the repo is either
+  *fully defaulted* (`Clock`, `EmptyReferencePath` → `required_count == 0`, so Rule Y emits
+  nothing by its own gate) or *fully required* (`RangeReference`, `FieldReference`,
+  `TypeReference`, `ConcreteReferencePath`, `ProjectionReference`, `PointReference`,
+  `TextRectangularReference` → no defaults, so Rule Y emits nothing either). **Not one call
+  site would gain a single constructor.** Adding it would still widen the macro's contract —
+  any future cell struct with a required prefix *and* defaults would silently acquire
+  positional constructors — for zero present benefit. That is speculative generality, so the
+  builder simply stays available in the cell layer for a macro that asks for it (`@document`
+  does). The sharing win — one parser, one Rule Y — is banked regardless.
 - [ ] **Document layer, `DocumentMacro.jl`**: `@document` becomes
       `plan = struct_plan(structdef)` → append the `selection` field to the plan → call
       named emitters, each a pure function of the plan and each independently testable:
@@ -389,31 +396,69 @@ Note what it shares with the cell layer, which already exports a codegen kit
   | `emit_document_exports(plan)` | the four-name `export` |
 
   Rule Y is now `cell_struct_positional_ctors(plan, name)` from the cell layer.
-- [ ] Keep the `@document` docstring exactly where it is (on the macro) — it is the single
-      best explanation of the codegen in the repo and must not be scattered across the
-      emitters. Each emitter gets a one-line docstring stating what it emits, no more.
-- [ ] **Add unit tests for the emitters** in `package/kernel/test/document/` — the whole
-      point of the refactor. `struct_plan` on each field form; `required_count` /
-      `trailing_default_count` on a mixed struct; each emitter's output shape. Today none
-      of this can be tested without declaring a struct.
+- [x] Keep the `@document` docstring exactly where it is (on the macro). Each emitter gets
+      its own docstring stating what it emits and why.
+- [x] **Unit tests for the plan and the emitted surface** — the whole point of the refactor:
+      `kernel/test/cell/StructPlanTest.jl` (the parser on each field form, the
+      required/trailing split including the *gap* case, Rule Y's two gates, the `each_arity`
+      hook) and `kernel/test/document/DocumentMacroTest.jl` (the constructor surface Rule Y
+      and Rule C actually emit). `test_kernel()` 338 → **392**.
 
 ### Known wart, recorded not fixed
 
-Rule C detects its `CellVector` field by **matching the declared type's symbol**
-(`ftype === :CellVector`, `Document.jl:327`) — a kernel-layer macro string-matching the
-name of a type defined in the **base package**, one package up. It works only because the
-name is unique, and it silently does nothing if a domain aliases the type. The honest fix
-is a trait (`is_element_collection` already exists and means almost exactly the right
-thing) resolved at expansion time — but a macro cannot call a runtime trait on a type that
-does not exist yet, so this needs its own think. **Preserve the current behaviour, and
-carry the wart into `emit_collection_ctors`'s docstring so the next reader knows it is
-known.**
+Rule C detects its `CellVector` field by **matching the declared type's symbol** — a
+kernel-layer macro string-matching the name of a type defined in the **base package**, one
+package up. It works only because the name is unique, and silently does nothing if a domain
+aliases the type. The honest fix is a trait resolved at expansion time, but a macro cannot
+call a runtime trait on a type that does not exist yet, so this needs its own design.
+Preserved verbatim, and carried into `_emit_collection_ctors`'s docstring.
 
-**Verify:** `test_cell()`, `test_kernel()`, then `test_base()` and `test_domain()` — every
-domain document in the repo goes through this macro, so a codegen regression is broad and
-loud. This is the step most likely to break something; run the wider sweep here even though
-the plan otherwise says not to.
+*(Side effect: it is also what lets `DocumentMacroTest` exercise Rule C from the kernel test
+package at all, using a test-local `CellVector` stand-in — the real one lives in `base`,
+above the kernel, and so is not in scope.)*
+
+**Verify:** `test_kernel()` 392/392 · `test_base()` 96/96 · `test_visual()` 51856/1/0 fail ·
+`test_domain()` 125962/93/1/15 — all exactly on baseline.
 **Commit:** `refactor: factor @document into a struct plan and named emitters`
+
+### The verification that made this step safe: a golden expansion diff
+
+295 structs go through `@document`, so "the tests pass" is necessary but not sufficient —
+a codegen change can be subtly wrong in a way no existing call site happens to exercise.
+So the macro's **output** was diffed, not its behaviour: a harness macroexpanded a battery
+of 15 struct shapes (10 `@document`, 5 `@cell_struct` — no fields, one required, req+default,
+all-default, untyped, two-required-two-defaulted, `CellVector` sole / beside a required
+sibling / beside a defaulted one, explicit supertype) through the old macro and the new one,
+normalised gensyms and stripped source-line comments, and compared. **Byte-identical across
+all 15.**
+
+It earned its keep immediately — it caught a real bug the whole test suite missed:
+
+**Bug: a duplicate `T(::AbstractVector)` method.** Rule C's bracketed form is emitted twice
+when `required_count == 0` — once by the element-sugar tail, once by the companion loop,
+which I had lifted out of Rule Y's `req ≥ 1` guard when I moved Rule Y to the cell layer. The
+second definition silently redefines the first. **Nothing would have caught this**: the
+duplicate does exactly what the original does, so every one of the ~178k assertions still
+passed. The fix is why `cell_struct_positional_ctors` takes an `each_arity` hook rather than
+the caller re-deriving the gate — a companion that only makes sense beside a Rule Y form now
+inherits Rule Y's gate structurally instead of by remembering to copy it. `DocumentMacroTest`
+pins it with a *structural* assertion (count the methods), since no behavioural one can.
+
+### Three pre-existing semantics the new tests pin, which I had assumed wrong
+
+Writing the tests surfaced three behaviours of the old macro I had guessed at. The identical
+expansion proves all three are long-standing, not introduced here; they are now asserted so
+they cannot drift silently:
+
+1. `Foo()` on a struct with defaults raises `UndefKeywordError`, not `MethodError` — the
+   keyword constructor owns that signature, which is precisely the collision Rule Y's
+   `req ≥ 1` gate avoids.
+2. Passing an **already-built** `CellVector` to a sole-collection document does *not* pass it
+   through: a `CellVector` is a `Document`, not an `AbstractVector`, so the call lands on
+   Rule C's variadic `T(items::Document...)` and yields a collection *containing* it. Use the
+   full-arity inner constructor to wrap one.
+3. The typed kind constructors `IFoo` / `MFoo` take the **full** arity, `selection` included.
+   Rule Y is emitted for the bare name only.
 
 ---
 
