@@ -21,7 +21,7 @@ Physical key-press event.
 
 `repeat` is `true` for the auto-repeat events generated while the key is held.
 """
-struct KeyDown
+struct KeyDown <: DeviceEvent
     key::Symbol
     modifiers::Modifiers
     repeat::Bool
@@ -35,7 +35,7 @@ KeyDown(key::Symbol, modifiers::Modifiers) = KeyDown(key, modifiers, false)
 
 Physical key-release event. Same `key` vocabulary as `KeyDown`.
 """
-struct KeyUp
+struct KeyUp <: DeviceEvent
     key::Symbol
     modifiers::Modifiers
 end
@@ -52,7 +52,7 @@ Convenience constructors:
 - `KeyPress(char)` — wraps a single character, no modifiers
 - `KeyPress(char, mods)` — wraps a character with modifiers
 """
-struct KeyPress
+struct KeyPress <: DeviceEvent
     char::Char
     text::String
     modifiers::Modifiers
@@ -72,20 +72,8 @@ A chord is purely a **combination of events** — it carries no intent. Which
 sequences are recognised is a recogniser's configuration; what a particular chord
 *means* is the decision of whoever reads it, exactly as for any other event.
 """
-struct KeyChord
+struct KeyChord <: SyntheticEvent
     keys::Vector{KeyDown}
 end
 
-"""
-    is_ctrl(e)  -> Bool
-    is_shift(e) -> Bool
-    is_alt(e)   -> Bool
-    is_meta(e)  -> Bool
-
-Convenience predicates for the most common modifier checks. Work on `KeyDown`,
-`KeyUp`, and `KeyPress`.
-"""
-is_ctrl(e::Union{KeyDown,KeyUp,KeyPress})  = e.modifiers.ctrl
-is_shift(e::Union{KeyDown,KeyUp,KeyPress}) = e.modifiers.shift
-is_alt(e::Union{KeyDown,KeyUp,KeyPress})   = e.modifiers.alt
-is_meta(e::Union{KeyDown,KeyUp,KeyPress})  = e.modifiers.meta
+get_modifiers(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers

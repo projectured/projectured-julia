@@ -213,24 +213,37 @@ A relocation, so a regression here is a load error or a guard failure, never a b
 Verified: `test_kernel_layering()` (8/8), `test_kernel()` (407/407), `test_base()` (96/96),
 `test_visual()` (51856 pass, 1 broken), `test_domain()` — compared against a clean-`main` baseline.
 
-### Phase 2 — the `Event` type
+### Phase 2 — the `Event` type ✅ done
 
-- [ ] `abstract type Event end`; `abstract type DeviceEvent <: Event end` (what a backend may
-      emit) and `abstract type SyntheticEvent <: Event end` (what a recogniser or tracker may
-      emit). `MousePress`, `KeyChord`, `MouseEnter`, `MouseLeave` are the synthetic ones.
-- [ ] `get_modifiers(::Event)::Modifiers`, and define `is_ctrl`/`is_shift`/`is_alt`/`is_meta`
-      **once for all events** — today they exist only for the three keyboard types even though
-      every mouse event carries a `Modifiers`.
-- [ ] Type `EventEnvelope.event::Event`; state `read_from_devices`'s return type
-      (`Union{EventEnvelope,Nothing}` over `DeviceEvent`s). This makes AR-42's "convert platform
-      events in the backend" a type-level fact rather than a comment.
-- [ ] Sink `WindowClose` / `WindowResize` / `WindowDefocus` from visual's `screen/ScreenDocument.jl`
-      into `event/WindowEvent.jl` (AR-47: they reference nothing visual; `WindowQuit` is already in
-      the kernel, so the window-event vocabulary is currently split across two packages). The window
-      *document* and its operations stay in visual.
+- [x] `abstract type Event end`, with `DeviceEvent <: Event` (what a device may report) and
+      `SyntheticEvent <: Event` (derived from other events — `MousePress`, `KeyChord`,
+      `MouseEnter`, `MouseLeave`). The event/gesture distinction was prose; it is now a type.
+- [x] `get_modifiers(::Event)` with a `Modifiers()` default, and `is_ctrl`/`is_shift`/`is_alt`/
+      `is_meta` defined **once over it** — so they now work for mouse events too, which carry a
+      `Modifiers` but had no predicates.
+- [x] `EventEnvelope.event::Event`.
+- [x] `read_from_devices`'s docstring states it returns an `EventEnvelope` carrying a
+      `DeviceEvent` — AR-42's "translate platform events in the backend" as a contract, not a
+      comment. (No import appears: the seam is a bodiless generic, so it names the type in prose
+      only. The `device → event` edge the plan predicted does not materialise.)
+- [x] Sank `WindowClose` / `WindowResize` / `WindowDefocus` from visual's `screen/ScreenDocument.jl`
+      into `event/WindowEvent.jl` (AR-47 — they reference nothing visual, and `WindowQuit` was
+      already in the kernel, so the window-event vocabulary had been split across two packages).
+      The window *document* and its operations stay in visual.
 
-Verify: `test_kernel()`, `test_visual()`, `run_example` on an SDL and a console example (event
-construction happens in the backends).
+**Found by the typing.** `EventEnvelope.event::Event` immediately rejected `EventEnvelope(:default,
+:tick)` — a bare `Symbol` used in `TooltipTest` as a stand-in event, exactly the untyped payload the
+supertype exists to eliminate. It now passes a real event (any event pumps that decorator).
+
+Dropping `ScreenDocumentModule`'s re-export of `EventEnvelope` also exposed three modules
+(`ScreenToScreen`, `Console`, and via them `WidgetDialog`/`Tooltip`) that were reading it out of a
+*visual document* module instead of the module that owns it. They now import from `EventModule`
+(AR-48).
+
+Verified: `test_kernel_layering()` 8/8, `test_kernel()` 407/407, `test_base()` 96/96,
+`test_visual()` 51856 pass / 1 broken, `test_domain()` identical to baseline, and both opt-in
+backends (`ProjecturedSdl`, `ProjecturedWeb`) load — they construct events, so a load is the check
+that matters for them.
 
 ### Phase 3 — the pattern language
 

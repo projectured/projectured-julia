@@ -38,7 +38,8 @@ import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_s
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
 import ProjecturedDomain.DeviceModule: Screen
 import ProjecturedDomain.EventModule: WindowQuit
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope, WindowClose, WindowResize, WindowDefocus
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedDomain.EventModule: EventEnvelope, WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.EventModule: Modifiers
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll

@@ -11,7 +11,7 @@
 Raw button-down event. `button` is `:left`, `:middle`, or `:right`.
 `x`/`y` are pixel coordinates relative to the window.
 """
-struct MouseDown
+struct MouseDown <: DeviceEvent
     button::Symbol
     x::Int
     y::Int
@@ -25,7 +25,7 @@ MouseDown(button::Symbol, x::Int, y::Int) = MouseDown(button, x, y, Modifiers())
 
 Raw button-up event. Same fields as `MouseDown`.
 """
-struct MouseUp
+struct MouseUp <: DeviceEvent
     button::Symbol
     x::Int
     y::Int
@@ -47,7 +47,7 @@ single click, `2` for a double-click, `3` for a triple-click, … It defaults to
 `1`, so a plain `MousePress(:left, x, y)` is an ordinary single click and a
 consumer that ignores `count` matches every click.
 """
-struct MousePress
+struct MousePress <: SyntheticEvent
     button::Symbol
     x::Int
     y::Int
@@ -69,7 +69,7 @@ Cursor-motion event. `buttons` is the currently-held button (`:none`, `:left`,
 `:middle`, or `:right`; first held button wins when several are pressed).
 `x`/`y` are pixel coordinates relative to the window.
 """
-struct MouseMove
+struct MouseMove <: DeviceEvent
     x::Int
     y::Int
     buttons::Symbol
@@ -85,7 +85,7 @@ Pointer-enter event: the pointer crossed into a region. Same fields as
 `MouseMove`. Synthesised from motion by whoever tracks the region, not reported
 by a backend.
 """
-struct MouseEnter
+struct MouseEnter <: SyntheticEvent
     x::Int
     y::Int
     buttons::Symbol
@@ -100,7 +100,7 @@ MouseEnter(x::Int, y::Int) = MouseEnter(x, y, :none, Modifiers())
 Pointer-leave event: the pointer crossed out of a region. Same fields as
 `MouseMove`; `x`/`y` are the last position that was inside the region being left.
 """
-struct MouseLeave
+struct MouseLeave <: SyntheticEvent
     x::Int
     y::Int
     buttons::Symbol
@@ -115,7 +115,7 @@ MouseLeave(x::Int, y::Int) = MouseLeave(x, y, :none, Modifiers())
 Mouse-wheel event. `dx`/`dy` are scroll deltas (positive = right/down).
 `x`/`y` are the cursor position at the time of the scroll.
 """
-struct MouseScroll
+struct MouseScroll <: DeviceEvent
     dx::Int
     dy::Int
     x::Int
@@ -124,3 +124,6 @@ struct MouseScroll
 end
 
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, Modifiers())
+
+get_modifiers(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
+                           MouseEnter,MouseLeave,MouseScroll}) = event.modifiers

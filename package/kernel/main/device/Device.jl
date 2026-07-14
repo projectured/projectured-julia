@@ -33,11 +33,14 @@ doing nothing.
 function write_to_devices end
 
 """
-    read_from_devices(backend, devices) -> event or nothing
+    read_from_devices(backend, devices) -> EventEnvelope or nothing
 
-Poll all input devices in one shot and return the next event, or `nothing`. A
-concrete backend adds a method dispatched on its own type (typically polling a
-shared event queue and classifying events across device types).
+Poll all input devices in one shot and return the next event — an `EventEnvelope`
+carrying a `DeviceEvent` — or `nothing` when there is none. A concrete backend
+adds a method dispatched on its own type (typically polling a shared event queue
+and classifying events across device types), and it is where a platform's raw
+events are translated into that vocabulary: a device reports only what happened,
+never a gesture derived from several events.
 """
 function read_from_devices end
 

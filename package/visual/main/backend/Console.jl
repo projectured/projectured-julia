@@ -40,10 +40,7 @@ import ..DeviceModule: Device, read_from_devices, write_to_devices
 import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
 import ..ColorModule: StyleColor, color_default, color_equal
 import ..FontModule: StyleFont
-import ..EventModule: Modifiers
-import ..EventModule: KeyDown, KeyPress
-import ..EventModule: WindowQuit
-import ..ScreenDocumentModule: EventEnvelope
+import ..EventModule: Modifiers, EventEnvelope, KeyDown, KeyPress, WindowQuit
 
 export ConsoleBackend, console_render
 

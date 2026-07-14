@@ -26,10 +26,9 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.CellModule: Cell, is_up_to_date
-import ProjecturedDomain.EventModule: WindowQuit
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument, EventEnvelope,
-                               WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.EventModule: Modifiers
+import ProjecturedDomain.EventModule: EventEnvelope, Modifiers,
+                               WindowQuit, WindowClose, WindowResize, WindowDefocus
+import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
