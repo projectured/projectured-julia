@@ -478,6 +478,45 @@ tool for it.** This is not a gap to close — it is the reason the combined type
 Phase 3: SQL's `_comma_body` / `_newline_body` / `_newline_body_compact` and every domain's indented
 list stay `SyntaxNode`s. Asserted in `SyntaxToTextTest` so nobody "fixes" it later.
 
+### The sequence sweep needs mapper type-checkpoint updates — deferred
+
+Converting a hand-written `SyntaxNode` (sep-only or bare) to `SyntaxSeparation` /
+`SyntaxConcatenation` is **not** the free win it looks like, even though both stay
+`SyntaxSequence` and address children the same way (`.children[i]`), and even though the
+example renders **byte-for-byte identically**.
+
+The catch is the **type checkpoint**. A hand-written projection spells its mappers as
+`::SyntaxNode.children[i]…` — the node type is baked into the `@reference` builders and the
+`@reference_case` patterns. Change the node to a `SyntaxSeparation` and its paths now carry
+`RSyntaxSeparation`, so `::SyntaxNode.children[i]` stops matching. Measured: a 24-site sweep
+(21 separations + 3 concatenations) rendered every example identically yet dropped nav
+236 → 201 (7 fail) and `test_domain` to 3 fail. Reverted.
+
+This is why julia/markdown/xml's connector nodes converted cleanly and these did not: those
+are `@projection_template` blueprints, where the engine generates the mappers against the
+node's **actual** type, so there is nothing hand-spelled to update. A hand-written projection
+must have every `::SyntaxNode` in its own mappers changed to the new type in the same commit.
+
+So the remaining sweep is per-file work, one hand-written projection at a time, each with its
+mapper checkpoints updated and verified against nav (not just render). Deferred — the
+render-identical shortcut does not apply, and the payoff (cells + precision) does not justify
+the regression risk of doing it in bulk. The clear-cut, low-risk cases (template blueprints)
+are already done.
+
+**What DID land, and is the point of this whole phase:** every wrapper type now has a
+production user placed *where it fits better than a `SyntaxNode`*:
+
+- `SyntaxDelimitation` — markdown list item, book bullet, yaml dash, the insertion buffer's
+  prefix/suffix. Each was one child behind a marker, spelled as a one-element `SyntaxNode`.
+- `SyntaxNavigation` — SQL's `SqlWhereFilterCondition`, an identity wrapper whose only job is
+  to give the whole condition a selectable `∅` level.
+- `SyntaxIndentation` / `SyntaxCollapsible` have **no** natural single-child user, and that is
+  a finding, not a gap: per-child indentation is not decomposable (a `SyntaxIndentation` has
+  one child), and collapse is a latent property of every `SyntaxNode` (filesystem's directory
+  node is foldable purely by being a `SyntaxNode`, with no `collapsed=` field set — converting
+  it to a concatenation silently drops the fold marker). Both wait for a shape that genuinely
+  wants one child plus that single concern.
+
 ### Still open
 
 - **`SyntaxNavigation` does nothing yet.** It is a compound with one child and no spans, so it renders

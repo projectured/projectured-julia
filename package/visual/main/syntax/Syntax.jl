@@ -302,8 +302,14 @@ that the cursor should be positioned at this location.
 
 # Constructor
 
-- `SyntaxNavigation(content)` — a Rule Y constructor; `selection` is the trailing
-  defaulted field.
+- `SyntaxNavigation(content)` / `SyntaxNavigation(content, selection)` — positional only.
+
+Unlike the other wrappers, `SyntaxNavigation` has **no coercing keyword constructor**: it
+declares no default of its own, so `@document` generates no keyword form, and the string /
+`Function` content ergonomics the others get do not apply. A caller passes `content`
+positionally (a `Function` is wrapped as a computed cell, so lazily-projected content still
+works) and, if needed, `selection` as the second positional argument. If a domain ever needs
+the keyword form, give it a coercing constructor like `SyntaxDelimitation`'s.
 """
 @document struct SyntaxNavigation <: SyntaxWrapper
     content
