@@ -160,12 +160,12 @@ The assistant isn't bolted on — it's part of the architecture.
   with a deterministic **offline fallback** when no API key is set.
 - The AI edits the document **structurally** — it runs Julia against a live
   `editor` (`execute_julia_code`), it does not fake keystrokes.
-- An **MCP server** (JSON-RPC over HTTP) exposes the same tool registry to
+- An **MCP server** (JSON-RPC over HTTP) exposes the same tool surface to
   external AI clients — in-editor and external AI share one interface.
 - The **chat itself is a document** (`Conversation` domain): messages and
   executed code blocks are structured, selectable, editable data.
 
-<span class="muted">package/kernel/main/agent/Mcp.jl · ToolRegistry.jl · document/Conversation.jl</span>
+<span class="muted">package/kernel/main/agent/AgentServer.jl · tool/ToolSet.jl · document/Conversation.jl</span>
 
 ---
 

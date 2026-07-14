@@ -54,13 +54,13 @@ Under the hood:
 
 - The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
   `Projectured` preloaded and `editor` bound — its handler lives in
-  [Mcp.jl](package/kernel/main/agent/Mcp.jl).
+  [CodeExecution.jl](package/kernel/main/tool/CodeExecution.jl).
 - Before writing code, the AI reads the editor's own guides, modules, classes,
   and functions, exposed as resources, so it works from real signatures
-  ([Mcp.jl](package/kernel/main/agent/Mcp.jl)).
+  ([Documentation.jl](package/kernel/main/tool/Documentation.jl)).
 - The in-editor assistant and an external **MCP server** (`127.0.0.1:9876/mcp`)
-  share one tool registry
-  ([ToolRegistry.jl](package/kernel/main/agent/ToolRegistry.jl)), so an external MCP
+  share the editor's one tool set
+  ([ToolSet.jl](package/kernel/main/tool/ToolSet.jl)), so an external MCP
   client can drive the editor too.
 - The assistant uses Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY`
   is set, and a deterministic offline backend otherwise, so the example runs

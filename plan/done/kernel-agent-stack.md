@@ -232,35 +232,70 @@ One commit per phase; each phase leaves the tree loading and its tests green.
   `read_resource` call re-serialises with an empty code string. Fixing it needs `EvaluatorForm`
   to keep the tool's raw input, which is a behaviour change, not a move. Marked in the source.
 
-### Phase 3 — `agent/` layer, and the loop ⬜ next
+### Phase 3 — `agent/` layer, and the loop ✅ done (`3d66cb93`)
 
-- [ ] **`LlmToolUseStop` carries the parsed call** — `LlmToolUseStop(tool_use::LlmToolUse)`
+- [x] **`LlmToolUseStop` carries the parsed call** — `LlmToolUseStop(tool_use::LlmToolUse)`
       instead of an empty marker. *Discovered while starting the phase:* the loop must turn a
       tool call's argument JSON into a `Dict` to invoke `call_tool`, and **the kernel has no JSON
       parser** (it has zero dependencies; the domain reaches for its own `jsonparse`, which the
-      kernel cannot). Every provider adapter necessarily owns a JSON parser, so the adapter
-      accumulates the `input_json` fragments and delivers a *parsed* call. The kernel then never
-      sees JSON at all, and the domain's `_json_native(jsonparse(raw))` buffering disappears.
-      `LlmToolInputDelta` stays — arguments really do stream, and a UI may want to show it — but
-      the loop ignores it.
-- [ ] `agent/Agent.jl` (the `Agent`: llm, tools, system, max_rounds, thinking) + `AgentLoop.jl`
-      (`run_turn!`) + `AgentServer.jl` (today's `Agent.jl`, renamed to `AgentServerModule`).
-- [ ] `run_turn!(agent, target; messages, on_event) -> stop_reason` owns the *control flow*:
+      kernel cannot). Every provider adapter necessarily owns one — it speaks a JSON protocol —
+      so the adapter assembles the `input_json` fragments and delivers a *parsed* call. The
+      kernel never sees JSON, and the domain's `_json_native(jsonparse(raw))` buffering is gone.
+      `LlmToolInputDelta` stays — arguments really do stream, and a UI may want to show them —
+      but the loop ignores it.
+- [x] `agent/AgentServer.jl` (`AgentServerModule`, the inbound seam — today's misnamed
+      `Agent.jl`) + `agent/Agent.jl` and `agent/AgentLoop.jl` (`AgentModule`: the `Agent`, the
+      `AgentToolResult` event, and `run_turn!`).
+- [x] `run_turn!(agent, target; messages, on_event) -> stop_reason` owns the *control flow*:
       rounds, the cap, collecting tool calls, dispatching them through the `ToolSet`, and the
-      stop-reason decision. It emits an `AgentToolResult` event so the caller can materialise the
-      result. It does **not** own conversation serialization or rendering.
-- [ ] `_run_agent_loop!` becomes a thin adapter: build the `Agent`, pass `messages =
-      () -> build_messages(a.conversation)`, and sink events into the conversation.
-- Verify: `test_domain()`, `AssistantMvpTest`, and a live `run_example("workbench")` (reactive
-  reuse bugs pass direct-read tests and fail live).
+      stop-reason decision. It emits an `AgentToolResult` so the caller can materialise the
+      result. It owns no conversation serialization and no rendering.
+- [x] `_run_agent_loop!` is now a thin adapter: build the `Agent`, pass
+      `messages = () -> build_messages(a.conversation)`, sink events into the conversation.
+      `_PendingToolUse` is deleted — `LlmToolUse` is the thing it was standing in for.
+- Verified: `test_domain()` **125963 pass / 93 fail / 1 error / 15 broken — identical to clean
+  main**, which is the number that matters (the fails and the one error are the pre-existing
+  baseline). `test_kernel` 425/425, guard 10/10, `test_base` 97/97, `test_visual` 51858/1 broken.
 
-### Phase 4 — docs, guard, seal list ⬜
+**Decisions taken during the phase:**
 
-- [ ] Guard: the kernel's `layers` list gains `tool`, `llm`, `agent`; `interface_files` gains
-      `tool/Tool.jl`, `llm/Llm.jl`, `agent/AgentServer.jl`.
-- [ ] `ProjecturedKernel.jl`'s layer diagram; `CLAUDE.md`'s seal inventory (the agent layer's
-      entries are replaced, not renamed).
-- [ ] `package/kernel/doc/agent.md` (and any guide naming `McpModule` / `ToolRegistryModule`).
+- **`messages` is a callback, not a list.** The loop could have owned a message list and
+  appended to it. It does not: the caller already has the conversation, each round's prompt is
+  that conversation as it now stands, and a second copy inside the agent could only drift from
+  it. The old code re-derived the prompt each round for exactly this reason; the seam preserves
+  the property instead of quietly dropping it.
+- **The `Agent` holds no transcript**, for the same reason.
+- **Two test files were migrated, not weakened.** `ConversationSerializationTest` asserted on
+  `build_messages` output in the old Anthropic-dict shape (`msgs[1]["content"][1]["type"] ==
+  "text"`); it now asserts on typed content blocks (`blocks[1] isa LlmText`), which is a
+  stronger check of the same behaviour. `ConversationEditorTest`'s stand-in editor was
+  `nothing`; it now carries a `ToolSet`. **These two were missed by the Phase-1 call-site sweep**
+  because neither names a tool-API symbol — they were caught only by running the full
+  `test_domain()` against a clean-main baseline, which is the lesson: for a change this wide,
+  the targeted tests are not sufficient evidence.
+
+### Phase 4 — docs, guard, seal list ✅ done
+
+- [x] Guard: the kernel's `layers` list gains `tool`, `llm`, `agent`
+      (`ProjecturedKernelTest.jl`). **Amended from the plan:** `interface_files` does *not*
+      gain `tool/Tool.jl` / `llm/Llm.jl` / `agent/AgentServer.jl` — Phase 1 already decided
+      against it (AR-72 forbids an interface file holding concrete structs, and
+      `Tool`/`Resource`/`ToolSet` are concrete; `agent/AgentServer.jl`'s `Val` dispatch and
+      error fallback are method bodies, not a contract). Both landed in Phase 1/3, ahead of
+      this phase's docs sweep.
+- [x] `ProjecturedKernel.jl`'s layer diagram and `CLAUDE.md`'s seal inventory already carried
+      the 15-layer / tool-llm-agent shape (landed with Phases 1/3) — verified, no change
+      needed.
+- [x] `package/kernel/doc/agent.md` — already rewritten (the authority this sweep worked
+      from). Docs sweep (this phase): `documentation/terminology.md`, `documentation/architecture.md`,
+      `package/kernel/doc/architecture.md`, `package/kernel/doc/editor.md` — every layer-count,
+      layer-list, folder-table, and seam reference updated from 13/`agent` to 15/`tool`+`llm`+`agent`.
+      Also found and fixed by grep (not in the original file list): `README.md` (stale
+      `agent/Mcp.jl` / `agent/ToolRegistry.jl` links and "tool registry" wording in the
+      AI-assisted-editing section) and `documentation/projectured-overview.md` (a slide citing
+      `agent/Mcp.jl · ToolRegistry.jl`). `plan/done/*.md` and `plan/pending/kernel-cleanup.md`
+      left untouched — they are historical/superseded records of prior states, not current docs.
+- Verify: `test_kernel_layering()` — not run this phase (docs-only sweep, no `.jl` touched).
 
 ## Non-goals
 

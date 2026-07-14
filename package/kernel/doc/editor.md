@@ -187,8 +187,9 @@ In the example packages this is wired up for you — see `play_live_example` and
 ## MCP server
 
 When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
-launches it on `http://127.0.0.1:9876/mcp` (see
-[package/kernel/main/editor/Mcp.jl](../../../package/kernel/main/agent/Mcp.jl)). The server
+launches it on `http://127.0.0.1:9876/mcp` via the `make_agent_server(:mcp, …)`
+seam (see
+[package/kernel/main/agent/AgentServer.jl](../../../package/kernel/main/agent/AgentServer.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
@@ -274,7 +275,9 @@ that subscribed to `get_reactive_editor_time()`.
 - `..DocumentModule` — the abstract `Document` type.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
-- `..AgentModule` — the make_agent_server/start/stop seam driven by
+- `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
+  ([AR-45](../../../documentation/architecture-requirements.md)).
+- `..AgentServerModule` — the make_agent_server/start/stop seam driven by
   `Editor` when an agent server is configured.
 
 That is nearly the full kernel — the editor is the layer that consumes

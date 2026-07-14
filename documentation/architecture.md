@@ -70,9 +70,9 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      13 layers: cell → event → device → gesture → backend →
+        ▲                      15 layers: cell → event → device → gesture → backend →
         │                      document → reference → selection → operation → binding →
-        │                      projection → agent → editor
+        │                      projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         ▲                      3 layers: document (Collection, DocumentCore, Primitive,
@@ -145,9 +145,10 @@ directly (`SdlBackend()`) where the package is a dependency, or let
 `ProjecturedBase.default_backend` pick a loaded `Backend` subtype by type-name
 reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
 `ProjecturedDomain` (they need nothing external) — only **live ODBC
-querying** lives in `Odbc`. Likewise the agent *registry and tools* are
-kernel-resident (in the agent layer); only the MCP transport and the
-Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
+querying** lives in `Odbc`. Likewise each editor's *tool surface* is
+kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
+kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
+the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 > Per-file paths cited in the module inventory below sometimes reflect an
 > older single-package layout; the code now lives across the four
@@ -295,7 +296,7 @@ composes with any higher-order projection.
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
-| `agent/Mcp.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `agent/AgentServer.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
 
@@ -316,7 +317,7 @@ ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄─�
    (opt-in)                                                        (opt-in)
 ```
 
-**Inside ProjecturedKernel — 13 layers**, in include order; each imports only layers
+**Inside ProjecturedKernel — 15 layers**, in include order; each imports only layers
 above it in this list:
 
 ```
@@ -339,8 +340,13 @@ above it in this list:
                @gesture_set, read_gesture / read_bound_gesture
 11 projection  the four interface functions, Intent, the IO maps, @projection,
                ProjectionTemplate, ProjectionReference
-12 agent       the agent control surface: ToolRegistry and the Llm / Mcp seams
-13 editor      run_editor!, the read-eval-print loop, Playback
+12 tool        the editor's capability surface: Tool / Resource / ToolSet,
+               execute_julia_code, doc/API search, register_default_tools!
+13 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
+               LlmMessage / LlmRequest, LlmEvent
+14 agent       the AI control surface: AgentServerModule (inbound, the MCP
+               seam) and AgentModule (outbound, the Agent and run_turn! loop)
+15 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
 **Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble

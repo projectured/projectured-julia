@@ -38,8 +38,10 @@ Layer 8  — selection/  the selection primitives (get/clear/set/replace_selecti
 Layer 9  — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 10 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
 Layer 11 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
-Layer 12 — agent/      Agent + Llm + ToolRegistry + Mcp (side-stack)
-Layer 13 — editor/     the run_editor! loop + Playback
+Layer 12 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 13 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 14 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 15 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -58,7 +60,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The thirteen layers *are* the dependency diagram.** A layer imports only layers below
+**The fifteen layers *are* the dependency diagram.** A layer imports only layers below
 it, and that is the whole rule — the static guard enforces exactly it, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -75,9 +77,9 @@ the clearest case: `ProjectionReference` (layer 11), `PointReference` and
 `TextRectangularReference` (both in `ProjecturedVisual`) all subtype it and register
 their navigation through `evaluate_step`, with no edit to layer 7.
 
-**The agent surface is a side-stack.** The editor (layer 13) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/Agent.jl`
-(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
+**The agent stack is a side-stack.** The editor (layer 15) reaches it only through
+the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
+(`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.
 
@@ -131,7 +133,7 @@ julia --project=package/kernel/test package/kernel/test/runtests.jl
 
 Depth ≠ include index. A module's *earliest safe position* is its longest path from
 a dependency-free source, and that is not the same as where it sits in the include
-list: `PerformanceCounterModule`, `EventModule`, `ToolRegistryModule` and the
+list: `PerformanceCounterModule`, `EventModule`, `ToolModule` and the
 interface files are sources (they import nothing), while `EditorModule` is deepest
 — it pulls in nearly every layer. The guard enforces only the real constraint
 (every module precedes its users), not one specific linearization, so a file may
@@ -154,7 +156,9 @@ Each layer lives in its own folder under [main/](../main/):
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `projection/` | the projection interface and infrastructure only — ProjectionApi, IoMapApi, Intent, IoMap, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
-| `agent/` | Agent, Llm, ToolRegistry, Mcp |
+| `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
+| `llm/` | `LlmModule` — Llm, `stream_turn`/`tool_schema`, LlmMessage/LlmRequest, LlmEvent |
+| `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
 | `editor/` | Editor (the `run_editor!` loop), Playback |
 
 ## How the kernel is consumed
