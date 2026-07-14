@@ -204,6 +204,13 @@ package whose document walk can express them.
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.
 - **Interfaces live with their concept, not in an api/ layer.** Each layer's interface
   is its first file(s); implementations depend downward onto it.
+- **An interface file declares; it never implements.** It holds the abstract types,
+  the type aliases, and the open generics as bodiless `function f end` — and no
+  method bodies at all, defaults and error fallbacks included (a default is
+  behaviour; it belongs beside the concrete methods, as `step_kind`'s default belongs
+  in `ReferenceStep.jl`). No concrete structs, no state, no algorithms. Everything an
+  interface file declares is exported: the export list *is* the layer's API surface.
+  See architecture requirement #72.
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
 - **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted

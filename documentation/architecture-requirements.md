@@ -542,6 +542,31 @@ states for placement).
     first file(s), not in a separate `api/` layer. A file nothing imports gets
     wired in or deleted before it gets a home — no orphan shapes the structure.
 
+72. **An interface file declares; it never implements.** A layer's interface file
+    — the contract file its module includes first (`document/Interface.jl`,
+    `reference/Interface.jl`, `backend/Backend.jl`, …) — carries *only* declarations:
+    the module docstring, the abstract types and type aliases that form the layer's
+    vocabulary, and its open generics as bodiless `function f end`. **No method
+    bodies.** Not a delegation, not an accessor, and not a "trivial" default or error
+    fallback either: a default is behaviour, and behaviour is implementation. It
+    belongs in the sibling file that implements the contract — the default
+    `step_kind` sits with the step types in `ReferenceStep.jl`, next to their
+    concrete methods. Nor may an interface file hold a concrete struct, mutable or
+    global state, or an algorithm. When a contract's default has no natural sibling
+    home, that is the signal the layer wants an implementation fragment, not a reason
+    to park behaviour in the interface. Every name an interface file declares is
+    **exported** (#48): it has no private half, and its export list *is* the layer's
+    API surface. The purpose is documentary — one file gives a reader the entire
+    contract of a layer and nothing else — and it is what #70's seam carve-out
+    already assumes when it calls an open declaration "content-free by construction".
+    Enforcement is staged. Known remaining instances: `reference/Interface.jl` (the
+    `step_kind` / `dsl_step_subpath_args` defaults and the two `dsl_*` "not
+    registered" error fallbacks), `backend/Backend.jl` (`get_pointer_position`),
+    `operation/Interface.jl` (`invalidate_projection!`), `projection/ProjectionApi.jl`
+    (`print_child` / `pure_print_child` — delegation logic, the furthest drift),
+    `projection/IoMapApi.jl` (three `getfield` accessors), and the sealed
+    `cell/AbstractCell.jl` (`is_up_to_date`, `Base.peek`).
+
 51. **Keep the main/test/example triads parallel and minimal-environment
     runnable.** Each main package has sibling `test`/`example` packages forming
     DAGs of identical shape; a test package depends only on the main package it
@@ -723,7 +748,7 @@ states for placement).
     "declarative macros `@document`/`@iomap`/`@projection` build on this" references.
 
     **Seam carve-out.** An open interface declaration is content-free by
-    construction (`function foo end`, no signature): its *docstring* is what
+    construction (`function foo end`, no signature — #72): its *docstring* is what
     describes the contract, and a contract's meaning is the shape of the
     values that flow through it. So an interface/seam file may name the
     **concepts** it bridges as forward pointers — the *kinds* of value on
