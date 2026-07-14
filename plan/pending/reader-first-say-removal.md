@@ -230,48 +230,84 @@ No new failure or error anywhere; domain's 93 F / 1 E (`mixed`, `graph`,
 
 Commit: `feat: gesture bindings can override a claimed key (replaces "first say")`
 
-### Phase 3 — name the residual kernel concepts
-What survives in `Json.jl` after Phase 1 is the *node-naming* question, not caret
-archaeology: `_is_introduced` (a `ProjectionReference` head — this idiom appears at 12+
-sites across kernel/visual/domain and has no name) and `_replace`'s normalization of an
-introduced caret to `∅`.
+### Phase 3 — name the residual kernel concepts ✅ done
 
-- [ ] `ReferenceModule`: `try_evaluate_reference(doc, ref, default = nothing)` — kills the
-      `try evaluate_reference(...) catch; nothing end` idiom at its 10 sites.
-- [ ] Kernel predicate for "the caret sits on a projection-introduced token"
-      (`is_introduced_reference` or similar), plus the "which node does this caret name"
-      normalization. Reference or selection layer — decide during implementation; the
-      selection layer is a seal candidate (`plan/pending/selection-layer-seal-handoff.md`),
-      so check that first.
-- [ ] Rewrite `Json.jl` / `Yaml.jl` / `Xml.jl` against them.
+- [x] `try_evaluate_reference(doc, ref, default = nothing)` — six sites, plus a `::Nothing`
+      path method so "no selection resolves to no node" needs no guard. **Two of the six
+      caught for *control flow*, not a value** (a `break` in `Focusing.jl`, an early
+      `return` in `ClipboardToAny.jl`); they pass an explicit `missing` default, because a
+      path that resolves to an *empty field* is still a resolution and must not be
+      mistaken for a failure. A `nothing` default there would have been a silent bug.
+- [x] `is_introduced_reference(reference[, projection])` + `named_node_reference`.
+- [x] Rewrote `Json.jl` / `Yaml.jl` / `Xml.jl`, and folded the other 11 open-coded copies.
 
-Commit per extraction.
+**The layer question the plan left open is settled by the layering itself.**
+`ProjectionReference` is a *projection*-layer type (11); the reference (7) and selection
+(8) layers load before it and cannot name it. So the predicate lives in
+`projection/ProjectionReference.jl` — **not** the selection layer, whose seal is therefore
+untouched (`plan/pending/selection-layer-seal-handoff.md` is unaffected).
 
-### Phase 4 — declarative extractions (orthogonal to Phases 1-3; do last)
-- [ ] **Type-to-replace from the domain kit.** `@gestures JsonDocument`'s
-      `n`/`f`/`t`/`"`/`[`/`:`/`{`/digit table is a shortcut-key layer over
-      `make_insertion_document` — the same machinery `JsonInsertion`'s typed-name buffer
-      already uses. Add an `insertion_key(::Type{JsonString}) = '"'` trait beside
-      `@insertion` in `DomainModule`, and have `@domain` emit one generic gesture set over
-      `insertion_candidates(root)`. Deletes both `@gestures <X>Document` blocks and
-      `_replace` / `_replace_number` entirely.
-- [ ] **Append-into-collection.** `_array_insert`, `_object_insert`,
-      `_xml_insert_element` / `_text` / `_node` / `_attr` are one shape:
-      `n = length(field); insert_elements(ref, n, [new], ref[n+1]…cursor)` — and the cursor
-      they hand-write is *already* the selection `make_insertion_document(T)` carries. Add
-      `append_insertion_operation(doc, :elements, JsonInsertion)` concatenating the
-      insertion's own embedded selection. Covers 5 of the 15 `insert_elements` sites in the
-      domain package.
-- [ ] **Field-to-field motion.** JSON/YAML Tab (key→value) and XML `=` (name→value) are one
-      `move_to_field(doc, sel, from, to)`.
+`ProjectionTemplate` already had the two-argument form privately named —
+`_own_introduced(p, reference)` — sitting next to *five copies of its own body*. That is
+the tell: an unnamed concept gets rewritten, not reused. No raw
+`head isa ProjectionReference` survives in any main source file except the definition.
+
+### Phase 4 — declarative extractions
+
+- [x] **Append-into-collection.** `append_insertion_operation(doc, :children, XmlText)`.
+      Eight hand-written appenders (JSON 2, YAML 2, XML 4) were one shape. The cursor was
+      never a choice: `make_insertion_document(T)` already carries the selection its
+      `@insertion` factory declared, so each appender was re-deriving the cursor its own
+      factory had already stated.
+- [x] **Field-to-field motion.** `move_to_field(doc, :key, :value)`. Where the cursor
+      lands is decided by what the target *is* — a child document is named whole, a
+      primitive text field takes a caret at its start. That is exactly what the three
+      versions encoded by hand (JSON/YAML `.value` whole because it is a `Document`, XML
+      `value{0}` because it is a `String`), so it needs no policy argument.
+- [ ] **Type-to-replace from the domain kit.** See the finding below — the premise does
+      not survive contact.
+
+**Two things the extraction surfaced.**
+
+`sel` is **not in scope** in a `@gestures` right-hand side — only `doc` and `event` are
+(the rhs closure is `(doc, event)`; `sel` belongs to the `when(...)` precondition).
+`Gestures.jl`'s header comment claims both. That comment is wrong and should be fixed.
+
+The Tab op's terminal type checkpoint is now the value's **concrete** type
+(`::JsonNumber`), not the declared field type (`::Document`) the old code spelled by
+hand. This is the canonical annotated form — `set_selection!` refines the declared path
+to exactly this when it stores it, so the hand-written checkpoint was being replaced on
+storage anyway. (Verified directly: `set_selection!(obj, …value::Document)` reads back as
+`…value::JsonNumber`.) One test pinned the pre-refinement form; updated.
+
+**Finding — the `insertion_key` trait does not pay for itself as specified.** The plan
+claims it "deletes both `@gestures <X>Document` blocks and `_replace` / `_replace_number`
+entirely". It cannot:
+
+- A `Type → Char` trait is **not injective and cannot seed a value**. `t`/`f` are two keys
+  mapping to *one* type (`JsonBool`) with different values, and the digit row carries data
+  from the key into the document (`JsonNumber(parse(Int, string(c)))`). Those rows must
+  stay hand-written, so `_replace` survives and the `@gestures` block does not vanish.
+- For the rows it *does* cover, it is a **1:1 line trade**:
+  `KeyPress('"') => … make_insertion_document(JsonString)` becomes
+  `insertion_key(::Type{JsonString}) = '"'`. No line is saved.
+
+So the real payoff is not tidiness but **lowering the barrier for a new domain** (declare
+keys, get type-to-replace without authoring gestures) — a different goal from the one the
+plan states, and it costs new `@domain` emission plus a `replaceable(doc, sel)` precondition
+trait. Worth doing deliberately, not as a cleanup. Left open for a decision.
 
 ## Expected outcome
 
-`Json.jl`'s reader region: 134 lines → ~35 after Phase 1-3, → near zero after Phase 4.
-`Yaml.jl` becomes ~80 lines of pure declaration. The point is not tidiness: only **json,
-yaml, xml and workbench** have `@gestures` at all today — Sql, Julia, Ini, Ned, Markdown
-and Book have *zero authoring*, and 134 lines of caret archaeology per domain is a
-plausible reason why.
+`Json.jl`: **201 → 163 lines**; its reader region 134 → 68. The plan predicted "~35 after
+Phase 1-3, near zero after Phase 4" — that assumed the whole gesture table would evaporate,
+which the finding above rules out. `Yaml.jl` is now pure declaration apart from the same
+value-carrying tail.
+
+The point was never tidiness: only **json, yaml, xml and workbench** have `@gestures` at
+all — Sql, Julia, Ini, Ned, Markdown and Book have *zero authoring*. Phases 1-3 removed the
+reason (134 lines of caret archaeology per domain); Phase 4's remaining item is what would
+actually make authoring declarative.
 
 ## Risks
 
