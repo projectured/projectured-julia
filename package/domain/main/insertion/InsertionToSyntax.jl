@@ -529,7 +529,7 @@ JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(
 # `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
 function map_reference_forward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
     end
 end
 

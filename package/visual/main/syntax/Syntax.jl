@@ -195,9 +195,13 @@ SyntaxSeparation(separator::TextString) =
 #
 # Shared by the `SyntaxLeaf`/`SyntaxNode` keyword constructors below.
 
-# Auto-wrap a bare string delimiter so callers can write `open="<"` etc.
+# Auto-wrap a bare string delimiter so callers can write `open="<"` etc. An
+# absent delimiter stays absent: `nothing` means the document has no such
+# delimiter, and the printer emits no span for it — as opposed to `TextString("")`,
+# which would emit an empty span carrying a caret that renders nowhere.
 _text(t::TextString) = t
 _text(s::AbstractString) = TextString(s)
+_text(::Nothing) = nothing
 
 # Normalize the `children` argument of `SyntaxNode` to the `CellVector` the inner
 # constructor stores. A `@projection_template` marker (e.g. `collection(:field)`)
@@ -220,22 +224,29 @@ a `TextString`, a bare `String`/`Function` (auto-wrapped), or a
 `@projection_template` marker such as `bound(:value, …)`. Every delimiter /
 layout / selection field is an optional keyword:
 
-  - `open`, `close` — delimiter `TextString`s (a bare `String` is auto-wrapped);
-    default empty `TextString("")`.
+  - `open`, `close` — delimiter `TextString`s (a bare `String` is auto-wrapped),
+    or `nothing` for a leaf that has no such delimiter; default `nothing`. Each
+    is independently optional: an opening delimiter may be present while the
+    closing one is absent, and vice versa.
   - `indentation::Int` — pretty-print indentation; default `0`.
   - `collapsed::Bool` — collapsed state; default `false`.
   - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
 
-Renders as: open.content * value.content * close.content
+Renders as: open.content * value.content * close.content, skipping absent delimiters.
+
+An absent delimiter emits **no span**, and so offers no cursor position: a bare
+leaf renders exactly one span, and `.open{k}` / `.close{k}` do not address
+anything. (An *empty* delimiter — `TextString("")` — would emit a span that
+renders nothing yet still carries a caret; that is what `nothing` avoids.)
 
 The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
-  `.open{k}`   — cursor at boundary k of the open delimiter (0-based)
+  `.open{k}`   — cursor at boundary k of the open delimiter (0-based), if present
   `.value{k}`  — cursor at boundary k of the value content
-  `.close{k}`  — cursor at boundary k of the close delimiter
+  `.close{k}`  — cursor at boundary k of the close delimiter, if present
 """
 @document struct SyntaxLeaf <: SyntaxDocument
-    open::TextString
-    close::TextString
+    open::Union{TextString,Nothing}
+    close::Union{TextString,Nothing}
     value::TextString
     indentation::Int
     collapsed::Bool
@@ -243,8 +254,9 @@ end
 
 # Canonical keyword constructor: `value` leads positionally and is left untyped
 # so it also accepts a `bound(…)`/marker object from `@projection_template`
-# builders. open/close auto-wrap a bare string via `_text`.
-SyntaxLeaf(value; open=TextString(""), close=TextString(""),
+# builders. open/close auto-wrap a bare string via `_text`, and stay `nothing`
+# when omitted.
+SyntaxLeaf(value; open=nothing, close=nothing,
            indentation::Int=0, collapsed=false, selection=nothing) =
     SyntaxLeaf(_text(open), _text(close), value, indentation, collapsed, selection)
 
@@ -278,24 +290,30 @@ separator. `children` is the sole positional argument; it is a
 `@projection_template` marker such as `collection(:field)`. Every delimiter /
 layout / selection field is an optional keyword:
 
-  - `open`, `close`, `sep` — `TextString`s (a bare `String` is auto-wrapped);
-    default empty `TextString("")`.
+  - `open`, `close`, `sep` — `TextString`s (a bare `String` is auto-wrapped), or
+    `nothing` for a node that has no such delimiter/separator; default `nothing`.
+    Each is independently optional.
   - `indentation::Int` — pretty-print indentation; default `0`.
   - `collapsed::Bool` — collapsed state; default `false`.
   - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
 
-Renders as: open.content * join(children, sep.content) * close.content
+Renders as: open.content * join(children, sep.content) * close.content, skipping
+absent delimiters (an absent `sep` joins the children with nothing between them).
+
+An absent delimiter emits **no span**, and so offers no cursor position — see
+`SyntaxLeaf`. A node with no delimiters and no separator is a plain concatenation
+of its children.
 
 The `selection` cell routes a cursor into the rendered node, or `nothing`:
-  `.open{k}`          — cursor at boundary k of the open delimiter (0-based)
-  `.close{k}`         — cursor at boundary k of the close delimiter
+  `.open{k}`          — cursor at boundary k of the open delimiter (0-based), if present
+  `.close{k}`         — cursor at boundary k of the close delimiter, if present
   `.children[i]`      — descend into the i-th child (1-based); set_selection!
                         clears all other children and propagates the rest into child i
 """
 @document struct SyntaxNode <: SyntaxDocument
-    open::TextString
-    close::TextString
-    sep::TextString
+    open::Union{TextString,Nothing}
+    close::Union{TextString,Nothing}
+    sep::Union{TextString,Nothing}
     children::CellVector
     indentation::Int
     collapsed::Bool
@@ -303,8 +321,9 @@ end
 
 # Canonical keyword constructor: `children` leads positionally; `_children`
 # normalizes a Vector/CellVector/Function builder and passes a marker through
-# untouched. open/close/sep auto-wrap a bare string via `_text`.
-SyntaxNode(children; open=TextString(""), close=TextString(""), sep=TextString(""),
+# untouched. open/close/sep auto-wrap a bare string via `_text`, and stay
+# `nothing` when omitted.
+SyntaxNode(children; open=nothing, close=nothing, sep=nothing,
            indentation::Int=0, collapsed=false, selection=nothing) =
     SyntaxNode(_text(open), _text(close), _text(sep), _children(children),
                indentation, collapsed, selection)
@@ -348,13 +367,19 @@ SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
 Recursively render the tree into a string. Reading cells during rendering
 registers reactive dependencies automatically.
 """
+# An absent delimiter contributes nothing to the rendered string.
+_delimiter_content(::Nothing) = ""
+_delimiter_content(t::TextString) = t.content
+
 function render(leaf::SyntaxLeaf)
-    string(leaf.open.content, leaf.value.content, leaf.close.content)
+    string(_delimiter_content(leaf.open), leaf.value.content, _delimiter_content(leaf.close))
 end
 
 function render(node::SyntaxNode)
     parts = [render(child) for child in node.children]
-    string(node.open.content, join(parts, node.sep.content), node.close.content)
+    string(_delimiter_content(node.open),
+           join(parts, _delimiter_content(node.sep)),
+           _delimiter_content(node.close))
 end
 
 # ── set_function! delegation ───────────────────────────────────────────────────

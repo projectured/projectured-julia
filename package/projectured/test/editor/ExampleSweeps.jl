@@ -239,20 +239,27 @@ end
 
 # ── keyboard nav invariants ──────────────────────────────────────────────────
 
-# @broken: the leftward walk stalls two or three carets in from the end of every
-# syntax-backed document, so it neither retraces the rightward walk nor reaches
-# the start. At a caret sitting on projection-introduced text (the flat-offset
-# position SyntaxToText emits for its own indentation and markers) `left` clamps
-# in place while `right` from the same caret advances. Diagnosed in
-# plan/pending/left-motion-stalls-on-introduced-text.md; the fix belongs in the
-# SyntaxToText forward map.
+# @broken: the leftward walk stalls partway and so neither retraces the rightward
+# walk nor reaches the start. `left` clamps in place on a caret that sits in a
+# zero-length span, because the step lands on the same visual caret it started
+# from and the selection never changes.
+#
+# Optional delimiters removed most of those spans — an undelimited leaf or node no
+# longer materializes an empty `open`/`close`/`sep` — which is why sql_insert_syntax
+# now walks symmetrically and markdown / sql_update_syntax now reach the end. What
+# remains is the width-0 *indent* slot that SyntaxToText emits before each close
+# delimiter (it needs the slot to widen, and element counts must not depend on
+# depth), and that still swallows a leftward step.
+#
+# Diagnosed in plan/pending/left-motion-stalls-on-introduced-text.md; the fix is
+# deferred to the text-selection work (see plan/pending/simplest-syntax-document.md).
 const NAV_LEFT_WALK_STALLS = ("json", "json_insertion", "syntax", "markdown",
                               "focusing", "formula", "sql_syntax",
-                              "sql_insert_syntax", "sql_update_syntax", "dragging")
+                              "sql_update_syntax", "dragging")
 
-# @broken: on these three the *rightward* walk also ends somewhere other than
-# where Ctrl+End lands — a second, narrower asymmetry in the same forward map.
-const NAV_RIGHT_WALK_MISSES_END = ("markdown", "formula", "sql_update_syntax")
+# @broken: on formula the *rightward* walk also ends somewhere other than where
+# Ctrl+End lands — a second, narrower asymmetry in the same forward map.
+const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 
 # @broken: these examples cannot complete a walk at all — the printer or a reader
 # throws partway through. All pre-existing and unrelated to navigation direction

@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_
 import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
@@ -34,13 +34,13 @@ end
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveBool.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        ::PrimitiveBool.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
     end
 end
 
 function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveBool.value::Bool{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveBool.value::Bool{k}::Position
     end
 end
 
@@ -64,13 +64,13 @@ end
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveNumber.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        ::PrimitiveNumber.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
     end
 end
 
 function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveNumber.value::Number{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveNumber.value::Number{k}::Position
     end
 end
 
@@ -95,13 +95,13 @@ end
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveString.value{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        ::PrimitiveString.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
     end
 end
 
 function map_reference_backward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveString.value::String{k}
+        ::SyntaxLeaf.value{k} => @reference ::PrimitiveString.value::String{k}::Position
     end
 end
 

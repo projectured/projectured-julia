@@ -55,7 +55,7 @@ end
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::MathVariable.name{k} => @reference ::SyntaxLeaf.value::TextString{k}
+        ::MathVariable.name{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
     end
 end
 
