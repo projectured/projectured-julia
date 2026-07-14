@@ -40,3 +40,57 @@ function test_projection_template_hygiene()
         @test out isa SyntaxLeaf
     end
 end
+
+# A fixed-children blueprint, written both ways: with the long positional constructor
+# (children stored as a raw Vector) and with the ordinary one (children coerced into a
+# CellVector). The engine must walk both — recognising only the raw Vector is what used
+# to force every fixed-children template node into the 7-arg positional form, and made
+# `SyntaxNode([...])` / `SyntaxConcatenation([...])` reach the printer with their markers
+# unresolved (it reads `.content` off a `Bound` and dies).
+module _FixedChildrenBlueprintProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionApiModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template", bound
+    import ProjecturedVisual.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
+    import ProjecturedVisual.TextModule: TextString
+    import ProjecturedVisual.FontModule: font_ubuntu_monospace_regular_20
+    import ProjecturedVisual.ColorModule: color_default
+
+    @document struct Pair2 <: Document
+        a::String
+        b::String
+    end
+
+    _leaves(doc) = SyntaxDocument[
+        SyntaxLeaf(bound(:a, String, TextString(() -> doc.a, font_ubuntu_monospace_regular_20, color_default))),
+        SyntaxLeaf(bound(:b, String, TextString(() -> doc.b, font_ubuntu_monospace_regular_20, color_default)))]
+
+    # The long positional form: children land in the field as a raw Vector.
+    @projection struct PairToNode <: Projection end
+    @projection_template PairToNode Pair2 (p, doc) ->
+        SyntaxNode(nothing, nothing, nothing, _leaves(doc), 0, false, nothing)
+
+    # The form a domain actually wants to write: children coerced into a CellVector.
+    @projection struct PairToConcat <: Projection end
+    @projection_template PairToConcat Pair2 (p, doc) -> SyntaxConcatenation(_leaves(doc))
+
+    @projection struct PairToKwNode <: Projection end
+    @projection_template PairToKwNode Pair2 (p, doc) -> SyntaxNode(_leaves(doc); sep="-")
+end
+
+function test_projection_template_fixed_children()
+    @testset "ProjectionTemplate fixed children, however the node was built" begin
+        P = _FixedChildrenBlueprintProbe
+        render_with(proj) = begin
+            tdp = TypeDispatchingProjection(P.Pair2 => proj)
+            render(print_document(RecursiveProjection(tdp), P.Pair2("hello", "world")).output)
+        end
+        # All three are the same blueprint; only the constructor differs.
+        @test render_with(P.PairToNode())   == "helloworld"   # raw Vector (worked before)
+        @test render_with(P.PairToConcat()) == "helloworld"   # CellVector, no chrome
+        @test render_with(P.PairToKwNode()) == "hello-world"  # CellVector, with a separator
+    end
+end

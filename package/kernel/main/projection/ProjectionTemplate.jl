@@ -262,7 +262,47 @@ function _dispatch_print(p, recursion, doc, ctx, out)
     return _atomic_print(p, doc, out)
 end
 
-_has_fixed_children(out) = any(fname -> getfield(out, fname)[] isa Vector, fieldnames(typeof(out)))
+# ── A blueprint's fixed child list ───────────────────────────────────────────
+#
+# A node built with a *positional* constructor stores its children as a raw `Vector`
+# — whatever it was handed. One built with a *keyword* constructor has them coerced
+# into an element collection (base's `CellVector`), because that is what a real output
+# node needs: the reference machinery navigates `.children[i]` through its element
+# cells.
+#
+# Both are the same blueprint, and the engine has to walk either. Recognising only the
+# raw `Vector` is why a fixed-children template node had to be spelled in the long
+# positional form: written `SyntaxNode([...])` or `SyntaxConcatenation([...])`, its
+# children were invisible here, the node fell through to `_atomic_print`, and the
+# `bound`/`project` markers reached the printer unresolved — where it reads `.content`
+# off a `Bound` and dies.
+#
+# A raw `Vector` counts unconditionally, exactly as before. An element collection counts
+# only when it actually CARRIES a marker: a marker-free one is an ordinary output subtree
+# and must keep going to `_atomic_print`. So the rule is strictly additive — it cannot
+# change what any existing template does.
+#
+# `is_element_collection` is the document-layer trait a positional collection opts into.
+# The kernel cannot name `CellVector`, which lives in base, so it asks the trait instead.
+_is_fixed_children(::Vector) = true
+_is_fixed_children(x) = is_element_collection(x) && any(_carries_marker, x)
+
+# Does a blueprint child carry a marker? Not the same question as `_is_marker` or
+# `_is_marker_bearing_subnode`: the commonest fixed child is a `SyntaxLeaf(bound(:x))`,
+# which is neither — it is an ordinary document holding a marker in a *field*. Only ever
+# called on a builder's blueprint (never on a hand-written projection's output), so
+# forcing the cells it reads costs nothing at print time.
+_carries_marker(x) = _is_marker(x)
+function _carries_marker(x::Document)
+    for fname in fieldnames(typeof(x))
+        v = getfield(x, fname)[]
+        _is_marker(v) && return true
+        (v isa Vector || is_element_collection(v)) && any(_carries_marker, v) && return true
+    end
+    false
+end
+
+_has_fixed_children(out) = any(fname -> _is_fixed_children(getfield(out, fname)[]), fieldnames(typeof(out)))
 
 # Locate a reactive children *thunk* (F2): a field holding a bare `Function`. Only
 # the 7-arg positional `SyntaxNode(open, close, sep, thunk, …)` stores an unevaluated
@@ -600,7 +640,7 @@ end
 
 function _find_fixed_children(out)
     for fname in fieldnames(typeof(out))
-        getfield(out, fname)[] isa Vector && return fname
+        _is_fixed_children(getfield(out, fname)[]) && return fname
     end
     error("ProjectionTemplate: fixed-children node has no children vector")
 end

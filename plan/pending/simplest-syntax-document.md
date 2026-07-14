@@ -160,6 +160,11 @@ broken → **236 / 26**.
   nodes become `SyntaxConcatenation([...])` — which is both prettier and more precise, and can define
   its own children semantics without fighting this.
 
+  > **Superseded — see "The template-blueprint gap" below.** The two needs are real, but the
+  > conclusion drawn from them was wrong: the conflict was in the *engine's detection*, not in the
+  > constructor. `_has_fixed_children` now accepts either storage, so a fixed-children template node
+  > **can** use the keyword form and the 7-arg positional call is no longer forced.
+
 ### The original plan for this phase
 
 ## Phase 1 (original) — optional delimiters on the fat types
@@ -444,12 +449,46 @@ baseline: 110182 pass / 0 fail / 1 error / 15 broken.** `test_visual` rises to 4
   array stays a `SyntaxNode`), so real stacks are 1–2 deep. `SyntaxIndentation` is the one doubtful
   case — its own spans are pure whitespace, so stopping on it may be a nuisance level. If it proves so,
   a per-type `syntax_transparent` knob can hide it. Do not build that up front.
-- **`SyntaxConcatenation` in a `@projection_template` blueprint still does not work.** The Phase 1
-  lesson stands: a blueprint needs a raw `Vector` (`ProjectionTemplate._has_fixed_children` tests
-  `getfield(out, f)[] isa Vector`) while a hand-written projection's output needs a `CellVector`, and
-  `SyntaxConcatenation(children::Vector)` wraps into a `CellVector`. So the promise that Julia's 19
-  connector nodes get to drop the 7-arg positional form is **not yet delivered** — the real fix is to
-  teach `_has_fixed_children` to recognise a `CellVector`. Phase 3.
+- ~~**`SyntaxConcatenation` in a `@projection_template` blueprint does not work.**~~ **FIXED.** See
+  "The template-blueprint gap" below. The Phase 1 lesson — that a fixed-children template node cannot
+  use the keyword form — **no longer holds**, and the 7-arg positional form is no longer forced.
+
+### The template-blueprint gap — FIXED
+
+Phase 1 recorded that `SyntaxNode`'s children container is "load-bearing in two conflicting ways": a
+hand-written projection's output needs a `CellVector` (the reference machinery navigates `.children[i]`
+through its element cells), while a `@projection_template` blueprint needs a raw `Vector` (the engine
+detects a fixed-children node with `getfield(out, f)[] isa Vector`). The conclusion was that a
+fixed-children template node **cannot** use the keyword form and is stuck with the 7-arg positional
+call. That conclusion is now obsolete: **the conflict was never in the constructor, it was in the
+engine's detection.**
+
+`ProjectionTemplate._has_fixed_children` now accepts *either* storage
+([ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl)):
+
+- a raw `Vector` counts unconditionally, exactly as before;
+- an **element collection** (`is_element_collection` — the document-layer trait `CellVector` opts into;
+  the kernel cannot name `CellVector`, which lives in base) counts **only when it carries a marker**.
+
+The marker test is its own predicate, because the engine's existing ones do not answer this question:
+the commonest fixed child is a `SyntaxLeaf(bound(:x))`, which is neither a marker (`_is_marker`) nor a
+marker-bearing sub-node (`_is_marker_bearing_subnode`) — it is an ordinary document holding a marker in
+a *field*. `_has_fixed_children` only ever runs on a builder's blueprint, never on a hand-written
+projection's output, so forcing the cells it reads costs nothing at print time.
+
+Gating the new case on "carries a marker" makes the rule **strictly additive**: a marker-free
+`CellVector` is an ordinary output subtree and still goes to `_atomic_print`, so no existing template
+changes behaviour.
+
+The symptom this removes, reproduced before fixing and now a regression test
+([ProjectionTemplateTest.jl](../../package/visual/test/projection/ProjectionTemplateTest.jl)): a
+blueprint written `SyntaxConcatenation([...])` fell through to `_atomic_print` and its `bound` markers
+reached the printer unresolved, which read `.content` off a `Bound` and died with
+`type Bound has no field 'content'`. The test now asserts the same blueprint renders identically
+written three ways — positional `SyntaxNode`, `SyntaxConcatenation([...])`, and `SyntaxNode([...]; sep=…)`.
+
+**This unblocks Phase 3.** Julia's 19 connector nodes can now actually be written
+`SyntaxConcatenation([...])`, and any fixed-children node can use the keyword form.
 
 ### Design decisions to settle in Phase 2 — do not skip these
 
