@@ -6,9 +6,24 @@
 # only when its value changed so the reactive graph sees a minimal set of
 # invalidations. Both trees are the same document type (generated from one
 # `@document` declaration), which is what lets the sync be one generic walk.
+#
+# `sync_document!` is an open generic: the walk here handles a record (a document
+# whose children are named fields), and a document with a different *shape* adds
+# its own method — a positional collection matches its slots by index, not by
+# field name, and so cannot reuse this one. `is_same_document_type`,
+# `get_document_cell_kind`, and `copy_shadow_element` are the seam such a method
+# is written against, and are exported for that reason: they are this module's
+# contract to any document that syncs, not internals.
 
-# Same document type ignoring cell kind (compare the UnionAll wrappers).
-_same_wrapper(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
+"""
+    is_same_document_type(a, b) -> Bool
+
+`true` when `a` and `b` are the same document type **ignoring cell kind** — a
+reactive `RFoo` and an immutable `IFoo` answer `true`, since both are `Foo`. The
+shape test a sync makes before recursing into a slot: same type ⇒ sync in place,
+different type ⇒ rebuild the slot.
+"""
+is_same_document_type(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
 
 """
     sync_document!(shadow, source) -> shadow
@@ -25,14 +40,14 @@ The result is a consistent view of `source` after each sync; between syncs
 the source is unobserved and pays nothing for observation.
 """
 function sync_document!(shadow::Document, source::Document)
-    _same_wrapper(shadow, source) ||
+    is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
-    K = _document_cell_kind(shadow)
+    K = get_document_cell_kind(shadow)
     for nm in fieldnames(typeof(source))
         sv  = getproperty(source, nm)
         cur = getproperty(shadow, nm)
         if sv isa Document
-            if cur isa Document && _same_wrapper(cur, sv)
+            if cur isa Document && is_same_document_type(cur, sv)
                 sync_document!(cur, sv)                       # recurse in place
             else
                 setproperty!(shadow, nm, copy_document(K, sv)) # type changed ⇒ rebuild in shadow's kind
@@ -44,6 +59,12 @@ function sync_document!(shadow::Document, source::Document)
     shadow
 end
 
-# A source element rebuilt for the shadow's kind: a document is copied in that
-# kind, a plain value passes through.
-_shadow_elem(K, x) = x isa Document ? copy_document(K, x) : x
+"""
+    copy_shadow_element(K, x) -> value
+
+A source element rebuilt for a shadow of cell kind `K`: a document is copied in
+that kind, a plain value passes through. What a sync writes into a shadow slot
+whose source element changed type — the slot cannot be synced in place, so it is
+rebuilt on the shadow's side of the double buffer.
+"""
+copy_shadow_element(K, x) = x isa Document ? copy_document(K, x) : x

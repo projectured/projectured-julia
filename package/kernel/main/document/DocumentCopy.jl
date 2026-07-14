@@ -31,7 +31,7 @@ copy_document(v::AbstractVector) = [copy_document(x) for x in v]
 # Cell: fresh cell of the same kind + declared value type, holding the copied
 # inner value. Used by the Vector walk for slot cells; the Document walk
 # handles struct-field cells directly so it can consult declared field types.
-copy_document(c::AbstractCell) = _same_cell(c, copy_document(c[]))
+copy_document(c::AbstractCell) = copy_cell_as(c, copy_document(c[]))
 
 function copy_document(doc::Document)
     T = typeof(doc)
@@ -40,7 +40,7 @@ function copy_document(doc::Document)
     for nm in fieldnames(T)
         raw = getfield(doc, nm)
         if raw isa AbstractCell
-            push!(args, _same_cell(raw, copy_document(raw[])))
+            push!(args, copy_cell_as(raw, copy_document(raw[])))
         else
             push!(args, copy_document(raw))
         end

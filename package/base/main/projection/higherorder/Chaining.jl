@@ -15,7 +15,7 @@ import ..GestureModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..CellModule: Cell, AbstractCell
+import ..CellModule: Cell, AbstractCell, unwrap_cell
 export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
@@ -117,10 +117,7 @@ end
 # next stage prints. A helper so each closure captures its own `p`/`prev`/`cell`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
     iomap_cell = Cell(() -> print_document(p, recursion, prev[], ctx))
-    out_cell   = Cell(() -> begin
-        o = iomap_cell[].output
-        o isa AbstractCell ? o[] : o
-    end)
+    out_cell   = Cell(() -> unwrap_cell(iomap_cell[].output))
     (iomap_cell, out_cell)
 end
 

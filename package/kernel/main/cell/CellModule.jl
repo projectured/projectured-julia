@@ -15,7 +15,7 @@ and examples.
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-       set_value!, set_function!, is_up_to_date
+       set_value!, set_function!, is_up_to_date, unwrap_cell
 # The exported `@cell_struct` and its codegen assemblers are the public seam for
 # macro authors; CellStruct.jl's remaining builders stay internal.
 export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_kwctor

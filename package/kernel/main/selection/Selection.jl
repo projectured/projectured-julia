@@ -214,8 +214,7 @@ function _selection_child(document, path::ConcreteReferencePath)
         # model `h` is always the navigation step (the node type is a field), so
         # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
-        f = getfield(document, sym)
-        f isa AbstractCell ? f[] : f
+        unwrap_cell(getfield(document, sym))
     elseif h isa RangeReference
         document isa AbstractString && return nothing
         idx = h.start + 1

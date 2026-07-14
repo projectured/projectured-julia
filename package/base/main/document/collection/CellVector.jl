@@ -67,8 +67,6 @@ function _mutable_plain(cv::CellVector)
         throw(ArgumentError("CellVector: immutable-kind collection cannot be mutated"))
     _plain(cv)
 end
-# Unwrap one slot: a reactive slot is a Cell, a non-reactive slot is the value.
-_slotval(x) = x isa AbstractCell ? x[] : x
 
 Base.size(cv::CellVector)              = (length(cv),)
 # The pure structural queries delegate straight to the backing vector.
@@ -86,11 +84,11 @@ function Base.iterate(cv::CellVector, s...)
     r = iterate(_plain(cv), s...)
     r === nothing && return nothing
     (x, state) = r
-    (_slotval(x), state)
+    (unwrap_cell(x), state)
 end
 
 Base.getindex(cv::RCV, i::Integer)        = _elems(cv)[i][]      # the stored value
-Base.getindex(cv::CellVector, i::Integer) = _slotval(_plain(cv)[i])
+Base.getindex(cv::CellVector, i::Integer) = unwrap_cell(_plain(cv)[i])
 # The raw slot Cell — reactive instantiations only.
 get_cell_at(cv::RCV, i::Integer) = _elems(cv)[i]
 
@@ -173,8 +171,8 @@ end
 # Fresh CellVector with the same field-cell kinds as `cv`, holding `slots`
 # (already in cv's storage convention); selection reset.
 _rebuild_with(cv::CellVector, slots::Vector) =
-    CellVector(_same_cell(getfield(cv, :elements), slots),
-               _same_cell(getfield(cv, :selection), nothing))
+    CellVector(copy_cell_as(getfield(cv, :elements), slots),
+               copy_cell_as(getfield(cv, :selection), nothing))
 
 Base.sort(cv::CellVector; by=identity, lt=isless, rev=false) = begin
     n = length(cv)
@@ -233,18 +231,18 @@ end
 # syncs) would make that minimal too, and is the natural refinement if profiling a
 # front-heavy queue demands it.
 function sync_document!(shadow::CellVector, source::CellVector)
-    K = _document_cell_kind(shadow)
+    K = get_document_cell_kind(shadow)
     ns, nc = length(source), length(shadow)
     for i in 1:min(ns, nc)
         s, c = source[i], shadow[i]
-        if s isa Document && c isa Document && _same_wrapper(c, s)
+        if s isa Document && c isa Document && is_same_document_type(c, s)
             sync_document!(c, s)                      # recurse into the slot's document
         else
-            isequal(c, s) || (shadow[i] = _shadow_elem(K, s))   # value/type change ⇒ rewrite slot
+            isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))   # value/type change ⇒ rewrite slot
         end
     end
     for i in (nc + 1):ns
-        push!(shadow, _shadow_elem(K, source[i]))     # enqueue
+        push!(shadow, copy_shadow_element(K, source[i]))     # enqueue
     end
     for _ in 1:(nc - ns)
         pop!(shadow)                                  # trim surplus

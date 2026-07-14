@@ -396,8 +396,7 @@ function child_reference_steps(node)
     pairs = Tuple{Any, Any}[]
     for nm in fieldnames(typeof(node))
         nm === :selection && continue
-        raw = getfield(node, nm)
-        val = raw isa AbstractCell ? raw[] : raw
+        val = unwrap_cell(getfield(node, nm))
         val isa Document || continue
         push!(pairs, (FieldReference(string(nm)), val))
     end

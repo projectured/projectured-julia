@@ -31,6 +31,11 @@ using ..CellModule
 export Document, copy_document, sync_document!, is_element_collection,
        is_opaque, search_documents,
        @document, @forward, @forward_vector, @forward_map
+# The shadow-sync seam: what a document of a different *shape* writes its own
+# `sync_document!` method against (a positional collection matches slots by
+# index, so it cannot reuse the record walk). Exported because it is a contract,
+# not an internal — the module boundary is the API boundary.
+export is_same_document_type, get_document_cell_kind, copy_shadow_element, copy_cell_as
 
 # Document.jl first — every fragment below refers to the `Document` supertype.
 include("Document.jl")

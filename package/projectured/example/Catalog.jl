@@ -24,7 +24,6 @@ _icompanion(::Type{T}) where {T} = getfield(parentmodule(T), _icompanion_name(T)
 _uncell(ft) = (ft isa DataType && ft <: AbstractCell && !isempty(ft.parameters)) ? ft.parameters[1] : ft
 _declared_field_types(::Type{T}) where {T} = Any[_uncell(ft) for ft in fieldtypes(_icompanion(T))]
 
-_unwrap(o) = o isa AbstractCell ? o[] : o
 
 # A leaf document has no field that holds another document (a `CellVector` counts —
 # it is `<: Document`). Node documents need a `recursion` argument to project their
@@ -103,7 +102,7 @@ function _step(i::Int, doc)
     key = (typeof(doc), i)
     get!(_STEP_CACHE, key) do
         try
-            o = _unwrap(print_document(BRIDGES[i](), doc).output)
+            o = unwrap_cell(print_document(BRIDGES[i](), doc).output)
             typeof(o) === typeof(doc) ? nothing : o
         catch
             nothing
@@ -202,7 +201,7 @@ function discover_atomic_pairs()
         (_has_icompanion(docT) && is_leaf_document(docT)) || continue
         local doc, proj
         try doc = minimal(docT); proj = projT() catch; continue end   # zero-arg stages only
-        term = try _terminal_of(typeof(_unwrap(print_document(proj, doc).output))) catch; :abstract end
+        term = try _terminal_of(typeof(unwrap_cell(print_document(proj, doc).output))) catch; :abstract end
         push!(examples, _atomic_example(docT, projT, term))
     end
     examples

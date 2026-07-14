@@ -9,12 +9,6 @@
 # the two walks are structurally parallel (element-collection / dict / array /
 # fields), so a fix to one branch here should be mirrored there.
 
-# Unwrap one field cell to its stored value; a non-cell passes through. (The
-# reference layer keeps its own copy for path navigation, and base's `_slotval`
-# is the same one-liner — sharing a cell-deref across module boundaries would
-# cost an exported internal for a trivial expression.)
-_deref_cell(x) = x isa AbstractCell ? x[] : x
-
 # A node is a search leaf — nothing to descend into — when it is a scalar Julia
 # value or an opaque document (see `is_opaque`).
 _is_search_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
@@ -69,7 +63,7 @@ whose nodes are generated fresh on demand.
 """
 function search_documents(obj, predicate; include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false)
     results = Any[]
-    _search_documents!(results, IdDict{Any,Bool}(), _deref_cell(obj), predicate,
+    _search_documents!(results, IdDict{Any,Bool}(), unwrap_cell(obj), predicate,
                        nothing, IdDict{Any,Bool}(), include_selection, maxdepth, raw)
     results
 end
@@ -95,25 +89,25 @@ function _search_documents!(results, reported, obj, predicate, enclosing, seen, 
     _is_search_leaf(obj) && return
     if is_element_collection(obj)
         for i in 1:length(obj)
-            _search_documents!(results, reported, _deref_cell(obj[i]), predicate, here, seen, include_selection, depth - 1, raw)
+            _search_documents!(results, reported, unwrap_cell(obj[i]), predicate, here, seen, include_selection, depth - 1, raw)
         end
     elseif obj isa AbstractDict
         # Walk values, not `fieldnames` (which descends into hash-table internals
         # whose `Memory` buffers have undefined slots).
         for v in values(obj)
-            _search_documents!(results, reported, _deref_cell(v), predicate, here, seen, include_selection, depth - 1, raw)
+            _search_documents!(results, reported, unwrap_cell(v), predicate, here, seen, include_selection, depth - 1, raw)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
-            _search_documents!(results, reported, _deref_cell(obj[i]), predicate, here, seen, include_selection, depth - 1, raw)
+            _search_documents!(results, reported, unwrap_cell(obj[i]), predicate, here, seen, include_selection, depth - 1, raw)
         end
     else
         fnames = try fieldnames(typeof(obj)) catch; () end
         for fn in fnames
             (fn == :ref || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
-            _search_documents!(results, reported, _deref_cell(getfield(obj, fn)), predicate, here, seen, include_selection, depth - 1, raw)
+            _search_documents!(results, reported, unwrap_cell(getfield(obj, fn)), predicate, here, seen, include_selection, depth - 1, raw)
         end
     end
 end

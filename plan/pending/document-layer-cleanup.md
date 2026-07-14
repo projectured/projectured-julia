@@ -147,7 +147,7 @@ the eight new fragments is identical to that of the two files they replace.
 
 ---
 
-## Step 3 — Close the private-symbol leaks
+## Step 3 — Close the private-symbol leaks ✅ done
 
 Two separate leaks, both AR-48 violations (imports name only exported symbols — the module
 boundary *is* the API boundary).
@@ -168,14 +168,21 @@ The comment in `ReferenceSearch.jl` defends the duplication as cheaper than expo
 internal. It isn't: unwrapping a cell-or-value is a *cell-layer concept* with exactly one
 owning module (AR-65: every exported name has one owning module).
 
-- [ ] `cell/CellModule.jl` (or `AbstractCell.jl`): define and export
-      `unwrap_cell(x) = x isa AbstractCell ? x[] : x`, with a docstring saying it is the
-      cell-or-value accessor (an untracked passthrough for a non-cell, a *tracked* read
-      for a cell — worth stating, since it registers a dependency).
-- [ ] Replace all ten call sites; delete `_deref_cell` (×2), `_slotval`, `_force_output`,
-      and the inline copies.
-- [ ] Delete the two comments that rationalized the duplication (`Document.jl:597-599`,
-      `ReferenceSearch.jl:8-11`).
+- [x] `cell/AbstractCell.jl`: define `unwrap_cell(x) = x isa AbstractCell ? x[] : x`,
+      exported from `CellModule`, with a docstring saying it is the cell-or-value accessor
+      (an untracked passthrough for a non-cell, a *tracked* read for a cell — worth stating,
+      since it registers a dependency).
+- [x] Replace all ten call sites; delete `_deref_cell` (×2), `_slotval`, `_force_output`,
+      `_unwrap` (Catalog), and the inline copies.
+- [x] Delete the comments that rationalized the duplication.
+
+**Deliberate exclusion — `Copying.jl`'s `_unwrap`.** `base/projection/Copying.jl:43-44`
+looks like an eleventh copy but is **not** the same function: it dispatches on `Cell`
+(= `ReactiveCell{Any}`), not `AbstractCell`, so it leaves a `MutableCell` / `ImmutableCell`
+field *wrapped* and hands the raw cell to `print_child`. Swapping in `unwrap_cell` would
+silently change `CopyingProjection`'s behaviour for non-reactive-kind documents. Whether the
+narrow dispatch is intentional or a latent bug is a real question — but it is a *different*
+question, and this commit does not answer it by accident. Left alone; flagged here.
 
 ### 3b. The shadow-sync kit is a real protocol, not four internals
 
@@ -185,22 +192,28 @@ package boundary, to implement `sync_document!(::CellVector, ::CellVector)`. Tha
 the smell; the fix is not to hide it better but to admit that `CellVector`'s sync is a
 legitimate consumer and the kit is therefore public.
 
-- [ ] Rename them to the naming law (AR-65: full words, `get_*` for getters) and export
+- [x] Rename them to the naming law (AR-65: full words, `get_*` for getters) and export
       them from `DocumentModule`:
   - `_same_wrapper(a, b)` → `is_same_document_type(a, b)`
   - `_document_cell_kind(doc)` → `get_document_cell_kind(doc)`
   - `_shadow_elem(K, x)` → `copy_shadow_element(K, x)`
   - `_same_cell(c, v)` → `copy_cell_as(c, v)` (a fresh cell of `c`'s kind holding `v`)
-- [ ] `base/document/Collection.jl`: import the exported names.
-- [ ] `DocumentSync.jl` header docstring: state that these four are the shadow-sync seam a
+- [x] `base/document/Collection.jl`: import the exported names.
+- [x] `DocumentSync.jl` header: state that these four are the shadow-sync seam a
       collection type implements `sync_document!` against — the contract, not an internal.
-- [ ] Delete `_value_type` (`Document.jl:535`) — **dead**: defined, never called anywhere.
+      Each of the four gained a docstring; they are public API now.
+- [x] Delete `_value_type` — **dead**: defined, never called anywhere.
 
-**Verify:** `test_kernel()`, `test_base()` (the CellVector sync tests are the ones that
-matter), `test_cell()`.
+**Verify:** `test_kernel()` 338/338, `test_base()` 82/82, `test_visual()` 51856/0 fail.
 **Commit:** `refactor: give the cell-unwrap and shadow-sync helpers their owning module`
 
-Do this before Step 4 — the merged walk uses `unwrap_cell`.
+### Baseline correction — `test_domain()` is not green on `main`
+
+`test_domain()` reports **125962 pass / 93 fail / 1 error / 15 broken**. That is **not** a
+regression from this work: a worktree at pre-plan `main` (`d66fd442`) reports the *identical*
+numbers, pass count included. Any future step in this plan must compare against
+`125962/93/1/15`, not against zero, and must not "fix" those 93 by accident. (A stored note
+claiming a "~13 failed" baseline was stale and has been corrected.)
 
 ---
 

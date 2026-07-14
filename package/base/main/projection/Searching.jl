@@ -14,7 +14,7 @@ module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..CellModule: Cell, AbstractCell, set_function!
+import ..CellModule: Cell, AbstractCell, set_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
@@ -121,7 +121,7 @@ function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
     for nm in fieldnames(typeof(node))
         nm === :selection && continue
         raw = getfield(node, nm)
-        val = raw isa AbstractCell ? raw[] : raw
+        val = unwrap_cell(raw)
         val isa Document || continue
         _walk(p, val, append_reference(path, FieldReference(string(nm))), matches, seen)
     end
@@ -132,7 +132,7 @@ function _object_matches(p::SearchingProjection, node)
     for nm in fieldnames(typeof(node))
         nm === :selection && continue
         raw = getfield(node, nm)
-        val = raw isa AbstractCell ? raw[] : raw
+        val = unwrap_cell(raw)
         p.field_match(string(nm), val) && return true
     end
     return false

@@ -6,9 +6,8 @@
 # scalar match folds to the path of its nearest enclosing `Document`, so the path
 # is selectable — with a `raw=true` opt-out. The two walks are structurally
 # parallel; keep them in sync. The small query / leaf helpers below duplicate the
-# document layer's one-liners (as `_deref_cell` in `ReferenceStep.jl` already does)
-# rather than importing them across the layer boundary; they key off the exported
-# `is_opaque` / `is_element_collection` document traits.
+# document layer's one-liners rather than importing them across the layer boundary;
+# they key off the exported `is_opaque` / `is_element_collection` document traits.
 
 # A node is a search leaf — nothing to descend into — when it is a scalar Julia
 # value or an opaque document (see `is_opaque`).
@@ -74,7 +73,7 @@ covers it (those paths are for inspection only, not selectable).
 """
 function search_references(obj, predicate; include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false)
     results = ReferencePath[]
-    root = _deref_cell(obj)
+    root = unwrap_cell(obj)
     _search_references!(results, IdDict{Any,Bool}(), root, predicate,
                         EmptyReferencePath(), nothing, IdDict{Any,Bool}(), include_selection, maxdepth, raw)
     # Leave search results in canonical form: annotate each plain navigation path
@@ -112,7 +111,7 @@ function _search_references!(results, reported, obj, predicate, path, enclosing_
     _is_search_leaf(obj) && return
     if is_element_collection(obj)
         for i in 1:length(obj)
-            _search_references!(results, reported, _deref_cell(obj[i]), predicate,
+            _search_references!(results, reported, unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), here, seen, include_selection, depth - 1, raw)
         end
     elseif obj isa AbstractDict
@@ -121,13 +120,13 @@ function _search_references!(results, reported, obj, predicate, path, enclosing_
         # slots are undefined references). Use the key as the field step so the
         # reference is meaningful (matches how a JSON object field is addressed).
         for (k, v) in obj
-            _search_references!(results, reported, _deref_cell(v), predicate,
+            _search_references!(results, reported, unwrap_cell(v), predicate,
                             append_reference(path, FieldReference(string(k))), here, seen, include_selection, depth - 1, raw)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
-            _search_references!(results, reported, _deref_cell(obj[i]), predicate,
+            _search_references!(results, reported, unwrap_cell(obj[i]), predicate,
                             append_reference(path, ElementReference(i)), here, seen, include_selection, depth - 1, raw)
         end
     else
@@ -135,7 +134,7 @@ function _search_references!(results, reported, obj, predicate, path, enclosing_
         for fn in fnames
             (fn == :ref || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
-            _search_references!(results, reported, _deref_cell(getfield(obj, fn)), predicate,
+            _search_references!(results, reported, unwrap_cell(getfield(obj, fn)), predicate,
                             append_reference(path, FieldReference(string(fn))), here, seen, include_selection, depth - 1, raw)
         end
     end

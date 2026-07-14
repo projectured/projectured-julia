@@ -9,12 +9,25 @@ _cell_kind_of(::Type{<:ReactiveCell})  = ReactiveCell
 _cell_kind_of(::Type{<:MutableCell})   = MutableCell
 _cell_kind_of(::Type{<:ImmutableCell}) = ImmutableCell
 
-# A fresh cell of the same kind and value type as `c`, holding `v`.
-_same_cell(c::AbstractCell{T}, v) where {T} = _cell_kind_of(typeof(c)){T}(v)
+"""
+    copy_cell_as(c::AbstractCell, v) -> AbstractCell
 
-# Read a document's cell kind off its first Cell-backed field. Hand-written
-# documents with plain fields report `nothing`.
-function _document_cell_kind(doc::Document)
+A fresh cell of the same kind and declared value type as `c`, holding `v`. The
+way to clone a slot without deciding its kind: the kind is read off the cell
+that is already there.
+"""
+copy_cell_as(c::AbstractCell{T}, v) where {T} = _cell_kind_of(typeof(c)){T}(v)
+
+"""
+    get_document_cell_kind(doc::Document) -> Type{<:AbstractCell} | Nothing
+
+The cell kind a document is built from — `ReactiveCell`, `MutableCell`, or
+`ImmutableCell` — read off its first cell-backed field. A document's kind lives
+in its field cells, not in its type name, so this is how a caller that must
+*build* something in the same kind (a copy, a shadow slot) discovers which one.
+Returns `nothing` for a hand-written document whose fields are plain values.
+"""
+function get_document_cell_kind(doc::Document)
     isempty(fieldnames(typeof(doc))) && return nothing
     c = getfield(doc, 1)
     c isa AbstractCell ? _cell_kind_of(typeof(c)) : nothing
@@ -34,5 +47,3 @@ function _kinded_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
     Td = Ts[i]
     v isa Td ? Td : typeof(v)
 end
-
-_value_type(::AbstractCell{T}) where {T} = T

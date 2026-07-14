@@ -13,14 +13,13 @@
 
 # ── Cell-transparent navigation ───────────────────────────────────────────
 
-# Cells are transparent to reference navigation: a step that lands on a `Cell`
-# descends into its value. Field access already unwraps inline (`f isa Cell ?
-# f[] : f`); element/range access must do the same, otherwise a step into a plain
-# `Vector{Cell}` would stop on the raw `Cell` and the rest of the path — recorded
-# against the *unwrapped* value — would fail to resolve (and
-# `annotate_reference_types` would stop adding type checkpoints there).
-# `CellVector` already unwraps on `getindex`, so this is a no-op for it.
-_deref_cell(x) = x isa AbstractCell ? x[] : x
+# Cells are transparent to reference navigation: a step that lands on a cell
+# descends into its value, via `unwrap_cell`. Element and range access must do
+# this too, not just field access — otherwise a step into a plain `Vector{Cell}`
+# would stop on the raw cell and the rest of the path — recorded against the
+# *unwrapped* value — would fail to resolve (and `annotate_reference_types` would
+# stop adding type checkpoints there). `CellVector` already unwraps on
+# `getindex`, so this is a no-op for it.
 
 # ── RangeReference ────────────────────────────────────────────────────────
 
@@ -106,7 +105,7 @@ step_kind(::RangeReference) = :structural
 # single element / range descends into the item at start+1 (cell-transparent).
 function evaluate_step(step::RangeReference, document)
     is_position_reference(step) && return Position(step.start)
-    _deref_cell(document[step.start + 1])
+    unwrap_cell(document[step.start + 1])
 end
 
 # ── FieldReference ────────────────────────────────────────────────────────
@@ -129,10 +128,10 @@ _has_field(document::AbstractDict, name) = haskey(document, name) || haskey(docu
 _has_field(document, name) = hasproperty(document, Symbol(name))
 
 function _get_field(document::AbstractDict, name)
-    haskey(document, name) && return _deref_cell(document[name])
-    _deref_cell(document[Symbol(name)])
+    haskey(document, name) && return unwrap_cell(document[name])
+    unwrap_cell(document[Symbol(name)])
 end
-_get_field(document, name) = _deref_cell(getfield(document, Symbol(name)))
+_get_field(document, name) = unwrap_cell(getfield(document, Symbol(name)))
 
 function Base.show(io::IO, s::FieldReference)
     print(io, ".", s.name)

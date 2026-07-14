@@ -55,7 +55,6 @@ pure_print(projection, input) =
 # Snapshot the forced output of a projection to the immutable kind, when it is a
 # document; non-document outputs (a String, a graphics value) pass through.
 _pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
-_force_output(o) = o isa AbstractCell ? o[] : o
 
 # Total fallback for any projection without a specialized pure interpreter: run
 # the reactive printer once and snapshot its output. Slower than a real pure
@@ -63,7 +62,7 @@ _force_output(o) = o isa AbstractCell ? o[] : o
 # pipeline total from day one — a Sequential chain can mix template stages (fast,
 # pure) with hand-written stages (this fallback) transparently.
 pure_print_document(p::Projection, recursion, input, ctx) =
-    _pure_snapshot(_force_output(print_document(p, recursion, input, ctx).output))
+    _pure_snapshot(unwrap_cell(print_document(p, recursion, input, ctx).output))
 
 """
     map_reference_forward(projection::Projection, iomap, reference)
