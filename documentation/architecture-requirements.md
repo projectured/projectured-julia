@@ -523,8 +523,11 @@ states for placement).
     exported from the cell module, built on by `@document`/`@iomap`/`@projection`.
     Enforcement is staged like the layer guard itself: `check_private_imports` already
     forbids cross-*layer* internal imports; the same-layer case is enforced per
-    package once its same-layer internal imports are cleaned up. Known remaining
-    instance: `PlaybackModule` reaches into `EditorModule`'s non-exported
+    package once its same-layer internal imports are cleaned up. An import header is
+    only half the boundary, though — `XxxModule._private` reaches a non-exported name
+    just as far, and bypasses the export list entirely. `qualified_reference_errors`
+    closes that half (#73), with no same-layer exemption. Known remaining instance:
+    `PlaybackModule` reaches into `EditorModule`'s non-exported
     `read!`/`evaluate!`/`print!`/`perf!` — fix by making Playback a fragment of the
     editor module, or by exporting the loop steps.
 
@@ -568,6 +571,72 @@ states for placement).
     declaration may not be qualified (`function Base.peek end` is a syntax error), so a
     contract that includes a `Base` generic states it in the docstring and lets the
     implementors add the methods.
+
+73. **Name a module with bare `using ..Xxx`; extend its generics by
+    qualification. `import ..Xxx` is banned.** One import form, one extension form:
+
+    - `using ..XxxModule` — bare, **never** a symbol list. It binds the module's
+      name *and* brings its exports into scope, so one line serves both roles. A
+      symbol list is noise, and the export list is already the module's declared API
+      (#48).
+    - `XxxModule.f(…) = …` at the definition site — this file **implements** part of
+      `XxxModule`'s contract.
+
+    The form is load-bearing, not taste. `import` makes a bare `f(…) = …` *silently
+    add a method* to another layer's generic; after `using`, the same line is a
+    compile error (`function XxxModule.f must be explicitly imported to be
+    extended`). So the compiler — not a convention — tells a new function apart from
+    an extension of another layer's contract, and #49's *"multiple dispatch is the
+    registration"* becomes visible at every site instead of being inferable only from
+    an import header. The codebase already worked this way at the `Base` boundary
+    (`function Base.show(io::IO, s::PointReference)`); there is not one `import Base:`
+    anywhere. Julia is moving the same way: on 1.12 an unqualified constructor
+    extension already warns that the behaviour is deprecated.
+
+    **Qualification is for cross-module extension only.** A file that is a *fragment
+    of the defining module* (`reference/ReferenceStep.jl` and friends, which have no
+    import header at all) defines bare — same namespace by construction, so nothing
+    is imported and nothing is qualified. This is #48's "fragments of one module"
+    carve-out.
+
+    **A module is qualified by its real name.** A bare `using` of an alias binds the
+    module the alias points at, under *that* module's name — `using
+    ..BackendApiModule` (a `const` alias for `ProjecturedKernel.BackendModule`) binds
+    `BackendModule`, not `BackendApiModule`. So every backend in the repo, whichever
+    alias path its package uses, registers under the same canonical
+    `BackendModule.initialize_backend!`.
+
+    Two guards back this, and both are needed. `qualified_reference_errors` asserts
+    every `XxxModule.sym` names an exported symbol — qualification bypasses the export
+    list entirely (`XxxModule._private` reaches a non-exported name with no
+    complaint), so without it #48 would hold for import headers and be unenforced
+    exactly where this rule sends the traffic. It has no same-layer exemption, unlike
+    `private_import_errors`: qualification is new syntax, so there is no legacy to
+    grandfather. `relative_import_errors` enforces the import form itself over an
+    opt-in `qualified_files` set that grows as the sweep proceeds — an honest ledger
+    of what is migrated, where a shrinking exemption list over ~1400 import lines
+    would not be.
+
+    Bare `using` also means every export of every used module lands in scope, so the
+    rule needs one precondition: **no two modules may export the same name with
+    different bindings.** A *re-export* — the same binding object reached through
+    several module names — is not a collision and Julia resolves it silently;
+    distinct bindings raise `UndefVarError` on use. The precondition is
+    cross-package, so `test_export_collisions` (umbrella) checks it dynamically.
+    Precedent: `NothingToSyntaxLeaf`, the one such clash that ever existed, meant the
+    `nothing` leaf in visual and the `*Nothing` insertion placeholder in domain; the
+    more specific concept took the qualifier (`InsertionNothingToSyntaxLeaf`).
+
+    Migrated so far: the reference-step seam (`step_kind`, `evaluate_step`,
+    `dsl_build_step`, `dsl_match_step`, `dsl_step_subpath_args`) and the backend/device
+    seam (`initialize_backend!`, `quit_backend!`, `measure_text`, `write_image`,
+    `read_from_devices`, `write_to_devices`, …). Known remaining: the four projection
+    generics (`print_document`, `read_intent`, `map_reference_forward`,
+    `map_reference_backward`, ~793 sites) and `evaluate_operation` (46), which are
+    entangled with `@projection`/`@iomap` codegen and get their own sweep. A macro can
+    emit a qualified extension by interpolating the *module object*
+    (`:(function $(ReferenceModule).step_kind(…) end)`), which needs no import at the
+    call site at all.
 
 51. **Keep the main/test/example triads parallel and minimal-environment
     runnable.** Each main package has sibling `test`/`example` packages forming

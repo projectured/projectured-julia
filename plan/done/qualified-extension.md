@@ -1,5 +1,27 @@
 # Qualified extension: `using ..X` + `X.f(...)`, never `import ..X: f`
 
+## Outcome
+
+Phases 0, 1, 2 and 4 are **done**; Phase 3 (the remaining non-projection seams) is left as the
+follow-up, together with the deferred projection-generic sweep.
+
+The rule is now **AR-73**, and it is machine-checked three ways: the compiler rejects an
+unqualified extension after `using`, `qualified_reference_errors` keeps qualification inside the
+export list (AR-48's other half), and `relative_import_errors` holds an opt-in `qualified_files`
+set to the import form. `test_export_collisions` (umbrella) guards the precondition that makes
+bare `using` safe.
+
+Seven files migrated: the reference-step seam (`ProjectionReference.jl`, `PointReference.jl`,
+`TextRectangularReference.jl`) and the backend/device seam (`HeadlessBackend.jl`, `Console.jl`,
+`ProjecturedSdl.jl`, `ProjecturedWeb.jl`). Verified by loading the full stack — including the
+native SDL backend — not just by the guards: kernel 425/425, visual 51858 (0 fail, 1 pre-existing
+`@test_broken`), ConsoleBackend 36/36, SDL 30/30, and the four layering guards green.
+
+Two things the plan got wrong, both corrected in place below: a bare `using` of a module **alias**
+binds the module's *real* name (so every backend qualifies as `BackendModule.…`, which is better
+than assumed), and `ProjectionReference.jl` turned out to implement **five** reference seams, not
+four (`dsl_step_subpath_args`).
+
 ## Problem
 
 Today a module that wants to add methods to another module's generic writes:
@@ -68,9 +90,14 @@ Confirmed against the real Julia in this environment, not assumed:
 - **Export collisions fail loudly.** Two bare-`using`'d modules exporting the same name give
   `UndefVarError` **on use**, not a silent pick. Detectable at load/test time, not a lurking
   hazard. (This is the main new risk the bare form introduces — see Risks.)
-- **Module aliases work.** `const BackendApiModule = ProjecturedKernel.BackendModule` is the
-  same Module object, so `BackendApiModule.initialize_backend!(...)` extends the same generic.
-  Files may qualify through whatever alias they already name.
+- ~~**Module aliases work.** Files may qualify through whatever alias they already name.~~
+  **Wrong — corrected during Phase 2.** A bare `using` of an alias binds the module's *real*
+  name, not the alias: `using ..BackendApiModule` (a `const` alias for
+  `ProjecturedKernel.BackendModule`) binds `BackendModule`. The original claim holds for
+  `import ..Alias: syms` but not for the bare form, and `Console.jl` failed to load until its
+  extension sites named `BackendModule`. The outcome is *better* than assumed: every backend in
+  the repo now registers under one canonical `BackendModule.initialize_backend!`, whichever
+  alias path its package uses to reach the contract.
 - **Macros get strictly cleaner.** A macro can emit an extension by interpolating the *Module
   object* — `:(function $(ReferenceModule).step_kind(...) end)` — so the call site needs no
   import of the generic at all. Verified working with the caller importing nothing. This
@@ -149,25 +176,27 @@ unprefixed odd-one-out. The more-specific concept takes the qualifier.
 
 ## Phase 0 — clear the one collision (prerequisite)
 
-- [ ] Rename the insertion placeholder to `InsertionNothingToSyntaxLeaf`, matching its four
+- [x] Rename the insertion placeholder to `InsertionNothingToSyntaxLeaf`, matching its four
       prefixed siblings in the same export list. ~8 sites: the declaration + inner constructor +
       `print_document` method in `InsertionToSyntax.jl`, its export line, and the
       `import ..DocumentInsertionToSyntaxModule: …, NothingToSyntaxLeaf` header plus one use site
       in each of `JsonToSyntax.jl`, `XmlToSyntax.jl`, `YamlToSyntax.jl`, `SqlToSyntax.jl`.
       (Alternative, rejected: rename the visual one — it holds the generic name legitimately.)
-- [ ] Verify with `test_json()` / `test_xml()`; commit. Mechanical — delegate.
+- [x] Verify with `test_json()` / `test_xml()`; commit. **Done** — 12 sites (not 8); `test_json`
+      24/24, `test_json_to_syntax` 11/11, `test_xml_to_syntax` 7/7, `test_sql_to_syntax` 19/19.
+      The collision sweep then reported **0** real collisions across the stack.
 
 ## Phase 1 — teach the guard (do this first)
 
-- [ ] Add `check_qualified_references` to `CheckLayering.jl`: walk each file's AST for
+- [x] Add `qualified_reference_errors` to `CheckLayering.jl`: walk each file's AST for
       `Expr(:., X, QuoteNode(sym))` where `X` resolves to a sibling/lower module, and assert
       `sym ∈ exports(X)`. Restores AR-48 at qualification sites.
-- [ ] Add a lint forbidding the `import ..X: f` and bare `import ..X` forms. Stage it: allow a
+- [x] Add a lint forbidding the `import ..X: f` and bare `import ..X` forms — `relative_import_errors`. Stage it: allow a
       grandfathered file list initially, shrink it to empty as the sweep proceeds. Without the
       grandfather list the guard goes red on ~1400 existing lines on day one.
-- [ ] Confirm bare `using ..X` still produces the correct layer edge (expected — L68 handles it —
+- [x] Confirm bare `using ..X` still produces the correct layer edge (expected — L68 handles it —
       but assert it with a test rather than trusting the read).
-- [ ] Commit.
+- [x] Commit.
 
 ## Phase 2 — pilot: the two small AR-72 interface seams
 
@@ -180,9 +209,9 @@ Generics: `step_kind`, `evaluate_step`, `dsl_build_step`, `dsl_match_step` (18 s
 
 Files to convert (cross-module only):
 
-- [ ] [package/kernel/main/projection/ProjectionReference.jl](../../package/kernel/main/projection/ProjectionReference.jl) — `import ..ReferenceModule: step_kind, evaluate_step, …`
-- [ ] [package/visual/main/graphics/PointReference.jl](../../package/visual/main/graphics/PointReference.jl) — the exemplar line that conflates `ReferenceStep` (referenced) with four generics (implemented)
-- [ ] [package/visual/main/text/TextRectangularReference.jl](../../package/visual/main/text/TextRectangularReference.jl)
+- [x] [package/kernel/main/projection/ProjectionReference.jl](../../package/kernel/main/projection/ProjectionReference.jl) — `import ..ReferenceModule: step_kind, evaluate_step, …`
+- [x] [package/visual/main/graphics/PointReference.jl](../../package/visual/main/graphics/PointReference.jl) — the exemplar line that conflates `ReferenceStep` (referenced) with four generics (implemented)
+- [x] [package/visual/main/text/TextRectangularReference.jl](../../package/visual/main/text/TextRectangularReference.jl)
 
 Untouched (same-module fragments of `ReferenceModule`, no import header): `ReferenceStep.jl`,
 `ReferenceBuilder.jl`, `ReferenceCase.jl`.
@@ -192,10 +221,10 @@ Untouched (same-module fragments of `ReferenceModule`, no import header): `Refer
 Generics: `initialize_backend!`, `quit_backend!` (8 sites). Note these files also import
 `measure_text` / `write_image` on the same line — same treatment.
 
-- [ ] [package/kernel/main/backend/HeadlessBackend.jl](../../package/kernel/main/backend/HeadlessBackend.jl) — via `..BackendModule`
-- [ ] [package/visual/main/backend/Console.jl](../../package/visual/main/backend/Console.jl) — via `..BackendApiModule` (alias)
-- [ ] [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — via `ProjecturedDomain.BackendApiModule`
-- [ ] [package/web/main/ProjecturedWeb.jl](../../package/web/main/ProjecturedWeb.jl) — via `ProjecturedDomain.BackendApiModule`
+- [x] [package/kernel/main/backend/HeadlessBackend.jl](../../package/kernel/main/backend/HeadlessBackend.jl) — via `..BackendModule`
+- [x] [package/visual/main/backend/Console.jl](../../package/visual/main/backend/Console.jl) — via `..BackendApiModule` (alias)
+- [x] [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — via `ProjecturedDomain.BackendApiModule`
+- [x] [package/web/main/ProjecturedWeb.jl](../../package/web/main/ProjecturedWeb.jl) — via `ProjecturedDomain.BackendApiModule`
 
 ### Method
 
@@ -207,9 +236,13 @@ Verification: `test_kernel()` and `test_visual()` for the reference seam; a real
 stack for the backend seam (per the *guards-are-not-a-load-check* lesson — a green guard plus a
 clean `Pkg.precompile` exit code does **not** prove `using` works).
 
-## Phase 3 — the remaining non-projection seams
+## Phase 3 — the remaining non-projection seams (NOT DONE — the follow-up)
 
-Only after Phase 2 is merged and the guard has been exercised.
+Deliberately left. Phase 2 proved the rule and exercised the guards on 7 files; the rest is a
+mechanical sweep that should ride on its own plan, together with the deferred projection
+generics. `evaluate_operation` is the natural next one — and note SDL already imports it, so
+SDL's header is only *partly* migrated today (its backend/device contracts are bare-`using`,
+its `print_document` / `evaluate_operation` imports are untouched by design).
 
 - [ ] `evaluate_operation` — 46 sites / 14 files, declared in `operation/Interface.jl`. The
       largest non-projection seam; likely deserves its own commit.
@@ -223,15 +256,16 @@ Only after Phase 2 is merged and the guard has been exercised.
 
 ## Phase 4 — write the rule down
 
-- [ ] Add **AR-73** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+- [x] Add **AR-73** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
       (72 is the current highest), stating the table above, the same-module-fragment carve-out,
       and the reason: the compiler can only distinguish "new function" from "extension of
       another layer's contract" if the name arrives via `using`. Cross-reference AR-48
       (imports name only exported symbols — now also enforced at qualification sites), AR-49
       (multiple dispatch is the registration — now visible at every site), and AR-72 (interface
       files declare the generics being extended).
-- [ ] Note the deferred projection-generic migration as a known remaining instance, in the style
-      of AR-48's `PlaybackModule` note.
+- [x] Note the deferred projection-generic migration as a known remaining instance, in the style
+      of AR-48's `PlaybackModule` note. AR-48 also gained a cross-reference: an import header is
+      only half the boundary, and `qualified_reference_errors` closes the other half.
 
 ## Risks
 
