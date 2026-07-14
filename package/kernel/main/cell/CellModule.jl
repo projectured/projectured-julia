@@ -29,6 +29,7 @@ include("AbstractCell.jl")    # the base type; the kinds below subtype it
 include("ReactiveCell.jl")
 include("MutableCell.jl")
 include("ImmutableCell.jl")
+include("CellAccess.jl")      # unwrap_cell — reading a slot that may hold a cell
 include("StructPlan.jl")      # the shared struct-definition parse
 include("CellStruct.jl")      # transparent-Cell struct codegen (@cell_struct)
 

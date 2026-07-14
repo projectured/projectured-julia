@@ -502,9 +502,36 @@ seam carve-out — names only the *concept* (`ReferencePath`), never `PathWalk`,
 call.**
 
 **Seals.** The seal records the *user's* review, not the implementer's, so every file this
-plan materially changed is returned to `⬜` pending re-review. `cell/PerformanceCounter.jl`,
-`ReactiveCell.jl`, `MutableCell.jl`, `ImmutableCell.jl`, `cell/Clock.jl` (moved, content
-untouched) and `document/Forward.jl` (untouched) keep their `🔒`.
+plan materially changed is returned to `⬜` pending re-review. `cell/AbstractCell.jl`,
+`PerformanceCounter.jl`, `ReactiveCell.jl`, `MutableCell.jl`, `ImmutableCell.jl`,
+`cell/Clock.jl` (moved, content untouched) and `document/Forward.jl` (untouched) keep their
+`🔒`.
+
+### AR-72 landed mid-flight, and this work was violating it
+
+While these steps were running, `main` gained **AR-72 — an interface file declares, it never
+implements**, which names `cell/AbstractCell.jl` as an interface file (with `is_up_to_date`
+and `Base.peek` as its known, staged violations).
+
+Step 3 had put `unwrap_cell` — a method *body* — into exactly that file. That is a **new**
+violation of a rule written while the branch was in flight, in the very file the rule calls
+out. Fixed after rebasing onto the new `main`: `unwrap_cell` moved to a sibling
+implementation fragment, `cell/CellAccess.jl`, and `AbstractCell.jl` is now byte-identical to
+`main` again — so its seal stands rather than being consumed by this work. The two
+pre-existing violations in it are the user's, listed under AR-72's staged enforcement, and
+were left alone.
+
+`document/DocumentWalk.jl` is **not** an interface file (the document layer's is
+`Document.jl`, which its module includes first and which declares only `abstract type
+Document end`), so its defaults (`initial_location`, `visit_policy`) and its algorithm are in
+the right place — the same shape `ReferenceStep.jl` already has. But there is a question AR-72
+raises that is the user's to answer, not mine: **should the document layer's interface file
+declare the walk seam** (`abstract type DocumentWalk end` plus the four generics as bodiless
+`function f end`), the way AR-72 says an interface file carries "the abstract types … and its
+open generics"? Today `Document.jl` declares none of the layer's generics — not
+`is_element_collection`, not `is_opaque` — so adopting that would be the first step of
+applying AR-72 to the document layer, which enforcement-is-staged suggests the user wants to
+drive. **Not done; raised.**
 
 **Commit:** `doc: document the restructured document layer; re-open the seals for review`
 
