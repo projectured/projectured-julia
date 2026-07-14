@@ -42,7 +42,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
                          ReferencePath, EmptyReferencePath, append_reference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..OperationModule: ReplaceSelectionOperation
@@ -481,7 +481,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
 
     sel = Cell(() -> begin
         path = b.selection
-        path isa ConcreteReferencePath && path.head isa ProjectionReference && return b.selection
+        is_introduced_reference(path) && return b.selection
         @reference_case path begin
             ::BookList.elements{s:_}.rest... => begin
                 child_i = s + 1

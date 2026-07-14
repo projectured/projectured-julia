@@ -26,7 +26,7 @@ import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ReferencePath
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -420,8 +420,7 @@ end
 # fallback re-introduces the wrapper when the move lands on introduced structure
 # again. A native SyntaxNode selection never carries this head, so it is a no-op there.
 _unwrap_projection_ref(sel) =
-    (sel isa ConcreteReferencePath && sel.head isa ProjectionReference) ?
-        sel.head.output_path : sel
+    is_introduced_reference(sel) ? sel.head.output_path : sel
 
 function _tree_navigate(node::SyntaxNode, sel, direction::Symbol)
     # sel must be a tree selection (path of .children[i] steps ending in ∅)

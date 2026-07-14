@@ -60,7 +60,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
                           ElementReference, EmptyReferencePath, Position
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, var"@gestures"
@@ -181,7 +181,7 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     node_selection = Cell(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReferencePath || return nothing
-        path.head isa ProjectionReference && return path
+        is_introduced_reference(path) && return path
         ConcreteReferencePath(FieldReference("children"),
             ConcreteReferencePath(ElementReference(1), path))
     end)

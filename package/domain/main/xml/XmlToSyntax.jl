@@ -35,7 +35,7 @@ import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReferencePath, PositionReference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxNodeToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
@@ -152,8 +152,7 @@ end
 # forward mapper handles field references but not our own projection wrap). Everything
 # else defers to the generic template mapper.
 function map_reference_forward(p::XmlElementToSyntaxNode, iomap::RuleIoMap, reference)
-    reference isa ConcreteReferencePath && reference.head isa ProjectionReference &&
-        return reference
+    is_introduced_reference(reference) && return reference
     invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
 end
 
