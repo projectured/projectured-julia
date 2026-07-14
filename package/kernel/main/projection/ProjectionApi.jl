@@ -65,9 +65,9 @@ export print_document, print_child, read_intent, map_reference_forward, map_refe
     Projection
 
 Abstract base type for all projection types, primitive and higher-order alike.
-Subtype this to register with the default `map_reference_forward`,
-`map_reference_backward`, and `read_intent` fallbacks (defined in
-`ProjectionModule`, `package/kernel/main/common/Projection.jl`).
+Subtype this to inherit the default `map_reference_forward`,
+`map_reference_backward` and `read_intent` behaviour, which every projection
+gets unless it overrides the function it wants to change.
 """
 abstract type Projection end
 
@@ -152,8 +152,7 @@ goes back through the full pipeline (normally a `RecursiveProjection` wrapping a
 recurse through this helper so the doubled `recursion` argument lives in exactly
 one place and call sites read as "recurse into this child".
 """
-print_child(recursion, input, ctx) =
-    print_document(recursion, recursion, input, ctx)
+function print_child end
 
 """
     pure_print_document(projection, recursion, input, ctx) -> output tree
@@ -182,8 +181,7 @@ function pure_print_document end
 Pure analogue of [`print_child`](@ref): recurse into a child
 through the whole pipeline, producing pure (immutable) output.
 """
-pure_print_child(recursion, input, ctx) =
-    pure_print_document(recursion, recursion, input, ctx)
+function pure_print_child end
 
 """
     read_intent(projection, recursion, change::Intent, iomap) -> Intent

@@ -98,7 +98,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   seam bridges, not its consumers) — and a closing comment that points at `device/Display.jl` when
   the file is `backend/Display.jl`.
 
-- [ ] **6. projection — `projection/ProjectionApi.jl` and `projection/IoMapApi.jl`.**
+- [x] **6. projection — `projection/ProjectionApi.jl` and `projection/IoMapApi.jl`.**
   `print_child` / `pure_print_child` → `Projection.jl`; the three `get_iomap_*` accessors →
   `IoMap.jl`. Both modules already depend on the api modules; extend their import headers.
 

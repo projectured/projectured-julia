@@ -5,8 +5,7 @@ IoMap interface. An IoMap is the record a projection's forward pass leaves behin
 the correspondence between the `input` it consumed and the `output` it produced,
 which the reader and the reference mappers walk to invert the transformation. This
 module declares only the abstract `IoMap` supertype and the three accessors every
-IoMap exposes (`get_iomap_projection`, `get_iomap_input`, `get_iomap_output`); the concrete
-IoMap structs and the `@iomap` macro live in `IoMapModule` (`common/IoMap.jl`).
+IoMap exposes (`get_iomap_projection`, `get_iomap_input`, `get_iomap_output`).
 """
 module IoMapApiModule
 
@@ -28,25 +27,25 @@ abstract type IoMap end
 """
     get_iomap_projection(iomap) -> projection
 
-The projection that produced `iomap`. Defaults to the conventional `projection`
+The projection that produced `iomap`. Answered from the conventional `projection`
 field; an IoMap that stores it differently overrides this method.
 """
-get_iomap_projection(iomap::IoMap) = getfield(iomap, :projection)
+function get_iomap_projection end
 
 """
     get_iomap_input(iomap) -> input document
 
-The input-domain document `iomap` maps from. Defaults to the conventional
+The input-domain document `iomap` maps from. Answered from the conventional
 `input` field; override when an IoMap stores it differently.
 """
-get_iomap_input(iomap::IoMap) = getfield(iomap, :input)
+function get_iomap_input end
 
 """
     get_iomap_output(iomap) -> output document
 
-The output-domain document `iomap` maps to. Defaults to the conventional
+The output-domain document `iomap` maps to. Answered from the conventional
 `output` field; override when an IoMap stores it differently.
 """
-get_iomap_output(iomap::IoMap) = getfield(iomap, :output)
+function get_iomap_output end
 
 end # module

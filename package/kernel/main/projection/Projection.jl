@@ -20,9 +20,9 @@ module ProjectionModule
 using ..ProjectionApiModule
 # `import`, not `using`: this module defines the default methods of the four
 # interface functions (plus the pure-print entry point).
-import ..ProjectionApiModule: print_document, read_intent,
+import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward,
-                              pure_print_document
+                              pure_print_document, pure_print_child
 using ..IntentModule
 using ..OperationModule
 # The ReplaceStringRangeOperation / ReplaceNumberRangeOperation branches of
@@ -41,6 +41,16 @@ export @projection, pure_print
 function print_document(projection, input)
     print_document(projection, nothing, input, PrinterContext())
 end
+
+# Recursing into a child means re-entering the whole pipeline, so `recursion` is
+# passed twice — as the projection to invoke and as that call's own `recursion`.
+# The doubling lives here, in the one helper every node printer recurses through,
+# and nowhere else.
+print_child(recursion, input, ctx) =
+    print_document(recursion, recursion, input, ctx)
+
+pure_print_child(recursion, input, ctx) =
+    pure_print_document(recursion, recursion, input, ctx)
 
 """
     pure_print(projection, input) -> immutable output tree
