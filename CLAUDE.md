@@ -74,6 +74,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 - **Layer 7 — backend** (`backend/`)
   - ⬜ `backend/BackendLayer.jl`
   - ⬜ `backend/Backend.jl`
+  - ⬜ `backend/BackendDefaults.jl`
   - ⬜ `backend/Display.jl`
   - ⬜ `backend/HeadlessBackend.jl`
 - **Layer 8 — projection** (`projection/`)

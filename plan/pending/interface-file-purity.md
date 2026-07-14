@@ -90,7 +90,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   that does not exist and claims the concrete methods "live in `OperationModule`" from inside a
   fragment of `OperationModule` itself.
 
-- [ ] **5. backend — `backend/Backend.jl`.** `get_pointer_position(::Backend) = (-1, -1)` → new
+- [x] **5. backend — `backend/Backend.jl`.** `get_pointer_position(::Backend) = (-1, -1)` → new
   fragment `backend/BackendDefaults.jl`, included from `BackendModule`. Add the file to the seal
   inventory in `CLAUDE.md` (as `⬜`, in load order). Also fix two AR-70 violations in the module
   docstring: it names `SdlBackend()`, `ConsoleBackend()` and `ProjecturedBase.default_backend` —
