@@ -105,7 +105,7 @@ const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule
 const LlmModule = ProjecturedKernel.LlmModule
 const ToolModule = ProjecturedKernel.ToolModule
-const AgentApiModule = ProjecturedKernel.AgentModule
+const AgentServerModule = ProjecturedKernel.AgentServerModule
 const AgentModule = ProjecturedKernel.AgentModule
 # Base's document-shaped projections used by visual bridges (Sorting is
 # imported from CollectionToSyntax indirectly, but exposing it costs nothing).

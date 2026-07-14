@@ -25,7 +25,7 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule: write_image, record_video
-import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest,
+import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,

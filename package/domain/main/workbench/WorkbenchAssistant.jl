@@ -66,6 +66,7 @@ import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
 import ..EventModule: KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..AgentModule: Agent, run_turn!, AgentToolResult
 import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage, LlmContent,
                      LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
                      LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
@@ -564,17 +565,6 @@ end
 # Streaming agent loop
 # ═══════════════════════════════════════════════════════════════════════
 
-# In-flight record of a streaming tool_use block. Lives only on the agent
-# loop's state dict — once the stream's content_block_stop fires the
-# `input` JSON is finalised, and once the tool actually runs we package
-# everything into a `ConversationCodeExecution(:assistant, …)` pushed to
-# the conversation.
-mutable struct _PendingToolUse
-    id::String
-    name::String
-    input::Any
-end
-
 # Resource reads (`list_resources` / `read_resource`) collapse by default —
 # they are lookup chatter, secondary to the answer, like thinking. Evaluations
 # (`execute_julia_code`) and other tool calls stay expanded. Keyed off
@@ -604,8 +594,6 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     # The real backend's `stream_turn` errors with a clear HTTP message if the
     # API key is empty, so leave key validation to the backend.
     set = editor.tools
-    register_default_tools!(set)
-    tools = list_tools(set)
     # Resolve the backend now (not at construction): with no explicit `llm`, build
     # the real-network one when a key is available *and* the opt-in `ProjecturedLlm`
     # package is loaded (found by reflection). Reading ENV here — rather than baking
@@ -624,10 +612,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
             "in tests/examples).")
     end
     turn_t0 = time()
-    iter = 0
-    # TEMPORARY: cap the agent loop so it can't run away during debugging.
-    max_iters = 5
-    @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model tools=length(tools)
+    @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model
 
     # One assistant turn for the whole response. The event handler appends thinking/
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
@@ -637,80 +622,26 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     turn = ConversationTurn(:assistant)
     push!(a.conversation.turns, turn)
 
-    while true
-        iter += 1
-        if iter > max_iters
-            @warn "[assistant] hit iteration cap; stopping turn" max_iters rounds=iter - 1
-            break
-        end
+    # The blocks currently being streamed into (one text part, one thinking part).
+    state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing)
 
-        # Prior turns plus this turn's parts so far (its trailing tool_results are
-        # exactly the continuation prompt). An empty turn on round 1 serializes to
-        # nothing, so no placeholder needs stripping.
-        msgs = build_messages(a.conversation)
+    # The loop itself is the kernel's. What is left here is the two things that are
+    # genuinely this domain's: how a conversation becomes messages, and how an event
+    # becomes a part of it.
+    #
+    # `messages` is re-derived from the conversation at the start of every round —
+    # the tool results the previous round appended to it are exactly the continuation
+    # prompt — so the conversation stays the single source of truth rather than a
+    # view of some message list held elsewhere.
+    agent = Agent(llm, set; system = a.system, thinking = true)
+    turn.stop_reason = run_turn!(agent, editor;
+        messages = () -> build_messages(a.conversation),
+        on_event = ev -> _handle_agent_event!(ev, a, turn, state, set))
 
-        # Live state for this round
-        state = Dict{Symbol,Any}(
-            :current_block    => nothing,         # text block being filled
-            :current_thinking => nothing,         # thinking part being filled
-            :current_tool     => nothing,         # _PendingToolUse being filled
-            :tool_input_buf   => IOBuffer(),
-            :pending_tools    => _PendingToolUse[],
-            :stop_reason      => :end_turn,
-        )
+    @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2) parts=length(turn.parts)
 
-        @info "[assistant] round $iter: streaming" messages=length(msgs)
-        stream_t0 = time()
-        # Ask for extended reasoning; whether this backend has it, and what its
-        # parameter looks like, is the adapter's business.
-        stream_turn(llm, LlmRequest(system   = a.system,
-                                    messages = msgs,
-                                    tools    = tools,
-                                    thinking = true);
-                    on_event = ev -> _handle_llm_event!(ev, a, turn, state))
-        @info "[assistant] round $iter: stream done" elapsed_s=round(time() - stream_t0; digits=2) stop=state[:stop_reason] parts=length(turn.parts) pending_tools=length(state[:pending_tools])
-
-        turn.stop_reason = state[:stop_reason]
-
-        pending = state[:pending_tools]::Vector{_PendingToolUse}
-        if isempty(pending) || state[:stop_reason] !== :tool_use
-            @info "[assistant] turn done" rounds=iter elapsed_s=round(time() - turn_t0; digits=2)
-            break
-        end
-
-        # Dispatch each tool and append one EvaluatorForm *part* per call to the
-        # single assistant turn. The code and result live together in one
-        # EvaluatorForm and `tool_use_id` pairs the call with its API tool_use /
-        # tool_result blocks when `build_messages` re-serialises the conversation.
-        for tu in pending
-            @info "[assistant] tool call" name=tu.name
-            tool_t0 = time()
-            output = try
-                call_tool(set, tu.name, tu.input, editor)
-            catch e
-                sprint(showerror, e, catch_backtrace())
-            end
-            @info "[assistant] tool done" name=tu.name elapsed_s=round(time() - tool_t0; digits=2) out_chars=length(output)
-            code = tu.input isa AbstractDict && haskey(tu.input, "code") ?
-                       String(tu.input["code"]) : ""
-            is_err = occursin("ERROR", output) || occursin("Error", output)
-            # For execute_julia_code, a Document return value is embedded as the
-            # live result (renders in place); other tools / non-Document values
-            # keep the text repr. (Claude still sees the text tool_result, which
-            # build_messages derives from this result.)
-            val = tu.name == "execute_julia_code" ? last_evaluated_value(set) : nothing
-            result = val isa Document ? val : result_text(output)
-            push!(turn.parts, Cell(ConversationPart(
-                EvaluatorForm(_eval_form_doc(code);
-                              result = result,
-                              is_error = is_err, tool_use_id = tu.id,
-                              tool_name = tu.name);
-                collapsed = _collapse_tool_default(tu.name))))
-        end
-    end
-
-    # If the whole turn produced nothing (e.g. immediate stop / error before any
-    # content), drop the empty placeholder so it doesn't render as a bare
+    # If the whole turn produced nothing (e.g. an immediate stop, or an error before
+    # any content), drop the empty placeholder so it doesn't render as a bare
     # "assistant:" line.
     if isempty(turn.parts)
         elems = getfield(a.conversation.turns, :elements)[]
@@ -720,10 +651,35 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     end
 end
 
+# A tool the model asked for has run. Its code and result live together in one
+# `EvaluatorForm` part, and `tool_use_id` is what pairs the call with its
+# tool_use/tool_result blocks when `build_messages` re-serialises the conversation.
+function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
+    call = ev.call
+    code = get(call.input, "code", "")
+    # For `execute_julia_code`, a `Document` return value is embedded as the live
+    # result and renders in place; other tools, and non-Document values, keep the
+    # text repr. (The model still sees the textual tool_result, which
+    # `build_messages` derives from this same result.)
+    val = call.name == "execute_julia_code" ? last_evaluated_value(set) : nothing
+    result = val isa Document ? val : result_text(ev.output)
+    push!(turn.parts, Cell(ConversationPart(
+        EvaluatorForm(_eval_form_doc(String(code));
+                      result      = result,
+                      is_error    = ev.is_error,
+                      tool_use_id = call.id,
+                      tool_name   = call.name);
+        collapsed = _collapse_tool_default(call.name))))
+    nothing
+end
+
 # Materialise one streamed `LlmEvent` into the conversation. Each block kind opens a
 # part, fills it delta by delta, and closes it — so the panel renders the answer as
 # it arrives rather than at the end.
-function _handle_llm_event!(ev::LlmEvent, a, turn, state)
+#
+# The tool-call events pass through unhandled: the loop collects and dispatches them,
+# and what this module wants is the *result*, which arrives as an `AgentToolResult`.
+function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     if ev isa LlmTextStart
         part = ConversationPart(TextText(TextString("")))
         push!(turn.parts, Cell(part))
@@ -762,34 +718,6 @@ function _handle_llm_event!(ev::LlmEvent, a, turn, state)
     elseif ev isa LlmRedactedThinkingBlock
         # Nothing streams; the opaque payload is all there is.
         push!(turn.parts, Cell(thinking_part(""; redacted = true, data = ev.data)))
-
-    elseif ev isa LlmToolUseStart
-        state[:current_tool]   = _PendingToolUse(ev.id, ev.name, Dict{String,Any}())
-        state[:tool_input_buf] = IOBuffer()
-
-    elseif ev isa LlmToolInputDelta
-        print(state[:tool_input_buf], ev.json)
-
-    elseif ev isa LlmToolUseStop
-        ct = state[:current_tool]
-        if ct isa _PendingToolUse
-            # The argument fragments only become valid JSON once concatenated.
-            raw = String(take!(state[:tool_input_buf]))
-            ct.input = try
-                nv = _json_native(jsonparse(raw))
-                nv isa Dict{String,Any} ? nv : Dict{String,Any}()
-            catch
-                Dict{String,Any}()
-            end
-            push!(state[:pending_tools], ct)
-            state[:current_tool] = nothing
-        end
-
-    elseif ev isa LlmTurnEnd
-        state[:stop_reason] = ev.stop_reason
-
-    elseif ev isa LlmFailure
-        state[:stop_reason] = :error
     end
     nothing
 end

@@ -24,7 +24,7 @@ using ..OperationModule
 import ..OperationModule: invalidate_projection!
 using ..GestureRecognizerModule
 using ..ToolModule
-using ..AgentModule
+using ..AgentServerModule
 
 export Editor, run_editor!
 

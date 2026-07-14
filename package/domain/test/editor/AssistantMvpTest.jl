@@ -31,7 +31,7 @@ using ProjecturedDomain.WorkbenchAssistantModule: _text_to_string, _run_agent_lo
                                             _eval_form_doc
 import ProjecturedKernel.LlmModule: stream_turn,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
-    LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
+    LlmToolUse, LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd
 import ProjecturedKernel.CellModule: Cell
 
@@ -223,7 +223,7 @@ function _mvp_test_resource_collapse()
         tools = register_default_tools!(ToolSet())
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "read_resource",
-                             """{"uri":"resource://guides"}"""),
+                             Dict("uri" => "resource://guides")),
             _final_text_script("Read it."),
         ])
         a = WorkbenchAssistant(; llm = llm)
@@ -417,11 +417,14 @@ end
 _ev(event::LlmEvent, delay::Real = 0.0) = (event = event, delay = Float64(delay))
 
 function _tool_use_script(tool_id::AbstractString, tool_name::AbstractString,
-                          input_json::AbstractString)
+                          input::AbstractDict)
     NamedTuple[
         _ev(LlmToolUseStart(String(tool_id), String(tool_name))),
-        _ev(LlmToolInputDelta(String(input_json))),
-        _ev(LlmToolUseStop()),
+        # The finished call arrives with its arguments already parsed — that is the
+        # adapter's job, so a fake supplies them directly rather than re-serialising
+        # them to JSON only to have someone parse them back.
+        _ev(LlmToolUseStop(LlmToolUse(String(tool_id), String(tool_name),
+                                      Dict{String,Any}(input)))),
         _ev(LlmTurnEnd(:tool_use)),
     ]
 end
@@ -484,7 +487,7 @@ function _mvp_test_tool_use_roundtrip()
 
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "execute_julia_code",
-                             """{"code":"1+1"}"""),
+                             Dict("code" => "1+1")),
             _final_text_script("Done."),
         ])
         a = WorkbenchAssistant(; llm = llm)

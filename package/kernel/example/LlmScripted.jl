@@ -143,8 +143,12 @@ function make_scripted_run(code::AbstractString;
                       delay::Real = 0.0)
     NamedTuple[
         _ev(LlmToolUseStart(String(tool_id), String(tool_name))),
+        # The arguments stream as JSON fragments (what a UI would show), and the
+        # finished call arrives parsed — which is what a real adapter delivers, and
+        # what the agent loop dispatches on.
         _ev(LlmToolInputDelta("{\"code\":" * _json_string(code) * "}"), delay),
-        _ev(LlmToolUseStop()),
+        _ev(LlmToolUseStop(LlmToolUse(String(tool_id), String(tool_name),
+                                      Dict{String,Any}("code" => String(code))))),
     ]
 end
 

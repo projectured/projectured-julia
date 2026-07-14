@@ -207,21 +207,40 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
         "accept"            => "text/event-stream",
     ]
 
-    # Which block is open, so the shared `content_block_stop` becomes the right
-    # typed stop event.
+    # Which block is open, so the shared `content_block_stop` becomes the right typed
+    # stop event — and, for a tool call, so its streamed argument fragments can be
+    # assembled and parsed here, where the JSON parser is.
     open_block = Ref(:none)
+    tool_id    = Ref("")
+    tool_name  = Ref("")
+    tool_input = Ref(IOBuffer())
     emit = function (ev)
-        if ev === nothing
+        if ev === nothing                            # a content_block_stop
             b = open_block[]
-            b === :text     && on_event(LlmTextStop())
-            b === :thinking && on_event(LlmThinkingStop())
-            b === :tool     && on_event(LlmToolUseStop())
+            if b === :text
+                on_event(LlmTextStop())
+            elseif b === :thinking
+                on_event(LlmThinkingStop())
+            elseif b === :tool
+                raw = String(take!(tool_input[]))
+                on_event(LlmToolUseStop(
+                    LlmToolUse(tool_id[], tool_name[], _parse_tool_input(raw))))
+            end
             open_block[] = :none
             return nothing
         end
-        ev isa LlmTextStart     && (open_block[] = :text)
-        ev isa LlmThinkingStart && (open_block[] = :thinking)
-        ev isa LlmToolUseStart  && (open_block[] = :tool)
+        if ev isa LlmTextStart
+            open_block[] = :text
+        elseif ev isa LlmThinkingStart
+            open_block[] = :thinking
+        elseif ev isa LlmToolUseStart
+            open_block[] = :tool
+            tool_id[]    = ev.id
+            tool_name[]  = ev.name
+            tool_input[] = IOBuffer()
+        elseif ev isa LlmToolInputDelta
+            print(tool_input[], ev.json)
+        end
         on_event(ev)
         nothing
     end
@@ -259,6 +278,26 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
         HTTP.closeread(io)
     end
     nothing
+end
+
+# A tool call's arguments arrive as JSON fragments; only the concatenation is valid
+# JSON. Parsing it is the adapter's job — this package speaks a JSON protocol and so
+# has a parser, while the kernel has no dependencies at all and has none. A malformed
+# or empty payload yields no arguments rather than throwing: the model can be asked
+# to try again, but a broken turn cannot be recovered.
+_native(v::JSON3.Object) = Dict{String,Any}(String(k) => _native(x) for (k, x) in pairs(v))
+_native(v::JSON3.Array)  = Any[_native(x) for x in v]
+_native(v)               = v
+
+function _parse_tool_input(raw::AbstractString)
+    isempty(strip(raw)) && return Dict{String,Any}()
+    parsed = try
+        JSON3.read(raw)
+    catch
+        return Dict{String,Any}()
+    end
+    parsed isa JSON3.Object || return Dict{String,Any}()
+    _native(parsed)
 end
 
 # Pull complete SSE events ("event: …\ndata: …\n\n") out of `buf` and translate each.

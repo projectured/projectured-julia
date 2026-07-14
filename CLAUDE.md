@@ -122,7 +122,10 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `llm/LlmEvent.jl`
 - **Layer 14 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
+  - ⬜ `agent/AgentServer.jl`
+  - ⬜ `agent/AgentModule.jl`
   - ⬜ `agent/Agent.jl`
+  - ⬜ `agent/AgentLoop.jl`
 - **Layer 15 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`

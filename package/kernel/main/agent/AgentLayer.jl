@@ -1,11 +1,17 @@
 # ── Agent layer — the AI control surface (side-stack) ──────────────────────
 # The ordered include list of the agent layer; a fragment of ProjecturedKernel.
-# AgentModule declares the make_agent_server / start_agent_server! /
-# stop_agent_server! seam the editor loop reaches through: the *inbound*
-# direction, where something outside — an external agent — drives this editor.
 #
-# The outbound direction (this editor driving a model) is the llm layer below;
-# what an agent may *do* is the tool layer below that. The layer knows nothing of
-# MCP: that is a protocol, and the transport implementing this seam is the opt-in
-# ProjecturedMcp package.
-include("Agent.jl")
+# The layer is two directions through the same tool surface:
+#
+#   AgentServerModule — inbound.  Something outside drives this editor. The editor
+#                       loop reaches it through make_agent_server / start / stop;
+#                       the MCP transport implementing that seam is the opt-in
+#                       ProjecturedMcp package.
+#   AgentModule       — outbound. This editor drives a model: the Agent, and the
+#                       run_turn! loop that streams a round, dispatches the tools
+#                       the model asked for, and goes again until it stops asking.
+#
+# Neither knows about MCP, and neither knows about any particular model: what an
+# agent may *do* is the tool layer, and how it *speaks* is the llm layer, both below.
+include("AgentServer.jl")
+include("AgentModule.jl")

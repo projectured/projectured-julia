@@ -95,20 +95,30 @@ end
 """
     LlmToolInputDelta(json)
 
-The next fragment of the open tool call's argument JSON. Fragments are not
-individually valid JSON — a consumer concatenates them and parses once at
-`LlmToolUseStop`.
+The next fragment of the open tool call's argument JSON, as it streams. Fragments
+are not individually valid JSON, so this is for *showing* the arguments arriving,
+not for acting on them — the finished call comes complete in `LlmToolUseStop`.
 """
 struct LlmToolInputDelta <: LlmEvent
     json::String
 end
 
 """
-    LlmToolUseStop()
+    LlmToolUseStop(tool_use)
 
-The open tool call's arguments are complete and may now be parsed.
+The tool call is complete: `tool_use` is the whole `LlmToolUse`, arguments already
+parsed.
+
+The event carries the *parsed* call rather than closing an empty block, because
+turning the argument JSON into a `Dict` is the provider adapter's job and nobody
+else's. Every adapter necessarily owns a JSON parser — it speaks a JSON protocol —
+while the kernel has no dependencies at all and so has none. Handing the parsed
+call over here is what lets the agent loop dispatch a tool without the kernel ever
+seeing JSON.
 """
-struct LlmToolUseStop <: LlmEvent end
+struct LlmToolUseStop <: LlmEvent
+    tool_use::LlmToolUse
+end
 
 """
     LlmTurnEnd(stop_reason)

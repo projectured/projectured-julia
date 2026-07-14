@@ -12,7 +12,7 @@ tools, `register_default_tools!`) are not an MCP concept and live in the kernel'
 `ModelContextProtocol` and therefore lives here.
 
 The editor loop never names `McpServer`: it goes through the generic
-`AgentModule` control surface (`make_agent_server(:mcp, editor)` etc.), whose
+`AgentServerModule` seam (`make_agent_server(:mcp, editor)` etc.), whose
 `:mcp` methods this package registers.
 """
 module ProjecturedMcp
@@ -22,7 +22,7 @@ using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
 import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
                                      list_tools, list_resources, register_default_tools!
-import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ProjecturedKernel.AgentServerModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
 
@@ -41,7 +41,7 @@ const DEFAULT_MCP_INSTRUCTIONS =
 """
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS)
 
-An MCP server bound to an editor. Start/stop it through the `AgentModule`
+An MCP server bound to an editor. Start/stop it through the `AgentServerModule`
 generics (`start_agent_server!` / `stop_agent_server!`).
 """
 mutable struct McpServer
@@ -75,7 +75,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
 end
 
 # Agent control-surface factory methods: the editor loop drives the MCP server
-# through the generic AgentModule interface without naming `McpServer`.
+# through the generic AgentServerModule interface without naming `McpServer`.
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
 start_agent_server!(mcp::McpServer) = mcp_start!(mcp)
 stop_agent_server!(mcp::McpServer) = mcp_stop!(mcp)

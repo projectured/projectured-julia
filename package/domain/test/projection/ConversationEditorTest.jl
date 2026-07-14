@@ -2,6 +2,8 @@
 # the gesture→operation reader and the part-growing operations that turn a draft
 # `ConversationTurn` into a finished sequence of parts.
 
+using ProjecturedKernel.ToolModule: ToolSet
+
 
 # Flatten a TextText to its rendered string.
 function _ce_flatten(t::TextText)
@@ -12,8 +14,13 @@ function _ce_flatten(t::TextText)
     String(take!(io))
 end
 
-# Apply an operation to the draft (no real editor needed for the logic).
-_ce_apply!(op) = evaluate_operation(nothing, op)
+# Apply an operation to the draft. No real editor is needed for the logic, but the
+# stand-in must carry a `ToolSet`: the composer's evaluate operation runs code
+# through the editor's own tools (AR-45 — they live on the editor, never in a
+# global). One set for the file, so the code-execution scratch namespace is built
+# once rather than per operation.
+const _CE_TOOLS = ToolSet()
+_ce_apply!(op) = evaluate_operation((tools = _CE_TOOLS,), op)
 _ce_type!(draft, s) = for ch in s
     _ce_apply!(ComposerInputOperation(draft, string(ch)))
 end
