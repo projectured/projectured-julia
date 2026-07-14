@@ -1,0 +1,199 @@
+# Qualified extension: `using ..X` + `X.f(...)`, never `import ..X: f`
+
+## Problem
+
+Today a module that wants to add methods to another module's generic writes:
+
+```julia
+import ..ReferenceModule: ReferenceStep, step_kind, evaluate_step, dsl_build_step, dsl_match_step
+```
+
+That single line conflates two unrelated things: `ReferenceStep` is a type this file merely
+*references*, while the other four are generics this file *implements*. Nothing at the
+definition site says which is which — `function step_kind(s::PointReference)` reads exactly
+like a fresh local definition.
+
+Three consequences:
+
+1. **The new-vs-extend distinction is invisible.** A reader cannot tell, at a definition
+   site, whether the file is participating in another layer's contract (AR-49's *"multiple
+   dispatch is the registration"*) or just defining a helper. The architecture's central
+   registration mechanism is unmarked in the source.
+2. **Silent accidental extension.** `print_document` is imported into ~200 files. A local
+   helper coincidentally named `print_document` does not shadow the generic — it *adds a
+   method to it*, with no diagnostic. Julia only protects against this when the name was
+   brought in with `using`.
+3. **Julia is deprecating the implicit path anyway.** On 1.12, extending a `using`-imported
+   type's constructor without qualification already warns: *"This behavior is deprecated and
+   may differ in future versions."*
+
+The codebase already applies the fix at the `Base` boundary — there is not one `import Base:`
+anywhere; it is all `function Base.show(io::IO, s::PointReference)`. Only the internal-module
+case is inconsistent.
+
+## The rule (new **AR-73**)
+
+One import form, one extension form:
+
+| Form | Meaning |
+|---|---|
+| `using ..X` | this file references X — bare, **never** a symbol list |
+| `X.f(...) = ...` at the definition site | this file **extends** X's generic `f` |
+| `import ..X: f` | **banned** |
+| `import ..X` | **banned** (bare `using` already binds the module name) |
+
+Bare `using ..X` binds the module name `X` *and* brings X's exported symbols into scope, so
+one line serves both roles. No symbol lists — they are noise, and the export list is already
+the module's declared API surface (AR-48).
+
+**Qualification is for cross-module extension only.** A file that is a *fragment of the
+defining module* (`reference/ReferenceStep.jl`, `reference/ReferenceBuilder.jl`,
+`reference/ReferenceCase.jl` — all included into `ReferenceModule`, none of which has an
+import header at all) defines bare and is untouched. This matches AR-48's "fragments of one
+module" carve-out: same namespace by construction, so nothing is imported and nothing is
+qualified.
+
+## Semantics verified up front
+
+Confirmed against the real Julia in this environment, not assumed:
+
+- **Bare `using ..X` binds `X`.** `X.f(y::Int) = ...` then extends X's generic. (A symbol-list
+  `using ..X: f` does *not* bind `X` — this is why the bare form is load-bearing, not just a
+  taste preference.)
+- **The compiler enforces the rule for us.** After `using ..X`, a bare `f(y::Int) = ...` is a
+  hard error: `invalid method definition in User: function X.f must be explicitly imported to
+  be extended`. This makes the migration mechanical — flip a header to `using`, and the
+  compiler enumerates every extension site that needs qualifying. It also makes consequence
+  (2) above structurally impossible afterwards.
+- **Export collisions fail loudly.** Two bare-`using`'d modules exporting the same name give
+  `UndefVarError` **on use**, not a silent pick. Detectable at load/test time, not a lurking
+  hazard. (This is the main new risk the bare form introduces — see Risks.)
+- **Module aliases work.** `const BackendApiModule = ProjecturedKernel.BackendModule` is the
+  same Module object, so `BackendApiModule.initialize_backend!(...)` extends the same generic.
+  Files may qualify through whatever alias they already name.
+- **Macros get strictly cleaner.** A macro can emit an extension by interpolating the *Module
+  object* — `:(function $(ReferenceModule).step_kind(...) end)` — so the call site needs no
+  import of the generic at all. Verified working with the caller importing nothing. This
+  removes a hidden coupling from `@document`/`@projection`/`@iomap` rather than adding one.
+
+## The one real cost: AR-48 loses coverage unless the guard is extended
+
+`check_private_imports` in [package/kernel/test/layering/CheckLayering.jl](../../package/kernel/test/layering/CheckLayering.jl)
+collects imported symbols only from the `import X: a, b` form (the `:(:)` head, ~L85).
+
+Qualification **bypasses exports entirely** — verified: `X.internal_helper()` reaches a
+non-exported name with no error. So the moment we encourage qualification, AR-48 ("imports name
+only exported symbols — the module boundary *is* the API boundary") stops being enforced
+precisely at the sites that matter most.
+
+**This must be closed in the same change, before the sweep, not after.** The guard needs a new
+pass that scans qualified references `X.sym` in package source and asserts `sym ∈ exports(X)`.
+
+Good news on layering: the guard's module-path extraction (~L68,
+`path = (arg isa Expr && arg.head === :(:)) ? arg.args[1] : arg`) already handles the bare
+non-colon form, so bare `using ..X` still records the dependency edge. The layer DAG check
+survives untouched.
+
+## Scope: what this plan does NOT do
+
+**The four projection generics are explicitly out of scope for now.**
+
+| generic | extension sites |
+|---|---|
+| `read_intent` | 253 |
+| `print_document` | 206 |
+| `map_reference_forward` | 169 |
+| `map_reference_backward` | 165 |
+| **total** | **~793** |
+
+That is ~40% of the 2078 top-level method definitions in the repo, and it is entangled with
+`@projection` / `@projection_template` / `@iomap` codegen. It gets its own follow-up plan once
+the rule and the guard have proven themselves on a small surface.
+
+## Phase 1 — teach the guard (do this first)
+
+- [ ] Add `check_qualified_references` to `CheckLayering.jl`: walk each file's AST for
+      `Expr(:., X, QuoteNode(sym))` where `X` resolves to a sibling/lower module, and assert
+      `sym ∈ exports(X)`. Restores AR-48 at qualification sites.
+- [ ] Add a lint forbidding the `import ..X: f` and bare `import ..X` forms. Stage it: allow a
+      grandfathered file list initially, shrink it to empty as the sweep proceeds. Without the
+      grandfather list the guard goes red on ~1400 existing lines on day one.
+- [ ] Confirm bare `using ..X` still produces the correct layer edge (expected — L68 handles it —
+      but assert it with a test rather than trusting the read).
+- [ ] Commit.
+
+## Phase 2 — pilot: the two small AR-72 interface seams
+
+Both are declared in interface files (AR-72), both cross package boundaries, and together they
+are ~26 sites across **7 files**. This is the "small blast".
+
+### Reference-step seam — declared in `kernel/main/reference/Interface.jl`
+
+Generics: `step_kind`, `evaluate_step`, `dsl_build_step`, `dsl_match_step` (18 sites).
+
+Files to convert (cross-module only):
+
+- [ ] [package/kernel/main/projection/ProjectionReference.jl](../../package/kernel/main/projection/ProjectionReference.jl) — `import ..ReferenceModule: step_kind, evaluate_step, …`
+- [ ] [package/visual/main/graphics/PointReference.jl](../../package/visual/main/graphics/PointReference.jl) — the exemplar line that conflates `ReferenceStep` (referenced) with four generics (implemented)
+- [ ] [package/visual/main/text/TextRectangularReference.jl](../../package/visual/main/text/TextRectangularReference.jl)
+
+Untouched (same-module fragments of `ReferenceModule`, no import header): `ReferenceStep.jl`,
+`ReferenceBuilder.jl`, `ReferenceCase.jl`.
+
+### Backend seam — declared in `kernel/main/backend/Backend.jl`
+
+Generics: `initialize_backend!`, `quit_backend!` (8 sites). Note these files also import
+`measure_text` / `write_image` on the same line — same treatment.
+
+- [ ] [package/kernel/main/backend/HeadlessBackend.jl](../../package/kernel/main/backend/HeadlessBackend.jl) — via `..BackendModule`
+- [ ] [package/visual/main/backend/Console.jl](../../package/visual/main/backend/Console.jl) — via `..BackendApiModule` (alias)
+- [ ] [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — via `ProjecturedDomain.BackendApiModule`
+- [ ] [package/web/main/ProjecturedWeb.jl](../../package/web/main/ProjecturedWeb.jl) — via `ProjecturedDomain.BackendApiModule`
+
+### Method
+
+For each file: flip the header to bare `using`, let the compiler enumerate the extension sites
+(`function X.f must be explicitly imported to be extended`), qualify each one, reload. Commit
+per seam.
+
+Verification: `test_kernel()` and `test_visual()` for the reference seam; a real load of the SDL
+stack for the backend seam (per the *guards-are-not-a-load-check* lesson — a green guard plus a
+clean `Pkg.precompile` exit code does **not** prove `using` works).
+
+## Phase 3 — the remaining non-projection seams
+
+Only after Phase 2 is merged and the guard has been exercised.
+
+- [ ] `evaluate_operation` — 46 sites / 14 files, declared in `operation/Interface.jl`. The
+      largest non-projection seam; likely deserves its own commit.
+- [ ] `write_to_devices` — 6 sites, declared in `device/Device.jl`.
+- [ ] `copy_document` (10), `sync_document!` (2), `collect_gesture_bindings` (9),
+      `get_projection_gesture_bindings` (7).
+- [ ] Sweep the remaining `import ..X: …` headers that import *only* types/values (no
+      extension) — these are pure `using` conversions with no qualification needed, so they are
+      mechanical and can be delegated.
+- [ ] Shrink the guard's grandfather list to empty for every layer reached.
+
+## Phase 4 — write the rule down
+
+- [ ] Add **AR-73** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+      (72 is the current highest), stating the table above, the same-module-fragment carve-out,
+      and the reason: the compiler can only distinguish "new function" from "extension of
+      another layer's contract" if the name arrives via `using`. Cross-reference AR-48
+      (imports name only exported symbols — now also enforced at qualification sites), AR-49
+      (multiple dispatch is the registration — now visible at every site), and AR-72 (interface
+      files declare the generics being extended).
+- [ ] Note the deferred projection-generic migration as a known remaining instance, in the style
+      of AR-48's `PlaybackModule` note.
+
+## Risks
+
+- **Export collisions from bare `using`.** Dropping symbol lists means every export of every
+  `using`'d module lands in scope. Two modules exporting the same name → `UndefVarError` on
+  use. Loud, not silent, and the test suite will catch it — but it may surface in files far from
+  the one being edited. If a collision proves genuinely unresolvable, the fallback is to qualify
+  the *reference* too (`X.foo()`), not to reintroduce a symbol list.
+- **Signature length.** `function ReferenceModule.step_kind(s::PointReference)` is ~18 chars
+  longer. Accepted: the explicitness is the point.
+- **Guard grandfather list rots.** If Phase 3 stalls, the list becomes a permanent exemption.
+  Mitigate by keeping it a literal file list in the guard, not a pattern.
