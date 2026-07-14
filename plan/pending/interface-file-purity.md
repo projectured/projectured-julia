@@ -106,7 +106,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   kernel interface files — the six purified above plus `document/Interface.jl`,
   `selection/Interface.jl` and `device/Device.jl`, which are already clean and now stay that way.
 
-- [ ] **8. Close AR-72.** Replace its "known remaining instances" list with the enforcement
+- [x] **8. Close AR-72.** Replace its "known remaining instances" list with the enforcement
   statement, and update `package/kernel/doc/devices-and-backends.md` if it documents the moved
   backend fallback.
 

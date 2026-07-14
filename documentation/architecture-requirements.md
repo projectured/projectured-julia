@@ -559,13 +559,15 @@ states for placement).
     API surface. The purpose is documentary — one file gives a reader the entire
     contract of a layer and nothing else — and it is what #70's seam carve-out
     already assumes when it calls an open declaration "content-free by construction".
-    Enforcement is staged. Known remaining instances: `reference/Interface.jl` (the
-    `step_kind` / `dsl_step_subpath_args` defaults and the two `dsl_*` "not
-    registered" error fallbacks), `backend/Backend.jl` (`get_pointer_position`),
-    `operation/Interface.jl` (`invalidate_projection!`), `projection/ProjectionApi.jl`
-    (`print_child` / `pure_print_child` — delegation logic, the furthest drift),
-    `projection/IoMapApi.jl` (three `getfield` accessors), and the sealed
-    `cell/AbstractCell.jl` (`is_up_to_date`, `Base.peek`).
+    Machine-checked: the layering guard parses each file named in its package's
+    `interface_files` map and reports every expression that implements rather than
+    declares, plus any declared name its module fails to export (purity is decidable
+    from the AST — a bodiless `function f end` is a one-argument `Expr(:function)`, a
+    method a two-argument one). The kernel's nine contract files are enforced today;
+    a package opts its own in as they come clean. Note a Julia constraint: a bodiless
+    declaration may not be qualified (`function Base.peek end` is a syntax error), so a
+    contract that includes a `Base` generic states it in the docstring and lets the
+    implementors add the methods.
 
 51. **Keep the main/test/example triads parallel and minimal-environment
     runnable.** Each main package has sibling `test`/`example` packages forming
@@ -638,8 +640,9 @@ states for placement).
     main package has a static guard that parses the real `import ..Module` headers
     and asserts a valid topological include order, correct layer/slice membership,
     and same-or-lower-layer edges (slice acyclicity follows from the topological
-    order); the export-only cross-layer-import check is enabled on the kernel guard
-    today and extends to base/visual/domain as they come clean. Run
+    order); the export-only cross-layer-import check and the interface-purity check
+    (#72) are enabled on the kernel guard today and extend to base/visual/domain as
+    they come clean. Run
     `test_kernel_layering()` (…`test_domain_layering()`) after any structural
     change; the guard runs in ~1s without loading the package, and its error
     messages are prescriptive — they name the offending file, the module, and the

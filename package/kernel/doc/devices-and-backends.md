@@ -376,6 +376,7 @@ The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
 ```
 Backend.jl          (BackendModule)         — Backend abstract + batch generics
+BackendDefaults.jl  (BackendModule)         — the one behaviour the contract supplies itself
 Display.jl          (DisplayModule)         — display-size query + provider indirection
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
@@ -393,6 +394,15 @@ pick a backend without depending on its package uses
 which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
+
+`Backend.jl` is an **interface file** (AR-72): it declares and never implements,
+so every generic there is a bodiless `function f end`. The one behaviour the
+contract supplies for itself sits beside it in `BackendDefaults.jl` —
+`get_pointer_position` answers `(-1, -1)` for a backend that adds no method,
+because "this display system cannot report a pointer" is a legal answer rather
+than a missing implementation. The batch generics deliberately have no such
+fallback: an unimplemented `measure_text` or `write_image` must raise a
+`MethodError` rather than fabricate a result.
 
 No document is imported here. The batch I/O generics are duck-typed on the
 `document` argument, so the layer stays document-free at layer 7.
