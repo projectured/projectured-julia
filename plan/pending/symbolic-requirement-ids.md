@@ -1,0 +1,350 @@
+# Symbolic requirement IDs
+
+Replace the sequential numbers in
+[requirements.md](../../documentation/requirements.md) and
+[architecture-requirements.md](../../documentation/architecture-requirements.md)
+with **stable symbolic IDs** — `AR-PURE-THUNK` instead of `AR-1`, `R-NO-INVALID-STATES`
+instead of product requirement `1` — and rewrite every citation across the repo.
+
+## Why
+
+The numbering has already stopped being a sequence. The requirement numbers in
+`architecture-requirements.md`, in document order, run:
+
+```
+1 … 41, 69, 42 … 50, 72, 73, 51 … 68, 70, 71
+```
+
+New requirements get appended the next free number and are then inserted where they
+topically belong. That is the standard workaround for renumbering pain, and it leaves
+the worst of both worlds: the numbers no longer renumber *and* they no longer tell you
+where anything is. The IDs are already opaque; this plan makes them *good* opaque IDs.
+
+Four concrete wins, in the order they matter here:
+
+1. **Citations become self-describing.** `AR-45` means nothing in a commit message, a
+   review comment, or a layering-guard error string. `AR-PER-EDITOR-STATE` means
+   something without opening an 857-line file. This matters more here than in most
+   repos because [CLAUDE.md](../../CLAUDE.md) makes an AI audit every kernel file
+   against this document *and report the result* — a finding that names the rule is
+   legible on its own and survives context truncation.
+2. **Guard messages get better for free.** `CheckLayering.jl` cites AR-73 / AR-48 /
+   AR-72 in the failures it prints. `AR-QUALIFIED-EXTENSION` in a failure message is a
+   diagnosis; `AR-73` is a lookup task.
+3. **Reorganizing the documents becomes free.** Today, moving a requirement between
+   sections either breaks a citation or deepens the number scramble.
+4. **The prefix disambiguates.** [chase-animation.md:68](../pending/chase-animation.md)
+   cites bare "requirement 2" and "requirement 3" with no prefix — impossible to tell
+   whether it means a product or an architectural requirement. `R-` / `AR-` fixes that
+   permanently.
+
+**The cost, stated honestly:** a name can rot when a requirement's prose drifts while
+its name stays put. A number can never be wrong because it never says anything. The
+mitigation is the naming rule below (name the *rule*, not the topic) plus the
+never-reuse rule — not perfection.
+
+## Decisions
+
+### Format
+
+`AR-SCREAMING-KEBAB` for architectural requirements, `R-SCREAMING-KEBAB` for product
+requirements. Uppercase makes a citation unmistakable in running prose and in a Julia
+comment; kebab keeps it greppable as one token.
+
+### Rendering: one `###` heading per requirement
+
+Promote each requirement from an ordered-list item to a `###` heading, with the body as
+following prose:
+
+```markdown
+### AR-PURE-THUNK — every reactive computation is a pure function of the cells it reads
+
+A `Cell(() -> …)` thunk (and the parts of `print_document` that build them) must have
+no side effects and must depend only on the cells it reads — no clocks, RNG, or
+external mutable state. …
+```
+
+The reason to accept the extra ~150 lines this costs: **headings give free anchors**. A
+citation can then deep-link to the exact requirement —
+`[AR-PURE-THUNK](../../documentation/architecture-requirements.md#ar-pure-thunk)` — which
+list items cannot do today (every existing link lands at the top of the file and makes
+the reader hunt).
+
+Both documents also get an **index table** at the top (ID → one-line gloss), so an
+auditor — human or AI — can pick the right ID without reading the whole file.
+
+*Alternative, if the heading churn is unwanted:* keep the ordered list and lead each
+item with the ID (`- **AR-PURE-THUNK** — Every reactive computation must be …`). Cheaper
+diff, no anchors. **Recommended: headings.**
+
+### Rules to write into both preambles
+
+- **A name is permanent and is never reused.** Retiring a requirement retires its name;
+  a deleted `AR-FOO` is never reassigned to a different rule. (Same discipline a number
+  needs — now the stakes are visible.)
+- **The name names the rule, not the section**, so it survives regrouping:
+  `AR-ACYCLIC-CELLS`, never `AR-REACTIVITY-3`.
+- **Adding a requirement means appending a heading and one index row.** Nothing else
+  moves. That is the entire point.
+
+## Blocker — a sealed file cites AR-45
+
+[`package/kernel/main/cell/Clock.jl:25`](../../package/kernel/main/cell/Clock.jl#L25) is
+**🔒 sealed** and contains `a principled AR-45 carve-out`. Renaming AR-45 to
+`AR-PER-EDITOR-STATE` requires a one-token edit to that line.
+
+Per [CLAUDE.md](../../CLAUDE.md) this needs **explicit permission for that specific
+file** before the migration touches it. No other sealed file cites a requirement ID
+(checked: `PerformanceCounter.jl`, `AbstractCell.jl`, `ReactiveCell.jl`, `MutableCell.jl`,
+`ImmutableCell.jl`, `document/Forward.jl`, `reference/ReferenceLayer.jl` — all clean).
+
+If permission is withheld, the fallback is to leave `Clock.jl` citing `AR-45` and keep a
+retired-number → name table in the requirements preamble. That is strictly worse; ask
+first.
+
+## Proposed names — architectural requirements
+
+Sorted by current number. Section order is unchanged by this plan; only the IDs change.
+
+### Reactivity — the cell engine
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 1 | `AR-PURE-THUNK` | Every reactive computation is a pure function of the cells it reads |
+| 2 | `AR-NO-WRITE-IN-THUNK` | A thunk never writes another cell or mutates shared document state |
+| 3 | `AR-ACYCLIC-CELLS` | The cell dependency graph stays acyclic |
+| 4 | `AR-MONOTONE-INVALIDATION` | Never hand-set `valid`; never partially invalidate |
+| 5 | `AR-WRITE-DRIVEN-PROPAGATION` | Propagation is write-driven, not value-driven |
+| 6 | `AR-NO-PROJECTION-GLOBALS` | No global mutable state in projections or the machinery they call |
+| 7 | `AR-DERIVED-CELLS` | Derive state through the engine; never read a cell before its wiring is complete |
+| 8 | `AR-FINEST-GRANULARITY` | Choose the reactive container that preserves the finest granularity |
+
+### Documents and domains
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 9 | `AR-FIELDS-ARE-CELLS` | Every document field is a `Cell`, accessed transparently |
+| 10 | `AR-FIELD-NAMES-ARE-API` | A document's struct field names are its public reference vocabulary |
+| 11 | `AR-WIDE-FIELD-TYPES` | A field's declared type admits every value the field can hold |
+| 12 | `AR-NO-NESTED-CELL` | A macro-wrapped field never holds a `Cell` or a `Function` as its value |
+| 13 | `AR-DOCUMENT-IDENTITY` | Two documents with equal fields are not assumed `==` |
+| 14 | `AR-DOMAINS-INDEPENDENT` | Domains are independent; a document owns no cross-domain edge |
+| 15 | `AR-DOMAIN-OWNS-EDITS` | Every domain defines its own structural operations and insertion type |
+| 16 | `AR-WIDGETS-ARE-PRESENTATION` | The edited document stays in its semantic domain; widgets are presentation only |
+| 17 | `AR-SEARCH-DONT-WALK` | Prefer `search_references` / `search_documents` over hand-walking the tree |
+
+### Projections
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 18 | `AR-FOUR-FUNCTIONS` | The four functions are the entire projection interface |
+| 19 | `AR-RECURSION-CONTRACT` | All recursion flows through those four functions and only those four |
+| 20 | `AR-DELEGATE-ONE-LEVEL` | Recurse one level, then delegate ("School A") |
+| 21 | `AR-RECURSE-VIA-PRINT-CHILD` | Recurse through `print_child`, never open-coded |
+| 22 | `AR-BIDIRECTIONAL-PROJECTION` | Every projection is bidirectional: a printer needs its inverse |
+| 23 | `AR-MAPPERS-ARE-INVERSES` | Forward and backward reference mappers are mutual inverses |
+| 24 | `AR-PREFER-REFERENCE-RETARGET` | Write `read_intent` only when re-targeting a reference is not enough |
+| 25 | `AR-GEOMETRY-FREE-IN-DOCUMENT` | Geometry-free gesture handling belongs to the document, not the projection |
+| 26 | `AR-DELEGATE-AND-LIFT` | A structural reader delegates a raw gesture to the selected child and lifts the result |
+| 27 | `AR-SHARED-CHILDREN-IOMAP` | A compound projection stores child IoMaps in one shared cell and returns a `ChildrenIoMap` |
+| 28 | `AR-CROSS-DOMAIN-LATE` | Cross domains as late as possible in the mappers |
+| 29 | `AR-HIGHER-ORDER-IS-DOMAIN-FREE` | Higher-order projections touch no domain |
+| 30 | `AR-USE-PROJECTION-MACRO` | Use `@projection` for projection structs with reactive fields |
+
+### References and selection
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 31 | `AR-ONE-BASED-INDEXING` | All indexing is 1-based; elements are distinguished from boundaries |
+| 32 | `AR-REFERENCE-DSL` | Build and match reference paths with the DSL, not by hand |
+| 33 | `AR-EVERY-DOCUMENT-HAS-SELECTION` | Every concrete `Document` has a `selection::Cell` |
+| 34 | `AR-REPLACE-SELECTION` | Change selection with `replace_selection!`, not a bare `set_selection!` |
+| 35 | `AR-EMPTY-PATH-IS-SELECTION` | The empty path is a first-class whole-element selection, not an absence |
+| 36 | `AR-FOLDED-CHECKPOINTS` | Folded node-type checkpoints are canonical; produce and consume them, don't fabricate them |
+| 37 | `AR-REACTIVE-OUTPUT-SELECTION` | Wire the output selection reactively; focus is the selection |
+
+### Operations
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 38 | `AR-ONE-WAY-TO-EDIT` | `evaluate_operation(editor, op)` is the one way to change the document |
+| 39 | `AR-PREFER-REPLACE-VALUE` | Prefer `ReplaceReferencedValueOperation` before writing a new operation type |
+| 40 | `AR-REGISTER-NEW-OPERATION` | A reference-carrying operation is registered in both `read_intent` and `reroot_operation` |
+| 41 | `AR-MUTATE-OR-NULL-IOMAP` | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
+| 69 | `AR-INVERTIBLE-OPERATIONS` | Design every operation to be invertible; keep its inverse well-defined |
+
+### Editor, devices, and backends
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 42 | `AR-BACKEND-SEAM` | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
+| 43 | `AR-OPT-IN-DEPENDENCY` | Add a backend/engine as an opt-in package behind a factory seam |
+| 44 | `AR-PROFILE-WITH-COUNTERS` | Profile edits with the per-frame performance counters |
+| 45 | `AR-PER-EDITOR-STATE` | No process-global state; one process must run many editors at once |
+
+### Package, layer, slice, and module structure
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 46 | `AR-PACKAGE-CHAIN` | Respect the package chain and the four-level division |
+| 47 | `AR-LOWEST-PACKAGE` | Code lives in the lowest package of its DAG whose API it hard-references |
+| 48 | `AR-MODULE-BOUNDARY-IS-API` | Imports name only exported symbols |
+| 49 | `AR-FRAMEWORKS-SINK` | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
+| 50 | `AR-PROJECTION-PLACEMENT` | Honor the projection placement invariant |
+| 72 | `AR-INTERFACE-DECLARES-ONLY` | An interface file declares; it never implements |
+| 73 | `AR-QUALIFIED-EXTENSION` | Name a module with bare `using ..Xxx`; extend its generics by qualification |
+| 51 | `AR-PARALLEL-TRIADS` | Keep the main/test/example triads parallel and minimal-environment runnable |
+
+### Testing and verification
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 52 | `AR-SMALLEST-TEST` | Run the smallest test that covers the change; never default to `test_all()` |
+| 53 | `AR-MARK-BROKEN-TESTS` | Every currently-failing assertion is `@test_broken` with a `# @broken:` reason |
+| 54 | `AR-NEW-CODE-SHIPS-TESTS` | New code ships with tests, in the lowest test package that can express them |
+| 55 | `AR-NO-INTROSPECTION-METHOD` | The recursion contract stays externally validated; add no per-projection introspection |
+| 56 | `AR-DRIVE-THE-BEHAVIOUR` | Verify a change by driving the behaviour, not only by reading code |
+
+### Documentation, vocabulary, and process
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 57 | `AR-DIVISION-VOCABULARY` | Use package / layer / slice / module exactly, and no synonyms |
+| 58 | `AR-NEVER-GUESS-NAMES` | Do not guess names or signatures — search for them |
+| 59 | `AR-GREEN-LAYERING-GUARDS` | Keep the layering guards green and let them enforce the structure |
+| 60 | `AR-UPDATE-THE-GUIDE` | Update the guide documenting behaviour you changed; teach concepts before mechanisms |
+| 61 | `AR-HONEST-DOCS` | Keep documentation honest; flag aspirational designs as such |
+| 62 | `AR-FOCUSED-DIFFS` | Keep diffs focused — no unrelated reformatting |
+| 63 | `AR-STABLE-FOUNDATIONS` | Respect the stable foundations and the roadmap ordering |
+| 64 | `AR-AI-SAME-GUARANTEES` | AI edits carry the same guarantees as human edits |
+| 65 | `AR-NAMING-LAW` | Names must be guessable in both directions |
+| 66 | `AR-MODULE-DOCSTRING` | Every source file opens with a module docstring stating its contract |
+| 67 | `AR-PERSISTENCE-BY-VALUE` | Persistence crosses cell boundaries by value and never enters the reactive graph |
+| 68 | `AR-NO-TEST-DOUBLES-IN-MAIN` | No test doubles live in `main` packages |
+| 70 | `AR-NO-CONSUMER-DOCS` | A module's documentation describes its own contract, never its consumers |
+| 71 | `AR-TIGHT-COMMENTS` | A comment carries only what the code cannot |
+
+## Proposed names — product requirements
+
+| Now | Name | Rule |
+| --- | --- | --- |
+| 1 | `R-NO-INVALID-STATES` | The document never reaches a malformed state |
+| 2 | `R-MEANINGFUL-POSITIONS` | Every position the cursor can occupy is meaningful |
+| 3 | `R-DISPLAY-IS-TRUTH` | What is shown always reflects the content |
+| 4 | `R-EDIT-WHAT-IS-SHOWN` | Whatever is displayed can be edited directly |
+| 5 | `R-NATURAL-GRANULARITY` | Editing at whatever granularity the content has |
+| 6 | `R-CONTEXT-APPROPRIATE-EDITS` | Only meaningful edits are offered at any position |
+| 7 | `R-UNDO-REDO` | Reversible editing |
+| 8 | `R-REVISITABLE-HISTORY` | A history that can be revisited |
+| 9 | `R-INTERMEDIATE-STATES` | Every intermediate state is representable |
+| 10 | `R-REACH-ANY-PART` | The selection can reach any part of the content |
+| 11 | `R-STRUCTURAL-AND-LINEAR-NAVIGATION` | Both structural and linear navigation |
+| 12 | `R-SEARCH-AND-JUMP` | Search the content and jump to a match |
+| 13 | `R-MANY-VIEWS-OF-ONE-DOCUMENT` | More than one way to see the same data |
+| 14 | `R-SORT-AND-FILTER` | Sort and filter any collection without losing editing |
+| 15 | `R-FOCUS-AND-REORGANIZE` | Narrow and reorganize the view |
+| 16 | `R-COMBINE-CONTENT-KINDS` | Different kinds of content combine |
+| 17 | `R-ARBITRARY-NESTING` | Any kind of content nests in any other, arbitrarily |
+| 18 | `R-ANY-PART-IS-A-DOCUMENT` | Any fragment can be a document on its own |
+| 19 | `R-KEYBOARD-AND-POINTER` | Both keyboard and pointer work |
+| 20 | `R-MULTIPLE-ROUTES` | Multiple routes to the same action |
+| 21 | `R-DISCOVERABLE-ACTIONS` | Available actions are discoverable |
+| 22 | `R-CLIPBOARD` | Copy, cut, and paste content in and out |
+| 23 | `R-ADJUST-SCALE` | The scale of what is shown can be changed |
+| 24 | `R-IMMEDIATE-FEEDBACK` | Immediate, visible feedback for every action |
+| 25 | `R-INFORMATION-ON-DEMAND` | Supplementary information on demand |
+| 26 | `R-MULTIPLE-VIEWS-AT-ONCE` | Several views open at once |
+| 27 | `R-RESPONSIVE-AT-ANY-SIZE` | Editing stays responsive at any content size |
+| 28 | `R-UNBOUNDED-CONTENT` | Unbounded content can be presented and edited |
+| 29 | `R-SAME-EDITOR-EVERYWHERE` | The same editor runs in different environments |
+| 30 | `R-MANY-EDITORS-ONE-PROCESS` | One process runs many editors (the external face of `AR-PER-EDITOR-STATE`) |
+| 31 | `R-SAVE-AND-INTERCHANGE` | Save, reload, and interchange work |
+| 32 | `R-RENDER-HEADLESS` | Render what is seen without a display |
+| 33 | `R-AI-SAME-GUARANTEES` | AI edits with the same guarantees (the external face of `AR-AI-SAME-GUARANTEES`) |
+| 34 | `R-EDIT-BY-REQUEST` | Editing by natural-language request |
+| 35 | `R-CLEAN-CHECKOUT` | Runs from a clean checkout |
+| 36 | `R-ONE-STEP-EXAMPLE` | Any example launches in one step |
+| 37 | `R-DEVELOP-HEADLESS` | A contributor can work without a display |
+| 38 | `R-CHEAP-NEW-DOMAIN` | New kinds of content are cheap to add |
+| 39 | `R-COMPOSABLE-PROJECTIONS` | New presentations and interactions compose |
+| 40 | `R-VERIFY-IN-THE-SMALL` | Change can be verified in the small |
+| 41 | `R-SEPARABLE-OPTIONALS` | Optional capabilities are separable |
+| 42 | `R-SHIPPABLE-APPLICATION` | Can be delivered as an application |
+| 43 | `R-DOCUMENTED-PATH-IN` | Documented with a clear path in |
+| 44 | `R-PREDICTABLE-CONVENTIONS` | Predictable by convention |
+
+## Migration
+
+Naming is the reviewable part; the rest is mechanical. Steps 3–5 are a good fit for a
+Sonnet subagent once the tables above are approved, with the rename driven from this
+file so no name is invented on the fly.
+
+- [ ] **1. Approve the names.** Review the two tables. Names are permanent once shipped,
+      so this is the step that deserves the time. Anything renamed later costs a second
+      sweep.
+- [ ] **2. Get permission for the sealed file.** `Clock.jl:25` (see *Blocker* above).
+      Do not start step 4 without it.
+- [ ] **3. Rewrite `architecture-requirements.md`.** Convert the 73 list items to `###`
+      headings with IDs, add the index table, and rewrite the preamble (lines 19–22
+      currently say *"is numbered for reference (cite them as AR-N …)"*). Also rewrite
+      the **11 intra-document citations** (e.g. AR-69's body cites AR-38).
+- [ ] **4. Rewrite `requirements.md`.** Same treatment for the 44 product requirements.
+- [ ] **5. Rewrite every citation repo-wide.** Full inventory, verified by grep
+      (excluding `package/executable/build/` artifacts, which contain unrelated
+      coincidental `AR-\d` matches in vendored `.hwdb` / `.h` files):
+
+      | File | Citations |
+      | --- | --- |
+      | `package/kernel/test/layering/CheckLayering.jl` | 37 |
+      | `plan/done/document-layer-cleanup.md` | 29 |
+      | `plan/done/device-layer-restructure.md` | 21 |
+      | `plan/done/qualified-extension.md` | 18 |
+      | `plan/done/per-editor-animation-clock.md` | 11 |
+      | `plan/done/kernel-agent-stack.md` | 8 |
+      | `plan/done/interface-file-purity.md` | 8 |
+      | `plan/tentative/from-scratch-structure.md` | 7 |
+      | `package/projectured/test/ExportCollisionTest.jl` | 6 |
+      | `plan/done/document-interface-layering.md` | 4 |
+      | `package/kernel/main/tool/Documentation.jl` | 3 |
+      | `package/kernel/doc/agent.md` | 3 |
+      | `plan/pending/text-domain-kit.md` | 2 |
+      | `plan/done/reference-step-cleanup.md` | 2 |
+      | `package/kernel/test/ProjecturedKernelTest.jl` | 2 |
+      | `package/kernel/main/binding/GestureBinding.jl` | 2 |
+      | `package/kernel/doc/cell.md` | 2 |
+      | `package/kernel/main/cell/Clock.jl` 🔒 | 1 |
+      | `package/kernel/main/{editor/Editor.jl, document/DocumentWalk.jl, llm/LlmModule.jl, tool/Tool.jl, tool/ToolModule.jl, tool/DefaultTools.jl}` | 1 each |
+      | `package/{sdl,web}/main/Projectured{Sdl,Web}.jl` | 1 each |
+      | `package/{visual,projectured}/test/*.jl`, `package/domain/test/projection/ConversationEditorTest.jl` | 1 each |
+      | `package/kernel/doc/{editor.md, devices-and-backends.md}`, `documentation/concepts.md` | 1 each |
+
+      `plan/done/` is included: a done plan citing an `AR-45` that no longer exists is a
+      dangling reference. Renaming an ID there is not a history rewrite.
+- [ ] **6. Fix the prose that describes the scheme**, not just the IDs:
+      [documentation/README.md](../../documentation/README.md) (lines 50, 105 — "the
+      numbered … requirements", "Numbered internal development requirements (AR-N)") and
+      [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
+      (line 19 — "the numbered AR-N"). `CLAUDE.md` references the document but no ID, so
+      it needs no change.
+- [ ] **7. Resolve the two bare citations.** `plan/pending/chase-animation.md:68` cites
+      "requirement 2 / requirement 3" and `plan/done/reference-layer-file-split.md` cites
+      "requirement 66 / 48". Read the context, decide whether each means `R-` or `AR-`,
+      and write the prefixed name.
+- [ ] **8. Upgrade the citation links.** Now that requirements have anchors, existing
+      links that point at the whole file (`package/kernel/doc/editor.md:279`,
+      `package/kernel/doc/agent.md:40`) should point at the requirement:
+      `…/architecture-requirements.md#ar-per-editor-state`.
+
+## Verification
+
+- [ ] `grep -rn 'AR-[0-9]' documentation/ package/*/main package/*/test package/*/doc plan/ *.md` — zero hits
+      outside `package/executable/build/`.
+- [ ] Every proposed ID appears at least once in its requirements document (no name
+      defined but never rendered), and every cited ID resolves to a defined one (no
+      dangling citation). A short script over the two index tables is enough.
+- [ ] The renamed strings in `CheckLayering.jl`, `ExportCollisionTest.jl`, and
+      `ProjecturedTest.jl` are inside comments and failure *messages*, not logic — but
+      run `test_kernel()` and the export-collision test anyway to confirm nothing that
+      pattern-matched a message broke.
+- [ ] Anchors resolve: spot-check that `#ar-per-editor-state` and `#ar-qualified-extension`
+      land on the right heading in a rendered view.
