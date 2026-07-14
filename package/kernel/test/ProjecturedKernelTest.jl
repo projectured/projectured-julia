@@ -100,7 +100,7 @@ function test_kernel_layering()
                    # layer declares two contracts, so it has two.
                    interface_files = Dict(
                        "cell/AbstractCell.jl"        => :CellModule,
-                       "document/Interface.jl"       => :DocumentModule,
+                       "document/Document.jl"        => :DocumentModule,
                        "reference/Interface.jl"      => :ReferenceModule,
                        "selection/Interface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,
