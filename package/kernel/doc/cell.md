@@ -140,7 +140,8 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 ## Layer structure
 
 The layer lives in [package/kernel/main/cell/](../../../package/kernel/main/cell/):
-the instrumentation counter module and the cell module, loaded in this order:
+the instrumentation counter module, the cell module, and the clock, loaded in
+this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
@@ -149,16 +150,21 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         ├─ AbstractCell.jl    — the AbstractCell{T} base + shared protocol
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
-        └─ ImmutableCell.jl   — read-only, zero-cost wrapper
+        ├─ ImmutableCell.jl   — read-only, zero-cost wrapper
+        └─ CellStruct.jl      — transparent-Cell struct codegen (@cell_struct)
+        │  Cell / @cell_struct used by ↓
+Clock.jl                 (ClockModule)                — the animation clock
 ```
 
-The animation clock (`ClockModule`, `Clock.jl`) lives in the **document
-layer** — a time value belongs with the document model, not the reactive
-engine (it is a *use* of `Cell`, not part of the engine). Each editor owns a
-private `Clock` instance, ticked from OS time in its read-eval-print loop; a
-shared `WALL_CLOCK` reflects real time for reader-armed animations that have
-no editor of their own. See the module docstring of `document/Clock.jl` for
-the full API.
+The layer is everything at **cell dependency height**, not the reactive engine
+alone: `PerformanceCounter` is a store the engine calls, `CellStruct` is codegen
+*over* `Cell`, and `Clock` is a `@cell_struct` with one reactive `time` field.
+A clock is deliberately **not** a `Document` — nothing navigates into it,
+selects inside it, or projects it — so it does not belong in the document layer
+above; it imports `CellModule` and nothing else. Each editor owns a private
+`Clock`, ticked from OS time in its read-eval-print loop; a shared wall clock
+reflects real time for reader-armed animations that have no editor of their own.
+See the module docstring of `cell/Clock.jl` for the full API.
 
 The load order is the dependency order the include-order guard checks.
 
@@ -234,7 +240,6 @@ binds a fresh store and reports it every frame (see
 [Editor.run_editor!](../../../package/kernel/main/editor/Editor.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
-Animation clock: `ClockModule` in the document layer. See
-`document/Clock.jl` for the current API (`Clock`, `get_reactive_time`,
-`get_time`, `tick!`, `seek!`, `WALL_CLOCK`, `get_wall_clock`,
-`start_wall_clock_heartbeat!`).
+Animation clock: `ClockModule` in the cell layer. See
+`cell/Clock.jl` for the current API (`Clock`, `get_reactive_time`,
+`get_time`, `tick!`, `seek!`, `get_wall_clock`).

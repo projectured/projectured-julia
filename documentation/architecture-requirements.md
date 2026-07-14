@@ -472,14 +472,14 @@ states for placement).
     global to task-local storage, so concurrent evaluations never cross-register
     dependencies. `PerformanceCounterModule` was likewise migrated off its
     process-global `_perf` dict onto a task-local `with_performance_counters` binding
-    (each editor frame binds its own store). The animation clock is now a
-    per-editor `Clock` document (`document/Clock.jl`); `run_editor!` ticks
-    `editor.clock`, and every animated cell subscribes to the clock the printer
-    context carries, so two editors in one process never cross-invalidate each
-    other's animation graph.
+    (each editor frame binds its own store). The animation clock is a per-editor
+    `Clock` (a `@cell_struct`, not a document — `cell/Clock.jl`); `run_editor!`
+    ticks `editor.clock`, and every animated cell subscribes to the clock the
+    printer context carries, so two editors in one process never cross-invalidate
+    each other's animation graph.
 
-    **Accepted carve-out — the wall clock.** `ClockModule.WALL_CLOCK` is a
-    process-global `Clock` reflecting OS time. It is a principled exception:
+    **Accepted carve-out — the wall clock.** The `Clock` behind
+    `ClockModule.get_wall_clock()` is a process-global one reflecting OS time. It is a principled exception:
     exactly one writer (the `start_wall_clock_heartbeat!` background task) and
     read-only for every editor, representing the genuine singleton of real time.
     Reader-armed animations (which see no `PrinterContext` and so cannot reach the

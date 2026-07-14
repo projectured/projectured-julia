@@ -27,7 +27,7 @@ hard requirements:
 ## Prior art in-tree
 
 - **The per-editor `Clock`**
-  ([package/kernel/main/document/Clock.jl](../../package/kernel/main/document/Clock.jl),
+  ([package/kernel/main/cell/Clock.jl](../../package/kernel/main/cell/Clock.jl),
   from [plan/done/per-editor-animation-clock.md](../done/per-editor-animation-clock.md))
   gives the SUBSCRIBE/SAMPLE split this design leans on: `get_reactive_time`
   (tracked, re-run every tick) vs `get_time` (untracked, arm without

@@ -44,31 +44,49 @@ rework.
 
 ---
 
-## Step 1 — Move `Clock` out of the document layer
+## Step 1 — Move `Clock` out of the document layer ✅ done
 
 `document/Clock.jl` declares its own `ClockModule`, imports only `CellModule`, and its own
 docstring says *"A clock is **not** a `Document`"*. Nothing in it is a document; its
 dependency height is layer 1. It sits in layer 2 for no structural reason (AR-47: every
 piece of code lives in the lowest home its dependencies allow).
 
-- [ ] `git mv package/kernel/main/document/Clock.jl package/kernel/main/cell/Clock.jl`.
-- [ ] `cell/CellLayer.jl`: append `include("Clock.jl")` after `include("CellModule.jl")`
+- [x] `git mv package/kernel/main/document/Clock.jl package/kernel/main/cell/Clock.jl`.
+- [x] `cell/CellLayer.jl`: append `include("Clock.jl")` after `include("CellModule.jl")`
       (ClockModule `using ..CellModule` is a same-layer sibling edge, which the guard
       allows).
-- [ ] `document/DocumentLayer.jl`: drop `include("Clock.jl")`. The file becomes a
+- [x] `document/DocumentLayer.jl`: drop `include("Clock.jl")`. The file becomes a
       one-include layer table of contents.
-- [ ] `git mv package/kernel/test/document/ClockTest.jl package/kernel/test/cell/ClockTest.jl`,
+- [x] `git mv package/kernel/test/document/ClockTest.jl package/kernel/test/cell/ClockTest.jl`,
       and update the test package's include list.
-- [ ] Docs: `documentation/architecture-requirements.md` AR-45 says *"a per-editor `Clock`
+- [x] Docs: `documentation/architecture-requirements.md` AR-45 says *"a per-editor `Clock`
       **document** (`document/Clock.jl`)"* — both halves are wrong. Correct it to a
       `@cell_struct` at `cell/Clock.jl`. Check `package/kernel/doc/cell.md` too.
-- [ ] Seal inventory in [CLAUDE.md](../../CLAUDE.md): move the `Clock.jl` entry from the
+- [x] Seal inventory in [CLAUDE.md](../../CLAUDE.md): move the `Clock.jl` entry from the
       document layer to the cell layer, preserving its `🔒`.
 
 **Verify:** `test_kernel_layering()` (structural, ~1s), then `test_kernel()`.
 **Commit:** `refactor: move the clock to the cell layer, where its dependencies put it`
 
 Fully independent of every other step; do it first to get a clean win and a green guard.
+
+### Decision — the cell layer is a dependency height, not "the engine"
+
+`cell.md` carried an explicit rationale for the old placement: *"the animation clock lives
+in the document layer — a time value belongs with the document model, not the reactive
+engine (it is a use of `Cell`, not part of the engine)."* That argument does not survive
+its own neighbours. `CellStruct.jl` is codegen *over* `Cell` — a use of it, not the engine —
+and `PerformanceCounter.jl` is a store the engine merely calls; both already sit in the cell
+layer. So the layer is **everything at cell dependency height**, not the engine narrowly,
+and `Clock` (a `@cell_struct` importing `CellModule` and nothing else) belongs in it. The
+old rationale is replaced in `cell.md` rather than left to contradict the code.
+
+Two stale doc claims fixed in passing, both of which named things that do not exist:
+`cell.md` listed `WALL_CLOCK` and `start_wall_clock_heartbeat!` as API (they are the private
+`_WALL_CLOCK` / `_start_wall_clock_heartbeat!`; the export is `get_wall_clock()`), and AR-45
+called the clock a *document*. Fixed to AR-61 (documentation must be honest). The cell-layer
+diagram in `cell.md` was also missing `CellStruct.jl`; it is now listed, since it is
+load-bearing for the rationale above.
 
 ---
 
