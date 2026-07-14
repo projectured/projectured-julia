@@ -65,37 +65,80 @@ forces them, drops them, GCs, and asserts the source's `dependents` is back wher
 started. Currently `@test_broken` (they all survive). **When the fix lands this flips to an
 unexpected pass — promote it to `@test`.**
 
-## The fix — undecided, needs the seal broken
+## The fix — benchmarked; the objection does not survive
 
-`ReactiveCell.jl` is sealed, and `dependents` is written on **every** cell read inside a
-computation, so this is on the hot path. Do not patch it casually.
+`ReactiveCell.jl` is sealed and `dependents` is written on **every** cell read inside a
+computation, so the standing objection was performance. It was worth checking, and the
+answer is clean: **the naive weak fix really is too slow, and the right one is faster than
+what we have today.**
 
-1. **Weak `dependents`** — the architecturally correct fix: the edge exists to propagate
-   invalidation, not to own. A discarded pipeline's cells become collectable and
-   invalidation skips the dead ones. **Risk:** a `WeakRef`/`WeakKeyDict` insert on every
-   dependency registration; the cell-kinds work already found that runtime branches on the
-   reactive read path cost ~2×, so this must be benchmarked before and after.
-2. **Explicit disposal** — keep `dependents` strong, add `dispose!(iomap)` that walks a
-   discarded pipeline and calls the existing `_detach_upstream!` on each of its cells; make
-   every re-printing caller invoke it. Leaves the hot path untouched, but correctness rests
-   on discipline: the leak returns wherever someone forgets.
+### The dependents set is TINY
 
-   **Weakened by the structural-edit finding.** Disposal is tractable for a whole discarded
-   pipeline, which has an owner and an obvious moment of death. It is *not* tractable for the
-   cells a printer sheds mid-recompute: there is no `iomap` to dispose, no owner, and no
-   moment — a node is simply rebuilt and its old spans become garbage. Those are exactly the
-   ~3.4 edges per structural edit, and disposal cannot reach them. So (2) fixes the tests and
-   leaves the editor leaking.
+Across the 4173 live cells of a healthy `json` pipeline (one print, one force — before any
+re-print has leaked into it):
 
-**Recommendation: (1).** The structural-edit leak is inside a single live pipeline, where
-there is nothing to "dispose" — only (1) reaches it.
+```
+mean=0.85   median=1   p90=2   p99=3   p99.9=4   MAX=40
+cells with >16 dependents: 1        with >64: 0
+```
+
+That is the fact everything else follows from. At size 1–4, hashing is pure overhead.
+
+### Candidates, measured
+
+Re-registering an **already-present** dependent — what happens on every cell read inside a
+computation, and therefore the only number that really matters:
+
+| dependents size | `Set` (today) | `WeakKeyDict` | `Vector{WeakRef}` |
+|---|---|---|---|
+| 1 | 5.9 ns | 42.4 ns | **1.6 ns** |
+| 4 | 6.6 ns | 43.6 ns | **2.2 ns** |
+| 16 | 6.0 ns | 42.0 ns | **4.1 ns** |
+
+And the other two operations, at the realistic p50–p99 sizes:
+
+| op | `Set` (today) | `Vector{WeakRef}` |
+|---|---|---|
+| detach (`_detach_upstream!`) | 13.1–13.2 ns | **8.4–10.2 ns** |
+| iterate (`_invalidate_dependents!`) | 4.0–5.1 ns | **0.4–1.2 ns** |
+| bytes per new edge | 100 B | **73 B** |
+
+- **`WeakKeyDict` is 7× slower** on the hot path — its lock dominates. This is the fix to
+  avoid, and it is the one you would reach for first.
+- **`Vector{WeakRef}` with a linear identity scan is ~3× FASTER than today's `Set`**, faster
+  to detach, 4–10× faster to invalidate, and allocates less. It is weak, so it fixes the leak.
+
+The crossover where `Set` wins back is ~32 dependents. Exactly one cell in the pipeline
+exceeds 16 (max 40); on it, registration would cost ~17 ns instead of ~7 ns. If that ever
+matters, spill to a hash set above a threshold — but nothing in the measurements asks for it.
+
+**A second-order win:** the sets are only small in a *healthy* graph. The leak inflates them
+(274 dependents per document cell after a single caret walk), so today's code gets steadily
+slower as it leaks — every invalidation walks the dead entries. Fixing the leak shrinks the
+sets, which speeds invalidation up as well.
+
+### The change
+
+```julia
+-   dependents::Set{ReactiveCell}      # strong: OWNS every reader, for ever
++   dependents::Vector{WeakRef}        # weak: propagates invalidation, owns nothing
+```
+
+- **register**: linear identity scan (`v[i].value === observer`); if absent, `push!(WeakRef(observer))`.
+  Prune collected entries opportunistically during the scan the code is doing anyway.
+- **detach**: linear scan + `deleteat!`.
+- **invalidate**: iterate, skipping entries whose `value === nothing` (already collected).
+
+`deps` (downstream → upstream) stays a strong `Set`: it points at the long-lived document,
+which is alive regardless, and it is the direction that must NOT be weak (a cell must keep
+its own upstream links to detach them).
+
+Requires unsealing `package/kernel/main/cell/ReactiveCell.jl`.
 
 ## Open questions
 
-- Benchmark the read path (`Base.getindex(::ReactiveCell)`) before committing to (1). This is
-  the one real objection: `dependents` is written on every cell read inside a computation, and
-  the cell-kinds work found runtime branches there cost ~2×.
-- A weak set makes GC timing observable; the detector already forces GC, but invalidation must
-  tolerate entries that have been collected.
-- `deps` (downstream → upstream) can stay strong: it points at the long-lived document, which
-  is alive anyway. Only `dependents` must weaken.
+- A weak set makes GC timing observable: `_invalidate_dependents!` must tolerate entries that
+  have already been collected (skip them), and the detector forces GC before asserting.
+- Worth re-running the cell-kinds read-path benchmark after the change to confirm the ~3×
+  micro win survives in the real `Base.getindex(::ReactiveCell)` (it should — the registration
+  is the only thing that changes).
