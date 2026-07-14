@@ -253,7 +253,10 @@ end
 # subpaths (via `dsl_step_subpath_args`) are tagged as such and kept raw; the rest are
 # ordinary value expressions. So the parser names no specific step type — `.proj`'s
 # subpath argument is discovered through the seam, keeping the reference layer ignorant
-# of the projection concept.
+# of the projection concept. A step that registers nothing takes only value arguments,
+# which is what the seam answers here for every unregistered name.
+dsl_step_subpath_args(::Val) = ()
+
 function _ref_extension_step(name::Symbol, args)
     subpaths = dsl_step_subpath_args(Val(name))
     RefExtension(name, Any[(i in subpaths ? RefArgSubPath(a) : RefArgValue(a))

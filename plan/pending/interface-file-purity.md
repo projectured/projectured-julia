@@ -70,11 +70,20 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   the generic. `Base.peek` is Base's generic and cannot be re-declared; the file's docstring states
   it as part of the shared read protocol.
 
-- [ ] **3. reference — `reference/Interface.jl`.** `step_kind(::ReferenceStep) = :structural` →
-  `ReferenceStep.jl`, beside the per-type `step_kind` methods. `dsl_step_subpath_args(::Val) = ()`
-  and the two `dsl_build_step` / `dsl_match_step` "no method registered" error fallbacks →
-  `ReferenceSyntax.jl`, the shared grammar that calls the seams and is where an unknown step name is
-  actually met.
+- [x] **3. reference — `reference/Interface.jl`.** Two changes to the plan, both found by looking:
+
+  - `step_kind(::ReferenceStep) = :structural` was **deleted, not rehomed**. All six step types in
+    the repo (`RangeReference`, `FieldReference`, `TypeReference`, `ProjectionReference`,
+    `PointReference`, `TextRectangularReference`) already declare their own `step_kind`, so the
+    abstract default was dead code — and `ReferenceStep.jl`'s header already states the design it
+    contradicted ("each step type is self-contained: its struct, `show`, `==`, and its `step_kind` /
+    `evaluate_step` seam methods sit together"). A new step type that forgets to classify itself now
+    fails loudly at the first path walk instead of being silently taken as structural.
+  - The seam fallbacks go to the **DSL that raises each**, not to the shared grammar:
+    `dsl_step_subpath_args(::Val) = ()` → `ReferenceSyntax.jl` (its only caller),
+    `dsl_build_step`'s error → `ReferenceBuilder.jl`, `dsl_match_step`'s error →
+    `ReferenceCase.jl`. Each unregistered-name error is reported where the unknown `.name(…)` is
+    first reachable.
 
 - [ ] **4. operation — `operation/Interface.jl`.** `invalidate_projection!(editor) = nothing` →
   `Operations.jl`. Also fix the `evaluate_operation` docstring, which points at a `common/Operation.jl`
