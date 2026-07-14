@@ -114,7 +114,8 @@ function test_kernel_layering()
                    # extension (`Xxx.f(…) = …`). Opt-in, and it grows as the
                    # sweep proceeds; when it covers every file the parameter goes.
                    qualified_files = Set([
-                       "projection/ProjectionReference.jl"]))   # the reference-step seam
+                       "projection/ProjectionReference.jl",   # the reference-step seam
+                       "backend/HeadlessBackend.jl"]))        # the backend seam
 end
 
 """

@@ -24,8 +24,8 @@ document-free.
 """
 module HeadlessBackendModule
 
-import ..BackendModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ..DeviceModule: Device, read_from_devices, write_to_devices
+using ..BackendModule
+using ..DeviceModule
 
 export HeadlessBackend, rendered_output, push_event!
 
@@ -42,20 +42,20 @@ mutable struct HeadlessBackend <: Backend
 end
 
 # Lifecycle: both are no-ops; there is no external state to init or release.
-initialize_backend!(::HeadlessBackend) = nothing
-quit_backend!(::HeadlessBackend) = nothing
+BackendModule.initialize_backend!(::HeadlessBackend) = nothing
+BackendModule.quit_backend!(::HeadlessBackend) = nothing
 
 # Text measurement: a stub returning a fixed metric per character. Tests that
 # depend on exact geometry are not this backend's job.
-measure_text(::HeadlessBackend, text::AbstractString, font) =
+BackendModule.measure_text(::HeadlessBackend, text::AbstractString, font) =
     (length(text) * 8, 16)
 
 # Batch I/O:
 # - write_to_devices logs the document for later assertion
 # - read_from_devices pops the next scripted event, or nothing on drain
-write_to_devices(b::HeadlessBackend, devices, document) =
+DeviceModule.write_to_devices(b::HeadlessBackend, devices, document) =
     (push!(b.rendered, document); nothing)
-read_from_devices(b::HeadlessBackend, devices) =
+DeviceModule.read_from_devices(b::HeadlessBackend, devices) =
     isempty(b.events) ? nothing : popfirst!(b.events)
 
 """

@@ -35,12 +35,14 @@ itself does not resolve the selection or emit a reverse-video attribute).
 """
 module ConsoleBackendModule
 
-import ..BackendApiModule: Backend, initialize_backend!, quit_backend!, measure_text
-import ..DeviceModule: Device, read_from_devices, write_to_devices
-import ..TextModule: TextDocument, TextText, TextString, TextNewline, TextSpacing, TextGraphics
-import ..ColorModule: StyleColor, color_default, color_equal
-import ..FontModule: StyleFont
-import ..EventModule: Modifiers, EventEnvelope, KeyDown, KeyPress, WindowQuit
+# The alias is how visual reaches the kernel's backend contract; a bare
+# `using` binds the module's *real* name, so extensions qualify BackendModule.
+using ..BackendApiModule
+using ..DeviceModule
+using ..TextModule
+using ..ColorModule
+using ..FontModule
+using ..EventModule
 
 export ConsoleBackend, console_render
 
@@ -88,7 +90,7 @@ ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=tr
 # reflects incoming bytes (without `start_reading` the internal buffer is never
 # filled and the poll always sees zero). No-op (and harmless) when `input` is
 # not a TTY, e.g. an `IOBuffer` in tests.
-function initialize_backend!(backend::ConsoleBackend)
+function BackendModule.initialize_backend!(backend::ConsoleBackend)
     _set_raw!(backend, true)
     io = backend.input
     if io isa Base.TTY
@@ -101,7 +103,7 @@ function initialize_backend!(backend::ConsoleBackend)
     return nothing
 end
 
-function quit_backend!(backend::ConsoleBackend)
+function BackendModule.quit_backend!(backend::ConsoleBackend)
     io = backend.input
     if io isa Base.TTY
         try
@@ -136,7 +138,7 @@ The console pipeline never measures text (there is no `TextToGraphics` to lay
 out), but the `Backend` interface requires the method. Return a character-cell
 estimate: one cell per character, one row tall.
 """
-measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
+BackendModule.measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
 
 # ── ANSI styling ─────────────────────────────────────────────────────────
 
@@ -235,12 +237,12 @@ end
 
 Render the Text-domain output of the projection pipeline to the terminal.
 """
-write_to_devices(backend::ConsoleBackend, devices, text::TextText) =
+DeviceModule.write_to_devices(backend::ConsoleBackend, devices, text::TextText) =
     console_render(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
 # and so produces a graphics/screen document instead of a `TextText`).
-function write_to_devices(::ConsoleBackend, devices, output)
+function DeviceModule.write_to_devices(::ConsoleBackend, devices, output)
     error("write_to_devices(::ConsoleBackend, …): pipeline output is " *
           "$(typeof(output)), expected a TextText. The console backend renders " *
           "the Text domain directly — drop the TextToGraphics step from the pipeline.")
@@ -254,7 +256,7 @@ backend-agnostic event wrapped in an `EventEnvelope`. The window id is the
 sentinel `:console` (there is no `WindowDocument`). Returns `nothing` when no
 complete event is buffered.
 """
-function read_from_devices(backend::ConsoleBackend, devices)
+function DeviceModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
     event = _next_event!(backend.inbuf)
     event === nothing && return nothing
