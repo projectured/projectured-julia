@@ -216,7 +216,18 @@ already encoded in the span colors (by `SelectionInverting`).
 function console_render(backend::ConsoleBackend, text::TextBlock)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
-    for span in text.elements
+    for (i, span) in enumerate(text.elements)
+        # A TextLine implies its break: it is a *separator*, so every line but a
+        # leading one starts by ending the previous one. Its indentation is a
+        # property of the line, printed here rather than carried in a span.
+        if span isa TextLine
+            i > 1 && print(buf, '\n')
+            print(buf, ' '^span.indentation)
+            for inner in span.elements
+                _render_span!(buf, backend, inner)
+            end
+            continue
+        end
         _render_span!(buf, backend, span)
     end
     frame = String(take!(buf))

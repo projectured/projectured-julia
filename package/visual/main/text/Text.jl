@@ -29,6 +29,7 @@ module TextModule
 import ..CellModule: Cell, set_function!, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
+import ..DomainModule
 import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
@@ -260,6 +261,14 @@ A block's elements are meant to be *either* spans *or* lines, not a mix. Mixing
 degrades gracefully rather than erroring (a line still breaks before itself), but
 the flat character offsets get hard to reason about, and no projection produces
 such a block.
+
+!!! warning "Not laid out by TextToGraphics yet"
+    `TextToString` and the console backend render lines; the **graphics** pipeline
+    does not — `TextToGraphics` addresses spans by a flat `Int` element index
+    (`SegCoord.span_idx`) and silently skips an element it does not recognize, so
+    a line-structured block renders blank there. No projection emits a `TextLine`
+    yet, so nothing hits this; teaching `TextToGraphics` the index path is the
+    next step (see `plan/`).
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
@@ -274,6 +283,15 @@ TextLine(spans::TextDocument...; indentation::Integer = 0) =
 
 TextLine(f::Function; indentation::Integer = 0) =
     TextLine(CellVector(f), Cell(Int(indentation)), Cell(nothing))
+
+# A lone line is not a document — it is a part of a block. Both of its fields are
+# defaulted, so unlike the span types (each has a required field, and so no
+# zero-arg constructor) `TextLine` *is* zero-arg constructible and would become a
+# completion candidate on its own: committable at a top-level insertion, where the
+# committed document is the root and the text pipeline prints a `TextBlock`, not a
+# line. It would also make `text` ambiguous — both `text block` and `text line`
+# start with it. Opt out, as `@domain` does for its own placeholder.
+DomainModule.insertable(::Type{<:TextLine}) = false
 
 # ── Span coordinates ──────────────────────────────────────────────────────
 #
@@ -723,14 +741,16 @@ set_function!(st::TextBlock, f::Function) = (set_function!(getfield(st.elements,
 # how the selection's offsets are counted: TextString → its content length,
 # TextNewline / TextSpacing → 1, anything else → 0.
 #
-# A `TextLine` contributes its spans' lengths and nothing more: the break it
-# implies sits *between* elements, so the container adds it (see
-# `text_flat_offsets`) and a line-structured block gets `n-1` breaks for `n`
-# lines rather than a phantom trailing one.
+# A `TextLine` contributes its indentation (which the renderers emit as leading
+# spaces, so it occupies characters even though no span holds it) plus its spans'
+# lengths — but *not* the break it implies: that sits between elements, so the
+# container adds it (see `text_flat_offsets`) and a line-structured block gets
+# `n-1` breaks for `n` lines rather than a phantom trailing one.
 text_flat_length(span::TextString) = length(span.content::AbstractString)
 text_flat_length(::TextNewline) = 1
 text_flat_length(::TextSpacing) = 1
-text_flat_length(line::TextLine) = sum(text_flat_length(s) for s in line.elements; init = 0)
+text_flat_length(line::TextLine) =
+    line.indentation + sum(text_flat_length(s) for s in line.elements; init = 0)
 text_flat_length(::TextDocument) = 0
 
 """
@@ -799,6 +819,7 @@ function _flat_base(text::TextBlock, path::SpanPath)
     spans = line.elements
     j = path[2]
     (1 <= j <= length(spans)) || return nothing
+    base += line.indentation      # the leading spaces the renderers emit
     for k in 1:(j - 1)
         base += text_flat_length(spans[k])
     end

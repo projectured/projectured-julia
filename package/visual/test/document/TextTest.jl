@@ -66,7 +66,17 @@ block = mkblock()
 @test length(block.elements) == 2
 @test block.elements[2].indentation == 2
 @test text_flat_length(block.elements[1]) == 11        # the line's own spans, no break
+@test text_flat_length(block.elements[2]) == 8         # 2 indent + "second"
 @test text_flat_offsets(block) == [0, 12]
+
+# The flat offsets must agree with the characters the renderers actually emit —
+# indentation included, one break between lines. Anything mapping the character
+# stream back to a span (the console highlight, SelectionInverting) relies on it.
+@test text_flat_offsets(block)[2] + block.elements[2].indentation ==
+      length("hello world\n  ")
+# The caret at the start of the indented line sits after the indent, not before.
+@test text_selection_flat(with_selection(mkblock(),
+        TextModule._build_selection_path(Int[2, 1], 0))) == (14, 14, true)
 
 # The caret inside a line is one `elements` hop deeper, and the flat offset of
 # span 2 of line 1 is the length of span 1.

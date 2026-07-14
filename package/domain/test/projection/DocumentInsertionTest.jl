@@ -45,7 +45,12 @@ function test_document_insertion()
                   ["TextBlock", "text block", "Block", "block"]
             @test DS.resolve_insertion(TextDocument, "block") === TextBlock
             # It is also the only candidate in the scope, so the bare domain name
-            # still commits it by unambiguous prefix.
+            # still commits it by unambiguous prefix. That holds only because
+            # `TextLine` opts out: it is zero-arg constructible, so without the
+            # opt-out it would be a candidate — one that makes `text` ambiguous,
+            # and that commits a lone line as a *root* document.
+            @test !DS.insertable(TextLine)
+            @test !(TextLine in DS.insertion_candidates(TextDocument))
             @test DS.resolve_insertion(TextDocument, "text") === TextBlock
             @test DS.domain_prefix(JsonDocument) == "Json"
             @test DS.domain_prefix(TextDocument) == "Text"

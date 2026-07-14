@@ -295,8 +295,56 @@ a projection that must be hand-inserted into every chain is a maintenance burden
 goes line-native (it already groups by line) → `SyntaxToText` emits `TextLine(…; indentation)` and
 sheds its indent splicing → the remaining consumers upgrade, or get `TextLineFlattening` in front.
 
-`TextLine` also becomes an insertion candidate for free (`@insertion TextLine = @with_selection
-TextLine([TextString("")]) elements[1].content{0}`), i.e. Phase 1 and Phase 3 compose.
+### What landed — steps 1 and part of 4
+
+**Done: the document and everything that edits it.**
+
+- `TextLine` (`elements`, `indentation`), with the separator semantics above.
+- The span coordinate is now an **index path** (`SpanPath = Vector{Int}`): `[i]` for a top-level
+  span, `[i, j]` for span `j` of line `i`. The step / word-motion helpers already treated the span
+  index as an opaque key (`==` and a `Dict` lookup), so they carried over untouched — only the
+  *parse* end (`_text_selection_range`, the new `_cursor_coord`) and the *build* end
+  (`_text_replace_path`, `_build_selection_path`) grew the extra `elements` hop.
+- **`_cursor_position` and `_build_selection_path(::Int, ::Int)` keep their flat `Int` form** —
+  `TextToGraphics` builds carets from `SegCoord.span_idx` and lays out flat blocks only. That is
+  what kept this change off the critical path.
+- `text_flat_offsets` is the one place the implicit break is materialized. **A line's indentation
+  counts toward its flat length** — the renderers emit it as leading spaces, so a caret after an
+  indented line would otherwise be misplaced. (Found by rendering, not by reading.)
+- Rendering: `TextToString` (new `TextLineToString` leaf; the block emits the break, the line emits
+  its indent and spans) and the console backend.
+
+**Not done — the next two commits, in this order:**
+
+1. **`TextToGraphics` goes line-native.** `SegCoord.span_idx :: Int` → `SpanPath`; the three
+   `_build_selection_path(sc.span_idx, …)` call sites then need *no* change (the `Vector` method
+   already exists), and `cursor_pos.span == span_idx` comparisons become path comparisons by
+   swapping `_cursor_position` for `_cursor_coord`. The real work is the two element loops
+   (`_layout_text`, `_layout_line`) and `lines_cell`: build the span list as
+   `(path, span, break_before, indent)` items once and iterate *that*, so both the flat pass and
+   the per-line reactive pass agree. Watch the empty-line height fallback — `lines_cell` currently
+   takes the font from the group's terminating `TextNewline`, and a `TextLine` break has no such
+   document to read it from. `SegCoord` is internal to `TextToGraphics`, so the change is contained
+   to that file (20 sites) plus `ClickRoundtripTest` / `HoverProbeTest`.
+   *Until this lands a line-structured block renders blank in the graphics pipeline* — nothing
+   emits a `TextLine`, so nothing hits it, but it is a trap for the next producer.
+2. **`SyntaxToText` emits `TextLine(…; indentation)`** and sheds `indent_indices` + the
+   splice-widening machinery. This is the payoff, and the first real producer.
+
+`TextLine` is deliberately **not** an insertion candidate — but *withholding the `@insertion` factory
+is not enough*, which is the trap the test suite caught. Both of its fields are defaulted, so unlike
+the span types (each has a required field, hence no zero-arg constructor) `TextLine` **is** zero-arg
+constructible, and `insertable` therefore said yes. Two consequences, both real: `"text"` became
+ambiguous (it prefixes both `text block` and `text line`, so the domain name stopped committing
+anything), and a committed `text line` would put a lone line at the document *root*, which the prose
+chain cannot print. The opt-out is explicit:
+
+```julia
+DomainModule.insertable(::Type{<:TextLine}) = false
+```
+
+It becomes a candidate when the Text domain grows a caret-level insert gesture and the pipeline can
+render a line.
 
 ### Phase 3 guards
 
