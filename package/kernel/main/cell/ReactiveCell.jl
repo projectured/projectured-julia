@@ -32,11 +32,11 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     thunk::Union{Nothing, Function}
     valid::Bool
-    deps::Set{ReactiveCell}           # cells I read from  (upstream)
-    dependents::Set{ReactiveCell}     # cells that read me  (downstream)
+    deps::Set{ReactiveCell}           # cells I read from  (upstream, STRONG)
+    dependents::Vector{WeakRef}       # cells that read me  (downstream, WEAK)
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, true, Set{ReactiveCell}(), Set{ReactiveCell}())
+        new{T}(value, nothing, true, Set{ReactiveCell}(), WeakRef[])
     # A `Function` argument is the cell's *thunk* (a computed cell): `value` starts
     # *undefined* (a typed field cannot hold a placeholder) and `valid = false`
     # guarantees `recompute!` assigns it before any read returns. Pass
@@ -45,13 +45,13 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # bare `Cell(f)` reads `f` as a thunk.
     function ReactiveCell{T}(f::Function; as_value::Bool = false) where {T}
         if as_value
-            return new{T}(f, nothing, true, Set{ReactiveCell}(), Set{ReactiveCell}())
+            return new{T}(f, nothing, true, Set{ReactiveCell}(), WeakRef[])
         end
         c = new{T}()
         c.thunk = f
         c.valid = false
         c.deps = Set{ReactiveCell}()
-        c.dependents = Set{ReactiveCell}()
+        c.dependents = WeakRef[]
         return c
     end
 end
@@ -99,7 +99,7 @@ function Base.getindex(c::ReactiveCell)
     if !isempty(stack)
         observer = stack[end]
         if observer !== c
-            push!(c.dependents, observer)
+            _register_dependent!(c, observer)
             push!(observer.deps, c)
         end
     end
@@ -131,7 +131,7 @@ function recompute!(c::ReactiveCell)
     end
     # detach old upstream links
     for dep in c.deps
-        delete!(dep.dependents, c)
+        _unregister_dependent!(dep, c)
     end
     empty!(c.deps)
     # evaluate thunk while tracking dependencies
@@ -155,8 +155,12 @@ end
 function _invalidate_walk!(c::ReactiveCell)
     c.valid = false
     @count_performance :invalidations
-    for d in c.dependents
-        d.valid && _invalidate_walk!(d)
+    ds = c.dependents
+    for i in eachindex(ds)
+        d = ds[i].value
+        d === nothing && continue      # reader already collected — nothing to invalidate
+        dd = d::ReactiveCell
+        dd.valid && _invalidate_walk!(dd)
     end
 end
 
@@ -227,15 +231,68 @@ end
 
 function _detach_upstream!(c::ReactiveCell)
     for dep in c.deps
-        delete!(dep.dependents, c)
+        _unregister_dependent!(dep, c)
     end
     empty!(c.deps)
 end
 
 function _invalidate_dependents!(c::ReactiveCell)
-    for d in c.dependents
-        d.valid && _invalidate_walk!(d)
+    ds = c.dependents
+    for i in eachindex(ds)
+        d = ds[i].value
+        d === nothing && continue      # reader already collected
+        dd = d::ReactiveCell
+        dd.valid && _invalidate_walk!(dd)
     end
+end
+
+# ── the downstream edge ────────────────────────────────────────────────────
+#
+# `dependents` exists to propagate INVALIDATION downstream. It must not keep the
+# reader ALIVE, so it holds `WeakRef`s. A strong set here meant that every cell a
+# document was ever read by — every projection pipeline ever printed from it, and
+# every span a printer shed while recomputing — was pinned for ever, because the only
+# place an edge was removed was `recompute!`, and a discarded cell never recomputes.
+#
+# A `Vector` with a linear identity scan, not a hash set: the set is *tiny* (across a
+# live pipeline, mean 0.85, median 1, p99 3, max 40 — one cell in 4173 exceeds 16), and
+# at that size hashing is pure overhead. Measured, this is ~3x faster than the `Set` it
+# replaces on the hot path, 1.4x faster to detach and 4-10x faster to invalidate. A
+# `WeakKeyDict` — the obvious choice — is 7x SLOWER, because its lock dominates.
+# See plan/pending/reactive-dependents-leak.md.
+#
+# Both helpers prune entries whose reader has been collected, in the scan they are
+# already doing, so dead `WeakRef`s never accumulate.
+
+function _register_dependent!(c::ReactiveCell, observer::ReactiveCell)
+    ds = c.dependents
+    i, n = 1, length(ds)
+    @inbounds while i <= n
+        v = ds[i].value
+        if v === nothing
+            ds[i] = ds[n]; pop!(ds); n -= 1     # collected: swap-remove, re-examine slot i
+        elseif v === observer
+            return nothing                      # already registered
+        else
+            i += 1
+        end
+    end
+    push!(ds, WeakRef(observer))
+    return nothing
+end
+
+function _unregister_dependent!(c::ReactiveCell, observer::ReactiveCell)
+    ds = c.dependents
+    i, n = 1, length(ds)
+    @inbounds while i <= n
+        v = ds[i].value
+        if v === nothing || v === observer
+            ds[i] = ds[n]; pop!(ds); n -= 1
+        else
+            i += 1
+        end
+    end
+    return nothing
 end
 
 # ── display ──────────────────────────────────────────────────────────────
