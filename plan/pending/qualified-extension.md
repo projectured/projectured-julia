@@ -187,7 +187,7 @@ Files to convert (cross-module only):
 Untouched (same-module fragments of `ReferenceModule`, no import header): `ReferenceStep.jl`,
 `ReferenceBuilder.jl`, `ReferenceCase.jl`.
 
-### Backend seam — declared in `kernel/main/backend/Backend.jl`
+### Backend seam — declared in `kernel/main/backend/BackendInterface.jl`
 
 Generics: `initialize_backend!`, `quit_backend!` (8 sites). Note these files also import
 `measure_text` / `write_image` on the same line — same treatment.

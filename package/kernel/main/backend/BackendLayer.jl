@@ -4,6 +4,6 @@
 # (initialize_backend!, quit_backend!, measure_text, write_image, record_video,
 # render_canvas, decode_image, get_pointer_position). DisplayModule holds the
 # display-size query with a provider indirection.
-include("Backend.jl")
+include("BackendModule.jl")
 include("Display.jl")
 include("HeadlessBackend.jl")

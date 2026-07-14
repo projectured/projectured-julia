@@ -1,24 +1,12 @@
-"""
-    BackendModule
-
-Abstract backend interface — an independent sibling of the device
-layer. A `Backend` encapsulates everything needed to initialise, shut down,
-read input from, and write output to a particular display/input system.
-Concrete subtypes and the methods of the generic functions declared here
-live in **opt-in backend packages** that depend on this kernel; this module
-carries only the abstract type and the forward-declared generics, so generic
-code can name a capability (measure text, write an image, …) without
-referencing any concrete backend at load time. A generic that isn't
-implemented because its backend package isn't loaded raises a `MethodError`.
-
-The contract is declared here and answered elsewhere; the one behaviour the
-contract itself supplies — what a backend that cannot report a pointer position
-says — lives in `BackendDefaults.jl`.
-"""
-module BackendModule
-
-export Backend, initialize_backend!, quit_backend!, measure_text, write_image, record_video,
-       render_canvas, decode_image, get_pointer_position
+# Fragment of `BackendModule` — the backend **contract**: the abstract `Backend`
+# type every backend subtypes, and the open generics a backend package answers
+# with a method for its own concrete type. Nothing here carries a body — the
+# concrete backends live in opt-in packages, and the one behaviour the contract
+# supplies for itself (what a backend that cannot report a pointer position
+# says) sits in `BackendDefaults.jl`.
+#
+# `get_display_size` + its provider glue (mutable global state) live in
+# `DisplayModule` (backend/Display.jl), not in this contract.
 
 """
     Backend
@@ -94,10 +82,3 @@ Decode an image file to raw RGBA pixels. Implemented by a backend package with a
 image decoder; forward-declared here so callers need not name it.
 """
 function decode_image end
-
-# `get_display_size` + its provider glue (mutable global state) live in `DisplayModule`
-# (backend/Display.jl), not in this interface.
-
-include("BackendDefaults.jl")
-
-end # module

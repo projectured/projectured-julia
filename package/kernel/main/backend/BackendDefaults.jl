@@ -1,6 +1,6 @@
 # Fragment of `BackendModule` — the behaviour the backend contract supplies
 # itself, for the generics a backend may leave unanswered. The contract is
-# declared in `Backend.jl`; the concrete backends live in opt-in packages.
+# declared in `BackendInterface.jl`; the concrete backends live in opt-in packages.
 
 # A pointer position is the one capability a backend may decline: a display
 # system without a pointer (or one that cannot query it) answers `(-1, -1)`,

@@ -9,7 +9,7 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[backend/Backend.jl](../../../package/kernel/main/backend/Backend.jl) and
+[backend/BackendInterface.jl](../../../package/kernel/main/backend/BackendInterface.jl) and
 [device/Device.jl](../../../package/kernel/main/device/Device.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
@@ -54,7 +54,7 @@ any specific backend.
 ```julia
 abstract type Backend end
 
-# Backend interface (backend/Backend.jl)
+# Backend interface (backend/BackendInterface.jl)
 initialize_backend!(::Backend)                    # set up libraries, allocate caches
 quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
@@ -412,7 +412,8 @@ against.
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
 ```
-Backend.jl          (BackendModule)         — Backend abstract + batch generics
+BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
+BackendInterface.jl (BackendModule)         — Backend abstract + batch generics
 BackendDefaults.jl  (BackendModule)         — the one behaviour the contract supplies itself
 Display.jl          (DisplayModule)         — display-size query + provider indirection
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
@@ -432,7 +433,7 @@ which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
 
-`Backend.jl` is an **interface file** (AR-72): it declares and never implements,
+`BackendInterface.jl` is an **interface file** (AR-72): it declares and never implements,
 so every generic there is a bodiless `function f end`. The one behaviour the
 contract supplies for itself sits beside it in `BackendDefaults.jl` —
 `get_pointer_position` answers `(-1, -1)` for a backend that adds no method,
