@@ -37,7 +37,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
@@ -459,7 +459,7 @@ end
 #     ...
 #   ])
 #
-# Selection forward:  .elements[i].… → .children[i].children[1].…
+# Selection forward:  .elements[i].… → .children[i].content.… (the bullet is a delimitation)
 #
 # Kept hand-written (not @projection_template): each element is wrapped in a
 # per-item bullet decorator node around the *whole* projected element (School A
@@ -489,7 +489,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
                 child_i > length(iomaps) && return nothing
                 child_sel = iomaps[child_i].output.selection
                 child_sel === nothing && return nothing
-                @reference ::SyntaxNode.children[child_i].children[1].^(child_sel)
+                @reference ::SyntaxNode.children[child_i].content.^(child_sel)
             end
         end
     end)
@@ -497,7 +497,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
     children_cv = CellVector(() -> begin
         iomaps = element_iomaps[]
         SyntaxDocument[
-            SyntaxNode(SyntaxDocument[im.output]; open=TextString("• ", p.bullet))
+            SyntaxDelimitation(im.output; opening_delimiter=TextString("• ", p.bullet))
             for im in iomaps
         ]
     end)
@@ -508,7 +508,7 @@ end
 
 # Selection mapping (School A). Each element i is wrapped in a bullet SyntaxNode
 # whose sole child (index 1) is the projected element, so .elements[i] maps to
-# .children[i].children[1] and the tail is delegated through the child IO map.
+# .children[i].content and the tail is delegated through the child IO map.
 function map_reference_forward(p::BookListToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     @reference_case reference begin
@@ -519,7 +519,7 @@ function map_reference_forward(p::BookListToSyntaxNode,
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].children[1].^(inner)
+            @reference ::SyntaxNode.children[child_i].content.^(inner)
         end
     end
 end
@@ -527,7 +527,7 @@ end
 function map_reference_backward(p::BookListToSyntaxNode,
                                  iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        ::SyntaxNode.children{s:_}.children[1].tail... => begin
+        ::SyntaxNode.children{s:_}.content.tail... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             child_i > length(iomaps) && return nothing
@@ -548,7 +548,7 @@ function read_intent(p::BookListToSyntaxNode,
     return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
 end
 
-# Type-in: each bullet wraps its element at `.children[i].children[1]`; the edit
+# Type-in: each bullet wraps its element at `.children[i].content`; the edit
 # delegates through the child IO map back to `.elements[i].…`.
 function read_intent(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
