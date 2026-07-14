@@ -85,7 +85,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
     `ReferenceCase.jl`. Each unregistered-name error is reported where the unknown `.name(…)` is
     first reachable.
 
-- [ ] **4. operation — `operation/Interface.jl`.** `invalidate_projection!(editor) = nothing` →
+- [x] **4. operation — `operation/Interface.jl`.** `invalidate_projection!(editor) = nothing` →
   `Operations.jl`. Also fix the `evaluate_operation` docstring, which points at a `common/Operation.jl`
   that does not exist and claims the concrete methods "live in `OperationModule`" from inside a
   fragment of `OperationModule` itself.

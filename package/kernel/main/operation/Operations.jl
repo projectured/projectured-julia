@@ -31,10 +31,15 @@ function evaluate_operation(editor, op::Nothing) end
 # "not an operation" simply means "nothing to apply".
 function evaluate_operation(editor, op) end
 
+# Catch-all: an object that caches no projection has nothing to drop. The one that
+# does (the editor loop) adds the method that actually clears its cache, so an
+# operation can ask without naming a concrete editor type.
+invalidate_projection!(editor) = nothing
+
 # ── Text-splice helpers ─────────────────────────────────────────────────────
 # The canonical text-replace primitives every domain routes through. They are
-# implementations (single algorithm / a small representation-dispatched method
-# set), so they live here rather than in the pure `OperationApiModule` interface.
+# implementations (a single algorithm / a small representation-dispatched method
+# set), so they live here rather than in the `Interface.jl` contract.
 
 """
     splice_string(old, s, e, replacement) -> String
