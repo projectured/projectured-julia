@@ -138,9 +138,19 @@ end
     @test IDmRuleY(a = 1, b = 2).c == "c"
 end
 
-@testset "declaring `selection` by hand is an error, not an override" begin
-    @test_throws LoadError @eval @document struct DmBadSelection
-        selection::Reference
+@testset "an explicit `selection` field overrides the injected default" begin
+    # A value-document types its selection `Nothing` (non-selectable) instead of the
+    # injected `Reference`, so the bare ctor builds an isbits form.
+    @eval @document ImmutableCell struct DmValueSel
+        x::Float64
+        selection::ImmutableCell{Nothing}
+    end
+    @test @eval(getfield(DmValueSel(1.0), :selection)) isa ImmutableCell{Nothing}
+    @test @eval(isbitstype(typeof(DmValueSel(1.0))))
+    # An explicit `selection` field must be declared last.
+    @test_throws LoadError @eval @document struct DmMisplacedSel
+        selection::ImmutableCell{Nothing}
+        y::Int
     end
 end
 

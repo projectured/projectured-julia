@@ -327,14 +327,20 @@ macro document(args...)
     # module — where it is always in scope, since a module that declares documents
     # necessarily uses the reference layer.
     #
-    # Declaring it by hand is an error, not an override: a hand-written
-    # `selection::Reference` (no default) is what used to suppress the keyword
-    # constructors, and that workaround is precisely the bug this injection removes.
-    :selection in plan.field_names &&
-        error("@document $(plan.name): `selection` is injected automatically — " *
-              "remove the explicit field. A type that should not carry a selection " *
-              "is not a document: declare it with `@cell_struct`.")
-    add_plan_field!(plan, :selection, :Reference, :nothing)
+    # Declaring it by hand is normally unnecessary — the macro injects it. But a
+    # **value-document** declares `selection` explicitly to control its *value type*,
+    # which is the isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and
+    # non-selectable (a leaf value), while the injected `Reference` form is selectable.
+    # An explicit field must be declared **last** and defaults to `nothing` (added here
+    # if omitted, so it does not count as a programmer default and leaves Rule Y / the
+    # keyword ctors gated exactly as the injected field would).
+    if :selection in plan.field_names
+        findfirst(==(:selection), plan.field_names) == length(plan.field_names) ||
+            error("@document $(plan.name): an explicit `selection` field must be declared last.")
+        haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
+    else
+        add_plan_field!(plan, :selection, :Reference, :nothing)
+    end
 
     plan = StructPlan(plan.structdef, plan.name, supertype, plan.field_names,
                       plan.field_types, plan.field_slots, plan.defaults,

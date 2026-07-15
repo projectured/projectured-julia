@@ -128,6 +128,30 @@ an explicit `selection` field (today errors) so its value type controls selectab
 `RFoo(vals…)` value ctor; (3) the `_selection_child` graceful-leaf guard. Then convert `StyleColor`
 and re-run the suites.
 
+### Part C impl progress
+
+- **Explicit-`selection` support — DONE + verified.** `@document` now accepts an explicit `selection`
+  field (must be last; `= nothing` supplied if omitted) instead of erroring. Verified:
+  `@document ImmutableCell struct SC; red..alpha::Float64; selection::ImmutableCell{Nothing}; end` →
+  bare `SC(r,g,b,a)` returns **`ISC`, isbits=true**; `ImmutableCell{ISC}` **inlines**; the reactive
+  form (via `SC(Cell…)`) is editable + selectable. Full-stack precompile clean.
+
+- **Remaining, and its real cost.** With explicit-selection, the *concrete* form `ISC` is isbits and
+  `ImmutableCell{ISC}` inlines — but the **name** `StyleColor` is still the parameterized stem
+  (UnionAll), so `ImmutableCell{StyleColor}` still boxes. Two ways to finish:
+  - **(a) naming mode** — make `@document` (value-document) emit the stem under an internal name and
+    `const StyleColor = <stem>{concrete default}` + a delegating `StyleColor(args…)` ctor (needs
+    Rule-Y-style selection fill). Then `ImmutableCell{StyleColor}` inlines and nothing downstream
+    re-types. **Cost:** a name/stem split touching every emitter + the alias-prefix naming + a
+    delegating ctor that coexists with the `IFoo` value ctor — a focused refactor of the `@document`
+    codegen, exercised on *every* document type.
+  - **(b) mechanical re-type** — keep `StyleColor` = stem; convert the ~200 `ImmutableCell{StyleColor}`
+    /`{StyleFont}`/`{StyleText}` config fields to the concrete `I…` alias. A sed; safe (config is
+    always the immutable form); no macro change.
+  Both reach isbits/inline. (a) matches the "`StyleColor` is the concrete name" preference at higher
+  macro risk; (b) is simpler but re-types the config fields. Pending the user's call before the
+  pervasive `StyleColor` conversion.
+
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.
 - Part A done. Part B measured → recommend design (b) instead of promotion.
