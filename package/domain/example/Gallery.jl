@@ -82,13 +82,52 @@ When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
 The profile buffer is cleared first; once the editor window is closed (the
 loop exits) a sampled backtrace report is printed via `Profile.print`.
 """
-function run_example(examples::Vector{Example}; width=nothing, height=nothing,
-                     caching=false, scrolling=false, workbench=false, reset=false,
+function run_example(examples::Vector{Example}; reset=false, kwargs...)
+    isempty(examples) && error("run_example: empty examples vector")
+    # Resolve each example to a bare (document, projection) pair — a fresh one
+    # from the factories when reset=true, otherwise the example's cached
+    # instance — then hand off to the Example-free core, which applies the flags.
+    documents   = Any[reset ? ex.make_document()   : ex.document   for ex in examples]
+    projections = Any[reset ? ex.make_projection() : ex.projection for ex in examples]
+    names       = String[ex.name for ex in examples]
+    run_example(documents, projections, names; kwargs...)
+end
+
+"""
+    run_example(document, projection; name="document", kwargs...)
+
+Open a live editor window on a raw `(document, projection)` pair, with no
+`Example` needed. Accepts every keyword the gallery offers (`scrolling`,
+`workbench`, `tooltip`, `inspector`, `introspection`,
+`clipboard`/`clipboard_collection`, `text_filtering`/`text_highlighting`,
+`selection`, `caching`, `profile`, `backend`, `width`, `height`); `name` becomes
+the window's id/title. See the `run_example(documents, projections, names)`
+overload below for the keyword semantics.
+"""
+run_example(document, projection; name::AbstractString="document", kwargs...) =
+    run_example(Any[document], Any[projection], String[name]; kwargs...)
+
+"""
+    run_example(documents::Vector, projections::Vector, names::Vector; kwargs...)
+
+The `Example`-free core: open one window per `(documents[i], projections[i])`
+pair, side by side, applying the same optional cross-domain wrappers (workbench,
+tooltip, inspector, introspection, clipboard, text filtering/highlighting,
+caching). `names[i]` is window i's id/title and must be unique. Every keyword is
+identical to the `Example` overloads *except* `reset` — there are no factories to
+re-run here, so pass freshly built documents/projections when you need a clean
+state. This is the overload the `Example`-based `run_example` methods delegate to.
+"""
+function run_example(documents::Vector, projections::Vector, names::Vector;
+                     width=nothing, height=nothing,
+                     caching=false, scrolling=false, workbench=false,
                      tooltip=false, inspector=false, introspection=false,
                      clipboard=false, clipboard_collection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
                      profile=false, backend=nothing)
-    isempty(examples) && error("run_example: empty examples vector")
+    isempty(documents) && error("run_example: empty documents vector")
+    length(documents) == length(projections) == length(names) ||
+        error("run_example: documents, projections and names must have equal length")
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
     end
@@ -108,31 +147,30 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
         error("run_example: tooltip=true is not compatible with workbench=true")
     end
 
-    # Prepare (document, projection) pairs with the same flags applied as
-    # the single-example path.
+    # Apply the flags to each (document, projection) pair.
     docs  = Any[]
     projs = Any[]
-    for (i, ex) in enumerate(examples)
-        document   = reset ? ex.make_document()   : ex.document
-        projection = reset ? ex.make_projection() : ex.projection
-        # Apply a caller-supplied selection to the first example's bare domain
+    for i in eachindex(documents)
+        document   = documents[i]
+        projection = projections[i]
+        # Apply a caller-supplied selection to the first pair's bare domain
         # document, before any workbench/scrolling/introspection wrapping. The
         # selection-lifting step below then promotes it to a screen-rooted path.
         if selection !== nothing && i == 1
             set_selection!(document, selection)
         end
         if workbench
-            document   = make_workbench_document(document; title=ex.name)
+            document   = make_workbench_document(document; title=names[i])
             projection = make_workbench_projection()
         elseif scrolling
             document   = make_scrolling_document(document; width=width, height=height)
             projection = make_scrolling_projection(projection)
         elseif introspection
-            document   = make_introspection_document(document, projection; title=ex.name)
+            document   = make_introspection_document(document, projection; title=names[i])
             projection = make_introspection_projection(projection)
         elseif clipboard
-            # Wrap the example in a ClipboardSlice (or ClipboardCollection) and stack
-            # the clipboard projection on top of the example's own pipeline. The
+            # Wrap the document in a ClipboardSlice (or ClipboardCollection) and stack
+            # the clipboard projection on top of the pair's own pipeline. The
             # seeded selection (set on the bare document above) now lives behind the
             # clipboard's `content`; the selection-lifting loop below re-roots it.
             # For a TextBlock document, enable text mode: copy/cut/paste over character
@@ -143,7 +181,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
             projection = make_clipboard_projection(projection; collection=clipboard_collection, text=is_text)
         elseif text_highlighting
             # Stack a TextHighlighting control bar above the (text) document; the
-            # example's own projection is replaced by the configuring pipeline.
+            # document's own projection is replaced by the configuring pipeline.
             # A default pattern makes the highlight (and the case_insensitive
             # toggle's effect) visible out of the box. Expects a TextBlock document.
             projection = make_text_configuring_projection(TextHighlighting("dolor"))
@@ -161,8 +199,8 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     # TooltipSource and pick the tooltip-aware multi-window projection.
     if tooltip
         tt_docs = Any[]
-        for (i, ex) in enumerate(examples)
-            push!(tt_docs, _make_tooltip_source(docs[i]; id = Symbol("tooltip_", ex.name)))
+        for i in eachindex(docs)
+            push!(tt_docs, _make_tooltip_source(docs[i]; id = Symbol("tooltip_", names[i])))
         end
         docs = tt_docs
     end
@@ -181,7 +219,7 @@ function run_example(examples::Vector{Example}; width=nothing, height=nothing,
     compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> get_pointer_position(b)) :
               tooltip   ? (p, b) -> _multi_window_projection_tooltipped(p) :
                           (p, b) -> _multi_window_projection(p)
-    _run_window_scene(docs, projs, String[ex.name for ex in examples];
+    _run_window_scene(docs, projs, names;
                       width=width, height=height, backend=backend,
                       compose=compose, profile=profile, content_unwrap=content_unwrap)
 end
