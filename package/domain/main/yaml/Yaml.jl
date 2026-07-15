@@ -16,10 +16,6 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-# The domain kit: `YamlDocument` (abstract root), `YamlNothing` (empty
-# placeholder, Insert turns it into the insertion), `YamlInsertion` (typed-name
-# buffer completing over the YAML candidates), the Insert gesture and the
-# insertion traits — all generated from the domain name.
 @domain Yaml
 
 # ── Scalars ──────────────────────────────────────────────────────────────
@@ -85,19 +81,8 @@ end
 
 @forward_map YamlMapping entries key value YamlMappingEntry
 
-# build a mapping from `key => value` pairs
 YamlMapping(pairs::Pair{<:AbstractString}...) =
     YamlMapping([YamlMappingEntry(String(k), v) for (k, v) in pairs])
-
-# Text/number replace edits need no per-type method: `YamlString.value` and
-# `YamlMappingEntry.key` are plain strings, and `YamlNumber.value` is a number
-# reparsed from its text representation.
-
-# ── Authoring gestures ──────────────────────────────────────────────────────
-#
-# The command set mirrors JSON's — YAML is a JSON superset. As there, nothing asks
-# whether the caret sits inside a string: the reader runs last-to-first, so a key the
-# text layer turned into a character edit never reaches the domain.
 
 # A mapping entry must stay a key/value pair — it is retyped through its value.
 _yaml_replaceable(doc, sel) =
@@ -106,8 +91,6 @@ _yaml_replaceable(doc, sel) =
 # ── Insertion factories ─────────────────────────────────────────────────────
 
 @insertion YamlBool         = @with_selection YamlBool(false)
-# An empty number's value is `nothing`, which has no text position, so it is selected
-# whole; an empty string is `""` and does have position 0.
 @insertion YamlNumber       = @with_selection YamlNumber(nothing)
 @insertion YamlString       = @with_selection YamlString("") value{0}
 @insertion YamlSequence     = @with_selection YamlSequence([YamlInsertion()]) elements[1]
