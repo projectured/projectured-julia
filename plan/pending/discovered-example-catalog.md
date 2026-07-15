@@ -1,5 +1,13 @@
 # Discovered example catalog: document/projection pairs as data, not fragments
 
+> **Direction changed (2026-07-15).** Phase 0 (the projection graph + `Example.terminal`)
+> landed and is the foundation. Phases 1–3 — document *generation* via `minimal()` and the
+> `@document` / `CellVector{T}` reflection track — are **superseded** by
+> [`atomic-example-catalog.md`](atomic-example-catalog.md), which instead **hand-authors**
+> the atomic documents (meaningful content, no `minimal()`) and keeps only the *projection*
+> discovery automated. Read that plan for the current approach; this file is kept for the
+> Phase 0 record and the projection-graph design notes.
+
 ## The idea (one paragraph)
 
 Build a **generated catalog of `(document, projection)` pairs** that serves double
