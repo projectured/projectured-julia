@@ -10,6 +10,7 @@ explicit width when width > 0).
 module TextLineNumberingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
@@ -25,10 +26,10 @@ export TextLineNumbering, LineNumbering
 
 # ── TextLineNumbering ──────────────────────────────────────────────────────
 
-struct TextLineNumbering <: Projection
-    width::Int      # 0 = auto (derived from total line count)
-    separator::String
-    font::StyleFont
+@projection struct TextLineNumbering <: Projection
+    width::ImmutableCell{Int}      # 0 = auto (derived from total line count)
+    separator::ImmutableCell{String}
+    font::ImmutableCell{StyleFont}
 end
 
 TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20) =

@@ -36,6 +36,7 @@ module DocumentInsertionToSyntaxModule
 
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..SelectionApiModule: with_selection
 import ..GestureBindingModule: read_gesture
@@ -486,8 +487,8 @@ The shared leaf for the `@domain` `*Nothing` placeholders: a muted italic
 generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
-struct InsertionNothingToSyntaxLeaf <: Projection
-    style::StyleText
+@projection struct InsertionNothingToSyntaxLeaf <: Projection
+    style::ImmutableCell{StyleText}
 end
 
 InsertionNothingToSyntaxLeaf() =
@@ -513,9 +514,9 @@ print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx) =
 A Julia source-insertion hole. Renders the typed buffer plus a pale-green keyword
 completion continuation; all editing/commit is `@gestures JuliaInsertion`.
 """
-struct JuliaInsertionToSyntaxLeaf <: Projection
-    value::StyleText
-    completion::StyleText
+@projection struct JuliaInsertionToSyntaxLeaf <: Projection
+    value::ImmutableCell{StyleText}
+    completion::ImmutableCell{StyleText}
 end
 
 JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(

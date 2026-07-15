@@ -1022,9 +1022,9 @@ read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlBooleanBinaryToSyntaxNode (AND / OR) ──────────────────────────────────
 
-struct SqlBooleanBinaryToSyntaxNode <: Projection
-    keyword::String
-    keyword_style::StyleText
+@projection struct SqlBooleanBinaryToSyntaxNode <: Projection
+    keyword::ImmutableCell{String}
+    keyword_style::ImmutableCell{StyleText}
 end
 SqlBooleanBinaryToSyntaxNode(keyword; keyword_style=StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)) =
     SqlBooleanBinaryToSyntaxNode(keyword, keyword_style)

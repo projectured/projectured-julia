@@ -27,6 +27,7 @@ module ReferenceInspectorToTextModule
 import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, map_reference_forward,
                               map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
 import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
 import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
@@ -47,10 +48,10 @@ Projection over `ReferenceInspector`. Output is a `TextBlock` stacking the
 compact and human-readable renderings of `inspector.reference` under bold
 section headers.
 """
-struct ReferenceInspectorToText <: Projection
-    font::StyleFont
-    header_font::StyleFont
-    header_color::StyleColor
+@projection struct ReferenceInspectorToText <: Projection
+    font::ImmutableCell{StyleFont}
+    header_font::ImmutableCell{StyleFont}
+    header_color::ImmutableCell{StyleColor}
 end
 ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_20,
                            header_font = font_liberation_sans_bold_30,

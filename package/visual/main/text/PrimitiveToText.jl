@@ -113,12 +113,12 @@ end
 
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
 
-struct PrimitiveStringToTextBlock <: Projection
-    style::StyleText
+@projection struct PrimitiveStringToTextBlock <: Projection
+    style::ImmutableCell{StyleText}
     # Hint shown when the value is empty. `placeholder == ""` disables it, so
     # the projection keeps its plain (placeholder-free) behavior by default.
-    placeholder::String
-    placeholder_style::StyleText
+    placeholder::ImmutableCell{String}
+    placeholder_style::ImmutableCell{StyleText}
 end
 PrimitiveStringToTextBlock(; style=StyleText(font_ubuntu_monospace_regular_20, color_solarized_green),
                             placeholder="", placeholder_style=style) =
