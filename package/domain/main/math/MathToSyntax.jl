@@ -20,7 +20,7 @@ import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -39,7 +39,7 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
@@ -50,7 +50,7 @@ end
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct MathVariableToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -82,7 +82,7 @@ end
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection struct MathBinaryOperationToSyntaxNode
-    op::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # Selection mapping (School A). The output node's children are
@@ -178,7 +178,7 @@ end
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct MathParenthesizedToSyntaxNode
-    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # Selection mapping (School A). The single content child is output index 1; the
@@ -245,7 +245,7 @@ end
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct MathAssignmentToSyntaxNode
-    eq::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    eq::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 # Selection mapping (School A). Output children are

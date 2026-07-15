@@ -10,8 +10,11 @@ than separate fonts and colors. Mirrors the plain-value convention of
 """
 module StyleTextModule
 
-import ..FontModule: StyleFont
-import ..ColorModule: StyleColor
+import ..FontModule: StyleFont, DStyleFont
+import ..ColorModule: StyleColor, DStyleColor
+import ..CellModule: ImmutableCell
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 
 export StyleText, make_style_text
 
@@ -22,9 +25,13 @@ export StyleText, make_style_text
 
 A text style value: the `font` to draw with and the `color` to draw in.
 """
-struct StyleText
-    font::StyleFont
-    color::StyleColor
+# A value-document: `font`/`color` are the concrete default forms, so the bare
+# `DStyleText` is concrete and inlines in config cells (not isbits — it carries a
+# font `String` — but neither was the plain form; neutral). `RStyleText` is editable.
+@document ImmutableCell struct StyleText
+    font::DStyleFont
+    color::DStyleColor
+    selection::ImmutableCell{Nothing}
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────

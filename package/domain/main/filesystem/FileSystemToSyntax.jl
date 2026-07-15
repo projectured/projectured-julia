@@ -25,7 +25,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
-import ..StyleTextModule: StyleText
+import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -42,7 +42,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct FileSystemFileToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
@@ -115,7 +115,7 @@ read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringR
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
 @projection struct FileSystemDirectoryToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    name::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 

@@ -44,7 +44,7 @@ import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
                       color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
@@ -56,7 +56,7 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
 # A bound leaf: `.content{k}` edits map to the leaf's own `.value{k}` span.
 
 @projection struct XmlTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
 end
 
 @projection_template XmlTextToSyntaxLeaf XmlText (p, t) ->
@@ -79,10 +79,10 @@ XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 # inline by the element that happens to hold it.
 
 @projection struct XmlAttributeToSyntaxNode
-    delim::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    attr_name::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    attr_value::ImmutableCell{StyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    delim::ImmutableCell{DStyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    attr_name::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    attr_value::ImmutableCell{DStyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template XmlAttributeToSyntaxNode XmlAttribute (p, a) ->
@@ -96,8 +96,8 @@ end
 # ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct XmlElementToSyntaxNode
-    tag::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    tag::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # Fixed-children node `[tag, attrs, body, close]`. The tag leaf is `bound(:tag)`;

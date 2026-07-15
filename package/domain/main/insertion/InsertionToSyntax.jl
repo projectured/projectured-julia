@@ -70,7 +70,7 @@ import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
-import ..StyleTextModule: StyleText
+import ..StyleTextModule: StyleText, DStyleText
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell
@@ -488,7 +488,7 @@ generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
 @projection struct InsertionNothingToSyntaxLeaf <: Projection
-    style::ImmutableCell{StyleText}
+    style::ImmutableCell{DStyleText}
 end
 
 InsertionNothingToSyntaxLeaf() =
@@ -515,8 +515,8 @@ A Julia source-insertion hole. Renders the typed buffer plus a pale-green keywor
 completion continuation; all editing/commit is `@gestures JuliaInsertion`.
 """
 @projection struct JuliaInsertionToSyntaxLeaf <: Projection
-    value::ImmutableCell{StyleText}
-    completion::ImmutableCell{StyleText}
+    value::ImmutableCell{DStyleText}
+    completion::ImmutableCell{DStyleText}
 end
 
 JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(

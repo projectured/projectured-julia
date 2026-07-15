@@ -16,7 +16,7 @@ import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
-import ..StyleTextModule: StyleText
+import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, Position
@@ -29,7 +29,7 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -59,7 +59,7 @@ end
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
 @projection struct PrimitiveNumberToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -89,8 +89,8 @@ end
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
 @projection struct PrimitiveStringToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value::ImmutableCell{DStyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
