@@ -431,7 +431,10 @@ function _editable_body(c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
     # type, red = dead end, neutral while empty) and is followed by the pale
     # completion hint span — the same feedback the syntax-leaf insertion shows.
-    value_span = TextString(() -> _value(c), _FONT, color_default)
+    # font_color is driven by `set_function!` below, so it must be a reactive Cell,
+    # not the immutable default — pass it explicitly. font stays immutable (authored).
+    value_span = TextString(Cell(() -> _value(c)), _FONT, Cell(color_default),
+                            nothing, nothing, nothing)
     set_function!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
         state === :invalid ? color_solarized_red :
@@ -458,7 +461,8 @@ end
 # placeholder while empty, caret in the single span.
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
-    ts = TextString(show, _FONT, color_default)
+    # reactive font_color (set below); font stays immutable.
+    ts = TextString(Cell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
     set_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     _attach_caret!(TextBlock(ts), c, 1, () -> length(show()))

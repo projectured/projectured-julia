@@ -134,20 +134,22 @@ reserved cell vocabulary, so the check is safe.
 - [ ] Run on `text_example` (isolates TextString) and `workbench_example` (original
       target). Record baseline numbers in this plan.
 
-### Phase 2 — TextString first consumer + measure
-- [ ] Annotate `TextString.font` / `font_color` as `ImmutableCell{…}` (the always-
-      present, high-fanout fields). Leave `fill_color`/`line_color`/`padding`
-      reactive for now — they are usually `nothing`, and `ImmutableCell{StyleColor}`
-      can't hold `nothing` without widening the value type to `Union{…,Nothing}`.
-- [ ] Rewrite the hand-written `TextString(content, font, color)` convenience ctors
-      (Text.jl) to pass **raw** font/color through so the macro default applies
-      (they currently hard-wrap in `Cell()`), keeping `content` reactive.
-- [ ] **Carve-out:** `ConversationEditor._editable_body` does
-      `set_function!(getfield(value_span,:font_color),…)` — build those spans with an
-      explicit `Cell(color)` so the field is reactive there. Same for any other
-      `set_function!`/`setproperty!` on a span's style (audit: `hinted_text` already
-      passes `Cell(()->…)`, so it's fine).
-- [ ] Measure fanout + microbench on text_example + workbench_example. Record delta.
+### Phase 2 — TextString first consumer + measure — DONE
+- [x] Annotated `TextString.font`→`ImmutableCell{StyleFont}`, `font_color`→`ImmutableCell{StyleColor}`.
+      Left `fill_color`/`line_color`/`padding` reactive: `fill_color` is **written** by
+      highlighting (`hl.fill_color = …` in TextToGraphicsTest) so it must stay reactive,
+      which also avoids the `nothing`-value / `Union` wrinkle.
+- [x] Rewrote the `TextString` convenience ctors + `hinted_text` to pass **raw** font/color
+      (macro default → immutable), keeping `content` a reactive `Cell`.
+- [x] Carve-out: both `ConversationEditor` sites build `font_color` as an explicit reactive
+      `Cell` (they `set_function!` it), via the 6-arg positional ctor; `font` stays immutable.
+- [x] **Result:** workbench dependent-edge sum 16 103 → **12 854 (−20%)**, cells >16: 18 → **8**,
+      >64: 4 → 2 (the `font`/`font_color` 72-fanout cells left the reactive graph). json sum
+      3 229 → **2 503 (−22%)**. `TextString.content` (104) is the new max — editable, stays reactive.
+- [x] **Verified:** full-stack precompile clean; `test_visual()` **48 492 pass / 1 broken / 0 fail /
+      0 error**; the only `conversation_editor` failures (`NavigationTest:145` state_count, `TypeinTest:404`)
+      are **pre-existing on baseline b27dbd11** (verified in a baseline worktree) — the known
+      "conversation v1-not-wired / Ctrl+Home seeds" issues, not regressions.
 
 ### Phase 3 — all authored style immutable by default + measure
 - [ ] Sweep the **`@projection`/`@iomap`/`@cell_struct` config structs** (Family A) —

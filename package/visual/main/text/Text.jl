@@ -127,11 +127,17 @@ TextSpacing(size::Number; unit=:pixel, font, font_color="", fill_color=nothing, 
 """
     TextString(content, font, font_color)
 
-A single text span. Each field is a reactive `Cell`.
+A single text span. `content` is a reactive `Cell` (it is edited in place — you
+type into it). `font` and `font_color` default to an **`ImmutableCell`**: a span's
+typography is authored, not edited through the cell, so it needs no dependent edge
+(a shared font/colour is read by every downstream glyph, which is where the
+reactive version's fanout came from). Pass an explicit `Cell` for either to make it
+reactive — as the conversation editor does for a live commit colour. The remaining
+style fields stay reactive (highlighting writes `fill_color`).
 
-- `content::Cell`    — holds `AbstractString`
-- `font::Cell{StyleFont}` — font specification
-- `font_color::Cell` — holds `StyleColor` (RGBA color with components in [0,1])
+- `content::Cell`                         — holds `AbstractString`
+- `font::ImmutableCell{StyleFont}`        — font specification (immutable by default)
+- `font_color::ImmutableCell{StyleColor}` — text colour (immutable by default)
 - `fill_color::Cell` — holds background fill color or `nothing`
 - `line_color::Cell` — holds border/line color or `nothing`
 - `padding::Cell`    — holds inset/padding value or `nothing`
@@ -141,21 +147,23 @@ refers to the cursor within the span's `content` field:  `.content{k}`
 """
 @document struct TextString <: TextDocument
     content::AbstractString
-    font::StyleFont
-    font_color::StyleColor
+    font::ImmutableCell{StyleFont}
+    font_color::ImmutableCell{StyleColor}
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
 end
 
+# font / font_color are passed RAW so they land in their ImmutableCell default;
+# content stays a reactive Cell. Passing a Cell for font/colour overrides the default.
 TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
-    TextString(Cell(content), Cell(font), Cell(font_color), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::AbstractString) =
-    TextString(Cell(content), Cell(font_ubuntu_monospace_regular_20), Cell(color_default), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
-    TextString(Cell(content), Cell(font), Cell(font_color), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 # StyleText bridge: a projection holding a merged (font, color) style value can
 # build a run without unpacking it. The document model itself is unchanged —
@@ -168,8 +176,8 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 function hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
     TextString(
         Cell(() -> empty_thunk() ? placeholder : content_thunk()),
-        Cell(style.font),
-        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),
+        style.font,                                                        # immutable (authored font)
+        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 
