@@ -206,8 +206,31 @@ Metrics to track at each checkpoint (text_example + workbench_example):
   pass-count shifts are explained by field-count/cell-kind changes.
 - Run everything under a `systemd-run` memory cap (memory: "cap Julia test memory").
 
+## Measured results
+
+### Baseline (before any conversion), `bench/fanout.jl`
+
+**workbench_example** — 23 670 cells, all reactive. dependents fanout mean 0.68,
+median 0, p99 4, **max 104**; 18 cells >16. Owner attribution of the top cells
+**corrects the earlier guess** — the fanout is in `TextString` fields, not
+projection style:
+
+| fanout | value | owner |
+|---|---|---|
+| 104 | String | `TextString.content` (editable → must stay reactive) |
+| 72 | StyleColor | `TextString.font_color` ← Phase 2 |
+| 72 | StyleFont | `TextString.font` ← Phase 2 |
+| 71 | Nothing | `TextString.fill_color` (holds `nothing` → Phase 3 Union) |
+| 63 | Int64 | `GridLayoutIoMap.columns` (Family A `@iomap`) |
+| 24/22/18… | Style* | more `TextString.font(_color)` / `fill_color` |
+
+**json_example** — 3 920 cells, max fanout 38 (`TextString.content`); projection
+`StyleText` fields (`JsonObjectToSyntaxNode.delimiter_style`, …) only ~6 here (they
+would matter more in a syntax-heavy doc). So on realistic docs the win is
+concentrated in `TextString`; the projection sweep (Phase 3) is the long tail.
+
 ## Status
 
 - Worktree: `/home/projectured/workspace/projectured-julia-cellkind`, branch
   `document-field-cell-kind`, off `main` @ b27dbd11.
-- Not started (this file is commit 1).
+- Phase 1 DONE (commit `a69c962e`). Baseline measured. Phase 2 next.
