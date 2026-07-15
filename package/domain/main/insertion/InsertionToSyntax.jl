@@ -444,7 +444,7 @@ DocumentInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here")
 
 """
-    DomainInsertionToSyntaxLeaf(root; prefix = "insert a ", suffix = " here")
+    DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here")
 
 A domain-constrained insertion: the shared typed-name buffer completing over
 `root`'s reflected candidates **prefix-free** (inside a `JsonInsertion`,
@@ -453,7 +453,7 @@ A domain-constrained insertion: the shared typed-name buffer completing over
 `insertion_root(typeof(ins))`, so the leaf only needs the matching commit.
 """
 DomainInsertionToSyntaxLeaf(root::Type;
-                            prefix::AbstractString = "insert a ",
+                            prefix::AbstractString = "insert a new ",
                             suffix::AbstractString = " here") =
     InsertionToSyntaxLeaf(value -> begin
             T = resolve_insertion(root, value)
