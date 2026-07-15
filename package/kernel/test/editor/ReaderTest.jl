@@ -72,13 +72,21 @@ function walk_reader_events(document, projection; onevent=nothing)
     errors
 end
 
-# One @test per reader event.
-function test_reader(label, document, projection)
+# One @test per reader event. `broken` is an optional `(event, message) -> Bool`
+# predicate; when an event fails and `broken` recognises its error signature, it
+# is recorded `@test_broken` instead of `@test`, so a *different* failure on the
+# same example still surfaces as an unmarked `Fail` (a regression). The umbrella
+# supplies the per-example registry (`reader_broken`); a bare call marks nothing.
+function test_reader(label, document, projection; broken=nothing)
     @testset "$label" begin
         walk_reader_events(document, projection;
             onevent = (ev, ok, msg) -> begin
-                ok || @warn "[$label] $msg"
-                @test ok
+                if !ok && broken !== nothing && broken(ev, msg)
+                    @test_broken ok
+                else
+                    ok || @warn "[$label] $msg"
+                    @test ok
+                end
             end)
     end
 end

@@ -78,13 +78,21 @@ function walk_repl_loop(document, projection; onevent=nothing)
     errors
 end
 
-# One @test per event's full read-eval-print cycle.
-function test_repl(label, document, projection)
+# One @test per event's full read-eval-print cycle. `broken` is an optional
+# `(event, message) -> Bool` predicate; a failing event whose error signature it
+# recognises is recorded `@test_broken` instead of `@test`, so a *different*
+# failure on the same example still surfaces as an unmarked `Fail` (a regression).
+# The umbrella supplies the per-example registry (`repl_broken`).
+function test_repl(label, document, projection; broken=nothing)
     @testset "$label" begin
         walk_repl_loop(document, projection;
             onevent = (ev, ok, msg) -> begin
-                ok || @warn "[$label] $msg"
-                @test ok
+                if !ok && broken !== nothing && broken(ev, msg)
+                    @test_broken ok
+                else
+                    ok || @warn "[$label] $msg"
+                    @test ok
+                end
             end)
     end
 end

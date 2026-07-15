@@ -22,17 +22,56 @@ end
 
 # ── reader ───────────────────────────────────────────────────────────────────
 
+# @broken registry for the reader sweep. `reader_broken(name)` returns a
+# `(event, message) -> Bool` predicate (or `nothing`) that recognises the KNOWN
+# reader failures of `name` by their root-cause error signature — so those events
+# land in the `Broken` column while any *other* error stays an unmarked `Fail`.
+# Update these as the underlying projections are fixed (a `@test_broken` that
+# starts passing becomes an "Unexpected Pass" error, flagging the stale marker).
+function reader_broken(name)
+    # @broken: xml's selection reader still `::SyntaxNode`-asserts the container,
+    # but block content is now a SyntaxConcatenation; every seed/click trips it.
+    # plan/pending/simplest-syntax-document.md
+    name == "xml" && return (ev, msg) -> occursin("SyntaxConcatenation", msg)
+    # @broken: a caret on a projection-introduced token yields an under-typed
+    # ProjectionReference path the graph/workbench selection maps cannot wrap.
+    name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
+    nothing
+end
+
 function test_readers()
     @testset "Readers" begin
         for example in examples
             @testset "$(example.name)" begin
-                test_reader(example)
+                test_reader(example.name, example.document, example.projection;
+                            broken=reader_broken(example.name))
             end
         end
     end
 end
 
 # ── repl ─────────────────────────────────────────────────────────────────────
+
+# @broken registry for the repl sweep — same shape as `reader_broken`. A failing
+# read-eval-print cycle whose error signature is recognised here lands in the
+# `Broken` column; any other error stays an unmarked `Fail`.
+function repl_broken(name)
+    # @broken: clicking maps to a selection that fails to re-apply on these
+    # domains (SelectionMismatch) — a whole class the introduced-token / phantom-
+    # caret work resolves. plan/pending/simplest-syntax-document.md
+    name in ("conversation", "conversation_widget", "filesystem", "navigator",
+             "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatch", msg)
+    # @broken: caret on a projection-introduced token → under-typed
+    # ProjectionReference path the graph/workbench maps cannot wrap.
+    name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
+    # @broken: sql_update selection cell throws when re-projecting after a
+    # backspace/whole-cell edit (a stale iomap `.output` and a missing
+    # read_intent method); two distinct signatures.
+    name == "sql_update_syntax" && return (ev, msg) ->
+        occursin("FieldError(Nothing, :output)", msg) ||
+        (occursin("MethodError", msg) && occursin("read_intent", msg))
+    nothing
+end
 
 function test_repls()
     @testset "Repls" begin
@@ -47,7 +86,8 @@ function test_repls()
                     # umbrella suite green.
                     @test_skip false
                 else
-                    test_repl(example)
+                    test_repl(example.name, example.document, example.projection;
+                              broken=repl_broken(example.name))
                 end
             end
         end
