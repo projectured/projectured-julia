@@ -59,6 +59,36 @@ and measure. `StyleColor` is the risk (used in numeric hot paths: interpolate/li
 Precompile + `test_visual` + `test_domain` after each phase, against the branch baseline. A macro
 change is validated by a real load (memory: "guards are not a load check"). Cap memory with systemd-run.
 
+## Results
+
+### Part A — DONE (commit `abc8080f`)
+Struct-level default kind works across all four macros; `selection` follows the default; per-field
+overrides win; backward-compatible (`test_kernel` 431/0/0). Smoke test green.
+
+### Part B — MEASURED, DO NOT PROCEED (recommend design (b))
+Micro-benchmark (`bench/colorbench.jl`) of a plain value struct vs the `@document ImmutableCell` form:
+
+| | plain `StyleColor` (today) | `@document StyleColor` |
+|---|---|---|
+| the value | **isbits, 32 B, inlined** | **not isbits, 40 B, heap object** |
+| config cell `ImmutableCell{StyleColor}` | **isbits, inlined (Phase 2/3 win)** | **boxed pointer** |
+
+Root cause: `@document` injects a mandatory **`selection` field** (`ImmutableCell{Reference}`, and
+`Reference = Union{Nothing,ReferencePath}` is not isbits), so **every** `StyleColor` becomes a heap
+object; and because the promoted type is a **UnionAll**, `ImmutableCell{StyleColor}` boxes it —
+**undoing the Phase 2/3 inlining** on the render-hot path. `@cell_struct ImmutableCell` would avoid
+the selection field (could stay isbits) but then gives no navigability/selection and no reactive
+kind — so it can't be *edited* either.
+
+**Conclusion:** no promotion of the value type preserves both inlining AND editability. Editing is
+better served by **design (b)** — keep `StyleColor`/`StyleFont`/`StyleText` as cheap plain values
+(inlined everywhere, millions of them) and add a separate editable **`ColorDocument` `@document`**
+(a handful under active edit) that projects to/from a `StyleColor`. That keeps the render path cheap
+and still gives `doc.red = v` live per-component editing.
+
+Part A shipped (independently useful). Part B is not worth doing as a value-type promotion; if style
+editing is wanted, do the `ColorDocument`/`ColorToWidget` projection instead — awaiting user's call.
+
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.
-- Not started.
+- Part A done. Part B measured → recommend design (b) instead of promotion.
