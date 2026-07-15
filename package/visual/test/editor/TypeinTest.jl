@@ -382,6 +382,13 @@ end
 # away exactly the regression signal the walk is for. Each returns the reason it
 # stands for; `nothing` means the case is expected to pass.
 function _typein_broken_reason(label, r)
+    # @broken: markdown_rendered — a rendered MarkdownLink shows only its styled
+    # caption; the `url` is metadata with no rendered span, so there is no caret to
+    # type into. The plain `markdown` projection shows the url as text and types
+    # in fine. plan/pending/simplest-syntax-document.md
+    label == "markdown_rendered" && !r.ok && endswith(string(r.ref), "url") &&
+        occursin("no cursor", r.message) &&
+        return "rendered link url has no editable caret"
     # @broken: json_string — typing at the string's last caret yields no operation
     # at all (the reader returns nothing, not a ReplaceStringRangeOperation);
     # plan/pending/typein-every-string-position.md

@@ -377,7 +377,7 @@ function map_reference_forward(p::MarkdownStyledInline, iomap::ChildrenIoMap, re
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
         end
     end
 end
@@ -398,7 +398,7 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
                 child = iomaps[child_i]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing && return nothing
-                @reference ::$D.content[child_i].^(inner)
+                @reference ::$D.content::CellVector[child_i].^(inner)
             end
         end
     end
@@ -463,8 +463,8 @@ end
 
 function map_reference_forward(::MarkdownImageToStyledNode, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::MarkdownImage.alt.rest... => @reference ::SyntaxNode.children[1].value::TextString.^(rest)
-        ::MarkdownImage.url.rest... => @reference ::SyntaxNode.children[2].value::TextString.^(rest)
+        ::MarkdownImage.alt.rest... => @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)
+        ::MarkdownImage.url.rest... => @reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
@@ -492,7 +492,7 @@ end
 # homogeneous collection cannot inject, so this is hand-written like
 # YamlSequenceToBlockSyntaxNode: each item is wrapped in a node whose `open` is the
 # marker. Rendered `MarkdownListItem` carries no bullet (the List supplies it).
-#   .items[i].rest ↔ .children[i].children[1].<item-mapped rest>
+#   .items[i].rest ↔ .children[i].content.<item-mapped rest>
 
 @projection struct MarkdownListToStyledNode
     marker_style::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
@@ -536,7 +536,7 @@ function map_reference_forward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].children[1].^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxDelimitation.content.^(inner)
         end
     end
 end
@@ -544,14 +544,14 @@ end
 function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::MarkdownList
-        ::SyntaxNode.children{s:e}.children[1].rest... => begin
+        ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::MarkdownList.items[child_i].^(inner)
+            @reference ::MarkdownList.items::CellVector[child_i].^(inner)
         end
     end
 end
