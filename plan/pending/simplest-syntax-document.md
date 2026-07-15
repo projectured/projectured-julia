@@ -371,6 +371,37 @@ Nothing/Insertion renderers) down to base or visual so both layers share one imp
 `SyntaxNothingToText` its own. Prefer sharing — a second `_nothing_label` is exactly the kind of
 duplication this plan is trying to remove.
 
+**Confirmed blocking (2026-07-15).** The layering constraint is real and unique to the syntax
+domain, and it is why 2.8 is NOT the self-contained kit-wiring that `@domain Text` was. Every
+domain renders its `Nothing` / `Insertion` by registering `XNothing => InsertionNothingToSyntaxLeaf()`
+/ `XInsertion => …InsertionToSyntaxLeaf()` in its `XToSyntax` dispatch table — and those renderers
+live in `package/domain/main/insertion/` (the **domain** package). That works for every domain because
+every domain sits *above* visual: even the Text domain kit renders through
+[`NaturalProjection.jl`](../../package/domain/main/insertion/NaturalProjection.jl)
+(`TextNothing => InsertionNothingToSyntaxLeaf()`, `TextInsertion => DomainInsertionToSyntaxLeaf(TextDocument)`),
+which is in domain and can reach them.
+
+**The syntax domain is the one exception: it IS visual.** `SyntaxNothing` is already a syntax
+document, so it renders through `SyntaxToText` directly — there is no domain→syntax entry stage to
+carry the placeholder renderer. And `SyntaxToText`, in visual, cannot import
+`InsertionNothingToSyntaxLeaf` from domain (visual is below domain). So 2.8 genuinely requires one of:
+
+1. **Extract** the generic Nothing/Insertion renderers (`InsertionNothingToSyntaxLeaf`,
+   `DomainInsertionToSyntaxLeaf`, the `_nothing_label` helper, and enough of the completion
+   machinery they lean on) down from domain to visual, so both layers share one implementation. This
+   is the "prefer sharing" option, and it is a real cross-package refactor of the ~350-line insertion
+   slice — the completion policies pull in `DomainModule` reflection, which must come down too or be
+   parameterised out.
+2. **Write** a `SyntaxNothingToText` / `SyntaxInsertionToText` from scratch in visual, duplicating the
+   label + buffer rendering. Smaller, but a second `_nothing_label` is exactly the duplication this
+   plan exists to remove, and it still needs a `@insertion` commit target decided for the syntax
+   domain (unlike Text's obvious `TextBlock`, an empty `SyntaxLeaf` is plausible but is a design call).
+
+Either way it is a design-laden change, not cleanup. **Do not wire `@domain Syntax` without the
+renderer:** that would generate a `SyntaxNothing` / `SyntaxInsertion` that cannot render at all, which
+is worse than today's honest-but-inert `SyntaxInsertion` declaration. 2.8 stays deferred until the
+extract-vs-duplicate call (option 1 vs 2) and the syntax insertion commit semantics are settled.
+
 ### What 2.2 changed about the plan
 
 The plan above says each wrapper gets its own `<Type>ToText <: Projection` and its own IoMap. **That
