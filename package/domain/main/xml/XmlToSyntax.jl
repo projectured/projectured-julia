@@ -23,7 +23,7 @@ The output node shape is unchanged:
       SyntaxLeaf(open="</", close=">", value=tag),        ← closing-tag leaf (display-only)
     ])
 
-All internal nodes have open="" so SyntaxToText renders them inline. The space
+Internal nodes have no open delimiter, so SyntaxToText renders them inline. The space
 between the tag name and the first attribute is a reactive `close` on the tag leaf:
 `" "` when attributes are present, `""` otherwise. The closing tag renders the same
 `.tag` field (updated reactively) but is projection-introduced structure (no

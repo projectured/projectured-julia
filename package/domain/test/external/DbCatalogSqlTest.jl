@@ -103,6 +103,24 @@ function test_db_catalog_rdbms_to_sql()
     end
 end
 
+# ── Marker eligibility ──────────────────────────────────────────────────────────
+
+# `dbcatalog_marker_eligible` decides whether a node gets a fold marker, keying off
+# whether it carries a label in `open`. It runs on EVERY SyntaxNode in the tree, so
+# it must tolerate a bare node — one with no `open` delimiter at all. Before optional
+# delimiters an absent `open` was `TextString("")`; now it is `nothing`, and reading
+# `.open.content` off `nothing` throws. The dbcatalog example lives behind ODBC and is
+# not in this suite, so nothing else exercises this.
+function test_db_catalog_marker_eligible()
+    @testset "dbcatalog_marker_eligible tolerates a bare node" begin
+        labelled = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open=" Keyword")
+        bare     = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")])          # open === nothing
+        @test dbcatalog_marker_eligible(labelled)                       # has a label → eligible
+        @test dbcatalog_marker_eligible(bare) == false                  # no label, and no crash
+        @test dbcatalog_marker_eligible(SyntaxLeaf("x")) == false       # leaves never fold
+    end
+end
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 function test_db_catalog_sql()
@@ -112,6 +130,7 @@ function test_db_catalog_sql()
         test_db_catalog_schema_to_sql()
         test_db_catalog_database_to_sql()
         test_db_catalog_rdbms_to_sql()
+        test_db_catalog_marker_eligible()
     end
 end
 

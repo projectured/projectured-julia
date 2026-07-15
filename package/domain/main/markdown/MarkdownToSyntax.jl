@@ -18,7 +18,7 @@ Markdown → SyntaxDocument projection with two presentations, selected by
   (Text/Strong/Emphasis/Heading/Link) are hand-written.
 
 Blocks stack flush-left (`indentation=0` + a newline `sep`, the BookToSyntax
-idiom); inline runs concatenate (`sep=""`).
+idiom); inline runs concatenate (a `SyntaxConcatenation`).
 """
 module MarkdownToSyntaxModule
 

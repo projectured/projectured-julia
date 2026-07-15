@@ -157,8 +157,8 @@ end
 # hand-written like `FileSystemDirectoryToSyntaxNode`. Output shape:
 #
 #   SyntaxNode(indentation=1):                 ← one item per indented line
-#     children[i] = SyntaxNode(open="- ",      ← the "- " marker
-#                     children[1] = <projected element i>)
+#     children[i] = SyntaxDelimitation(          ← the "- " marker
+#                     opening_delimiter="- ", content = <projected element i>)
 #
 # Selection: .elements[i].rest ↔ .children[i].content.<child-mapped rest>
 # (the `.content` hop steps through the "- " delimitation). The tail is

@@ -13,7 +13,7 @@ tree shapes with keyword grouping nodes:
 Each non-leaf entity node is collapsible and contains a single keyword child:
   entity_node  (ind=-1, open=" name"):  collapsible, marker-eligible
     keyword_node (ind=0,  open=" Keyword"): collapsible, marker-eligible
-      keyword_body (ind=-1, open=""):     children = projected items
+      keyword_body (ind=-1, no label):    children = projected items
 
 Using `indentation = -1` avoids trailing newlines that create blank lines,
 while still rendering children with `\\n + indent`.
@@ -339,7 +339,7 @@ read_intent(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSele
 # ── Marker eligibility ──────────────────────────────────────────────────────────
 #
 # Entity nodes and keyword nodes carry their label in the `open` field.
-# Body nodes (keyword_body) have empty `open`. This lets us mark exactly the
+# Body nodes (keyword_body) have no `open` label. This lets us mark exactly the
 # collapsible named nodes — entities and keywords — while skipping body wrappers.
 """
     dbcatalog_marker_eligible(node) -> Bool
@@ -349,12 +349,13 @@ lands on entity nodes and keyword nodes (which carry a label in `open`), but not
 on body wrappers or column leaves.
 """
 dbcatalog_marker_eligible(::SyntaxLeaf) = false
-# Eligibility keys off the label alone (a non-empty `open`): entity and keyword
+# Eligibility keys off the label alone (a present, non-empty `open`): entity and keyword
 # nodes carry one, body/leaf nodes do not. Deliberately does NOT inspect
 # `node.children` — a keyword group's children are a lazy `CellVector` whose
 # length can't be read without forcing the database query, which would defeat
 # lazy expansion.
-dbcatalog_marker_eligible(node::SyntaxNode) = !isempty(node.open.content::AbstractString)
+dbcatalog_marker_eligible(node::SyntaxNode) =
+    node.open !== nothing && !isempty(node.open.content::AbstractString)
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 

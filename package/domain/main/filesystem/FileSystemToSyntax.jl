@@ -64,7 +64,7 @@ end
 # ── FileSystemDirectoryToSyntaxNode ───────────────────────────────────────────
 #
 # Output shape:
-#   SyntaxNode(open="", close="", sep="", indentation=0):
+#   SyntaxNode (no delimiters — a bare, foldable node):
 #     children[1] = SyntaxLeaf(" <dirname>")          ← name leaf
 #     children[2] = SyntaxNode(indentation=2):         ← body node
 #                     children[1..n] = projected element outputs

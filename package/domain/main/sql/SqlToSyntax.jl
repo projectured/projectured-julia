@@ -1155,9 +1155,9 @@ read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectStatementToSyntaxNode ────────────────────────────────────────────
 #
-# Output shape (sep="" at top level; each clause node ends with \n from its
+# Output shape (no separator at top level; each clause node ends with \n from its
 # indented body, so clauses appear on separate lines without extra separators):
-#   SyntaxNode(sep=""):
+#   SyntaxNode (no separator):
 #     children[1] = select_clause node  → "SELECT [DISTINCT]\n  item,\n  …\n"
 #     children[2] = from_clause node    → "FROM\n  item,\n  …\n"
 #     children[3] = where_clause node   → "WHERE\n  …\n"  (omitted if no condition)
