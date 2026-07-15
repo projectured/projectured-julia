@@ -148,12 +148,10 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:book, "paragraph", make_book_paragraph_document_example),
     AtomicDocument(:book, "picture",   make_book_picture_document_example),
     AtomicDocument(:book, "insertion", make_book_insertion_document_example),
+    AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
     # Deferred (catalog surfaced pre-existing gaps — see plan/done/atomic-example-catalog.md):
     #   • sql/*        — SqlXxxToSyntaxLeaf are read-only (v1): no `read_intent`, so
     #                    reader/repl/navigation MethodError. Add atoms when SQL gains readers.
-    #   • filesystem/file — the leaf's introduced text yields a graphics caret `.value{N}` that the
-    #                       identity mapper passes to a FileSystemFile (which has `.pathname`) →
-    #                       SelectionMismatch. Needs introduced-token ProjectionReference handling.
     #   • julia/nothing, julia/insertion — bare leaves that type/commit-swap on edit; the bare
     #                       projection can't reprint the swapped type (the full pipeline can).
 ]

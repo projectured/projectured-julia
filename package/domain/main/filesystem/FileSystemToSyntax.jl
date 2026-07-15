@@ -30,10 +30,11 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, append_reference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..PrinterContextModule: make_child_context
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        filesystem_marker_eligible
@@ -45,21 +46,62 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 end
 
 function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
-    SimpleIoMap(p, f, SyntaxLeaf(
-        TextString(() -> " " * basename(f.pathname), p.style);
-        selection=f.selection))
+    # The leaf renders the file's basename — introduced text with no input field to
+    # bind (the value is derived from `.pathname`, not stored). A whole-file selection
+    # (∅) shares the file's path unchanged, but a *caret* on the introduced value has
+    # no file-domain pre-image, so it is carried as a projection-introduced reference
+    # (`proj(p, …)`). The leaf therefore cannot share `f.selection` verbatim; it gets
+    # its own cell that maps the file's selection forward (School A / deferred-iomap
+    # trick, as in FileSystemDirectoryToSyntaxNode), unwrapping our introduced caret
+    # back into the leaf's own `.value{k}` span.
+    iomap_cell = Cell(nothing)
+    sel = Cell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = f.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+    leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); selection=sel)
+    iomap = SimpleIoMap(p, f, leaf)
+    iomap_cell[] = iomap
+    return iomap
 end
 
-# The name leaf shares the file's selection cell, so a file's input reference and
-# its leaf output reference are the same path — the mappers are the identity.
-map_reference_forward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
-map_reference_backward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference) = reference
+# Selection mapping (FileSystemFile ↔ SyntaxLeaf):
+#   ∅ / whole-file        ↔  the whole leaf                       (identity — same path)
+#   caret on the value    →  proj(p, ::SyntaxLeaf.value{k})       (introduced: no pre-image)
+# The value span is projection-introduced (derived basename), so a caret there names
+# the whole file (`is_introduced_reference` / `named_node_reference`) while carrying a
+# bounded position for rendering and navigation — the established introduced-token
+# pattern (cf. XmlElementToSyntaxNode).
+function map_reference_forward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_introduced_reference(reference, p) && return reference.head.output_path
+    reference
+end
+
+function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference)
+    is_introduced_reference(reference, p) && return reference
+    caret = @reference_case reference begin
+        ::SyntaxLeaf.value{k} => reference
+    end
+    caret === nothing && return reference
+    ConcreteReferencePath(ProjectionReference(p, caret))
+end
 
 function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
     ReplaceSelectionOperation(result)
 end
+
+# The basename is derived display text, not an editable field, so a text-range
+# edit (backspace / delete / type-in) is declined — the leaf is navigable but
+# read-only. This must name the operation type exactly (not a catch-all `op`),
+# because `ReaderDefaults`' `read_intent(::Projection, iomap, ::ReplaceStringRangeOperation)`
+# is equally specific on the operation; a bare `op` would be ambiguous with it.
+# The `ReplaceSelectionOperation` method above still maps carets, so navigation works.
+read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation) = nothing
 
 # ── FileSystemDirectoryToSyntaxNode ───────────────────────────────────────────
 #

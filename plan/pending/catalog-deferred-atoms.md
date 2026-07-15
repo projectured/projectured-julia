@@ -18,10 +18,24 @@ caret `.value{N}` passes straight to a `FileSystemFile` (which has `.pathname`, 
 a caret on it should **name the whole file node** (`∅`) via `ProjectionReference`, not descend
 into a nonexistent field.
 
-- [ ] Add `make_filesystem_file_document_example` (a bare `FileSystemFile`).
-- [ ] Reproduce the failure with `test_catalog(; domain=:filesystem)`.
-- [ ] Fix `FileSystemFileToSyntaxLeaf` mappers to handle the introduced-token caret.
-- [ ] Register `AtomicDocument(:filesystem, "file", …)`; confirm catalog green.
+- [x] Add `make_filesystem_file_document_example` (a bare `FileSystemFile`, qualified
+  `FileSystemModule.FileSystemFile` — the type is not exported by its module).
+- [x] Add a `FileSystemToSyntax` bridge to `Catalog.jl`'s `BRIDGES` so the atom reaches
+  text/graphics (it had none — only json/xml/yaml/julia/markdown/math/book did).
+- [x] Reproduce: `test_catalog(; domain=:filesystem)` → 7 fail / 1 error (`SelectionMismatch`
+  `::FileSystemFile.value{N}` on `:home`/`:end`/mouse carets + nav).
+- [x] Fix `FileSystemFileToSyntaxLeaf`:
+  - **Own selection cell** (deferred-iomap forward-map, like `FileSystemDirectoryToSyntaxNode`)
+    instead of sharing `f.selection` — the shared cell couldn't carry a `proj(...)` caret that
+    `SyntaxLeafToText` would render.
+  - `map_reference_backward`: `∅` → identity; `::SyntaxLeaf.value{k}` caret →
+    `proj(p, ::SyntaxLeaf.value{k})` (introduced, since the basename has no file field).
+  - `map_reference_forward`: unwrap `proj(p, out)` → `out` (the leaf caret).
+  - `read_intent(::ReplaceStringRangeOperation) = nothing` — decline edits (non-editable).
+    **Must be type-specific**, not a catch-all `op`: a bare `op` is *ambiguous* with
+    `ReaderDefaults`' `read_intent(::Projection, iomap, ::ReplaceStringRangeOperation)` → MethodError.
+- [x] Register `AtomicDocument(:filesystem, "file", …)`. **`test_catalog(; domain=:filesystem)`
+  → 1546 pass / 0 fail / 0 error / 0 broken.** ✅
 
 ### 2. sql/* — readers for the leaf stages
 `SqlXxxToSyntaxLeaf` are read-only (v1): no `read_intent`, so reader/repl/navigation
