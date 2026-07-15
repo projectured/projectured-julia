@@ -33,7 +33,7 @@ import ..DomainModule
 import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
@@ -136,7 +136,7 @@ reactive — as the conversation editor does for a live commit colour. The remai
 style fields stay reactive (highlighting writes `fill_color`).
 
 - `content::Cell`                         — holds `AbstractString`
-- `font::ImmutableCell{StyleFont}`        — font specification (immutable by default)
+- `font::ImmutableCell{DStyleFont}`        — font specification (immutable by default)
 - `font_color::ImmutableCell{StyleColor}` — text colour (immutable by default)
 - `fill_color::Cell` — holds background fill color or `nothing`
 - `line_color::Cell` — holds border/line color or `nothing`
@@ -147,7 +147,7 @@ refers to the cursor within the span's `content` field:  `.content{k}`
 """
 @document struct TextString <: TextDocument
     content::AbstractString
-    font::ImmutableCell{StyleFont}
+    font::ImmutableCell{DStyleFont}
     font_color::ImmutableCell{StyleColor}
     fill_color::StyleColor
     line_color::StyleColor

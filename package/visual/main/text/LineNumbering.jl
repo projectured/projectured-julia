@@ -13,7 +13,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
 import ..ColorModule: StyleColor, color_default
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
@@ -29,7 +29,7 @@ export TextLineNumbering, LineNumbering
 @projection struct TextLineNumbering <: Projection
     width::ImmutableCell{Int}      # 0 = auto (derived from total line count)
     separator::ImmutableCell{String}
-    font::ImmutableCell{StyleFont}
+    font::ImmutableCell{DStyleFont}
 end
 
 TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20) =

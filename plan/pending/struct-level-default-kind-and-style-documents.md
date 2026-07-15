@@ -178,11 +178,26 @@ Promoting `StyleFont`/`StyleColor`/`StyleText` to `@document` is **much bigger t
   cells already inline; promotion is memory-neutral, buys only editability). `StyleText` contains a
   font+colour → also not isbits. **Only `StyleColor` (4×Float64) gets the isbits win.**
 
-**Recommendation:** the macro **infrastructure is complete and verified** (per-field kind, struct
-default, explicit selection, `DFoo`). The promotion itself is a focused, whole-suite-gated follow-on.
-Given `StyleFont`/`Text` are memory-neutral and the `<: Document` change is broad, the highest-value
-path is to promote **`StyleColor` only** (the real isbits win) and measure/fix its `<: Document`
-fallout, or defer the promotion and keep the style structs plain. Pending the user's call.
+### StyleFont pilot — DONE, and the `<: Document` fear was empirically unfounded
+
+Promoted `StyleFont` to `@document ImmutableCell struct StyleFont; filename::String; size::Int;
+selection::ImmutableCell{Nothing}; end` (imports added to `FontModule`; 4 `ImmutableCell{StyleFont}`
+config cells re-typed to `DStyleFont` + `DStyleFont` imported into the 3 consumer modules).
+
+**Result: `test_visual` 47233/1 and `test_domain` 99073/1err/9broken — byte-identical to the
+pre-promotion baseline. Zero new failures, zero test-count shifts.** The `<: Document` blast radius
+did **not** materialize.
+
+Why it's clean, and self-consistent: `_value_kind`'s `_has_cell_fields` tests `isa Cell`
+(`= ReactiveCell{Any}`), and `DStyleFont`'s fields are **`ImmutableCell`s, not `Cell`s** — so an
+immutable font stays `:opaque` (a leaf) automatically, while a *reactive* `RStyleFont` would read as
+an editable `:struct`. No `_value_kind` guard needed; the immutable/reactive split *is* the
+non-selectable/editable split. Memory: `ImmutableCell{DStyleFont}` inlines (not isbits — `String` —
+but neither was the plain form; **neutral, nothing lost**). `font_ubuntu_*` constants are now
+`DStyleFont`.
+
+**Verdict: the promotion pattern is safe and non-breaking.** Proceed to `StyleColor` (the real isbits
+win) and `StyleText`, same pattern.
 
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.

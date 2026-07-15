@@ -6,7 +6,9 @@ file path and a point size.
 """
 module FontModule
 
-import ..CellModule: Cell, set_value!
+import ..CellModule: Cell, set_value!, ImmutableCell
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
 
 export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
        _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,
@@ -67,9 +69,13 @@ export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_dev
 
 A font style value consisting of a file path and a point size.
 """
-struct StyleFont
+# A value-document: `filename`/`size` are immutable by default; the selection is
+# typed `Nothing` (non-selectable, so `DStyleFont` — the bare form — inlines in a
+# config cell). `RStyleFont` gives a reactive, selectable, editable font.
+@document ImmutableCell struct StyleFont
     filename::String
     size::Int
+    selection::ImmutableCell{Nothing}
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────
