@@ -295,7 +295,13 @@ already-correct; not re-touched).
 
 ---
 
-## Phase 3 (optional) — Retire the entry guard via re-target
+## Phase 3 (optional) — Retire the entry guard via re-target — ⏭️ Skipped (user decision)
+
+> Not implemented. Sketched in the conversation (a `_json_replace_selected` helper that
+> appends `.value` when the named node is an entry, guard drops its entry clause, seven
+> gesture arms swap the call). It is the *only* remaining item that would be a user-visible
+> behavior change (a whole-entry ∅ selection is reachable, so it genuinely reaches the
+> gesture). Left for a future, deliberate change.
 
 The entry check is the last survivor because `replace_document` is a blind slot-write
 ([Operations.jl:196-217](../../package/kernel/main/operation/Operations.jl#L196-L217)) —
