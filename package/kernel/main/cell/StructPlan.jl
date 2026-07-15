@@ -118,18 +118,29 @@ _cell_kind_name(s::Symbol) =
     s === :MutableCell   ? :mutable   :
     (s === :ReactiveCell || s === :Cell) ? :reactive : nothing
 
-# `(kind, value_type)` for one declared field type (`nothing` = untyped field).
+"""
+    cell_kind_of(sym) -> :reactive | :immutable | :mutable | nothing
+
+Map a cell-kind **name** (`:ImmutableCell`, `:MutableCell`, `:ReactiveCell`, `:Cell`) to its kind,
+or `nothing` when `sym` names no kind. The struct macros use it to read a leading struct-level
+default kind (`@document ImmutableCell struct …`).
+"""
+cell_kind_of(s::Symbol) = _cell_kind_name(s)
+
+# `(kind, value_type, explicit)` for one declared field type (`nothing` = untyped field).
+# `explicit` is true iff the type NAMES a cell kind; an unannotated (`f`) or plain-typed (`f::T`)
+# field reads as `:reactive` but is NOT explicit, so a struct-level default may override it.
 function _field_kind_type(ftype)
-    ftype === nothing && return (:reactive, :Any)
+    ftype === nothing && return (:reactive, :Any, false)
     if ftype isa Symbol
         k = _cell_kind_name(ftype)
-        return k === nothing ? (:reactive, ftype) : (k, :Any)
+        return k === nothing ? (:reactive, ftype, false) : (k, :Any, true)
     end
     if ftype isa Expr && ftype.head === :curly && ftype.args[1] isa Symbol
         k = _cell_kind_name(ftype.args[1])
-        k === nothing || return (k, length(ftype.args) ≥ 2 ? ftype.args[2] : :Any)
+        k === nothing || return (k, length(ftype.args) ≥ 2 ? ftype.args[2] : :Any, true)
     end
-    (:reactive, ftype)
+    (:reactive, ftype, false)
 end
 
 """
@@ -144,15 +155,21 @@ declared_value_types(plan::StructPlan) =
     Any[_field_kind_type(t)[2] for t in plan.field_types]
 
 """
-    field_cell_kinds(plan) -> Vector{Symbol}
+    field_cell_kinds(plan; default = :reactive) -> Vector{Symbol}
 
-Each field's declared **default cell kind** — `:reactive` (the default for a bare
-or plain-typed field), `:immutable`, or `:mutable` — read from a cell-kind wrapper
-in the declared type (`ImmutableCell{T}` → `:immutable`). A transparent-cell struct
-macro uses this to wrap each field in the kind the programmer asked for.
+Each field's cell kind — `:reactive` / `:immutable` / `:mutable`. A field that **names** a kind
+(`f::ImmutableCell{T}`) keeps it; every other field (bare `f`, plain `f::T`) takes `default`, the
+struct-level default a macro passes from its leading kind argument. `default = :reactive` (no
+leading kind) leaves the result exactly as before.
 """
-field_cell_kinds(plan::StructPlan) =
-    Symbol[_field_kind_type(t)[1] for t in plan.field_types]
+function field_cell_kinds(plan::StructPlan; default::Symbol = :reactive)
+    kinds = Symbol[]
+    for t in plan.field_types
+        k, _, explicit = _field_kind_type(t)
+        push!(kinds, explicit ? k : default)
+    end
+    kinds
+end
 
 """
     trailing_default_count(plan) -> Int

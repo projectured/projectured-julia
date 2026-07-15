@@ -19,11 +19,11 @@ export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
 # The exported `@cell_struct` and its codegen assemblers are the public seam for
 # macro authors; CellStruct.jl's remaining builders stay internal.
 export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_kwctor,
-       cell_struct_positional_ctors
+       cell_struct_positional_ctors, struct_macro_default
 # The struct plan: the parse a transparent-cell struct macro does before it can
 # emit anything. Public for the same reason — a macro author consumes it.
 export StructPlan, struct_plan, add_plan_field!, retype_fields!,
-       declared_value_types, field_cell_kinds, required_count, trailing_default_count
+       declared_value_types, field_cell_kinds, cell_kind_of, required_count, trailing_default_count
 
 include("AbstractCell.jl")    # the base type; the kinds below subtype it
 include("ReactiveCell.jl")

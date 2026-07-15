@@ -59,12 +59,15 @@ args already `ReactiveCell{Any}` (machinery reconstruction, cell-sharing ctors,
 same-kind `copy_document`) and no arg a cell at all (parsers, bulk building). Only
 genuinely mixed / typed-cell construction pays the generic path.
 """
-function _emit_autowrap_ctor(plan, arg_names)
+function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     n = length(plan.field_names)
     # Per-field default kind and value type. `def_types[i]` is the cell type a raw
-    # value in field i defaults to; when no field is annotated these are all
-    # `ReactiveCell{Any}` and every path below reduces to the historic codegen.
-    kinds     = field_cell_kinds(plan)
+    # value in field i defaults to; `default` is the struct-level default (from a
+    # leading macro kind) for any field that does not name its own kind — the injected
+    # `selection` field is such a field, so it follows `default` too. With no leading
+    # kind (`default = :reactive`) and nothing annotated these are all `ReactiveCell{Any}`
+    # and every path below reduces to the historic codegen.
+    kinds     = field_cell_kinds(plan; default = default)
     vts       = declared_value_types(plan)
     def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
     raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
@@ -302,7 +305,8 @@ Since the stem is immutable, a node's field *cells* can never be swapped after
 construction (`setfield!` is gone); all mutation flows through the cells, and
 construction-time cell sharing replaces field-level retargeting.
 """
-macro document(structdef)
+macro document(args...)
+    default, structdef = struct_macro_default(args)
     structdef.head === :struct || error("@document expects a struct definition")
     plan = struct_plan(structdef)
 
@@ -340,7 +344,7 @@ macro document(structdef)
     arg_names = [gensym(f) for f in plan.field_names]
 
     structdef = _emit_stem!(plan)
-    push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names))
+    push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names; default = default))
     getprop, setprop = _emit_accessors(plan)
 
     esc(Expr(:block,

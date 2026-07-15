@@ -213,13 +213,14 @@ one default: a struct without an explicit supertype gets `<: Projection`. The
 injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
 — same mechanic as `@iomap`/`IoMap`.
 """
-macro projection(structdef)
+macro projection(args...)
+    default, structdef = struct_macro_default(args)
     structdef.head === :struct || error("@projection expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :Projection)
     end
-    return esc(cell_struct_exprs(structdef))
+    return esc(cell_struct_exprs(structdef; default = default))
 end
 
 end # module
