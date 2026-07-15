@@ -5,6 +5,7 @@ end
 
 make_markdown_code_document_example()            = MarkdownCode("Cell")
 make_markdown_thematic_break_document_example()  = MarkdownThematicBreak()
+make_markdown_insertion_document_example()       = MarkdownInsertion()
 
 function make_markdown_document_example()
     MarkdownRoot([

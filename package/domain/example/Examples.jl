@@ -121,35 +121,39 @@ const domain_examples = Example[
 # `atomic_documents`. json / yaml / xml / markdown reach text+graphics through the
 # whole-tree bridges; math currently yields only the `:syntax` variant.
 const domain_atomic_documents = AtomicDocument[
-    AtomicDocument("null",   :json, make_json_null_document_example),
-    AtomicDocument("bool",   :json, make_json_bool_document_example),
-    AtomicDocument("number", :json, make_json_number_document_example),
-    AtomicDocument("string", :json, make_json_string_document_example),
-    AtomicDocument("null",   :yaml, make_yaml_null_document_example),
-    AtomicDocument("bool",   :yaml, make_yaml_bool_document_example),
-    AtomicDocument("number", :yaml, make_yaml_number_document_example),
-    AtomicDocument("string", :yaml, make_yaml_string_document_example),
-    AtomicDocument("text",   :xml, make_xml_text_document_example),
-    AtomicDocument("text",           :markdown, make_markdown_text_document_example),
-    AtomicDocument("code",           :markdown, make_markdown_code_document_example),
-    AtomicDocument("thematic_break", :markdown, make_markdown_thematic_break_document_example),
-    AtomicDocument("variable", :math, make_math_variable_document_example),
-    AtomicDocument("bool",       :julia, make_julia_bool_document_example),
-    AtomicDocument("break",      :julia, make_julia_break_document_example),
-    AtomicDocument("char",       :julia, make_julia_char_document_example),
-    AtomicDocument("continue",   :julia, make_julia_continue_document_example),
-    AtomicDocument("float",      :julia, make_julia_float_document_example),
-    AtomicDocument("identifier", :julia, make_julia_identifier_document_example),
-    AtomicDocument("integer",    :julia, make_julia_integer_document_example),
-    AtomicDocument("string",     :julia, make_julia_string_document_example),
-    AtomicDocument("symbol",     :julia, make_julia_symbol_document_example),
-    AtomicDocument("paragraph", :book, make_book_paragraph_document_example),
-    AtomicDocument("picture",   :book, make_book_picture_document_example),
-    # Deferred (catalog surfaced pre-existing gaps — see plan/pending/atomic-example-catalog.md):
+    AtomicDocument(:json, "null",   make_json_null_document_example),
+    AtomicDocument(:json, "bool",   make_json_bool_document_example),
+    AtomicDocument(:json, "number", make_json_number_document_example),
+    AtomicDocument(:json, "string", make_json_string_document_example),
+    AtomicDocument(:yaml, "null",   make_yaml_null_document_example),
+    AtomicDocument(:yaml, "bool",   make_yaml_bool_document_example),
+    AtomicDocument(:yaml, "number", make_yaml_number_document_example),
+    AtomicDocument(:yaml, "string", make_yaml_string_document_example),
+    AtomicDocument(:xml, "text", make_xml_text_document_example),
+    AtomicDocument(:markdown, "text",           make_markdown_text_document_example),
+    AtomicDocument(:markdown, "code",           make_markdown_code_document_example),
+    AtomicDocument(:markdown, "thematic_break", make_markdown_thematic_break_document_example),
+    AtomicDocument(:markdown, "insertion",      make_markdown_insertion_document_example),
+    AtomicDocument(:math, "variable",  make_math_variable_document_example),
+    AtomicDocument(:math, "insertion", make_math_insertion_document_example),
+    AtomicDocument(:julia, "bool",       make_julia_bool_document_example),
+    AtomicDocument(:julia, "break",      make_julia_break_document_example),
+    AtomicDocument(:julia, "char",       make_julia_char_document_example),
+    AtomicDocument(:julia, "continue",   make_julia_continue_document_example),
+    AtomicDocument(:julia, "float",      make_julia_float_document_example),
+    AtomicDocument(:julia, "identifier", make_julia_identifier_document_example),
+    AtomicDocument(:julia, "integer",    make_julia_integer_document_example),
+    AtomicDocument(:julia, "string",     make_julia_string_document_example),
+    AtomicDocument(:julia, "symbol",     make_julia_symbol_document_example),
+    AtomicDocument(:book, "paragraph", make_book_paragraph_document_example),
+    AtomicDocument(:book, "picture",   make_book_picture_document_example),
+    AtomicDocument(:book, "insertion", make_book_insertion_document_example),
+    # Deferred (catalog surfaced pre-existing gaps — see plan/done/atomic-example-catalog.md):
     #   • sql/*        — SqlXxxToSyntaxLeaf are read-only (v1): no `read_intent`, so
     #                    reader/repl/navigation MethodError. Add atoms when SQL gains readers.
-    #   • filesystem/file — graphics selection maps a caret to `.value`, but FileSystemFile has
-    #                       `.pathname` → SelectionMismatch on the `:graphics` repl/navigation.
-    #   • julia/nothing   — the bare `JuliaNothingToSyntaxLeaf` can't reprint the JuliaInsertion an
-    #                       insert-swap produces (the full pipeline dispatches it; a bare leaf can't).
+    #   • filesystem/file — the leaf's introduced text yields a graphics caret `.value{N}` that the
+    #                       identity mapper passes to a FileSystemFile (which has `.pathname`) →
+    #                       SelectionMismatch. Needs introduced-token ProjectionReference handling.
+    #   • julia/nothing, julia/insertion — bare leaves that type/commit-swap on edit; the bare
+    #                       projection can't reprint the swapped type (the full pipeline can).
 ]

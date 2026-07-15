@@ -50,8 +50,8 @@ end
 # hierarchical `domain/name/variant` names. `make_document` is a thunk so every derived
 # example gets a fresh, unaliased instance (the reactive layer mutates in place).
 struct AtomicDocument
-    name::String        # level 2 of the catalog hierarchy, e.g. "string"
-    domain::Symbol      # level 1 of the catalog hierarchy, e.g. :json
+    domain::Symbol      # level 1 of the catalog hierarchy, e.g. :json — first, so a call
+    name::String        # level 2 of the catalog hierarchy, e.g. "string" — reads "json/string"
     make_document       # () -> a fresh document instance
 end
 

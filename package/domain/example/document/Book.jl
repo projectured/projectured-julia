@@ -3,6 +3,7 @@ make_book_paragraph_document_example() =
     BookParagraph(TextBlock(TextString("Reactive cells propagate changes automatically.",
                                        font_ubuntu_monospace_regular_20, color_default)))
 make_book_picture_document_example() = BookPicture("projectured.png")
+make_book_insertion_document_example() = BookInsertion()
 
 function make_book_document_example()
     BookBook(

@@ -108,6 +108,47 @@ sequence; pick the one you actually need and skip the rest.
 | `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. ~1200 positions, ~30s. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
+| `test_catalog()` | Runs printer/reader/repl (+ position-navigation on `:graphics`) over the **generated** atomic-example catalog — see below. Run by `test_all`. |
+
+## The generated example catalog
+
+Alongside the hand-authored `examples` registry there is a **generated catalog** of
+atomic examples (`ProjecturedExample.catalog()`), built to give broad, cheap coverage of
+every domain's leaf projections. Its *documents* are hand-authored — one meaningful
+instance per atomic (leaf) document type, in each domain's `example/document/*.jl` file,
+registered as an `AtomicDocument(:domain, "name", make_document)`. Its *projections* are
+**discovered**: for each atomic document the catalog finds the trivial single-step
+projection, then a projection to `:text`, then one to `:graphics` (via a small set of
+whole-tree bridges), and emits one `Example` per reachable variant.
+
+Each entry is a plain `Example` whose `name` is a hierarchical **`domain/name/variant`**
+path — the name doubles as the filter:
+
+```julia
+julia> catalog()                                  # every generated Example (~90)
+julia> catalog(; domain = :json)                  # one domain
+julia> catalog(; document = "string")             # one document across domains
+julia> catalog(; terminal = :graphics)            # everything runnable on screen
+julia> catalog(; only_runnable = true)            # :text (console) + :graphics (screen)
+julia> run_example(only(catalog(; domain=:json, document="null", terminal=:graphics)))
+```
+
+The `variant` is the projection's terminal domain, which decides *which tests apply*:
+`:syntax` runs printer/reader/repl; `:text` / `:graphics` also add position-navigation
+(caret geometry needs the graphics layer, so navigation routes to `:graphics`). Run the
+whole thing, or any slice, with `test_catalog`:
+
+```julia
+julia> test_catalog()                             # all applicable testers over the catalog
+julia> test_catalog(; domain = :julia)            # just one domain
+julia> test_catalog(; testers = (test_printer,))  # just one tester
+```
+
+A domain is included once its leaf projections are **bidirectional and navigable**.
+Deliberately *not* in the catalog yet (each would need real domain work, not a catalog
+change): SQL (read-only v1 — no readers), `filesystem/file` (introduced-token caret not
+wired for graphics navigation), and the type-swap-on-commit leaves (`julia/nothing`,
+`julia/insertion`). See `plan/done/atomic-example-catalog.md` for the full list.
 
 ## Testing a single example
 

@@ -1,7 +1,6 @@
-# A bare math variable — the atomic math leaf, for the catalog.
-function make_math_variable_document_example()
-    MathVariable("x")
-end
+# Atomic math leaves — one meaningful instance each, for the catalog.
+make_math_variable_document_example()  = MathVariable("x")
+make_math_insertion_document_example() = MathInsertion()
 
 function make_math_document_example()
     # X = (3 * A + B) / 2

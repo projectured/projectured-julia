@@ -139,7 +139,7 @@ const visual_examples = Example[
 # catalog's "direct single-step to text" path; the umbrella concatenates every
 # tier's slice into `atomic_documents`.
 const visual_atomic_documents = AtomicDocument[
-    AtomicDocument("string", :primitive, make_primitive_string_document_example),
-    AtomicDocument("number", :primitive, make_primitive_number_document_example),
-    AtomicDocument("bool",   :primitive, make_primitive_bool_document_example),
+    AtomicDocument(:primitive, "string", make_primitive_string_document_example),
+    AtomicDocument(:primitive, "number", make_primitive_number_document_example),
+    AtomicDocument(:primitive, "bool",   make_primitive_bool_document_example),
 ]

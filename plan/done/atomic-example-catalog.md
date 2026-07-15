@@ -46,8 +46,8 @@ They are tagged only enough to filter.
 ```julia
 # kernel-example/Harness.jl (next to `Example`)
 struct AtomicDocument
-    name::String        # "json_string"        (level 2 of the hierarchy)
-    domain::Symbol      # :json                (level 1 of the hierarchy)
+    domain::Symbol      # :json     (level 1 of the hierarchy — first, so a call reads "json/string")
+    name::String        # "string"  (level 2 of the hierarchy)
     make_document       # thunk -> a fresh, unaliased instance
 end
 ```
@@ -225,28 +225,39 @@ gains the `document` filter and iterates the registry. `catalog_domain` reads
   the `JsonBool`/`YamlBool` bare-root round-trip crash, and position-navigation (it needed the
   `:graphics` terminal, not `:text`). Both catalog gaps closed; suite fully green with
   position-navigation back in the default testers.
-- [~] **Phase D — broaden (partial).** DONE this pass: added **julia** (bool/break/char/continue/
-  float/identifier/integer/string/symbol — 9), **markdown** (code/thematic_break), **book**
-  (paragraph/picture), and a `MathToSyntax` + `BookToSyntax` bridge (so math/variable and the book
-  leaves reach text/graphics). Fixed `JuliaBoolToSyntaxLeaf`'s `? :` thunk (same crash class as
-  JsonBool). **Deferred** (the catalog surfaced pre-existing gaps — kept out, not skipped):
+- [x] **Phase D — broaden.** DONE. Added **julia** (bool/break/char/continue/float/identifier/
+  integer/string/symbol — 9), **markdown** (code/thematic_break/insertion), **math** (insertion),
+  **book** (paragraph/picture/insertion), and a `MathToSyntax` + `BookToSyntax` bridge. Fixed
+  `JuliaBoolToSyntaxLeaf`'s `? :` thunk (same crash class as JsonBool). `AtomicDocument` reordered
+  to `(domain, name, make_document)` so a call reads `domain/name`. Empirically probed the insertion
+  buffers: markdown/math/book insertion are green and kept; **julia/insertion** committed on `:return`
+  to a `JuliaIdentifier` the bare/chained projection can't reprint → deferred. **Deferred** (each is
+  real domain work the catalog surfaced, not a catalog change — kept out, not skipped):
     - **sql/\*** — `SqlXxxToSyntaxLeaf` are read-only (v1): no `read_intent`, so reader/repl/nav
       MethodError. Add the 4 sql atoms + `SqlToSyntax` bridge once SQL has readers.
-    - **filesystem/file** — the `:graphics` layer maps a caret to a `.value` path but
-      `FileSystemFile` has `.pathname` → `SelectionMismatch` on graphics repl/nav (syntax/text pass).
-    - **julia/nothing** — the bare `JuliaNothingToSyntaxLeaf` can't reprint the `JuliaInsertion` an
-      insert-swap produces (the full pipeline dispatches it; a bare leaf can't).
-    - Still open: formula, dbcatalog, conversation, the `*Insertion` buffers; whether any
-      `→ graphics` entries join the screenshot gallery; documenting the hierarchy/filters in guides.
+    - **filesystem/file** — its leaf renders *introduced* text (`" " * basename`, not `bound`) with
+      identity mappers, so a graphics caret `.value{N}` passes straight to a `FileSystemFile` (which
+      has `.pathname`) → `SelectionMismatch`. Needs `ProjectionReference` handling for the introduced
+      token (the known "introduced-token caret round-trip" pattern).
+    - **julia/nothing**, **julia/insertion** — bare leaves that type/commit-swap on edit; the bare
+      projection can't reprint the swapped type (the full pipeline dispatches it; a bare leaf can't).
+    - Not pursued (low value / out of scope): formula (only leaf is an insertion), dbcatalog (ODBC-
+      gated), conversation (no clean leaf atoms).
+- [x] **Gallery / docs.** Screenshot gallery + `run_example`-by-name stay **curated (`origin=:manual`)**;
+  generated entries are runnable on demand (`run_example(catalog_entry)`) but are not added to the
+  gallery/tour (they'd balloon it with ~90 near-identical scalar shots). The catalog + hierarchy/
+  filters are documented in [`documentation/testing.md`](../../documentation/testing.md)
+  ("The generated example catalog").
 
 ## Implementation results (2026-07-15)
 
-**Scope landed:** **27 atoms → 81 catalog entries** (Phase A + D). json (null/bool/number/string),
+**Scope landed:** **30 atoms → 90 catalog entries** (Phase A + D). json (null/bool/number/string),
 yaml (null/bool/number/string), primitive (string/number/bool), xml/text, markdown
-(text/code/thematic_break), math/variable, julia (9 leaves), book (paragraph/picture) — each × the
-three `domain/name/{syntax,text,graphics}` variants. Bridges: json/xml/yaml/julia/markdown/math/book
-→ syntax, syntax→text, text→graphics. `test_catalog()` (printer/reader/repl over all 81 +
-position-navigation over the 27 `:graphics` entries) → **43037 assertions pass, 0 fail/error/broken**.
+(text/code/thematic_break/insertion), math (variable/insertion), julia (9 leaves), book
+(paragraph/picture/insertion) — each × the three `domain/name/{syntax,text,graphics}` variants.
+Bridges: json/xml/yaml/julia/markdown/math/book → syntax, syntax→text, text→graphics. `test_catalog()`
+(printer/reader/repl over all 90 + position-navigation over the 30 `:graphics` entries) →
+**47753 assertions pass, 0 fail/error/broken**.
 
 **Design facts confirmed during implementation:**
 - The reachability graph (`BRIDGES`) only reaches text/graphics for domains with a whole-tree
