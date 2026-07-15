@@ -99,17 +99,15 @@ YamlMapping(pairs::Pair{<:AbstractString}...) =
 # whether the caret sits inside a string: the reader runs last-to-first, so a key the
 # text layer turned into a character edit never reaches the domain.
 
+# Replace the named node — unless it is a mapping entry, which is retyped through its
+# value. Every other "meaningful type-in" is caught a layer up: a keystroke that maps to
+# editable text is consumed there and only *falls through* to us when it can't be (a
+# projection-introduced token, or a whole-node selection), so any key reaching here is a
+# replace command. `named_node_reference` normalizes an introduced caret to ∅ (the whole
+# node) and subsumes the `sel === nothing` / unresolvable guards.
 function _yaml_replaceable(doc, sel)
-    sel === nothing && return false
-    # On an introduced caret, retype a placeholder or a container (you are on its
-    # marker) but not a scalar's own quotes — retyping a scalar wants the whole
-    # element selected.
-    if is_introduced_reference(sel)
-        return doc isa YamlInsertion || doc isa YamlSequence || doc isa YamlMapping
-    end
-    target = try_evaluate_reference(doc, sel)
-    target === nothing && return false
-    return !(target isa YamlMappingEntry)   # an entry is retyped through its value
+    node = try_evaluate_reference(doc, named_node_reference(sel))
+    return node !== nothing && !(node isa YamlMappingEntry)
 end
 
 # ── Insertion factories ─────────────────────────────────────────────────────

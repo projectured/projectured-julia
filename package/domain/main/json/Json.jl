@@ -88,17 +88,15 @@ end
 JsonObject(pairs::Pair{<:AbstractString}...) =
     JsonObject([JsonObjectEntry(String(k), v) for (k, v) in pairs])
 
+# Replace the named node — unless it is an object entry, which is retyped through its
+# value. Every other "meaningful type-in" is caught a layer up: a keystroke that maps to
+# editable text is consumed there and only *falls through* to us when it can't be (a
+# projection-introduced token, or a whole-node selection), so any key reaching here is a
+# replace command. `named_node_reference` normalizes an introduced caret to ∅ (the whole
+# node) and subsumes the `sel === nothing` / unresolvable guards.
 function _json_replaceable(doc, sel)
-    sel === nothing && return false
-    # On an introduced caret, retype a placeholder or a container (you are on its
-    # bracket) but not a scalar's own quotes — retyping a scalar wants the whole
-    # element selected.
-    if is_introduced_reference(sel)
-        return doc isa JsonInsertion || doc isa JsonArray || doc isa JsonObject
-    end
-    target = try_evaluate_reference(doc, sel)
-    target === nothing && return false
-    return !(target isa JsonObjectEntry)   # an entry is retyped through its value
+    node = try_evaluate_reference(doc, named_node_reference(sel))
+    return node !== nothing && !(node isa JsonObjectEntry)
 end
 
 # ── Insertion factories ─────────────────────────────────────────────────────

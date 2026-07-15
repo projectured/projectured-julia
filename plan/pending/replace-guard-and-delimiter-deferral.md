@@ -51,12 +51,13 @@ container-bracket replaces fire; Phase 2 just routes scalar delimiters through i
 
 ---
 
-## Phase 1 — Collapse the replace guard
+## Phase 1 — Collapse the replace guard — ✅ Done
 
-Independently correct against today's routing (delimiter keys already fall through via
-the `SyntaxLeafToText` deferral). The only behavior change: a caret on a **string's
-quote** + a replace key now *replaces* instead of no-op'ing — making scalars consistent
-with containers (a key on a `[` bracket already replaces).
+Independently correct against today's routing. The guard *logic* now returns `true` for
+an introduced caret on a scalar (was `false`); everything else is unchanged. See the
+**Result** below — the triggering caret turns out to be unreachable via arrow navigation
+today, so this lands as a behavior-preserving simplification with a latent consistency
+benefit, not an observable behavior change.
 
 **JSON** — [Json.jl:91-102](../../package/domain/main/json/Json.jl#L91-L102):
 
@@ -83,16 +84,31 @@ already in scope (`using ..ProjectionReferenceModule`, `..ReferenceModule`).
 **XML** — leave as-is; `_xml_replaceable` only ever allows replacing an insertion, a
 deliberately narrower rule (the insertion is a typed-name buffer).
 
-**Verify Phase 1**
-- `test_position_navigation(json_example)`, `test_repl(json_example)`, `test_json()`,
-  `test_yaml()`.
-- New behavior: navigate onto a string's opening quote, press `[` → array replace.
-  Drive by hand in the REPL (`documentation/debugging.md`) since nav tests only assert
-  `states > 0`.
-- Watch the pass-count deltas (an IoMap field-count change would show here, per the
-  "test counts track cell count" note) — expect `Fail`/`Error` to stay at baseline.
+**Result (implemented)**
+- Loads clean; targeted tests green with no regression: `test_json()` 24/24,
+  `test_repl(json_example)` 225/225, `test_repl(yaml_example)` 225/225, no `Fail`/`Error`.
+  (There is **no** `test_yaml()` suite — YAML is only exercised via `test_repl` and the
+  shared drivers.)
+- **Guard-logic delta confirmed** by direct unit call:
+  `_json_replaceable(JsonString(""), <introduced ref>)` → `true` (was `false`);
+  `_json_replaceable(JsonObjectEntry("k", …), ∅)` → `false`;
+  `_json_replaceable(JsonString(""), nothing)` → `false`.
+- **Reachability finding (important).** Enumerating `explore_position_selections` over
+  `json_example`: 532 reachable carets, 315 introduced — but **all 315 name the root
+  container**, and **zero name a scalar**. A string's quote is *not* an arrow-navigable
+  stop; navigating into a string lands on its editable content (a concrete, non-introduced
+  reference the text layer owns). So the one selection on which the old and new guard
+  disagree is **unreachable via keyboard navigation** — Phase 1 is behavior-preserving
+  under nav, which is why the pass counts are identical.
+- Consequence: the scalar/container consistency win is **latent**. It only becomes
+  observable once an introduced caret can land on a scalar's own token — via a mouse
+  click on the quote glyph (untested here; may already produce such a selection) or via
+  the separate introduced-text navigation work
+  ([left-motion-stalls-on-introduced-text.md](left-motion-stalls-on-introduced-text.md)).
+  This corrects the earlier "quote-caret now replaces" framing: it's reachable by click
+  at most, not by arrow keys.
 
-**Commit 1:** guard collapse for JSON + YAML.
+**Commit 1:** guard collapse for JSON + YAML (+ this result note).
 
 ---
 
