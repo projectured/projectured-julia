@@ -86,8 +86,47 @@ better served by **design (b)** — keep `StyleColor`/`StyleFont`/`StyleText` as
 (a handful under active edit) that projects to/from a `StyleColor`. That keeps the render path cheap
 and still gives `doc.red = v` live per-component editing.
 
-Part A shipped (independently useful). Part B is not worth doing as a value-type promotion; if style
-editing is wanted, do the `ColorDocument`/`ColorToWidget` projection instead — awaiting user's call.
+Part A shipped (independently useful). Part B (naive promotion, `IC{Reference}` selection) is
+net-negative. **BUT the selection-parameter design (Part C) recovers it** — see below.
+
+### Part C — selection-parameterized promotion (VIABLE) — bench + audit done
+The selection field is already the 5th type parameter (`StyleColor{C1..C4,Csel}`). Its **value type**
+is the isbits pivot: `ImmutableCell{Nothing}` is isbits (non-selectable), `Cell{Reference}` holds a
+path (selectable). So ONE `@document StyleColor` covers both, and the non-selectable form keeps the
+Phase 2/3 inlining. Declaration (explicit selection field):
+
+```julia
+@document ImmutableCell struct StyleColor
+    red::Float64; green::Float64; blue::Float64; alpha::Float64
+    selection::ImmutableCell{Nothing}     # non-selectable ⇒ isbits
+end
+```
+
+**Bench (`bench/colorbench.jl`), four-way:**
+
+| colour form | value | `ImmutableCell{it}` config cell |
+|---|---|---|
+| plain struct (today) | isbits, 32 B | isbits |
+| `@document` default (`IC{Reference}` sel) | heap | boxed |
+| **`@document` non-selectable (`IC{Nothing}` sel)** | **isbits, 32 B** | **isbits (inlines)** |
+| `@document` reactive selectable (`Cell` sel) | heap | — · editable `rsel.red=0.9`, holds `rsel.selection=:a_path` |
+
+So bare `StyleColor(...)`/`IStyleColor` == isbits/inline/non-selectable (Phase 2/3 win intact);
+`RStyleColor` (`Cell{Any}` selection) == reactive + selectable + editable in place. Same type.
+
+**Audit (`Selection.jl`):** every selection WRITE (`set_selection!`/`clear_selection!`/`_sync_selection!`
+→ `getfield(doc,:selection)[]=…`) is **path-routed** (descends only via `_selection_child` along the
+current path) or on a **projection output root** — never a nested colour. So a non-selectable colour's
+selection is written **only if a path routes into it**, and nothing routes into a colour by default
+(colours are leaves). **Latent footgun:** a promoted colour is a `Document`, so `_selection_child`
+would return it; if a future projection emitted a path into a *non-selectable* colour the write would
+be a `MethodError`, not a graceful decline. **Cheap fix:** make `_selection_child` treat an
+immutable-selection node as a leaf (`return nothing`) → non-selectable documents degrade gracefully.
+
+**Verdict:** the promotion is viable with the selection parameter. Macro work still needed: (1) allow
+an explicit `selection` field (today errors) so its value type controls selectability; (2) optional
+`RFoo(vals…)` value ctor; (3) the `_selection_child` graceful-leaf guard. Then convert `StyleColor`
+and re-run the suites.
 
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.
