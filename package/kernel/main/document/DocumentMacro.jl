@@ -7,8 +7,16 @@
 # constructors filling a trailing run of defaults — is not document-specific and
 # lives with the other constructor builders in the cell layer.
 
-# The cell kind a bare `Foo(…)` builds: the historic untyped `Cell`.
+# The reactive default a bare `Foo(…)` wraps a raw value in: the historic untyped `Cell`.
 const _REACTIVE_ANY = ReactiveCell{Any}
+
+# The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
+# keeps the historic untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
+# the typed cell so it inlines — the same typed cells the `IFoo`/`MFoo` aliases build.
+_default_cell_type(kind, vt) =
+    kind === :immutable ? Expr(:curly, ImmutableCell, vt) :
+    kind === :mutable   ? Expr(:curly, MutableCell,  vt) :
+    _REACTIVE_ANY
 
 # Per-field cell type parameters: `C1, C2, …`.
 _cell_params(plan) = [Symbol("C", i) for i in 1:length(plan.field_names)]
@@ -53,19 +61,27 @@ genuinely mixed / typed-cell construction pays the generic path.
 """
 function _emit_autowrap_ctor(plan, arg_names)
     n = length(plan.field_names)
+    # Per-field default kind and value type. `def_types[i]` is the cell type a raw
+    # value in field i defaults to; when no field is annotated these are all
+    # `ReactiveCell{Any}` and every path below reduces to the historic codegen.
+    kinds     = field_cell_kinds(plan)
+    vts       = declared_value_types(plan)
+    def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
+    raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
+                                           :($(def_types[i])($(arg_names[i])))
     rc_any   = fill(_REACTIVE_ANY, n)
     all_rc   = mapreduce(a -> :($a isa $(_REACTIVE_ANY)), (x, y) -> :($x && $y), arg_names)
     any_cell = mapreduce(a -> :($a isa $(AbstractCell)),   (x, y) -> :($x || $y), arg_names)
     wrapped    = [gensym(f) for f in plan.field_names]
     wrap_stmts = [:($(wrapped[i]) = $(arg_names[i]) isa $(AbstractCell) ?
-                        $(arg_names[i]) : $(_REACTIVE_ANY)($(arg_names[i])))
+                        $(arg_names[i]) : $(raw_wrap(i)))
                   for i in 1:n]
     :(function $(plan.name)($(arg_names...))
         if $all_rc
             return $(Expr(:call, Expr(:curly, :new, rc_any...), arg_names...))
         elseif !($any_cell)
-            return $(Expr(:call, Expr(:curly, :new, rc_any...),
-                          [:($(_REACTIVE_ANY)($a)) for a in arg_names]...))
+            return $(Expr(:call, Expr(:curly, :new, def_types...),
+                          [raw_wrap(i) for i in 1:n]...))
         end
         $(wrap_stmts...)
         $(Expr(:call, Expr(:curly, :new, [:(typeof($w)) for w in wrapped]...), wrapped...))

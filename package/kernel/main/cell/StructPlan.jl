@@ -108,15 +108,51 @@ function retype_fields!(plan::StructPlan, cell_types)
     plan
 end
 
+# A field's declared type may name a cell **kind** — `ImmutableCell{T}`,
+# `MutableCell{T}`, `ReactiveCell{T}`, or bare `Cell` — carrying the value type as
+# its parameter, or a plain value type (which means the reactive default). Detection
+# is syntactic on the reserved kind names (no resolved types exist at expansion
+# time); those names are reserved cell vocabulary, so the check is safe.
+_cell_kind_name(s::Symbol) =
+    s === :ImmutableCell ? :immutable :
+    s === :MutableCell   ? :mutable   :
+    (s === :ReactiveCell || s === :Cell) ? :reactive : nothing
+
+# `(kind, value_type)` for one declared field type (`nothing` = untyped field).
+function _field_kind_type(ftype)
+    ftype === nothing && return (:reactive, :Any)
+    if ftype isa Symbol
+        k = _cell_kind_name(ftype)
+        return k === nothing ? (:reactive, ftype) : (k, :Any)
+    end
+    if ftype isa Expr && ftype.head === :curly && ftype.args[1] isa Symbol
+        k = _cell_kind_name(ftype.args[1])
+        k === nothing || return (k, length(ftype.args) ≥ 2 ? ftype.args[2] : :Any)
+    end
+    (:reactive, ftype)
+end
+
 """
     declared_value_types(plan) -> Vector
 
-Each field's declared value type as an expr, with `Any` standing in for an
-untyped field. The vocabulary the typed (immutable / mutable) constructors and
-aliases are written in.
+Each field's declared **value** type as an expr, with `Any` standing in for an
+untyped field. A field that names a cell kind (`ImmutableCell{T}`, …) contributes
+its parameter `T` — the kind wrapper is stripped, since this is the value-type
+vocabulary the typed (immutable / mutable) constructors and aliases are written in.
 """
 declared_value_types(plan::StructPlan) =
-    Any[t === nothing ? :Any : t for t in plan.field_types]
+    Any[_field_kind_type(t)[2] for t in plan.field_types]
+
+"""
+    field_cell_kinds(plan) -> Vector{Symbol}
+
+Each field's declared **default cell kind** — `:reactive` (the default for a bare
+or plain-typed field), `:immutable`, or `:mutable` — read from a cell-kind wrapper
+in the declared type (`ImmutableCell{T}` → `:immutable`). A transparent-cell struct
+macro uses this to wrap each field in the kind the programmer asked for.
+"""
+field_cell_kinds(plan::StructPlan) =
+    Symbol[_field_kind_type(t)[1] for t in plan.field_types]
 
 """
     trailing_default_count(plan) -> Int

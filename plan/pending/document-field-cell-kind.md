@@ -114,14 +114,17 @@ reserved cell vocabulary, so the check is safe.
 
 ## Phases
 
-### Phase 1 — macro extension (backward-compatible, a no-op until a field is annotated)
-- [ ] Shared parse in `StructPlan`: `field_cell_kinds` + kind-stripping `declared_value_types`.
-- [ ] Family A: per-field fixed kind in `cell_struct_exprs` + `cell_struct_autowrap_ctor`.
-- [ ] Family B: per-field default kind in `DocumentMacro._emit_autowrap_ctor` + aliases.
-- [ ] **Checkpoint:** precompile the whole stack + `using Projectured` (the macros run
-      at every `@document`/`@projection`/`@iomap`/`@cell_struct` expansion). Run a broad
-      targeted suite and confirm **zero** change vs main baseline (nothing annotated yet,
-      so every field is reactive). Pass-count must not move ("test counts track cell count").
+### Phase 1 — macro extension (backward-compatible, a no-op until a field is annotated) — DONE
+- [x] Shared parse in `StructPlan`: `field_cell_kinds` + kind-stripping `declared_value_types`
+      (`_cell_kind_name`/`_field_kind_type` helpers; export `field_cell_kinds`).
+- [x] Family A: per-field fixed kind in `cell_struct_exprs` + `cell_struct_autowrap_ctor`
+      (reactive branch kept byte-identical; non-reactive uses `isa AbstractCell`).
+- [x] Family B: per-field default kind in `DocumentMacro._emit_autowrap_ctor` (`_default_cell_type`
+      helper; aliases use the now-stripped value types).
+- [x] **Checkpoint:** full-stack precompile clean; smoke test green (unannotated → all reactive;
+      annotated → mixed default combo; per-instance override; `IFoo`/`MFoo` strip the wrapper so
+      field 1 is `ImmutableCell{Int}`, not double-wrapped). `test_kernel()` **431 pass / 0 fail /
+      0 error / 0 broken**. Codegen is byte-identical for unannotated structs, so this is a true no-op.
 
 ### Phase 0/baseline measurement (before converting anything)
 - [ ] Extend the measurement harness to (a) census cell kinds (Reactive/Immutable/

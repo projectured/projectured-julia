@@ -10,17 +10,25 @@
 # its result — a caller therefore needs `Cell` in scope, nothing else.
 
 """
-    cell_struct_autowrap_ctor(struct_name, field_names, cell_set) -> Expr
+    cell_struct_autowrap_ctor(struct_name, field_names, field_wraps) -> Expr
 
 Build the single auto-wrapping inner constructor: `T(vals...)` wrapping each
-Cell-typed field's value in a `Cell` unless it already is one. `field_names`
-is every field (declaration order); `cell_set` is the subset stored as Cells.
+cell-typed field's value in *its kind's* cell unless it already is a cell.
+`field_names` is every field (declaration order); `field_wraps[i]` is `nothing`
+for a non-cell field, or `(kind, celltype)` where `kind ∈ (:reactive, :immutable,
+:mutable)` and `celltype` is the cell type to construct. A reactive field keeps the
+historic `isa Cell ? … : Cell(…)`; a fixed immutable/mutable field lets any
+`AbstractCell` through and wraps a raw value in its typed cell.
 """
-function cell_struct_autowrap_ctor(struct_name, field_names, cell_set)
+function cell_struct_autowrap_ctor(struct_name, field_names, field_wraps)
     arg_names = [gensym(f) for f in field_names]
     new_args = map(enumerate(field_names)) do (i, fname)
         a = arg_names[i]
-        fname in cell_set ? :($a isa Cell ? $a : Cell($a)) : a
+        w = field_wraps[i]
+        w === nothing && return a
+        kind, celltype = w
+        kind === :reactive ? :($a isa Cell ? $a : Cell($a)) :
+                             :($a isa AbstractCell ? $a : $celltype($a))
     end
     :(function $(struct_name)($(arg_names...))
         $(Expr(:call, :new, new_args...))
@@ -96,15 +104,27 @@ function cell_struct_exprs(structdef)
     plan = struct_plan(structdef)
     isempty(plan.field_names) && return structdef
 
-    # Every field is a `Cell`; the declared types are documentation only.
-    retype_fields!(plan, fill(:Cell, length(plan.field_names)))
+    # Each field becomes a transparent cell of its declared kind: reactive `Cell` by
+    # default, or a fixed `ImmutableCell{T}` / `MutableCell{T}` when the field names
+    # that kind (`f::ImmutableCell{T}`). The declared value type is otherwise
+    # documentation only, as before.
+    kinds = field_cell_kinds(plan)
+    vts   = declared_value_types(plan)
+    cell_types  = Any[]
+    field_wraps = Any[]
+    for i in eachindex(plan.field_names)
+        ct = kinds[i] === :immutable ? Expr(:curly, :ImmutableCell, vts[i]) :
+             kinds[i] === :mutable   ? Expr(:curly, :MutableCell,  vts[i]) : :Cell
+        push!(cell_types, ct)
+        push!(field_wraps, (kinds[i], ct))
+    end
+    retype_fields!(plan, cell_types)
 
-    cell_set = Set(plan.field_names)
     body = plan.structdef.args[3]
 
-    # Replace the default inner constructor with one that auto-wraps non-Cell
-    # values into Cell for Cell-typed fields.
-    push!(body.args, cell_struct_autowrap_ctor(plan.name, plan.field_names, cell_set))
+    # Replace the default inner constructor with one that auto-wraps a raw value into
+    # its field's kind of cell (a cell of any kind passes through).
+    push!(body.args, cell_struct_autowrap_ctor(plan.name, plan.field_names, field_wraps))
 
     # getproperty / setproperty! read/write through the Cell fields.
     getprop, setprop = cell_struct_property_accessors(plan.name, plan.field_names)

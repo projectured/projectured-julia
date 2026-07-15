@@ -23,7 +23,7 @@ export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_
 # The struct plan: the parse a transparent-cell struct macro does before it can
 # emit anything. Public for the same reason — a macro author consumes it.
 export StructPlan, struct_plan, add_plan_field!, retype_fields!,
-       declared_value_types, required_count, trailing_default_count
+       declared_value_types, field_cell_kinds, required_count, trailing_default_count
 
 include("AbstractCell.jl")    # the base type; the kinds below subtype it
 include("ReactiveCell.jl")
