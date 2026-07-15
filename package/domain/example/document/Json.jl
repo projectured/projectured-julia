@@ -31,6 +31,14 @@ function make_json_null_document_example()
     JsonNull()
 end
 
+function make_json_bool_document_example()
+    JsonBool(true)
+end
+
+function make_json_number_document_example()
+    JsonNumber(42)
+end
+
 function make_json_insertion_document_example()
     JsonInsertion()
 end

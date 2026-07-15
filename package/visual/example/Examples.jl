@@ -66,7 +66,6 @@ const searching_example      = Example("searching",      make_collection_documen
 const sorting_example        = Example("sorting",        make_collection_document_example,     make_sorting_projection_example)
 const lazy_example           = Example("lazy",           make_lazy_document_example,           make_lazy_projection_example)
 const lazy_bidirectional_example = Example("lazy_bidirectional", make_lazy_bidirectional_document_example, make_lazy_bidirectional_projection_example)
-const primitive_string_example = Example("primitive_string", make_primitive_string_document_example, make_primitive_string_projection_example)
 const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, IdentityProjection)
 
 # The visual tier's slice of the example registry, in registry order.
@@ -130,6 +129,17 @@ const visual_examples = Example[
     sorting_example,
     lazy_example,
     lazy_bidirectional_example,
-    primitive_string_example,
     rotating_vector_example,
+]
+
+# ── The visual tier's slice of the atomic-document registry ───────────────────
+# Hand-authored leaf documents whose (auto-derived) projections the discovered
+# catalog turns into `domain/name/variant` examples. The primitives project
+# directly to text (a single-step `Primitive*ToText*`), so they exercise the
+# catalog's "direct single-step to text" path; the umbrella concatenates every
+# tier's slice into `atomic_documents`.
+const visual_atomic_documents = AtomicDocument[
+    AtomicDocument("string", :primitive, make_primitive_string_document_example),
+    AtomicDocument("number", :primitive, make_primitive_number_document_example),
+    AtomicDocument("bool",   :primitive, make_primitive_bool_document_example),
 ]

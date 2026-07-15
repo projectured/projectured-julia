@@ -129,7 +129,7 @@ export make_widget_toolbar_document_example, make_widget_tooltip_document_exampl
 export make_widget_transform_pane_document_example, make_widget_tree_document_example
 export make_word_wrapping_document_example, make_word_wrapping_projection_example
 export nested_object_to_widget_example, object_example, object_to_widget_example
-export plain_text_example, primitive_string_example, print_example, reversing_example
+export plain_text_example, print_example, reversing_example
 export rotating_vector_example, searching_example, sieve, sieve_bidirectional, sieve_prev
 export sorting_example, syntax_example, text_example, text_filtering_example
 export text_highlighting_example, text_with_image_example, widget_accordion_example
@@ -146,7 +146,7 @@ export widget_table_example, widget_text_example, widget_textarea_example
 export widget_title_pane_example, widget_toggle_example, widget_toggle_group_example
 export widget_toolbar_example, widget_tooltip_example, widget_transform_pane_example
 export widget_tree_example, word_wrapping_example, write_example_pdf
-export Example, visual_examples
+export Example, AtomicDocument, visual_examples, visual_atomic_documents
 export print_example, write_example_pdf
 
 end # module ProjecturedVisualExample

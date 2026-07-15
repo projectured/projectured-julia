@@ -1,3 +1,20 @@
+# ── Atomic YAML scalars — one meaningful instance per leaf type, for the catalog. ──
+function make_yaml_null_document_example()
+    YamlNull()
+end
+
+function make_yaml_bool_document_example()
+    YamlBool(true)
+end
+
+function make_yaml_number_document_example()
+    YamlNumber(42)
+end
+
+function make_yaml_string_document_example()
+    YamlString("Hello, world")
+end
+
 function make_yaml_document_example()
     YamlMapping(
         "name"    => YamlString("Alice"),

@@ -301,7 +301,7 @@ function test_typeins()
         # the default): ~2200 cursor positions over these six examples, half a
         # minute. `test_typein(ex; positions=:ends)` buys the time back if that
         # ever stops being worth it.
-        for name in ("json", "json_string", "text", "xml", "book", "syntax")
+        for name in ("json", "text", "xml", "book", "syntax")
             idx = findfirst(e -> e.name == name, examples)
             idx === nothing && continue
             ex = examples[idx]
@@ -476,7 +476,7 @@ end
 
 function test_json_content_clicks_clean_all()
     @testset "JsonContentClicksClean" begin
-        for name in ("json", "json_sorted", "json_string")
+        for name in ("json", "json_sorted")
             ex = examples[findfirst(e -> e.name == name, examples)]
             test_json_content_clicks_clean(ex.name, ex.document, ex.projection)
         end

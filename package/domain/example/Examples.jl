@@ -8,13 +8,11 @@
 
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
-const json_null_example      = Example("json_null",      make_json_null_document_example,      make_json_null_projection_example)
 # A bare `JsonInsertion` (the typed-name insertion buffer) under the FULL json projection, so
 # the placeholder can be authored into any JSON value (the leaf insertion
 # projection cannot render the replacement). Editable counterpart of the scalar
 # leaf examples; shares the shape of the non-registry `json_build_example`.
 const json_insertion_example = Example("json_insertion", make_json_insertion_document_example, make_json_projection_example)
-const json_string_example    = Example("json_string",    make_json_string_document_example,    make_json_string_projection_example)
 const yaml_example           = Example("yaml",           make_yaml_document_example,           make_yaml_projection_example)
 const xml_example            = Example("xml",            make_xml_document_example,            make_xml_projection_example)
 const mixed_example          = Example("mixed",          make_mixed_document_example,          make_mixed_projection_example)
@@ -82,9 +80,7 @@ const versioning_example     = Example("versioning",      make_versioning_docume
 const domain_examples = Example[
     json_example,
     json_sorted_example,
-    json_null_example,
     json_insertion_example,
-    json_string_example,
     yaml_example,
     xml_example,
     mixed_example,
@@ -115,4 +111,25 @@ const domain_examples = Example[
     clipboard_example,
     formula_example,
     versioning_example,
+]
+
+# ── The domain tier's slice of the atomic-document registry ───────────────────
+# Hand-authored leaf documents (meaningful content, not `minimal()` stand-ins);
+# the discovered catalog derives each one's trivial single-step projection plus
+# the composite projections that reach `:text` and `:graphics`, under hierarchical
+# `domain/name/variant` names. The umbrella concatenates every tier's slice into
+# `atomic_documents`. json / yaml / xml / markdown reach text+graphics through the
+# whole-tree bridges; math currently yields only the `:syntax` variant.
+const domain_atomic_documents = AtomicDocument[
+    AtomicDocument("null",   :json, make_json_null_document_example),
+    AtomicDocument("bool",   :json, make_json_bool_document_example),
+    AtomicDocument("number", :json, make_json_number_document_example),
+    AtomicDocument("string", :json, make_json_string_document_example),
+    AtomicDocument("null",   :yaml, make_yaml_null_document_example),
+    AtomicDocument("bool",   :yaml, make_yaml_bool_document_example),
+    AtomicDocument("number", :yaml, make_yaml_number_document_example),
+    AtomicDocument("string", :yaml, make_yaml_string_document_example),
+    AtomicDocument("text",   :xml, make_xml_text_document_example),
+    AtomicDocument("text",   :markdown, make_markdown_text_document_example),
+    AtomicDocument("variable", :math, make_math_variable_document_example),
 ]

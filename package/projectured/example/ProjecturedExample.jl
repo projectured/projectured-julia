@@ -48,7 +48,7 @@ include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
 
-export minimal, is_leaf_document, catalog, discover_atomic_pairs, reachability_examples
+export catalog, atomic_documents
 export BRIDGES, paths, path_sequences, projection_to, runnable, catalog_domain
 export EditorDomain, EDITOR_DOMAINS, editor_domain, build_file_editor, run_file_editor, warm_file_editor
 export EXTENSION_DOMAINS, domain_for_path
@@ -130,7 +130,7 @@ export make_json_console_projection_example
 export record_assistant_conversation_video
 export json_typein_live, json_select_and_edit_live, json_insert_live, json_build_live, json_build_example
 export generate_example_screenshots, update_guide_screenshots
-export json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example
+export json_example, json_sorted_example, json_insertion_example
 export yaml_example
 export xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
@@ -156,7 +156,6 @@ export julia_example
 export graphics_image_example
 export rotating_vector_example
 export make_rotating_vector_document
-export primitive_string_example
 export assistant_example
 export conversation_example
 export conversation_widget_example

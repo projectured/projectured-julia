@@ -31,9 +31,28 @@ struct Example
     # (see Catalog.jl). Authored examples leave it `:abstract`; catalog entries set it by
     # construction. Presentation-only; does not affect projection behaviour.
     terminal
-    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing, terminal=:abstract) =
+    # How this example came to be: `:manual` (hand-authored — the curated registry) or
+    # `:generated` (derived by the discovered catalog from an `AtomicDocument` plus an
+    # auto-found projection). Metadata only; lets tools/tests tell a curated example apart
+    # from an auto-derived catalog entry, and lets the gallery/screenshots keep to `:manual`.
+    origin
+    Example(name, make_document, make_projection; render_width=nothing, render_height=nothing,
+            terminal=:abstract, origin=:manual) =
         new(name, make_document, make_projection, make_document(), make_projection(),
-            render_width, render_height, terminal)
+            render_width, render_height, terminal, origin)
+end
+
+# ── Atomic documents: the hand-authored building blocks of the discovered catalog ──
+# One meaningful instance per atomic (leaf-ish) document type, tagged with the domain it
+# belongs to and a short leaf name. The catalog (see the `ProjecturedExample` umbrella's
+# `Catalog.jl`) turns each into up to three `Example`s — the trivial single-step
+# projection and the composite projections that reach `:text` and `:graphics` — under
+# hierarchical `domain/name/variant` names. `make_document` is a thunk so every derived
+# example gets a fresh, unaliased instance (the reactive layer mutates in place).
+struct AtomicDocument
+    name::String        # level 2 of the catalog hierarchy, e.g. "string"
+    domain::Symbol      # level 1 of the catalog hierarchy, e.g. :json
+    make_document       # () -> a fresh document instance
 end
 
 function write_example_image(example::Example, filename;

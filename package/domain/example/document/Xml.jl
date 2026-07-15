@@ -1,3 +1,8 @@
+# A bare XML text node — the atomic XML leaf, for the catalog.
+function make_xml_text_document_example()
+    XmlText("Hello, world")
+end
+
 function make_xml_document_example()
     XmlElement("library",
         [XmlAttribute("version", "2.0"), XmlAttribute("lang", "en")],

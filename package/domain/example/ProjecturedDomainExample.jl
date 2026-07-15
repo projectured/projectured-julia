@@ -113,7 +113,7 @@ export build_file_editor, clipboard_example, conversation_editor_example, conver
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
-export json_null_example, json_sorted_example, json_string_example, julia_example
+export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_book_document_example, make_book_projection_example, make_clipboard_document
 export make_clipboard_document_example, make_clipboard_projection
@@ -155,7 +155,7 @@ export mixed_example, natural_example, navigator_example, record_assistant_conve
 export run_console_example, run_example, run_file_editor, sql_insert_syntax_example
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
-export Example, domain_examples
+export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 # Re-export the kernel-example LLM test doubles so domain test files can use
 # them without importing ProjecturedKernelExample directly.

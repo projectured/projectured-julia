@@ -389,11 +389,6 @@ function _typein_broken_reason(label, r)
     label == "markdown_rendered" && !r.ok && endswith(string(r.ref), "url") &&
         occursin("no cursor", r.message) &&
         return "rendered link url has no editable caret"
-    # @broken: json_string — typing at the string's last caret yields no operation
-    # at all (the reader returns nothing, not a ReplaceStringRangeOperation);
-    # plan/pending/typein-every-string-position.md
-    label == "json_string" && r.position == r.length && !r.ok &&
-        return "no operation at the last caret"
     nothing
 end
 

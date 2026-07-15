@@ -16,7 +16,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")     # save a vector PDF
 ```
 
 Available names (see `examples` vector in `ProjecturedExample`):
-`json`, `json_sorted`, `json_null`, `json_string`, `xml`, `mixed`,
+`json`, `json_sorted`, `xml`, `mixed`,
 `syntax`, `text`, `object`, `line_numbering`, `word_wrapping`,
 `widget`, `widget_tabbed_pane`, `book`, `filesystem`,
 `collection`, `reversing`, `filtering`, `sorting`, `focusing`,

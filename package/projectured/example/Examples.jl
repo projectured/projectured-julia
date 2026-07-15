@@ -1,5 +1,5 @@
 const examples = [
-    json_example, json_sorted_example, json_null_example, json_insertion_example, json_string_example,
+    json_example, json_sorted_example, json_insertion_example,
     yaml_example,
     xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example,
     object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example,
@@ -24,7 +24,6 @@ const examples = [
     formula_example,
     graphics_image_example,
     rotating_vector_example,
-    primitive_string_example,
     assistant_example,
     conversation_example,
     conversation_widget_example,

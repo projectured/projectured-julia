@@ -1,3 +1,8 @@
+# A bare Markdown inline text run — the atomic Markdown leaf, for the catalog.
+function make_markdown_text_document_example()
+    MarkdownText("Hello, world")
+end
+
 function make_markdown_document_example()
     MarkdownRoot([
         MarkdownHeading(1, [MarkdownText("ProjecturEd")]),

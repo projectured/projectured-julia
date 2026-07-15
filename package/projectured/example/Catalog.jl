@@ -1,81 +1,32 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # example/Catalog.jl
 #
-# A *generated* catalog of `(document, projection)` pairs — `Example`s that are
-# discovered from the code rather than hand-authored, and serve double duty as
-# test fixtures and runnable examples. See plan/pending/discovered-example-catalog.md.
+# A *generated* catalog of `(document, projection)` pairs built from the
+# hand-authored `atomic_documents` registry: for each atomic document, the
+# catalog derives its trivial single-step projection, plus the composite
+# projections that reach `:text` and `:graphics` when possible. Every entry is a
+# plain `Example` under a hierarchical `domain/name/variant` name (the name
+# doubles as the filter), marked `origin = :generated`, so it plugs straight into
+# `test_printer` / `run_example`. See plan/pending/atomic-example-catalog.md.
 #
-# Nothing here is computed at load time (no `const` catalog): `catalog()` and the
-# graph search run on demand, because the search *executes* projections.
+# The *documents* are hand-authored (meaningful content, in each domain's
+# `example/document/*.jl`); only the *projections* are discovered. Nothing is
+# computed at load time — `catalog()` and the projection search run on demand,
+# because the search *executes* projections on the documents.
 # ═══════════════════════════════════════════════════════════════════════════
 
-# ── Reflection: declared field types via the @document `I`-companion ─────────────
-# `@document Foo` erases the runtime struct's field types to `Cell`, but generates an
-# immutable `IFoo` whose fields keep the *declared* types. That companion is our handle
-# for what each field minimally needs. (Phase 1 replaces this with a generated
-# `document_field_types` accessor + container element-type annotations.)
-_icompanion_name(::Type{T}) where {T} = Symbol(:I, nameof(T))
-_has_icompanion(::Type{T}) where {T} = isdefined(parentmodule(T), _icompanion_name(T))
-_icompanion(::Type{T}) where {T} = getfield(parentmodule(T), _icompanion_name(T))
-# The `I`-companion's fields are `ImmutableCell{T}` (the immutable cell kind); unwrap
-# to the declared element type `T` the instantiator/leaf-check actually need. Document
-# types are *abstract umbrellas* (`JsonNull`) over reactive/immutable kinds (`RJsonNull`
-# / `IJsonNull`), so we key on `<: Document`, never on `isconcretetype`.
-_uncell(ft) = (ft isa DataType && ft <: AbstractCell && !isempty(ft.parameters)) ? ft.parameters[1] : ft
-_declared_field_types(::Type{T}) where {T} = Any[_uncell(ft) for ft in fieldtypes(_icompanion(T))]
-
-
-# A leaf document has no field that holds another document (a `CellVector` counts —
-# it is `<: Document`). Node documents need a `recursion` argument to project their
-# children, so they are left to the reachability graph and the AtomicFixture tier.
-_holds_document(ft) = (ft isa Type && ft <: Document) ||
-                      (ft isa Union && any(_holds_document, Base.uniontypes(ft)))
-
-function is_leaf_document(::Type{T}) where {T<:Document}
-    _has_icompanion(T) || return true
-    !any(_holds_document, _declared_field_types(T))
-end
-
-# ── Minimal instantiation ────────────────────────────────────────────────────────
-# The smallest valid instance of a document type. Fully-defaulted structs construct
-# with no args; otherwise build each declared field minimally and call the positional
-# (auto-wrapping) constructor. Containers come out *empty* in Phase 0.
-const _UNIT_DOCUMENT = JsonNull   # minimal concrete stand-in for an abstract child field
-
-function minimal(::Type{T}) where {T<:Document}
-    try
-        return T()                                  # all-defaulted fast path (incl. empty containers)
-    catch
-    end
-    _has_icompanion(T) || return T()                # no companion → let the ctor error speak
-    T((_minimal_field(ft) for ft in _declared_field_types(T))...)
-end
-
-function _minimal_field(@nospecialize ft)
-    ft === Any && return nothing
-    if ft isa Union                                  # prefer a buildable non-Nothing member
-        for m in Base.uniontypes(ft)
-            m === Nothing && continue
-            v = try _minimal_field(m) catch; missing end
-            v === missing || return v
-        end
-        return nothing
-    end
-    ft isa Type || return nothing
-    ft <: Bool           && return false             # (Bool <: Integer, so test it first)
-    ft <: Integer        && return 0
-    ft <: Real           && return 0
-    ft <: AbstractString && return ""
-    ft <: CellVector     && return CellVector()       # empty container (Phase 0)
-    Nothing <: ft        && return nothing            # e.g. `selection::Reference`
-    ft <: Document       && return minimal(isconcretetype(ft) ? ft : _UNIT_DOCUMENT)
-    try ft() catch; nothing end
-end
+# ── The atomic-document registry (hand-authored; tier slices concatenated) ────────
+"The hand-authored atomic documents the catalog builds on, every tier's slice concatenated."
+atomic_documents() = AtomicDocument[visual_atomic_documents; domain_atomic_documents]
 
 # ── Projection graph: edges = runnable whole-tree bridges (thunks for freshness) ──
 # The only declared graph metadata — ~O(domains). Each is `RecursiveProjection`-wrapped
-# so it is independently runnable via `print_document(bridge, doc)` (mirrors the proven
-# `_JSON_TO_TEXT` chains in WorkbenchAssistant.jl).
+# so it is independently runnable via `print_document(bridge, doc)`. The text→graphics
+# tail is named so the derivation can chain it onto any text-reaching sequence.
+const _TEXT_TO_GRAPHICS = () -> ChainingProjection(
+    WordWrapping(measure = truetype_measure_text),
+    TextToGraphics(measure = truetype_measure_text))
+
 const BRIDGES = Function[
     () -> RecursiveProjection(JsonToSyntax()),
     () -> RecursiveProjection(XmlToSyntax()),
@@ -84,11 +35,9 @@ const BRIDGES = Function[
     () -> RecursiveProjection(MarkdownToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
-    # `truetype_measure_text` (the same default `run_example` uses).
-    # Output is an `RGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render
-    # via `run_example` (SDL). Running this bridge exercises the font-metrics path.
-    () -> ChainingProjection(WordWrapping(measure = truetype_measure_text),
-                             TextToGraphics(measure = truetype_measure_text)),
+    # `truetype_measure_text` (the same default `run_example` uses). Output is an
+    # `RGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render via `run_example`.
+    _TEXT_TO_GRAPHICS,
 ]
 
 # (input type, bridge index) → output instance | nothing. Bridges (esp. the slow ones)
@@ -96,8 +45,7 @@ const BRIDGES = Function[
 const _STEP_CACHE = Dict{Tuple{DataType,Int},Any}()
 
 # Run-and-inspect one edge: apply bridge `i` to `doc`; return the projected output, or
-# `nothing` if it does not apply (any error) or is a no-op (same output type). No static
-# domain table needed. Cheap: `doc` is minimal.
+# `nothing` if it does not apply (any error) or is a no-op (same output type).
 function _step(i::Int, doc)
     key = (typeof(doc), i)
     get!(_STEP_CACHE, key) do
@@ -118,8 +66,8 @@ _terminal_of(@nospecialize T) = !(T isa Type) ? :abstract :
 is_text(@nospecialize T)     = T isa Type && T <: TextDocument
 is_graphics(@nospecialize T) = T isa Type && T <: GraphicsDocument
 
-# All-shortest-paths BFS from a minimal `start` to the first frontier where `reached(T)`
-# holds. Returns each path as an ordered vector of bridge thunks (empty ⇒ already there).
+# All-shortest-paths BFS from `start` to the first frontier where `reached(T)` holds.
+# Returns each path as an ordered vector of bridge thunks (empty ⇒ already there).
 function path_sequences(start, reached)
     T0 = typeof(start)
     reached(T0) && return [Function[]]
@@ -156,92 +104,105 @@ _chains_to(T, T0, preds) = T === T0 ? [Function[]] :
 _compile(seq::AbstractVector) = isempty(seq) ? IdentityProjection() :
     length(seq) == 1 ? seq[1]() : ChainingProjection((mk() for mk in seq)...)
 
-"All minimal composite projections from a minimal `start` document to `reached`."
+"All minimal composite projections from `start` to `reached`."
 paths(start, reached) = [_compile(seq) for seq in path_sequences(start, reached)]
 
 "One minimal composite projection from `start` to `reached`, or `nothing` if unreachable."
 projection_to(start, reached) =
     (ss = path_sequences(start, reached); isempty(ss) ? nothing : _compile(ss[1]))
 
-# ── Names & domain ────────────────────────────────────────────────────────────────
-_snake(x) = lowercase(replace(String(nameof(x)), r"([a-z0-9])([A-Z])" => s"\1_\2"))
-_domain(::Type{T}) where {T} = Symbol(lowercase(replace(String(nameof(parentmodule(T))), r"Module$" => "")))
-catalog_domain(ex::Example) = _domain(typeof(ex.document))
-runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/web, text→console
-
-# ── Generators ──────────────────────────────────────────────────────────────────
-# Document umbrella types are cell-kind `UnionAll`s (`JsonNull = JsonNull{K} where K`),
-# `<: Document` but NOT `DataType` — so we test `isa Type`, never `isa DataType`.
-function _projectable_document_types()
-    ts = Type[]
-    for m in methods(print_document)
-        length(m.sig.parameters) == 5 || continue               # (fn, p, recursion, doc, ctx)
-        d = m.sig.parameters[4]
-        d isa Type && d <: Document && d !== Document && d ∉ ts && push!(ts, d)
-    end
-    ts
-end
-
-_atomic_example(docT, projT, term) =
-    Example("$(_snake(docT)) · $(_snake(projT))", () -> minimal(docT), () -> projT(); terminal = term)
-
-# A. Discovered atomic stage pairs — leaf documents only (a node stage needs a
-#    `recursion` arg; those are left to reachability + AtomicFixture). Fast; feeds the
-#    domain-agnostic testers (printer/reader/repl).
-function discover_atomic_pairs()
-    examples = Example[]
-    seen = Set{Tuple{Type,Type}}()
+# ── The trivial single-step projection ────────────────────────────────────────────
+# The most trivial single-step projection applicable to document type `D` whose output
+# lands in domain `want` (:syntax / :text / :graphics). Leaf stages are macro-generated
+# (`@projection_template`), so they live in the `print_document` method table, not in
+# source — scan it, run each zero-arg candidate on `doc`, and keep those that genuinely
+# transform `doc` into `want`. Deterministic: prefers the lexicographically-first name.
+function _single_step(@nospecialize(D), doc, want::Symbol)
+    matches = Type[]
     for m in methods(print_document)
         length(m.sig.parameters) == 5 || continue
         projT = m.sig.parameters[2]; docT = m.sig.parameters[4]
-        (projT isa Type && docT isa Type) || continue
-        (docT <: Document && docT !== Document)       || continue   # cell-kind umbrella (UnionAll)
+        (projT isa Type && docT isa Type)             || continue
+        (docT <: Document && docT !== Document)       || continue
         (projT <: Projection && projT !== Projection) || continue
-        (docT, projT) in seen && continue; push!(seen, (docT, projT))
-        (_has_icompanion(docT) && is_leaf_document(docT)) || continue
-        local doc, proj
-        try doc = minimal(docT); proj = projT() catch; continue end   # zero-arg stages only
-        term = try _terminal_of(typeof(unwrap_cell(print_document(proj, doc).output))) catch; :abstract end
-        push!(examples, _atomic_example(docT, projT, term))
+        D <: docT || continue
+        local proj; try proj = projT() catch; continue end       # zero-arg stages only
+        local out;  try out = unwrap_cell(print_document(proj, doc).output) catch; continue end
+        (typeof(out) !== D && _terminal_of(typeof(out)) === want) || continue
+        push!(matches, projT)
     end
-    examples
+    isempty(matches) ? nothing : sort!(matches; by = T -> String(nameof(T)))[1]
 end
 
-_reach_example(docT, seq, term, name) =
-    Example(name, () -> minimal(docT), () -> _compile(seq); terminal = term)
+# A projection *sequence* (thunks; compile with `_compile`) reaching `:text` — a direct
+# single-step (e.g. primitives, whose `Primitive*ToText*` skips syntax), else the
+# whole-tree bridge BFS. `nothing` when text is unreachable from `D`.
+function _text_sequence(@nospecialize(D), doc)
+    t = _single_step(D, doc, :text)
+    t === nothing || return Function[() -> t()]
+    seqs = filter(!isempty, path_sequences(doc, is_text))
+    isempty(seqs) ? nothing : first(seqs)
+end
 
-# B. Reachability cases — for each projectable document type, the minimal composite
-#    projection(s) that reach a target domain a test/example needs: `:text` (console) and
-#    `:graphics` (SDL / `run_example`). Reaching `:graphics` runs the font-metrics path.
-function reachability_examples()
-    examples = Example[]
-    for docT in _projectable_document_types()
-        _has_icompanion(docT) || continue
-        local start
-        try start = minimal(docT) catch; continue end
-        for (reached, term) in ((is_text, :text), (is_graphics, :graphics))
-            seqs = try path_sequences(start, reached) catch; Vector{Function}[] end
-            seqs = filter(!isempty, seqs)                        # drop the "already in domain" empties
-            for (k, seq) in enumerate(seqs)
-                name = length(seqs) == 1 ? "$(_snake(docT)) → $(term)" : "$(_snake(docT)) → $(term) #$k"
-                push!(examples, _reach_example(docT, seq, term, name))
-            end
+# A projection sequence reaching `:graphics` — a direct single-step (rare), else the text
+# sequence chained with the text→graphics tail (graphics only ever arrives via text, so
+# reachable exactly when text is). `nothing` when text (hence graphics) is unreachable.
+function _graphics_sequence(@nospecialize(D), doc, text_seq)
+    g = _single_step(D, doc, :graphics)
+    g === nothing || return Function[() -> g()]
+    text_seq === nothing ? nothing : Function[text_seq...; _TEXT_TO_GRAPHICS]
+end
+
+# ── Names, domain, runnability ──────────────────────────────────────────────────────
+# The hierarchical `domain/name/variant` name doubles as the filter path; `catalog_domain`
+# reads the domain level straight back off it.
+catalog_domain(ex::Example) = Symbol(first(split(ex.name, '/')))
+runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/web, text→console
+
+# ── Generator: up to three Examples per atomic document ─────────────────────────────
+# `domain/name/syntax` (trivial single-step), `domain/name/text`, `domain/name/graphics`.
+# Each is a plain `Example` (origin = :generated); variants that aren't reachable are
+# skipped ("…and to graphics if possible"). Building an Example is cheap — the projection
+# objects are constructed, not run; the slow pipeline runs only when a test/example prints.
+function _atom_examples(ad::AtomicDocument)
+    doc = ad.make_document()
+    D   = typeof(doc)
+    out = Example[]
+    variant(term, mkproj) = Example("$(ad.domain)/$(ad.name)/$(term)",
+                                    ad.make_document, mkproj;
+                                    terminal = term, origin = :generated)
+
+    syn = _single_step(D, doc, :syntax)
+    syn === nothing || push!(out, variant(:syntax, () -> syn()))
+
+    text_seq = _text_sequence(D, doc)
+    text_seq === nothing || push!(out, variant(:text, () -> _compile(text_seq)))
+
+    gfx_seq = _graphics_sequence(D, doc, text_seq)
+    gfx_seq === nothing || push!(out, variant(:graphics, () -> _compile(gfx_seq)))
+
+    out
+end
+
+"""
+    catalog(; domain=nothing, document=nothing, terminal=nothing, only_runnable=false)
+
+The generated catalog: for each hand-authored `AtomicDocument`, its trivial single-step
+projection plus the composite projections reaching `:text` and `:graphics`, as plain
+`Example`s under hierarchical `domain/name/variant` names. Filter by document `domain`,
+document `name`, projection `terminal`, or `only_runnable` — the same three axes the name
+path encodes. Every entry feeds `test_printer` / `run_example` unchanged.
+"""
+function catalog(; domain = nothing, document = nothing, terminal = nothing, only_runnable = false)
+    cs = Example[]
+    for ad in atomic_documents()
+        (domain   === nothing || ad.domain === domain)   || continue
+        (document === nothing || ad.name   === document) || continue
+        for ex in _atom_examples(ad)
+            (terminal === nothing || ex.terminal === terminal) || continue
+            (!only_runnable || runnable(ex))                   || continue
+            push!(cs, ex)
         end
     end
-    examples
-end
-
-"""
-    catalog(; domain=nothing, terminal=nothing, only_runnable=false) -> Vector{Example}
-
-The generated catalog: discovered atomic stage pairs plus reachability (composite)
-pairs, filterable by document `domain`, projection `terminal`, or `only_runnable`.
-Every entry is a plain `Example`, so it feeds `test_printer`/`run_example` unchanged.
-"""
-function catalog(; domain = nothing, terminal = nothing, only_runnable = false)
-    cs = Example[discover_atomic_pairs(); reachability_examples()]
-    domain   === nothing || (cs = filter(c -> catalog_domain(c) === domain, cs))
-    terminal === nothing || (cs = filter(c -> c.terminal === terminal, cs))
-    only_runnable && (cs = filter(runnable, cs))
     cs
 end
