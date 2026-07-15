@@ -42,6 +42,40 @@ today.
 end
 ```
 
+### Two families — the feature spans both cell-struct codegens
+
+There are **four** transparent-cell-struct macros in two families that share only
+the `StructPlan` parse:
+
+- **Family A — `cell_struct_exprs`**: `@cell_struct`, `@projection`, `@iomap`
+  (`@projection` = `cell_struct_exprs` + `<: Projection`; `@iomap` similarly).
+  Fields are **fixed** `::Cell`, not kind-parameterized.
+- **Family B — `@document`**: its own codegen, kind-parameterized `Foo{C1,…}`
+  with `R/I/M` aliases. Does **not** route through `cell_struct_exprs`.
+
+Style fields live in **both**: `TextString` (@document) *and* the `@projection`
+config structs (`ObjectToSyntax.style/quote_style/value/…`,
+`CollectionToSyntax.delim/sep`, `ReferenceToText.font`). A projection's single
+`style` cell is read by every node it projects, so it — not the per-span
+`TextString` cells — is the likely source of the shared 72-fanout cells. The
+baseline owner-attribution measurement will confirm.
+
+So the feature is layered:
+
+| layer (all unsealed) | change | covers |
+|---|---|---|
+| `cell/StructPlan.jl` | parse declared type → `(kind, value_type)`; `declared_value_types` strips the kind wrapper; add `field_cell_kinds(plan)` | shared parse |
+| `cell/CellStruct.jl` (`cell_struct_exprs`, `cell_struct_autowrap_ctor`) | field type = its **fixed** kind cell; autowrap wraps raw in that kind | `@cell_struct` / `@projection` / `@iomap` |
+| `document/DocumentMacro.jl` | per-field **default** kind (parameterized, overridable) | `@document` |
+
+**The asymmetry is intentional.** Family A fields are *fixed* (a projection never
+mutates its own `style`; no override or kind-parameter needed — simpler, lower
+risk). Family B (`@document`) fields stay *overridable* (the `ConversationEditor`
+carve-out flips one span's `font_color` to reactive per instance). Same
+annotation; "fixed kind" in a plain cell-struct, "default kind" in a document.
+Backward-compat holds in both: no field annotated ⇒ all `:reactive` ⇒
+byte-identical codegen to today.
+
 ### Semantics (must hold)
 
 1. The struct stays **fully kind-parameterized** — `Foo{C1<:AbstractCell,…}`. The
@@ -65,25 +99,29 @@ names `ReactiveCell` / `Cell` / `ImmutableCell` / `MutableCell` (bare `X` or `X{
 Anything else is a value type wrapped in the reactive default. Those names are
 reserved cell vocabulary, so the check is safe.
 
-### Touch points (all unsealed)
+### Touch points (all unsealed) — see the two-families table above
 
-- `cell/StructPlan.jl` — parse each field's declared type into `(kind, value_type)`;
-  expose a per-field default-kind vector alongside `declared_value_types`.
+- `cell/StructPlan.jl` — parse declared type → `(kind, value_type)`;
+  `declared_value_types` strips a kind wrapper (`ImmutableCell{T}` → `T`; plain types
+  unchanged, so `StructPlanTest` is unaffected); add `field_cell_kinds(plan)`.
+- `cell/CellStruct.jl` — `cell_struct_exprs` retypes each field to its **fixed** kind
+  cell instead of uniform `:Cell`; `cell_struct_autowrap_ctor` wraps a raw value in
+  that kind and passes any `AbstractCell` through (widen `isa Cell` → `isa AbstractCell`).
 - `document/DocumentMacro.jl` — `_emit_autowrap_ctor` wraps each raw arg in *its
-  field's* default kind instead of uniform `_REACTIVE_ANY`; keep the "all reactive"
-  fast path firing when every field defaults reactive (backward compat). Alias
-  emitter (`_emit_kind_aliases`) unchanged.
-- `cell/CellStruct.jl` — only if its auto-wrap path needs the same treatment (audit).
+  field's* default kind (the "no cell" fast path builds the default combination);
+  `_emit_kind_aliases` uses the stripped value types; the "all reactive" fast path
+  stays so an all-reactive struct is byte-identical.
 
 ## Phases
 
 ### Phase 1 — macro extension (backward-compatible, a no-op until a field is annotated)
-- [ ] Parse per-field default kind in `StructPlan`.
-- [ ] Emit per-field-default wrapping in `DocumentMacro`.
-- [ ] **Checkpoint:** precompile the whole stack + `using Projectured` (a macro
-      change runs at every `@document` expansion). Run a broad targeted suite and
-      confirm **zero** change vs main baseline (no field annotated yet, so bare ==
-      RStem everywhere). Pass-count must not move (per "test counts track cell count").
+- [ ] Shared parse in `StructPlan`: `field_cell_kinds` + kind-stripping `declared_value_types`.
+- [ ] Family A: per-field fixed kind in `cell_struct_exprs` + `cell_struct_autowrap_ctor`.
+- [ ] Family B: per-field default kind in `DocumentMacro._emit_autowrap_ctor` + aliases.
+- [ ] **Checkpoint:** precompile the whole stack + `using Projectured` (the macros run
+      at every `@document`/`@projection`/`@iomap`/`@cell_struct` expansion). Run a broad
+      targeted suite and confirm **zero** change vs main baseline (nothing annotated yet,
+      so every field is reactive). Pass-count must not move ("test counts track cell count").
 
 ### Phase 0/baseline measurement (before converting anything)
 - [ ] Extend the measurement harness to (a) census cell kinds (Reactive/Immutable/
@@ -109,11 +147,16 @@ reserved cell vocabulary, so the check is safe.
 - [ ] Measure fanout + microbench on text_example + workbench_example. Record delta.
 
 ### Phase 3 — all authored style immutable by default + measure
-- [ ] Audit every `@document` struct in `package/visual/main` (and domains) with a
-      `StyleFont`/`StyleColor` field. Classify each field:
-      **authored/source** (→ `ImmutableCell` default) vs **computed/output**
-      (ever `set_function!`'d / `setproperty!`'d — e.g. `GraphicsText.font/color` set
-      by `TextToGraphics`, conversation value spans → **keep reactive**).
+- [ ] Sweep the **`@projection`/`@iomap`/`@cell_struct` config structs** (Family A) —
+      likely the biggest win: `ObjectToSyntax.style/quote_style/value/type_name/…`,
+      `CollectionToSyntax.delim/sep`, `ReferenceToText.font`, `SyntaxToText.deco_font`,
+      and the rest surfaced by the audit. These become fixed `::ImmutableCell{…}`.
+- [ ] Sweep the remaining **`@document`** style fields (Family B).
+- [ ] Audit every struct with a `StyleFont`/`StyleColor`/`StyleText` field. Classify:
+      **authored/source** (→ immutable) vs **computed/output** (ever `set_function!`'d /
+      `setproperty!`'d — e.g. `GraphicsText.font/color` set by `TextToGraphics`,
+      conversation value spans → **keep reactive**). Grep `set_function!`/`setproperty!`
+      on each candidate before converting.
 - [ ] Convert the authored ones; leave the computed ones reactive.
 - [ ] Handle the `nothing`-valued optional colors: either widen to
       `ImmutableCell{Union{StyleColor,Nothing}}` or keep reactive — decide per the
