@@ -6,6 +6,10 @@ normalized Float64 components in [0, 1].
 """
 module ColorModule
 
+import ..CellModule: ImmutableCell
+import ..DocumentApiModule: Document
+import ..DocumentModule: @document
+
 export StyleColor, make_style_color,
        color_equal, color_interpolate, color_lighten, color_darken,
        color_lighten_selection, color_darken_selection,
@@ -52,11 +56,16 @@ export StyleColor, make_style_color,
 
 A color style value with RGBA components normalized to [0, 1].
 """
-struct StyleColor
+# A value-document: the RGBA components are immutable by default and the selection
+# is typed `Nothing`, so the bare form `DStyleColor` is **isbits** (4×Float64) — it
+# inlines in config cells and stack-allocates in colour math, exactly like the plain
+# struct did. `RStyleColor` is a reactive, selectable, editable colour.
+@document ImmutableCell struct StyleColor
     red::Float64
     green::Float64
     blue::Float64
     alpha::Float64
+    selection::ImmutableCell{Nothing}
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────

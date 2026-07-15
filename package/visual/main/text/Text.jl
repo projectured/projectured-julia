@@ -34,7 +34,7 @@ import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_gray
+import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types, Position
@@ -137,7 +137,7 @@ style fields stay reactive (highlighting writes `fill_color`).
 
 - `content::Cell`                         — holds `AbstractString`
 - `font::ImmutableCell{DStyleFont}`        — font specification (immutable by default)
-- `font_color::ImmutableCell{StyleColor}` — text colour (immutable by default)
+- `font_color::ImmutableCell{DStyleColor}` — text colour (immutable by default)
 - `fill_color::Cell` — holds background fill color or `nothing`
 - `line_color::Cell` — holds border/line color or `nothing`
 - `padding::Cell`    — holds inset/padding value or `nothing`
@@ -148,7 +148,7 @@ refers to the cursor within the span's `content` field:  `.content{k}`
 @document struct TextString <: TextDocument
     content::AbstractString
     font::ImmutableCell{DStyleFont}
-    font_color::ImmutableCell{StyleColor}
+    font_color::ImmutableCell{DStyleColor}
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset

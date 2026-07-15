@@ -33,7 +33,7 @@ import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
 import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
-import ..ColorModule: StyleColor, color_solarized_blue
+import ..ColorModule: StyleColor, DStyleColor, color_solarized_blue
 import ..PrinterContextModule: PrinterContext
 import ..IoMapModule: SimpleIoMap
 
@@ -51,7 +51,7 @@ section headers.
 @projection struct ReferenceInspectorToText <: Projection
     font::ImmutableCell{DStyleFont}
     header_font::ImmutableCell{DStyleFont}
-    header_color::ImmutableCell{StyleColor}
+    header_color::ImmutableCell{DStyleColor}
 end
 ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_20,
                            header_font = font_liberation_sans_bold_30,
