@@ -199,6 +199,24 @@ but neither was the plain form; **neutral, nothing lost**). `font_ubuntu_*` cons
 **Verdict: the promotion pattern is safe and non-breaking.** Proceed to `StyleColor` (the real isbits
 win) and `StyleText`, same pattern.
 
+### All three promoted — DONE, all clean
+
+| type | commit | config cells re-typed | isbits? | suites |
+|---|---|---|---|---|
+| `StyleFont` | `70ba9697` | 4 → `DStyleFont` | no (String) — neutral | visual 47233/1, domain 99073/1err/9br |
+| `StyleColor` | `28181c51` | 4 → `DStyleColor` | **yes** (isbits win kept) | byte-identical to baseline |
+| `StyleText` | `8e8ab4ba` | 203 (19 files) → `DStyleText` | no (font String) — neutral | byte-identical to baseline |
+
+Every run byte-identical to the pre-promotion baseline (the one `domain` error is the pre-existing
+`TableNavigationTest:194` table-nav issue). **The `<: Document` blast radius never materialized** —
+because `_value_kind`'s `_has_cell_fields` tests `isa Cell` (`ReactiveCell{Any}`) and the default
+(`D…`) forms hold `ImmutableCell`s, so they stay `:opaque` leaves automatically; only a *reactive*
+`R…` form reads as an editable struct. `DStyleColor` is isbits (colour math stack-allocates, config
+cells inline-as-bits); `DStyleFont`/`DStyleText` are inlined-not-isbits (a `String` is present, as
+before — neutral). Each `Style*` is now a value-document: `Style*(…)`/reads/`::Style*` unchanged at
+call sites, config cells inline via `DStyle*`, and `RStyle*` is a reactive, selectable, **editable**
+form ready for a future colour/font picker.
+
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.
 - Macro infrastructure for the promotion is DONE (Parts A + explicit-selection + `DFoo`). The
