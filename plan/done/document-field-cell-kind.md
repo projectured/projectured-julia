@@ -185,10 +185,37 @@ Exact per-field kind map derived (all fields `ImmutableCell{declared-type}`, fun
 `ImmutableCell{Any}`, `TextHighlighting`'s `pattern`/`case_insensitive` stay `Cell`). 10 of 11
 are cleanly migratable; `TextHighlighting` needs access-site rewrites.
 
-**Recommendation:** since it is uniformity-only, migrate the pure-config projections that fit the
-transparent model, and let cell/function-managing projections (`TextHighlighting`) stay plain —
-i.e. "projections use `@projection` unless they deliberately manage their own cells." Pending the
-user's call on scope.
+**Decision (user):** the "clean subset". Migrated the **7 pure-config projections** to
+`@projection` with `ImmutableCell` fields — `InsertionNothingToSyntaxLeaf`,
+`JuliaInsertionToSyntaxLeaf`, `SqlBooleanBinaryToSyntaxNode`, `PrimitiveStringToTextBlock`,
+`SelectionInverting`, `ReferenceInspectorToText`, `TextLineNumbering` — and added the
+`@projection` import to the 4 modules that lacked it. **Left plain** (do not fit the
+transparent-value model): `TextHighlighting` (self-manages reactive cells), `InsertionToSyntaxLeaf`
+/ `WidgetScrollPaneToGraphicsViewport` (function fields accessed as functions), `ObjectToWidget`.
+Adopted principle: *projections use `@projection` unless they deliberately manage their own cells/functions.*
+No fanout change (these were already value-not-cell). Precompile clean.
+
+## Final verification (Phases 2 / 3a / 3b together)
+
+- `test_visual()` — **47 233 pass / 1 broken / 0 fail / 0 error**.
+- `test_domain()` — **99 073 pass / 9 broken / 0 unmarked fail / 1 error**. The one error
+  (`TableNavigationTest.jl:194`, a `SelectionMismatch` in table Alt/arrow nav) is **pre-existing on
+  baseline b27dbd11** (verified in a baseline worktree — same location/message/counts); it is the
+  known "table Alt+arrow" incomplete area, not a regression.
+- `test_kernel()` (after Phase 1) — 431 pass / 0 fail / 0 error.
+
+## Outcome
+
+- **Feature:** `@document` and `cell_struct_exprs` accept a per-field cell-kind annotation
+  (`f::ImmutableCell{T}` / `MutableCell{T}`); shared parse in `StructPlan`. Backward-compatible
+  (byte-identical codegen when nothing is annotated).
+- **Fanout:** workbench dependent-edge sum **16 103 → 12 716 (−21%)**; high-fanout cells (>16)
+  **18 → 8**. The remaining top cells are `TextString.content` (editable, must stay reactive),
+  `fill_color` (written by highlighting), and `GridLayoutIoMap.columns` (not style).
+- **Also:** immutable cells inline into their parent (no `Set`+`Vector` per style cell).
+- **Left for later (optional):** widening `fill_color`/`line_color` to
+  `ImmutableCell{Union{StyleColor,Nothing}}`; the `StyleFont`/`StyleColor` graphics-primitive
+  colours are intentionally left reactive (dynamic: animation/layout/highlighting).
 
 ## Measurement harness
 
