@@ -17,8 +17,20 @@ import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
+import ProjecturedKernel.ProjectionReferenceModule: ProjectionReference
+import ProjecturedKernel.ReferenceModule: ConcreteReferencePath
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+
+# Does the (input-domain) reference pass through any projection-introduced output?
+# A `ProjectionReference` step *anywhere* means that part of the path has no document
+# pre-image, so an edit targeting it cannot be applied and the op-reader defers it —
+# the raw key then falls through to the structural gesture. Head-only
+# `is_introduced_reference` is not enough: a scalar nested in a container maps to
+# `.elements[i] → ProjectionReference(.open)`, with the introduced step below the head.
+_targets_introduced_output(p::ConcreteReferencePath) =
+    p.head isa ProjectionReference || _targets_introduced_output(p.tail)
+_targets_introduced_output(::Any) = false
 
 function read_intent(projection::Projection, iomap, operation::ReplaceStringRangeOperation)
     input_ref = map_reference_backward(projection, iomap, operation.reference)
@@ -45,6 +57,13 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     w isa AtomicWiring && w.bound_field === nothing && return nothing
     new_ref = map_reference_backward(p, iomap, op.reference)
     new_ref === nothing && return nothing
+    # An edit that maps onto projection-introduced output — a delimiter the projection
+    # printed (a JSON string's quotes, a bracket), with no document pre-image — is
+    # deferred, so the raw key falls through to the structural gesture rather than
+    # writing into the projection's own constant output. `_atomic_backward` proj-wraps
+    # such a reference (at the head for a directly-projected scalar, or below an
+    # `.elements[i]` step for a nested one), which `_targets_introduced_output` detects.
+    _targets_introduced_output(new_ref) && return nothing
     if w isa AtomicWiring && w.retype !== nothing
         return w.retype(new_ref, op.replacement)
     end

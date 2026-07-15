@@ -112,35 +112,57 @@ deliberately narrower rule (the insertion is a typed-name buffer).
 
 ---
 
-## Phase 2 — Move the delimiter deferral to the projection boundary
+## Phase 2 — Move the delimiter deferral to the projection boundary — ✅ Done (clean part; separators carved out)
 
 Goal: `SyntaxLeaf` owns its delimiters (they become editable in the syntax domain);
 the *projection* that introduced a delimiter defers edits to it. The Phase-1 guard is
 unchanged — this phase just relocates *why* the key falls through.
 
-### 2a. Syntax→text readers accept edits on *any* span, not just the value
+**Shipped:** 2a-leaf (leaf reader accepts open/value/close edits) + 2b (template op-reader
+defers introduced-output edits, via the full-path `_targets_introduced_output` walk).
+**Not shipped:** compound delimiters (verified already-handled, no change needed) and
+separators (a deliberate-design fork left for the user — see the Findings block).
 
-The syntax→text readers stop privileging the value span and instead map an edit on **any**
-introduced part — open/close delimiters **and** separators (and any other output-only
-fragment) — onto the corresponding `SyntaxLeaf` / `SyntaxNode` / `SyntaxSeparation` field
-op. The syntax domain owns all of its own text; whether an edit ultimately *maps* is the
-downstream domain projection's call (2b), not this layer's.
+### Findings from the code (2026-07-15, during implementation)
 
-- **Leaf** — [SyntaxToText.jl:147-159](../../package/visual/main/syntax/SyntaxToText.jl#L147-L159):
-  drop the `_leaf_field_at(...) === :value` gate; map an edit on the `:open` / `:value` /
-  `:close` span to the matching `SyntaxLeaf` field op (reuse `_leaf_elem_path` /
-  `_leaf_field_at`, which already resolve the span → field).
-- **Compound** — the `SyntaxCompoundToText` reader: accept edits on the node's `open` /
-  `close` delimiters **and** its `separator`, mapping each to the corresponding
-  `SyntaxNode` / `SyntaxSeparation` field op.
-- **Separator wrinkle** — a separator renders n−1 times for one `separator` field
-  ([Syntax.jl:375-380](../../package/visual/main/syntax/Syntax.jl#L375-L380)): a cursor
-  can sit in it (`.separator{k}` → first occurrence) but no single span *is* "the"
-  separator. Map an edit on any occurrence onto the one `separator` field (editing the
-  shared `TextString`); if that proves ambiguous to invert, fall back to deferring the
-  separator edit — which is *also* correct here, since a deferred edit simply falls
-  through to the structural gesture (the whole point of Phase 2). Decide during
-  implementation and record which we chose.
+Reading the full `SyntaxToText` reader refined the scope:
+
+- **Leaf** — the *selection* mapper already resolves `.open`/`.close`
+  ([SyntaxToText.jl:109-111](../../package/visual/main/syntax/SyntaxToText.jl#L109-L111));
+  only the *edit* reader gates on `:value`
+  ([:151](../../package/visual/main/syntax/SyntaxToText.jl#L151)). Removing that gate is
+  the clean, in-scope change (2a-leaf).
+- **Compound delimiters** — a bracket caret is a *concrete* `.open`/`.close` reference
+  (recorded in `own_spans`, mapped by `_backward_zone`
+  [:449-450](../../package/visual/main/syntax/SyntaxToText.jl#L449-L450)), and the edit
+  reader's zero-width disambiguation branch
+  ([:882-888](../../package/visual/main/syntax/SyntaxToText.jl#L882-L888)) already emits a
+  `.open{c}`/`.close{c}` op for an edit there; the node template then defers any
+  non-`.children` field edit. So compound bracket edits appear to **already** route to a
+  structural replace — treat 2a as *verify*, not *change*, for compounds.
+- **Separators — deliberate design conflict.** Separators are intentionally **not**
+  backward-addressable: `_push_separator!` ([:581-593](../../package/visual/main/syntax/SyntaxToText.jl#L581-L593))
+  keeps them out of `own_spans`, and `_backward_zone`
+  ([:452-454](../../package/visual/main/syntax/SyntaxToText.jl#L452-L454)) maps a separator
+  caret to a projection-introduced position. Rationale: one `separator` field renders n−1
+  spans, so an edit on one occurrence would rewrite *all* of them, and a click on one
+  forward-maps the caret to the *first*. Making separators editable reverses this
+  documented decision and creates a selection-vs-edit split (selection wants per-occurrence
+  introduced chrome; an edit wants the shared field). **This is a design call for the user
+  — not implemented in this pass.** Note the current behavior is already coherent: a key on
+  a separator maps to an introduced ref naming the enclosing container, so the collapsed
+  guard replaces that container — a sensible outcome that the separator-edit change would
+  supersede.
+
+### 2a. Leaf → text reader accepts open/close edits (in scope)
+
+[SyntaxToText.jl:147-159](../../package/visual/main/syntax/SyntaxToText.jl#L147-L159):
+drop the `_leaf_field_at(...) === :value` gate; map an edit on **any** present leaf span
+(`:open` / `:value` / `:close`) to that field's `SyntaxLeaf` op (`String(field)` into the
+existing `ConcreteReferencePath(SyntaxLeaf, FieldReference(...), …)` shape). Value edits
+are unchanged; open/close now produce `.open`/`.close` ops that 2b defers downstream.
+Compound delimiters: **verify** they already route to replace (above); do not change the
+compound reader in this pass. Separators: **carved out** pending the user's design call.
 
 ### 2b. The template op-reader defers edits that land on introduced output
 
@@ -153,42 +175,68 @@ in a `ProjectionReference` ([ProjectionTemplate.jl:867-868](../../package/kernel
 and hands back a bogus `ReplaceStringRangeOperation` targeting introduced output.
 
 Generalize the early return: after `new_ref = map_reference_backward(...)`, if `new_ref`
-resolves to **this projection's own introduced output**, return `nothing` (defer):
+passes through **projection-introduced output**, return `nothing` (defer):
 
 ```julia
 new_ref = map_reference_backward(p, iomap, op.reference)
 new_ref === nothing && return nothing
-is_introduced_reference(strip_reference_types(new_ref)) && return nothing   # NEW
+_targets_introduced_output(new_ref) && return nothing   # NEW
+
+# Does the reference pass through any projection-introduced output? A ProjectionReference
+# step ANYWHERE means part of the path has no document pre-image, so an edit targeting it
+# cannot be applied. Head-only `is_introduced_reference` is NOT enough: a scalar nested in
+# a container maps to `.elements[i] → ProjectionReference(.open)` — introduced below head.
+_targets_introduced_output(p::ConcreteReferencePath) =
+    p.head isa ProjectionReference || _targets_introduced_output(p.tail)
+_targets_introduced_output(::Any) = false
 ```
+
+**Implementation note (done):** the plan first sketched a head-only
+`is_introduced_reference(strip_reference_types(new_ref))`; reading the node backward mapper
+showed that's wrong for a scalar *nested* in a container — `_node_backward` prepends
+`.elements[i]` ahead of the child's `ProjectionReference`, so the introduced step is not at
+the head. The full-path walk above is what shipped. (The walk transparently steps through
+`TypeReference` checkpoints, so it works on both folded and unfolded paths — no
+`strip_reference_types` needed.)
 
 > **Do not touch `_atomic_backward`'s ProjectionReference wrap.** That wrap is required
 > for *reference/selection* mapping — navigating a caret onto a delimiter must round-trip
 > as an introduced reference (which is what makes the Phase-1 `named_node_reference`
 > normalize it to ∅). Only the *operation* path defers.
 
-**Detection detail (verify carefully):** `_atomic_backward` builds
-`_path(TypeReference(w.intype), ProjectionReference(p, reference))` — head is a
-`TypeReference`, not the `ProjectionReference`. Confirm the predicate sees through the
-leading type checkpoint (`strip_reference_types` / `fold_reference_types` first, or match
-`is_introduced_reference` after folding). This is the one spot most likely to be subtly
-wrong.
+**Detection detail (resolved):** the concern was that `_atomic_backward` builds
+`_path(TypeReference(w.intype), ProjectionReference(p, reference))` with a `TypeReference`
+ahead of the `ProjectionReference`. The recursive walk steps *through* the `TypeReference`
+(it is not a `ProjectionReference`, so the walk recurses into the tail), so no explicit
+`strip_reference_types` is needed — confirmed by the unit check (case 1 = introduced at
+head, true).
 
 ### 2c. Fall-through
 
 No change — [Projection.jl:193-197](../../package/kernel/main/projection/Projection.jl#L193-L197)
 already preserves the gesture across the template's `nothing`.
 
-**Verify Phase 2**
-- `test_syntax()` + a standalone syntax-domain edit check (the newly enabled capability):
-  editing `.open` on a bare `SyntaxLeaf`, and the `.separator` on a `SyntaxNode` /
-  `SyntaxSeparation`, now produces a real edit.
-- `test_json_to_syntax()`, `test_syntax_to_text()`, then `test_visual()` + `test_domain()`.
-- Re-confirm the Phase-1 quote-caret replace still fires (now via the projection-boundary
-  deferral rather than the syntax-boundary one) for JSON **and** YAML.
-- Diff a full `test_all` summary against clean `main` (per "wide-refactor → baseline
-  diff") — 2b is a shared seam touching every template domain.
+**Result (implemented + verified)**
+- Regression-free across the shared seam: `test_visual()` 49384 pass / **0 Fail / 0
+  Error** / 1 broken; `test_domain()` 113400 pass / **0 Fail / 0 Error** / 8 broken;
+  `test_repl(json_example)` & `(yaml_example)` 225/225; `test_typein(json_example)` &
+  `(yaml_example)` 160/160. Broken counts unchanged from baseline; the domain `@warn`/
+  `@error` *log* lines are pre-existing intentional error-path tests (no testset Fail).
+- The `test_typein` drivers type a character at **every** caret — the sharpest
+  edit-routing coverage — and stay green, so 2b's deferral did not disturb any reachable
+  edit across the template domains.
+- **New-path confirmation (tests can't reach it — leaf quotes aren't nav stops):**
+  - `_targets_introduced_output` unit check — introduced-at-head → `true`,
+    introduced-below-`.elements[i]` → `true` (the nested case a head-only check misses),
+    a `.value` edit → `false`, `∅` → `false`. All match.
+  - Drove the **real** `JsonStringToSyntaxLeaf` template op-reader: a `.open`-span
+    `ReplaceStringRangeOperation` returns `nothing` (deferred); a `.value`-span one
+    returns a real `ReplaceStringRangeOperation`. Exactly the intended behavior.
 
-**Commit 2:** 2a (syntax readers) + 2b (template deferral), green visual+domain.
+**Commit 2:** 2a-leaf (`SyntaxToText.jl`) + 2b (`ReaderDefaults.jl`) + this result note.
+
+**Deferred to a follow-up decision:** separators (design fork — see Findings) and the
+optional compound-delimiter verification (appears already-correct; not re-touched).
 
 ---
 

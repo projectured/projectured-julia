@@ -139,20 +139,24 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelecti
 end
 
 # Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
-# `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op (`.value[s:e]`).
-# Only an edit landing on the *value* span is accepted; editing into an open/close
-# delimiter span is deferred — those are typically projection-introduced
-# characters that need a different kind of structural edit. Which element index
-# the value occupies depends on which delimiters the leaf has, so ask the leaf.
+# `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op on the edited span's
+# field. An edit on ANY present span — `.open` / `.value` / `.close` — maps to that
+# field: the syntax domain owns all of its own text. The `.value` edit maps on through
+# to the input document; an `.open` / `.close` edit is a projection-introduced delimiter,
+# which the downstream domain projection defers (no document pre-image; see the
+# introduced-output branch in `ReaderDefaults`), so the key falls through to the
+# structural gesture. Which element index each span occupies depends on which delimiters
+# the leaf has, so ask the leaf.
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
-    _leaf_field_at(iomap.input, span_idx) === :value || return nothing
-    # A char range over the leaf's `value` TextString lands on no document node
-    # (a text selection, like a cursor) — spell the node types so the reference
-    # is fully typed: `::SyntaxLeaf.value::TextString[s:e]::Position`.
-    new_ref = ConcreteReferencePath(SyntaxLeaf, FieldReference("value"),
+    field = _leaf_field_at(iomap.input, span_idx)
+    field === nothing && return nothing
+    # A char range over the span's TextString lands on no document node (a text
+    # selection, like a cursor) — spell the node types so the reference is fully typed:
+    # `::SyntaxLeaf.<field>::TextString[s:e]::Position`.
+    new_ref = ConcreteReferencePath(SyntaxLeaf, FieldReference(String(field)),
                   ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
                       EmptyReferencePath(Position)))
     ReplaceStringRangeOperation(new_ref, op.replacement)
