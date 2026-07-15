@@ -206,7 +206,7 @@ function map_reference_forward(p::YamlSequenceToBlockSyntaxNode, iomap::Children
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].content.^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxDelimitation.content.^(inner)
         end
     end
 end
@@ -221,7 +221,7 @@ function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::Childre
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::YamlSequence.elements[child_i].^(inner)
+            @reference ::YamlSequence.elements::CellVector[child_i].^(inner)
         end
     end
 end
