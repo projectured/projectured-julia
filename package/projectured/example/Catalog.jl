@@ -69,6 +69,7 @@ _terminal_of(@nospecialize T) = !(T isa Type) ? :abstract :
 
 is_text(@nospecialize T)     = T isa Type && T <: TextDocument
 is_graphics(@nospecialize T) = T isa Type && T <: GraphicsDocument
+is_syntax(@nospecialize T)   = T isa Type && T <: SyntaxDocument
 
 # All-shortest-paths BFS from `start` to the first frontier where `reached(T)` holds.
 # Returns each path as an ordered vector of bridge thunks (empty ⇒ already there).
@@ -163,6 +164,26 @@ end
 catalog_domain(ex::Example) = Symbol(first(split(ex.name, '/')))
 runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/web, text→console
 
+# A document whose own gestures can change its type: a domain's insertion buffer (Enter
+# commits it to a concrete node) or its nothing placeholder (Insert turns it into that
+# insertion). A bare single-type leaf cannot reproject the swapped type — reprinting an
+# `RJuliaNothing` walk after `:insert` through `JuliaNothingToSyntaxLeaf` throws once the
+# document has become a `JuliaInsertion` — so such an atom's syntax variant must use the
+# domain's whole-tree dispatching projection instead (what its text/graphics variants
+# already chain through). `domain_insertion(D)` names the domain's insertion for any of
+# its documents; `nothing_document` names the matching placeholder.
+#
+# `D` here is the *reactive* document type — `@document` makes `RJuliaNothing` an alias for
+# `JuliaNothing{cell kinds…}`, a parameterization of the base `JuliaNothing` — while the
+# domain traits return the base types. Compare with `<:`, not `===`, so the parameterized
+# reactive type still matches (the insertion/nothing types are concrete leaves, so `<:`
+# is exact — nothing else is a subtype).
+function _self_modifying(@nospecialize D)
+    ins = domain_insertion(D)
+    ins === nothing && return false
+    D <: ins || D <: nothing_document(ins)
+end
+
 # ── Generator: up to three Examples per atomic document ─────────────────────────────
 # `domain/name/syntax` (trivial single-step), `domain/name/text`, `domain/name/graphics`.
 # Each is a plain `Example` (origin = :generated); variants that aren't reachable are
@@ -176,8 +197,16 @@ function _atom_examples(ad::AtomicDocument)
                                     ad.make_document, mkproj;
                                     terminal = term, origin = :generated)
 
-    syn = _single_step(D, doc, :syntax)
-    syn === nothing || push!(out, variant(:syntax, () -> syn()))
+    # The syntax variant is the trivial single-step leaf, except for a self-modifying
+    # document, whose bare leaf can't reproject a type swap — it takes the whole-tree
+    # dispatching projection reaching :syntax (skipped if the domain has no such bridge).
+    if _self_modifying(D)
+        syn_seqs = filter(!isempty, path_sequences(doc, is_syntax))
+        isempty(syn_seqs) || push!(out, variant(:syntax, () -> _compile(first(syn_seqs))))
+    else
+        syn = _single_step(D, doc, :syntax)
+        syn === nothing || push!(out, variant(:syntax, () -> syn()))
+    end
 
     text_seq = _text_sequence(D, doc)
     text_seq === nothing || push!(out, variant(:text, () -> _compile(text_seq)))

@@ -125,7 +125,7 @@ Each entry is a plain `Example` whose `name` is a hierarchical **`domain/name/va
 path — the name doubles as the filter:
 
 ```julia
-julia> catalog()                                  # every generated Example (~90)
+julia> catalog()                                  # every generated Example (~111)
 julia> catalog(; domain = :json)                  # one domain
 julia> catalog(; document = "string")             # one document across domains
 julia> catalog(; terminal = :graphics)            # everything runnable on screen
@@ -144,11 +144,15 @@ julia> test_catalog(; domain = :julia)            # just one domain
 julia> test_catalog(; testers = (test_printer,))  # just one tester
 ```
 
-A domain is included once its leaf projections are **bidirectional and navigable**.
-Deliberately *not* in the catalog yet (each would need real domain work, not a catalog
-change): SQL (read-only v1 — no readers), `filesystem/file` (introduced-token caret not
-wired for graphics navigation), and the type-swap-on-commit leaves (`julia/nothing`,
-`julia/insertion`). See `plan/done/atomic-example-catalog.md` for the full list.
+A domain is included once its leaf projections are **bidirectional and navigable**. The
+catalog covers json, yaml, xml, primitive, markdown, math, julia, book, filesystem, and
+sql — including the opaque display leaves (their introduced-text carets collapse to a
+bounded `proj(p, …)` position, navigable but non-editable) and the self-modifying
+`*Nothing` / `*Insertion` documents (whose syntax variant uses the domain's dispatching
+projection, since a bare leaf can't reproject a type swap). Still *out of scope* (low value
+or infra-gated, not a catalog change): **formula** (its only leaf is an insertion),
+**dbcatalog** (ODBC-gated), and **conversation** (no clean leaf atoms). See
+`plan/done/catalog-deferred-atoms.md` for how the SQL / filesystem / julia atoms were added.
 
 ## Testing a single example
 

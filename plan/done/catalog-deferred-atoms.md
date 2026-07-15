@@ -69,16 +69,47 @@ Bare leaves that type/commit-swap their node type on edit; the bare projection c
 the swapped type (only the full pipeline dispatches it). Needs the bare leaf to tolerate /
 reproject the swapped type, or the atom to carry the dispatching projection.
 
-- [ ] Diagnose the swap: what type does the edit produce, and why the bare leaf can't reprint.
-- [ ] Decide fix vs. atom-projection choice; implement.
-- [ ] Register the julia atoms; confirm catalog green.
+- [x] Diagnose (empirical): only **`julia/nothing/syntax` repl** fails (1 fail) —
+  `:insert` swaps `JuliaNothing → JuliaInsertion("")`, and the bare `JuliaNothingToSyntaxLeaf`
+  has no `print_document(::JuliaNothingToSyntaxLeaf, _, ::JuliaInsertion, _)` → MethodError.
+  **`julia/insertion` is fully green** (empty buffer doesn't commit-swap in the walk), and
+  `julia/nothing/{text,graphics}` are green (the dispatching bridge reprojects the swap).
+- [x] Fix — **catalog-level** (`Catalog.jl`), the principled choice: a self-modifying document
+  (its own gestures change its type) can't be projected by a bare single-type leaf, so its
+  **syntax variant uses the whole-tree dispatching projection** (what text/graphics already
+  chain through). Added `_self_modifying(D)` (`D` is the domain's insertion `domain_insertion(D)`
+  or its `nothing_document`), `is_syntax`, and the routing in `_atom_examples`
+  (`path_sequences(doc, is_syntax)` instead of `_single_step`). Applies uniformly to all 5
+  insertion/nothing atoms (julia + markdown/math/book insertion) — the others keep the bare leaf.
+- [x] Register `julia/nothing` + `julia/insertion` atoms. **Full `test_catalog()` green (below).** ✅
 
 ## Verification
-- Per item: `test_catalog(; domain=:<domain>)` green, plus the domain's own suite
-  (`test_filesystem_to_syntax()`, `test_sql*()`, `test_julia*()`) unaffected.
-- Final: full `test_catalog()` green (0 fail/error/broken), count grows by the added atoms × 3.
+
+- Per item (all green, each run under the memory cap): `test_catalog(; domain=:filesystem)`
+  → 1546 pass; `test_catalog(; domain=:sql)` → 6376 pass; `test_catalog(; domain=:julia)`
+  → julia/nothing/syntax was the last holdout.
+- **Final: full `test_catalog()` → 58913 pass / 0 fail / 0 error / 0 broken (1m09s).**
+  **111 variant-entries = 37 atoms × 3 variants across 10 domains** (was 30 atoms → 90 entries);
+  +7 atoms: `filesystem/file`, `sql/{all_columns,column_name,table_name,scalar_value}`,
+  `julia/{nothing,insertion}`. No regressions in the other 30 atoms.
 - All Julia runs under the memory cap:
   `systemd-run --user --scope -q -p MemoryMax=12G -p MemorySwapMax=0 julia --project=. …`
 
 ## Notes / decisions
-_(filled in as work proceeds)_
+
+- **Two of the three deferred notes were partly stale.** SQL had *gained* a shared
+  `read_intent = nothing` (not "no reader"), so its failure was an ambiguity, not a plain
+  MethodError. And julia/insertion turned out **already green** — only julia/nothing failed.
+  Reproducing first (before designing a fix) caught both, each time.
+- **One recurring pattern across filesystem + sql:** a caret/edit on *projection-introduced*
+  content (text with no input field) must be handled explicitly. Selection carets collapse to a
+  bounded `proj(p, …)` introduced reference (so navigation stays bounded — the runaway the
+  template's default fallback would cause); edits are declined. Declines must name the exact
+  operation type — a catch-all `op` is ambiguous with `ReaderDefaults` / the template's typed
+  readers and throws `MethodError` (world age `0x97ef` is the tell).
+- **julia was structural, not a mapper bug:** a self-modifying document needs a *dispatching*
+  projection; the fix is at the catalog (how the syntax variant is chosen), not in the domain.
+  The `_self_modifying` predicate must compare with `<:` because `D` is the reactive type
+  (`RJuliaNothing = JuliaNothing{…}`) while the domain traits return base types.
+- Every run was under the `systemd-run … MemoryMax=12G` cap; no OOM or runaway occurred
+  (the SQL and julia-nothing failures both reached *fewer* states, not more).

@@ -153,7 +153,6 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:sql, "column_name",  make_sql_column_name_document_example),
     AtomicDocument(:sql, "table_name",   make_sql_table_name_document_example),
     AtomicDocument(:sql, "scalar_value", make_sql_scalar_value_document_example),
-    # Deferred (catalog surfaced pre-existing gaps — see plan/done/atomic-example-catalog.md):
-    #   • julia/nothing, julia/insertion — bare leaves that type/commit-swap on edit; the bare
-    #                       projection can't reprint the swapped type (the full pipeline can).
+    AtomicDocument(:julia, "nothing",   make_julia_nothing_document_example),
+    AtomicDocument(:julia, "insertion", make_julia_insertion_document_example),
 ]
