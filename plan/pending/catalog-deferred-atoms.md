@@ -42,10 +42,27 @@ into a nonexistent field.
 `MethodError`. Needs `read_intent` on the leaf stages + a `SqlToSyntax` bridge into the
 projection graph, then the sql atoms drop in.
 
-- [ ] Audit which SQL leaf stages exist and what a bound/introduced caret needs.
-- [ ] Add `read_intent` (+ backward mappers where missing).
-- [ ] Add `SqlToSyntax` bridge to `BRIDGES` if reachability to text/graphics is wanted.
-- [ ] Register the sql atoms; confirm catalog green.
+- [x] Audit: the 7 leaf stages are `@projection_template` opaque display leaves (RuleIoMap),
+  sharing one `read_intent(::Union{7 leaves}, ::RuleIoMap, op) = nothing`. The note was
+  **partly stale** — the failure isn't a plain "no reader" MethodError, it's an **ambiguity**:
+  the `op::Any` decline collides with the template's typed readers (gesture
+  `::Union{KeyPress,KeyDown}`, `ClaimedGesture`, and `ReaderDefaults`' `::ReplaceStringRangeOperation`).
+  Never triggered before because sql leaves were always embedded; a *bare* atom receives raw
+  gestures directly → `MethodError` on every reader/repl/nav event.
+- [x] Reproduce: `test_catalog(; domain=:sql)` → **2228 fail** (all the ambiguity MethodError,
+  world age `0x97ef`); printer passes, nav reaches 0 states (seed throws — NOT a runaway).
+- [x] Fix (`SqlToSyntax.jl`): **remove** the `op::Any` catch-all; add for the 7-leaf Union
+  `_SqlDisplayLeaf`:
+  - `read_intent(::_SqlDisplayLeaf, ::RuleIoMap, ::ReplaceSelectionOperation)` — try the
+    template backward, else collapse to a bounded flat offset `proj(p, {flat})` via
+    `_syntax_to_flat` (exactly XmlElementToSyntaxNode). Keeps nav **bounded** (the memory's
+    runaway risk) and enumerable.
+  - `map_reference_forward(::_SqlDisplayLeaf, ::RuleIoMap, ref)` — pass introduced refs through.
+  - Gestures fall to the template reader; text edits are declined by `ReaderDefaults`' opaque-leaf
+    rule — so no `op::Any` decline is needed (that was the ambiguity).
+- [x] Add a `SqlToSyntax` bridge to `BRIDGES` (text/graphics reachability) + 4 atoms
+  (all_columns / column_name / table_name / scalar_value). **`test_catalog(; domain=:sql)`
+  → 6376 pass / 0 fail / 0 error / 0 broken.** ✅
 
 ### 3. julia/nothing + julia/insertion — bare-leaf reprint of a type-swapped node
 Bare leaves that type/commit-swap their node type on edit; the bare projection can't reprint

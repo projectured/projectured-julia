@@ -3,6 +3,14 @@ function make_sql_document_example()
     SqlSelectStatement("persons")
 end
 
+# Atomic SQL leaves — one meaningful instance each, for the catalog. These are the
+# opaque display leaves (all_columns / column_name / table_name / scalar_value):
+# non-editable, but navigable once the leaf stages carry the introduced-token caret.
+make_sql_all_columns_document_example()  = SqlAllColumns()
+make_sql_column_name_document_example()  = SqlColumnName("age")
+make_sql_table_name_document_example()   = SqlTableName("persons")
+make_sql_scalar_value_document_example() = SqlScalarValue(36)
+
 function make_sql_insert_document_example()
     # INSERT INTO persons (name, age) VALUES ('Ada', 36)
     SqlInsertStatement(

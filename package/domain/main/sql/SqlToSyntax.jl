@@ -39,7 +39,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, FieldReference, EmptyReferencePath
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -902,13 +902,38 @@ end
                end, p.style))
 
 # All seven SQL leaf projections are opaque display leaves: their content is a
-# computed multi-field display with no editable interior, so editing operations
-# are declined (matching the original per-leaf `read_intent = nothing`). The
-# engine's generic RuleIoMap readers would otherwise try to map an edit back.
-read_intent(::Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
-                        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
-                        SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
-                        SqlScalarValueToSyntaxLeaf}, iomap::RuleIoMap, op) = nothing
+# computed multi-field display with no editable interior. A caret on that introduced
+# text has no input pre-image, so — exactly like XmlElementToSyntaxNode — it is
+# collapsed to a bounded flat offset carried as a projection-introduced reference
+# (`proj(p, {flat})`). This keeps text-navigation bounded (the domain-neutral fallback
+# would grow the path without bound) while naming the whole node.
+#
+# The reader must name the *operation* types, not carry an `op` catch-all: a catch-all
+# `read_intent(::Sql…Leaf, ::RuleIoMap, op)` is ambiguous with the template's typed
+# readers — the gesture reader `read_intent(::Projection, ::RuleIoMap, ::Union{KeyPress,KeyDown})`,
+# the `ClaimedGesture` reader, and `ReaderDefaults`' `::ReplaceStringRangeOperation` — so a
+# bare SQL leaf atom would throw `MethodError` on every raw gesture. Instead we only add
+# the selection reader; raw gestures fall to the template's own reader, and text edits are
+# declined by `ReaderDefaults`' opaque-leaf rule (no bound field).
+const _SqlDisplayLeaf = Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+                              SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
+                              SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
+                              SqlScalarValueToSyntaxLeaf}
+
+function read_intent(p::_SqlDisplayLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result !== nothing && return ReplaceSelectionOperation(result)
+    flat = _syntax_to_flat(iomap.output::SyntaxLeaf, op.path, SyntaxCompoundToText(), 0)
+    flat < 0 && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+end
+
+# A `proj(p, …)` selection is this projection's own introduced position — pass it through
+# unchanged; everything else defers to the generic template mapper.
+function map_reference_forward(p::_SqlDisplayLeaf, iomap::RuleIoMap, reference)
+    is_introduced_reference(reference) && return reference
+    invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
+end
 
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 

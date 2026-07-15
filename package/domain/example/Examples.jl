@@ -149,9 +149,11 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:book, "picture",   make_book_picture_document_example),
     AtomicDocument(:book, "insertion", make_book_insertion_document_example),
     AtomicDocument(:filesystem, "file", make_filesystem_file_document_example),
+    AtomicDocument(:sql, "all_columns",  make_sql_all_columns_document_example),
+    AtomicDocument(:sql, "column_name",  make_sql_column_name_document_example),
+    AtomicDocument(:sql, "table_name",   make_sql_table_name_document_example),
+    AtomicDocument(:sql, "scalar_value", make_sql_scalar_value_document_example),
     # Deferred (catalog surfaced pre-existing gaps — see plan/done/atomic-example-catalog.md):
-    #   • sql/*        — SqlXxxToSyntaxLeaf are read-only (v1): no `read_intent`, so
-    #                    reader/repl/navigation MethodError. Add atoms when SQL gains readers.
     #   • julia/nothing, julia/insertion — bare leaves that type/commit-swap on edit; the bare
     #                       projection can't reprint the swapped type (the full pipeline can).
 ]
