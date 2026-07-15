@@ -51,8 +51,14 @@ JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument)
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
+# `bound` editing can transiently clear the value (the reactive `value` cell is
+# type-erased, so a mid-edit read may leave it non-`Bool`); render that state through
+# `hinted_text` so the `doc.value ? …` thunk is never evaluated on a non-`Bool` — the
+# same guard `JsonNumberToSyntaxLeaf` relies on for its `nothing` state.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
-    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc.value ? "true" : "false", prj.style)))
+    SyntaxLeaf(bound(:value, Bool,
+                     hinted_text(() -> doc.value ? "true" : "false",
+                                 () -> !(doc.value isa Bool), "enter json bool", prj.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 

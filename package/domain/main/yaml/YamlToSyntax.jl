@@ -74,8 +74,12 @@ YamlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(YamlDocument)
     style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
+# See JsonBoolToSyntaxLeaf: `hinted_text` guards the `doc.value ? …` thunk against a
+# transient non-`Bool` value produced by mid-edit `bound` reads.
 @projection_template YamlBoolToSyntaxLeaf YamlBool (prj, doc) ->
-    SyntaxLeaf(bound(:value, Bool, TextString(() -> doc.value ? "true" : "false", prj.style)))
+    SyntaxLeaf(bound(:value, Bool,
+                     hinted_text(() -> doc.value ? "true" : "false",
+                                 () -> !(doc.value isa Bool), "enter yaml bool", prj.style)))
 
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
 

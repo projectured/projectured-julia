@@ -219,19 +219,25 @@ gains the `document` filter and iterates the registry. `catalog_domain` reads
   + all wiring; wired `test_catalog()` into `test_all`; pruned `json_null`/`json_string`/
   `primitive_string` (kept their doc makers) and fixed the fallout (a crash in
   `test_json_content_clicks_clean_all`, a dead typein `@broken` marker, the tour name list).
-  Verified: `test_catalog()` **20051 passed / 0 fail / 0 error / 2 skipped**; `test_json()` clean.
+  Verified: `test_catalog()` (printer/reader/repl + position-navigation) **20617 passed / 0
+  fail / 0 error / 0 broken**; `test_json()` / `test_json_to_syntax()` clean.
+- [x] **Follow-up — fix the two bugs the catalog surfaced.** DONE (see "Bugs surfaced …" below):
+  the `JsonBool`/`YamlBool` bare-root round-trip crash, and position-navigation (it needed the
+  `:graphics` terminal, not `:text`). Both catalog gaps closed; suite fully green with
+  position-navigation back in the default testers.
 - [ ] **Phase D — broaden (defer).** Fill out the remaining leaf atoms (julia statements, sql
   clauses, book, formula, filesystem, dbcatalog, the `*Insertion` buffers) — several need a
   whole-tree bridge (`MathToSyntax`, `SqlToSyntax`, …) added to `BRIDGES` to reach text/graphics;
-  fix the two known gaps below; decide whether any `→ graphics` catalog entries join the
-  screenshot gallery; document the hierarchy/filters in the example/testing guides.
+  decide whether any `→ graphics` catalog entries join the screenshot gallery; document the
+  hierarchy/filters in the example/testing guides.
 
 ## Implementation results (2026-07-15)
 
 **Scope landed:** 14 atoms → **40 catalog entries**. json (null/bool/number/string), yaml
 (null/bool/number/string), primitive (string/number/bool) → all three variants; xml/text,
 markdown/text → all three; math/variable → `:syntax` only (no `MathToSyntax` bridge yet).
-`test_catalog()` default runs printer/reader/repl over all 40 → **20051 assertions pass**.
+`test_catalog()` default runs printer/reader/repl over all 40 + position-navigation over the 13
+`:graphics` entries → **20617 assertions pass, 0 fail/error/broken**.
 
 **Design facts confirmed during implementation:**
 - The reachability graph (`BRIDGES`) only reaches text/graphics for domains with a whole-tree
@@ -241,23 +247,27 @@ markdown/text → all three; math/variable → `:syntax` only (no `MathToSyntax`
 - Building the catalog is cheap — projection *objects* are constructed, not run (the slow
   `TextToGraphics` fires only when a test/example actually prints a `:graphics` entry).
 
-## Known gaps surfaced by the catalog (follow-ups, tracked as skips)
+## Bugs surfaced by the catalog — and fixed
 
-The catalog did its job and surfaced two **pre-existing** problems, both isolated so the suite
-stays green:
+The catalog did its job and surfaced two **pre-existing** problems that no prior example
+exercised. Both are now fixed (not skipped):
 
-1. **`json/bool/graphics` & `yaml/bool/graphics` REPL — `TypeError(:if, …, Bool, nothing)`.**
-   A REPL edit on a *bare-root* bool writes a non-`Bool` into `doc.value`; the reprint thunk
-   `() -> doc.value ? "true" : "false"` (JsonToSyntax.jl:55 / YamlToSyntax.jl) then hits
-   `if nothing`. Identical projection chain to `json/number/graphics` (which passes) ⇒ a
-   `JsonBool`/`YamlBool` bare-root round-trip bug, not a catalog defect. Skipped via
-   `_catalog_known_broken` in `CatalogTest.jl` (2 `@test_skip`).
-2. **`test_position_navigation` on every `:text` entry — no seed.** `Ctrl+Home` returns
-   `nothing` instead of a `ReplaceSelectionOperation` on the generated minimal composite text
-   projections (`PrimitiveStringToTextBlock`, `JsonToSyntax→SyntaxToText`), so 0 nav states
-   (fail-safe, no runaway). This is the flat-offset-reader / seed-gesture gap. Dropped from the
-   default `_CATALOG_TESTERS`; still a routed opt-in
-   (`test_catalog(testers=(test_position_navigation,))`) for when the seed is wired.
+1. **`JsonBool`/`YamlBool` bare-root round-trip crash — `TypeError(:if, …, Bool, nothing)`.**
+   A REPL edit on a bare-root bool transiently clears the type-erased `value` cell to a
+   non-`Bool`; the reprint thunk `() -> doc.value ? "true" : "false"` then hit `if nothing`.
+   `JsonBool.value::Bool` (unlike `JsonNumber.value::Union{Real,Nothing}`) had no guard.
+   **Fix:** render the thunk through `hinted_text(…, () -> !(doc.value isa Bool), …)` — the
+   same lazy guard `JsonNumberToSyntaxLeaf` uses — so the `? :` is never evaluated on a
+   non-`Bool` (JsonToSyntax.jl / YamlToSyntax.jl). Normal `true`/`false` rendering is unchanged.
+2. **Position-navigation needed the `:graphics` terminal, not `:text`.** `Ctrl+Home` (and the
+   arrow steps) move the caret by *visual* geometry, which only `TextToGraphics` computes — the
+   `:home` seed reader lives there. The catalog routed `test_position_navigation` to `:text`
+   entries (which stop before `TextToGraphics`), so the seed returned `nothing` (0 states — a
+   fail-safe, not a runaway). The manual `text`/`json` examples navigate precisely because their
+   projections run through `TextToGraphics`. **Fix:** `_required_terminal(test_position_navigation)
+   = :graphics` in `CatalogTest.jl`; it runs on the 13 `:graphics` entries and is back in the
+   default testers. (No flat-offset-reader work was needed — the diagnosis was a wrong-terminal
+   routing, not a missing reader.)
 
 **Pruning coverage note:** removing `json_string` dropped two of its bespoke assertions — a
 `test_json_content_clicks_clean` case and a known-`@broken` typein marker ("no operation at the
