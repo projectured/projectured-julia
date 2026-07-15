@@ -106,23 +106,31 @@ _emit_accessors(plan) = (
 """
     _emit_kind_aliases(plan, arg_names) -> Vector
 
-The kind aliases `RFoo` / `IFoo` / `MFoo`, the value-accepting typed constructors
-`IFoo(…)` / `MFoo(…)`, and the `_declared_value_types` method `copy_document(K, …)`
-reads a field's declared type from.
+The kind aliases `RFoo` / `IFoo` / `MFoo` / `DFoo`, the value-accepting typed
+constructors `IFoo(…)` / `MFoo(…)`, and the `_declared_value_types` method
+`copy_document(K, …)` reads a field's declared type from.
 
-`RFoo` is what the bare constructor builds; `IFoo` / `MFoo` wrap raw values in
-their kind's *typed* cells, so a fully-conforming node inhabits its alias.
+`DFoo` is the concrete type the **bare** constructor builds (the per-field default
+combination); `RFoo` / `IFoo` / `MFoo` wrap every field in one kind's *typed* cells,
+so a fully-conforming node inhabits its alias.
 """
-function _emit_kind_aliases(plan, arg_names)
+function _emit_kind_aliases(plan, arg_names; default::Symbol = :reactive)
     n     = length(plan.field_names)
     Tvals = declared_value_types(plan)
-    r_name, i_name, m_name = (Symbol(p, plan.name) for p in ("R", "I", "M"))
+    kinds = field_cell_kinds(plan; default = default)
+    r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("R", "I", "M", "D"))
 
     alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
+    # `DFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
+    # builds — each field in its default kind (`ReactiveCell{Any}`, or the struct
+    # default from a leading macro kind). For a value-document (immutable default,
+    # `selection::ImmutableCell{Nothing}`) it is isbits, so `ImmutableCell{DFoo}`
+    # inlines. `RFoo`/`IFoo`/`MFoo` instead force one kind across every field.
     aliases = [
         alias(r_name, fill(_REACTIVE_ANY, n)),
         alias(i_name, [Expr(:curly, ImmutableCell, T) for T in Tvals]),
         alias(m_name, [Expr(:curly, MutableCell,  T) for T in Tvals]),
+        alias(d_name, [_default_cell_type(kinds[i], Tvals[i]) for i in 1:n]),
     ]
 
     kind_ctor(kname, K) = :($(kname)($(arg_names...)) =
@@ -139,7 +147,7 @@ function _emit_kind_aliases(plan, arg_names)
     # them itself. A module re-exporting any of these names explicitly (e.g. the
     # bare name in a domain's `export` line) is a harmless duplicate.
     [aliases...,
-     Expr(:export, plan.name, r_name, i_name, m_name),
+     Expr(:export, plan.name, r_name, i_name, m_name, d_name),
      kind_ctor(i_name, ImmutableCell),
      kind_ctor(m_name, MutableCell),
      dvt]
@@ -356,7 +364,7 @@ macro document(args...)
     esc(Expr(:block,
              :(Base.@__doc__ $structdef),
              getprop, setprop,
-             _emit_kind_aliases(plan, arg_names)...,
+             _emit_kind_aliases(plan, arg_names; default = default)...,
              _emit_keyword_ctors(plan)...,
              # Rule Y (the cell layer's, generic over any cell struct), each arity
              # followed by its Rule C companion; then Rule C's element-sugar tail.
