@@ -152,6 +152,39 @@ and re-run the suites.
   macro risk; (b) is simpler but re-types the config fields. Pending the user's call before the
   pervasive `StyleColor` conversion.
 
+## Naming decision (user) + `DFoo` alias — DONE
+
+Chosen scheme: `StyleColor` stays the **parameterized stem** (UnionAll, `::StyleColor` matches all
+kinds); a new **`DFoo`** alias names the concrete **default combination** the bare ctor builds
+(isbits for a value-doc → `ImmutableCell{DFoo}` inlines); `RFoo`/`IFoo`/`MFoo` unchanged; config
+cells re-type to `DFoo`. Implemented (commit `36ed56c8`): `_emit_kind_aliases` emits+exports `DFoo`;
+verified `typeof(Foo(raw…)) === DFoo`, `DStyleColor` isbits, `ImmutableCell{DStyleColor}` inlines,
+`DFoo === IFoo` when the default is all-immutable, `DFoo === RFoo` for a reactive default.
+`test_kernel` 433/0/0.
+
+## Scope of the actual value-type promotion (StyleFont pilot survey) — the real blast radius
+
+Promoting `StyleFont`/`StyleColor`/`StyleText` to `@document` is **much bigger than naming**:
+
+- **They become `<: Document`.** Generic document machinery gates on `obj isa Document`
+  (`DocumentWalk.jl:165`; also search, selection enumeration, projection recursion). So walk/search
+  would **descend into every font/colour**, changing search hits, enumerated positions, and reference
+  paths across the codebase — broad expected test-count shifts and potential regressions.
+- **Per-type fallout:** each style module (`FontModule`, `ColorModule`, `StyleTextModule`) must import
+  `@document`/`ImmutableCell`/`Document`; `_value_kind` must keep them `:opaque` (they gain cell
+  fields); config cells re-type to `DFoo` (~5 for `StyleFont`, ~200 for `StyleText`); the SDL/render
+  hot path reads `.filename`/`.size`/`.red` through a cell (indirection).
+- **Memory benefit is uneven:** `StyleFont` has a `String` field → **not isbits either way** (config
+  cells already inline; promotion is memory-neutral, buys only editability). `StyleText` contains a
+  font+colour → also not isbits. **Only `StyleColor` (4×Float64) gets the isbits win.**
+
+**Recommendation:** the macro **infrastructure is complete and verified** (per-field kind, struct
+default, explicit selection, `DFoo`). The promotion itself is a focused, whole-suite-gated follow-on.
+Given `StyleFont`/`Text` are memory-neutral and the `<: Document` change is broad, the highest-value
+path is to promote **`StyleColor` only** (the real isbits win) and measure/fix its `<: Document`
+fallout, or defer the promotion and keep the style structs plain. Pending the user's call.
+
 ## Status
 - Worktree `/home/projectured/workspace/projectured-julia-cellkind`, branch `document-field-cell-kind`.
-- Part A done. Part B measured → recommend design (b) instead of promotion.
+- Macro infrastructure for the promotion is DONE (Parts A + explicit-selection + `DFoo`). The
+  value-type promotion is scoped (broad, `<: Document`) and pending a go/scope decision.
