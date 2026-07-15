@@ -1,3 +1,9 @@
+# ── Atomic Book leaves — one meaningful instance each, for the catalog. ──
+make_book_paragraph_document_example() =
+    BookParagraph(TextBlock(TextString("Reactive cells propagate changes automatically.",
+                                       font_ubuntu_monospace_regular_20, color_default)))
+make_book_picture_document_example() = BookPicture("projectured.png")
+
 function make_book_document_example()
     BookBook(
         "Projectured User Guide",

@@ -130,6 +130,26 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument("number", :yaml, make_yaml_number_document_example),
     AtomicDocument("string", :yaml, make_yaml_string_document_example),
     AtomicDocument("text",   :xml, make_xml_text_document_example),
-    AtomicDocument("text",   :markdown, make_markdown_text_document_example),
+    AtomicDocument("text",           :markdown, make_markdown_text_document_example),
+    AtomicDocument("code",           :markdown, make_markdown_code_document_example),
+    AtomicDocument("thematic_break", :markdown, make_markdown_thematic_break_document_example),
     AtomicDocument("variable", :math, make_math_variable_document_example),
+    AtomicDocument("bool",       :julia, make_julia_bool_document_example),
+    AtomicDocument("break",      :julia, make_julia_break_document_example),
+    AtomicDocument("char",       :julia, make_julia_char_document_example),
+    AtomicDocument("continue",   :julia, make_julia_continue_document_example),
+    AtomicDocument("float",      :julia, make_julia_float_document_example),
+    AtomicDocument("identifier", :julia, make_julia_identifier_document_example),
+    AtomicDocument("integer",    :julia, make_julia_integer_document_example),
+    AtomicDocument("string",     :julia, make_julia_string_document_example),
+    AtomicDocument("symbol",     :julia, make_julia_symbol_document_example),
+    AtomicDocument("paragraph", :book, make_book_paragraph_document_example),
+    AtomicDocument("picture",   :book, make_book_picture_document_example),
+    # Deferred (catalog surfaced pre-existing gaps — see plan/pending/atomic-example-catalog.md):
+    #   • sql/*        — SqlXxxToSyntaxLeaf are read-only (v1): no `read_intent`, so
+    #                    reader/repl/navigation MethodError. Add atoms when SQL gains readers.
+    #   • filesystem/file — graphics selection maps a caret to `.value`, but FileSystemFile has
+    #                       `.pathname` → SelectionMismatch on the `:graphics` repl/navigation.
+    #   • julia/nothing   — the bare `JuliaNothingToSyntaxLeaf` can't reprint the JuliaInsertion an
+    #                       insert-swap produces (the full pipeline dispatches it; a bare leaf can't).
 ]

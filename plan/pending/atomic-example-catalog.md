@@ -225,19 +225,28 @@ gains the `document` filter and iterates the registry. `catalog_domain` reads
   the `JsonBool`/`YamlBool` bare-root round-trip crash, and position-navigation (it needed the
   `:graphics` terminal, not `:text`). Both catalog gaps closed; suite fully green with
   position-navigation back in the default testers.
-- [ ] **Phase D — broaden (defer).** Fill out the remaining leaf atoms (julia statements, sql
-  clauses, book, formula, filesystem, dbcatalog, the `*Insertion` buffers) — several need a
-  whole-tree bridge (`MathToSyntax`, `SqlToSyntax`, …) added to `BRIDGES` to reach text/graphics;
-  decide whether any `→ graphics` catalog entries join the screenshot gallery; document the
-  hierarchy/filters in the example/testing guides.
+- [~] **Phase D — broaden (partial).** DONE this pass: added **julia** (bool/break/char/continue/
+  float/identifier/integer/string/symbol — 9), **markdown** (code/thematic_break), **book**
+  (paragraph/picture), and a `MathToSyntax` + `BookToSyntax` bridge (so math/variable and the book
+  leaves reach text/graphics). Fixed `JuliaBoolToSyntaxLeaf`'s `? :` thunk (same crash class as
+  JsonBool). **Deferred** (the catalog surfaced pre-existing gaps — kept out, not skipped):
+    - **sql/\*** — `SqlXxxToSyntaxLeaf` are read-only (v1): no `read_intent`, so reader/repl/nav
+      MethodError. Add the 4 sql atoms + `SqlToSyntax` bridge once SQL has readers.
+    - **filesystem/file** — the `:graphics` layer maps a caret to a `.value` path but
+      `FileSystemFile` has `.pathname` → `SelectionMismatch` on graphics repl/nav (syntax/text pass).
+    - **julia/nothing** — the bare `JuliaNothingToSyntaxLeaf` can't reprint the `JuliaInsertion` an
+      insert-swap produces (the full pipeline dispatches it; a bare leaf can't).
+    - Still open: formula, dbcatalog, conversation, the `*Insertion` buffers; whether any
+      `→ graphics` entries join the screenshot gallery; documenting the hierarchy/filters in guides.
 
 ## Implementation results (2026-07-15)
 
-**Scope landed:** 14 atoms → **40 catalog entries**. json (null/bool/number/string), yaml
-(null/bool/number/string), primitive (string/number/bool) → all three variants; xml/text,
-markdown/text → all three; math/variable → `:syntax` only (no `MathToSyntax` bridge yet).
-`test_catalog()` default runs printer/reader/repl over all 40 + position-navigation over the 13
-`:graphics` entries → **20617 assertions pass, 0 fail/error/broken**.
+**Scope landed:** **27 atoms → 81 catalog entries** (Phase A + D). json (null/bool/number/string),
+yaml (null/bool/number/string), primitive (string/number/bool), xml/text, markdown
+(text/code/thematic_break), math/variable, julia (9 leaves), book (paragraph/picture) — each × the
+three `domain/name/{syntax,text,graphics}` variants. Bridges: json/xml/yaml/julia/markdown/math/book
+→ syntax, syntax→text, text→graphics. `test_catalog()` (printer/reader/repl over all 81 +
+position-navigation over the 27 `:graphics` entries) → **43037 assertions pass, 0 fail/error/broken**.
 
 **Design facts confirmed during implementation:**
 - The reachability graph (`BRIDGES`) only reaches text/graphics for domains with a whole-tree

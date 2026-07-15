@@ -1,7 +1,10 @@
-# A bare Markdown inline text run — the atomic Markdown leaf, for the catalog.
+# Atomic Markdown leaves — one meaningful instance each, for the catalog.
 function make_markdown_text_document_example()
     MarkdownText("Hello, world")
 end
+
+make_markdown_code_document_example()            = MarkdownCode("Cell")
+make_markdown_thematic_break_document_example()  = MarkdownThematicBreak()
 
 function make_markdown_document_example()
     MarkdownRoot([

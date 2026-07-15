@@ -33,6 +33,8 @@ const BRIDGES = Function[
     () -> RecursiveProjection(YamlToSyntax()),
     () -> RecursiveProjection(JuliaToSyntax()),
     () -> RecursiveProjection(MarkdownToSyntax()),
+    () -> RecursiveProjection(MathToSyntax()),
+    () -> RecursiveProjection(BookToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
     # `truetype_measure_text` (the same default `run_example` uses). Output is an

@@ -99,8 +99,11 @@ end
     style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
+# Guard the `? :` against a transient non-`Bool` value (a mid-edit `bound` read can clear
+# the type-erased `value` cell) — the same crash `JsonBoolToSyntaxLeaf` fixes. Rendering
+# empty for the cleared state matches this file's plain-thunk style (cf. `string(v.value)`).
 @projection_template JuliaBoolToSyntaxLeaf JuliaBool (p, v) ->
-    SyntaxLeaf(TextString(() -> v.value ? "true" : "false", p.style))
+    SyntaxLeaf(TextString(() -> v.value isa Bool ? (v.value ? "true" : "false") : "", p.style))
 
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
