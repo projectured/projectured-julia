@@ -125,6 +125,8 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:json, "bool",   make_json_bool_document_example),
     AtomicDocument(:json, "number", make_json_number_document_example),
     AtomicDocument(:json, "string", make_json_string_document_example),
+    AtomicDocument(:json, "array",  make_json_array_document_example),
+    AtomicDocument(:json, "object", make_json_object_document_example),
     AtomicDocument(:yaml, "null",   make_yaml_null_document_example),
     AtomicDocument(:yaml, "bool",   make_yaml_bool_document_example),
     AtomicDocument(:yaml, "number", make_yaml_number_document_example),

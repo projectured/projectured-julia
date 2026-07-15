@@ -184,6 +184,17 @@ function _self_modifying(@nospecialize D)
     D <: ins || D <: nothing_document(ins)
 end
 
+# Does the trivial single-step syntax projection stand alone? Only if its output is a bare
+# `SyntaxLeaf` — nothing to recurse into. A compound output (a `SyntaxNode` or wrapper) is
+# built by projecting child documents through `print_child`, which a bare stage can't do
+# (it carries no recursion → `print_document(nothing, …, child, …)` throws), so such an
+# atom must go through the domain's dispatching projection. Dispatching is always a valid
+# superset, so this only ever *widens* the choice; a genuine leaf keeps its isolated step.
+function _single_step_leaf(projT, doc)
+    out = try unwrap_cell(print_document(projT(), doc).output) catch; return false end
+    out isa SyntaxLeaf
+end
+
 # ── Generator: up to three Examples per atomic document ─────────────────────────────
 # `domain/name/syntax` (trivial single-step), `domain/name/text`, `domain/name/graphics`.
 # Each is a plain `Example` (origin = :generated); variants that aren't reachable are
@@ -197,15 +208,18 @@ function _atom_examples(ad::AtomicDocument)
                                     ad.make_document, mkproj;
                                     terminal = term, origin = :generated)
 
-    # The syntax variant is the trivial single-step leaf, except for a self-modifying
-    # document, whose bare leaf can't reproject a type swap — it takes the whole-tree
-    # dispatching projection reaching :syntax (skipped if the domain has no such bridge).
-    if _self_modifying(D)
+    # The syntax variant is the trivial single-step leaf — but only when that leaf can
+    # stand alone. It cannot when the document is self-modifying (its own gestures swap its
+    # type, which a single-type leaf can't reproject) or compound (its node projection
+    # recurses into child documents, which the bare stage has no recursion for). Both take
+    # the domain's whole-tree dispatching projection reaching :syntax instead (skipped if
+    # the domain has no such bridge).
+    syn = _single_step(D, doc, :syntax)
+    if syn !== nothing && !_self_modifying(D) && _single_step_leaf(syn, doc)
+        push!(out, variant(:syntax, () -> syn()))
+    else
         syn_seqs = filter(!isempty, path_sequences(doc, is_syntax))
         isempty(syn_seqs) || push!(out, variant(:syntax, () -> _compile(first(syn_seqs))))
-    else
-        syn = _single_step(D, doc, :syntax)
-        syn === nothing || push!(out, variant(:syntax, () -> syn()))
     end
 
     text_seq = _text_sequence(D, doc)
