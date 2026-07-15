@@ -459,7 +459,13 @@ function test_text_nav_invariants_all()
                               # error. Tracked with the introduced-token-caret work.
                               "sql_nested_syntax") && continue
             @testset "$(example.name)" begin
-                test_text_nav_invariants(example; broken=nav_broken(example.name))
+                # Walk a FRESH document, not the cached `example.document`: the
+                # repl sweep mutates the shared instance in place, and a mutated
+                # doc changes the caret walk enough to flip a `@test_broken`
+                # left/right-stall marker into an Unexpected Pass. A fresh build
+                # matches the isolated behaviour the markers were calibrated on.
+                test_text_nav_invariants(example.name, example.make_document(),
+                                         example.make_projection(); broken=nav_broken(example.name))
             end
         end
     end
