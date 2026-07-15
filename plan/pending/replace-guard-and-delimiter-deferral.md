@@ -16,6 +16,40 @@ The guard and the routing are independent and land in separate phases. Phase 1 (
 is already correct against *today's* routing; Phase 2 (routing) is the real cleanup that
 retires the special-case the guard used to need.
 
+## ⚠️ Corrected mechanism (discovered during implementation — supersedes the framing below)
+
+The premise "defer the edit and the structural replace kicks in" is **wrong for delimiter
+and separator carets.** Verified empirically (before/after runtime probe over `json_example`):
+**typing on a delimiter or separator caret does nothing** — the same, before and after every
+change here.
+
+Why — the `ChainingProjection` reader runs **last-to-first**
+([Chaining.jl:144-158](../../package/base/main/projection/higherorder/Chaining.jl#L144-L158)):
+it finds the *outermost* stage that turns the key into an op, then translates that op
+*inward*. A caret that sits **on a text span** (value, quote, bracket, separator) makes the
+text layer emit a character-edit op; that op either **applies** (value) or **dies** when an
+inner stage can't map it (delimiter/separator) — and a died op yields `nothing`. The reader
+does **not** re-offer the raw key after an op dies. The type-to-replace gesture fires **only**
+on a **whole-element (∅) selection**, where the text layer has no character to edit, declines,
+and the raw key reaches the domain untouched.
+
+Consequences:
+- **`_json_replaceable` is only ever consulted for ∅ selections** (and other non-text-caret
+  selections). For those, the old and new guard are **identical** (`!(node isa entry)`). The
+  introduced-caret branch — old *or* new — is **never reached by a keystroke**, because an
+  introduced caret is a text span whose edit dies before reaching the domain gesture. So
+  **Phase 1 is a true no-op refactor** (a genuine simplification, but zero behavior change,
+  not the "quote-caret now replaces" story told below).
+- **Phase 2 (leaf + separator)** is likewise **behavior-preserving for domain documents**
+  (a delimiter/separator edit went from dying at the syntax stage to dying at the domain
+  stage — same `nothing`). Its one real effect: the syntax→text projection now emits proper
+  `.open`/`.close`/`.separator` edit ops, which a **standalone syntax document applies** and a
+  **domain projection defers**. The deliverable is "the syntax domain owns its own text
+  editing," realized as a clean refactor — not a domain-doc behavior change.
+
+The sections below preserve the original (partly mistaken) framing for history; read them
+through this correction.
+
 ## Why the current shape is a smell
 
 - `SyntaxLeafToText` defers **all** delimiter-span edits
@@ -112,16 +146,17 @@ deliberately narrower rule (the insertion is a typed-name buffer).
 
 ---
 
-## Phase 2 — Move the delimiter deferral to the projection boundary — ✅ Done (clean part; separators carved out)
+## Phase 2 — Move the delimiter deferral to the projection boundary — ✅ Done (leaf delimiters + separators)
 
 Goal: `SyntaxLeaf` owns its delimiters (they become editable in the syntax domain);
 the *projection* that introduced a delimiter defers edits to it. The Phase-1 guard is
 unchanged — this phase just relocates *why* the key falls through.
 
 **Shipped:** 2a-leaf (leaf reader accepts open/value/close edits) + 2b (template op-reader
-defers introduced-output edits, via the full-path `_targets_introduced_output` walk).
-**Not shipped:** compound delimiters (verified already-handled, no change needed) and
-separators (a deliberate-design fork left for the user — see the Findings block).
+defers introduced-output edits, via the full-path `_targets_introduced_output` walk) +
+2d (compound reader maps a separator-span edit onto the shared `.separator` field —
+edit-side only; selection stays per-occurrence chrome).
+**Not shipped:** compound *delimiters* (verified already-handled, no change needed).
 
 ### Findings from the code (2026-07-15, during implementation)
 
@@ -140,19 +175,19 @@ Reading the full `SyntaxToText` reader refined the scope:
   `.open{c}`/`.close{c}` op for an edit there; the node template then defers any
   non-`.children` field edit. So compound bracket edits appear to **already** route to a
   structural replace — treat 2a as *verify*, not *change*, for compounds.
-- **Separators — deliberate design conflict.** Separators are intentionally **not**
-  backward-addressable: `_push_separator!` ([:581-593](../../package/visual/main/syntax/SyntaxToText.jl#L581-L593))
-  keeps them out of `own_spans`, and `_backward_zone`
+- **Separators — deliberate design conflict → RESOLVED (user chose: make them editable).**
+  Separators were intentionally **not** backward-addressable: `_push_separator!`
+  ([:581-593](../../package/visual/main/syntax/SyntaxToText.jl#L581-L593)) keeps them out of
+  `own_spans`, and `_backward_zone`
   ([:452-454](../../package/visual/main/syntax/SyntaxToText.jl#L452-L454)) maps a separator
   caret to a projection-introduced position. Rationale: one `separator` field renders n−1
-  spans, so an edit on one occurrence would rewrite *all* of them, and a click on one
-  forward-maps the caret to the *first*. Making separators editable reverses this
-  documented decision and creates a selection-vs-edit split (selection wants per-occurrence
-  introduced chrome; an edit wants the shared field). **This is a design call for the user
-  — not implemented in this pass.** Note the current behavior is already coherent: a key on
-  a separator maps to an introduced ref naming the enclosing container, so the collapsed
-  guard replaces that container — a sensible outcome that the separator-edit change would
-  supersede.
+  spans, so an edit on one occurrence rewrites *all* of them, and a click on one forward-maps
+  the caret to the *first*. The user chose to make separators editable, so **2d** (below)
+  reverses this on the **edit side only**: a separator-span *edit* maps to the shared
+  `.separator` field, while a separator *selection* stays per-occurrence introduced chrome
+  (the split the user accepted). For a domain-projected node the `.separator` edit is deferred
+  downstream (same as any introduced output), so JSON/YAML are unaffected; a standalone syntax
+  document edits its separator in place.
 
 ### 2a. Leaf → text reader accepts open/close edits (in scope)
 
@@ -162,7 +197,26 @@ drop the `_leaf_field_at(...) === :value` gate; map an edit on **any** present l
 existing `ConcreteReferencePath(SyntaxLeaf, FieldReference(...), …)` shape). Value edits
 are unchanged; open/close now produce `.open`/`.close` ops that 2b defers downstream.
 Compound delimiters: **verify** they already route to replace (above); do not change the
-compound reader in this pass. Separators: **carved out** pending the user's design call.
+compound reader for delimiters. Separators: see 2d.
+
+### 2d. Compound reader maps a separator edit onto the shared `.separator` field
+
+[SyntaxToText.jl](../../package/visual/main/syntax/SyntaxToText.jl) `read_intent(::SyntaxCompoundToText,
+…, ::ReplaceStringRangeOperation)`: after the child-zone loop, if `span_idx ∈ iomap.sep_indices[]`,
+build `.<separator-field>[char_start:char_stop]` from `syntax_separator(node).first` and return it.
+Edit-side only — `_backward_zone` (selection) is untouched, so a separator *caret* stays
+per-occurrence introduced chrome while an *edit* collapses onto the one field.
+
+**Result (implemented + verified):**
+- Regression-free: before/after runtime probe over `json_example` is byte-identical at every
+  reachable separator caret (both `nothing`); `test_visual` 49384/0/0/1, `test_domain`
+  113400/0/0/8, `test_typein` json+yaml 160/160 all unchanged. (`test_typein` only types into
+  *value* spans, so it never exercises separators — hence the probe.)
+- New capability confirmed on a **standalone** `SyntaxSeparation("a", "b"; separator=", ")`:
+  the separator-span edit returns `::SyntaxSeparation.separator::TextString[1]::Position`
+  (was `nothing` on HEAD), and applying it changes the separator content `", " → "X "`.
+- For a domain-projected node the `.separator` op is deferred by the domain reader (`_node_backward`
+  returns `nothing` for a non-`children` field), so JSON/YAML are unaffected.
 
 ### 2b. The template op-reader defers edits that land on introduced output
 
@@ -234,9 +288,10 @@ already preserves the gesture across the template's `nothing`.
     returns a real `ReplaceStringRangeOperation`. Exactly the intended behavior.
 
 **Commit 2:** 2a-leaf (`SyntaxToText.jl`) + 2b (`ReaderDefaults.jl`) + this result note.
+**Commit 3:** 2d separator edits (`SyntaxToText.jl`) + this result note.
 
-**Deferred to a follow-up decision:** separators (design fork — see Findings) and the
-optional compound-delimiter verification (appears already-correct; not re-touched).
+**Still not touched:** the optional compound-*delimiter* verification (appears
+already-correct; not re-touched).
 
 ---
 

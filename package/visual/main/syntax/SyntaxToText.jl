@@ -903,7 +903,25 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
             return ReplaceStringRangeOperation(_prepend_child(iomap.input, i, result.reference), result.replacement)
         end
     end
-    return nothing   # own chrome (open/close/sep/decoration) is not string-editable
+    # A separator span. One `separator` field renders n−1 spans, so an edit on any
+    # occurrence collapses onto that single shared field — the document has exactly one
+    # separator, and editing it changes every gap. This is deliberately NOT symmetric
+    # with the mapper: a separator *selection* stays per-occurrence introduced chrome
+    # (see `_backward_zone` / `_push_separator!`), only the *edit* collapses onto the
+    # field. For a domain-projected node the separator is projection-introduced, so the
+    # domain's own reader defers this `.<field>` edit and the key falls through to a
+    # structural gesture; for a standalone syntax document it edits the separator in place.
+    if span_idx in iomap.sep_indices[]
+        separator = syntax_separator(iomap.input)
+        if separator !== nothing
+            new_ref = ConcreteReferencePath(reference_node_type(iomap.input),
+                          FieldReference(String(separator.first)),
+                          ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
+                              EmptyReferencePath(Position)))
+            return ReplaceStringRangeOperation(new_ref, op.replacement)
+        end
+    end
+    return nothing   # own chrome (open/close/decoration) is not string-editable
 end
 
 # `.elements[idx].content{s:e}` — the single-span replace-range reference shape.
