@@ -382,10 +382,6 @@ end
 # away exactly the regression signal the walk is for. Each returns the reason it
 # stands for; `nothing` means the case is expected to pass.
 function _typein_broken_reason(label, r)
-    # @broken: book — BookToSyntax throws "under-typed @reference (missing node
-    # types)" as soon as a caret is set, so every target dies at the print step;
-    # plan/pending/typein-every-string-position.md
-    label == "book" && return "BookToSyntax cannot print with a caret set"
     # @broken: json_string — typing at the string's last caret yields no operation
     # at all (the reader returns nothing, not a ReplaceStringRangeOperation);
     # plan/pending/typein-every-string-position.md

@@ -126,11 +126,11 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         if name == "title"
             ts = title_sel[]
             ts === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(ts)
+            @reference ::SyntaxNode.children::CellVector[1].^(ts)
         elseif name == "author" && b.author !== nothing
             as_ = author_sel[]
             as_ === nothing && return nothing
-            @reference ::SyntaxNode.children[2].^(as_)
+            @reference ::SyntaxNode.children::CellVector[2].^(as_)
         elseif name == "elements"
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
@@ -143,7 +143,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
             child_sel = iomaps[child_i].output.selection
             child_sel === nothing && return nothing
             child_idx = child_i + offset
-            @reference ::SyntaxNode.children[child_idx].^(child_sel)
+            @reference ::SyntaxNode.children::CellVector[child_idx].^(child_sel)
         else
             nothing
         end
@@ -184,8 +184,8 @@ function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
-        ::BookBook.title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference ::SyntaxNode.children[1].value::TextString.^(rest)) : nothing
-        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference ::SyntaxNode.children[2].value::TextString.^(rest)) : nothing
+        ::BookBook.title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
+        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -195,7 +195,7 @@ function map_reference_forward(p::BookBookToSyntaxNode,
             inner === nothing && return nothing
             offset = b.author !== nothing ? 2 : 1
             child_idx = child_i + offset
-            @reference ::SyntaxNode.children[child_idx].^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_idx].^(inner)
         end
     end
 end
@@ -223,7 +223,7 @@ function map_reference_backward(p::BookBookToSyntaxNode,
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
                 translated === nothing && return nothing
-                @reference ::BookBook.elements[elem_i].^(translated)
+                @reference ::BookBook.elements::CellVector[elem_i].^(translated)
             end
         end
     end
@@ -283,9 +283,9 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
             ::BookChapter.title{s:_}.tail... => begin
                 offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
                 adj = s + offset
-                @reference ::SyntaxLeaf.value{adj}.^(tail)
+                @reference ::SyntaxLeaf.value::TextString{adj}.^(tail)
             end
-            ::BookChapter.numbering{s:_}.tail... => @reference ::SyntaxLeaf.value{s}.^(tail)
+            ::BookChapter.numbering{s:_}.tail... => @reference ::SyntaxLeaf.value::TextString{s}.^(tail)
         end
     end)
 
@@ -309,7 +309,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         if name == "title" || name == "numbering"
             ts = title_sel[]
             ts === nothing && return nothing
-            @reference ::SyntaxNode.children[1].^(ts)
+            @reference ::SyntaxNode.children::CellVector[1].^(ts)
         elseif name == "elements"
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
@@ -321,7 +321,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
             child_sel = iomaps[child_i].output.selection
             child_sel === nothing && return nothing
             child_idx = child_i + 1
-            @reference ::SyntaxNode.children[child_idx].^(child_sel)
+            @reference ::SyntaxNode.children::CellVector[child_idx].^(child_sel)
         else
             nothing
         end
@@ -357,9 +357,9 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
         ::BookChapter.title{s:_}.rest... => begin
             offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
             adj = s + offset
-            @reference ::SyntaxNode.children[1].value::TextString{adj}.^(rest)
+            @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString{adj}.^(rest)
         end
-        ::BookChapter.numbering{s:_}.rest... => @reference ::SyntaxNode.children[1].value::TextString{s}.^(rest)
+        ::BookChapter.numbering{s:_}.rest... => @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString{s}.^(rest)
         ::BookChapter.elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -368,7 +368,7 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             child_idx = child_i + 1
-            @reference ::SyntaxNode.children[child_idx].^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_idx].^(inner)
         end
     end
 end
@@ -402,7 +402,7 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
                 translated === nothing && return nothing
-                @reference ::BookChapter.elements[elem_i].^(translated)
+                @reference ::BookChapter.elements::CellVector[elem_i].^(translated)
             end
         end
     end
@@ -489,7 +489,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
                 child_i > length(iomaps) && return nothing
                 child_sel = iomaps[child_i].output.selection
                 child_sel === nothing && return nothing
-                @reference ::SyntaxNode.children[child_i].content.^(child_sel)
+                @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxDelimitation.content.^(child_sel)
             end
         end
     end)
@@ -519,7 +519,7 @@ function map_reference_forward(p::BookListToSyntaxNode,
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].content.^(inner)
+            @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxDelimitation.content.^(inner)
         end
     end
 end
@@ -534,7 +534,7 @@ function map_reference_backward(p::BookListToSyntaxNode,
             child = iomaps[child_i]
             translated = map_reference_backward(child.projection, child, tail)
             translated === nothing && return nothing
-            @reference ::BookList.elements[child_i].^(translated)
+            @reference ::BookList.elements::CellVector[child_i].^(translated)
         end
     end
 end
