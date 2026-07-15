@@ -28,10 +28,10 @@ import ..PrinterContextModule: PrinterContext
 export GestureMapToSyntax
 
 @projection struct GestureMapToSyntax
-    header::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    gesture::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
-    description::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
-    muted::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    header::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    gesture::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    description::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    muted::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading

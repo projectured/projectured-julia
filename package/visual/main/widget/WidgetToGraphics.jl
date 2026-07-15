@@ -392,12 +392,12 @@ end
 
 @projection struct WidgetLabelToGraphicsCanvas
     measure::Function
-    text::StyleText        # font + color of the label
+    text::ImmutableCell{StyleText}        # font + color of the label
 end
 
 @projection struct WidgetTextToGraphicsCanvas
     measure::Function
-    text::StyleText            # font + color of the non-editable form
+    text::ImmutableCell{StyleText}            # font + color of the non-editable form
     background_color::StyleColor
     border_color::StyleColor    # input outline
     corner_radius::Int
@@ -424,7 +424,7 @@ end
 # transparent; the factory may pass plain values or Cells.
 @projection struct WidgetButtonToGraphicsCanvas
     measure::Function
-    label::StyleText            # font + color of the button text
+    label::ImmutableCell{StyleText}            # font + color of the button text
     background_color::StyleColor # resting surface
     hover_color::StyleColor      # surface while the pointer is inside
     active_color::StyleColor     # surface while pressed (held down)
@@ -439,7 +439,7 @@ end
 
 @projection struct WidgetTooltipToGraphicsCanvas
     measure::Function
-    text::StyleText             # font + popover foreground
+    text::ImmutableCell{StyleText}             # font + popover foreground
     surface_color::StyleColor    # popover fill
     border::StyleStroke
     corner_radius::Int
@@ -453,7 +453,7 @@ end
 
 @projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
-    text::StyleText             # font + foreground
+    text::ImmutableCell{StyleText}             # font + foreground
     disabled_foreground::StyleColor   # label color when disabled (item or bound command)
     hover_color::StyleColor           # hover surface behind the item (Stage 6)
 end
@@ -469,8 +469,8 @@ end
 
 @projection struct WidgetTitlePaneToGraphicsCanvas
     measure::Function
-    title_text::StyleText        # bold title
-    content_text::StyleText      # string-content body
+    title_text::ImmutableCell{StyleText}        # bold title
+    content_text::ImmutableCell{StyleText}      # string-content body
     title_gap::Int
 end
 
@@ -817,7 +817,7 @@ end
 # projection-introduced placeholder and its reference maps are no-ops.
 @projection struct WidgetInsertionToGraphicsCanvas
     measure::Function
-    text::StyleText
+    text::ImmutableCell{StyleText}
 end
 
 function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
@@ -1267,8 +1267,8 @@ end
 
 @projection struct WidgetDialogToGraphicsCanvas
     measure::Function
-    title::StyleText        # title font + color
-    body::StyleText         # content/label fallback font + color
+    title::ImmutableCell{StyleText}        # title font + color
+    body::ImmutableCell{StyleText}         # content/label fallback font + color
     card_color::StyleColor  # card fill
     border::StyleStroke      # card outline
     corner_radius::Int
@@ -3115,7 +3115,7 @@ end
 
 @projection struct WidgetStatusBarToGraphicsCanvas
     measure::Function
-    text::StyleText
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     gap::Int
 end
@@ -3289,10 +3289,10 @@ end
 
 @projection struct WidgetCardToGraphicsCanvas
     measure::Function
-    title_text::StyleText
-    description_text::StyleText
-    content_text::StyleText
-    footer_text::StyleText
+    title_text::ImmutableCell{StyleText}
+    description_text::ImmutableCell{StyleText}
+    content_text::ImmutableCell{StyleText}
+    footer_text::ImmutableCell{StyleText}
     surface_color::StyleColor      # card fill
     border::StyleStroke
     corner_radius::Int
@@ -3590,7 +3590,7 @@ end
 
 @projection struct WidgetRadioGroupToGraphicsCanvas
     measure::Function
-    label_text::StyleText          # option labels
+    label_text::ImmutableCell{StyleText}          # option labels
     button_size::Int               # outer circle diameter
     label_gap::Int                 # gap between button and label
     row_gap::Int
@@ -3644,7 +3644,7 @@ end
 
 @projection struct WidgetAvatarToGraphicsCanvas
     measure::Function
-    initials::StyleText          # font + color of the initials
+    initials::ImmutableCell{StyleText}          # font + color of the initials
     background_color::StyleColor  # circle fill
 end
 
@@ -3667,7 +3667,7 @@ end
 @projection struct WidgetAlertToGraphicsCanvas
     measure::Function
     title_font::StyleFont
-    description_text::StyleText        # muted description
+    description_text::ImmutableCell{StyleText}        # muted description
     background_color::StyleColor
     padding::Int                       # uniform alert padding
     title_gap::Int                     # gap between title and description
@@ -3945,7 +3945,7 @@ end
 
 @projection struct WidgetSelectToGraphicsCanvas
     measure::Function
-    text::StyleText            # value font + color
+    text::ImmutableCell{StyleText}            # value font + color
     background_color::StyleColor
     border::StyleStroke         # input outline
     padding::Inset
@@ -4043,7 +4043,7 @@ end
 
 @projection struct WidgetOptionToGraphicsCanvas
     measure::Function
-    text::StyleText
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     padding::Inset
 end
@@ -4089,7 +4089,7 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
 
 @projection struct WidgetSpinBoxToGraphicsCanvas
     measure::Function
-    text::StyleText
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     border::StyleStroke
     padding::Inset
@@ -4162,7 +4162,7 @@ end
 
 @projection struct WidgetListToGraphicsCanvas
     measure::Function
-    text::StyleText
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     border::StyleStroke
     selected_color::StyleColor
@@ -4235,7 +4235,7 @@ end
 
 @projection struct WidgetTextareaToGraphicsCanvas
     measure::Function
-    text::StyleText            # content font + color
+    text::ImmutableCell{StyleText}            # content font + color
     background_color::StyleColor
     border::StyleStroke         # input outline
     padding::Inset
@@ -4274,8 +4274,8 @@ end
 
 @projection struct WidgetAccordionToGraphicsCanvas
     measure::Function
-    title_text::StyleText        # bold title
-    body_text::StyleText          # muted body
+    title_text::ImmutableCell{StyleText}        # bold title
+    body_text::ImmutableCell{StyleText}          # muted body
     rule::StyleStroke             # hairline between items
     padding::Inset                # horizontal + vertical row padding
     gap::Int                      # space before the trailing chevron
@@ -4347,8 +4347,8 @@ end
 # own sub-pipeline and is drawn there.
 
 @projection struct WidgetTableToGraphicsCanvas
-    cell_text::StyleText          # (kept for theming parity; cells render via recursion)
-    header_text::StyleText        # header strip text style
+    cell_text::ImmutableCell{StyleText}          # (kept for theming parity; cells render via recursion)
+    header_text::ImmutableCell{StyleText}        # header strip text style
     rule::StyleStroke             # border / hairline rules
     header_fill::StyleColor       # header strip background
 end
@@ -5060,8 +5060,8 @@ end
 
 @projection struct WidgetTreeToGraphicsCanvas
     measure::Function
-    label_text::StyleText         # node labels
-    icon_text::StyleText          # node icon glyphs (own column)
+    label_text::ImmutableCell{StyleText}         # node labels
+    icon_text::ImmutableCell{StyleText}          # node icon glyphs (own column)
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
     icon_column::Int              # width reserved for the icon glyph

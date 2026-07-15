@@ -32,8 +32,8 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
 @projection struct CollectionCellVectorToSyntax
-    delim::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    sep::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    sep::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)

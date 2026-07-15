@@ -42,7 +42,7 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct FileSystemFileToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
@@ -115,7 +115,7 @@ read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringR
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
 @projection struct FileSystemDirectoryToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 

@@ -29,7 +29,7 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -59,7 +59,7 @@ end
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
 @projection struct PrimitiveNumberToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -89,8 +89,8 @@ end
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
 @projection struct PrimitiveStringToSyntaxLeaf
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)

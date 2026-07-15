@@ -62,7 +62,7 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 # `@projection_template` leaf (no `bound`): the engine wires ∅↔∅ and nothing else.
 
 @projection struct BookInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template BookInsertionToSyntaxLeaf BookInsertion (prj, doc) ->
@@ -89,9 +89,9 @@ end
 # Titles use a proportional (sans) font, distinct from the monospace body, and a
 # larger size; the author line is italic.
 @projection struct BookBookToSyntaxNode
-    title::StyleText        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
-    author_prefix::StyleText = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    author::StyleText       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
+    title::ImmutableCell{StyleText}        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
+    author_prefix::ImmutableCell{StyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    author::ImmutableCell{StyleText}       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
 end
 
 
@@ -263,10 +263,10 @@ end
 # into the same leaf. A `bound(:field)`/KeySlot binds a single field with no offset.
 
 @projection struct BookChapterToSyntaxNode
-    title::StyleText = StyleText(font_ubuntu_bold_24, color_solarized_blue)
+    title::ImmutableCell{StyleText} = StyleText(font_ubuntu_bold_24, color_solarized_blue)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::StyleText = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
+    numbering::ImmutableCell{StyleText} = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
 end
 
 
@@ -435,9 +435,9 @@ end
 # Selection forward:  .content → .value
 
 @projection struct BookParagraphToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    placeholder::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # A single bound leaf (like XmlTextToSyntaxLeaf / MarkdownTextToSyntaxLeaf): the
@@ -469,7 +469,7 @@ end
 # builds a node from x's *fields* — neither expresses "wrap the whole element".
 
 @projection struct BookListToSyntaxNode
-    bullet::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    bullet::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
     indentation::Int = 2
 end
 
@@ -568,8 +568,8 @@ end
 # placeholder. Written as an `@projection_template` fixed-children node.
 
 @projection struct BookPictureToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
-    placeholder::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    placeholder::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # The value span for a picture's content: when the content is a path to an image

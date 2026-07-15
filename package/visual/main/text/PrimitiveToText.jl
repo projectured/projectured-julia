@@ -66,7 +66,7 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToText
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
@@ -90,7 +90,7 @@ end
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
 @projection struct PrimitiveNumberToText
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =

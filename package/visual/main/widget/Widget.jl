@@ -60,7 +60,7 @@ A positioned, non-interactive label..
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
     content::Any
-    text_style::StyleText   # per-label font+color override (nothing → theme label style)
+    text_style::ImmutableCell{StyleText}   # per-label font+color override (nothing → theme label style)
     visible::Bool
     margin::Inset
     margin_color::StyleColor

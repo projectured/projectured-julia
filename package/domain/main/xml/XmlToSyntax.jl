@@ -56,7 +56,7 @@ export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
 # A bound leaf: `.content{k}` edits map to the leaf's own `.value{k}` span.
 
 @projection struct XmlTextToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
 end
 
 @projection_template XmlTextToSyntaxLeaf XmlText (p, t) ->
@@ -79,10 +79,10 @@ XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 # inline by the element that happens to hold it.
 
 @projection struct XmlAttributeToSyntaxNode
-    delim::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    attr_name::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    quote_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    attr_value::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    delim::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    attr_name::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    attr_value::ImmutableCell{StyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template XmlAttributeToSyntaxNode XmlAttribute (p, a) ->
@@ -96,8 +96,8 @@ end
 # ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct XmlElementToSyntaxNode
-    tag::StyleText   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    tag::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # Fixed-children node `[tag, attrs, body, close]`. The tag leaf is `bound(:tag)`;

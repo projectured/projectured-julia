@@ -60,7 +60,7 @@ _empty(font) = TextString("", font, color_default)
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
 @projection struct FormulaInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
@@ -77,7 +77,7 @@ end
 # selects the whole reference).
 
 @projection struct FormulaReferenceToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
 end
 
 function print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
@@ -103,10 +103,10 @@ end
 # delegation; its output child index depends on the mode.
 
 @projection struct FormulaFormulaToSyntaxNode
-    name::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    op::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    op::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     # The result run shares the op font but is coloured distinctly (green).
-    result::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    result::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 # Flatten a result TextBlock into a single rendered string.

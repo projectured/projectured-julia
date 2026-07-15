@@ -39,7 +39,7 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
@@ -50,7 +50,7 @@ end
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct MathVariableToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -82,7 +82,7 @@ end
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection struct MathBinaryOperationToSyntaxNode
-    op::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # Selection mapping (School A). The output node's children are
@@ -178,7 +178,7 @@ end
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct MathParenthesizedToSyntaxNode
-    delim::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # Selection mapping (School A). The single content child is output index 1; the
@@ -245,7 +245,7 @@ end
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct MathAssignmentToSyntaxNode
-    eq::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    eq::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 # Selection mapping (School A). Output children are

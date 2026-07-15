@@ -53,7 +53,7 @@ export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, Ya
 # ── YamlNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct YamlNullToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template YamlNullToSyntaxLeaf YamlNull (prj, doc) ->
@@ -71,7 +71,7 @@ YamlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(YamlDocument)
 # ── YamlBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct YamlBoolToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 # See JsonBoolToSyntaxLeaf: `hinted_text` guards the `doc.value ? …` thunk against a
@@ -84,7 +84,7 @@ end
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct YamlNumberToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
@@ -98,7 +98,7 @@ end
 # lives on the leaf's `.value` span with empty open/close delimiters.
 
 @projection struct YamlStringToSyntaxLeaf
-    style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template YamlStringToSyntaxLeaf YamlString (prj, doc) ->
@@ -113,10 +113,10 @@ end
 # lines) — see `YamlToSyntax`.
 
 @projection struct YamlMappingToSyntaxNode
-    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    key_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    key_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    colon_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     open::String = ""      # "{" flow, "" block
     close::String = ""     # "}" flow, "" block
     sep::String = ""       # ", " flow, "" block (indentation provides the newline)
@@ -143,8 +143,8 @@ end
 # ── YamlSequenceToSyntaxNode (template; flow style [a, b]) ────────────────────
 
 @projection struct YamlSequenceToSyntaxNode
-    delimiter_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template YamlSequenceToSyntaxNode YamlSequence (prj, doc) ->
@@ -170,7 +170,7 @@ end
 # single source of truth for the printer's selection cell and the readers.
 
 @projection struct YamlSequenceToBlockSyntaxNode
-    marker_style::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    marker_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
 end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)

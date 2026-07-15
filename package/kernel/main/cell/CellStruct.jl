@@ -28,7 +28,7 @@ function cell_struct_autowrap_ctor(struct_name, field_names, field_wraps)
         w === nothing && return a
         kind, celltype = w
         kind === :reactive ? :($a isa Cell ? $a : Cell($a)) :
-                             :($a isa AbstractCell ? $a : $celltype($a))
+                             :($a isa $(AbstractCell) ? $a : $celltype($a))
     end
     :(function $(struct_name)($(arg_names...))
         $(Expr(:call, :new, new_args...))
@@ -112,9 +112,12 @@ function cell_struct_exprs(structdef)
     vts   = declared_value_types(plan)
     cell_types  = Any[]
     field_wraps = Any[]
+    # Splice the kind as the type OBJECT (not a symbol) so the emitted field type
+    # resolves in any consumer module, even one that does not import `ImmutableCell`
+    # / `MutableCell` (reactive stays the universally-imported `:Cell`).
     for i in eachindex(plan.field_names)
-        ct = kinds[i] === :immutable ? Expr(:curly, :ImmutableCell, vts[i]) :
-             kinds[i] === :mutable   ? Expr(:curly, :MutableCell,  vts[i]) : :Cell
+        ct = kinds[i] === :immutable ? Expr(:curly, ImmutableCell, vts[i]) :
+             kinds[i] === :mutable   ? Expr(:curly, MutableCell,  vts[i]) : :Cell
         push!(cell_types, ct)
         push!(field_wraps, (kinds[i], ct))
     end
