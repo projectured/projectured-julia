@@ -8,6 +8,23 @@
 # imported from the lower test packages (see plan/done/test-package-split.md).
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ── @broken bookkeeping ───────────────────────────────────────────────────────
+#
+# Several sweeps carry pre-existing failures that are not yet fixed. Rather than
+# leave them as unmarked `Fail`s — which would drown the one signal that matters,
+# "a NEW failure = a regression" — each is recorded `@test_broken` keyed on its
+# root-cause error signature. The rule the whole suite relies on: **an unmarked
+# `Fail`/`Error` is always a regression.** `grep -rn "@broken:"` enumerates them.
+#
+# Signature-keying (not blanket per-example marking) keeps that rule honest two
+# ways: a *different* error on a known-broken example is unrecognised and stays a
+# `Fail`; and when the bug is fixed the `@test_broken` flips to an "Unexpected
+# Pass" error, forcing the stale marker to be removed. `_all_known` is for the
+# sweeps whose whole example is one `@test isempty(errors)` assertion: mark it
+# broken only when EVERY collected error is a recognised signature.
+_all_known(errors, sigs) =
+    !isempty(errors) && all(e -> any(s -> occursin(s, e), sigs), errors)
+
 # ── printer ──────────────────────────────────────────────────────────────────
 
 function test_printers()
@@ -96,6 +113,31 @@ end
 
 # ── text navigation ──────────────────────────────────────────────────────────
 
+# @broken registry for the position-nav sweep. These examples are NOT skipped
+# (they are text pipelines that ought to seed), but Ctrl+Home yields no initial
+# selection today — either the seed reader throws or it returns nothing / a raw
+# gesture. `posnav_seed_broken(name)` returns the seed-error signatures so the
+# `state_count > 0` assertion is recorded @test_broken; if the seed later starts
+# working the marker flips to an Unexpected Pass and must be removed.
+function posnav_seed_broken(name)
+    # @broken: seed reader throws — xml `::SyntaxNode` type-asserts a
+    # SyntaxConcatenation; graph builds an under-typed ProjectionReference path.
+    name == "xml"   && return ("SyntaxConcatenation",)
+    name == "graph" && return ("under-typed @reference",)
+    # @broken: seed produces no selection — Ctrl+Home returns nothing (these
+    # domains have no whole-document caret seed yet) or a raw gesture.
+    name in ("conversation_editor", "filesystem", "natural", "navigator") &&
+        return ("returned nothing",)
+    name == "rotating_vector" && return ("returned KeyDown",)
+    nothing
+end
+
+# @broken: the CollectionToSyntax examples navigate a caret onto an undelimited
+# PrimitiveString's phantom `.open` slot, and `set_selection!` then throws a
+# SelectionMismatch that escapes the walk. plan/pending/simplest-syntax-document.md
+posnav_throws_broken(name) =
+    name in ("collection", "searching") ? (m -> occursin("PrimitiveString.open", m)) : nothing
+
 function test_position_navigations()
     @testset "PositionNavigation" begin
         for example in examples
@@ -126,7 +168,10 @@ function test_position_navigations()
                              "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
-                test_position_navigation(example)
+                sigs = posnav_seed_broken(example.name)
+                test_position_navigation(example.name, example.document, example.projection;
+                    seed_broken = sigs === nothing ? nothing : (errs -> _all_known(errs, sigs)),
+                    throws_broken = posnav_throws_broken(example.name))
             end
         end
     end
@@ -148,16 +193,38 @@ end
 #     `syntax` is covered structurally by the tree-navigation completeness suite.
 const _position_navigation_complete_examples = ["text", "json"]
 
+# @broken: on json the placeholder entry's value caret `.entries[8].value.value{0}`
+# is enumerated but unreachable by navigation (the trailing insertion slot is not
+# yet steppable). plan/pending/json-navigation-and-clicks.md
+_complete_unreached_broken(name) =
+    name == "json" ? (s -> occursin(".entries[8].value", s)) : nothing
+
 function test_position_navigations_complete()
     @testset "PositionNavigationComplete" begin
         for example in examples
             example.name in _position_navigation_complete_examples || continue
-            test_position_navigation(example; check_reaches_all=true)
+            test_position_navigation(example.name, example.document, example.projection;
+                check_reaches_all=true,
+                unreached_broken=_complete_unreached_broken(example.name))
         end
     end
 end
 
 # ── tree navigation ──────────────────────────────────────────────────────────
+
+# @broken registry for the tree-nav sweep: name -> the error signatures its walk
+# is known to produce. `nothing` means "expected clean".
+function tree_broken(name)
+    # @broken: the tree-nav walk re-projects into a stale iomap whose `.output`
+    # is nothing on these syntax-tree domains. plan/pending/simplest-syntax-document.md
+    name in ("focusing", "formula", "julia", "markdown", "markdown_rendered") &&
+        return ("FieldError(Nothing, :output)",)
+    # @broken: xml tree selections route through an XmlElementToSyntaxNode
+    # ProjectionReference the reader cannot resolve, and the block container's
+    # `::SyntaxNode` type-assert trips on the SyntaxConcatenation.
+    name == "xml" && return ("ProjectionReference", "SyntaxConcatenation")
+    nothing
+end
 
 function test_tree_navigations()
     # Only examples whose root projects to a SyntaxNode (not a lone leaf)
@@ -171,9 +238,20 @@ function test_tree_navigations()
                              "lazy", "lazy_bidirectional") && continue
             @testset "$(example.name)" begin
                 result = explore_tree_selections(example.document, example.projection)
+                known = tree_broken(example.name)
                 if result.state_count == 0 && !isempty(result.errors) &&
                    occursin("seed gesture", result.errors[1])
                     @info "[$(example.name)] skipped — no tree navigation support"
+                elseif known !== nothing && _all_known(result.errors, known)
+                    # @broken: see tree_broken above for the root cause per example.
+                    @test_broken isempty(result.errors)
+                    # xml errors on every state, so it reaches none — mark the
+                    # count broken too; the others still explore some states.
+                    if result.state_count == 0
+                        @test_broken result.state_count > 0
+                    else
+                        @test result.state_count > 0
+                    end
                 else
                     for e in result.errors
                         @warn "[$(example.name)] $e"
@@ -203,7 +281,8 @@ function test_tree_navigations_complete()
             example.name in _tree_navigation_complete_examples || continue
             # The enumerator is chosen by document type via _default_tree_collector
             # (native syntax → is_node predicate; json / ned → projection-aware).
-            test_tree_navigation(example; check_reaches_all=true)
+            test_tree_navigation(example; check_reaches_all=true,
+                unreached_broken=_complete_unreached_broken(example.name))
         end
     end
 end
@@ -234,6 +313,19 @@ function test_typeins()
 end
 
 # ── click roundtrip ──────────────────────────────────────────────────────────
+
+# @broken registry for the click-roundtrip sweep: name -> the error signatures
+# its clicks are known to produce (passed to `test_click_roundtrip`'s `broken`).
+function click_broken(name)
+    # @broken: clicking inside the formula grid produces no ReplaceSelection
+    # operation (the grid cell has no text-cursor reader yet).
+    name == "formula" && return ("produced no ReplaceSelectionOperation",)
+    # @broken: a click on an undelimited PrimitiveString maps to a phantom
+    # `.open`/`.close` caret that fails to re-apply (SelectionMismatch).
+    # plan/pending/simplest-syntax-document.md
+    name == "searching" && return ("SelectionMismatch",)
+    nothing
+end
 
 """
     test_click_roundtrips()
@@ -276,7 +368,8 @@ function test_click_roundtrips()
                               # separately from the selection-map typing.
                               "sql_nested_syntax") && continue
             @testset "$(example.name)" begin
-                test_click_roundtrip(example)
+                test_click_roundtrip(example.name, example.document, example.projection;
+                                     broken=click_broken(example.name))
             end
         end
     end

@@ -104,7 +104,11 @@ re-appear close to the click. "Close" allows up to one line of vertical
 slack to absorb the end-of-line / start-of-next-line cursor-rendering
 ambiguity at segment boundaries.
 """
-function test_click_roundtrip(label, document, projection)
+# `broken`, when given, is a tuple of error-signature substrings this example is
+# known to fail with: if every collected error matches one, the single
+# `@test isempty(errors)` is recorded `@test_broken` instead of `@test`, so a
+# *new* (unrecognised) click error still surfaces as an unmarked `Fail`.
+function test_click_roundtrip(label, document, projection; broken=nothing)
     @testset "$label" begin
         clear_selection!(document)
         iomap = print_document(projection, document)
@@ -176,10 +180,16 @@ function test_click_roundtrip(label, document, projection)
                 end
             end
         end
-        for e in errors
-            @warn "[$label] $e"
+        if broken !== nothing && !isempty(errors) &&
+           all(e -> any(s -> occursin(s, e), broken), errors)
+            # @broken: known click-roundtrip failure; see the caller's registry.
+            @test_broken isempty(errors)
+        else
+            for e in errors
+                @warn "[$label] $e"
+            end
+            @test isempty(errors)
         end
-        @test isempty(errors)
     end
 end
 

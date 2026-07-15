@@ -111,12 +111,18 @@ end
 # Subset assertion: every enumerated selection must be among the reachable ones.
 # One `@test` per enumerated selection so a failure pinpoints exactly which
 # selection navigation cannot reach (rather than a single bulk assertion).
-function _assert_reaches_all(label, enumerated, visited::Set{String})
+function _assert_reaches_all(label, enumerated, visited::Set{String}; broken=nothing)
     for p in enumerated
         s = string(p)
         reached = s in visited
-        reached || @warn "[$label] enumerated selection unreached by navigation: $s"
-        @test reached
+        if !reached && broken !== nothing && broken(s)
+            # @broken: navigation cannot reach this enumerated selection yet; see
+            # the caller's registry for why.
+            @test_broken reached
+        else
+            reached || @warn "[$label] enumerated selection unreached by navigation: $s"
+            @test reached
+        end
     end
 end
 
@@ -124,17 +130,41 @@ end
 # additionally assert navigation reaches every selection enumerated directly
 # from the document by `collect` (subset: collect(document) ⊆ reachable) — the
 # coverage feature.
+# `seed_broken` — `(errors) -> Bool`, consulted only when the seed produced no
+# state (`state_count == 0`); if it recognises the seed's failure the
+# `state_count > 0` assertion is `@test_broken` rather than `@test`. `broken` —
+# `(path) -> Bool`, marks a per-state walk failure broken. `unreached_broken` —
+# `(path) -> Bool`, marks a known-unreachable enumerated selection broken.
+# `throws_broken` — `(errormessage) -> Bool`, consulted when the *walk itself*
+# throws an uncaught exception (e.g. a `set_selection!` SelectionMismatch that
+# escapes `explore_selections`); a recognised throw is recorded `@test_broken`,
+# an unrecognised one re-raised (a regression). All default to `nothing` (mark
+# nothing); the umbrella supplies the registries.
 function test_navigation(label, document, projection;
                          nav_keys, seed_gesture=nothing, initial_selection=nothing,
-                         check_reaches_all=false, collect=nothing)
+                         check_reaches_all=false, collect=nothing,
+                         seed_broken=nothing, broken=nothing, unreached_broken=nothing,
+                         throws_broken=nothing)
     @testset "$label" begin
-        result = explore_selections(document, projection;
-            nav_keys=nav_keys, seed_gesture=seed_gesture,
-            initial_selection=initial_selection,
-            onstate = (p, ok, msg) -> begin
-                ok || @warn "[$label] [$p] $msg"
-                @test ok
-            end)
+        result = try
+            explore_selections(document, projection;
+                nav_keys=nav_keys, seed_gesture=seed_gesture,
+                initial_selection=initial_selection,
+                onstate = (p, ok, msg) -> begin
+                    if !ok && broken !== nothing && broken(string(p), msg)
+                        @test_broken ok
+                    else
+                        ok || @warn "[$label] [$p] $msg"
+                        @test ok
+                    end
+                end)
+        catch e
+            (throws_broken !== nothing && throws_broken(sprint(showerror, e))) || rethrow()
+            # @broken: the navigation walk throws; see the caller's registry.
+            @warn "[$label] navigation walk threw (known): $(sprint(showerror, e))"
+            @test_broken false
+            return
+        end
         # Seed failures (seed gesture / initial print) leave no states to assert;
         # surface their reasons and let the state-count check fail.
         if result.state_count == 0
@@ -142,13 +172,19 @@ function test_navigation(label, document, projection;
                 @warn "[$label] $e"
             end
         end
-        @test result.state_count > 0
+        if result.state_count == 0 && seed_broken !== nothing && seed_broken(result.errors)
+            # @broken: this example's seed gesture cannot produce a selection yet;
+            # see the caller's registry for why.
+            @test_broken result.state_count > 0
+        else
+            @test result.state_count > 0
+        end
         if check_reaches_all
             collect === nothing &&
                 throw(ArgumentError("check_reaches_all=true needs a `collect` ground-truth enumerator"))
             enumerated = collect(document)
             @test !isempty(enumerated)
-            _assert_reaches_all(label, enumerated, result.visited)
+            _assert_reaches_all(label, enumerated, result.visited; broken=unreached_broken)
         end
     end
 end

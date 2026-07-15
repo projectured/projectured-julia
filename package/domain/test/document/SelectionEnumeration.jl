@@ -65,7 +65,10 @@ _is_syntax_node(n) = n isa SyntaxDocument
 _default_tree_collector(::Any) = nothing
 _default_tree_collector(::JsonDocument) = collect_json_tree_selections
 
-function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node, collect=nothing)
+function test_tree_navigation(example::Example; check_reaches_all=false, is_node=_is_syntax_node,
+                              collect=nothing, seed_broken=nothing, broken=nothing, unreached_broken=nothing)
     collect === nothing && (collect = _default_tree_collector(example.document))
-    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all, is_node=is_node, collect=collect)
+    test_tree_navigation(example.name, example.document, example.projection; check_reaches_all=check_reaches_all,
+                         is_node=is_node, collect=collect,
+                         seed_broken=seed_broken, broken=broken, unreached_broken=unreached_broken)
 end

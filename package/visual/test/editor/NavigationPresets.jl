@@ -56,11 +56,15 @@ explore_tree_selections(document, projection; onstate=nothing) =
 # the document (subset: enumerated ⊆ reachable); the default ground truth is the
 # generic document walk `collect_position_selections`.
 function test_position_navigation(label, document, projection, initial_selection=nothing;
-                                  check_reaches_all=false, collect=collect_position_selections)
+                                  check_reaches_all=false, collect=collect_position_selections,
+                                  seed_broken=nothing, broken=nothing, unreached_broken=nothing,
+                                  throws_broken=nothing)
     test_navigation(label, document, projection;
                     nav_keys=POSITION_NAV_KEYS, seed_gesture=POSITION_SEED_GESTURE,
                     initial_selection=initial_selection,
-                    check_reaches_all=check_reaches_all, collect=collect)
+                    check_reaches_all=check_reaches_all, collect=collect,
+                    seed_broken=seed_broken, broken=broken, unreached_broken=unreached_broken,
+                    throws_broken=throws_broken)
 end
 
 # The `Example`-typed overload; the all-examples sweeps stay in the umbrella,
@@ -75,14 +79,18 @@ test_position_navigation(example::Example; check_reaches_all=false) =
 # syntax tree pass a projection-aware one, e.g. JSON passes
 # `collect_json_tree_selections`, which mirrors JsonToSyntax's decomposition).
 function test_tree_navigation(label, document, projection;
-                              check_reaches_all=false, is_node=nothing, collect=nothing)
+                              check_reaches_all=false, is_node=nothing, collect=nothing,
+                              seed_broken=nothing, broken=nothing, unreached_broken=nothing,
+                              throws_broken=nothing)
     if collect === nothing
         collect = is_node === nothing ? collect_tree_selections :
                   d -> collect_tree_selections(d; is_node=is_node)
     end
     test_navigation(label, document, projection;
                     nav_keys=TREE_NAV_KEYS, seed_gesture=TREE_SEED_GESTURE,
-                    check_reaches_all=check_reaches_all, collect=collect)
+                    check_reaches_all=check_reaches_all, collect=collect,
+                    seed_broken=seed_broken, broken=broken, unreached_broken=unreached_broken,
+                    throws_broken=throws_broken)
 end
 
 # The `Example`-typed overload of `test_tree_navigation` (with its
