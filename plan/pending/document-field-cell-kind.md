@@ -151,22 +151,44 @@ reserved cell vocabulary, so the check is safe.
       are **pre-existing on baseline b27dbd11** (verified in a baseline worktree) — the known
       "conversation v1-not-wired / Ctrl+Home seeds" issues, not regressions.
 
-### Phase 3 — all authored style immutable by default + measure
-- [ ] Sweep the **`@projection`/`@iomap`/`@cell_struct` config structs** (Family A) —
-      likely the biggest win: `ObjectToSyntax.style/quote_style/value/type_name/…`,
-      `CollectionToSyntax.delim/sep`, `ReferenceToText.font`, `SyntaxToText.deco_font`,
-      and the rest surfaced by the audit. These become fixed `::ImmutableCell{…}`.
-- [ ] Sweep the remaining **`@document`** style fields (Family B).
-- [ ] Audit every struct with a `StyleFont`/`StyleColor`/`StyleText` field. Classify:
-      **authored/source** (→ immutable) vs **computed/output** (ever `set_function!`'d /
-      `setproperty!`'d — e.g. `GraphicsText.font/color` set by `TextToGraphics`,
-      conversation value spans → **keep reactive**). Grep `set_function!`/`setproperty!`
-      on each candidate before converting.
-- [ ] Convert the authored ones; leave the computed ones reactive.
-- [ ] Handle the `nothing`-valued optional colors: either widen to
-      `ImmutableCell{Union{StyleColor,Nothing}}` or keep reactive — decide per the
-      measured fanout of those specific fields.
-- [ ] Measure fanout + microbench again. Record final delta.
+### Phase 3a — StyleText config in cell-struct-macro structs → immutable — DONE
+- [x] Fixed `CellStruct.jl` to splice `ImmutableCell`/`MutableCell`/`AbstractCell` as type
+      **objects** (not symbols), so a cell-struct field declared `ImmutableCell{T}` resolves
+      in any consumer module (e.g. `PrimitiveToTextModule`, which imports only `Cell`).
+- [x] Struct-aware sweep of **197** `StyleText` config fields → `ImmutableCell{StyleText}` in
+      the `@projection`/`@iomap`/`@cell_struct` `*ToSyntax` / syntax / widget-theme structs.
+      Plain hand-written projection structs correctly left untouched.
+- [x] **Result:** workbench dependent-edge sum 12 854 → **12 716**; projection style cells now
+      immutable (census 14 → 40). Precompile clean.
+
+### Phase 3b — migrate the plain style-bearing projections to `@projection` — ANALYZED, NOT DONE
+The user asked for "all projections use `@projection`", scoped to the ~11 plain style-bearing
+projection structs. Full analysis done; **the finding materially changes the calculus:**
+
+- **Zero fanout benefit.** A plain struct's `style::StyleText` holds the value *directly* — no
+  cell, so **no dependent edge already**. Migrating them adds an (inlined) immutable cell purely
+  for uniformity; it does not reduce fanout.
+- **`WidgetTheme` is not a projection** (no `<: Projection`) — out of scope; already fanout-free.
+- **Function-field structs** (`InsertionToSyntaxLeaf.commit/completion`, `WidgetScrollPaneToGraphicsViewport.measure`):
+  under `@projection`, `Cell(f::Function)` becomes a *thunk*, not a value. Migratable only by
+  annotating those fields `ImmutableCell{Any}`/`{Function}` (an `ImmutableCell` holds a function
+  as a value). Doable, but each needs the right per-field kind.
+- **`TextHighlighting` is a genuine misfit.** It self-manages reactive cells and reads them *as
+  cells* (`pattern_cell = p.pattern`). `@projection`'s transparent access returns the cell's
+  *value*, so it would need its access sites rewritten to `getfield`. Forcing it into `@projection`
+  fights the abstraction — arguably it should stay plain.
+- **6 of 8 modules don't import `@projection`** (InsertionToSyntax, ObjectToWidget,
+  SelectionInverting, TextHighlighting, ReferenceInspectorToText, LineNumbering) — each needs the
+  import added.
+
+Exact per-field kind map derived (all fields `ImmutableCell{declared-type}`, functions as
+`ImmutableCell{Any}`, `TextHighlighting`'s `pattern`/`case_insensitive` stay `Cell`). 10 of 11
+are cleanly migratable; `TextHighlighting` needs access-site rewrites.
+
+**Recommendation:** since it is uniformity-only, migrate the pure-config projections that fit the
+transparent model, and let cell/function-managing projections (`TextHighlighting`) stay plain —
+i.e. "projections use `@projection` unless they deliberately manage their own cells." Pending the
+user's call on scope.
 
 ## Measurement harness
 
