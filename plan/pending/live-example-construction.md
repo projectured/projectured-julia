@@ -268,12 +268,16 @@ reconstruct exactly. The 2 broken are the sole authoring gap — an empty `[]` /
 gesture). The planner is a generic slot model (`:scalar` / `:document` / `:element`) with multi-child
 grow and record (keyed-entry) handling.
 
-The JSON domain's own tests (`test_json_parser` / `test_json` / `test_json_to_syntax` /
-`_reader` / `test_json_gesture_collection` / `test_json_construct`) and the example printer / reader /
-navigation / repl drivers are all green. `test_typein` on the JSON examples has 89 pre-existing failures
-(byte-identical on clean `main`) — boundary Backspace/Delete at the value↔chrome seam, the known
-"text-selection representation refactor" territory, plus one `InsertionToSyntaxLeaf` `ReplaceStringRange`
-`MethodError` — *not* introduced by this work.
+**The entire JSON test surface is now green**, including `test_typein` (963/963 across json / json_sorted
+/ json_insertion). Closing the last gap took two shared-seam fixes: `_lower_text_range` now snaps a
+non-empty delete/replace range's ends *into* the span they touch (a range starting on the open-quote
+seam stays in the value), so deleting a string's first character no longer declines as cross-span — this
+also un-broke the `ConsoleBackendTest` boundary-delete case (its `@test_broken` promoted to `@test`); and
+`InsertionToSyntaxLeaf` gained the `ReplaceStringRangeOperation` reader it was missing, so typing into an
+insertion buffer through the full pipeline no longer throws. Both were verified regression-clean against
+`main` (test_visual byte-identical; test_domain Fail unchanged at the 19 pre-existing `versioning`
+printer failures). The zero-width insertion boundary stays with SyntaxToText's prefer-content redirect —
+only the *range* case moved to the generic Text lowering.
 
 Next, in order of remaining value:
 - **Julia insertion-domain recipes** — a `kind → commit-string` reflection table + `Insert → type →

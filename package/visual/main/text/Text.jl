@@ -939,12 +939,51 @@ reroot_operation(op::ReplaceTextRangeOperation, steps::Tuple) =
 # input block (== the outermost text stage's output). Returns `nothing` when the
 # range crosses a span/break boundary (v1 declines cross-span edits) or is not a
 # flat range.
+# The `TextString` span a non-empty range's START opens: a boundary offset (equal to a
+# span's end) belongs to the NEXT span it enters, not the one it just left — so a range
+# whose start sits on the open-delimiter|value seam stays inside the value rather than
+# straddling it. `nothing` when the offset falls in a break/indentation gap.
+function _flat_span_range_start(block::TextBlock, flat::Int)
+    for (path, len) in _text_span_infos(block)
+        length(path) == 1 || continue
+        base = _flat_base(block, path)
+        base === nothing && continue
+        base <= flat < base + len && return (path[1], flat - base)
+    end
+    nothing
+end
+
+# The `TextString` span a non-empty range's END closes: a boundary offset (equal to a
+# span's start) belongs to the PREVIOUS span it ends, so a range ending on the
+# value|close-delimiter seam stays inside the value. `nothing` in a gap.
+function _flat_span_range_end(block::TextBlock, flat::Int)
+    for (path, len) in _text_span_infos(block)
+        length(path) == 1 || continue
+        base = _flat_base(block, path)
+        base === nothing && continue
+        base < flat <= base + len && return (path[1], flat - base)
+    end
+    nothing
+end
+
 function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
     r = strip_reference_types(op.reference)
     (r isa ConcreteReferencePath && r.head isa TextRangeReference && r.tail isa EmptyReferencePath) || return nothing
     s, e = r.head.start, r.head.stop
-    a = text_flat_to_elem(block, s)
-    b = text_flat_to_elem(block, e)
+    if s == e
+        # Zero-width (an insertion): keep the plain resolution — a caret on a delimiter|value
+        # seam lands on the delimiter's end, which the domain's `read_intent` (SyntaxToText's
+        # prefer-content redirect) steers into the value. Range-snapping the two ends apart
+        # here would instead split them across spans and decline.
+        a = text_flat_to_elem(block, s); b = a
+    else
+        # A real range snaps each end toward the interior of the span it touches, so a
+        # delete/replace that brushes a delimiter seam stays within one span instead of
+        # declining as cross-span. A genuinely multi-span range still resolves to two
+        # different spans and declines (v1 leaves multi-span edits to a later pass).
+        a = something(_flat_span_range_start(block, s), text_flat_to_elem(block, s), Some(nothing))
+        b = something(_flat_span_range_end(block, e),   text_flat_to_elem(block, e), Some(nothing))
+    end
     (a === nothing || b === nothing || a[1] != b[1]) && return nothing   # cross-span: v1 decline
     ReplaceStringRangeOperation(_text_replace_path(Int[a[1]], a[2], b[2]), op.replacement)
 end

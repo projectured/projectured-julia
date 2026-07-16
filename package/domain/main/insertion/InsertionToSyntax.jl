@@ -225,6 +225,18 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
 end
 
+# A text edit lowered onto the buffer's rendered value span (the pipeline turns a
+# keystroke into a `ReplaceStringRangeOperation` before it reaches here) backward-maps
+# to the buffer's own `value[range]` — the same value the `Insert character` gesture
+# edits. An edit on a label/hint span has no value pre-image and declines. Without this
+# the generic leaf reader has no `ReplaceStringRangeOperation` method and typing into the
+# buffer through the full projection throws.
+function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+    mapped = map_reference_backward(p, iomap, op.reference)
+    mapped === nothing && return nothing
+    ReplaceStringRangeOperation(mapped, op.replacement)
+end
+
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
 # `read_projection_gesture` -- so the same set that fires is what `collect_gesture_bindings`
 # shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
