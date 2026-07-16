@@ -74,8 +74,9 @@ layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReference` (layer 12), `PointReference` and
-`TextRectangularReference` (both in `ProjecturedVisual`) all subtype it and register
+the clearest case: `ProjectionReference` (layer 12), `PointReference`, and the
+text-selection siblings `TextRangeReference`/`TextColumnReference`/`TextSpanReference`
+(all in `ProjecturedVisual`) subtype it and register
 their navigation through `evaluate_step`, with no edit to layer 8.
 
 **The agent stack is a side-stack.** The editor (layer 16) reaches it only through

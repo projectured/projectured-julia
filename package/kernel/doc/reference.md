@@ -110,7 +110,7 @@ Each step descends one level into a document tree. The full vocabulary:
 | `RangeReference(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
 | `ProjectionReference(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
 | `PointReference(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
-| `TextRectangularReference(…)` | a rectangular text region | visual `text/`; text-domain endpoint |
+| `TextRangeReference(s, e)` / `TextColumnReference` / `TextSpanReference` | a text selection — stream cursor / column box / bounding box | visual `text/`; text-domain endpoints, same `(start, stop)` payload, the type selects the geometry |
 
 The first four are the kernel's own steps (`ReferenceStep.jl`). The last three are
 owned by the packages that need them: each subtypes `ReferenceStep` and registers

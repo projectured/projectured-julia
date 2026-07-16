@@ -184,7 +184,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 | Module | Types |
 |---|---|
-| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRectangularReference` (visual `text/`) |
+| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRangeReference`/`TextColumnReference`/`TextSpanReference` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
 | `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
@@ -371,7 +371,7 @@ order:
  3 graphics  Graphics, GraphicsCaching, PointReference
  4 layout    Layout, the constraint solver, CollectionToLayout
  5 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
-             highlighting, TextRectangularReference, ReferenceToText
+             highlighting, TextRange/Column/SpanReference, ReferenceToText
  6 widget    Widget, WidgetToGraphics, ObjectToWidget, ProjectionConfiguring
  7 syntax    Syntax, SyntaxToText, ObjectToSyntax, CollectionToSyntax,
              PrimitiveToSyntax
