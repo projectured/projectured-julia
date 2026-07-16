@@ -108,6 +108,50 @@ This is exactly the read-eval-print loop from
 [package/kernel/main/editor/Editor.jl](../package/kernel/main/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
+### Bisecting the pipeline (a keystroke declines — which stage?)
+
+When a keystroke produces no edit (`read_intent` returns `nothing`) and you don't
+know why, **bisect the projection chain**. A pipeline is a `ChainingProjection`, and
+its stages are just a tuple you can slice:
+
+```julia
+julia> proj = make_json_projection_example();   # (JsonToSyntax, SyntaxToText, TextToGraphics)
+julia> proj.projections                         # the stages, outermost-input first
+```
+
+An event/op is read **outermost-stage first** and passed inward stage by stage; the
+first stage whose reader declines is where the trail stops. Rebuild shorter chains to
+find it, and forward-project through a truncated chain to see the document each stage
+actually works on:
+
+```julia
+julia> using ProjecturedBase.ChainingProjectionModule: ChainingProjection
+julia> outof(iomap) = (o = iomap.output; o isa Cell ? o[] : o);
+
+# What does the *text* layer see? Project the input through all but the last stage.
+julia> textchain = ChainingProjection(proj.projections[1:end-1]...);
+julia> tb = outof(print_document(textchain, doc));   # the TextBlock and its selection
+julia> getfield(tb, :selection)[]                    # where the caret landed after forward-mapping
+
+# Feed the key to ONE stage in isolation (here the final Text→Graphics stage):
+julia> last_stage = proj.projections[end];
+julia> ed = (; document = tb, iomap = print_document(last_stage, tb));
+julia> read_intent(last_stage, ed.iomap, KeyPress('x'))    # an op here, nothing there → localize
+```
+
+If a single stage **produces** an operation but the **full chain declines**, the fault
+is in a *backward map / lowering* between that stage and the input — the op is built but
+a later stage can't translate its reference (e.g. it lands on projection-introduced
+chrome — a delimiter/separator with no document pre-image). If the isolated stage
+**already declines**, the fault is in that stage's own reader (the selection didn't
+forward-map to an editable position, or the gesture has no binding there).
+
+A companion trick: forward-project a hand-built input with the caret placed at each
+candidate offset (`@with_selection Doc(...) field{k}` from
+`ProjecturedKernel.SelectionModule`) and feed the same key to each — the offsets that
+decline vs. succeed pin the boundary that breaks (e.g. an insertion at a value's *start*
+declining while its interior succeeds points at the delimiter|content span boundary).
+
 ## Searching the pipeline state (iomaps)
 
 `search_references` / `search_documents` (the content-search primitives from the
