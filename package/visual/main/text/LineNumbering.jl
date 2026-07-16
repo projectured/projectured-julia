@@ -11,7 +11,8 @@ module TextLineNumberingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
+import ..TextRangeReferenceModule: TextRangeReference
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell
@@ -92,12 +93,23 @@ function _line_numbering_span(original::TextString, content::AbstractString)
                Cell(nothing))
 end
 
-# Reader: map an output `.elements[out_span].content{char}` path back to the
-# matching input span. Prefix spans (added by this projection) have no
-# pre-image, so they round-trip to char 0 of the next real input span.
+# The flat caret offset of a `TextRangeReference` selection, or `nothing`.
+function _text_range_caret(ref)
+    r = strip_reference_types(ref)
+    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r.head.start::Int
+end
+
+# Reader: map an output flat caret back to the matching input span. Prefix spans
+# (the line-number text this projection inserts) have no pre-image, so they
+# round-trip to char 0 of the next real input span.
 function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    out_span, out_char = _parse_text_elem_path(op.path)
-    out_span === nothing && return nothing
+    flat = _text_range_caret(op.path)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(iomap.output, flat)
+    loc === nothing && return nothing
+    out_span, out_char = loc
     mapping = _output_to_input_map(iomap.input.elements)
     out_span <= length(mapping) || return nothing
     in_span, char_offset, is_prefix = mapping[out_span]
@@ -107,7 +119,9 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
         in_span, char_offset, _ = mapping[next]
         out_char = 0
     end
-    ReplaceSelectionOperation(@reference(iomap.input, elements[in_span].content{char_offset + out_char}))
+    f = text_elem_to_flat(iomap.input, in_span, char_offset + out_char)
+    f === nothing && return nothing
+    ReplaceSelectionOperation(ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath()))
 end
 
 read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt

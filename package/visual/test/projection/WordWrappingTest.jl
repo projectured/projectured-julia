@@ -32,22 +32,21 @@ end # @testset "WordWrapping no-wrap"
 src = "Lorem ipsum dolor"           # words at chars [0..4), [6..10), [12..16)
 input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
 m = _test_measure(10, 18)
-iomap = print_document(WordWrapping(max_width=80, measure=m), input)
+proj = WordWrapping(max_width=80, measure=m)
+iomap = print_document(proj, input)
+out = iomap.output
 segs = iomap.segs[]
 
-# Every output sub-span maps backward then forward to itself.
+# Every output sub-span offset maps backward then forward to itself, in the flat
+# break-aware coordinate (a flat `TextRangeReference` caret, not the structural path).
 for seg in segs
     for k in 0:seg.length
-        out_ref = ConcreteReferencePath(
-            FieldReference("elements"),
-            ConcreteReferencePath(RangeReference(seg.out_index - 1, seg.out_index),
-                ConcreteReferencePath(FieldReference("content"),
-                    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))))
-        in_ref  = map_reference_backward(WordWrapping(max_width=80, measure=m), iomap, out_ref)
+        out_ref = TextModule._flat_caret_ref(text_elem_to_flat(out, seg.out_index, k))
+        in_ref  = map_reference_backward(proj, iomap, out_ref)
         @test in_ref !== nothing
-        # Inverting via forward at the same input offset lands on the same
-        # output sub-span (modulo the boundary-duplicate convention).
-        back_out = map_reference_forward(WordWrapping(max_width=80, measure=m), iomap, in_ref)
+        # Inverting via forward at the same input offset lands on a valid output
+        # caret (modulo the boundary-duplicate convention).
+        back_out = map_reference_forward(proj, iomap, in_ref)
         @test back_out !== nothing
     end
 end
@@ -118,17 +117,14 @@ input = TextBlock(
 )
 proj  = WordWrapping(max_width=80, measure=m)
 iomap = print_document(proj, input)
-# The image is input span 2; its atomic positions {0} and {1} must survive
-# the forward/backward mapping even though a soft newline shifted its index.
-for c in (0, 1)
-    in_ref = ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(RangeReference(1, 2),
-            ConcreteReferencePath(FieldReference("content"),
-                ConcreteReferencePath(RangeReference(c, c), EmptyReferencePath()))))
-    out_ref = map_reference_forward(proj, iomap, in_ref)
-    @test out_ref !== nothing
-    @test map_reference_backward(proj, iomap, out_ref) !== nothing
-end
+# The image is input span 2; a soft newline drops it onto the next line, shifting
+# its output index. The image is zero-width in the caret stream, so its flat
+# position is the "abcdef" boundary (flat 6); that offset must survive the
+# forward/backward mapping despite the index shift.
+in_ref  = TextModule._flat_caret_ref(text_elem_to_flat(input, 2, 0))
+out_ref = map_reference_forward(proj, iomap, in_ref)
+@test out_ref !== nothing
+@test map_reference_backward(proj, iomap, out_ref) !== nothing
 
 end # @testset "WordWrapping image selection round-trips"
 

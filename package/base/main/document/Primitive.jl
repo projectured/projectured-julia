@@ -16,7 +16,7 @@ import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReference, RangeReference, evaluate_reference,
                           strip_reference_types, reference_steps
-export PrimitiveDocument, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
+export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -75,6 +75,26 @@ end
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
+    ReplaceRangeOperation <: Operation
+
+Category supertype for the "replace a referenced character range with a string"
+operations. Every subtype carries exactly two fields — `reference::ReferencePath`
+(rooted at the editor's document, terminating in the step that names the range)
+and `replacement::String`. This shared shape lets the generic transport methods
+(`reroot_operation`, the projection-stage backward-map / passthrough readers) be
+written once against `ReplaceRangeOperation`; the concrete subtypes differ only in
+what their terminal step means and how the range is resolved and applied:
+
+- `ReplaceStringRangeOperation` — a `RangeReference` over one string field's chars.
+- `ReplaceTextRangeOperation` (text slice) — a `TextRangeReference` flat range over
+  a whole `TextBlock`, possibly crossing spans/lines.
+
+`ReplaceNumberRangeOperation` deliberately stays outside this hierarchy for now (it
+forces number semantics regardless of the field value); it may join later.
+"""
+abstract type ReplaceRangeOperation <: Operation end
+
+"""
     ReplaceNumberRangeOperation(reference, replacement)
 
 Replace characters in the string representation of a `PrimitiveNumber`'s value.
@@ -104,7 +124,7 @@ zero-width cursor at `s + length(replacement)`.
 Inter-string boundary behaviour: when the cursor sits exactly on the boundary
 between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
-struct ReplaceStringRangeOperation <: Operation
+struct ReplaceStringRangeOperation <: ReplaceRangeOperation
     reference::ReferencePath
     replacement::String
 end

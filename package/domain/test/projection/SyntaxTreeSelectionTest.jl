@@ -104,7 +104,7 @@ end
     @test strip_reference_types(op_json.path) isa EmptyReferencePath
 end
 
-@testset "nested whole-child emits TextRectangularReference at Text level" begin
+@testset "nested whole-child emits TextSpanReference at Text level" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     # Select the 2nd element as a whole: .elements[2] (terminating ∅).
     nested = ConcreteReferencePath(FieldReference("elements"),
@@ -118,15 +118,15 @@ end
                          ConcreteReferencePath(ElementReference(2), EmptyReferencePath()))
     @test is_reference_equal(strip_reference_types(node_io.output.selection), expected_child)
 
-    # The text layer now emits a TextRectangularReference carrying the child's
+    # The text layer now emits a TextSpanReference carrying the child's
     # flat character range for the highlight box.
     text_io = print_document(s2t, node_io.output)
     text_sel = text_io.output.selection
     @test text_sel isa ConcreteReferencePath
-    @test text_sel.head isa TextRectangularReference
+    @test text_sel.head isa TextSpanReference
     @test text_sel.tail isa EmptyReferencePath
     # The range must be non-empty and cover the child's extent.
-    tr = text_sel.head::TextRectangularReference
+    tr = text_sel.head::TextSpanReference
     @test tr.start >= 0
     @test tr.stop > tr.start
 

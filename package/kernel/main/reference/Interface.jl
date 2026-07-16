@@ -6,7 +6,7 @@
 # consume the `dsl_*` seams in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
 #
 # A step type defined in a higher package (`PointReference`, `ProjectionReference`,
-# `TextRectangularReference`) subtypes `ReferenceStep` and registers itself by
+# `TextSpanReference`) subtypes `ReferenceStep` and registers itself by
 # adding methods to the generics declared here — at its own definition site, with
 # no edit to this layer.
 
@@ -64,7 +64,7 @@ value (throws on descent failure). Some step types descend to a document
 child (`FieldReference`, `RangeReference`); others descend to a synthetic
 value that stands in for the reference target (`PointReference` returns a
 coordinate pair, `ProjectionReference` returns the projection's output
-path, `TextRectangularReference` returns the character range). For a
+path, `TextSpanReference` returns the character range). For a
 `:checkpoint` step, return `document` unchanged after asserting the
 invariant (throws on mismatch).
 """

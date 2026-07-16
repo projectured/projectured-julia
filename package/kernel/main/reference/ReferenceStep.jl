@@ -7,7 +7,7 @@
 # Each step type is self-contained: its struct, `show`, `==`, and its `step_kind` /
 # `evaluate_step` seam methods sit together, the same way a step type owned by a
 # higher package packages itself (`PointReference.jl`, `ProjectionReference.jl`,
-# `TextRectangularReference.jl`). The abstract `ReferenceStep` and the seam generics
+# `TextSpanReference.jl`). The abstract `ReferenceStep` and the seam generics
 # are declared in `Interface.jl`; the paths these steps are threaded onto live in
 # `ReferencePath.jl`.
 

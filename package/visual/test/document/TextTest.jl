@@ -74,56 +74,70 @@ block = mkblock()
 # stream back to a span (the console highlight, SelectionInverting) relies on it.
 @test text_flat_offsets(block)[2] + block.elements[2].indentation ==
       length("hello world\n  ")
+
+# The caret is a flat offset in the break/indentation-aware stream. `fb(path, k)`
+# is the flat offset of char `k` in the span at the structural `path` — the shape
+# the old `content{c}` cursor named; the selection is now a flat `TextRangeReference`.
+fb(path, k) = TextModule._flat_base(mkblock(), path) + k
+caret(f)    = with_selection(mkblock(), TextModule._flat_caret_ref(f))
+# flat offset carried by a caret op / ref
+cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.path : x);
+               (r.head::TextRangeReference).start)
+
 # The caret at the start of the indented line sits after the indent, not before.
-@test text_selection_flat(with_selection(mkblock(),
-        TextModule._build_selection_path(Int[2, 1], 0))) == (14, 14, true)
+@test fb(Int[2, 1], 0) == 14
+@test text_selection_flat(caret(fb(Int[2, 1], 0))) == (14, 14, true)
 
-# The caret inside a line is one `elements` hop deeper, and the flat offset of
-# span 2 of line 1 is the length of span 1.
-caret(path, k) = with_selection(mkblock(), TextModule._build_selection_path(path, k))
-b = caret(Int[1, 2], 0)
-@test TextModule._text_selection_range(b) == ([1, 2], 0, 0)
-@test TextModule._cursor_coord(getfield(b, :selection)[]) == (span = [1, 2], char = 0)
+# The flat offset of span 2 of line 1 is the length of span 1; a boundary offset
+# resolves canonically to the earlier span's end (direction-independent).
+b = caret(fb(Int[1, 2], 0))
 @test text_selection_flat(b) == (5, 5, true)
+@test TextModule._flat_cursor_coord(b) == (span = [1, 1], char = 5)
 
-# Character motion crosses span *and* line boundaries, landing on the canonical
-# caret each time (the boundary duplicate is skipped, as in a flat block).
-motion(path, k, key) = read_bound_gesture(caret(path, k), KeyDown(key, Modifiers())).path
-@test motion(Int[1, 1], 2, :right) == TextModule._build_selection_path(Int[1, 1], 3)
-@test motion(Int[1, 1], 5, :right) == TextModule._build_selection_path(Int[1, 2], 1)
-@test motion(Int[1, 2], 6, :right) == TextModule._build_selection_path(Int[2, 1], 1)
-@test motion(Int[2, 1], 0, :left)  == TextModule._build_selection_path(Int[1, 2], 5)
+# Character motion is `± 1` in the flat stream. Every offset — including the break
+# and the indentation gap between the lines — is now a valid caret rest (those
+# positions are deletable), so motion no longer skips them.
+motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, Modifiers())))
+@test motion(fb(Int[1, 1], 2), :right) == fb(Int[1, 1], 3)   # 2 → 3
+@test motion(fb(Int[1, 1], 5), :right) == fb(Int[1, 2], 1)   # 5 → 6, into span 2
+@test motion(fb(Int[1, 2], 6), :right) == 12                 # 11 → 12, onto the break gap
+@test motion(fb(Int[2, 1], 0), :left)  == 13                 # 14 → 13, into the indent gap
 
 # Bare End is geometry — TextToGraphics owns it, the domain table has no binding.
-@test read_bound_gesture(caret(Int[1, 1], 0), KeyDown(:end, Modifiers())) === nothing
-# Ctrl+End reaches the last span of the last line; Ctrl+Left is word-wise.
-@test read_bound_gesture(caret(Int[1, 1], 0), KeyDown(:end, Modifiers(; ctrl = true))).path ==
-      TextModule._build_selection_path(Int[2, 1], 6)
-@test read_bound_gesture(caret(Int[1, 2], 6), KeyDown(:left, Modifiers(; ctrl = true))).path ==
-      TextModule._build_selection_path(Int[1, 2], 1)
+@test read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, Modifiers())) === nothing
+# Ctrl+End reaches the flat end; Ctrl+Left is word-wise.
+@test cflat(read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, Modifiers(; ctrl = true)))) ==
+      fb(Int[2, 1], 6)
+@test cflat(read_bound_gesture(caret(fb(Int[1, 2], 6)), KeyDown(:left, Modifiers(; ctrl = true)))) ==
+      fb(Int[1, 2], 1)
 
-# Typing edits that line's own span, and the caret advances past the insert.
-b = caret(Int[2, 1], 6)
+# Typing edits that line's own span (a flat ReplaceTextRangeOperation, lowered to a
+# span edit as it threads up), and the caret advances past the insert.
+b = caret(fb(Int[2, 1], 6))
 op = read_bound_gesture(b, KeyPress('!'))
-@test op isa ReplaceStringRangeOperation
+@test op isa ReplaceTextRangeOperation
 evaluate_operation((document = b,), op)
 @test b.elements[2].elements[1].content == "second!"
-@test getfield(b, :selection)[] == TextModule._build_selection_path(Int[2, 1], 7)
+@test text_selection_flat(b) == (21, 21, true)
 
-# Backspace at the start of a line declines rather than deleting across the line
-# boundary — a cross-span edit the domain does not do yet.
-@test read_bound_gesture(caret(Int[2, 1], 0), KeyDown(:backspace, Modifiers())) === nothing
+# Backspace at the start of a line now produces a flat op targeting the position
+# before it (the indentation gap); the standalone evaluate still declines a gap /
+# cross-span delete (v1), leaving the line unchanged.
+bb  = caret(fb(Int[2, 1], 0))
+bop = read_bound_gesture(bb, KeyDown(:backspace, Modifiers()))
+@test bop isa ReplaceTextRangeOperation
+evaluate_operation((document = bb,), bop)
+@test bb.elements[2].elements[1].content == "second"
 
-# A flat block is unchanged: single-index caret paths, newline counted as one char.
+# A flat block: single-index spans, the newline counted as one flat char.
 flat = with_selection(TextBlock(TextString("ab"),
                                 TextNewline(font = font_ubuntu_monospace_regular_20),
                                 TextString("cd")),
-                      TextModule._build_selection_path(3, 1))
+                      TextModule._flat_caret_ref(4))   # char 1 of "cd" → flat 4
 @test text_flat_offsets(flat) == [0, 2, 3]
 @test text_selection_flat(flat) == (4, 4, true)
-@test TextModule._cursor_coord(getfield(flat, :selection)[]) == (span = [3], char = 1)
-@test read_bound_gesture(flat, KeyDown(:left, Modifiers())).path ==
-      TextModule._build_selection_path(3, 0)
+@test TextModule._flat_cursor_coord(flat) == (span = [3], char = 1)
+@test cflat(read_bound_gesture(flat, KeyDown(:left, Modifiers()))) == 3
 
 end # @testset "TextLine: line-structured blocks"
 end # test_text

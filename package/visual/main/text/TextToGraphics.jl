@@ -21,13 +21,15 @@ import ..CellModule: Cell, set_function!, set_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
-                     SpanPath, _build_selection_path, _cursor_coord, _is_structural_selection
+                     SpanPath, _flat_cursor_coord, _flat_base, _flat_caret_ref, _is_structural_selection,
+                     ReplaceTextRangeOperation, _lower_text_range
+import ..TextRangeReferenceModule: TextRangeReference
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, head, tail
-import ..TextRectangularReferenceModule: TextRectangularReference
+import ..TextSpanReferenceModule: TextSpanReference
 import ..PointReferenceModule: PointReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -107,8 +109,26 @@ end
 # on the Text domain (`read_gesture(::TextBlock, ::KeyPress)` in `TextModule`).
 # Delegate to it; the operation it produces (a `ReplaceStringRangeOperation`
 # against `.elements[i].content[range]`) flows back through the chain unchanged.
+# Text-domain gesture, with any flat edit op lowered to the structural single-span
+# form over the input block (== the outermost text stage's output), so the existing
+# `ReplaceStringRangeOperation` chain carries it up. A declined (cross-span) edit
+# lowers to `nothing`, so the caller lets the gesture propagate.
+function _gesture_op(iomap::TextToGraphicsIoMap, evt)
+    op = read_gesture(iomap.input, evt)
+    op isa ReplaceTextRangeOperation ? _lower_text_range(iomap.input, op) : op
+end
+
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
-    return read_gesture(iomap.input, evt)
+    return _gesture_op(iomap, evt)
+end
+
+# A `ReplaceSelectionOperation` selecting the flat caret at `char` in the span at
+# `span_path`, or `nothing` when the span has no flat base. The graphics layer
+# resolves clicks/line-motion to a `(span, char)` hit; this converts it to the
+# canonical flat selection (`_flat_base + char`).
+function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
+    base = _flat_base(text, span_path)
+    base === nothing ? nothing : ReplaceSelectionOperation(_flat_caret_ref(base + char))
 end
 
 # Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
@@ -123,7 +143,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePr
     # A click always becomes a plain character cursor; whole-element promotion
     # (Alt+click) is decided in SyntaxToText, where the tree is in hand.
     char_pos = _char_position_at_x(sc, evt.x, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(sc.span_path, char_pos))
+    return _flat_hit_op(iomap.input, sc.span_path, char_pos)
 end
 
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
@@ -133,7 +153,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # Backspace/Delete, the Ctrl+. fold recognition, and the tree-gesture decline
     # rules) live on the Text domain. Delegate to `read_gesture`, which reads
     # only the span structure and the flat-character selection — no layout.
-    op = read_gesture(iomap.input, evt)
+    op = _gesture_op(iomap, evt)
     op === nothing || return op
 
     # `read_gesture` returned nothing: either it *declined* a tree gesture
@@ -153,7 +173,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     styled = iomap.input
     _has_text_span(styled) || return nothing
 
-    current = _cursor_coord(styled.selection)
+    current = _flat_cursor_coord(styled)
     current === nothing && return nothing
 
     @event_case evt begin
@@ -166,7 +186,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
             line_segs = filter(sc -> sc.y == current_y, coord_map)
             sc = k === :home ? line_segs[1] : line_segs[end]
             new_char = k === :home ? sc.char_start : sc.char_end
-            return ReplaceSelectionOperation(_build_selection_path(sc.span_path, new_char))
+            return _flat_hit_op(styled, sc.span_path, new_char)
         end
         when(KeyDown(k), k === :up || k === :down) => begin
             coord_map = iomap.char_to_coord[]
@@ -197,7 +217,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                     best_sc   = sc
                 end
             end
-            return ReplaceSelectionOperation(_build_selection_path(best_sc.span_path, best_pos))
+            return _flat_hit_op(styled, best_sc.span_path, best_pos)
         end
     end
     return evt
@@ -553,13 +573,13 @@ end
 # layout the lines run, group by group.
 #
 # `span_flat_offsets` maps a span's `SpanPath` to the flat character offset it
-# starts at: the space a `TextRectangularReference` box is expressed in. A
+# starts at: the space a `TextSpanReference` box is expressed in. A
 # `TextLine` contributes its implicit break and its indentation to that space (the
 # rule of `text_flat_offsets`), because the projection that emits the line counts
 # both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
 # into the block at wrap points and the box space must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
-    cursor_pos = _cursor_coord(sel)
+    cursor_pos = _flat_cursor_coord(styled)
     coord_map = SegCoord[]
     span_flat_offsets = Dict{SpanPath,Int}()
     cursor = nothing
@@ -582,7 +602,7 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
     highlight = nothing
     hl_range = _highlight_char_range(sel, coord_map)
     hl_range === nothing ||
-        (highlight = _compute_highlight_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
+        (highlight = _compute_span_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
     (cursor = cursor, highlight = highlight)
 end
 
@@ -866,10 +886,10 @@ end
 
 # ── Selection → cursor position ───────────────────────────────────────
 #
-# `_cursor_coord`, `_is_structural_selection`, and `_build_selection_path` are pure
-# `TextBlock`-selection helpers living in `TextModule` (the document layer); they
-# are imported above. They are shared between the geometry-free `read_gesture` (in
-# TextModule) and the geometry-dependent layout / mouse / line-motion code here.
+# `_flat_cursor_coord` and `_is_structural_selection` are pure `TextBlock`-selection
+# helpers living in `TextModule` (the document layer); they are imported above. They
+# are shared between the geometry-free `read_gesture` (in TextModule) and the
+# geometry-dependent layout / mouse / line-motion code here.
 
 function _make_sdl(text, x, y, font, color::StyleColor)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
@@ -949,7 +969,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h2 isa PointReference || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    return ReplaceSelectionOperation(_build_selection_path(seg.span_path, char_pos))
+    return _flat_hit_op(iomap.input, seg.span_path, char_pos)
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the
@@ -1013,7 +1033,7 @@ Extract the flat character range for a box selection from the TextBlock's
 selection. Recognized shapes:
 - `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
   the total character count across all segments.
-- `ConcreteReferencePath(TextRectangularReference(s, e), ∅)` → `(s, e)`.
+- `ConcreteReferencePath(TextSpanReference(s, e), ∅)` → `(s, e)`.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegCoord})
@@ -1027,20 +1047,25 @@ function _highlight_char_range(sel, coord_map::Vector{SegCoord})
     end
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
-    h isa TextRectangularReference || return nothing
     sel.tail isa EmptyReferencePath || return nothing
+    if h isa TextRangeReference
+        # A non-empty text selection highlights its flat range; a caret has none
+        # (it is drawn as the cursor rect instead).
+        return h.start == h.stop ? nothing : (h.start, h.stop)
+    end
+    h isa TextSpanReference || return nothing
     return (h.start, h.stop)
 end
 
 """
-    _compute_highlight_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> (x, y, w, h) or nothing
+    _compute_span_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> (x, y, w, h) or nothing
 
-Bounding box over all `SegCoord`s whose character range overlaps
-`[hl_start, hl_stop)`, as an `(x, y, w, h)` tuple, or `nothing` when no segment
-overlaps. The caller paints it as the persistent highlight rect (light blue,
-~25% alpha, rounded).
+The **bounding-box** geometry of variant 3 (`TextSpanReference`): a single rect
+enclosing every `SegCoord` whose character range overlaps `[hl_start, hl_stop)`,
+as an `(x, y, w, h)` tuple, or `nothing` when no segment overlaps. The caller
+paints it as the persistent highlight rect (light blue, ~25% alpha, rounded).
 """
-function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_span_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
     x0, y0 = typemax(Int), typemax(Int)
     x1, y1 = 0, 0
     found = false
@@ -1067,6 +1092,55 @@ function _compute_highlight_geo(coord_map::Vector{SegCoord}, span_flat_offsets::
     h = y1 - y0
     (w <= 0 || h <= 0) && return nothing
     (x0, y0, w, h)
+end
+
+"""
+    _compute_column_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> Vector of (x, y, w, h)
+
+The **column-box** geometry of variant 2 (`TextColumnReference`): a true rectangle
+`[col(hl_start) … col(hl_stop)]` painted on every row the selection spans,
+independent of the glyph content on each row — the Sublime / VS Code "column
+select". Returns one `(x, y, w, h)` rect per row, or an empty vector when either
+endpoint's column cannot be resolved or the two columns coincide.
+
+Reserved for a future column-select gesture; no producer emits a
+`TextColumnReference` yet, so this is exercised by a direct unit test rather than
+the live overlay. `_layout_overlay` today paints the single `_compute_span_geo`
+bounding rect; generalising it to a per-row rect vector (the same render path a
+multi-line stream highlight needs) is the remaining wiring.
+"""
+function _compute_column_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+    # Resolve a flat offset to its (x, y_top, y_bottom) via the segment it falls in.
+    function _col(off)
+        for sc in coord_map
+            base = get(span_flat_offsets, sc.span_path, 0)
+            (base + sc.char_start <= off <= base + sc.char_end) || continue
+            x = _seg_cursor_x(sc, off - base, p.measure)
+            fs = font_logical_size(sc.font)
+            return (x, sc.y, sc.y + fs)
+        end
+        nothing
+    end
+    a = _col(hl_start)
+    b = _col(hl_stop)
+    (a === nothing || b === nothing) && return NTuple{4,Int}[]
+    left  = min(a[1], b[1])
+    right = max(a[1], b[1])
+    w = right - left
+    w <= 0 && return NTuple{4,Int}[]
+    top    = min(a[2], b[2])
+    bottom = max(a[3], b[3])
+    # One rect per distinct row the coord_map places inside `[top, bottom)`.
+    rects = NTuple{4,Int}[]
+    seen  = Set{Int}()
+    for sc in coord_map
+        (sc.y in seen) && continue
+        (top <= sc.y < bottom) || continue
+        push!(seen, sc.y)
+        push!(rects, (left, sc.y, w, font_logical_size(sc.font)))
+    end
+    sort!(rects, by = r -> r[2])
+    rects
 end
 
 # ── Image helpers ────────────────────────────────────────────────────────

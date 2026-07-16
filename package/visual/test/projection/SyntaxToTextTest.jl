@@ -440,7 +440,10 @@ end
 
     fwd = map_reference_forward(iomap.projection, iomap,
               @reference(s, separator{0}))
-    span_idx, _ = _S2T._parse_text_elem_path(fwd)
+    # The forward image is a flat TextRangeReference; resolve it back to the span
+    # it lands on to assert it is the first separator (element 2).
+    flat = _S2T._text_side_flat(fwd)
+    span_idx, _ = _S2T._flat_to_span_char(iomap.output.elements, flat)
     @test span_idx == 2                       # the first separator, right after child 1
 
     # Backward from inside that first separator: projection-introduced chrome, NOT

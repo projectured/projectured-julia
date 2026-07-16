@@ -31,21 +31,22 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..DomainModule
 import ..DomainModule: @domain, @insertion
-import ..SelectionModule: @with_selection
+import ..SelectionModule: @with_selection, clear_selection!, set_selection!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types, Position
-import ..TextRectangularReferenceModule: TextRectangularReference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!
-import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath, RangeReference, FieldReference, strip_reference_types, evaluate_reference, reference_steps
+import ..TextSpanReferenceModule: TextSpanReference
+import ..TextColumnReferenceModule: TextColumnReference
+import ..TextRangeReferenceModule: TextRangeReference, is_text_caret
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!, evaluate_operation, reroot_operation, reroot_reference
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export set_function!, text_flat_length, text_flat_offsets, text_selection_flat, hinted_text,
-       text_selection_substring, text_insert_op
+       text_selection_substring, text_insert_op, ReplaceTextRangeOperation,
+       text_flat_to_elem, text_elem_to_flat, _lower_text_range
 
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
@@ -386,86 +387,114 @@ _span_at(text::TextBlock, path::SpanPath) =
     KeyDown(:right;)       => "Cursor right"         => _text_char_motion(doc, :right)
 end
 
-# ── Character-cursor step helpers ─────────────────────────────────────────
+# ── Flat character-cursor helpers ─────────────────────────────────────────
 #
-# `_step_left` / `_step_right` return the next canonical caret `(span, char)`
-# one character away from `(span_idx, char_idx)`, or `nothing` when motion is
-# clamped at a document end, including the boundary-duplicate skip (so each
-# visual caret has one canonical path). Word motion iterates them so every
-# intermediate/final caret is one the per-char path already produces. These are
-# geometry-free, so they live on the Text domain alongside `read_gesture`.
+# The text cursor is a single flat offset into the block's concatenated rendered
+# stream (the `text_flat_offsets` / `text_flat_length` space, which counts
+# TextNewline / TextSpacing / TextLine indentation and the implicit inter-line
+# break). Every offset `0 … total` is a valid caret rest, so character motion is
+# `± 1` clamped — no span bookkeeping and no boundary-duplicate skip: the *same*
+# visual caret has exactly one representation regardless of travel direction, and
+# a within-line span boundary collapses to a single offset while a line boundary
+# stays a distinct pair separated by the break. These are geometry-free, so they
+# live on the Text domain alongside `read_gesture`.
 
-function _step_left(span_infos, span_idx, char_idx)
-    if char_idx > 0
-        return (span_idx, char_idx - 1)
-    else
-        pos = findfirst(si -> si[1] == span_idx, span_infos)
-        (pos === nothing || pos == 1) && return nothing  # clamp at document start
-        prev = span_infos[pos - 1]
-        # Use prev[2]-1 to skip the boundary duplicate (prev[2] == current (span,0) visually)
-        return (prev[1], max(0, prev[2] - 1))
+# Total flat length of the block — mirrors `text_flat_offsets`' accounting (the
+# `+1` before every TextLine but the first is the implicit break).
+function _text_flat_total(text::TextBlock)
+    total = 0
+    for (k, el) in enumerate(text.elements)
+        (el isa TextLine && k > 1) && (total += 1)   # implicit inter-line break
+        total += text_flat_length(el)
     end
+    total
 end
 
-function _step_right(span_infos, span_idx, char_idx)
-    pos = findfirst(si -> si[1] == span_idx, span_infos)
-    pos === nothing && return nothing  # clamp
-    span_len = span_infos[pos][2]
-    if char_idx < span_len
-        return (span_idx, char_idx + 1)
-    else
-        pos == length(span_infos) && return nothing  # clamp at document end
-        next = span_infos[pos + 1]
-        # Use char 1 to skip the boundary duplicate (char 0 == current (span,span_len) visually)
-        return (next[1], next[2] > 0 ? 1 : 0)
+# The rendered character stream as a `Vector{Char}`, one entry per flat position
+# (so `length` equals `_text_flat_total`). Used by word motion and edit
+# classification; must stay in lockstep with `text_flat_length` / `_text_flat_total`.
+function _flat_chars(text::TextBlock)
+    chars = Char[]
+    for (k, el) in enumerate(text.elements)
+        (el isa TextLine && k > 1) && push!(chars, '\n')   # implicit inter-line break
+        _push_flat_chars!(chars, el)
     end
+    chars
+end
+_push_flat_chars!(chars, s::TextString) = append!(chars, collect(s.content::AbstractString))
+_push_flat_chars!(chars, ::TextNewline)  = push!(chars, '\n')
+_push_flat_chars!(chars, ::TextSpacing)  = push!(chars, ' ')
+_push_flat_chars!(chars, ::TextDocument) = chars          # TextGraphics etc.: 0-width, matches text_flat_length
+function _push_flat_chars!(chars, line::TextLine)
+    for _ in 1:line.indentation
+        push!(chars, ' ')
+    end
+    for span in line.elements
+        _push_flat_chars!(chars, span)
+    end
+    chars
+end
+
+# The flat text selection `(start, stop)` — from a flat `TextRangeReference` head,
+# or a structural `.content{a:b}` caret canonicalised to its flat offsets — else
+# `nothing` (no caret, or a whole-element `∅` / `TextSpanReference`).
+function _text_flat_selection(text::TextBlock)
+    sel = strip_reference_types(text.selection)
+    if sel isa ConcreteReferencePath && sel.head isa TextRangeReference && sel.tail isa EmptyReferencePath
+        return (sel.head.start, sel.head.stop)
+    end
+    # A structural `.elements[i].content{a:b}` caret — e.g. the one a value edit's
+    # `evaluate_operation` leaves behind, before a re-projection re-flattens it —
+    # denotes a flat range too. Canonicalise it so the flat readers (motion, edit)
+    # can act on it and re-emit the caret in the canonical flat form. Whole-element
+    # `∅` / `TextSpanReference` selections are not `.content` ranges, so they still
+    # return nothing here and keep declining (the syntax layer tree-navigates them).
+    rng = _text_selection_range(text)
+    rng === nothing && return nothing
+    path, a, b = rng
+    base = _flat_base(text, path)
+    base === nothing ? nothing : (base + a, base + b)
+end
+
+# The selection reference for a flat caret / range, rooted at the TextBlock.
+# Emitted plain; `set_selection!` canonicalises (adds the folded checkpoints).
+_flat_caret_ref(pos::Int) =
+    ConcreteReferencePath(TextRangeReference(pos, pos), EmptyReferencePath())
+_flat_range_ref(start::Int, stop::Int) =
+    ConcreteReferencePath(TextRangeReference(start, stop), EmptyReferencePath())
+
+# The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
+# geometry, or `nothing` when there is no caret, the selection is a range, or the
+# caret falls in a break / indentation gap with no owning span. `_flat_base`
+# supplies the span's flat base, `_flat_to_span` the inverse.
+function _flat_cursor_coord(text::TextBlock)
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    sel[1] == sel[2] || return nothing            # a range has no single char cursor
+    loc = _flat_to_span(text, sel[1])
+    loc === nothing && return nothing
+    (span = loc[1], char = loc[2])
 end
 
 # Standard editor word class: letters, digits, and underscore are "word" chars;
-# everything else is a separator.
+# everything else (including breaks and spacing) is a separator.
 _is_word_char(c) = isletter(c) || isdigit(c) || c == '_'
 
-# The character a single step would cross. `char_idx` is the 0-based caret
-# offset; span strings are 1-based, so `_char_right` reads index `char_idx+1`
-# and `_char_left` reads index `char_idx`. Returns `nothing` at the span ends
-# (a step there crosses a span boundary, not a character within this span).
-function _char_right(span_text, span_idx, char_idx)
-    txt = get(span_text, span_idx, nothing)
-    txt === nothing && return nothing
-    idx = char_idx + 1
-    (idx < 1 || idx > length(txt)) && return nothing
-    txt[nextind(txt, 0, idx)]   # idx is a character position; map to a byte index
+# Ctrl+Right: from flat `f`, skip the current word run then the separator run →
+# next word start. `chars` is the flat stream (`chars[f+1]` is the char right of
+# caret `f`); `n == length(chars)`.
+function _word_right_flat(chars, f::Int, n::Int)
+    while f < n && _is_word_char(chars[f + 1]); f += 1; end
+    while f < n && !_is_word_char(chars[f + 1]); f += 1; end
+    f
 end
 
-function _char_left(span_text, span_idx, char_idx)
-    txt = get(span_text, span_idx, nothing)
-    txt === nothing && return nothing
-    (char_idx < 1 || char_idx > length(txt)) && return nothing
-    txt[nextind(txt, 0, char_idx)]   # char_idx is a character position
-end
-
-# Ctrl+Right: skip the current word run, then the separator run → next word start.
-function _word_step_right(span_infos, span_text, span_idx, char_idx)
-    s, c = span_idx, char_idx
-    while (ch = _char_right(span_text, s, c)) !== nothing && _is_word_char(ch)
-        nxt = _step_right(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
-    end
-    while (ch = _char_right(span_text, s, c)) !== nothing && !_is_word_char(ch)
-        nxt = _step_right(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
-    end
-    (s, c)
-end
-
-# Ctrl+Left: skip the separator run, then the word run → current/previous word start.
-function _word_step_left(span_infos, span_text, span_idx, char_idx)
-    s, c = span_idx, char_idx
-    while (ch = _char_left(span_text, s, c)) !== nothing && !_is_word_char(ch)
-        nxt = _step_left(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
-    end
-    while (ch = _char_left(span_text, s, c)) !== nothing && _is_word_char(ch)
-        nxt = _step_left(span_infos, s, c); nxt === nothing && return (s, c); (s, c) = nxt
-    end
-    (s, c)
+# Ctrl+Left: skip the separator run then the word run (`chars[f]` is the char
+# left of caret `f`).
+function _word_left_flat(chars, f::Int)
+    while f > 0 && !_is_word_char(chars[f]); f -= 1; end
+    while f > 0 && _is_word_char(chars[f]); f -= 1; end
+    f
 end
 
 # ── Reified-gesture operations ────────────────────────────────────────────
@@ -492,85 +521,67 @@ function _text_span_infos(text::TextBlock)
     infos
 end
 
-# Span-content lookup (path → content String) for word-class testing.
-_text_span_text(text::TextBlock) =
-    Dict{SpanPath,String}(path => String(_span_content(text, path)::AbstractString)
-                          for (path, _) in _text_span_infos(text))
-
-# Insert (replace the selected range with) `str` at the text cursor. The selection
-# must carry the `.elements[i].content[range]` shape (or its in-line
-# `.elements[i].elements[j].content[range]` form); other shapes decline.
+# Insert (replace the selected flat range with) `str` at the text cursor. Produces
+# a `ReplaceTextRangeOperation` in the flat coordinate; it is lowered to a
+# span/domain edit as it threads up the projection chain.
 function _text_insert(text::TextBlock, str::AbstractString)
-    rng = _text_selection_range(text)
-    rng === nothing && return nothing
-    path, char_start, char_stop = rng
-    ReplaceStringRangeOperation(_text_replace_path(path, char_start, char_stop), str)
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    ReplaceTextRangeOperation(_flat_range_ref(sel[1], sel[2]), str)
 end
 
-# Backspace / Delete: replace the appropriate character range with "".
+# Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
+# a caret removes the char before it (backspace) / after it (delete), clamped at
+# the ends. Whether a range that crosses a span/break boundary actually applies is
+# decided when the op is lowered (v1: a cross-span range declines).
 function _text_delete(text::TextBlock, key::Symbol)
-    rng = _text_selection_range(text)
-    rng === nothing && return nothing
-    path, char_start, char_stop = rng
-    content = _span_content(text, path)
-    content === nothing && return nothing
-    n = length(content)
-    if key === :backspace
-        if char_start != char_stop
-            new_range = (char_start, char_stop)
-        elseif char_start > 0
-            new_range = (char_start - 1, char_start)
-        else
-            return nothing
-        end
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    s, e = sel
+    if s != e
+        rng = (s, e)
+    elseif key === :backspace
+        s > 0 || return nothing
+        rng = (s - 1, s)
     else  # :delete
-        if char_start != char_stop
-            new_range = (char_start, char_stop)
-        elseif char_stop < n
-            new_range = (char_stop, char_stop + 1)
-        else
-            return nothing
-        end
+        n = _text_flat_total(text)
+        s < n || return nothing
+        rng = (s, s + 1)
     end
-    ReplaceStringRangeOperation(_text_replace_path(path, new_range[1], new_range[2]), "")
+    ReplaceTextRangeOperation(_flat_range_ref(rng[1], rng[2]), "")
 end
 
-# Ctrl+Home / Ctrl+End: cursor to the very start / end of the text.
+# Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.
 function _text_jump(text::TextBlock, where::Symbol)
-    span_infos = _text_span_infos(text)
-    isempty(span_infos) && return nothing
-    where === :start ?
-        ReplaceSelectionOperation(_build_selection_path(span_infos[1][1], 0)) :
-        ReplaceSelectionOperation(_build_selection_path(span_infos[end][1], span_infos[end][2]))
+    ReplaceSelectionOperation(_flat_caret_ref(where === :start ? 0 : _text_flat_total(text)))
 end
 
-# Ctrl+Left / Ctrl+Right: word-wise cursor motion.
+# Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on
+# the near end of the selection (left end for :left, right end for :right).
 function _text_word_motion(text::TextBlock, direction::Symbol)
-    span_infos = _text_span_infos(text)
-    isempty(span_infos) && return nothing
-    current = _cursor_coord(text.selection)
-    current === nothing && return nothing
-    span_text = _text_span_text(text)
-    s, c = direction === :left ?
-        _word_step_left(span_infos, span_text, current.span, current.char) :
-        _word_step_right(span_infos, span_text, current.span, current.char)
-    ReplaceSelectionOperation(_build_selection_path(s, c))
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    chars = _flat_chars(text)
+    newf = direction === :left ?
+        _word_left_flat(chars, sel[1]) :
+        _word_right_flat(chars, sel[2], length(chars))
+    ReplaceSelectionOperation(_flat_caret_ref(newf))
 end
 
-# Left / Right: per-character cursor motion. Declines when a whole element is
-# selected (no character cursor to move) so the syntax layer can tree-navigate;
-# clamps in place at a document end.
+# Left / Right: per-character cursor motion, `± 1` clamped in the flat stream. A
+# range collapses to its near end. Declines when a whole element is selected (no
+# character cursor to move) so the syntax layer can tree-navigate.
 function _text_char_motion(text::TextBlock, direction::Symbol)
     _is_structural_selection(text.selection) && return nothing
-    span_infos = _text_span_infos(text)
-    isempty(span_infos) && return nothing
-    current = _cursor_coord(text.selection)
-    current === nothing && return nothing
-    nxt = direction === :left ?
-        _step_left(span_infos, current.span, current.char) :
-        _step_right(span_infos, current.span, current.char)
-    s, c = nxt === nothing ? (current.span, current.char) : nxt  # clamp in place
-    ReplaceSelectionOperation(_build_selection_path(s, c))
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    s, e = sel
+    newf = if s == e
+        direction === :left ? max(0, s - 1) : min(_text_flat_total(text), s + 1)
+    else
+        direction === :left ? s : e     # collapse the range to its near end
+    end
+    ReplaceSelectionOperation(_flat_caret_ref(newf))
 end
 
 # The span at `path`'s content when it is a TextString; nothing otherwise.
@@ -671,45 +682,25 @@ end
     text_insert_op(text::TextBlock, str) -> Union{Operation,Nothing}
 
 The `ReplaceStringRangeOperation` that inserts `str` at the text cursor, replacing
-any selected range. `nothing` when the selection is not a character cursor/range.
-The caret advances past the inserted text automatically on evaluation. Used by the
-clipboard to paste text.
+any selected range. `nothing` when the selection is not a character cursor/range
+(or the range crosses a span boundary). The caret advances past the inserted text
+automatically on evaluation. Used by the clipboard to paste text — the flat edit is
+lowered to the structural single-span form here so the clipboard stays unchanged.
 """
-text_insert_op(text::TextBlock, str::AbstractString) = _text_insert(text, str)
-
-# Parse a character-cursor selection into a `(span::SpanPath, char)` NamedTuple, or
-# nothing when the selection is not a character cursor. A caret inside a `TextLine`
-# reads as `[i, j]`, one at block level as `[i]`.
-function _cursor_coord(sel)
-    sel === nothing && return nothing
-    @reference_case sel begin
-        ::TextBlock.elements{i:_}.elements{j:_}.content{c:_} => (span=Int[i + 1, j + 1], char=c)
-        ::TextBlock.elements{i:_}.content{c:_}               => (span=Int[i + 1], char=c)
-    end
+function text_insert_op(text::TextBlock, str::AbstractString)
+    op = _text_insert(text, str)
+    op === nothing ? nothing : _lower_text_range(text, op)
 end
 
-# A whole-element selection projects to either `∅` (the root element) or a
-# `TextRectangularReference` box; both mean "structural mode" at this layer.
+# A whole-element selection projects to `∅` (the root element), a
+# `TextSpanReference` bounding box, or a `TextColumnReference` column box; all
+# three mean "structural mode" at this layer — a character cursor they are not,
+# so char motion declines and the syntax layer tree-navigates / block-edits them.
 function _is_structural_selection(sel)
     sel = sel
     sel isa EmptyReferencePath ||
-        (sel isa ConcreteReferencePath && sel.head isa TextRectangularReference)
-end
-
-_build_selection_path(span_idx::Int, char_idx::Int) =
-    _build_selection_path(Int[span_idx], char_idx)
-
-# The caret at `char_idx` in the span at `path`: one `elements` hop per index, so a
-# span inside a `TextLine` gets the deeper path. Only the two depths a block can
-# actually hold exist, so the checkpointed `@reference` form is written out for
-# each rather than assembled step by step.
-function _build_selection_path(path::SpanPath, char_idx::Int)
-    if length(path) == 1
-        i = path[1]
-        return @reference ::TextBlock.elements::CellVector[i]::TextString.content::String{char_idx}::Position
-    end
-    i, j = path[1], path[2]
-    @reference ::TextBlock.elements::CellVector[i]::TextLine.elements::CellVector[j]::TextString.content::String{char_idx}::Position
+        (sel isa ConcreteReferencePath &&
+         (sel.head isa TextSpanReference || sel.head isa TextColumnReference))
 end
 
 # ── set_function! delegation ───────────────────────────────────────────────
@@ -771,7 +762,7 @@ the concatenated stream (0-based), plus an `is_cursor` flag (a zero-width caret)
 Returns `nothing` when there is no renderable selection.
 
 Two shapes occur, both with 0-based offsets:
-  • whole-element: top-level `TextRectangularReference(a, b)`, an already-flat
+  • whole-element: top-level `TextSpanReference(a, b)`, an already-flat
     character range over the concatenated text;
   • text cursor: `.elements[i].content{a:b}`, or `.elements[i].elements[j].content{a:b}`
     inside a line — add the span's base offset.
@@ -782,7 +773,10 @@ function text_selection_flat(text::TextBlock)
     sel = text.selection
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
-    if h isa TextRectangularReference && sel.tail isa EmptyReferencePath
+    if h isa TextRangeReference && sel.tail isa EmptyReferencePath
+        return (h.start, h.stop, h.start == h.stop)
+    end
+    if h isa TextSpanReference && sel.tail isa EmptyReferencePath
         return (h.start, h.stop, h.start == h.stop)
     end
     rng = _text_selection_range(text)
@@ -791,6 +785,50 @@ function text_selection_flat(text::TextBlock)
     base = _flat_base(text, path)
     base === nothing && return nothing
     (base + a, base + b, a == b)
+end
+
+# ── Decorator flat↔element helpers ─────────────────────────────────────────
+# The text→text decorators (WordWrapping, LineNumbering, TextFiltering,
+# TextHighlighting, SelectionInverting) remap the flat cursor between their input
+# and output blocks through a per-span seg table keyed on element index + char.
+# These bridge a flat offset (the break/indentation-aware caret space) and the
+# `(element_index, char)` the seg tables use. The decorator blocks are flat
+# sequences (TextString / TextNewline / TextSpacing — no nested TextLines), so an
+# element index is a single `[i]` path.
+
+"""
+    text_flat_to_elem(block, flat) -> (element_index, char) | nothing
+
+The `TextString` element a flat offset lands in and the char offset within it. A
+gap offset (on a break/spacing element) clamps to the nearest `TextString`
+boundary; `nothing` only when the block has no `TextString`.
+"""
+function text_flat_to_elem(block::TextBlock, flat::Int)
+    loc = _flat_to_span(block, flat)
+    loc !== nothing && length(loc[1]) == 1 && return (loc[1][1], loc[2])
+    best = nothing
+    bestd = typemax(Int)
+    for (path, len) in _text_span_infos(block)
+        length(path) == 1 || continue
+        base = _flat_base(block, path)
+        base === nothing && continue
+        d = flat < base ? base - flat : (flat > base + len ? flat - (base + len) : 0)
+        if d < bestd
+            bestd = d
+            best = (path[1], clamp(flat - base, 0, len))
+        end
+    end
+    best
+end
+
+"""
+    text_elem_to_flat(block, element_index, char) -> flat | nothing
+
+The flat offset of `char` within the `TextString` at `element_index`.
+"""
+function text_elem_to_flat(block::TextBlock, elem::Int, char::Int)
+    base = _flat_base(block, Int[elem])
+    base === nothing ? nothing : base + char
 end
 
 # The flat offset the span at `path` starts at, or nothing when the path does not
@@ -811,6 +849,104 @@ function _flat_base(text::TextBlock, path::SpanPath)
         base += text_flat_length(spans[k])
     end
     base
+end
+
+# ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────
+#
+# The text-domain edit expressed in the canonical flat coordinate (the
+# `text_flat_offsets` / `_flat_base` space that counts breaks, spacing and
+# indentation — the same space `text_selection_flat` and the renderer use). Its
+# `reference` is rooted at the editor's document and terminates in a
+# `TextRangeReference(start, stop)`; unlike a `ReplaceStringRangeOperation` its
+# range may cross spans/lines. It re-roots through the projection stack like the
+# string op (same `(reference, replacement)` shape) and, for a projected document,
+# is lowered to input-domain ops at the syntax↔text seam. It reaches
+# `evaluate_operation` only when a `TextBlock` is (reachable in) the editor's own
+# document.
+
+"""
+    ReplaceTextRangeOperation(reference, replacement)
+
+Replace a flat character range of a `TextBlock` with `replacement`. `reference` is
+rooted at the editor's document and terminates in a `TextRangeReference(s, e)`
+(0-based flat offsets over the block's concatenated stream). After evaluation the
+selection becomes a zero-width caret at `s + length(replacement)`.
+"""
+struct ReplaceTextRangeOperation <: ReplaceRangeOperation
+    reference::ReferencePath
+    replacement::String
+end
+
+# Split a text-range reference into (prefix-to-block, start, stop). The terminal
+# step must be a `TextRangeReference`; returns `nothing` otherwise. Type
+# checkpoints are stripped first so the terminal is read from the plain skeleton.
+function _split_text_range_reference(path)
+    steps = reference_steps(strip_reference_types(path))
+    isempty(steps) && return nothing
+    term = steps[end]
+    term isa TextRangeReference || return nothing
+    (ReferencePath(steps[1:end-1]...), term.start, term.stop)
+end
+
+# Resolve a flat offset (canonical break/indentation-aware space) to the
+# `(span_path, local_char)` of the `TextString` span it falls in, or `nothing`
+# when it lands on a break / spacing / indentation gap (no editable span) or out
+# of range. Boundary offsets resolve to the earlier span's end.
+function _flat_to_span(text::TextBlock, flat::Int)
+    for (span_path, len) in _text_span_infos(text)
+        base = _flat_base(text, span_path)
+        base === nothing && continue
+        base <= flat <= base + len && return (span_path, flat - base)
+    end
+    nothing
+end
+
+# Standalone-TextBlock application. For a projected document the op is lowered
+# upstream and never arrives here. v1 handles the in-span case (caret or range
+# within one span); a cross-span range or an offset on a break/indentation gap
+# declines (leaves the document unchanged) — break-joins and multi-span edits are
+# a later pass.
+function evaluate_operation(editor, op::ReplaceTextRangeOperation)
+    document = editor.document
+    split = _split_text_range_reference(op.reference)
+    split === nothing && return
+    block_path, start, stop = split
+    block = try
+        evaluate_reference(document, block_path)
+    catch
+        return
+    end
+    block isa TextBlock || return
+    a = _flat_to_span(block, start)
+    b = _flat_to_span(block, stop)
+    (a === nothing || b === nothing || a[1] != b[1]) && return   # off-span / cross-span: v1 decline
+    span = _span_at(block, a[1])
+    span.content = splice_string(span.content::AbstractString, a[2], b[2], op.replacement)
+    newpos = start + length(op.replacement)
+    steps = reference_steps(strip_reference_types(op.reference))
+    newref = ReferencePath(steps[1:end-1]..., TextRangeReference(newpos, newpos))
+    clear_selection!(document)
+    set_selection!(document, newref)
+end
+
+reroot_operation(op::ReplaceTextRangeOperation, steps::Tuple) =
+    ReplaceTextRangeOperation(reroot_reference(op.reference, steps), op.replacement)
+
+# Lower a flat `ReplaceTextRangeOperation` to the structural single-span
+# `ReplaceStringRangeOperation` (`.elements[i].content[s:e]`) over `block`, so the
+# existing per-stage `ReplaceStringRangeOperation` readers carry it the rest of the
+# way up the chain. Applied at the text→graphics boundary against that stage's
+# input block (== the outermost text stage's output). Returns `nothing` when the
+# range crosses a span/break boundary (v1 declines cross-span edits) or is not a
+# flat range.
+function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
+    r = strip_reference_types(op.reference)
+    (r isa ConcreteReferencePath && r.head isa TextRangeReference && r.tail isa EmptyReferencePath) || return nothing
+    s, e = r.head.start, r.head.stop
+    a = text_flat_to_elem(block, s)
+    b = text_flat_to_elem(block, e)
+    (a === nothing || b === nothing || a[1] != b[1]) && return nothing   # cross-span: v1 decline
+    ReplaceStringRangeOperation(_text_replace_path(Int[a[1]], a[2], b[2]), op.replacement)
 end
 
 end # module

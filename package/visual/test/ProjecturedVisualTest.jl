@@ -142,7 +142,9 @@ function test_visual_layering()
                    # parameter goes.
                    qualified_files = Set([
                        "graphics/PointReference.jl",        # the reference-step seam
-                       "text/TextRectangularReference.jl",
+                       "text/TextSpanReference.jl",
+                       "text/TextColumnReference.jl",
+                       "text/TextRangeReference.jl",
                        "backend/Console.jl"]))              # the backend seam
 end
 

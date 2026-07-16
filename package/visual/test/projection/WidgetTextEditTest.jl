@@ -23,12 +23,10 @@ function _proj()
     )))
 end
 
-# `content.elements[1].content{n}` — a cursor at char n inside the widget's text.
+# `content` + flat text caret at offset n — a cursor at char n inside the widget's
+# single-span text (flat offset == char index for one span).
 _cursor(n) = ConcreteReferencePath(FieldReference("content"),
-    ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(RangeReference(0, 1),
-            ConcreteReferencePath(FieldReference("content"),
-                ConcreteReferencePath(RangeReference(n, n), EmptyReferencePath())))))
+    ConcreteReferencePath(TextRangeReference(n, n), EmptyReferencePath()))
 
 @testset "WidgetText recurses Document content and renders to graphics" begin
     doc = _doc()

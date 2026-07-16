@@ -116,12 +116,13 @@ end # @testset
 
     proj = SelectionInverting()
     iomap = print_document(proj, _doc("alphabet", _range(1, 2, 5)))
+    out = iomap.output
     segs = iomap.segs[]
     @test length(segs) == 3
     for seg in segs
         seg.length == 0 && continue
         for k in 0:seg.length
-            out_ref = _ref(seg.out_index, k)
+            out_ref = TextModule._flat_caret_ref(text_elem_to_flat(out, seg.out_index, k))
             in_ref = map_reference_backward(proj, iomap, out_ref)
             @test in_ref !== nothing
             @test map_reference_forward(proj, iomap, in_ref) !== nothing
@@ -150,7 +151,7 @@ end # @testset
     )
     # Flat range [3:6) selects the whole second span via a whole-element ref.
     input = TextBlock(CellVector(Cell[Cell(input.elements[1]), Cell(input.elements[2])]),
-                     Cell(ConcreteReferencePath(TextRectangularReference(3, 6), EmptyReferencePath())))
+                     Cell(ConcreteReferencePath(TextSpanReference(3, 6), EmptyReferencePath())))
     out = print_document(SelectionInverting(), input).output
     @test _contents(out) == ["foo", "bar"]
     @test out.elements[1] === input.elements[1]   # first span untouched (same object)

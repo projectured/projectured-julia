@@ -128,7 +128,7 @@ function posnav_seed_broken(name)
     # domains have no whole-document caret seed yet) or a raw gesture.
     name in ("conversation_editor", "filesystem", "natural", "navigator") &&
         return ("returned nothing",)
-    name == "rotating_vector" && return ("returned KeyDown",)
+    name == "rotating_vector" && return ("KeyDown instead of ReplaceSelectionOperation",)
     nothing
 end
 
@@ -378,29 +378,31 @@ end
 
 # ── keyboard nav invariants ──────────────────────────────────────────────────
 
-# @broken: the leftward walk stalls partway and so neither retraces the rightward
-# walk nor reaches the start. `left` clamps in place on a caret that sits in a
-# zero-length span, because the step lands on the same visual caret it started
-# from and the selection never changes.
+# @broken: the leftward walk does not retrace the rightward one. Character motion
+# itself is a clean flat ±1, but a caret that sits on a projection-introduced token
+# — the width-0 indent slot SyntaxToText emits before each close delimiter, a graph
+# vertex's delimiter, a block-sequence indent — does not survive the backward∘forward
+# projection round-trip, so stepping left off it lands on a different caret than the
+# rightward walk passed through. The leftward walk then visits far fewer carets than
+# the rightward one (`:same_length`) and does not arrive back at the start
+# (`:left_reaches_start`).
 #
-# Optional delimiters removed most of those spans — an undelimited leaf or node no
-# longer materializes an empty `open`/`close`/`sep` — which is why sql_insert_syntax
-# now walks symmetrically and markdown / sql_update_syntax now reach the end. What
-# remains is the width-0 *indent* slot that SyntaxToText emits before each close
-# delimiter (it needs the slot to widen, and element counts must not depend on
-# depth), and that still swallows a leftward step.
-#
-# Diagnosed in plan/pending/left-motion-stalls-on-introduced-text.md; the fix is
-# deferred to the text-selection work (see plan/pending/simplest-syntax-document.md).
-const NAV_LEFT_WALK_STALLS = ("json", "json_sorted", "json_insertion", "syntax",
-                              "mixed", "focusing", "formula", "sql_syntax", "dragging",
-                              "yaml")
+# Root cause is the introduced-token caret round-trip in the projection maps, not
+# the flat text caret; diagnosed in
+# plan/pending/left-motion-stalls-on-introduced-text.md and tracked with the
+# introduced-caret work (plan/pending/simplest-syntax-document.md).
+const NAV_LEFT_WALK_STALLS = ("json", "json_sorted", "mixed", "formula", "yaml",
+                              "text", "text_with_image", "markdown_rendered")
 
-# @broken: on formula and yaml the *rightward* walk also ends somewhere other than
-# where Ctrl+End lands — a second, narrower asymmetry in the same forward map. On
-# yaml the block-sequence indentation makes the leftward walk stall hard (it visits
-# a fraction of the carets the rightward walk does).
-const NAV_RIGHT_WALK_MISSES_END = ("formula", "yaml")
+# @broken: on these the leftward walk not only fails to retrace but revisits a caret
+# it already stepped through — the round-trip above maps a later caret back onto an
+# earlier one, so the walk is not a chain (`:cycle_left`).
+const NAV_LEFT_WALK_CYCLES = ("json", "json_sorted", "mixed", "yaml")
+
+# @broken: on formula the *rightward* walk also ends somewhere other than where
+# Ctrl+End lands — the same introduced-token round-trip asymmetry, in the forward
+# direction (`:right_reaches_end`).
+const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 
 # @broken: these examples cannot complete a walk at all — the seed gesture or a
 # reader throws partway through. Pre-existing and unrelated to navigation
@@ -412,8 +414,9 @@ const NAV_WALK_THROWS = Dict(
     # map cannot wrap it — the seed throws before any walk starts.
     "graph"             => (:walk_right, :walk_left),
     # SelectionMismatch in set_selection! on a CollectionToSyntax leaf: an
-    # undelimited PrimitiveString still offers a phantom `.open{…}` caret.
-    "searching"         => (:walk_right,),
+    # undelimited PrimitiveString still offers a phantom `.open{…}` caret; the seed
+    # throws before either walk can proceed.
+    "searching"         => (:walk_right, :walk_left),
 )
 
 # The invariants a given example is known to fail, for `test_text_nav_invariants`.
@@ -424,6 +427,7 @@ function nav_broken(name)
     broken = Symbol[]
     append!(broken, get(NAV_WALK_THROWS, name, ()))
     name in NAV_LEFT_WALK_STALLS && append!(broken, (:same_length, :left_reaches_start))
+    name in NAV_LEFT_WALK_CYCLES && push!(broken, :cycle_left)
     name in NAV_RIGHT_WALK_MISSES_END && push!(broken, :right_reaches_end)
     broken
 end

@@ -86,7 +86,7 @@ using ProjecturedTulipTest
 using ProjecturedVideoTest
 using ProjecturedOdbcTest
 using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
-                   TextRectangularReference,
+                   TextSpanReference,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,
                    map_reference_forward, map_reference_backward,
                    color_red, color_blue, color_green, color_white, color_default,

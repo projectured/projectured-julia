@@ -23,12 +23,13 @@ import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
                        syntax_children, syntax_opening, syntax_closing,
                        syntax_separator, syntax_indentation, syntax_collapsed,
                        syntax_collapsible, syntax_child_path, peel_child_step
-import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument
+import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position, reference_node_type
-import ..TextRectangularReferenceModule: TextRectangularReference
+import ..TextSpanReferenceModule: TextSpanReference
+import ..TextRangeReferenceModule: TextRangeReference
 import ..ProjectionReferenceModule: ProjectionReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"
@@ -83,7 +84,9 @@ end
 # A cursor into a leaf field, or `nothing` when the leaf has no such delimiter.
 function _leaf_elem_path(leaf::SyntaxLeaf, field::Symbol, char_idx::Int)
     i = _leaf_span_index(leaf, field)
-    i == 0 ? nothing : _text_elem_path(i, char_idx)
+    i == 0 && return nothing
+    flat = _text_elem_path_to_flat(_leaf_spans(leaf), i, char_idx)
+    flat < 0 ? nothing : _flat_text_path(flat)
 end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
@@ -103,8 +106,12 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     reference isa EmptyReferencePath && return @reference()
     # Tree selection path: .elements[i]∅ → select the whole leaf
     _parse_tree_elem_path(reference) !== nothing && return @reference()
-    span_idx, char_idx = _parse_text_elem_path(reference)
-    span_idx === nothing && return nothing
+    spans = _leaf_spans(iomap.input)
+    flat = _text_side_flat(reference, spans)
+    flat === nothing && return nothing
+    loc = _flat_to_span_char(spans, flat)
+    loc === nothing && return nothing
+    span_idx, char_idx = loc
     field = _leaf_field_at(iomap.input, span_idx)
     field === :open  && return @reference(iomap.input, open{char_idx})
     field === :value && return @reference(iomap.input, value{char_idx})
@@ -160,6 +167,15 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringR
                   ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
                       EmptyReferencePath(Position)))
     ReplaceStringRangeOperation(new_ref, op.replacement)
+end
+
+# Flat text edit in a `TextToGraphics`-less pipeline (the console): normally
+# `TextToGraphics` lowers the flat `ReplaceTextRangeOperation` to the structural
+# span form before it reaches here, but the console pipeline has no such stage, so
+# lower it against this leaf's own output block and re-dispatch.
+function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
+    lowered = _lower_text_range(iomap.output, op)
+    lowered === nothing ? nothing : read_intent(p, iomap, lowered)
 end
 
 # Pass KeyDown events through so upstream projections (e.g.
@@ -278,12 +294,15 @@ end
 # — crucially — reading the *widened* parent spans, so re-indent-on-splice is
 # accounted for). Whole-element (∅) images are handled separately via element
 # ranges (`_child_elem_range`), never by adding a child-local flat.
-function _shift_child_cursor(inner, elements, range::UnitRange{Int})
-    span_idx, char_idx = _parse_text_elem_path(inner)
-    span_idx === nothing && return nothing
+function _shift_child_cursor(inner, child_elements, elements, range::UnitRange{Int})
+    child_flat = _text_side_flat(inner)
+    child_flat === nothing && return nothing
+    loc = _flat_to_span_char(child_elements, child_flat)
+    loc === nothing && return nothing
+    span_idx, char_idx = loc
     pf = _text_elem_path_to_flat(elements, range.start + span_idx - 1, char_idx)
     pf < 0 && return nothing
-    _flat_to_text_elem_path(elements, pf)
+    _flat_text_path(pf)
 end
 
 # Element-index range (in `iomap.output.elements`) covered by a whole-element
@@ -360,13 +379,13 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
             s = _text_elem_path_to_flat(elements, rng.start, 0)
             s < 0 && return nothing
             e = s + sum(_span_len(elements[j]) for j in rng; init = 0)
-            return ConcreteReferencePath(TextRectangularReference(s, e), EmptyReferencePath())
+            return ConcreteReferencePath(TextSpanReference(s, e), EmptyReferencePath())
         end
         # Cursor → delegate to the child's own mapper, then re-anchor at parent flat.
         child = cims[child_i]
         inner = map_reference_forward(child.projection, child, ctail)
         inner === nothing && return nothing
-        return _shift_child_cursor(inner, elements, iomap.child_elem_ranges[][child_i])
+        return _shift_child_cursor(inner, child.output.elements, elements, iomap.child_elem_ranges[][child_i])
     end
     rest = reference.tail
     rest isa ConcreteReferencePath || return nothing
@@ -405,20 +424,17 @@ function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundTo
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReferencePath && return @reference()     # whole node
     elements = iomap.output.elements
-    # Bare flat `{n}` → the rendered element path, then classify like any other.
-    if reference isa ConcreteReferencePath && reference.head isa RangeReference &&
-       reference.tail isa EmptyReferencePath
-        ep = _flat_to_text_elem_path(elements, reference.head.start::Int)
-        ep === nothing && return nothing
-        return map_reference_backward(p, iomap, ep)
-    end
     # Whole-element (tree) selection `.elements[j]∅`.
     tree_j = _parse_tree_elem_path(reference)
     tree_j !== nothing && return _backward_zone(p, iomap, tree_j, nothing)
-    # Cursor `.elements[j].content{c}`.
-    span_idx, char_idx = _parse_text_elem_path(reference)
-    span_idx === nothing && return nothing
-    _backward_zone(p, iomap, span_idx, char_idx)
+    # Flat text caret (`TextRangeReference{f}`, bare `{f}`, or the internal
+    # structural `.elements[j].content{c}`) → the element `(span, char)` it lands
+    # on, then classify by zone.
+    flat = _text_side_flat(reference, elements)
+    flat === nothing && return nothing
+    loc = _flat_to_span_char(elements, flat)
+    loc === nothing && return nothing
+    _backward_zone(p, iomap, loc[1], loc[2])
 end
 
 # Classify output element `j` into a zone and produce the source-domain selection.
@@ -703,7 +719,7 @@ end
 # children's composed selections (Settled decision 5). Precedence, structural
 # wins: (1) node.selection ∅ → whole-node highlight; (2)/(3) forward-map
 # node.selection through this projection's own mapper — a path ending in ∅ under
-# `.children[i]…` becomes a `TextRectangularReference`, a cursor path an element
+# `.children[i]…` becomes a `TextSpanReference`, a cursor path an element
 # path; (4) otherwise the first child whose composed selection is a plain cursor
 # element path, shifted by its splice base — a child returning ∅ or a TextRect is
 # skipped, not promoted; (5) none.
@@ -719,9 +735,13 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
     for (i, cim) in enumerate(cims)
         csel = cim.output.selection
         csel === nothing && continue
-        span_idx, char_idx = _parse_text_elem_path(csel)
-        span_idx === nothing && continue           # skip ∅ / TextRect / non-cursor
-        return _text_elem_path(ranges[i].start + span_idx - 1, char_idx)
+        cf = _text_side_flat(csel)
+        cf === nothing && continue                 # skip ∅ / TextRect / non-cursor
+        loc = _flat_to_span_char(cim.output.elements, cf)
+        loc === nothing && continue
+        pf = _text_elem_path_to_flat(iomap.output.elements, ranges[i].start + loc[1] - 1, loc[2])
+        pf < 0 && continue
+        return _flat_text_path(pf)
     end
     return nothing                                                            # case 5
 end
@@ -786,16 +806,11 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     # Locate the clicked element (prefer the reference's own element index; fall
     # back through the flat offset for a bare `{n}`), plus the flat for the marker
     # boundary-pixel test.
-    j, c = _parse_text_elem_path(path)
-    if j === nothing
-        flat0 = _click_flat_pos(iomap, path)
-        flat0 < 0 && return nothing
-        ep = _flat_to_text_elem_path(elements, flat0)
-        ep === nothing && return nothing
-        j, c = _parse_text_elem_path(ep)
-        j === nothing && return nothing
-    end
-    flat = _text_elem_path_to_flat(elements, j, c)
+    flat = _text_side_flat(path, elements)
+    flat === nothing && return nothing
+    loc = _flat_to_span_char(elements, flat)
+    loc === nothing && return nothing
+    j, c = loc
     node = iomap.input
     mi = iomap.marker_index[]
 
@@ -922,6 +937,16 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
         end
     end
     return nothing   # own chrome (open/close/decoration) is not string-editable
+end
+
+# Flat text edit in a `TextToGraphics`-less pipeline (the console): lower the flat
+# `ReplaceTextRangeOperation` against this node's own output block, then re-dispatch
+# through the `ReplaceStringRangeOperation` handler above (which finds the child
+# span the range lands in). In the SDL pipeline `TextToGraphics` lowers it first, so
+# this method is reached only by the console path.
+function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
+    lowered = _lower_text_range(iomap.output, op)
+    lowered === nothing ? nothing : read_intent(p, iomap, lowered)
 end
 
 # `.elements[idx].content{s:e}` — the single-span replace-range reference shape.
@@ -1452,27 +1477,56 @@ function _parse_text_elem_range(path)
     return (span_idx, h4.start::Int, h4.stop::Int)
 end
 
-function _flat_to_text_elem_path(spans, flat_pos::Int)
+# The text-side caret path for a flat offset. Since the text domain now addresses
+# the cursor by flat offset directly (`TextRangeReference`), this just wraps the
+# offset — the `spans` argument is retained for call-site compatibility. (At a
+# SyntaxToText output there are no breaks/indentation, so this flat offset equals
+# the text layer's break-aware flat offset.)
+_flat_to_text_elem_path(spans, flat_pos::Int) = _flat_text_path(flat_pos)
+
+# The canonical flat caret path, rooted at the output TextBlock.
+_flat_text_path(flat::Int) =
+    ConcreteReferencePath(TextRangeReference(flat, flat), EmptyReferencePath())
+
+# The flat offset of a text-side caret path (or `nothing` when it is not a caret).
+# Accepts the flat `TextRangeReference{f}` form, a bare block cursor `{f}`, and —
+# when `spans` is supplied — the internal structural `.elements[i].content{c}`
+# form still used for child sub-references inside the compound mappers.
+function _text_side_flat(path)
+    p = strip_reference_types(path)
+    p isa ConcreteReferencePath || return nothing
+    h = p.head
+    (h isa TextRangeReference || h isa RangeReference) && p.tail isa EmptyReferencePath || return nothing
+    h.start::Int
+end
+function _text_side_flat(path, spans)
+    f = _text_side_flat(path)
+    f === nothing || return f
+    span_idx, char_idx = _parse_text_elem_path(path)
+    span_idx === nothing && return nothing
+    fl = _text_elem_path_to_flat(spans, span_idx, char_idx)
+    fl < 0 ? nothing : fl
+end
+
+# Inverse of `_text_elem_path_to_flat`: the `(span_idx, char)` a flat offset lands
+# on over span-content lengths (end-of-content anchors on the last non-empty span,
+# matching the old `_flat_to_text_elem_path`). `nothing` when there is no span.
+function _flat_to_span_char(spans, flat_pos::Int)
     cumulative = 0
-    last_nonempty = nothing  # (span_idx, cumulative_at_start)
+    last_nonempty = nothing
+    first_span = nothing
     for (i, s) in enumerate(spans)
         len = length((s::TextString).content::AbstractString)
-        if len > 0
-            last_nonempty = (i, cumulative)
-        end
-        if flat_pos < cumulative + len
-            return _text_elem_path(i, flat_pos - cumulative)
-        end
+        first_span === nothing && (first_span = (i, cumulative))
+        len > 0 && (last_nonempty = (i, cumulative))
+        flat_pos < cumulative + len && return (i, flat_pos - cumulative)
         cumulative += len
     end
-    # flat_pos sits at the end of the concatenated content. Anchor it at
-    # the end of the last non-empty span so the cursor renderer (which only
-    # emits SegCoords for non-empty spans) can place the caret.
-    if last_nonempty !== nothing
-        i, c = last_nonempty
-        return _text_elem_path(i, flat_pos - c)
-    end
-    return nothing
+    # End of content: anchor on the last non-empty span (renderable); when every
+    # span is empty (an empty leaf, e.g. an undelimited `""`), anchor on the first
+    # so the caret still resolves rather than vanishing.
+    anchor = last_nonempty !== nothing ? last_nonempty : first_span
+    anchor === nothing ? nothing : (anchor[1], flat_pos - anchor[2])
 end
 
 function _text_elem_path_to_flat(spans, span_idx::Int, char_idx::Int)

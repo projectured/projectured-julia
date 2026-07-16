@@ -341,7 +341,7 @@ function _assert_walk(label, walk, result, broken)
         result.cycle === nothing ||
             @warn "[$label] [$(walk.name)] revisits [$(result.cycle)]: the walk is not a chain"
         @test result.terminated
-        @test result.cycle === nothing
+        @test_unless_broken(result.cycle === nothing, Symbol(:cycle_, walk.name) in broken)
         @test length(result.paths) > 1
     end
 end
@@ -390,7 +390,8 @@ ending where the other's seed gesture lands.
 `directions` runs a single walk in isolation (`(:right,)`) while debugging.
 `broken` names the invariants this example is known to fail, and marks them
 `@test_broken` rather than `@test`: `:walk_right` / `:walk_left` for a walk that
-cannot run at all (the printer or a reader throws), and `:same_length` /
+cannot run at all (the printer or a reader throws), `:cycle_right` / `:cycle_left`
+for a walk that revisits a caret (not a chain), and `:same_length` /
 `:right_reaches_end` / `:left_reaches_start` for the cross-direction ones.
 """
 function test_text_nav_invariants(label, document, projection;

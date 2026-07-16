@@ -20,11 +20,13 @@ reactive `pattern` cell.
 module TextFilteringModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
+import ..TextRangeReferenceModule: TextRangeReference
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types, Position
+import ..TextSpanReferenceModule: TextSpanReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
@@ -97,7 +99,7 @@ function print_document(p::TextFiltering, recursion, text::TextBlock, ctx)
     both = Cell(() -> _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[]))   # (elements, kept)
     elements_cv = CellVector(() -> both[][1])
     kept_cell = Cell(() -> both[][2])
-    out_selection = Cell(() -> _forward_map(kept_cell[], text.selection))
+    out_selection = Cell(() -> _forward_map(kept_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)
     TextFilteringIoMap(p, text, output, kept_cell)
 end
@@ -144,30 +146,60 @@ end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
 
-# Forward: input `elements[in_span].content{char}` → output position by finding
-# in_span in the kept table. Returns nothing when the line was filtered out
-# (the selection has no image in the output).
-function _forward_map(kept::Vector{Int}, sel)
-    sel === nothing && return nothing
-    parsed = _parse_text_elem_path(sel)
-    parsed === nothing && return nothing
-    in_span, in_char = parsed
+# The flat caret offset of a `TextRangeReference` selection (or `nothing`), and the
+# flat caret path for an offset. `∅` / `TextSpanReference` shapes are handled
+# by `_is_structural_ref` before these are reached.
+function _text_range_caret(ref)
+    r = strip_reference_types(ref)
+    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r.head.start::Int
+end
+_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath())
+
+# A whole-element selection at this layer is either `∅` (the whole text) or a
+# `TextSpanReference(s,e)…∅` box over a flat character range — the same
+# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
+# flat character space, which filtering leaves unchanged within a kept line, so
+# they map identically in either direction.
+_is_structural_ref(ref) =
+    ref isa EmptyReferencePath ||
+    (ref isa ConcreteReferencePath && ref.head isa TextSpanReference)
+
+# Forward: input flat caret → output position by finding in_span in the kept
+# table. Returns nothing when the line was filtered out (the selection has no
+# image in the output).
+# input flat caret → output flat caret via the kept table. Takes the blocks
+# explicitly so `print_document` can compute the output selection before the
+# `IoMap` exists.
+function _forward_map(kept::Vector{Int}, in_block, out_block, sel)
+    _is_structural_ref(sel) && return sel
+    flat = _text_range_caret(sel)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(in_block, flat)
+    loc === nothing && return nothing
+    in_span, in_char = loc
     j = findfirst(==(in_span), kept)
     j === nothing && return nothing
-    _text_elem_path(j, in_char)
+    f = text_elem_to_flat(out_block, j, in_char)
+    f === nothing ? nothing : _flat_caret(f)
 end
 
-function map_reference_forward(p::TextFiltering, iomap::TextFilteringIoMap, reference)
-    _forward_map(iomap.kept[], reference)
-end
+map_reference_forward(p::TextFiltering, iomap::TextFilteringIoMap, reference) =
+    _forward_map(iomap.kept[], iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, reference)
-    parsed = _parse_text_elem_path(reference)
-    parsed === nothing && return nothing
-    out_span, out_char = parsed
+    _is_structural_ref(reference) && return reference
+    flat = _text_range_caret(reference)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(iomap.output, flat)
+    loc === nothing && return nothing
+    out_span, out_char = loc
     kept = iomap.kept[]
     (out_span < 1 || out_span > length(kept)) && return nothing
-    _text_elem_path(kept[out_span], out_char)
+    in_span = kept[out_span]
+    f = text_elem_to_flat(iomap.input, in_span, out_char)
+    f === nothing ? nothing : _flat_caret(f)
 end
 
 function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceSelectionOperation)

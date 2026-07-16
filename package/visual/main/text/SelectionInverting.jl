@@ -25,12 +25,14 @@ module SelectionInvertingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat
+import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat
+import ..TextRangeReferenceModule: TextRangeReference
 import ..ColorModule: StyleColor, DStyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types, Position
+import ..TextSpanReferenceModule: TextSpanReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
@@ -100,7 +102,7 @@ function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
     both = Cell(() -> _invert(p, text))   # (elements, segs)
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
-    out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
+    out_selection = Cell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)
     SelectionInvertingIoMap(p, text, output, segs_cell)
 end
@@ -215,36 +217,67 @@ end
 # ── Selection / reference mapping ───────────────────────────────────────────
 # Identical to TextHighlighting: the seg table is a piecewise-linear offset map.
 
-function _forward_map(segs::Vector{SelSeg}, sel)
-    sel === nothing && return nothing
-    parsed = _parse_text_elem_path(sel)
-    parsed === nothing && return nothing
-    in_span, in_char = parsed
+# The flat caret offset of a `TextRangeReference` selection (or `nothing`), and the
+# flat caret path for an offset. `∅` / `TextSpanReference` shapes are handled
+# by `_is_structural_ref` before these are reached.
+function _text_range_caret(ref)
+    r = strip_reference_types(ref)
+    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r.head.start::Int
+end
+_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath())
+
+# A whole-element selection at this layer is either `∅` (the whole text) or a
+# `TextSpanReference(s,e)…∅` box over a flat character range — the same
+# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
+# flat character space, which inversion leaves unchanged, so they map
+# identically in either direction.
+_is_structural_ref(ref) =
+    ref isa EmptyReferencePath ||
+    (ref isa ConcreteReferencePath && ref.head isa TextSpanReference)
+
+# Forward: rebuild an input flat caret against the split output by finding the
+# sub-span the cursor falls into. At the exact boundary between two sub-spans
+# of the same input span, prefer the start of the next sub-span.
+# input flat caret → output flat caret, over the seg table. Takes the blocks
+# explicitly so `print_document` can compute the output selection before the
+# `IoMap` exists.
+function _forward_map(segs, in_block, out_block, sel)
+    _is_structural_ref(sel) && return sel
+    flat = _text_range_caret(sel)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(in_block, flat)
+    loc === nothing && return nothing
+    in_span, in_char = loc
     best = nothing
     for seg in segs
         seg.in_span == in_span || continue
         if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
             best = seg
-            if in_char == seg.in_char_start && seg.in_char_start != 0
-                break
-            end
+            # Prefer the start of the next sub-span at the split boundary.
+            in_char == seg.in_char_start && seg.in_char_start != 0 && break
         end
     end
     best === nothing && return nothing
-    _text_elem_path(best.out_index, in_char - best.in_char_start)
+    f = text_elem_to_flat(out_block, best.out_index, in_char - best.in_char_start)
+    f === nothing ? nothing : _flat_caret(f)
 end
 
-function map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference)
-    _forward_map(iomap.segs[], reference)
-end
+map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
+    _forward_map(iomap.segs[], iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference)
-    parsed = _parse_text_elem_path(reference)
-    parsed === nothing && return nothing
-    out_span, out_char = parsed
+    _is_structural_ref(reference) && return reference
+    flat = _text_range_caret(reference)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(iomap.output, flat)
+    loc === nothing && return nothing
+    out_span, out_char = loc
     for seg in iomap.segs[]
         seg.out_index == out_span || continue
-        return _text_elem_path(seg.in_span, seg.in_char_start + out_char)
+        f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
+        return f === nothing ? nothing : _flat_caret(f)
     end
     nothing
 end

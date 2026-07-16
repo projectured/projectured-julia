@@ -58,29 +58,40 @@ end # @testset
 @testset "TextFiltering selection round-trip" begin
 
     proj = TextFiltering(r"dolor")
-    iomap = print_document(proj, _fixture())
+    input = _fixture()
+    iomap = print_document(proj, input)
+    out = iomap.output
+    # Flat caret at (span, char); the fixture carries newlines, so the flat offset
+    # is not the raw char index.
+    fin(span, char)  = TextModule._flat_caret_ref(text_elem_to_flat(input, span, char))
+    fout(span, char) = TextModule._flat_caret_ref(text_elem_to_flat(out, span, char))
 
-    # Kept line 1 (output span 1) and line 3 (output span 3) round-trip.
+    # Kept line 1 (output span 1) and line 3 (output span 3) round-trip; dropping
+    # the middle line shifts line 3's flat offset back by its length.
     for (in_span, out_span, char) in ((1, 1, 3), (5, 3, 2))
-        fwd = map_reference_forward(proj, iomap, _ref(in_span, char))
-        @test fwd == _ref(out_span, char)
-        @test map_reference_backward(proj, iomap, fwd) == _ref(in_span, char)
+        fwd = map_reference_forward(proj, iomap, fin(in_span, char))
+        @test fwd == fout(out_span, char)
+        @test map_reference_backward(proj, iomap, fwd) == fin(in_span, char)
     end
 
     # A cursor on the filtered-out middle line has no image in the output.
-    @test map_reference_forward(proj, iomap, _ref(3, 2)) === nothing
+    @test map_reference_forward(proj, iomap, fin(3, 2)) === nothing
 
 end # @testset
 
 @testset "TextFiltering reader remaps element index" begin
 
     proj = TextFiltering(r"dolor")
-    iomap = print_document(proj, _fixture())
+    input = _fixture()
+    iomap = print_document(proj, input)
+    out = iomap.output
 
-    # ReplaceSelectionOperation on output span 3 → input span 5, char preserved.
-    sel = read_intent(proj, iomap, ReplaceSelectionOperation(_ref(3, 2)))
+    # ReplaceSelectionOperation on output span 3 → input span 5, char preserved
+    # (a flat caret; the reader remaps the flat offset across the dropped line).
+    sel = read_intent(proj, iomap, ReplaceSelectionOperation(
+        TextModule._flat_caret_ref(text_elem_to_flat(out, 3, 2))))
     @test sel isa ReplaceSelectionOperation
-    @test sel.path == _ref(5, 2)
+    @test sel.path == TextModule._flat_caret_ref(text_elem_to_flat(input, 5, 2))
 
     # ReplaceStringRangeOperation on output span 3 → input span 5, range preserved.
     edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 1, 4), "XYZ"))

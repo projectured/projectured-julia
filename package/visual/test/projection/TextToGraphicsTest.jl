@@ -216,9 +216,11 @@ left  = read_intent(p, iomap, click(10))
 right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
 @test right isa ReplaceSelectionOperation
-# Left half → cursor before the image (content{0}); right half → after ({1}).
-@test is_reference_equal(left.path,  TextToGraphicsModule._build_selection_path(2, 0))
-@test is_reference_equal(right.path, TextToGraphicsModule._build_selection_path(2, 1))
+# Left half → cursor before the image (flat 2, end of "ab"); right half → the
+# offset past it (flat 3). The image is zero-width in the caret stream, but the
+# hit-test still resolves the two halves to distinct flat offsets.
+@test is_reference_equal(left.path,  TextModule._flat_caret_ref(2))
+@test is_reference_equal(right.path, TextModule._flat_caret_ref(3))
 
 end # @testset "TextToGraphics inline image hit-test"
 
@@ -313,19 +315,24 @@ canvas = print_document(p, mkblock()).output
 @test [sc.span_path for sc in print_document(p, mkblock()).char_to_coord[]] == [[1, 1], [2, 1]]
 
 # The caret lands on the character it was placed against: past the indent on an
-# indented line, and on the right row for the line below.
+# indented line, and on the right row for the line below. The selection is a flat
+# offset; `_flat_base` names it from the structural (line, span) coordinate.
+fb(path, k)  = TextModule._flat_base(mkblock(), path) + k
+cflat(op)    = (r = strip_reference_types(op isa ReplaceSelectionOperation ? op.path : op);
+                (r.head::TextRangeReference).start)
+coord(op)    = TextModule._flat_to_span(mkblock(), cflat(op))   # (span_path, char)
 caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
-@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0))) == [(20, 0, 18)]
-@test caret(with_selection(mkblock(), TextModule._build_selection_path(Int[2, 1], 3))) == [(30, 18, 18)]
+@test caret(with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
+@test caret(with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[2, 1], 3)))) == [(30, 18, 18)]
 
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
-iomap = print_document(p, with_selection(mkblock(), TextModule._build_selection_path(Int[1, 1], 0)))
+iomap = print_document(p, with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[1, 1], 0))))
 click = read_intent(p, iomap, MousePress(:left, 31, 20))
 @test click isa ReplaceSelectionOperation
-@test TextModule._cursor_coord(click.path) == (span = [2, 1], char = 3)
-@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:down, Modifiers())).path).span == [2, 1]
-@test TextModule._cursor_coord(read_intent(p, iomap, KeyDown(:end, Modifiers())).path) == (span = [1, 1], char = 5)
+@test coord(click) == ([2, 1], 3)
+@test coord(read_intent(p, iomap, KeyDown(:down, Modifiers())))[1] == [2, 1]
+@test coord(read_intent(p, iomap, KeyDown(:end, Modifiers()))) == ([1, 1], 5)
 
 # A blank line keeps its row. It has neither a glyph nor a terminating
 # `TextNewline` to take a height from, so the block's prevailing font sizes it.
@@ -339,5 +346,37 @@ trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = font_ubunt
 @test Int(trailing.h) == 18
 
 end # @testset "TextToGraphics lays out TextLine blocks"
+
+@testset "TextColumnReference reserves the column-box geometry (variant 2)" begin
+
+# Variant 2 (`TextColumnReference`) is reserved but has no producer yet; assert its
+# geometry function directly on a hand-built two-row coord map (monospace, 10px/glyph).
+_font = font_ubuntu_monospace_regular_20
+measure = (t, f) -> (length(t) * 10, 18)
+p = TextToGraphics(measure = measure)
+SC = TextToGraphicsModule.SegCoord
+coord_map = [SC([1], 0, 6, 0,  0, _font, "abcdef", 60, 18),
+             SC([3], 0, 6, 0, 20, _font, "ghijkl", 60, 18)]
+# Flat space: row 1 chars 0..6, an implicit break at 6, row 2 chars 7..13.
+span_flat_offsets = Dict([1] => 0, [3] => 7)
+
+# A column from flat 1 (row 1 col x=10) to flat 11 (row 2 char 4, col x=40): the
+# rectangle [10 … 40] painted on both rows, regardless of the glyphs on each.
+rects = TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 1, 11, p)
+@test length(rects) == 2                          # one rect per spanned row
+@test all(r -> r[1] == 10 && r[3] == 30, rects)   # same [col10 … col40] box on every row
+@test [r[2] for r in rects] == [0, 20]            # top row then bottom row
+
+# Coinciding columns (zero width) or an unresolvable endpoint yield no box.
+@test TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 2, 9, p) == []
+
+# A `TextColumnReference` selection is structural — not a character cursor, so char
+# motion / flat edits decline (block editing is future work).
+sel = ConcreteReferencePath(TextColumnReference(1, 11), EmptyReferencePath())
+@test TextModule._is_structural_selection(sel)
+@test TextModule._text_flat_selection(
+          with_selection(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
+
+end # @testset "TextColumnReference column-box geometry"
 
 end # test_text_to_graphics

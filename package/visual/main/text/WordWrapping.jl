@@ -16,13 +16,14 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat
+import ..TextRangeReferenceModule: TextRangeReference
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position
-import ..TextRectangularReferenceModule: TextRectangularReference
+import ..TextSpanReferenceModule: TextSpanReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
@@ -81,7 +82,7 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     both = Cell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = CellVector(() -> both[][1])
     segs_cell = Cell(() -> both[][2])
-    out_selection = Cell(() -> _forward_map(segs_cell[], text.selection))
+    out_selection = Cell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
@@ -234,50 +235,56 @@ end
 # boundary between two consecutive sub-spans of the same input span (the
 # cursor sitting between a wrap), prefer the start of the next visual line —
 # matches the boundary-duplicate convention in TextToGraphics.
-function _forward_map(segs::Vector{WrapSeg}, sel)
-    sel === nothing && return nothing
-    # Structural / whole-element selections live in a flat character space that
-    # wrapping leaves invariant (every input character survives exactly once and
-    # in order; the soft `TextNewline`s inserted at wrap points are not counted),
-    # so their shapes pass straight through:
-    #   ∅                                → the whole text element
-    #   TextRectangularReference(s,e)…∅  → the flat character box [s, e)
+# The flat caret offset of a `TextRangeReference` selection (or `nothing`), and the
+# flat caret path for an offset. `∅` / `TextSpanReference` shapes are handled
+# by `_is_structural_ref` before these are reached.
+function _text_range_caret(ref)
+    r = strip_reference_types(ref)
+    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r.head.start::Int
+end
+_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath())
+
+# input flat caret → output flat caret, over the seg table. Takes the blocks
+# explicitly so `print_document` can compute the output selection before the
+# `IoMap` exists (structural ∅ / `TextSpanReference` pass through: the flat
+# character space is wrap-invariant since soft `TextNewline`s are not counted).
+function _forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
-    parsed = _parse_text_elem_path(sel)
-    parsed === nothing && return nothing
-    in_span, in_char = parsed
+    flat = _text_range_caret(sel)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(in_block, flat)
+    loc === nothing && return nothing
+    in_span, in_char = loc
     best = nothing
     for seg in segs
         seg.in_span == in_span || continue
         if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
             best = seg
-            # Prefer the start of the next sub-span when the cursor sits
-            # exactly at the boundary; this yields "start of next visual
-            # line" at a wrap.
-            if in_char == seg.in_char_start && seg.in_char_start != 0
-                break
-            end
+            # Prefer the start of the next sub-span at a wrap boundary.
+            in_char == seg.in_char_start && seg.in_char_start != 0 && break
         end
     end
     best === nothing && return nothing
-    _text_elem_path(best.out_index, in_char - best.in_char_start)
+    f = text_elem_to_flat(out_block, best.out_index, in_char - best.in_char_start)
+    f === nothing ? nothing : _flat_caret(f)
 end
 
-function map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
-    _forward_map(iomap.segs[], reference)
-end
+map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
+    _forward_map(iomap.segs[], iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
-    # Structural / whole-element selections are invariant under wrapping (see
-    # `_forward_map`); map them back unchanged so the round-trip is exact.
     _is_structural_ref(reference) && return reference
-    parsed = _parse_text_elem_path(reference)
-    parsed === nothing && return nothing
-    out_span, out_char = parsed
-    segs = iomap.segs[]
-    for seg in segs
+    flat = _text_range_caret(reference)
+    flat === nothing && return nothing
+    loc = text_flat_to_elem(iomap.output, flat)
+    loc === nothing && return nothing
+    out_span, out_char = loc
+    for seg in iomap.segs[]
         seg.out_index == out_span || continue
-        return _text_elem_path(seg.in_span, seg.in_char_start + out_char)
+        f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
+        return f === nothing ? nothing : _flat_caret(f)
     end
     nothing
 end
@@ -321,14 +328,14 @@ read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 # A whole-element selection at this layer is either `∅` (the whole text) or a
-# `TextRectangularReference(s,e)…∅` box over a flat character range — the same
+# `TextSpanReference(s,e)…∅` box over a flat character range — the same
 # two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
 # flat character space, which wrapping leaves unchanged, so they map identically
 # in either direction.
 function _is_structural_ref(ref)
     ref = ref
     ref isa EmptyReferencePath ||
-        (ref isa ConcreteReferencePath && ref.head isa TextRectangularReference)
+        (ref isa ConcreteReferencePath && ref.head isa TextSpanReference)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =

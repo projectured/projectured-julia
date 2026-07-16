@@ -1,7 +1,7 @@
 """
-    TextRectangularReferenceModule
+    TextSpanReferenceModule
 
-The `TextRectangularReference` step type — a reference step representing a
+The `TextSpanReference` step type — a reference step representing a
 flat character-range box in the text domain (`start` / `stop` are 0-based
 character offsets into the concatenated text of a `TextBlock`). Used by the
 syntax-to-text stage to communicate a nested child's whole-element
@@ -14,16 +14,16 @@ type — it identifies a range but does not descend into a child. No DSL
 entry (`.rect` / equivalent) is exposed today; when one is added it goes
 here alongside the type.
 """
-module TextRectangularReferenceModule
+module TextSpanReferenceModule
 
 using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextRectangularReference
+export TextSpanReference
 
 """
-    TextRectangularReference(start, stop)
+    TextSpanReference(start, stop)
 
 A reference step representing an axis-aligned bounding-box highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
@@ -32,21 +32,21 @@ concatenated text of a `TextBlock`. Evaluates to the offset pair
 box's value is its character range independent of what characters happen
 to sit in the current text.
 """
-@cell_struct struct TextRectangularReference <: ReferenceStep
+@cell_struct struct TextSpanReference <: ReferenceStep
     start::Int
     stop::Int
 end
 
-ReferenceModule.step_kind(::TextRectangularReference) = :structural
+ReferenceModule.step_kind(::TextSpanReference) = :structural
 
 # A rectangular text range's descended value is the range itself.
-ReferenceModule.evaluate_step(step::TextRectangularReference, document) = (step.start, step.stop)
+ReferenceModule.evaluate_step(step::TextSpanReference, document) = (step.start, step.stop)
 
-Base.:(==)(a::TextRectangularReference, b::TextRectangularReference) =
+Base.:(==)(a::TextSpanReference, b::TextSpanReference) =
     a.start == b.start && a.stop == b.stop
 
-function Base.show(io::IO, s::TextRectangularReference)
-    print(io, "▭(", s.start, ":", s.stop, ")")
+function Base.show(io::IO, s::TextSpanReference)
+    print(io, "▢(", s.start, ":", s.stop, ")")
 end
 
 end # module
