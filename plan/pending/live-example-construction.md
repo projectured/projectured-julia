@@ -228,6 +228,10 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
 
 ## Status
 
+**Paused after Phase 2 by user decision** — scalars + arrays + the oracle stand as a complete,
+working demonstrator; Phases 3–4 (record nodes, sweep) and the string-bug fix are deferred. Plan
+stays in `pending/` (not fully implemented).
+
 **Phases 0–2 done.** Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct`
 (domain) **6 pass / 2 broken**: scalars `null`/`true`/`false` + arrays `array`/`array-bool`/
 `array-nested` reconstruct exactly; `number`/`string` are `@test_broken` (revealed reader bugs).
