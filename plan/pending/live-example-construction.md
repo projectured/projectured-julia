@@ -167,9 +167,22 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
   bugs** — number: `4` then `2` → `JsonNumber(42.0)` (Float64, not `42`); string: after `"` only
   the first content char is accepted, the rest declined. Oracle made **strict** (42 ≠ 42.0) so it
   surfaces the number bug. Not fixing the readers (user directive). *Committed.*
-- [ ] **Phase 2 — Structural recipes (JSON).** Implement `choose_recipe` (enumerate → op-inspect →
-  classify → cache) and `grow_if_needed` for sequences. Reconstruct a small nested JSON, then
-  `json_example`. *Commit.*
+- [x] **Phase 2 — Structural recipes (element-collection containers). DONE (arrays).** `reconstruct`
+  is now a **recursive planner** (`construct_node!` + `_document_child_slots`): a leaf is typed as its
+  whole surface; a container is created by the **first character of its surface** (the kind-selecting
+  keystroke — `[`/`{`/digit/`"`/`n`/`t`/`f`), then each child slot is navigated to (programmatic ∅
+  selection at its reference path) and recursed. **Design change:** probe-and-learn `choose_recipe`
+  proved unnecessary for JSON — print-then-type already encodes the create gesture in the surface's
+  first char; op-inspection probe-and-learn stays the documented fallback for a domain where that
+  doesn't hold. `json/array`, `json/array-bool`, `json/array-nested` reconstruct exactly (6 pass / 2
+  broken). **Bug found & fixed in the planner:** the base `CellVector` *is* a `Document`, so
+  `_document_child_slots` must test the collection case *before* `fv isa Document`, else it pushes the
+  container itself as a child and `construct_surface` throws projecting a bare CellVector. Multi-child
+  sequence growth (a per-domain "append element" gesture between children) is deferred — the catalog
+  atoms hold a single child. **Object entries (record node: string key beside a document value) are
+  Phase 3** — the entry is not created by a gesture (it comes with `{`) and its key is a scalar field
+  that needs text-typing, so the "create + fill document children" shape doesn't fit; it needs a
+  fill-in-place node treatment. *Committed.*
 - [ ] **Phase 3 — Insertion-domain recipes (Julia).** `kind → commit-string` reflection table from
   `insertion_candidates`; `Insert → type → Enter` recipe. Reconstruct a small julia example. *Commit.*
 - [ ] **Phase 4 — Harness integration + sweep.** `test_construct(example::Example)` `@testset`
@@ -215,9 +228,17 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
 
 ## Status
 
-**Phases 0–1 done.** Oracle `compare_content` (kernel, strict, 17/17); JSON scalar reconstruction
-(domain, `test_json_construct` 3 pass / 2 broken). Next: **Phase 2** — structural recipes
-(probe-and-learn) on nested JSON (`json/array`, `json/object`). Note the enumerated `JsonNothing`
-gestures already name the recipes directly (`[`→array, `{`→object, `:`→object-entry, `,`→append
-element), so probe-and-learn has a clean gesture surface. Worktree `../projectured-julia-construct`,
-branch `live-example-construction`.
+**Phases 0–2 done.** Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct`
+(domain) **6 pass / 2 broken**: scalars `null`/`true`/`false` + arrays `array`/`array-bool`/
+`array-nested` reconstruct exactly; `number`/`string` are `@test_broken` (revealed reader bugs).
+The recursive planner handles leaves and element-collection containers generically.
+
+Next, in order of remaining value:
+- **Phase 3 — record nodes** (`json/object` entries, then Julia AST): fill-in-place treatment for a
+  node created *with* its parent, plus typing scalar fields (the object key). Partly blocked by the
+  string-insertion bug (keys/values are strings).
+- **Multi-child grow** — per-domain "append element" gesture between siblings.
+- **Phase 4 — `test_construct(example::Example)` sweep** across domains (needs the dispatching
+  projection per example, not the atom leaf projection).
+
+Worktree `../projectured-julia-construct`, branch `live-example-construction`.
