@@ -129,7 +129,7 @@ Each entry is a plain `Example` whose `name` is a hierarchical **`domain/name/va
 path — the name doubles as the filter:
 
 ```julia
-julia> catalog()                                  # every generated Example (~168)
+julia> catalog()                                  # every generated Example (~315)
 julia> catalog(; domain = :json)                  # one domain
 julia> catalog(; document = "string")             # one document across domains
 julia> catalog(; terminal = :graphics)            # everything runnable on screen
@@ -153,16 +153,18 @@ catalog covers json, yaml, xml, primitive, markdown, math, julia, book, filesyst
 sql — including the opaque display leaves (their introduced-text carets collapse to a
 bounded `proj(p, …)` position, navigable but non-editable) and the self-modifying
 `*Nothing` / `*Insertion` documents (whose syntax variant uses the domain's dispatching
-projection, since a bare leaf can't reproject a type swap). It also covers a minimal
-non-empty **compound** per node type (json array/object, yaml mapping, xml element/attribute,
-math binary_operation/assignment/parenthesized, book chapter/list, markdown
-heading/paragraph/list/emphasis/link, julia call/block/function, sql select_statement). A
-handful of compounds are still *deferred* — each surfaces a pre-existing domain bug a minimal
-instance exposes (see `plan/done/catalog-compound-atoms.md`). Still *out of scope* (low value
-or infra-gated, not a catalog change): **formula** (its only leaf is an insertion),
-**dbcatalog** (ODBC-gated), and **conversation** (no clean leaf atoms). See
-`plan/done/catalog-deferred-atoms.md` and `plan/done/catalog-compound-atoms.md` for how the
-extra atoms were added.
+projection, since a bare leaf can't reproject a type swap). It covers a minimal non-empty
+**compound** for *every* node type too — the whole document grammar of each domain (json
+array/object/object_entry, all the julia AST nodes, all the sql clause/statement nodes, the
+markdown blocks/inlines, …) — so every projection is exercised, not just the leaves.
+
+**No document type is skipped.** A node whose projection still has a bug stays in the catalog
+with its failure recorded `@test_broken` — the failure is *information* (a real bug to fix),
+keyed on its signature so a *different* failure still surfaces as an unmarked `Fail` (a
+regression). The open bugs are `grep "@catalog-broken"` in
+[CatalogTest.jl](../package/projectured/test/projection/CatalogTest.jl). Still *out of scope*
+only for whole domains not yet wired: **formula** / **dbcatalog** (ODBC-gated) /
+**conversation**. See `plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
 
 ## Testing a single example
 
