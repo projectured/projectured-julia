@@ -1,7 +1,10 @@
 # Cell layer — restructure for cohesion and guessability
 
-**Status:** pending / planning only. No code changed yet. This document is the
-review and the proposal; each change below is independently approvable.
+**Status:** in progress on branch `worktree-cell-layer-restructure`. **Landed:**
+C-B (rename, `7c956018`), C-A (module split, `c53d7051`), C-E (folded into C-A).
+**Remaining:** C-D (put `cell` in every external name) and C-C (promote `Clock`)
+— both need sealed-file unsealing and were scoped out of the "up until C-D" run.
+Each change below is independently approvable.
 
 Scope: layer 1 of the kernel, `package/kernel/main/cell/`. The user asked four
 questions — (Q1) should exported names carry `cell`/`Cell`? (Q2) is there a
@@ -142,7 +145,7 @@ necessarily actioned; relevant if the kinds are regrouped (C-B).
 Ranked by value/cost. Each is independently approvable. "Sealed?" flags whether
 execution needs the user to unseal a file first.
 
-### C-A — Split `CellModule` into engine + struct-macro toolkit (⇢ Q2). **Recommended.**
+### C-A — Split `CellModule` into engine + struct-macro toolkit (⇢ Q2). ✅ Done (`c53d7051`).
 
 Make the compile-time codegen its own module (a second slice of the cell layer):
 
@@ -174,7 +177,7 @@ plus `test_cell()`.
 *Lighter alternative* if the user prefers one module: keep `CellModule` but move
 fragments into `cell/kind/` and `cell/struct/` subfolders for readability only.
 
-### C-B — Rehome/rename `unwrap_cell`, retire `CellAccess.jl` (⇢ Q3). **Recommended.**
+### C-B — Rehome/rename `unwrap_cell`, retire `CellAccess.jl` (⇢ Q3). ✅ Done (`7c956018`).
 
 `unwrap_cell` stays in the engine module (C-A) as the cross-kind runtime
 accessor. Rename the file to state its one job precisely — proposed
@@ -266,7 +269,7 @@ internals (and already carry `cell`).
 before Part 2. Update `cell.md`; run `test_export_collisions` (umbrella) after —
 no new name may clash with another module's export.
 
-### C-E — Fix the `cell.md` public-surface list (F5). **Do regardless.**
+### C-E — Fix the `cell.md` public-surface list (F5). ✅ Done (folded into `c53d7051`).
 
 Correct the "Public surface" lines to match the real `CellModule` export list;
 drop the internal helpers, add the actually-exported ones. Trivial, sealed-free.
