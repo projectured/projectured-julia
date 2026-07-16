@@ -70,7 +70,7 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      15 layers: cell → event → device → gesture → backend →
+        ▲                      16 layers: cell → clock → event → device → gesture → backend →
         │                      document → reference → selection → operation → binding →
         │                      projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
@@ -437,7 +437,7 @@ slice→slice edges stay acyclic.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMap.jl` + per-projection | ✅ |
-| References | `reference/` (layer 7) | ✅ |
+| References | `reference/` (layer 8) | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

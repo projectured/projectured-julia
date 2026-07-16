@@ -28,20 +28,21 @@ guards, docs, and tests:
 
 ```
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
-Layer 2  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
-Layer 3  — device/     Device abstract + Keyboard/Mouse/Screen + the read_from_devices/write_to_devices seam
-Layer 4  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
-Layer 5  — backend/    Backend + Display + HeadlessBackend
-Layer 6  — document/   the Document contract + @document + the editor clock
-Layer 7  — reference/  reference paths + @reference / @reference_case DSLs
-Layer 8  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
-Layer 9  — operation/  Operation + evaluate_operation + the traversal and reroot seams
-Layer 10 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 11 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
-Layer 12 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
-Layer 13 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 14 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
-Layer 15 — editor/     the run_editor! loop + Playback
+Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_time/get_time, tick!/seek!, the shared wall clock
+Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
+Layer 4  — device/     Device abstract + Keyboard/Mouse/Screen + the read_from_devices/write_to_devices seam
+Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
+Layer 6  — backend/    Backend + Display + HeadlessBackend
+Layer 7  — document/   the Document contract + @document
+Layer 8  — reference/  reference paths + @reference / @reference_case DSLs
+Layer 9  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
+Layer 10 — operation/  Operation + evaluate_operation + the traversal and reroot seams
+Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
+Layer 12 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
+Layer 13 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 14 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 15 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 16 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -60,7 +61,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The fifteen layers *are* the dependency diagram.** A layer imports only layers below
+**The sixteen layers *are* the dependency diagram.** A layer imports only layers below
 it, and that is the whole rule — the static guard enforces exactly it, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -73,11 +74,11 @@ layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReference` (layer 11), `PointReference` and
+the clearest case: `ProjectionReference` (layer 12), `PointReference` and
 `TextRectangularReference` (both in `ProjecturedVisual`) all subtype it and register
-their navigation through `evaluate_step`, with no edit to layer 7.
+their navigation through `evaluate_step`, with no edit to layer 8.
 
-**The agent stack is a side-stack.** The editor (layer 15) reaches it only through
+**The agent stack is a side-stack.** The editor (layer 16) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
 (`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their

@@ -13,16 +13,16 @@ renders one into its own schema. Three consumers, three directions, and no
 knowledge of each other.
 
 ```
-layer 12  tool/    the capability surface     — no LLM, no MCP
-layer 13  llm/     the provider abstraction   — no MCP, no agent
-layer 14  agent/   the glue                   — llm + tools + a target
+layer 13  tool/    the capability surface     — no LLM, no MCP
+layer 14  llm/     the provider abstraction   — no MCP, no agent
+layer 15  agent/   the glue                   — llm + tools + a target
 ```
 
 The order is a real one: an LLM request carries the tools the model may call, so
 `llm` sits on `tool`; the loop drives a model against a tool set, so `agent` sits
 on both.
 
-## Layer 12 — `tool/`: what the editor can be asked to do
+## Layer 13 — `tool/`: what the editor can be asked to do
 
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), ToolSet
@@ -48,7 +48,7 @@ process-global lazily-built caches. They are derived read-only from source files
 that do not change while the process runs, and are identical for every editor —
 the same principled exception AR-PER-EDITOR-STATE grants the wall clock.
 
-## Layer 13 — `llm/`: how the editor talks to a model
+## Layer 14 — `llm/`: how the editor talks to a model
 
 ```
 Llm.jl         the Llm supertype; the stream_turn and tool_schema seams
@@ -85,7 +85,7 @@ Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
 assistant finds the real one by reflection when `ProjecturedLlm` is loaded, so
 nothing in the core stack names a concrete backend.
 
-## Layer 14 — `agent/`: the two directions
+## Layer 15 — `agent/`: the two directions
 
 ```
 AgentServer.jl  (AgentServerModule)  inbound  — make/start/stop_agent_server!

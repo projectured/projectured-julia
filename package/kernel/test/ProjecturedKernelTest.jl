@@ -58,7 +58,7 @@ include("cell/CellTest.jl")
 include("cell/CellStructTest.jl")
 include("cell/StructPlanTest.jl")
 include("cell/PerformanceCounterTest.jl")
-include("cell/ClockTest.jl")
+include("clock/ClockTest.jl")
 include("document/DocumentContractTest.jl")
 include("document/DocumentMacroTest.jl")
 include("reference/ReferenceBuilderTest.jl")
@@ -95,7 +95,7 @@ function test_kernel_layering()
     main = normpath(dirname(pathof(ProjecturedKernel)))
     check_layering(main, joinpath(main, "ProjecturedKernel.jl");
                    name = "kernel",
-                   layers = ["cell", "event", "device", "gesture", "backend",
+                   layers = ["cell", "clock", "event", "device", "gesture", "backend",
                              "document", "reference", "selection", "operation",
                              "binding", "projection", "tool", "llm", "agent", "editor"],
                    check_private_imports = true,

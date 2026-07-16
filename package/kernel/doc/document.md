@@ -1,6 +1,6 @@
 # The document layer
 
-Layer 6 of the kernel — the **document contract** every concrete document
+Layer 7 of the kernel — the **document contract** every concrete document
 subtypes and every projection consumes. This page is the layer's structural
 overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level

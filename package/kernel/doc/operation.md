@@ -273,7 +273,7 @@ The material above is *how* to reach for and add operations. The rest of this
 guide is the layer's **structure** — where the code lives and the two open seams
 every path-bearing operation or container document extends.
 
-Layer 9 of the kernel is **changing documents**. An operation is the reified
+Layer 10 of the kernel is **changing documents**. An operation is the reified
 edit the reader side of the projection pipeline produces and
 `evaluate_operation` applies. The layer holds the abstract `Operation`
 supertype, the built-in concrete operations, the selection propagation, the
@@ -387,7 +387,7 @@ other half is the default `read_intent`).
 **Testing pressure.** `test/operation/RerootingTest.jl` declares a test-local
 `ToyPathOp <: Operation` and registers its own `reroot_operation` method,
 proving the seam is genuinely open — you cannot depend on a concrete
-higher-layer type at layer 9.
+higher-layer type at layer 10.
 
 ### Downward edges
 

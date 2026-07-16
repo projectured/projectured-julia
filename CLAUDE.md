@@ -29,8 +29,10 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `cell/CellStructModule.jl`
   - ⬜ `cell/StructPlan.jl`
   - ⬜ `cell/CellStruct.jl`
-  - 🔒 `cell/Clock.jl`
-- **Layer 2 — event** (`event/`)
+- **Layer 2 — clock** (`clock/`)
+  - ⬜ `clock/ClockLayer.jl`
+  - 🔒 `clock/Clock.jl`
+- **Layer 3 — event** (`event/`)
   - ⬜ `event/EventLayer.jl`
   - ⬜ `event/EventModule.jl`
   - ⬜ `event/Modifiers.jl`
@@ -39,24 +41,24 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `event/WindowEvent.jl`
   - ⬜ `event/EventEnvelope.jl`
   - ⬜ `event/EventPattern.jl`
-- **Layer 3 — device** (`device/`)
+- **Layer 4 — device** (`device/`)
   - ⬜ `device/DeviceLayer.jl`
   - ⬜ `device/DeviceModule.jl`
   - ⬜ `device/Device.jl`
   - ⬜ `device/Keyboard.jl`
   - ⬜ `device/Mouse.jl`
   - ⬜ `device/Screen.jl`
-- **Layer 4 — gesture** (`gesture/`)
+- **Layer 5 — gesture** (`gesture/`)
   - ⬜ `gesture/GestureLayer.jl`
   - ⬜ `gesture/GestureRecognizer.jl`
-- **Layer 5 — backend** (`backend/`)
+- **Layer 6 — backend** (`backend/`)
   - ⬜ `backend/BackendLayer.jl`
   - ⬜ `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
   - ⬜ `backend/BackendDefaults.jl`
   - ⬜ `backend/Display.jl`
   - ⬜ `backend/HeadlessBackend.jl`
-- **Layer 6 — document** (`document/`)
+- **Layer 7 — document** (`document/`)
   - ⬜ `document/DocumentLayer.jl`
   - ⬜ `document/DocumentModule.jl`
   - ⬜ `document/Document.jl`
@@ -69,7 +71,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentSearch.jl`
   - ⬜ `document/DocumentShow.jl`
   - 🔒 `document/Forward.jl`
-- **Layer 7 — reference** (`reference/`)
+- **Layer 8 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
   - ⬜ `reference/ReferenceModule.jl`
   - ⬜ `reference/Interface.jl`
@@ -80,22 +82,22 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
-- **Layer 8 — selection** (`selection/`)
+- **Layer 9 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`
   - ⬜ `selection/SelectionModule.jl`
   - ⬜ `selection/Interface.jl`
   - ⬜ `selection/Selection.jl`
-- **Layer 9 — operation** (`operation/`)
+- **Layer 10 — operation** (`operation/`)
   - ⬜ `operation/OperationLayer.jl`
   - ⬜ `operation/OperationModule.jl`
   - ⬜ `operation/Interface.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
-- **Layer 10 — binding** (`binding/`)
+- **Layer 11 — binding** (`binding/`)
   - ⬜ `binding/BindingLayer.jl`
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
-- **Layer 11 — projection** (`projection/`)
+- **Layer 12 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReference.jl`
   - ⬜ `projection/ProjectionApi.jl`
@@ -107,7 +109,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/Projection.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 12 — tool** (`tool/`)
+- **Layer 13 — tool** (`tool/`)
   - ⬜ `tool/ToolLayer.jl`
   - ⬜ `tool/ToolModule.jl`
   - ⬜ `tool/Tool.jl`
@@ -115,19 +117,19 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/CodeExecution.jl`
   - ⬜ `tool/Documentation.jl`
   - ⬜ `tool/DefaultTools.jl`
-- **Layer 13 — llm** (`llm/`)
+- **Layer 14 — llm** (`llm/`)
   - ⬜ `llm/LlmLayer.jl`
   - ⬜ `llm/LlmModule.jl`
   - ⬜ `llm/Llm.jl`
   - ⬜ `llm/LlmMessage.jl`
   - ⬜ `llm/LlmEvent.jl`
-- **Layer 14 — agent** (`agent/`)
+- **Layer 15 — agent** (`agent/`)
   - ⬜ `agent/AgentLayer.jl`
   - ⬜ `agent/AgentServer.jl`
   - ⬜ `agent/AgentModule.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/AgentLoop.jl`
-- **Layer 15 — editor** (`editor/`)
+- **Layer 16 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Playback.jl`

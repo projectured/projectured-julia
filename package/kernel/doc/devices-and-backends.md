@@ -289,9 +289,9 @@ abstractions only come together in a concrete implementation. Gesture
 separate, much higher layer (`binding/`); see
 [below](#gesture-bindings-a-separate-higher-layer).
 
-## The event layer (layer 2)
+## The event layer (layer 3)
 
-Layer 2 of the kernel — **input events and the pattern language**. The layer
+Layer 3 of the kernel — **input events and the pattern language**. The layer
 depends on nothing: an event is data, and knows neither the device that
 produced it nor the document it will end up changing.
 
@@ -354,9 +354,9 @@ document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 (This is the canonical statement of the `EventEnvelope`-placement rationale;
 other package docs defer here rather than repeat it.)
 
-## The device layer (layer 3)
+## The device layer (layer 4)
 
-Layer 3 of the kernel — **the input/output devices and their batch I/O
+Layer 4 of the kernel — **the input/output devices and their batch I/O
 seam**. A device is *where events come from*; it interprets none of them, so
 this layer names no document, no operation, and no backend type — it has no
 imports of its own.
@@ -377,9 +377,9 @@ names no such type, so a device does not depend on whatever drives it — the
 device and backend abstractions are independent siblings, and only a
 concrete implementation binds them together.
 
-## The gesture layer (layer 4)
+## The gesture layer (layer 5)
 
-Layer 4 of the kernel — **recognising gestures in the event stream**:
+Layer 5 of the kernel — **recognising gestures in the event stream**:
 combinations and sequences that only exist across several events (a click, a
 multi-click, a key chord) become one synthesised event. Recognition is an
 endofunction on the event stream — events in, events out — so this layer
@@ -402,9 +402,9 @@ pending synthesised gestures ahead of new raw input. A gesture is *only* a
 combination of events — it carries no intent. Its only import is
 `EventModule`.
 
-## The backend layer (layer 5)
+## The backend layer (layer 6)
 
-Layer 5 of the kernel — **rendering targets**. The layer carries the abstract
+Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type, the batch generics, the display-size seam, and the
 dependency-free `HeadlessBackend` that CI and documentation examples run
 against.
@@ -484,7 +484,7 @@ projection, agent, or editor.
 Recognising a gesture and giving it *meaning* are different heights: a
 gesture is a combination of events and carries no intent, but deciding what a
 `MousePress` does to a `JsonArray` needs `Document` and `Operation`. That
-pulls gesture bindings up to layer 10 — `binding/` — above `document/`,
+pulls gesture bindings up to layer 11 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
 event/device/gesture layers above.
 
