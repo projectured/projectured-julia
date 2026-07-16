@@ -1,10 +1,10 @@
 # Cell layer — restructure for cohesion and guessability
 
 **Status:** in progress on branch `worktree-cell-layer-restructure`. **Landed:**
-C-B (rename, `7c956018`), C-A (module split, `c53d7051`), C-E (folded into C-A).
-**Remaining:** C-D (put `cell` in every external name) and C-C (promote `Clock`)
-— both need sealed-file unsealing and were scoped out of the "up until C-D" run.
-Each change below is independently approvable.
+C-B (rename, `7c956018`), C-A (module split, `c53d7051`), C-E (folded into C-A),
+C-C (Clock promoted to its own layer 2). **Remaining:** C-D (put `cell` in every
+external name) — needs the four sealed kind files unsealed. Each change below is
+independently approvable.
 
 Scope: layer 1 of the kernel, `package/kernel/main/cell/`. The user asked four
 questions — (Q1) should exported names carry `cell`/`Cell`? (Q2) is there a
@@ -50,10 +50,11 @@ and a client *above* it.
 - `CellModule` is imported by document, reference, selection, operation,
   projection layers (kernel) and by sql/graphics/text (higher packages).
 - `ClockModule` is imported by exactly two kernel layers: **projection**
-  (`PrinterContext` has a `clock::Clock` field, layer 11) and **editor** (layer
-  15) — plus visual (`WidgetToGraphics`) and the video package above kernel.
-  ⇒ Clock must stay **≤ layer 11**, but imports only `CellModule`, so it can
-  sink as low as **layer 2**.
+  (`PrinterContext` has a `clock::Clock` field) and **editor** — plus visual
+  (`WidgetToGraphics`) and the video package above kernel. ⇒ Clock must stay at
+  or below the projection layer, but imports only `CellModule`, so it can sink as
+  low as **layer 2** — which is where C-C placed it (renumbering projection→12,
+  editor→16, etc.).
 - The struct-macro **toolkit free functions** (`struct_plan`, `cell_struct_exprs`,
   `required_count`, …) are used by the macro authors and a few helpers:
   `document/DocumentMacro.jl`, `document/DocumentCopy.jl`, `document/DocumentKind.jl`,
@@ -191,7 +192,17 @@ out of `AbstractCell.jl`); only the name needs sharpening.
 `Vector{Cell}` method, that method currently lives in the sealed `ReactiveCell.jl`
 — folding it out needs permission; leaving it put avoids that.
 
-### C-C — Promote `Clock` out of the cell layer (⇢ Q4). **Recommended, needs unseal.**
+### C-C — Promote `Clock` out of the cell layer (⇢ Q4). ✅ Done.
+
+Landed: `Clock.jl` + `ClockTest.jl` moved to a new `clock/` layer (kernel layer
+2), `ClockLayer.jl` added, `CellLayer.jl` trimmed, `ProjecturedKernel.jl`
+include order + all layer-number comments renumbered (event→3 … editor→16), the
+`ProjecturedKernelTest.jl` `layers` vector + `ClockTest` include path updated, the
+`CLAUDE.md` seal list given a new Layer 2 section with everything below
+renumbered, and the layer numbers swept across ~11 kernel/`documentation/` guides
+(the plan's "renumber is two places" estimate was wrong — layer numbers are cited
+throughout the docs). Verified: kernel + visual load, `test_clock` 15/15, the
+layering guard 10/10. The scope note below is retained for the record.
 
 Give the animation clock **its own thin layer directly above cell** (new layer 2,
 `clock/`, module `ClockModule` unchanged), sinking it as low as its single
