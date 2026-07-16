@@ -28,6 +28,8 @@ using ProjecturedKernel.ReferenceModule: EmptyReferencePath
 using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
 using ProjecturedKernel.EventModule: KeyPress
+using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
+using ProjecturedKernel.EventPatternModule: EventPattern
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedBase.ChainingProjectionModule: ChainingProjection
@@ -42,6 +44,8 @@ using ProjecturedKernel.ReferenceModule: append_reference, FieldReference, Eleme
 using ProjecturedBase.CollectionModule: CellVector
 using ProjecturedDomain.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                                     JsonObject, JsonObjectEntry, JsonInsertion
+using ProjecturedDomain.YamlModule: YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence,
+                                    YamlMapping, YamlMappingEntry, YamlInsertion
 
 # A mutable stand-in for the editor: construction repeatedly swaps the whole root
 # (JsonNothing → JsonInsertion/JsonNumber/…), so — like ReplTest's `_ReplEditor` —
@@ -168,23 +172,69 @@ function _leaf_authoring_surface(target, projection)
     (isempty(close) || !endswith(surf, close)) ? surf : chop(surf; tail = length(close))
 end
 
+# The constrained character of a `KeyPress` gesture pattern (`nothing` for a `KeyDown`,
+# or an unconstrained `KeyPress(c) when isdigit(c)`).
+_keypress_char(pat) = (pat isa EventPattern && haskey(pat.fields, :char)) ? pat.fields.char : nothing
+
+# The single keystroke that turns this domain's empty placeholder into a document of
+# `target`'s kind — discovered by trying each character the placeholder's create gestures
+# offer and keeping the one that produces the right kind, cached per (placeholder-kind,
+# target-kind) so each kind is probed once. Needed because the create keystroke is *not*
+# always the first character of the rendered surface: a JSON string opens with `"` (which
+# both creates it and is its delimiter), but a YAML string is unquoted (create key `"`,
+# surface starts with content) and a YAML sequence renders `[…]` yet is created by `-`.
+# `nothing` when no single key makes that kind (a completion-buffer kind would need
+# Insert → type → Enter; not reached by the current corpus).
+const _CREATE_KEY_CACHE = IdDict{Any,Any}()
+
+function _create_keystroke(projection, target)
+    tw = Base.typename(typeof(target)).wrapper
+    seed = construct_seed(target)
+    key = (Base.typename(typeof(seed)).wrapper, tw)
+    haskey(_CREATE_KEY_CACHE, key) && return _CREATE_KEY_CACHE[key]
+    found = nothing
+    for b in get_document_gesture_bindings(typeof(seed))
+        c = _keypress_char(b.pattern)
+        c isa Char || continue
+        scratch = construct_seed(target)
+        sed = _ConstructEditor(scratch, print_document(projection, scratch))
+        _select!(sed, projection, EmptyReferencePath())
+        _feed!(sed, projection, c)
+        if Base.typename(typeof(sed.document)).wrapper === tw
+            found = c
+            break
+        end
+    end
+    _CREATE_KEY_CACHE[key] = found
+    found
+end
+
 # Recursively build `target` at `path`, driving the editor's real gestures. A slot that
 # already matches the target (an insertion the create keystroke left in place) is skipped.
-# A leaf is typed as its authoring surface (rendered form minus closing-delimiter chrome).
-# A container/record is created by the first (kind-selecting) char of its surface, then
-# each slot is filled (see `_fill_slot!`).
+# A leaf is typed as its authoring surface, prefixed with its create keystroke when that
+# keystroke is not already the surface's first character (a `"` for an unquoted string, a
+# `-` for a YAML sequence). A container is created by its create keystroke, then each slot
+# is filled (see `_fill_slot!`).
 function construct_node!(ed, projection, target, path)
     current = try_evaluate_reference(ed.document, path)
     current !== nothing && isempty(compare_content(current, target)) && return
     _select!(ed, projection, path)
-    if !_has_child_field(target)                        # leaf: type its authoring surface
-        for ch in _leaf_authoring_surface(target, projection)
+    create = _create_keystroke(projection, target)
+    if !_has_child_field(target)                        # leaf: create keystroke + content
+        surf = _leaf_authoring_surface(target, projection)
+        authoring = (create !== nothing && !startswith(surf, string(create))) ?
+                    string(create) * surf : surf
+        for ch in authoring
             _feed!(ed, projection, ch)
         end
         return
     end
-    surf = construct_surface(target, projection)        # container: type only the first
-    isempty(surf) || _feed!(ed, projection, first(surf))# (kind-creating) char
+    if create !== nothing                               # container: type the create keystroke
+        _feed!(ed, projection, create)
+    else
+        surf = construct_surface(target, projection)
+        isempty(surf) || _feed!(ed, projection, first(surf))
+    end
     for slot in _node_slots(target, path)
         _fill_slot!(ed, projection, path, slot)
     end
@@ -341,5 +391,50 @@ function test_json_construct()
         # leaves one placeholder child and JSON has no element-delete gesture).
         test_construct("json/array-empty", JsonArray(), proj; broken=true)
         test_construct("json/obj-empty",   JsonObject(), proj; broken=true)
+    end
+end
+
+"""
+    test_yaml_construct()
+
+Reconstruct every YAML document from its empty seed by typing. YAML is structurally the
+same corpus as JSON — scalars, sequences, and keyed mappings — so it exercises the same
+generic planner, but its create keystrokes differ from its rendered surface: a YAML string
+is unquoted (created by `"`, surface starts with content) and a sequence renders `[…]` yet
+is created by `-`. Reconstruction here is the proof that the create-keystroke *discovery*
+(not "first surface char") is what drives node creation.
+
+The same empty-container authoring gap applies (an empty sequence/mapping keeps its
+placeholder child), marked `@test_broken`.
+"""
+function test_yaml_construct()
+    proj = make_yaml_projection_example()
+    @testset "yaml/construct" begin
+        # Scalar leaves (the string is unquoted — create key `"` is not in the surface)
+        test_construct("yaml/null",   YamlNull(),                 proj)
+        test_construct("yaml/true",   YamlBool(true),             proj)
+        test_construct("yaml/false",  YamlBool(false),            proj)
+        test_construct("yaml/number", YamlNumber(42),             proj)
+        test_construct("yaml/string", YamlString("Hello, world"), proj)
+
+        # Sequences (created by `-`), including multi-element grow and nesting
+        test_construct("yaml/seq-1",      YamlSequence(YamlNumber(1)),                          proj)
+        test_construct("yaml/seq-3",      YamlSequence(YamlNumber(1), YamlNumber(2), YamlNumber(3)), proj)
+        test_construct("yaml/seq-str",    YamlSequence(YamlString("a"), YamlString("b")),       proj)
+        test_construct("yaml/seq-nested", YamlSequence(YamlSequence(YamlNumber(1))),            proj)
+
+        # Mappings: keyed entries, multi-entry grow, nesting, placeholder value
+        test_construct("yaml/map-1",      YamlMapping("a" => YamlNumber(1)),                    proj)
+        test_construct("yaml/map-2",      YamlMapping("a" => YamlNumber(1), "b" => YamlNumber(2)), proj)
+        test_construct("yaml/map-str",    YamlMapping("name" => YamlString("Alice")),           proj)
+        test_construct("yaml/map-nested", YamlMapping("addr" => YamlMapping("city" => YamlString("W"))), proj)
+        test_construct("yaml/map-insert", YamlMapping("ph" => YamlInsertion()),                 proj)
+
+        # The catalog document end to end (the full nested mapping)
+        test_construct("yaml/doc-main", make_yaml_document_example(), proj)
+
+        # @broken: same empty-container authoring gap as JSON (no element-delete gesture).
+        test_construct("yaml/seq-empty", YamlSequence(), proj; broken=true)
+        test_construct("yaml/map-empty", YamlMapping(),  proj; broken=true)
     end
 end

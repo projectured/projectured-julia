@@ -147,6 +147,7 @@ function test_domain()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
         test_json_construct()
+        test_yaml_construct()
         test_xml_to_syntax()
         test_xml_to_syntax_reader()
         test_xml_override_gestures()
@@ -219,7 +220,7 @@ export test_versioning_to_any, test_syntax_tree_selection,
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference
 export test_json_content_clicks_clean, collect_json_tree_selections
-export test_construct, reconstruct, test_json_construct
+export test_construct, reconstruct, test_json_construct, test_yaml_construct
 # moved down from the umbrella
 export test_gesture_map, test_gesture_help, test_db_catalog_sql,
        test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline,

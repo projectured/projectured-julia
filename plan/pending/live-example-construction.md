@@ -279,12 +279,24 @@ insertion buffer through the full pipeline no longer throws. Both were verified 
 printer failures). The zero-width insertion boundary stays with SyntaxToText's prefer-content redirect —
 only the *range* case moved to the generic Text lowering.
 
+**YAML is also complete.** The engine gained **create-keystroke discovery** (`_create_keystroke`): the
+keystroke that turns a placeholder into a kind is found by trying each character the placeholder's create
+gestures offer and keeping the one that produces the right kind (cached per kind). This replaced the
+JSON-only "first surface char is the create key" assumption — a YAML string is unquoted (created by `"`,
+surface starts with content) and a YAML sequence renders `[…]` yet is created by `-`. A leaf now types
+`create-key + surface` when the key is not already the surface's first character; a container types the
+discovered create key. `test_yaml_construct` is **15 pass / 2 broken** (same empty-container gap), and the
+whole YAML example surface (printer / reader / navigation / repl / typein) is green — the text-selection
+fix carried straight over. This also incidentally reconstructs a bare `JsonObjectEntry` (discovery finds
+its `:` create key).
+
 Next, in order of remaining value:
+- **XML, then the remaining domains** — apply the same generic engine; XML adds attributes (records) and
+  mixed content.
 - **Julia insertion-domain recipes** — a `kind → commit-string` reflection table + `Insert → type →
-  Enter`, for a domain whose nodes are created by a typed-name buffer rather than a single char.
-- **Phase 4 — generic `test_construct(example::Example)` sweep** across all domains (needs the
-  dispatching projection per example, not the atom leaf projection).
-- **Text-selection refactor** — the shared boundary Backspace/Delete gap (the `test_typein` failures).
+  Enter`, for a domain whose nodes are created by a typed-name buffer rather than a single char (the one
+  shape `_create_keystroke` returns `nothing` for).
+- **Phase 4 — generic `test_construct(example::Example)` sweep** across all domains.
 
 The reader fixes + JSON reconstruction engine landed on branch `fix-json-number-string-readers`
 (worktree `../projectured-julia-jsonfix`).
