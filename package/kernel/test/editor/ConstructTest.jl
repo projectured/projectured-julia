@@ -38,6 +38,14 @@
 _content_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                    x isa Symbol || x isa Char || is_opaque(x)
 
+# Strict leaf equality. Numbers of different concrete types are NOT equal — a
+# reconstruction that yields `42.0` where the target holds `42` is a real
+# divergence the construction test must surface (typing `4` then `2` producing a
+# `Float64` is a reader bug, not a rounding nicety). Strings compare by content
+# (a `SubString` and a `String` over the same characters are equal content).
+_leaf_equal(a::AbstractString, b::AbstractString) = a == b
+_leaf_equal(a, b) = typeof(a) === typeof(b) && isequal(a, b)
+
 # Two structural nodes are the same *kind* when they share a type name. Compared
 # by `typename`, not `==`, because `@document` emits parametric reactive structs
 # (`RJsonObject{…}`) whose cell-kind parameters may differ between two
@@ -66,7 +74,7 @@ function _compare!(errs, a, b, path)
 
     # ── leaves ──────────────────────────────────────────────────────────────
     if _content_leaf(a) || _content_leaf(b)
-        if !(_content_leaf(a) && _content_leaf(b) && isequal(a, b))
+        if !(_content_leaf(a) && _content_leaf(b) && _leaf_equal(a, b))
             push!(errs, "$here: value mismatch: $(repr(a)) ≠ $(repr(b))")
         end
         return
@@ -171,5 +179,10 @@ function test_construct_oracle()
                             _OracleList(items = Any[_OracleLeaf(9)]))
         @test length(d) == 1
         @test occursin("[1].value", d[1])
+
+        # strict scalar leaves: an Int and a Float of equal magnitude differ
+        @test isempty(compare_content(42, 42))
+        @test !isempty(compare_content(42, 42.0))    # 42 ≠ 42.0
+        @test isempty(compare_content("ab", "ab"))
     end
 end
