@@ -14,6 +14,7 @@ scope, which is itself part of the contract: none of this is document-specific.
 
 using Test
 using ProjecturedKernel.CellModule
+using ProjecturedKernel.CellStructModule
 
 # An emitted `f(a) = g(a)` carries a `LineNumberNode` inside its body, and so does
 # the literal we compare it against — from a different line. Strip both.

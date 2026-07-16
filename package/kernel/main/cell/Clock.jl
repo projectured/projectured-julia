@@ -29,6 +29,7 @@ elapsed values into it.
 module ClockModule
 
 using ..CellModule
+using ..CellStructModule
 
 export Clock, get_reactive_time, get_time, tick!, seek!, get_wall_clock
 

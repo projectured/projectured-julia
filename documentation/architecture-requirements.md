@@ -752,7 +752,8 @@ imported); otherwise sink the machinery to a module at or below both users and
 export it. Precedents: the `@event_case`/`@gestures` parser (same-module
 fragments); the transparent-Cell struct codegen — `@cell_struct` +
 `cell_struct_exprs`/`cell_struct_kw_params`/`cell_struct_kwctor` exported from
-the cell module, built on by `@document`/`@iomap`/`@projection`. Enforcement is
+`CellStructModule` (cell layer), built on by `@document`/`@iomap`/`@projection`.
+Enforcement is
 staged like the layer guard itself: `check_private_imports` already forbids
 cross-*layer* internal imports; the same-layer case is enforced per package
 once its same-layer internal imports are cleaned up. An import header is only

@@ -26,6 +26,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
   - ⬜ `cell/CellUnwrap.jl`
+  - ⬜ `cell/CellStructModule.jl`
   - ⬜ `cell/StructPlan.jl`
   - ⬜ `cell/CellStruct.jl`
   - 🔒 `cell/Clock.jl`

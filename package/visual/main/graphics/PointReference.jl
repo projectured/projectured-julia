@@ -14,6 +14,7 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 module PointReferenceModule
 
 using ..CellModule
+using ..CellStructModule
 using ..ReferenceModule
 
 export PointReference

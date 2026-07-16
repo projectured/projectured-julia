@@ -20,8 +20,8 @@ in [main/reference/](../main/reference/), inside one aggregator module
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
-        │ imports Cell and @cell_struct (from CellModule) and Document (from
-        │ DocumentModule, for the reflection-walker traits) and exports every
+        │ imports Cell (from CellModule), @cell_struct (from CellStructModule),
+        │ and Document (from DocumentModule, for the reflection-walker traits) and exports every
         │ public name below
         ├─ Interface.jl        — the contract: the ReferenceStep and
         │                        ReferencePath abstract types, the Reference
@@ -85,8 +85,8 @@ namespace), not separate modules.
 
 ### Downward edges
 
-- `..CellModule: Cell, AbstractCell, @cell_struct` — the reactive box the
-  mutable step fields live in, and the macro that builds each step/path
+- `..CellModule: Cell, AbstractCell` and `..CellStructModule: @cell_struct` — the
+  reactive box the mutable step fields live in, and the macro that builds each step/path
   struct with its cells. Steps and paths are not addressable content —
   nothing navigates into one, selects inside one, or projects one — so they
   carry no `selection` field and need none of `@document`'s document codegen;

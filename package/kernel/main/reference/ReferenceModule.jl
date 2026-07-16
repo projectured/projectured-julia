@@ -62,6 +62,7 @@ wants: transparent reactive-`Cell` fields.
 module ReferenceModule
 
 using ..CellModule
+using ..CellStructModule
 using ..DocumentModule
 # The `walk_document` seam generics are *extended* here (by `PathWalk`), not merely
 # called, so they must be imported by name: a `using`-visible binding that is then

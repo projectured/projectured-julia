@@ -17,6 +17,7 @@ on `_emit_collection_ctors`.
 
 using Test
 using ProjecturedKernel.CellModule
+using ProjecturedKernel.CellStructModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule: Reference
 

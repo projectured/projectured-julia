@@ -28,6 +28,7 @@ its own definition:
 module DocumentModule
 
 using ..CellModule
+using ..CellStructModule
 
 export Document, copy_document, sync_document!, is_element_collection,
        is_opaque, search_documents,

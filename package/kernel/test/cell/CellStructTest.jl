@@ -8,6 +8,7 @@ the structs below are test-local, no document/projection vocabulary in scope.
 
 using Test
 using ProjecturedKernel.CellModule
+using ProjecturedKernel.CellStructModule
 
 # Bare and typed fields: everything becomes a transparent Cell.
 @cell_struct struct CsPlain

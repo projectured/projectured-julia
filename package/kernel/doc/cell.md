@@ -109,7 +109,7 @@ are stored as `Cell` but are read and written *transparently*: `obj.f` reads the
 underlying cell's value, `obj.f = v` writes into it, and `getfield(obj, :f)` is the
 escape hatch that returns the raw `Cell`. This is why the bulk of the code reads
 like ordinary Julia struct manipulation even though every field is reactive. The
-kernel codegen behind this is [`@cell_struct`](#cell_struct-the-transparent-cell-struct-codegen)
+kernel codegen behind this is [`@cell_struct`](#cellstructmodule--the-transparent-cell-struct-codegen)
 below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Idioms you will encounter
@@ -140,8 +140,8 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 ## Layer structure
 
 The layer lives in [package/kernel/main/cell/](../../../package/kernel/main/cell/):
-the instrumentation counter module, the cell module, and the clock, loaded in
-this order:
+the instrumentation counter module, the cell engine, the transparent-cell struct
+codegen, and the clock, loaded in this order:
 
 ```
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
@@ -151,10 +151,12 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         ├─ ImmutableCell.jl   — read-only, zero-cost wrapper
-        ├─ CellUnwrap.jl      — unwrap_cell: reading a slot that may hold a cell
+        └─ CellUnwrap.jl      — unwrap_cell: reading a slot that may hold a cell
+        │  Cell / AbstractCell used by ↓
+CellStructModule.jl      (CellStructModule)           — transparent-Cell struct codegen:
         ├─ StructPlan.jl      — the struct-definition parse the struct macros share
-        └─ CellStruct.jl      — transparent-Cell struct codegen (@cell_struct)
-        │  Cell / @cell_struct used by ↓
+        └─ CellStruct.jl      — @cell_struct + its expr-builders
+        │  @cell_struct used by ↓
 Clock.jl                 (ClockModule)                — the animation clock
 ```
 
@@ -164,8 +166,9 @@ rather than beside the type it dispatches on — it has a body, and a body is
 implementation.
 
 The layer is everything at **cell dependency height**, not the reactive engine
-alone: `PerformanceCounter` is a store the engine calls, `CellStruct` is codegen
-*over* `Cell`, and `Clock` is a `@cell_struct` with one reactive `time` field.
+alone: `PerformanceCounter` is a store the engine calls, `CellStructModule` is
+codegen *over* `Cell`, and `Clock` is a `@cell_struct` with one reactive `time`
+field.
 A clock is deliberately **not** a `Document` — nothing navigates into it,
 selects inside it, or projects it — so it does not belong in the document layer
 above; it imports `CellModule` and nothing else. Each editor owns a private
@@ -186,34 +189,44 @@ incrementality substrate the whole projection pipeline rides on. `MutableCell{T}
 and `ImmutableCell{T}` are non-reactive boxes — a mutable one for high-frequency
 state, a read-only one for derived content — for values that do not need the graph.
 
-Public surface: `Cell`, `set_value!`, `set_function!`, `is_up_to_date`, `peek`.
+Public surface: `Cell`, `AbstractCell`, `ReactiveCell`, `MutableCell`,
+`ImmutableCell`, `set_value!`, `set_function!`, `is_up_to_date`, `unwrap_cell`,
+and `peek` (an untracked read extending `Base.peek`).
 
-### `@cell_struct` — the transparent-Cell struct codegen
+## CellStructModule — the transparent-Cell struct codegen
 
-`CellStruct.jl` (a fragment of `CellModule`) defines the struct codegen every
-declarative struct macro builds on: `@cell_struct struct T [<: Super] … end`
-turns every field into a `::Cell` field and generates an **auto-wrapping inner
-constructor** (raw values wrap in `Cell(v)`, Cells pass through — this is how
-construction-time cell sharing works), **transparent accessors** (`obj.f`
-reads the cell value, `obj.f = v` writes into it; raw cells via
-`getfield(obj, :f)`), and — when a field declares a `field::T = value`
+`CellStructModule` (built on `CellModule` via `using ..CellModule`) is the
+compile-time struct toolkit, split out of the runtime engine so a reader of the
+reactive kinds never wades through AST-rewriting codegen. `@cell_struct struct T
+[<: Super] … end` turns every field into a `::Cell` field and generates an
+**auto-wrapping inner constructor** (raw values wrap in `Cell(v)`, Cells pass
+through — this is how construction-time cell sharing works), **transparent
+accessors** (`obj.f` reads the cell value, `obj.f = v` writes into it; raw cells
+via `getfield(obj, :f)`), and — when a field declares a `field::T = value`
 default — a **keyword constructor** with the `Base.@kwdef` optional/required
 split. No supertype is injected; the struct keeps what the definition wrote.
 
-The macro is assembled by `cell_struct_exprs(structdef)` from four exported
-expr-builders (`cell_struct_autowrap_ctor`, `cell_struct_property_accessors`,
-`cell_struct_kw_params`, `cell_struct_kwctor`) — together they are the **composition seam
-for macro authors**: `@iomap` and `@projection` (projection layer) inject
-their default supertype and return `esc(cell_struct_exprs(structdef))`
-wholesale; `@document` (document layer) generates its own kind-parameterized
-stem and reuses only the keyword-ctor builders. The builders emit `Cell`,
-`new`, `getfield` as bare names that resolve in the delegating macro's
-*caller* scope, so a module using any of these macros needs `Cell` in scope
-and nothing else. See [the macros guide](macros.md) for the full field-wrapping
-and `@document` codegen details.
+The macro is assembled by `cell_struct_exprs(structdef)`, which composes two
+module-internal expr-builders (`cell_struct_autowrap_ctor`,
+`cell_struct_property_accessors`) with the exported keyword/positional builders
+(`cell_struct_kw_params`, `cell_struct_kwctor`, `cell_struct_positional_ctors`)
+and the `StructPlan` parse — together the **composition seam for macro
+authors**: `@iomap` and `@projection` (projection layer) inject their default
+supertype and return `esc(cell_struct_exprs(structdef))` wholesale; `@document`
+(document layer) generates its own kind-parameterized stem and reuses only the
+keyword-ctor builders. The builders emit `Cell`, `new`, `getfield` as bare names
+that resolve in the delegating macro's *caller* scope, so the emitted code needs
+only `Cell` in scope; invoking `@cell_struct` itself (or a macro built on it)
+requires `using ..CellStructModule`. See [the macros guide](macros.md) for the
+full field-wrapping and `@document` codegen details.
 
-Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_struct_autowrap_ctor`,
-`cell_struct_property_accessors`, `cell_struct_kw_params`, `cell_struct_kwctor`.
+Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_struct_kw_params`,
+`cell_struct_kwctor`, `cell_struct_positional_ctors`, `struct_macro_default`, and
+the `StructPlan` parse toolkit (`StructPlan`, `struct_plan`, `add_plan_field!`,
+`retype_fields!`, `declared_value_types`, `field_cell_kinds`, `cell_kind_of`,
+`required_count`, `trailing_default_count`). The expr-builders
+`cell_struct_autowrap_ctor` and `cell_struct_property_accessors` are
+module-internal.
 
 ## PerformanceCounterModule — instrumentation
 

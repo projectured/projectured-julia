@@ -18,6 +18,7 @@ layer's `dsl_build_step` / `dsl_match_step` / `dsl_step_subpath_args` seams.
 module ProjectionReferenceModule
 
 using ..CellModule
+using ..CellStructModule
 using ..ReferenceModule
 
 export ProjectionReference, is_introduced_reference, named_node_reference

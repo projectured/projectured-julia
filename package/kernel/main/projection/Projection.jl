@@ -29,6 +29,7 @@ using ..OperationModule
 # the default read_intent live in base/projection/ReaderDefaults.jl beside
 # the Primitive document types. This module stays Primitive-free.
 using ..CellModule
+using ..CellStructModule
 using ..DocumentModule
 using ..ReferenceModule
 using ..PrinterContextModule

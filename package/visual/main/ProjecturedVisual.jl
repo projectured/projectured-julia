@@ -54,6 +54,7 @@ using ProjecturedBase
 # BackendApiModule) so files that still use it keep resolving to the canonical
 # module.
 const CellModule = ProjecturedKernel.CellModule
+const CellStructModule = ProjecturedKernel.CellStructModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule

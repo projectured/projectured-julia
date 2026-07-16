@@ -17,6 +17,7 @@ here alongside the type.
 module TextRectangularReferenceModule
 
 using ..CellModule
+using ..CellStructModule
 using ..ReferenceModule
 
 export TextRectangularReference

@@ -9,6 +9,7 @@ own specialised IoMap struct alongside their projection type.
 module IoMapModule
 
 using ..CellModule
+using ..CellStructModule
 using ..IoMapApiModule
 # `import`, not `using`: this module answers the three accessors for every IoMap
 # that follows the field convention below.
