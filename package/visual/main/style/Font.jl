@@ -6,7 +6,7 @@ file path and a point size.
 """
 module FontModule
 
-import ..CellModule: Cell, set_value!, ImmutableCell
+import ..CellModule: Cell, set_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 
@@ -75,7 +75,7 @@ A font style value consisting of a file path and a point size.
 @document ImmutableCell struct StyleFont
     filename::String
     size::Int
-    selection::ImmutableCell{Nothing}
+    selection::Nothing
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────

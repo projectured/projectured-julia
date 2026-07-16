@@ -6,7 +6,6 @@ normalized Float64 components in [0, 1].
 """
 module ColorModule
 
-import ..CellModule: ImmutableCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 
@@ -65,7 +64,7 @@ A color style value with RGBA components normalized to [0, 1].
     green::Float64
     blue::Float64
     alpha::Float64
-    selection::ImmutableCell{Nothing}
+    selection::Nothing
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────

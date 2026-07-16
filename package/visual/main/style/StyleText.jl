@@ -12,7 +12,6 @@ module StyleTextModule
 
 import ..FontModule: StyleFont, DStyleFont
 import ..ColorModule: StyleColor, DStyleColor
-import ..CellModule: ImmutableCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 
@@ -31,7 +30,7 @@ A text style value: the `font` to draw with and the `color` to draw in.
 @document ImmutableCell struct StyleText
     font::DStyleFont
     color::DStyleColor
-    selection::ImmutableCell{Nothing}
+    selection::Nothing
 end
 
 # ── Construction ──────────────────────────────────────────────────────────────
