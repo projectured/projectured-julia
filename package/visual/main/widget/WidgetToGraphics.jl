@@ -1945,7 +1945,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
     _push_text!(elems, p.title_text.font, title, cox, coy, p.title_text.color)
     content_y = coy + th + _sc(p.title_gap)
     content = w.content
-    if content isa WidgetDocument
+    if content isa Document
         cim = print_child(recursion, content, ctx)
         push!(child_iomaps, (cox, content_y, cim))
         push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
@@ -2006,13 +2006,13 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     splitter_thickness = max(1, _sc(p.splitter.width))
     splitter_color = p.splitter.color
 
-    # Keep only Document children; LayoutConstraint and bare widgets both
-    # work — the wrapper is transparent for projection (we recurse into
-    # `elem.child`) and consulted for sizing policy.
+    # Keep only Document children; a LayoutConstraint wrapper or a bare
+    # document of any domain both work — the wrapper is transparent for
+    # projection (we recurse into `elem.child`) and consulted for sizing policy.
     valid_elems = Any[]
     for i in 1:length(w.elements)
         elem = w.elements[i]
-        (elem isa LayoutConstraint || elem isa WidgetDocument) && push!(valid_elems, elem)
+        (elem isa LayoutConstraint || elem isa Document) && push!(valid_elems, elem)
     end
     n = length(valid_elems)
     n == 0 && return ChildrenIoMap(p, w, _make_canvas(0, 0, Any[]), Cell(Any[]))
