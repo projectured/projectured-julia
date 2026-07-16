@@ -24,6 +24,7 @@ import ..ProjectionTemplateModule: var"@projection_template", bound, project, co
 import ..PrimitiveModule: ReplaceNumberRangeOperation
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
+       JsonObjectEntryToSyntaxNode,
        JsonToSyntax
 
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
@@ -98,26 +99,34 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
+# ── JsonObjectEntryToSyntaxNode ──────────────────────────────────────────────
+# One `"key": value` member. The object delegates each entry here (School A) rather
+# than inlining, so a bare `JsonObjectEntry` also projects on its own.
+
+@projection struct JsonObjectEntryToSyntaxNode
+    key_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    colon_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JsonObjectEntryToSyntaxNode JsonObjectEntry (prj, e) ->
+    SyntaxNode(TextString("", prj.colon_style),
+               TextString("", prj.colon_style),
+               TextString(": ", prj.colon_style),
+               [ SyntaxLeaf(bound(:key, String, hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
+                            open=TextString("\"", prj.key_style),
+                            close=TextString("\"", prj.key_style)),
+                 project(:value) ],
+               0, false, getfield(e, :selection))
+
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JsonObjectToSyntaxNode
     delimiter_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
     separator_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    key_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
-    SyntaxNode(collection(:entries) do e
-                   SyntaxNode(TextString("", prj.delimiter_style),
-                              TextString("", prj.delimiter_style),
-                              TextString(": ", prj.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
-                                           open=TextString("\"", prj.key_style),
-                                           close=TextString("\"", prj.key_style)),
-                                project(:value) ],
-                              0, false, getfield(e, :selection))
-               end;
+    SyntaxNode(collection(:entries);
                open=TextString("{", prj.delimiter_style),
                close=TextString("}", prj.delimiter_style),
                sep=TextString(", ", prj.separator_style),
@@ -135,7 +144,7 @@ function JsonToSyntax()
         JsonObject      => JsonObjectToSyntaxNode(),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
         JsonNothing     => InsertionNothingToSyntaxLeaf(),
-        JsonObjectEntry => CopyingProjection(),
+        JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
         Vector{Cell}    => CopyingProjection(),
     )
 end

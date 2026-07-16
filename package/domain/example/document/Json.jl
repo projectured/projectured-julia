@@ -48,7 +48,6 @@ function make_json_string_document_example()
 end
 
 # Minimal non-empty compound (node) documents — one leaf child each, for the catalog.
-# (A bare JsonObjectEntry has no standalone projection — it only exists inside a JsonObject,
-# where json/object already exercises it — so it is not a catalog atom.)
-make_json_array_document_example()  = JsonArray(JsonNumber(1))
-make_json_object_document_example() = JsonObject("a" => JsonString("x"))
+make_json_array_document_example()        = JsonArray(JsonNumber(1))
+make_json_object_document_example()       = JsonObject("a" => JsonString("x"))
+make_json_object_entry_document_example() = JsonObjectEntry("a", JsonString("x"))
