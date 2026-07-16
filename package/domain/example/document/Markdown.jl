@@ -13,6 +13,12 @@ make_markdown_paragraph_document_example() = MarkdownParagraph([MarkdownText("x"
 make_markdown_list_document_example()      = MarkdownList(false, [MarkdownListItem([MarkdownParagraph([MarkdownText("x")])])])
 make_markdown_emphasis_document_example()  = MarkdownEmphasis([MarkdownText("x")])
 make_markdown_link_document_example()      = MarkdownLink([MarkdownText("x")], "url")
+make_markdown_strong_document_example()    = MarkdownStrong([MarkdownText("x")])
+make_markdown_code_block_document_example()= MarkdownCodeBlock("julia", "x")
+make_markdown_image_document_example()     = MarkdownImage("logo", "logo.png")
+make_markdown_list_item_document_example() = MarkdownListItem([MarkdownParagraph([MarkdownText("x")])])
+make_markdown_quote_document_example()     = MarkdownQuote([MarkdownParagraph([MarkdownText("x")])])
+make_markdown_root_document_example()      = MarkdownRoot([MarkdownParagraph([MarkdownText("x")])])
 
 function make_markdown_document_example()
     MarkdownRoot([

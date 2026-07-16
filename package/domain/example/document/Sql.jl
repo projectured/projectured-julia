@@ -16,6 +16,45 @@ make_sql_comparison_document_example()       = SqlComparison(SqlColumnReference(
 make_sql_select_item_document_example()      = SqlSelectItem(SqlColumnReference("a"))
 make_sql_select_statement_document_example() = SqlSelectStatement("persons")
 
+make_sql_and_document_example() =
+    SqlAnd(SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1)),
+           SqlComparison(SqlColumnReference("b"), "=", SqlScalarValue(2)))
+make_sql_or_document_example() =
+    SqlOr(SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1)),
+          SqlComparison(SqlColumnReference("b"), "=", SqlScalarValue(2)))
+make_sql_not_document_example() =
+    SqlNot(SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1)))
+make_sql_where_filter_condition_document_example() =
+    SqlWhereFilterCondition(SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1)))
+make_sql_where_clause_document_example() =
+    SqlWhereClause(make_sql_where_filter_condition_document_example())
+make_sql_select_clause_document_example() =
+    SqlSelectClause(SqlSelectItem(SqlColumnReference("a")))
+make_sql_from_item_document_example() =
+    SqlFromItem(SqlTableExpression("persons"))
+make_sql_from_clause_document_example() =
+    SqlFromClause(make_sql_from_item_document_example())
+make_sql_join_on_condition_document_example() =
+    SqlJoinOnCondition(SqlComparison(SqlColumnReference("a"), "=", SqlColumnReference("b")))
+make_sql_joined_from_item_document_example() =
+    SqlJoinedFromItem(SqlInnerJoin(), SqlTableExpression("orders"), make_sql_join_on_condition_document_example())
+make_sql_subquery_from_item_document_example() =
+    SqlSubqueryFromItem(SqlSelectStatement("persons"))
+make_sql_column_definition_document_example() =
+    SqlColumnDefinition("age", "integer")
+make_sql_create_table_statement_document_example() =
+    SqlCreateTableStatement(SqlTableName("persons"), [make_sql_column_definition_document_example()])
+make_sql_create_schema_statement_document_example() =
+    SqlCreateSchemaStatement("public")
+make_sql_statement_list_document_example() =
+    SqlStatementList([SqlSelectStatement("persons")])
+make_sql_insert_statement_document_example() =
+    SqlInsertStatement(SqlTableName("persons"), [SqlColumnName("name")], [SqlScalarValue("Ada")])
+make_sql_update_assignment_document_example() =
+    SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))
+make_sql_update_statement_document_example() =
+    SqlUpdateStatement(SqlTableName("persons"), [make_sql_update_assignment_document_example()])
+
 function make_sql_insert_document_example()
     # INSERT INTO persons (name, age) VALUES ('Ada', 36)
     SqlInsertStatement(

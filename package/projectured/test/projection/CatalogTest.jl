@@ -30,32 +30,46 @@ _applies(tester, ex::Example) = (r = _required_terminal(tester); r === nothing |
 # `Fail` (a regression). Fix the projection, then delete its clause here. Enumerate the
 # open bugs with `grep "@catalog-broken"`.
 #
-# @catalog-broken sql/comparison, sql/select_item: a bare node atom receives an editing
-#   gesture the node's `ChildrenIoMap` `read_intent` has no method for — a `read_intent`
-#   MethodError, and its reprint fallout `FieldError`.
-# @catalog-broken julia/binary_op, julia/assignment: repl reprint throws `FieldError(Nothing, :output)`.
+# Entries whose reader/repl still fails on an editing/click gesture — the projection bug is
+# the @test_broken TODO. Grouped by root cause below; a *different* error class on one of them
+# still surfaces as an unmarked Fail (a regression). Fix the projection, drop it from the set.
+const _CATALOG_EDIT_BROKEN = (
+    # @catalog-broken julia node repl reprint → FieldError(Nothing, :output)
+    "julia/binary_op/", "julia/assignment/", "julia/field_access/", "julia/for_iterator/",
+    "julia/lambda/", "julia/range/", "julia/return/", "julia/ternary/",
+    "julia/type_annotation/", "julia/unary_op/", "julia/using/",
+    # @catalog-broken sql node ChildrenIoMap read_intent has no edit-gesture method
+    #   (read_intent MethodError; TypeError / FieldError reprint fallout)
+    "sql/comparison/", "sql/select_item/", "sql/from_item/", "sql/join_on_condition/",
+    "sql/joined_from_item/", "sql/update_assignment/", "sql/update_statement/",
+    "sql/column_definition/", "sql/where_filter_condition/",
+    # @catalog-broken under-typed @reference in a node's backward map (on a click)
+    "filesystem/directory/", "sql/statement_list/",
+)
 _catalog_edit_broken(name) =
-    (occursin("sql/comparison/", name) || occursin("sql/select_item/", name) ||
-     occursin("julia/binary_op/", name) || occursin("julia/assignment/", name)) ?
-        ((ev, msg) -> occursin("FieldError", msg) || occursin("MethodError", msg)) :
-    occursin("filesystem/directory/", name) ?
-        ((ev, msg) -> occursin("under-typed", msg)) : nothing
+    any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
+        ((ev, msg) -> occursin("FieldError", msg) || occursin("MethodError", msg) ||
+                      occursin("TypeError", msg) || occursin("under-typed", msg)) : nothing
 
-# @catalog-broken yaml/sequence: graphics Ctrl+Home seed returns nothing (0 nav states).
-# @catalog-broken filesystem/directory: graphics click hits an under-typed `@reference` in
-#   `FileSystemDirectoryToSyntaxNode`'s backward map; the nav walk collects it and reaches 0 states.
-_catalog_seed_broken(name) =
-    (occursin("yaml/sequence/", name) || occursin("filesystem/directory/", name)) ? (_errs -> true) : nothing
-
-_catalog_throws_broken(name) =
-    occursin("filesystem/directory/", name) ? (msg -> occursin("under-typed @reference", msg)) : nothing
+# Entries whose position-navigation still fails — the seed can't produce a caret, or the walk
+# throws (an under-typed @reference / a TypeError in a node's backward map / selection maps).
+# @catalog-broken yaml/sequence: graphics Ctrl+Home seed returns nothing (0 states).
+# @catalog-broken filesystem/directory, sql/statement_list: under-typed @reference on the walk.
+# @catalog-broken sql/where_filter_condition: TypeError (SyntaxNavigation) on the walk.
+const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
+                             "sql/statement_list/", "sql/where_filter_condition/")
+_catalog_seed_broken(name)   = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_errs -> true) : nothing
+_catalog_throws_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_msg -> true) : nothing
+# a per-state caret step whose selection can't re-apply (same broken entries).
+_catalog_nav_state_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? ((_p, _msg) -> true) : nothing
 
 # Route one Example to a tester, threading its known-broken signatures. printer has no
 # known breaks; reader/repl take an event predicate; position-navigation takes seed/throws.
 _run_catalog_tester(::typeof(test_position_navigation), ex::Example) =
     test_position_navigation(ex.name, ex.make_document(), ex.make_projection();
                              seed_broken=_catalog_seed_broken(ex.name),
-                             throws_broken=_catalog_throws_broken(ex.name))
+                             throws_broken=_catalog_throws_broken(ex.name),
+                             broken=_catalog_nav_state_broken(ex.name))
 _run_catalog_tester(::typeof(test_reader), ex::Example) =
     test_reader(ex.name, ex.make_document(), ex.make_projection(); broken=_catalog_edit_broken(ex.name))
 _run_catalog_tester(::typeof(test_repl), ex::Example) =

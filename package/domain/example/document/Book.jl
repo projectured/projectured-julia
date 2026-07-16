@@ -8,6 +8,9 @@ make_book_insertion_document_example() = BookInsertion()
 # Minimal non-empty compound (node) documents — one child each, for the catalog.
 make_book_chapter_document_example() = BookChapter("Introduction", "1", [make_book_paragraph_document_example()])
 make_book_list_document_example()    = BookList([make_book_paragraph_document_example()])
+make_book_book_document_example()    =
+    BookBook("Projectured User Guide", "The Projectured Authors",
+             [BookChapter("Introduction", "1", [make_book_paragraph_document_example()])])
 
 function make_book_document_example()
     BookBook(

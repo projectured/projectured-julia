@@ -32,7 +32,23 @@ Branch `catalog-all-documents` (worktree `projectured-julia-alldocs`), off `main
   `systemd-run --user --scope -q -p MemoryMax=12G -p MemorySwapMax=0 julia --project=. …`.
 
 ## Progress
-- [ ] 1. JsonObjectEntry projection
-- [ ] 2. Catalog broken-registry
-- [ ] 3. Re-add deferred + exhaustive node coverage
-- [ ] 4. Fix the failures (sql ambiguity, julia FieldError, filesystem @reference, yaml seed, …)
+- [x] 1. **JsonObjectEntry projection** — `JsonObjectEntryToSyntaxNode`; object delegates via
+  `collection(:entries)`; `json/object_entry` is a real atom. (committed)
+- [x] 2. **Catalog broken-registry** — `CatalogTest.jl` marks a failing entry `@test_broken` keyed
+  on its signature; `@catalog-broken` comments = the bug list. (committed)
+- [x] 3. **Re-add deferred + exhaustive coverage** — every node type across all domains is now an
+  atom: json array/object/object_entry, yaml sequence/mapping, xml element/attribute, math (3),
+  book chapter/list/book, markdown (heading/paragraph/list/emphasis/link/strong/code_block/image/
+  list_item/quote/root), julia (17 nodes), sql (18 nodes). **~105 atoms → 315 entries.**
+- [ ] 4. **Fix the @test_broken bugs** — the open bug list (`grep @catalog-broken`):
+  - julia node repl reprint → `FieldError(Nothing, :output)` (binary_op, assignment, field_access,
+    for_iterator, lambda, range, return, ternary, type_annotation, unary_op, using).
+  - sql node `ChildrenIoMap` `read_intent` has no edit-gesture method (comparison, select_item,
+    from_item, join_on_condition, joined_from_item, update_assignment, update_statement,
+    column_definition, where_filter_condition).
+  - under-typed `@reference` in a node backward map (filesystem/directory, sql/statement_list).
+  - yaml/sequence graphics seed returns nothing; sql/where_filter_condition nav TypeError.
+
+## Result
+Full `test_catalog()`: **184455 pass / 0 unmarked Fail / 0 error / 466 broken** — every document type
+is in the catalog; the 466 broken assertions are the tracked, visible bug list (workstream 4).
