@@ -34,12 +34,14 @@ using ProjecturedBase.ChainingProjectionModule: ChainingProjection
 using ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedVisual.TextToStringModule: TextToString
 using ProjecturedVisual.SyntaxModule: SyntaxLeaf
-using ProjecturedBase.DomainModule: nothing_document, domain_insertion
+using ProjecturedBase.DomainModule: nothing_document, domain_insertion, insertion_root
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_opaque
 using ProjecturedKernel.CellModule: unwrap_cell
-using ProjecturedKernel.ReferenceModule: append_reference, FieldReference, ElementReference
+using ProjecturedKernel.ReferenceModule: append_reference, FieldReference, ElementReference,
+                                         try_evaluate_reference
 using ProjecturedBase.CollectionModule: CellVector
-using ProjecturedDomain.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray
+using ProjecturedDomain.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
+                                    JsonObject, JsonObjectEntry, JsonInsertion
 
 # A mutable stand-in for the editor: construction repeatedly swaps the whole root
 # (JsonNothing → JsonInsertion/JsonNumber/…), so — like ReplTest's `_ReplEditor` —
@@ -54,6 +56,10 @@ end
 # defined for every document type of a `@domain` (→ its `*Insertion`), and
 # `nothing_document(*Insertion)` is its `*Nothing`.
 function construct_seed(target)
+    # A placeholder insertion buffer (a `*Insertion`, whose `insertion_root` is overridden
+    # away from the default `Document`) is authored as itself — there is no completed
+    # document to build up to, so a fresh one of its own type is the whole reconstruction.
+    insertion_root(typeof(target)) !== Document && return Base.typename(typeof(target)).wrapper()
     ins = domain_insertion(typeof(target))
     ins === nothing && error("no @domain insertion for $(typeof(target)); cannot seed")
     nothing_document(ins)()
@@ -102,32 +108,46 @@ function _select!(ed, projection, path)
     ed.iomap = print_document(projection, ed.document)
 end
 
-# The direct `Document` children of `node` (reached at `node_path`), each as
-# `(child_path, child)`. Mirrors the canonical document walk: a struct descends
-# its fields; a field that is itself a positional collection contributes its
-# elements. Scalar fields (a number, a string key) are *content* — typed as part
-# of the node's own surface — not children.
-function _document_child_slots(node, node_path)
-    slots = Tuple{Any,Any}[]
+# The fillable slots of `node` (reached at `node_path`), in field order — one of:
+#   (:scalar,  fpath, fname, target_value)   a content scalar (a record's key), typed in place
+#   (:document, fpath, target_child)          a `Document` child, built by recursion
+#   (:element, epath, target_elem, i)         one element (1-based `i`) of a collection field
+# Chrome fields (`:selection` / `:ref` / `:collapsed`) are skipped. Mirrors the canonical
+# document walk: a struct descends its fields; a positional collection contributes its
+# elements (a `CellVector` is itself a `Document`, so its elements — not the container — are
+# the children). A leaf's own scalar `value` is *also* returned as a `:scalar` slot, but a
+# leaf is recognised by having no `:document` / `:element` slot and is typed as its surface
+# instead (see `_has_child_field`).
+function _node_slots(node, node_path)
+    slots = Any[]
     (node isa Document && !is_opaque(node)) || return slots
     for fname in fieldnames(typeof(node))
-        (fname === :selection || fname === :ref) && continue
+        (fname === :selection || fname === :ref || fname === :collapsed) && continue
         fv = unwrap_cell(getfield(node, fname))
         fpath = append_reference(node_path, FieldReference(string(fname)))
-        # Collection first: a `CellVector` is itself a `Document`, so its elements
-        # (not the container) are the children — the container is addressed by
-        # `[i]`, never projected on its own.
         if fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector
             for i in 1:length(fv)
                 el = unwrap_cell(fv[i])
-                el isa Document && push!(slots, (append_reference(fpath, ElementReference(i)), el))
+                el isa Document && push!(slots, (:element, append_reference(fpath, ElementReference(i)), el, i))
             end
         elseif fv isa Document
-            push!(slots, (fpath, fv))
+            push!(slots, (:document, fpath, fv))
+        else
+            push!(slots, (:scalar, fpath, fname, fv))
         end
     end
     slots
 end
+
+# A node is a container/record (built by a create keystroke then filled) when it has any
+# `Document` child or collection field — structurally, even when the collection is
+# momentarily empty; otherwise it is a leaf, typed as its authoring surface.
+_has_child_field(node) =
+    (node isa Document && !is_opaque(node)) && any(fieldnames(typeof(node))) do fname
+        (fname === :selection || fname === :ref || fname === :collapsed) && return false
+        fv = unwrap_cell(getfield(node, fname))
+        fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector || fv isa Document
+    end
 
 # A delimited leaf renders `open value close`, but an author types only the opening
 # delimiter (which creates the leaf) and the value — the projection supplies the
@@ -148,38 +168,82 @@ function _leaf_authoring_surface(target, projection)
     (isempty(close) || !endswith(surf, close)) ? surf : chop(surf; tail = length(close))
 end
 
-# Recursively build `target` at `path`. A leaf (no `Document` children) is typed as
-# its authoring surface (its rendered form minus any closing-delimiter chrome). A
-# container is created by the *first* character of its surface — the kind-selecting
-# keystroke (`[`, `{`, a digit, `"`, `n`/`t`/`f`) — after which its children are filled
-# by navigating to each child slot and recursing. (Multi-child sequences need a
-# per-domain "append element" gesture between children; the current catalog atoms hold
-# a single child, so that grow step is deferred — see the plan.)
+# Recursively build `target` at `path`, driving the editor's real gestures. A slot that
+# already matches the target (an insertion the create keystroke left in place) is skipped.
+# A leaf is typed as its authoring surface (rendered form minus closing-delimiter chrome).
+# A container/record is created by the first (kind-selecting) char of its surface, then
+# each slot is filled (see `_fill_slot!`).
 function construct_node!(ed, projection, target, path)
+    current = try_evaluate_reference(ed.document, path)
+    current !== nothing && isempty(compare_content(current, target)) && return
     _select!(ed, projection, path)
-    slots = _document_child_slots(target, path)
-    if isempty(slots)                                   # leaf: type its authoring surface
+    if !_has_child_field(target)                        # leaf: type its authoring surface
         for ch in _leaf_authoring_surface(target, projection)
             _feed!(ed, projection, ch)
         end
         return
     end
-    surf = construct_surface(target, projection)        # container: type only the
-    isempty(surf) || _feed!(ed, projection, first(surf))# first (kind-creating) char
-    for (childpath, child) in slots
-        construct_node!(ed, projection, child, childpath)
+    surf = construct_surface(target, projection)        # container: type only the first
+    isempty(surf) || _feed!(ed, projection, first(surf))# (kind-creating) char
+    for slot in _node_slots(target, path)
+        _fill_slot!(ed, projection, path, slot)
+    end
+end
+
+# Fill one slot of the container reached at `container_path`.
+function _fill_slot!(ed, projection, container_path, slot)
+    if slot[1] === :scalar
+        _fill_scalar!(ed, projection, slot[4])
+    elseif slot[1] === :document
+        construct_node!(ed, projection, slot[3], slot[2])
+    elseif slot[1] === :element
+        _, epath, elem, i = slot
+        if i > 1
+            # Grow: a fresh element/entry is appended by the container's own gesture (`,`).
+            # Feed it with the WHOLE container selected so it reaches the container's
+            # `@gestures` — a caret inside a filled leaf would swallow the key as text.
+            _select!(ed, projection, container_path)
+            _feed!(ed, projection, ',')
+        end
+        _fill_element!(ed, projection, elem, epath)
+    end
+end
+
+# An element is either a record — a scalar key beside a `Document` value (a JSON object
+# entry), pre-created by the container's `{` / `,` with the caret already at its key — whose
+# key is typed and value recursed, or a plain `Document` placeholder built by recursion.
+function _fill_element!(ed, projection, elem, epath)
+    eslots  = _node_slots(elem, epath)
+    scalars = filter(s -> s[1] === :scalar,   eslots)
+    docs    = filter(s -> s[1] === :document, eslots)
+    if !isempty(scalars) && !isempty(docs)              # record: key(s) then value(s)
+        for s in scalars; _fill_scalar!(ed, projection, s[4]); end
+        for s in docs;    construct_node!(ed, projection, s[3], s[2]); end
+    else
+        construct_node!(ed, projection, elem, epath)    # plain placeholder element
+    end
+end
+
+# Type a content scalar (a record's key) at the caret the create/grow gesture left in it
+# (an entry opens at `key{0}`). Only string scalars are authored by typing; a non-string
+# content scalar would need a per-kind gesture (none occur among JSON keys).
+function _fill_scalar!(ed, projection, value)
+    value isa AbstractString || return
+    for ch in value
+        _feed!(ed, projection, ch)
     end
 end
 
 """
     reconstruct(target, projection) -> document
 
-Build a fresh document that equals `target` in content by starting from the
-domain's empty placeholder and driving the editor's real gestures: leaves are
-typed as their rendered surface, containers are created by their kind-selecting
-keystroke and then filled child by child (navigating to each child slot with a
-programmatic ∅ selection). Returns the document reached — the caller compares it
-against `target` with `compare_content`. Nothing here works around a broken
+Build a fresh document that equals `target` in content by starting from the domain's
+empty placeholder and driving the editor's real gestures: a leaf types its authoring
+surface; a container is created by its kind-selecting keystroke and filled slot by slot —
+each `Document` child recursed (reached with a programmatic ∅ selection), a second-or-later
+collection element grown first with the container's append gesture, and a record entry's
+key typed in place before its value is recursed. Returns the document reached — the caller
+compares it against `target` with `compare_content`. Nothing here works around a broken
 reader; a divergence is reported, not patched.
 """
 function reconstruct(target, projection)
@@ -219,19 +283,27 @@ end
 """
     test_json_construct()
 
-Reconstruct JSON documents from `JsonNothing` via the whole JSON projection (the
-type-dispatching pipeline — the leaf-specific atom projections cannot project the
-`JsonNothing` seed).
+Reconstruct every JSON document from its empty seed by typing, through the whole JSON
+projection (the type-dispatching pipeline — the leaf-specific atom projections cannot
+project the `JsonNothing` seed), and assert each equals its target in content. This is
+the reachability proof for the JSON domain: every document in the corpus is authorable
+through the editor's own gestures, from nothing.
 
-Scalar leaves (`null` / `true` / `false` / a number / a string) reconstruct by
-typing their authoring surface: a single kind-selecting keystroke for the literals,
-digit-by-digit for a number (which stays an integer), and `"` then the content for a
-string (the closing quote is projection chrome, so it is not typed).
+- **Scalar leaves** (`null` / `true` / `false` / a number / a string) type their
+  authoring surface: one kind-selecting keystroke for the literals, digit-by-digit for a
+  number (which stays an integer), and `"` then the content for a string (the closing
+  quote is projection chrome, so it is not typed).
+- **Element collections** (arrays) are created by `[`, then each element is navigated to
+  and reconstructed; a second-or-later element is grown with the `,` gesture first.
+- **Record collections** (objects) are created by `{`; each entry's quoted key is typed
+  at the caret the create/grow leaves in it and its value recursed; a second-or-later
+  entry is grown with `,`. An entry whose value stays a `JsonInsertion` placeholder is
+  left as created.
+- The full nested `make_json_document_example()` exercises all of the above at once.
 
-Element-collection containers: an array is created by `[`, then each element slot is
-navigated to and its child reconstructed — including a string or multi-digit number
-element. Object entries (a record node with a string key beside a document value)
-are Phase 3 — the current planner has no key-typing step for them.
+Known authoring gaps (not reader bugs) are marked `@test_broken`: a *truly empty* array
+or object (`[]` / `{}`) is unreachable because creation always leaves one placeholder
+child and the JSON domain has no element-delete gesture to remove it.
 """
 function test_json_construct()
     proj = make_json_projection_example()
@@ -243,10 +315,31 @@ function test_json_construct()
         test_construct("json/number", JsonNumber(42),             proj)
         test_construct("json/string", JsonString("Hello, world"), proj)
 
-        # Element-collection containers
-        test_construct("json/array",        JsonArray(JsonNumber(1)),            proj)
-        test_construct("json/array-bool",   JsonArray(JsonBool(true)),           proj)
-        test_construct("json/array-nested", JsonArray(JsonArray(JsonNumber(1))), proj)
-        test_construct("json/array-string", JsonArray(JsonString("ab")),         proj)
+        # Element collections (arrays), including multi-element grow and nesting
+        test_construct("json/array",        JsonArray(JsonNumber(1)),                     proj)
+        test_construct("json/array-bool",   JsonArray(JsonBool(true)),                    proj)
+        test_construct("json/array-nested", JsonArray(JsonArray(JsonNumber(1))),          proj)
+        test_construct("json/array-string", JsonArray(JsonString("ab")),                  proj)
+        test_construct("json/array-2",      JsonArray(JsonNumber(1), JsonNumber(2)),      proj)
+        test_construct("json/array-3",      JsonArray(JsonNumber(1), JsonNumber(2), JsonNumber(3)), proj)
+        test_construct("json/array-2str",   JsonArray(JsonString("a"), JsonString("b")),  proj)
+
+        # Record collections (objects): keyed entries, multi-entry grow, nesting
+        test_construct("json/obj-1",        JsonObject("a" => JsonNumber(1)),             proj)
+        test_construct("json/obj-2",        JsonObject("a" => JsonNumber(1), "b" => JsonNumber(2)), proj)
+        test_construct("json/obj-str",      JsonObject("name" => JsonString("Alice")),    proj)
+        test_construct("json/obj-nested",   JsonObject("addr" => JsonObject("city" => JsonString("W"))), proj)
+        test_construct("json/obj-insert",   JsonObject("ph" => JsonInsertion()),          proj)
+
+        # The catalog example documents end to end: the empty insertion buffer, and the
+        # full nested object (objects / arrays / strings / numbers / bools / a placeholder
+        # entry, all at once). The scalar/string catalog docs are the inline cases above.
+        test_construct("json/doc-insertion", make_json_insertion_document_example(), proj)
+        test_construct("json/doc-main",      make_json_document_example(),           proj)
+
+        # @broken: authoring gap — an empty [] / {} is unreachable by typing (creation
+        # leaves one placeholder child and JSON has no element-delete gesture).
+        test_construct("json/array-empty", JsonArray(), proj; broken=true)
+        test_construct("json/obj-empty",   JsonObject(), proj; broken=true)
     end
 end

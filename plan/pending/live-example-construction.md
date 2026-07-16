@@ -183,11 +183,26 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
   Phase 3** — the entry is not created by a gesture (it comes with `{`) and its key is a scalar field
   that needs text-typing, so the "create + fill document children" shape doesn't fit; it needs a
   fill-in-place node treatment. *Committed.*
-- [ ] **Phase 3 — Insertion-domain recipes (Julia).** `kind → commit-string` reflection table from
-  `insertion_candidates`; `Insert → type → Enter` recipe. Reconstruct a small julia example. *Commit.*
-- [ ] **Phase 4 — Harness integration + sweep.** `test_construct(example::Example)` `@testset`
-  wrapper; add to the domain suite; sweep all domain examples. Mark authoring-gap failures
-  `@test_broken` with a `# @broken:` note (per `documentation/testing.md`). *Commit.*
+- [x] **Phase 3 — Record nodes + multi-child grow (JSON). DONE.** The planner is now a slot model
+  (`_node_slots` → `:scalar` / `:document` / `:element`; `construct_node!` + `_fill_slot!` +
+  `_fill_element!` + `_fill_scalar!`). **Multi-child grow:** a second-or-later collection element is
+  appended with the container's `,` gesture, fed with the *whole container* ∅-selected so the key
+  reaches the container's `@gestures` (a caret inside a filled leaf would swallow it as text) rather
+  than programmatic navigation to a not-yet-existent slot. **Record nodes:** a JSON object entry (a
+  scalar `key` beside a `Document` value) is pre-created by its object's `{` / `,` with the caret at
+  `key{0}`; its key is typed there and its value recursed — no `Tab` needed (programmatic ∅ nav to the
+  value). A slot already matching the target (an insertion the create left in place — the `placeholder`
+  entry) is skipped via a `compare_content` early-out. A bare `*Insertion` target is seeded as itself
+  (`insertion_root` overridden ⇒ placeholder). **All six catalog JSON documents reconstruct**, including
+  the full nested `make_json_document_example()` (objects/arrays/strings/numbers/bools/placeholder at
+  once). *Julia insertion-domain recipes deferred — the JSON record work covered the same ground
+  (create-with-parent + typed scalar field).* *Committed.*
+- [~] **Phase 4 — Harness integration + sweep. PARTIAL (JSON).** `test_json_construct()` is now a full
+  reachability sweep: scalars, arrays (incl. multi-element + nesting), objects (incl. multi-entry +
+  nesting + placeholder), and both catalog example documents — 19 `@test`, 2 `@test_broken`. The two
+  broken are the **only authoring gap**: a truly empty `[]` / `{}` is unreachable by typing (creation
+  always leaves one placeholder child and JSON has no element-delete gesture). A generic
+  `test_construct(example::Example)` cross-domain sweep is still open. *Committed.*
 - [ ] **Phase 5 (deferred) — Robustness + strict mode.** (a) bounded-depth probing fallback (depth ≤3)
   for a stuck node; (b) non-text leaf gestures (boolean/color); (c) *gesture-navigation mode* —
   replace `set_selection!` teleport with finite BFS over the selection graph (reuse
@@ -245,20 +260,27 @@ loop after these fixes (a second keystroke on a completed literal is simply decl
 
 ## Status
 
-**Phases 0–2 done, and the two revealed reader bugs are fixed** (see "Revealed bugs — now fixed").
-Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct` (domain) is now **9 pass / 0
-broken**: scalars `null`/`true`/`false`/`number`/`string`, arrays `array`/`array-bool`/`array-nested`,
-and `array-string` (a delimited leaf inside a container) all reconstruct exactly. The recursive planner
-handles leaves and element-collection containers generically; delimited leaves are authored by their
-opening delimiter + value (closing delimiter is chrome, not typed).
+**JSON is complete: Phases 0–3 done, both revealed reader bugs fixed, every JSON document is
+reconstructable.** Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct` (domain) is
+**19 pass / 2 broken**: scalars, arrays (multi-element + nesting), objects (multi-entry + nesting +
+placeholder entry), and both catalog example documents (the empty buffer and the full nested object)
+reconstruct exactly. The 2 broken are the sole authoring gap — an empty `[]` / `{}` (no element-delete
+gesture). The planner is a generic slot model (`:scalar` / `:document` / `:element`) with multi-child
+grow and record (keyed-entry) handling.
+
+The JSON domain's own tests (`test_json_parser` / `test_json` / `test_json_to_syntax` /
+`_reader` / `test_json_gesture_collection` / `test_json_construct`) and the example printer / reader /
+navigation / repl drivers are all green. `test_typein` on the JSON examples has 89 pre-existing failures
+(byte-identical on clean `main`) — boundary Backspace/Delete at the value↔chrome seam, the known
+"text-selection representation refactor" territory, plus one `InsertionToSyntaxLeaf` `ReplaceStringRange`
+`MethodError` — *not* introduced by this work.
 
 Next, in order of remaining value:
-- **Phase 3 — record nodes** (`json/object` entries, then Julia AST): fill-in-place treatment for a
-  node created *with* its parent, plus typing scalar fields (the object key). No longer blocked by the
-  string-insertion bug — keys/values are ordinary strings now that content typing works.
-- **Multi-child grow** — per-domain "append element" gesture between siblings.
-- **Phase 4 — `test_construct(example::Example)` sweep** across domains (needs the dispatching
-  projection per example, not the atom leaf projection).
+- **Julia insertion-domain recipes** — a `kind → commit-string` reflection table + `Insert → type →
+  Enter`, for a domain whose nodes are created by a typed-name buffer rather than a single char.
+- **Phase 4 — generic `test_construct(example::Example)` sweep** across all domains (needs the
+  dispatching projection per example, not the atom leaf projection).
+- **Text-selection refactor** — the shared boundary Backspace/Delete gap (the `test_typein` failures).
 
-The reader/engine fixes landed on branch `fix-json-number-string-readers` (worktree
-`../projectured-julia-jsonfix`).
+The reader fixes + JSON reconstruction engine landed on branch `fix-json-number-string-readers`
+(worktree `../projectured-julia-jsonfix`).
