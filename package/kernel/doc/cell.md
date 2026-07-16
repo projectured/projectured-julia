@@ -151,7 +151,7 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         ├─ ImmutableCell.jl   — read-only, zero-cost wrapper
-        ├─ CellAccess.jl      — unwrap_cell: reading a slot that may hold a cell
+        ├─ CellUnwrap.jl      — unwrap_cell: reading a slot that may hold a cell
         ├─ StructPlan.jl      — the struct-definition parse the struct macros share
         └─ CellStruct.jl      — transparent-Cell struct codegen (@cell_struct)
         │  Cell / @cell_struct used by ↓
@@ -159,7 +159,7 @@ Clock.jl                 (ClockModule)                — the animation clock
 ```
 
 `AbstractCell.jl` is the layer's **interface file**: it declares the contract and
-nothing else (AR-INTERFACE-DECLARES-ONLY). `unwrap_cell` therefore sits in the sibling `CellAccess.jl`
+nothing else (AR-INTERFACE-DECLARES-ONLY). `unwrap_cell` therefore sits in the sibling `CellUnwrap.jl`
 rather than beside the type it dispatches on — it has a body, and a body is
 implementation.
 
