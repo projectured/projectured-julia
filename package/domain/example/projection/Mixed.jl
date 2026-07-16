@@ -7,7 +7,7 @@ function JsonXmlToSyntax()
         JsonArray       => JsonArrayToSyntaxNode(),
         JsonObject      => JsonObjectToSyntaxNode(),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
-        JsonObjectEntry => CopyingProjection(),
+        JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
         Vector{Cell}    => CopyingProjection(),
         XmlText         => XmlTextToSyntaxLeaf(),
         XmlAttribute    => XmlAttributeToSyntaxNode(),

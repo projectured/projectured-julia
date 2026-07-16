@@ -2043,7 +2043,12 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    _, _, nw, nh = _canvas_content_bounds(canvas, sdl_measure_text)
+    # `_canvas_content_bounds` returns (minx, miny, maxx, maxy). The natural size
+    # must span the full extent — including any content at negative coordinates —
+    # so subtract a negative min rather than dropping it.
+    minx, miny, maxx, maxy = _canvas_content_bounds(canvas, sdl_measure_text)
+    nw = maxx - min(minx, 0)
+    nh = maxy - min(miny, 0)
 
     # Pass 2: if an omitted axis overran its max, cap it at max and re-print so
     # the layout can reflow (e.g. word wrapping), then re-measure.
@@ -2053,11 +2058,23 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        _, _, nw, nh = _canvas_content_bounds(canvas, sdl_measure_text)
+        minx, miny, maxx, maxy = _canvas_content_bounds(canvas, sdl_measure_text)
+        nw = maxx - min(minx, 0)
+        nh = maxy - min(miny, 0)
     end
 
     out_w = width  === nothing ? clamp(nw, 1, Int(max_width))  : Int(width)
     out_h = height === nothing ? clamp(nh, 1, Int(max_height)) : Int(height)
+
+    # The renderer draws from the origin, so content extending into negative
+    # coordinates would be clipped. Shift it into view by wrapping the canvas in
+    # an outer canvas whose single child carries the (positive) offset.
+    ox = -min(minx, 0)
+    oy = -min(miny, 0)
+    if ox > 0 || oy > 0
+        shifted = GraphicsCanvas(ox, oy, canvas.elements, canvas.layout, canvas.overlapping_elements)
+        canvas = GraphicsCanvas(CellVector(Cell[Cell(shifted)]), layout_none)
+    end
 
     write_image(canvas, filename; width=out_w, height=out_h,
                 background=background, supersample=supersample, scale=scale)
