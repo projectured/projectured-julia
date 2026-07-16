@@ -79,6 +79,7 @@ import ..MathToSyntaxModule: MathToSyntax
 import ..BookToSyntaxModule: BookToSyntax
 import ..PrimitiveToSyntaxModule: PrimitiveToSyntax
 import ..FileSystemToSyntaxModule: FileSystemToSyntax
+import ..SqlToSyntaxModule: SqlToSyntax
 import ..JsonModule: JsonDocument
 import ..XmlModule: XmlDocument
 import ..MathModule: MathDocument
@@ -86,6 +87,7 @@ import ..JuliaModule: JuliaDocument
 import ..BookModule: BookDocument
 import ..PrimitiveModule: PrimitiveDocument
 import ..FileSystemModule: FileSystemDocument
+import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 
@@ -107,6 +109,7 @@ function natural_to_syntax_dispatch()
             XmlDocument        => XmlToSyntax(),
             MathDocument       => MathToSyntax(),
             JuliaDocument      => JuliaToSyntax(),
+            SqlDocument        => SqlToSyntax(),
             BookDocument       => BookToSyntax(),
             PrimitiveDocument  => PrimitiveToSyntax(),
             FileSystemDocument => FileSystemToSyntax(),
