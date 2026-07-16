@@ -11,9 +11,9 @@ make_sql_column_name_document_example()  = SqlColumnName("age")
 make_sql_table_name_document_example()   = SqlTableName("persons")
 make_sql_scalar_value_document_example() = SqlScalarValue(36)
 
-# Minimal non-empty compound (node) document — for the catalog.
-# (comparison / select_item are deferred — a bare node atom hits the same read_intent
-# ambiguity the SQL display leaves had, now on the node stages; see the plan.)
+# Minimal non-empty compound (node) documents — for the catalog.
+make_sql_comparison_document_example()       = SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1))
+make_sql_select_item_document_example()      = SqlSelectItem(SqlColumnReference("a"))
 make_sql_select_statement_document_example() = SqlSelectStatement("persons")
 
 function make_sql_insert_document_example()

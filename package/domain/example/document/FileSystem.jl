@@ -8,5 +8,6 @@ end
 # the abstract type + `make_filesystem_pathname` are), so it is named qualified.
 make_filesystem_file_document_example() = FileSystemModule.FileSystemFile("/home/user/notes.txt")
 
-# (filesystem/directory is deferred — a minimal directory's graphics click hits an
-# under-typed @reference in FileSystemDirectoryToSyntaxNode's backward map; see the plan.)
+# Minimal non-empty directory — one file child, for the catalog.
+make_filesystem_directory_document_example() =
+    FileSystemModule.FileSystemDirectory("/home/user", [FileSystemModule.FileSystemFile("/home/user/notes.txt")])
