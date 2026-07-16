@@ -158,8 +158,21 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringR
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     span_idx, char_start, char_stop = parsed
-    field = _leaf_field_at(iomap.input, span_idx)
+    leaf = iomap.input
+    field = _leaf_field_at(leaf, span_idx)
     field === nothing && return nothing
+    # Prefer content over the projection's own delimiters. An insertion (a zero-width
+    # edit) sitting on the boundary between the opening delimiter and the value belongs
+    # to the value, even when the value is empty. The lowering counts a boundary offset
+    # to the earlier span's end, so a caret at `value{0}` arrives here as an insert at
+    # the end of the `open` span; mapping that to the introduced `open` delimiter would
+    # decline it, and an empty delimited leaf (a fresh `""` string) offers *only* that
+    # caret — so its first character could never be typed. Redirect it into `value{0}`.
+    if field === :open && char_start == char_stop && leaf.value !== nothing &&
+       char_start == length(leaf.open.content::AbstractString)
+        field = :value
+        char_start = char_stop = 0
+    end
     # A char range over the span's TextString lands on no document node (a text
     # selection, like a cursor) — spell the node types so the reference is fully typed:
     # `::SyntaxLeaf.<field>::TextString[s:e]::Position`.

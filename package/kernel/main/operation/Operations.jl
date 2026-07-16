@@ -58,15 +58,19 @@ function splice_string(old::AbstractString, s::Int, e::Int, replacement::Abstrac
 end
 
 """
-    splice_number(old_str, s, e, replacement) -> Union{Float64, Nothing}
+    splice_number(old_str, s, e, replacement) -> Union{Int, Float64, Nothing}
 
 Splice the textual form of a number between 0-based boundaries `[s, e]`, then
-parse the result back to a `Float64`. Returns `nothing` for an empty result or
-unparseable input (the value cell tolerates `nothing` as the empty sentinel).
+parse the result back to a number. An integral result parses to `Int`; a result
+with a fractional part or exponent parses to `Float64` — so editing `4` into `42`
+stays the integer `42` rather than drifting to `42.0`. Returns `nothing` for an
+empty result or unparseable input (the value cell tolerates `nothing` as the empty
+sentinel).
 """
 function splice_number(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
     new_str = splice_string(old_str, s, e, replacement)
-    isempty(new_str) ? nothing : tryparse(Float64, new_str)
+    isempty(new_str) && return nothing
+    something(tryparse(Int, new_str), tryparse(Float64, new_str), Some(nothing))
 end
 
 """

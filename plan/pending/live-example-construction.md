@@ -162,11 +162,10 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
   feed each surface char through the real `read_intent → evaluate_operation` loop, with a mutable
   `_ConstructEditor` holder (construction swaps the whole root: `JsonNothing → JsonNumber/…`).
   Uses the **whole-tree dispatching** projection `make_json_projection_example()` (the leaf-specific
-  atom projections can't project the `JsonNothing` seed). Result **3 pass / 2 broken**:
-  `null`/`true`/`false` reconstruct; `number`/`string` marked `@test_broken` as **revealed reader
-  bugs** — number: `4` then `2` → `JsonNumber(42.0)` (Float64, not `42`); string: after `"` only
-  the first content char is accepted, the rest declined. Oracle made **strict** (42 ≠ 42.0) so it
-  surfaces the number bug. Not fixing the readers (user directive). *Committed.*
+  atom projections can't project the `JsonNothing` seed). `null`/`true`/`false` reconstruct
+  immediately; `number`/`string` first landed as `@test_broken` — the two **revealed reader bugs** now
+  fixed (see "Revealed bugs — now fixed"). Oracle made **strict** (42 ≠ 42.0) so it surfaces the number
+  bug. *Committed.*
 - [x] **Phase 2 — Structural recipes (element-collection containers). DONE (arrays).** `reconstruct`
   is now a **recursive planner** (`construct_node!` + `_document_child_slots`): a leaf is typed as its
   whole surface; a container is created by the **first character of its surface** (the kind-selecting
@@ -174,8 +173,9 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
   selection at its reference path) and recursed. **Design change:** probe-and-learn `choose_recipe`
   proved unnecessary for JSON — print-then-type already encodes the create gesture in the surface's
   first char; op-inspection probe-and-learn stays the documented fallback for a domain where that
-  doesn't hold. `json/array`, `json/array-bool`, `json/array-nested` reconstruct exactly (6 pass / 2
-  broken). **Bug found & fixed in the planner:** the base `CellVector` *is* a `Document`, so
+  doesn't hold. `json/array`, `json/array-bool`, `json/array-nested` (and, once the string bug was
+  fixed, `json/array-string`) reconstruct exactly. **Bug found & fixed in the planner:** the base
+  `CellVector` *is* a `Document`, so
   `_document_child_slots` must test the collection case *before* `fv isa Document`, else it pushes the
   container itself as a child and `construct_surface` throws projecting a bare CellVector. Multi-child
   sequence growth (a per-domain "append element" gesture between children) is deferred — the catalog
@@ -215,34 +215,50 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
 - **Sequence growth direction** (append vs prepend) — detect from where the new slot lands after the
   first `grow` and pick front-to-back / back-to-front accordingly, so indices stay stable.
 
-## Revealed bugs (do not fix — the test's job is to surface them)
+## Revealed bugs — now fixed
 
-- **json/number**: typing digit-by-digit into a fresh number produces a `Float64` — `4` then `2`
-  gives `JsonNumber(42.0)`, not `42`. (The first digit makes an `Int64`; the second re-parses as
-  `Float64` via `ReplaceNumberRangeOperation`.)
-- **json/string**: creating a string with `"` then typing content only accepts the *first* char;
-  every subsequent char is declined. `"Hello, world"` → `JsonString("H")`. (`test_typein` types into
-  *existing* strings fine, so the fault is in the just-created string's cursor state.)
-- Minor: a 2nd keystroke on a fresh `JsonNull` throws `FieldError(Nothing, :output)` inside
-  `read_intent` (survived only because the reconstruct loop skips throwing keystrokes).
+The construction test surfaced these; all three are resolved.
+
+- **json/number — number editing drifted to `Float64`.** `splice_number`
+  (`kernel/operation/Operations.jl`) always did `tryparse(Float64, …)`, so editing `4` into `42`
+  produced `JsonNumber(42.0)`. Fixed by parsing `Int` first, `Float64` only for a fractional/exponent
+  result (`something(tryparse(Int, …), tryparse(Float64, …), Some(nothing))`) — matching the canonical
+  JSON parser. Integer numbers now stay integers.
+- **json/string — the first content char could never be typed.** *Not* a "just-created string" cursor
+  bug as first hypothesised: a caret at `value{0}` lowers to the flat boundary between the introduced
+  opening-quote span and the value span, and the flat→span lowering counts a boundary offset to the
+  *earlier* span's end — so the edit mapped onto the introduced `open` delimiter (no pre-image) and was
+  declined. It bit *every* insertion at a string's start (`value{0}`), empty or not; an empty string
+  offers only that caret, so it could never take a character. Fixed in `SyntaxLeafToText` (the projection
+  that knows which spans are delimiters vs content): a zero-width insertion sitting on the open|value
+  boundary is redirected into `value{0}` — *prefer content over the projection's own delimiters, even
+  when the value is empty*. Covers both the graphics and console pipelines (both funnel through the
+  `ReplaceStringRangeOperation` reader).
+- **Delimited-leaf closing quote was typed as content (reconstruction engine).** `reconstruct` typed a
+  leaf's *whole* surface, so the trailing `"` of `"Hi"` inserted a literal quote (`"Hi\""`). A closing
+  delimiter is projection chrome — a container's `]`/`}` is likewise never typed. Fixed in the engine
+  (`_leaf_authoring_surface`): drop the leaf's `close`-span text (read off the domain→syntax stage) from
+  the surface, so a leaf is authored by its opening delimiter + value only.
+
+The earlier `JsonNull` "2nd keystroke throws `FieldError`" note did not reproduce under the reconstruction
+loop after these fixes (a second keystroke on a completed literal is simply declined).
 
 ## Status
 
-**Paused after Phase 2 by user decision** — scalars + arrays + the oracle stand as a complete,
-working demonstrator; Phases 3–4 (record nodes, sweep) and the string-bug fix are deferred. Plan
-stays in `pending/` (not fully implemented).
-
-**Phases 0–2 done.** Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct`
-(domain) **6 pass / 2 broken**: scalars `null`/`true`/`false` + arrays `array`/`array-bool`/
-`array-nested` reconstruct exactly; `number`/`string` are `@test_broken` (revealed reader bugs).
-The recursive planner handles leaves and element-collection containers generically.
+**Phases 0–2 done, and the two revealed reader bugs are fixed** (see "Revealed bugs — now fixed").
+Oracle `compare_content` (kernel, strict, 17/17). `test_json_construct` (domain) is now **9 pass / 0
+broken**: scalars `null`/`true`/`false`/`number`/`string`, arrays `array`/`array-bool`/`array-nested`,
+and `array-string` (a delimited leaf inside a container) all reconstruct exactly. The recursive planner
+handles leaves and element-collection containers generically; delimited leaves are authored by their
+opening delimiter + value (closing delimiter is chrome, not typed).
 
 Next, in order of remaining value:
 - **Phase 3 — record nodes** (`json/object` entries, then Julia AST): fill-in-place treatment for a
-  node created *with* its parent, plus typing scalar fields (the object key). Partly blocked by the
-  string-insertion bug (keys/values are strings).
+  node created *with* its parent, plus typing scalar fields (the object key). No longer blocked by the
+  string-insertion bug — keys/values are ordinary strings now that content typing works.
 - **Multi-child grow** — per-domain "append element" gesture between siblings.
 - **Phase 4 — `test_construct(example::Example)` sweep** across domains (needs the dispatching
   projection per example, not the atom leaf projection).
 
-Worktree `../projectured-julia-construct`, branch `live-example-construction`.
+The reader/engine fixes landed on branch `fix-json-number-string-readers` (worktree
+`../projectured-julia-jsonfix`).

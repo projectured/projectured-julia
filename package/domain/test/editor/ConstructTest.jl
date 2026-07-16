@@ -33,6 +33,7 @@ using ProjecturedKernel.CellModule: Cell
 using ProjecturedBase.ChainingProjectionModule: ChainingProjection
 using ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedVisual.TextToStringModule: TextToString
+using ProjecturedVisual.SyntaxModule: SyntaxLeaf
 using ProjecturedBase.DomainModule: nothing_document, domain_insertion
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_opaque
 using ProjecturedKernel.CellModule: unwrap_cell
@@ -128,18 +129,37 @@ function _document_child_slots(node, node_path)
     slots
 end
 
-# Recursively build `target` at `path`. A leaf (no `Document` children) is typed
-# as its whole rendered surface. A container is created by the *first* character
-# of its surface — the kind-selecting keystroke (`[`, `{`, a digit, `"`, `n`/`t`/`f`)
-# — after which its children are filled by navigating to each child slot and
-# recursing. (Multi-child sequences need a per-domain "append element" gesture
-# between children; the current catalog atoms hold a single child, so that grow
-# step is deferred — see the plan.)
+# A delimited leaf renders `open value close`, but an author types only the opening
+# delimiter (which creates the leaf) and the value — the projection supplies the
+# closing delimiter as chrome, exactly as a container's `]` / `}` is never typed.
+# Ask the domain→syntax stage for the leaf's `close` span and drop it from the surface,
+# so reconstruction types only the keystrokes an author would (an undelimited leaf — a
+# number, `null`, a boolean — keeps its whole surface).
+function _leaf_authoring_surface(target, projection)
+    surf = construct_surface(target, projection)
+    leaf = try
+        out = print_document(projection.projections[1], target).output
+        out isa Cell ? out[] : out
+    catch
+        return surf
+    end
+    (leaf isa SyntaxLeaf && leaf.close !== nothing) || return surf
+    close = string(leaf.close.content)
+    (isempty(close) || !endswith(surf, close)) ? surf : chop(surf; tail = length(close))
+end
+
+# Recursively build `target` at `path`. A leaf (no `Document` children) is typed as
+# its authoring surface (its rendered form minus any closing-delimiter chrome). A
+# container is created by the *first* character of its surface — the kind-selecting
+# keystroke (`[`, `{`, a digit, `"`, `n`/`t`/`f`) — after which its children are filled
+# by navigating to each child slot and recursing. (Multi-child sequences need a
+# per-domain "append element" gesture between children; the current catalog atoms hold
+# a single child, so that grow step is deferred — see the plan.)
 function construct_node!(ed, projection, target, path)
     _select!(ed, projection, path)
     slots = _document_child_slots(target, path)
-    if isempty(slots)                                   # leaf: type the whole surface
-        for ch in construct_surface(target, projection)
+    if isempty(slots)                                   # leaf: type its authoring surface
+        for ch in _leaf_authoring_surface(target, projection)
             _feed!(ed, projection, ch)
         end
         return
@@ -203,34 +223,30 @@ Reconstruct JSON documents from `JsonNothing` via the whole JSON projection (the
 type-dispatching pipeline — the leaf-specific atom projections cannot project the
 `JsonNothing` seed).
 
-Phase 1 — scalar leaves: `null` / `true` / `false` reconstruct from a single
-keystroke. `number` and `string` are marked broken — they expose real reader bugs
-the construction test is built to reveal:
-  • number: typing `4` then `2` yields `JsonNumber(42.0)` (Float64), not `42`.
-  • string: after `"` opens the string, only the first content char is accepted.
+Scalar leaves (`null` / `true` / `false` / a number / a string) reconstruct by
+typing their authoring surface: a single kind-selecting keystroke for the literals,
+digit-by-digit for a number (which stays an integer), and `"` then the content for a
+string (the closing quote is projection chrome, so it is not typed).
 
-Phase 2 — element-collection containers: an array is created by `[`, then each
-element slot is navigated to and its child reconstructed. Single-digit / boolean
-children reconstruct exactly (nested arrays too); the `number`/`string` reader
-bugs above still bite an array whose child is a multi-digit number or a string.
-Object entries (a record node with a string key beside a document value) are
-Phase 3 — the current planner has no key-typing step for them.
+Element-collection containers: an array is created by `[`, then each element slot is
+navigated to and its child reconstructed — including a string or multi-digit number
+element. Object entries (a record node with a string key beside a document value)
+are Phase 3 — the current planner has no key-typing step for them.
 """
 function test_json_construct()
     proj = make_json_projection_example()
     @testset "json/construct" begin
-        # Phase 1 — scalar leaves
-        test_construct("json/null",  JsonNull(),      proj)
-        test_construct("json/true",  JsonBool(true),  proj)
-        test_construct("json/false", JsonBool(false), proj)
-        # @broken: revealed reader bug — digit typing produces a Float64 value.
-        test_construct("json/number", JsonNumber(42), proj; broken=true)
-        # @broken: revealed reader bug — string insertion drops all but the first char.
-        test_construct("json/string", JsonString("Hello, world"), proj; broken=true)
+        # Scalar leaves
+        test_construct("json/null",   JsonNull(),                 proj)
+        test_construct("json/true",   JsonBool(true),             proj)
+        test_construct("json/false",  JsonBool(false),            proj)
+        test_construct("json/number", JsonNumber(42),             proj)
+        test_construct("json/string", JsonString("Hello, world"), proj)
 
-        # Phase 2 — element-collection containers
+        # Element-collection containers
         test_construct("json/array",        JsonArray(JsonNumber(1)),            proj)
         test_construct("json/array-bool",   JsonArray(JsonBool(true)),           proj)
         test_construct("json/array-nested", JsonArray(JsonArray(JsonNumber(1))), proj)
+        test_construct("json/array-string", JsonArray(JsonString("ab")),         proj)
     end
 end
