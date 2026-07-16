@@ -206,6 +206,71 @@ once per event, `test_position_navigation` once per reachable selection state, a
 `test_typein` once per cursor position of every string. A failing unit names the
 offending cell/event/state/reference in a `@warn`.
 
+## What each generic driver checks
+
+The tables above say *what each driver runs on*; this section says *what it
+actually asserts*. Every entry is the same four fields — **Seed** (the starting
+state and what, if anything, it enumerates), **Drive** (how it exercises the
+editor), **Asserts** (the invariant, at the `@test`-per-unit granularity from the
+section above), and **A failure means** (how to read a red result). All of these
+are example-driven: the single-example call and the `examples`/`catalog` sweep run
+the identical algorithm.
+
+### Print-based drivers
+
+**`test_printer`** — the projected output evaluates without error.
+- **Seed:** `print_document(projection, document)` once → an iomap.
+- **Drive:** `_walk!` reflexively descends every field of the iomap (`fieldnames`/`getfield`), follows every `Vector`, and forces every reactive `Cell` with `c[]`; cycles are broken by `objectid`, and the walk is capped at depth 100 / 500 000 nodes.
+- **Asserts:** one `@test` per forced `Cell` (and per `getfield`) — that forcing it does not throw. Hitting the depth/node cap is reported as `@info`, not a failure (lazy/large documents don't fail the test).
+- **A failure means:** a cell in the projected output errors when evaluated, or a field is unreadable — a broken printer or iomap.
+
+**`test_reader`** — every gesture is handled without crashing.
+- **Seed:** clear the selection, print once → iomap.
+- **Drive:** fire every event in `_ALL_READER_EVENTS` (every key symbol × {ctrl on/off}, key repeats, `KeyUp`, printable `KeyPress`; mouse down/up/press/move/scroll at sample coordinates) through `read_intent(projection, iomap, event)`.
+- **Asserts:** one `@test` per event — that `read_intent` *returns* (any value, `nothing` included) rather than throwing. It does **not** inspect the intent's content — only that no event makes the reader blow up. A `broken` predicate can mark known-failing events `@test_broken`.
+- **A failure means:** some gesture throws inside the reader.
+
+**`test_repl`** — the full read→eval→reprint loop is stable under every gesture.
+- **Seed:** clear the selection, print once → iomap.
+- **Drive:** for each event, run the whole cycle: `read_intent` → if the op is non-`nothing`, `evaluate_operation` on a stand-in `_ReplEditor` (which picks up whole-document swaps) → re-`print_document` → `_walk!` the new output. The iomap threads forward into the next event exactly as the real editor loop does.
+- **Asserts:** one `@test` per event — the entire read→evaluate→reprint→walk cycle completes without throwing and every cell in the reprinted output forces cleanly.
+- **A failure means:** an operation fails to apply, or leaves the document in a state that can't be re-projected/forced — a reader / operation / printer mismatch (a strictly stronger check than `test_reader`).
+
+### Navigation drivers
+
+The two BFS drivers share one engine (`explore_selections` / `test_navigation`); they differ only in the **seed gesture** and **nav-key set** they're preset with, and in the ground-truth enumerator used for the coverage check.
+
+**`test_position_navigation`** — caret navigation is closed and (optionally) complete.
+- **Seed:** fire `Ctrl+Home`; the first selection is the resulting `ReplaceSelectionOperation.path`.
+- **Drive:** BFS over selection states. At each state: set the selection, reprint, `_walk!`; then try each `POSITION_NAV_KEYS` gesture (arrows, Home/End, Ctrl+arrows, Ctrl+Home/End) via `read_intent`, enqueuing every new target path (deduped modulo type checkpoints via `strip_reference_types`) not yet visited.
+- **Asserts:** one `@test` per reachable state (its reprint + walk don't throw), plus `@test state_count > 0`. With `check_reaches_all=true`: additionally one `@test` per selection enumerated by `collect_position_selections(document)` asserting it was reached (subset check: *enumerated ⊆ reachable*), plus `@test !isempty(enumerated)`.
+- **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or — in completeness mode — navigation can't reach a caret the document actually has (a stuck or leaky navigator).
+
+**`test_tree_navigation`** — the same, for whole-element (∅) structural selections.
+- **Seed:** `Ctrl+Alt+Home`, which selects the root ∅.
+- **Drive:** identical BFS, but with the `TREE_NAV_KEYS` (Alt+arrow) structural moves.
+- **Asserts:** same shape (one `@test` per reachable whole-element state; `state_count > 0`; optional *enumerated ⊆ reachable*), against `collect_tree_selections` — or a projection-aware enumerator for domains whose document is not a native syntax tree (e.g. JSON passes `collect_json_tree_selections`, mirroring `JsonToSyntax`'s decomposition).
+- **A failure means:** structural navigation throws or can't reach an enumerated node.
+
+**`test_text_nav_invariants`** — linear cursor walks are chains and agree both ways. This is the *linear* counterpart to the position-navigation BFS: a BFS proves reachability but hides a direction that skips or stalls; this catches it.
+- **Seed / Drive:** two walks. **Right:** seed `Ctrl+Home`, step `:right`. **Left:** seed `Ctrl+End`, step `:left`. Each fires its seed, then repeats its step — reprinting between moves — until the reader declines the step (edge of text), the step is a fixed point (edge), or it lands on an already-visited state (cycle).
+- **Asserts:** *per direction* — the walk ran without error, `terminated` on its own (not by exhausting `max_steps`), never revisited a state (`cycle === nothing`, i.e. it is a chain), and moved at least once (`length(paths) > 1`). *Cross-direction* — both walks visit the same caret count (`:same_length`), the right walk ends where `Ctrl+End` lands, and the left walk ends where `Ctrl+Home` lands. Exact caret-*sequence* equality is deliberately **not** asserted: at a line boundary the same logical caret renders in two places and the two directions canonicalize to different ones.
+- **A failure means:** a direction skips a caret, stalls partway, loops, or the two directions disagree on caret count / endpoints — a directional asymmetry invisible to the BFS.
+
+### Editing drivers
+
+**`test_typein`** — typing and deleting at every caret lands the right string and caret.
+- **Seed:** collect every string reference reachable in the document.
+- **Drive:** for each string, at each character boundary `0…n` (policy `:all` / `:ends` / `:first`), run three edits in order — **insert** (`KeyPress`), **backspace** (`KeyDown(:backspace)`), **delete** (`KeyDown(:delete)`). Each edit sets the cursor at the boundary, drives the event through the reader, evaluates it, then restores the string to pristine before the next edit (so each edit starts from the same string).
+- **Asserts:** per `(string, position, edit)` — the caret **renders** in the Graphics image; the resulting string equals the expected edited string; and the post-edit caret is where it belongs (insert → `k+1`, backspace → `k−1`, delete → `k`). At a declined boundary (backspace at `0`, delete at `n`) the reader must produce **no** edit, and the walk asserts that decline without evaluating anything. A string that can't be restored ends that target (the rest of the document walk continues).
+- **A failure means:** an edit at some caret produces the wrong string or wrong caret, a character lands in neighbouring chrome (the boundary carets `0`/`n` are what catch this), or the caret fails to render.
+
+**Structural insert-by-typing** — turning a *nothing* placeholder into a real document.
+- **Today:** `test_document_insertion()` is a *domain-specific* suite (in [DocumentInsertionTest.jl](../package/domain/test/projection/DocumentInsertionTest.jl)), **not** example-driven. It asserts the insert-by-typing machinery directly: the factory/completion functions (`default_factory`, `default_completion`), the reflection-derived insertion names and resolution (`DomainModule.insertion_names` / `resolve_insertion`), the completion states (`:empty` / `:invalid` / `:unambiguous` / `:ambiguous`), and that typing a domain name into a `DocumentInsertion` commits the corresponding `document/insertion`.
+- **Planned:** an *example-driven* generic driver — the structural counterpart to `test_typein` — that seeds an empty / `*Nothing` document and auto-drives the gesture sequence that grows it into a populated document, asserting each intermediate commit. Not yet implemented; it slots in here alongside the other example sweeps once it exists.
+
+> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../package/visual/test/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../package/projectured/test/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
+
 ## The walker helpers (non-`@testset` variants)
 
 When you want errors back as a `Vector{String}` instead of `@test` output —
