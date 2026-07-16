@@ -77,6 +77,7 @@ include("editor/PrinterTest.jl")
 include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/NavigationTest.jl")
+include("editor/ConstructTest.jl")
 
 """
     test_kernel_layering()
@@ -146,6 +147,7 @@ function test_kernel()
         test_gesture_binding()
         test_headless_backend()
         test_agent_seam()
+        test_construct_oracle()
     end
 end
 
@@ -163,6 +165,7 @@ export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,
        _ALL_READER_EVENTS, walk_reader_events, test_reader,
        walk_repl_loop, test_repl,
-       explore_selections, test_navigation, _assert_reaches_all
+       explore_selections, test_navigation, _assert_reaches_all,
+       compare_content, test_construct_oracle
 
 end # module ProjecturedKernelTest

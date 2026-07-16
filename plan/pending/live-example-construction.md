@@ -145,9 +145,12 @@ Run everything under the memory cap (see the `julia-tests-need-memory-cap` conve
 
 ## Phases (commit per phase; worktree `projectured-julia-construct`, branch `live-example-construction`)
 
-- [ ] **Phase 0 — Oracle.** Implement `assert_equal_content` + `fail_at` (path-carrying). Unit-check:
-  example vs itself passes; example vs a one-field mutation fails at the right path. Standalone, no
-  editor. *Commit.*
+- [x] **Phase 0 — Oracle. DONE.** Implemented as `compare_content(actual, expected) -> Vector{String}`
+  (empty = equal; each entry tags the mismatch path `∅`/`.field`/`[i]`) — a returns-diffs shape rather
+  than a throwing `assert_equal_content`, which is cleaner to `@test`. Mirrors `walk_document`'s descent
+  (`is_element_collection`/dict/array/fieldnames, `unwrap_cell`, skip `:ref`/`:selection`); kind compared
+  by `typename` (reactive structs are parametric). In `package/kernel/test/editor/ConstructTest.jl` with
+  `test_construct_oracle()` (14/14 pass; wired into `test_kernel()`). *Committed.*
 - [ ] **Phase 1 — Leaf reconstruction.** Seed `XNothing()` → `set_selection!` ∅ → `replay(printer_surface(tgt))`
   → oracle, on the simplest atoms (`json/number`, `json/string`). Exercises seed + placement +
   replay driver + oracle + leaf path. *Commit.*
@@ -188,4 +191,5 @@ Run everything under the memory cap (see the `julia-tests-need-memory-cap` conve
 
 ## Status
 
-Not started. Design complete and grounded against the verified APIs above.
+**Phase 0 done** (oracle `compare_content`, 14/14). Next: Phase 1 (leaf reconstruction on JSON
+scalars). Worktree `../projectured-julia-construct`, branch `live-example-construction`.
