@@ -137,11 +137,14 @@ choose_recipe(model, ctx, goal):                    # cached by (ctx.kind, goal)
 
 ## Where it lives
 
-Generic engine + oracle in a new `package/kernel/test/editor/ConstructTest.jl` (kernel-tier, so it
-works for any `Example`, mirroring how `test_repl` is defined in `ReplTest.jl` with an `Example`
-overload). Domain-tier callers (`test_construct(json_example)`, …) sit in `package/domain/test/`.
-Run everything under the memory cap (see the `julia-tests-need-memory-cap` convention) and bound
-`replay` length, since a runaway reader would otherwise eat RAM.
+**Oracle** in `package/kernel/test/editor/ConstructTest.jl` (kernel-tier — it needs only kernel
+primitives), exported from `ProjecturedKernelTest`. **Engine** (`reconstruct` / `test_construct` /
+per-domain cases) in `package/domain/test/editor/ConstructTest.jl` — *not* kernel-tier as first
+planned, because it needs base's `@domain` seed machinery (`nothing_document` / `domain_insertion`)
+and visual's `TextToString`, and drives domain examples. This mirrors how `collect_*_selections`
+(base test) and the JSON test invocations (domain test) split across tiers. A generic
+`test_construct(example::Example)` sweep is Phase 4. Run under the memory cap
+(`julia-tests-need-memory-cap`) for the broad sweeps.
 
 ## Phases (commit per phase; worktree `projectured-julia-construct`, branch `live-example-construction`)
 
@@ -151,9 +154,19 @@ Run everything under the memory cap (see the `julia-tests-need-memory-cap` conve
   (`is_element_collection`/dict/array/fieldnames, `unwrap_cell`, skip `:ref`/`:selection`); kind compared
   by `typename` (reactive structs are parametric). In `package/kernel/test/editor/ConstructTest.jl` with
   `test_construct_oracle()` (14/14 pass; wired into `test_kernel()`). *Committed.*
-- [ ] **Phase 1 — Leaf reconstruction.** Seed `XNothing()` → `set_selection!` ∅ → `replay(printer_surface(tgt))`
-  → oracle, on the simplest atoms (`json/number`, `json/string`). Exercises seed + placement +
-  replay driver + oracle + leaf path. *Commit.*
+- [x] **Phase 1 — Leaf reconstruction. DONE.** `reconstruct(target, projection)` +
+  `test_construct` + `test_json_construct()` in `package/domain/test/editor/ConstructTest.jl`.
+  Seed = `nothing_document(domain_insertion(typeof(target)))()`; surface (the keystrokes) = the
+  target rendered to text by swapping the projection's graphics terminal for
+  `RecursiveProjection(TextToString())` and forcing `iomap.output`; drive = set ∅ selection then
+  feed each surface char through the real `read_intent → evaluate_operation` loop, with a mutable
+  `_ConstructEditor` holder (construction swaps the whole root: `JsonNothing → JsonNumber/…`).
+  Uses the **whole-tree dispatching** projection `make_json_projection_example()` (the leaf-specific
+  atom projections can't project the `JsonNothing` seed). Result **3 pass / 2 broken**:
+  `null`/`true`/`false` reconstruct; `number`/`string` marked `@test_broken` as **revealed reader
+  bugs** — number: `4` then `2` → `JsonNumber(42.0)` (Float64, not `42`); string: after `"` only
+  the first content char is accepted, the rest declined. Oracle made **strict** (42 ≠ 42.0) so it
+  surfaces the number bug. Not fixing the readers (user directive). *Committed.*
 - [ ] **Phase 2 — Structural recipes (JSON).** Implement `choose_recipe` (enumerate → op-inspect →
   classify → cache) and `grow_if_needed` for sequences. Reconstruct a small nested JSON, then
   `json_example`. *Commit.*
@@ -189,7 +202,22 @@ Run everything under the memory cap (see the `julia-tests-need-memory-cap` conve
 - **Sequence growth direction** (append vs prepend) — detect from where the new slot lands after the
   first `grow` and pick front-to-back / back-to-front accordingly, so indices stay stable.
 
+## Revealed bugs (do not fix — the test's job is to surface them)
+
+- **json/number**: typing digit-by-digit into a fresh number produces a `Float64` — `4` then `2`
+  gives `JsonNumber(42.0)`, not `42`. (The first digit makes an `Int64`; the second re-parses as
+  `Float64` via `ReplaceNumberRangeOperation`.)
+- **json/string**: creating a string with `"` then typing content only accepts the *first* char;
+  every subsequent char is declined. `"Hello, world"` → `JsonString("H")`. (`test_typein` types into
+  *existing* strings fine, so the fault is in the just-created string's cursor state.)
+- Minor: a 2nd keystroke on a fresh `JsonNull` throws `FieldError(Nothing, :output)` inside
+  `read_intent` (survived only because the reconstruct loop skips throwing keystrokes).
+
 ## Status
 
-**Phase 0 done** (oracle `compare_content`, 14/14). Next: Phase 1 (leaf reconstruction on JSON
-scalars). Worktree `../projectured-julia-construct`, branch `live-example-construction`.
+**Phases 0–1 done.** Oracle `compare_content` (kernel, strict, 17/17); JSON scalar reconstruction
+(domain, `test_json_construct` 3 pass / 2 broken). Next: **Phase 2** — structural recipes
+(probe-and-learn) on nested JSON (`json/array`, `json/object`). Note the enumerated `JsonNothing`
+gestures already name the recipes directly (`[`→array, `{`→object, `:`→object-entry, `,`→append
+element), so probe-and-learn has a clean gesture surface. Worktree `../projectured-julia-construct`,
+branch `live-example-construction`.
