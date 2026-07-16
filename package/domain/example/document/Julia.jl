@@ -11,6 +11,13 @@ make_julia_symbol_document_example()     = JuliaSymbol("foo")
 make_julia_nothing_document_example()    = JuliaNothing()
 make_julia_insertion_document_example()  = JuliaInsertion()
 
+# Minimal non-empty compound (node) documents — one child each, for the catalog.
+# (binary_op / assignment are deferred — a minimal one surfaces a pre-existing
+# FieldError(Nothing, :output) in the repl walk; see plan/done/catalog-compound-atoms.md.)
+make_julia_call_document_example()     = JuliaCall(JuliaIdentifier("f"), [JuliaIdentifier("x")])
+make_julia_block_document_example()    = JuliaBlock([JuliaInteger(1)])
+make_julia_function_document_example() = JuliaFunction(JuliaIdentifier("f"), [JuliaIdentifier("x")], JuliaBlock([JuliaIdentifier("x")]))
+
 function make_julia_document_example()
     # function factorial(n)
     #     if n == 0

@@ -15,6 +15,11 @@ function make_yaml_string_document_example()
     YamlString("Hello, world")
 end
 
+# Minimal non-empty compound (node) document — for the catalog.
+# (yaml/sequence is deferred — a minimal sequence's graphics Ctrl+Home seed returns
+# nothing; see plan/done/catalog-compound-atoms.md.)
+make_yaml_mapping_document_example()  = YamlMapping("a" => YamlString("x"))
+
 function make_yaml_document_example()
     YamlMapping(
         "name"    => YamlString("Alice"),

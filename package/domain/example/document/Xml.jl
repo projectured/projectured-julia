@@ -3,6 +3,10 @@ function make_xml_text_document_example()
     XmlText("Hello, world")
 end
 
+# Minimal non-empty compound (node) documents — one child each, for the catalog.
+make_xml_element_document_example()   = XmlElement("tag", [XmlText("x")])
+make_xml_attribute_document_example() = XmlAttribute("id", "1")
+
 function make_xml_document_example()
     XmlElement("library",
         [XmlAttribute("version", "2.0"), XmlAttribute("lang", "en")],

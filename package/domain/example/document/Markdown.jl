@@ -7,6 +7,13 @@ make_markdown_code_document_example()            = MarkdownCode("Cell")
 make_markdown_thematic_break_document_example()  = MarkdownThematicBreak()
 make_markdown_insertion_document_example()       = MarkdownInsertion()
 
+# Minimal non-empty compound (node) documents — one child each, for the catalog.
+make_markdown_heading_document_example()   = MarkdownHeading(1, [MarkdownText("x")])
+make_markdown_paragraph_document_example() = MarkdownParagraph([MarkdownText("x")])
+make_markdown_list_document_example()      = MarkdownList(false, [MarkdownListItem([MarkdownParagraph([MarkdownText("x")])])])
+make_markdown_emphasis_document_example()  = MarkdownEmphasis([MarkdownText("x")])
+make_markdown_link_document_example()      = MarkdownLink([MarkdownText("x")], "url")
+
 function make_markdown_document_example()
     MarkdownRoot([
         MarkdownHeading(1, [MarkdownText("ProjecturEd")]),

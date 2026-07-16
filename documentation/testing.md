@@ -114,18 +114,22 @@ sequence; pick the one you actually need and skip the rest.
 
 Alongside the hand-authored `examples` registry there is a **generated catalog** of
 atomic examples (`ProjecturedExample.catalog()`), built to give broad, cheap coverage of
-every domain's leaf projections. Its *documents* are hand-authored — one meaningful
-instance per atomic (leaf) document type, in each domain's `example/document/*.jl` file,
+every domain's projections. Its *documents* are hand-authored — one meaningful instance
+per document type: the atomic **leaves** (a JSON scalar, a primitive, …) and a minimal
+non-empty **compound** for each node type (`JsonArray(JsonNumber(1))`,
+`JsonObject("a" => JsonString("x"))`), in each domain's `example/document/*.jl` file,
 registered as an `AtomicDocument(:domain, "name", make_document)`. Its *projections* are
 **discovered**: for each atomic document the catalog finds the trivial single-step
 projection, then a projection to `:text`, then one to `:graphics` (via a small set of
-whole-tree bridges), and emits one `Example` per reachable variant.
+whole-tree bridges), and emits one `Example` per reachable variant. A compound's syntax
+variant uses the domain's whole-tree **dispatching** projection (a bare node projection
+has no recursion to project its children), not the trivial single-step leaf.
 
 Each entry is a plain `Example` whose `name` is a hierarchical **`domain/name/variant`**
 path — the name doubles as the filter:
 
 ```julia
-julia> catalog()                                  # every generated Example (~111)
+julia> catalog()                                  # every generated Example (~168)
 julia> catalog(; domain = :json)                  # one domain
 julia> catalog(; document = "string")             # one document across domains
 julia> catalog(; terminal = :graphics)            # everything runnable on screen
@@ -149,10 +153,16 @@ catalog covers json, yaml, xml, primitive, markdown, math, julia, book, filesyst
 sql — including the opaque display leaves (their introduced-text carets collapse to a
 bounded `proj(p, …)` position, navigable but non-editable) and the self-modifying
 `*Nothing` / `*Insertion` documents (whose syntax variant uses the domain's dispatching
-projection, since a bare leaf can't reproject a type swap). Still *out of scope* (low value
+projection, since a bare leaf can't reproject a type swap). It also covers a minimal
+non-empty **compound** per node type (json array/object, yaml mapping, xml element/attribute,
+math binary_operation/assignment/parenthesized, book chapter/list, markdown
+heading/paragraph/list/emphasis/link, julia call/block/function, sql select_statement). A
+handful of compounds are still *deferred* — each surfaces a pre-existing domain bug a minimal
+instance exposes (see `plan/done/catalog-compound-atoms.md`). Still *out of scope* (low value
 or infra-gated, not a catalog change): **formula** (its only leaf is an insertion),
 **dbcatalog** (ODBC-gated), and **conversation** (no clean leaf atoms). See
-`plan/done/catalog-deferred-atoms.md` for how the SQL / filesystem / julia atoms were added.
+`plan/done/catalog-deferred-atoms.md` and `plan/done/catalog-compound-atoms.md` for how the
+extra atoms were added.
 
 ## Testing a single example
 

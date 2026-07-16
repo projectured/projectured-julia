@@ -7,3 +7,6 @@ end
 # its basename (" notes.txt"). `FileSystemFile` is not exported by its module (only
 # the abstract type + `make_filesystem_pathname` are), so it is named qualified.
 make_filesystem_file_document_example() = FileSystemModule.FileSystemFile("/home/user/notes.txt")
+
+# (filesystem/directory is deferred — a minimal directory's graphics click hits an
+# under-typed @reference in FileSystemDirectoryToSyntaxNode's backward map; see the plan.)
