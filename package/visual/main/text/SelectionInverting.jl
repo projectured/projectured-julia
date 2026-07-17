@@ -25,7 +25,7 @@ module SelectionInvertingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat
+import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat, text_caret_flat
 import ..TextRangeReferenceModule: TextRangeReference
 import ..ColorModule: StyleColor, DStyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell
@@ -245,7 +245,9 @@ _is_structural_ref(ref) =
 # `IoMap` exists.
 function _forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
-    flat = _text_range_caret(sel)
+    # Resolve either caret form (flat `TextRangeReference{k}` or structural
+    # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
+    flat = text_caret_flat(in_block, sel)
     flat === nothing && return nothing
     loc = text_flat_to_elem(in_block, flat)
     loc === nothing && return nothing

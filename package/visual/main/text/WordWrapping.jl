@@ -16,7 +16,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat
 import ..TextRangeReferenceModule: TextRangeReference
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
@@ -252,7 +252,11 @@ _flat_caret(f::Int) = ConcreteReferencePath(TextRangeReference(f, f), EmptyRefer
 # character space is wrap-invariant since soft `TextNewline`s are not counted).
 function _forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
-    flat = _text_range_caret(sel)
+    # Accept either caret representation: the flat `TextRangeReference{k}` or the
+    # structural `.elements[i].content{k}` a lowered edit leaves on the input block.
+    # A flat-only read here drops the cursor the moment an edit lands (the caret
+    # disappears after the first typed character).
+    flat = text_caret_flat(in_block, sel)
     flat === nothing && return nothing
     loc = text_flat_to_elem(in_block, flat)
     loc === nothing && return nothing

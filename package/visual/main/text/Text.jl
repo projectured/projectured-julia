@@ -46,7 +46,7 @@ import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
 export set_cell_function!, text_flat_length, text_flat_offsets, text_selection_flat, hinted_text,
        text_selection_substring, text_insert_op, ReplaceTextRangeOperation,
-       text_flat_to_elem, text_elem_to_flat, _lower_text_range
+       text_flat_to_elem, text_elem_to_flat, text_caret_flat, _lower_text_range
 
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
@@ -463,6 +463,34 @@ _flat_caret_ref(pos::Int) =
 _flat_range_ref(start::Int, stop::Int) =
     ConcreteReferencePath(TextRangeReference(start, stop), EmptyReferencePath())
 
+"""
+    text_caret_flat(block, ref) -> Int | nothing
+
+The flat caret offset a selection reference denotes over `block`, resolved from
+**either** representation a text caret takes: the flat `TextRangeReference{k}` form
+(the domain's canonical caret) or the structural `.elements[i].content{k}` form (the
+caret a *lowered* `ReplaceStringRangeOperation` leaves behind after a character edit).
+`nothing` for a range, a whole-element `∅` / `TextSpanReference` selection, or any
+non-caret shape.
+
+The text→text decorators (`WordWrapping`, `LineNumbering`, `TextFiltering`,
+`TextHighlighting`, `SelectionInverting`) forward-map the cursor through this, so the
+caret renders no matter which representation the last operation left on the block —
+without it, a structural caret maps to nothing and the cursor disappears after an edit.
+"""
+function text_caret_flat(block::TextBlock, ref)
+    sel = strip_reference_types(ref)
+    if sel isa ConcreteReferencePath && sel.head isa TextRangeReference && sel.tail isa EmptyReferencePath
+        return sel.head.start == sel.head.stop ? sel.head.start::Int : nothing
+    end
+    rng = _parse_selection_range(sel)
+    rng === nothing && return nothing
+    path, a, b = rng
+    a == b || return nothing                       # a range has no single caret offset
+    base = _flat_base(block, path)
+    base === nothing ? nothing : base + a
+end
+
 # The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
 # geometry, or `nothing` when there is no caret, the selection is a range, or the
 # caret falls in a break / indentation gap with no owning span. `_flat_base`
@@ -605,12 +633,15 @@ end
 
 # Parse `text.selection[]` into (path, char_start, char_stop) when it matches
 # `.elements[i].content[s:e]` or the in-line `.elements[i].elements[j].content[s:e]`,
-# else return nothing.
-function _text_selection_range(text::TextBlock)
-    # Selections are canonical at rest; strip the TypeReference checkpoints
-    # (this parser only extracts integer span/char offsets) before the raw
-    # structural walk.
-    sel = strip_reference_types(text.selection)
+# else return nothing. Selections are canonical at rest; the TypeReference
+# checkpoints are stripped (this parser extracts only integer span/char offsets)
+# before the raw structural walk.
+_text_selection_range(text::TextBlock) = _parse_selection_range(strip_reference_types(text.selection))
+
+# The structural-caret parser, over an already-stripped reference. `text_caret_flat`
+# reuses it so a decorator can resolve either caret form from a raw reference, not just
+# from a block's own `.selection`.
+function _parse_selection_range(sel)
     sel isa ConcreteReferencePath || return nothing
     h1 = sel.head
     (h1 isa FieldReference && h1.name == "elements") || return nothing
