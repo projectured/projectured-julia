@@ -11,7 +11,7 @@ pieces, each documented at its own definition:
   - the [`@cell_struct`](@ref) **codegen** ([`cell_struct_exprs`](@ref) and its
     expr-builders) — which rewrites every field to a `::Cell`, adds the
     auto-wrapping inner constructor and the transparent property accessors, and
-    is the composition seam a higher-level transparent-cell macro reuses.
+    forms a reusable composition seam.
 
 Built on [`CellModule`](@ref): the codegen wraps field values in the cell kinds
 that module defines. [cell.md](../../doc/cell.md) covers the mechanics and
@@ -21,12 +21,12 @@ module CellStructModule
 
 using ..CellModule
 
-# The `@cell_struct` macro and its codegen assemblers — the public seam a
-# higher-level transparent-cell macro composes with.
+# The `@cell_struct` macro and its codegen assemblers — the public composition seam.
 export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_kwctor,
        cell_struct_positional_ctors, cell_struct_macro_default
-# The struct plan: the parse a transparent-cell struct macro does before it can
-# emit anything. Public for the same reason — a macro consumes it.
+# The struct plan: the parse of a `struct` definition (field names, declared
+# types, defaults, cell kinds) done before any code is emitted — public for the
+# same reason, part of the composition seam.
 export CellStructPlan, cell_struct_plan, add_cell_struct_field!, retype_cell_struct_fields!,
        cell_struct_value_types, cell_struct_field_kinds, cell_kind_of, cell_struct_required_count, cell_struct_trailing_default_count
 
