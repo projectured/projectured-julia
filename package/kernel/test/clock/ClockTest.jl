@@ -11,7 +11,7 @@ Confirms:
 
 using Test
 using ProjecturedKernel.ClockModule
-using ProjecturedKernel.CellModule: Cell, is_up_to_date
+using ProjecturedKernel.CellModule: Cell, is_cell_up_to_date
 
 function test_clock()
 @testset "Clock" begin
@@ -27,7 +27,7 @@ function test_clock()
         subscribed = Cell(() -> get_reactive_time(clock) * 2)
         @test subscribed[] == 0.0
         tick!(clock, 1.5)
-        @test !is_up_to_date(subscribed)
+        @test !is_cell_up_to_date(subscribed)
         @test subscribed[] == 3.0
 
         # SAMPLE: reading via get_time registers nothing, so the tick
@@ -35,7 +35,7 @@ function test_clock()
         sampled = Cell(() -> get_time(clock) + 10.0)
         @test sampled[] == 11.5
         tick!(clock, 2.0)
-        @test is_up_to_date(sampled)
+        @test is_cell_up_to_date(sampled)
         @test sampled[] == 11.5           # still the cached value
     end
 
@@ -47,8 +47,8 @@ function test_clock()
         @test sub_b[] == 100.0
 
         tick!(a, 5.0)
-        @test !is_up_to_date(sub_a)         # a's subscriber was invalidated
-        @test is_up_to_date(sub_b)          # b's was not
+        @test !is_cell_up_to_date(sub_a)         # a's subscriber was invalidated
+        @test is_cell_up_to_date(sub_b)          # b's was not
         @test sub_a[] == 6.0
         @test sub_b[] == 100.0
     end

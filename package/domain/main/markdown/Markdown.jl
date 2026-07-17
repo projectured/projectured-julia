@@ -6,12 +6,12 @@ quotes, lists) and inlines (text, code, emphasis, strong, link, image).
 """
 module MarkdownModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
-export MarkdownDocument, set_function!
+export MarkdownDocument, set_cell_function!
 
 abstract type MarkdownDocument <: Document end
 
@@ -36,8 +36,8 @@ end
 
 Base.getindex(t::MarkdownText) = t.content::String
 Base.setindex!(t::MarkdownText, v::AbstractString) = (t.content = String(v))
-set_function!(t::MarkdownText, f::Function) = (set_function!(getfield(t, :content), f); t)
-set_value!(t::MarkdownText, v::AbstractString) = (set_value!(getfield(t, :content), String(v)); t)
+set_cell_function!(t::MarkdownText, f::Function) = (set_cell_function!(getfield(t, :content), f); t)
+set_cell_value!(t::MarkdownText, v::AbstractString) = (set_cell_value!(getfield(t, :content), String(v)); t)
 
 """
 An inline code span (`` `code` ``). Supports `[]` / `[]=` on the content.
@@ -48,8 +48,8 @@ end
 
 Base.getindex(c::MarkdownCode) = c.content::String
 Base.setindex!(c::MarkdownCode, v::AbstractString) = (c.content = String(v))
-set_function!(c::MarkdownCode, f::Function) = (set_function!(getfield(c, :content), f); c)
-set_value!(c::MarkdownCode, v::AbstractString) = (set_value!(getfield(c, :content), String(v)); c)
+set_cell_function!(c::MarkdownCode, f::Function) = (set_cell_function!(getfield(c, :content), f); c)
+set_cell_value!(c::MarkdownCode, v::AbstractString) = (set_cell_value!(getfield(c, :content), String(v)); c)
 
 """
 Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.

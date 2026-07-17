@@ -8,7 +8,7 @@ turn has a role + a list of `ConversationPart`s wrapping arbitrary content.
 """
 module ConversationModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -136,15 +136,15 @@ end
 ConversationDraft(parts::Vector, assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
-set_function!(d::ConversationDraft, f::Function) =
-    (set_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
+set_cell_function!(d::ConversationDraft, f::Function) =
+    (set_cell_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 
-# ── set_function! delegation (mirror Workbench panel pattern) ────────────────────────
+# ── set_cell_function! delegation (mirror Workbench panel pattern) ────────────────────────
 
-set_function!(c::ConversationConversation, f::Function) =
-    (set_function!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
+set_cell_function!(c::ConversationConversation, f::Function) =
+    (set_cell_function!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
 
-set_function!(t::ConversationTurn, f::Function) =
-    (set_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
+set_cell_function!(t::ConversationTurn, f::Function) =
+    (set_cell_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
 end # module

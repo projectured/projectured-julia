@@ -12,7 +12,7 @@ This file is the aggregator; each kind is documented at its own definition, and
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-       set_value!, set_function!, is_up_to_date, unwrap_cell
+       set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell
 
 include("AbstractCell.jl")    # the base type; the kinds below subtype it
 include("ReactiveCell.jl")

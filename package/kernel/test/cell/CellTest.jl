@@ -16,45 +16,45 @@ a = Cell(1)
 b = Cell(2)
 @test a[] == 1
 @test b[] == 2
-@test is_up_to_date(a)
-@test is_up_to_date(b)
+@test is_cell_up_to_date(a)
+@test is_cell_up_to_date(b)
 
 # computed cell
 c = Cell(() -> a[] + b[])
-@test !is_up_to_date(c)
+@test !is_cell_up_to_date(c)
 @test c[] == 3
-@test is_up_to_date(c)
+@test is_cell_up_to_date(c)
 
 # mutation invalidates dependents
 a[] = 10
-@test is_up_to_date(a)
-@test !is_up_to_date(c)
+@test is_cell_up_to_date(a)
+@test !is_cell_up_to_date(c)
 @test c[] == 12
 
 # deep chain
 d = Cell(() -> c[] * 2)
 @test d[] == 24
 b[] = 3
-@test !is_up_to_date(c)
-@test !is_up_to_date(d)
+@test !is_cell_up_to_date(c)
+@test !is_cell_up_to_date(d)
 @test d[] == 26  # (10+3)*2
 
 # switch computed → primitive
 c[] = 99
 @test c[] == 99
-@test is_up_to_date(c)
+@test is_cell_up_to_date(c)
 a[] = 50
-@test is_up_to_date(c)  # no longer depends on a
+@test is_cell_up_to_date(c)  # no longer depends on a
 @test c[] == 99
 
 # switch primitive → computed
-set_function!(c, () -> a[] * b[])
-@test !is_up_to_date(c)
+set_cell_function!(c, () -> a[] * b[])
+@test !is_cell_up_to_date(c)
 @test c[] == 150  # 50*3
 
-# re-tracking after set_function!
+# re-tracking after set_cell_function!
 a[] = 2
-@test !is_up_to_date(c)
+@test !is_cell_up_to_date(c)
 @test c[] == 6   # 2*3
 
 # conditional dependency
@@ -66,7 +66,7 @@ cond = Cell(() -> flag[] ? x[] : y[])
 flag[] = false
 @test cond[] == 20
 x[] = 999          # x is no longer a dep after last eval
-@test is_up_to_date(cond)  # cond should still be valid
+@test is_cell_up_to_date(cond)  # cond should still be valid
 
 # ── the dependency edge must not own the reader ─────────────────────────
 
@@ -132,12 +132,12 @@ end
     @test t[] === 2
     @test_throws InexactError t[] = 2.5
     tc = ReactiveCell{Int}(() -> t[] + 1) # computed: value starts undefined
-    @test !is_up_to_date(tc)
+    @test !is_cell_up_to_date(tc)
     @test (@inferred tc[]) == 3
     t[] = 10
-    @test !is_up_to_date(tc)
+    @test !is_cell_up_to_date(tc)
     @test tc[] == 11
-    set_function!(tc, () -> t[] * 2)      # typed set_function! keeps the stale value slot
+    set_cell_function!(tc, () -> t[] * 2)      # typed set_cell_function! keeps the stale value slot
     @test tc[] == 20
 end
 
@@ -148,14 +148,14 @@ end
     @test (@inferred m[]) == 1
     m[] = 2
     @test m[] == 2
-    @test is_up_to_date(m)                   # trivially: nothing to recompute
+    @test is_cell_up_to_date(m)                   # trivially: nothing to recompute
     @test peek(m) == 2
     # no reactive bookkeeping: a thunk reading a MutableCell registers nothing,
     # so a later write does NOT invalidate the computed cell (by design)
     obs = Cell(() -> m[] * 10)
     @test obs[] == 20
     m[] = 5
-    @test is_up_to_date(obs)                 # unaware of the write
+    @test is_cell_up_to_date(obs)                 # unaware of the write
     @test obs[] == 20                        # stale until *reactive* invalidation
     w = MutableCell{Union{Nothing,Int}}(nothing)
     w[] = 3                                  # explicit wide type admits both
@@ -166,7 +166,7 @@ end
     i = ImmutableCell("abc")
     @test i isa AbstractCell{String}
     @test (@inferred i[]) == "abc"
-    @test is_up_to_date(i)
+    @test is_cell_up_to_date(i)
     @test peek(i) == "abc"
     @test_throws MethodError i[] = "xyz"  # read-only is the contract
     @test isbitstype(typeof(ImmutableCell(1)).types[1]) # zero-cost wrapper: field inlines

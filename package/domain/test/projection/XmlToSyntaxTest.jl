@@ -19,7 +19,7 @@ etree = print_document(x2s, edoc).output
 eout = Cell(() -> render(etree))
 @test eout[] == "<old></old>"
 edoc.tag = "new"
-@test !is_up_to_date(eout)
+@test !is_cell_up_to_date(eout)
 @test eout[] == "<new></new>"
 
 end # @testset "XmlToSyntax"

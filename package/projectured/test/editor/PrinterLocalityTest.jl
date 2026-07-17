@@ -140,7 +140,7 @@ end
 
 # The result of one locality measurement.
 struct LocalityReport
-    invalidated::Vector{LocalityCell}   # snapshot output cells now !is_up_to_date
+    invalidated::Vector{LocalityCell}   # snapshot output cells now !is_cell_up_to_date
     cell_count::Int                     # total output cells snapshotted
     preserved_objects::Int              # objectids reachable before AND after
     lost_objects::Int                   # objectids reachable before but NOT after
@@ -197,9 +197,9 @@ function printer_locality_report(document, projection, mutate!)
             push!(errors, "mutate! threw: $e")
         end
 
-        # Eager invalidation has run; read `.valid` only (is_up_to_date is pure) so we
+        # Eager invalidation has run; read `.valid` only (is_cell_up_to_date is pure) so we
         # do not recompute anything before observing the footprint.
-        inv = LocalityCell[lc for lc in cells if !is_up_to_date(lc.cell)]
+        inv = LocalityCell[lc for lc in cells if !is_cell_up_to_date(lc.cell)]
 
         # Re-force to recompute and re-collect object identities + perf delta.
         objs = Set{UInt64}()

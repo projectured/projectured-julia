@@ -49,7 +49,7 @@ end
 function _load_inline_image(name::AbstractString)
     path = joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image", name)
     img = ImageFile(path)
-    set_function!(getfield(img, :raw), () -> begin
+    set_cell_function!(getfield(img, :raw), () -> begin
         try
             decode_image(path)
         catch

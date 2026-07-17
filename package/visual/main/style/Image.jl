@@ -6,11 +6,11 @@ documents. Both subtypes share the abstract `ImageDocument` base.
 """
 module ImageModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export ImageDocument, set_function!
+export ImageDocument, set_cell_function!
 
 # ── Abstract base ──────────────────────────────────────────────────────────
 
@@ -55,9 +55,9 @@ directly (e.g. a decoded pixel buffer).
     raw::Any
 end
 
-# ── set_function! delegation ──────────────────────────────────────────────────────
+# ── set_cell_function! delegation ──────────────────────────────────────────────────────
 
-set_function!(img::ImageFile,   f::Function) = (set_function!(getfield(img, :raw), f); img)
-set_function!(img::ImageMemory, f::Function) = (set_function!(getfield(img, :raw), f); img)
+set_cell_function!(img::ImageFile,   f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
+set_cell_function!(img::ImageMemory, f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
 
 end # module

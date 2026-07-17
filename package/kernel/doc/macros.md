@@ -112,7 +112,7 @@ typed kind ctors, not by the type system.
 The uniformity matters:
 
 1. Any field can be wired into a reactive computation later by calling
-   `set_function!(getfield(obj, :field), thunk)` — without changing types.
+   `set_cell_function!(getfield(obj, :field), thunk)` — without changing types.
 2. Projections can read any field as if it were the source of truth and the
    reactive engine will invalidate the projection automatically.
 3. One printer/reader body serves every kind, because access goes through the
@@ -121,7 +121,7 @@ The uniformity matters:
 ### Escape hatch
 
 When you genuinely need the raw cell (for example to share it between two
-documents or pass it to `set_function!`), use `getfield(obj, :field)`. The
+documents or pass it to `set_cell_function!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
 `SyntaxLeaf` literally the same Cell as the upstream `JsonString.selection`.
 Since the stem is immutable, such sharing must be established at
@@ -345,4 +345,4 @@ machinery, and with it the same three sharp edges:
 
 The result is that domain and projection code reads like Julia you'd write
 without any framework — the reactivity is invisible until you reach for
-`Cell`, `set_function!`, or `getfield` explicitly.
+`Cell`, `set_cell_function!`, or `getfield` explicitly.

@@ -14,7 +14,7 @@ module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapApiModule: IoMap
-import ..CellModule: Cell, AbstractCell, set_function!, unwrap_cell
+import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
@@ -79,7 +79,7 @@ function print_document(p::SearchingProjection, recursion, input, ctx)
     # Forward-project the input selection so the cursor lands on the matching
     # result when it points inside one. Lazy so the not-yet-needed `iomap`
     # closure is fine, and reactive on the input selection.
-    set_function!(getfield(output, :selection), () -> begin
+    set_cell_function!(getfield(output, :selection), () -> begin
         sel = hasfield(typeof(input), :selection) ? input.selection : nothing
         sel === nothing && return nothing
         map_reference_forward(p, iomap, sel)

@@ -6,7 +6,7 @@ file path and a point size.
 """
 module FontModule
 
-import ..CellModule: Cell, set_value!
+import ..CellModule: Cell, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 
@@ -168,11 +168,11 @@ end
     adjust_font_zoom!(delta::Integer) -> Float64
 
 Step the font-only zoom (+1 in, -1 out, 0 reset). Writes the reactive `_FONT_ZOOM`
-cell via `set_value!`, which invalidates the text-layout cells that read it so the
+cell via `set_cell_value!`, which invalidates the text-layout cells that read it so the
 next print relayouts. Returns the new font zoom.
 """
 function adjust_font_zoom!(delta::Integer)
-    set_value!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
+    set_cell_value!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
     _FONT_ZOOM[]
 end
 

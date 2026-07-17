@@ -22,7 +22,7 @@ Base.setindex!(c::MutableCell, value) = (c.value = value)
 
 # The value is held outright: nothing can be stale, and an untracked read is the
 # plain read (there is no dependency to register in the first place).
-is_up_to_date(::MutableCell) = true
+is_cell_up_to_date(::MutableCell) = true
 Base.peek(c::MutableCell) = c[]
 
 function Base.show(io::IO, c::MutableCell)

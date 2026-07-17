@@ -18,7 +18,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsVie
 import ..ColorModule: StyleColor
 import ..FontModule: font_logical_size
 import ..CollectionModule: CellVector, ListNode
-import ..CellModule: Cell, set_function!
+import ..CellModule: Cell, set_cell_function!
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -111,7 +111,7 @@ function print_document(p::GraphicsCanvasToGraphicsImage, recursion, canvas::Gra
     orig_cv = canvas.elements::CellVector
     orig_elements_cell = getfield(orig_cv, :elements)
     output_cv = CellVector(Cell(Cell[]), Cell(nothing))
-    set_function!(getfield(output_cv, :elements), () -> begin
+    set_cell_function!(getfield(output_cv, :elements), () -> begin
         orig_cells = orig_elements_cell[]::Vector{Cell}
         vcat(bg_rects, orig_cells)
     end)

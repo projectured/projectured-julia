@@ -27,7 +27,7 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 """
 module SyntaxModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -43,7 +43,7 @@ import ..GestureBindingModule: var"@gestures"
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
-       render, set_function!,
+       render, set_cell_function!,
        syntax_children, syntax_opening, syntax_closing, syntax_separator,
        syntax_indentation, syntax_collapsed, syntax_collapsible,
        syntax_child_path, peel_child_step
@@ -634,10 +634,10 @@ function render(c::SyntaxCompound)
            _delimiter_content(_span_of(syntax_closing(c))))
 end
 
-# ── set_function! delegation ───────────────────────────────────────────────────
+# ── set_cell_function! delegation ───────────────────────────────────────────────────
 
-set_function!(t::SyntaxLeaf, f::Function) = (set_function!(getfield(t.value, :content), f); t)
-set_function!(n::SyntaxSequence, f::Function) = (set_function!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
+set_cell_function!(t::SyntaxLeaf, f::Function) = (set_cell_function!(getfield(t.value, :content), f); t)
+set_cell_function!(n::SyntaxSequence, f::Function) = (set_cell_function!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
 # ── read_gesture via reified @gestures: geometry-free tree navigation ─────
 #

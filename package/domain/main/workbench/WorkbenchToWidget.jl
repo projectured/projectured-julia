@@ -43,7 +43,7 @@ import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
-import ..CellModule: Cell, set_function!
+import ..CellModule: Cell, set_cell_function!
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
@@ -210,9 +210,9 @@ function print_document(::WorkbenchWorkbenchToWidgetShell,
     # main split's selection is the shell selection without its leading
     # `content` step; the center column's is the main split's without its
     # `elements[2].child` (slot 2) step.
-    set_function!(getfield(main_split, :selection),
+    set_cell_function!(getfield(main_split, :selection),
            () -> _strip_field(_shell_sel(), "content"))
-    set_function!(getfield(center_split, :selection),
+    set_cell_function!(getfield(center_split, :selection),
            () -> _strip_split_child(_strip_field(_shell_sel(), "content"), 2))
 
     # Track the window: the shell fills whatever extent the parent (the
@@ -225,7 +225,7 @@ function print_document(::WorkbenchWorkbenchToWidgetShell,
     )
     shell = WidgetShell(main_split;
                         size=shell_size)
-    set_function!(getfield(shell, :selection), _shell_sel)
+    set_cell_function!(getfield(shell, :selection), _shell_sel)
 
     iomap = WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
                                                  nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
@@ -262,7 +262,7 @@ function print_document(::WorkbenchPageToWidgetTabbedPane,
     # routing can no longer tell which tab is selected (clicking a tab would not
     # switch the active page).
     psel = getfield(page, :selection)
-    set_function!(getfield(tabbed, :selection), () -> begin
+    set_cell_function!(getfield(tabbed, :selection), () -> begin
         sel = psel[]
         sel === nothing && return nothing
         map_reference_forward(WorkbenchPageToWidgetTabbedPane(), iomap, _tab_index_prefix(sel))

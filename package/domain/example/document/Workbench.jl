@@ -72,8 +72,8 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
     ])
 
     workbench = WorkbenchWorkbench(nav_page, edit_page, info_page, control_page)
-    set_function!(getfield(descriptor, :content), () -> workbench.selection)
+    set_cell_function!(getfield(descriptor, :content), () -> workbench.selection)
     # Late-bind: the editor's `document` field is the workbench itself.
-    set_function!(editor_document_view, () -> EditorIntrospection(workbench))
+    set_cell_function!(editor_document_view, () -> EditorIntrospection(workbench))
     workbench
 end

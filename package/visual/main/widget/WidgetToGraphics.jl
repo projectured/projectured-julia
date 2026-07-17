@@ -17,7 +17,7 @@ the content projection via the recursion argument.
 """
 module WidgetToGraphicsModule
 
-import ..CellModule: Cell, set_function!
+import ..CellModule: Cell, set_cell_function!
 import ..ClockModule: get_time, get_reactive_time, get_wall_clock
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
@@ -364,8 +364,8 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring_color::StyleColor, radius::Int)
     ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), radius;
                         border_width=2, border_color=ring_color)
-    set_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
-    set_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
+    set_cell_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
+    set_cell_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     push!(elems, ring)
 end
 
@@ -2029,8 +2029,8 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     # pane) has no way to size its viewport to its slot.
     # The allocation is a forward-declared *reactive* cell: slot cells read it now
     # (before it has a value) and the real allocation thunk is installed via
-    # `set_function!` once intrinsic sizes are readable (below). Reading it before then
-    # yields `nothing` → a transient 0 slot; `set_function!` invalidates the slot cells so
+    # `set_cell_function!` once intrinsic sizes are readable (below). Reading it before then
+    # yields `nothing` → a transient 0 slot; `set_cell_function!` invalidates the slot cells so
     # they recompute with the real allocation. (A plain `Ref` was not reactive, so
     # a slot forced early — e.g. by a follow-end scroll pane measuring its
     # word-wrapped content — both crashed and could cache a stale size.)
@@ -2072,7 +2072,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
         n_local     = n
         sizes_local = sizes
         pinned_cv   = w.pinned
-        set_function!(alloc_cell, function ()
+        set_cell_function!(alloc_cell, function ()
             mins  = Vector{Int}(undef, n_local)
             maxs  = Vector{Int}(undef, n_local)
             prefs = Vector{Int}(undef, n_local)
@@ -3468,7 +3468,7 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
     # so can't reach the enclosing editor's private clock; a follow-up seam
     # would let a reader receive a per-editor clock too.
     clock = get_wall_clock()
-    set_function!(getfield(knob, :cx), () -> begin
+    set_cell_function!(getfield(knob, :cx), () -> begin
         target_x = (w.checked === true) ? right_x : left_x
         dur = w.duration
         t0  = w.anim_t0
@@ -4600,10 +4600,10 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
     hl_bounds = Cell(() -> _wt_highlight_bounds(w.selection, geometry[]))
     highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    set_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
-    set_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
-    set_function!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
-    set_function!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
+    set_cell_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
+    set_cell_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
+    set_cell_function!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
+    set_cell_function!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
 
     # Persistent hover-band overlay: same pattern as the selection band but reading
     # `w.hovered` (the row / column-header under the pointer) in the fainter hover
@@ -4611,17 +4611,17 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # as selected.
     hov_bounds = Cell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
     hover_rect = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    set_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
-    set_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
-    set_function!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
-    set_function!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
+    set_cell_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
+    set_cell_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
+    set_cell_function!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
+    set_cell_function!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
 
     # Invisible whole-canvas hit target so a table nested in a container (which
     # gates routing on `hit_element_at`) is hoverable/clickable over empty cell
     # interiors, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
     hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
-    set_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    set_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
     elements = CellVector(() -> begin
         geom = geometry[]
@@ -5217,8 +5217,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
     hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
-    set_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    set_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
+    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
     # Persistent selection-band overlay: one full-width rect whose y/height read
     # the selection (0 height when no node is selected → the renderer skips it).
@@ -5227,18 +5227,18 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # the focus-ring / text-cursor overlay pattern).
     band_yh = Cell(() -> _wtree_highlight_band(w.selection, geometry[]))
     selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    set_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
-    set_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
-    set_function!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
+    set_cell_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
+    set_cell_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
+    set_cell_function!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
 
     # Persistent hover-band overlay, same pattern as the selection band but reading
     # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
     # selected+hovered row still reads as selected.
     hover_yh = Cell(() -> _wtree_highlight_band(w.hovered, geometry[]))
     hover_band = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    set_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
-    set_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
-    set_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
+    set_cell_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
+    set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
+    set_cell_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
 
     elements = CellVector(() -> begin
         geom = geometry[]

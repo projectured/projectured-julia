@@ -56,7 +56,7 @@ specific domain. Key behaviours:
 
 - For a `CellVector`, eagerly projects every slot.
 - For a `ListNode`, projects only the head eagerly; `prev`/`next` are
-  *lazy* — each direction is a `set_function!` thunk that projects only when read.
+  *lazy* — each direction is a `set_cell_function!` thunk that projects only when read.
   This is what makes copying an infinite linked list cheap.
 - For a struct, projects every field whose value is a `Document` and
   passes non-document fields through unchanged.

@@ -11,7 +11,7 @@
 # `UndefVarError` **on use** when the bindings differ. The re-export case is
 # pervasive and healthy here — `evaluate_operation` is one function visible
 # through `OperationModule`, `OperationApiModule`, `OperationRerootingModule`
-# and `WidgetModule`; `set_function!` through eight modules — and is not a
+# and `WidgetModule`; `set_cell_function!` through eight modules — and is not a
 # collision. The distinct-binding case is the hazard.
 #
 # It is a *cross-package* property, so the per-package static guard in

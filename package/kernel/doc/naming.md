@@ -146,7 +146,7 @@ dispatch, not by the name.
 - **Factories are `make_*`**: `make_agent_server`,
   `make_child_context`, `make_scripted_say`.
 - **Predicates start with `is_`** (`is_valid_reference`,
-  `is_reference_equal`, `is_up_to_date`) or are plain verbs that read as
+  `is_reference_equal`, `is_cell_up_to_date`) or are plain verbs that read as
   questions at the call site (`matches(pattern, gesture)`).
 - **Mutating functions end with `!`**: `insert_row!`, `pop_gesture!`,
   `record_performance!`. A name ending in `!` is an action, so it
@@ -157,7 +157,7 @@ dispatch, not by the name.
 
 ### Words
 
-- **snake_case with underscores between all words**: `is_up_to_date`, not
+- **snake_case with underscores between all words**: `is_cell_up_to_date`, not
   `isuptodate`; `insert_row!`, not `insertrow!`.
 - **No abbreviated words inside names**: `value` not `val`, `function` not
   `fn`, `reference` not `ref`, `operation` not `op`, `performance` not

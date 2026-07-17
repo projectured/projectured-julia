@@ -478,7 +478,7 @@ That makes recomputation order-dependent and the graph inconsistent.
 To preserve output-object identity across recomputes (printer locality —
 reconciliation), do **not** rebuild objects, and do **not** reuse-then-mutate them
 with imperative cell writes. Instead reuse a *persistent* object whose
-geometry/content fields are `set_function!` cells that **derive** their value from the
+geometry/content fields are `set_cell_function!` cells that **derive** their value from the
 upstream layout cell — the cursor/highlight overlays in `TextToGraphics` are the
 canonical example, generalised to every span by its per-segment graphics cache. A
 projection's *own* private reconciliation cache (a plain `Dict` held in its cell

@@ -32,9 +32,9 @@ set of cells that read it (`dependents`).
 ```julia
 c[]               # read  — triggers recompute if invalid; returns the value
 c[] = v           # write — converts c to a primitive, invalidates dependents
-set_value!(c, v)     # same as c[] = v
-set_function!(c, thunk)  # switch c to a computed cell; previous deps detached
-is_up_to_date(c)     # has the cached value been invalidated since last compute?
+set_cell_value!(c, v)     # same as c[] = v
+set_cell_function!(c, thunk)  # switch c to a computed cell; previous deps detached
+is_cell_up_to_date(c)     # has the cached value been invalidated since last compute?
 ```
 
 `peek(c)` is an **untracked** read — it returns the value without registering a
@@ -58,7 +58,7 @@ arise as a side effect of reading.
 
 Invalidation propagates eagerly, recomputation is lazy:
 
-- `c[] = v` or `set_function!(c, f)` walks the transitive set of `c.dependents` and
+- `c[] = v` or `set_cell_function!(c, f)` walks the transitive set of `c.dependents` and
   marks them invalid (`valid = false`). The actual recomputation does NOT run.
 - The next `c[]` on an invalid cell calls `recompute!(c)`, which detaches old
   upstream links, evaluates the thunk under tracking, and refreshes the value.
@@ -125,7 +125,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
   *structure* (the vector itself); each inner cell tracks one *element*. A
   structural change invalidates the outer cell; a value change invalidates
   only that slot, which is how the editor avoids re-rendering siblings.
-- **`set_function!(getfield(obj, :field), () -> …)`** — used to lazily attach a
+- **`set_cell_function!(getfield(obj, :field), () -> …)`** — used to lazily attach a
   computation to a field after construction; common in
   `CellVector(f::Function)` and child-element generators.
 
@@ -184,7 +184,7 @@ and `ImmutableCell{T}` are non-reactive boxes — a mutable one for high-frequen
 state, a read-only one for derived content — for values that do not need the graph.
 
 Public surface: `Cell`, `AbstractCell`, `ReactiveCell`, `MutableCell`,
-`ImmutableCell`, `set_value!`, `set_function!`, `is_up_to_date`, `unwrap_cell`,
+`ImmutableCell`, `set_cell_value!`, `set_cell_function!`, `is_cell_up_to_date`, `unwrap_cell`,
 and `peek` (an untracked read extending `Base.peek`).
 
 ## CellStructModule — the transparent-Cell struct codegen

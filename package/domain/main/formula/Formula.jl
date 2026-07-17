@@ -8,7 +8,7 @@ environment; other formulas cite each other by identity.
 """
 module FormulaModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -386,7 +386,7 @@ Wire `formula.result` to a reactive thunk that re-evaluates the body whenever an
 dependency's value changes. Idempotent.
 """
 function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
-    set_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
+    set_cell_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
     formula
 end
 

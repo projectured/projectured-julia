@@ -25,8 +25,8 @@ recompute on next read.
 
     c[]           # read (triggers computation if invalid)
     c[] = v       # set a primitive value, invalidating dependents
-    set_function!(c, f)  # switch to a computed cell with thunk `f`
-    set_value!(c, v) # switch to a primitive cell with value `v`
+    set_cell_function!(c, f)  # switch to a computed cell with thunk `f`
+    set_cell_value!(c, v) # switch to a primitive cell with value `v`
 """
 mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
@@ -183,14 +183,14 @@ function Base.setindex!(c::ReactiveCell, value)
 end
 
 """
-    set_value!(c, value)
+    set_cell_value!(c, value)
 
 Equivalent to `c[] = value`. Turns `c` into a primitive cell.
 """
-set_value!(c::ReactiveCell, value) = (c[] = value)
+set_cell_value!(c::ReactiveCell, value) = (c[] = value)
 
 """
-    set_function!(c, thunk::Function)
+    set_cell_function!(c, thunk::Function)
 
 Turn `c` into a computed cell. `thunk` is a zero-argument function that
 will be called lazily. Dependents are invalidated immediately. The previous
@@ -198,7 +198,7 @@ value stays cached in the (now invalid) cell until the first read replaces it
 — a typed cell cannot hold a `nothing` placeholder; when `T` admits `nothing`
 the value is cleared eagerly so the old object is released.
 """
-function set_function!(c::ReactiveCell{T}, thunk::Function) where {T}
+function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
     _detach_upstream!(c)
     c.thunk = thunk
     nothing isa T && (c.value = nothing)
@@ -208,8 +208,8 @@ function set_function!(c::ReactiveCell{T}, thunk::Function) where {T}
 end
 
 """Return `true` if the cached value is up to date."""
-is_up_to_date(c::ReactiveCell) = c.valid
-is_up_to_date(cs::Vector{Cell}) = all(is_up_to_date, cs)
+is_cell_up_to_date(c::ReactiveCell) = c.valid
+is_cell_up_to_date(cs::Vector{Cell}) = all(is_cell_up_to_date, cs)
 
 # ── untracked read ─────────────────────────────────────────────────────────
 

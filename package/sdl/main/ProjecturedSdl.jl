@@ -51,7 +51,7 @@ import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
 import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.CellModule: Cell, is_up_to_date
+import ProjecturedDomain.CellModule: Cell, is_cell_up_to_date
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 
@@ -1312,7 +1312,7 @@ end
 # Walk the canvas tree (mirroring `_render_canvas!`'s offset accumulation) and
 # return the smallest absolute logical rectangle covering every *invalidated*
 # graphic, or `nothing` if nothing changed. Detection keys on the reactive
-# `valid` flag of the relevant cells, tested via `is_up_to_date` *before* the value
+# `valid` flag of the relevant cells, tested via `is_cell_up_to_date` *before* the value
 # is read (reading recomputes). Because writing a primitive cell marks it valid
 # (only its dependents go stale), the detectable dirty units are the *computed*
 # container cells the projection pipeline invalidates — a canvas whose
@@ -1342,7 +1342,7 @@ function _node_dirty(elem)::Bool
         (f === :selection || f === :prev || f === :next) && continue
         c = getfield(elem, f)
         c isa Cell || continue
-        is_up_to_date(c) || return true
+        is_cell_up_to_date(c) || return true
     end
     false
 end
@@ -1395,10 +1395,10 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # offset — not on w/h/layout (those are metadata for parents/scroll that the
     # renderer never reads, so their cells may stay perpetually invalid and must
     # not be mistaken for "dirty").
-    unit = !is_up_to_date(elements_cell) ||
-           !is_up_to_date(getfield(canvas, :x)) || !is_up_to_date(getfield(canvas, :y))
+    unit = !is_cell_up_to_date(elements_cell) ||
+           !is_cell_up_to_date(getfield(canvas, :x)) || !is_cell_up_to_date(getfield(canvas, :y))
     ev = elements_cell[]                 # read after capturing validity above
-    if !unit && ev isa CellVector && !is_up_to_date(getfield(ev, :elements))
+    if !unit && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
         unit = true                      # the regenerated element vector changed
     end
     if unit
@@ -1491,11 +1491,11 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
 
     # Prev links (negative offsets): process, then early-stop (as in render).
     pcell = getfield(head, :prev)
-    is_up_to_date(pcell) || (spine_dirty = true)
+    is_cell_up_to_date(pcell) || (spine_dirty = true)
     node = pcell[]
     while node !== nothing
         vcell = getfield(node, :value)
-        vstale = !is_up_to_date(vcell)
+        vstale = !is_cell_up_to_date(vcell)
         elem = vcell[]
         if !(elem isa GraphicsFence)
             push!(visited, (node, elem, vstale))
@@ -1508,7 +1508,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
             end
         end
         pc = getfield(node, :prev)
-        is_up_to_date(pc) || (spine_dirty = true)
+        is_cell_up_to_date(pc) || (spine_dirty = true)
         node = pc[]
     end
 
@@ -1516,7 +1516,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
     node = head
     while node !== nothing
         vcell = getfield(node, :value)
-        vstale = !is_up_to_date(vcell)
+        vstale = !is_cell_up_to_date(vcell)
         elem = vcell[]
         if !(elem isa GraphicsFence)
             if early
@@ -1529,7 +1529,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
             push!(visited, (node, elem, vstale))
         end
         nc = getfield(node, :next)
-        is_up_to_date(nc) || (spine_dirty = true)
+        is_cell_up_to_date(nc) || (spine_dirty = true)
         node = nc[]
     end
 

@@ -20,7 +20,7 @@ with `JuliaToSyntax`).
 """
 module FormulaToSyntaxModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection

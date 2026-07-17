@@ -60,7 +60,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # The animated elements use the cell-level positional constructor, which
     # wraps each argument in a `Cell` automatically: a function argument becomes
     # a *computed* cell, a plain value a static one. So the reactive fields are
-    # just thunks passed in place — no `set_function!` — and they re-evaluate
+    # just thunks passed in place — no `set_cell_function!` — and they re-evaluate
     # each frame because they read `get_reactive_time(clock)`.
 
     # the rotating dot — its centre (cx, cy) SUBSCRIBES to time.

@@ -437,7 +437,7 @@ import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedDomain.CellModule: set_function!
+import ProjecturedDomain.CellModule: set_cell_function!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
 import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
@@ -501,7 +501,7 @@ function print_document(p::DatabaseInstanceToDbCatalog,
     # catalog tree so DbCatalogToSyntax can render a cursor after set_selection!.
     # The instance stores its selection in DbCatalog-domain coordinates wrapped
     # as proj(p, …) (see map_reference_backward); the forward map unwraps it.
-    set_function!(getfield(rdbms, :selection), () -> begin
+    set_cell_function!(getfield(rdbms, :selection), () -> begin
         sel = inst.selection
         sel === nothing && return nothing
         map_reference_forward(p, iomap, sel)

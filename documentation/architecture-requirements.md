@@ -183,7 +183,7 @@ Writing `other_cell[] = v` from inside a cell computation invalidates that
 cell's consumers *mid-computation*, making recomputation order-dependent and
 the graph inconsistent (graphics-domain cells do have consumers, e.g.
 `GraphicsCaching`). To preserve output-object identity across recomputes, reuse
-a *persistent* object whose fields are `set_function!` cells that **derive**
+a *persistent* object whose fields are `set_cell_function!` cells that **derive**
 from the upstream layout cell — do not rebuild objects, and do not
 reuse-then-mutate them with imperative cell writes.
 

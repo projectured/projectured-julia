@@ -39,7 +39,7 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 function CellVector(f::Function)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
-    set_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
+    set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
 

@@ -10,7 +10,7 @@ as top-level collection documents, mapping each element through recursion.
 """
 module CollectionToSyntaxModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -156,20 +156,20 @@ function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     out_node = ListNode(child_iomap.output)
 
     # Lazy next
-    set_function!(getfield(out_node, :next), () -> begin
+    set_cell_function!(getfield(out_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
         next_out = _map_listnode(recursion, input_next, ctx, index + 1)
-        set_value!(getfield(next_out, :prev), out_node)
+        set_cell_value!(getfield(next_out, :prev), out_node)
         next_out
     end)
 
     # Lazy prev
-    set_function!(getfield(out_node, :prev), () -> begin
+    set_cell_function!(getfield(out_node, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         prev_out = _map_listnode(recursion, input_prev, ctx, index - 1)
-        set_value!(getfield(prev_out, :next), out_node)
+        set_cell_value!(getfield(prev_out, :next), out_node)
         prev_out
     end)
 

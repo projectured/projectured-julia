@@ -27,7 +27,7 @@ into the chooser does **not** auto-switch — ENTER commits it via the factory.
 """
 module ConversationEditorModule
 
-import ..CellModule: Cell, set_function!
+import ..CellModule: Cell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: print_document, read_intent,
@@ -414,7 +414,7 @@ _caret_selection(span::Int, k::Int) =
 # Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
 # `span_len` is the rendered length of that span so the cursor stays in range.
 function _attach_caret!(body::TextBlock, content, span::Int, span_len)
-    set_function!(getfield(body, :selection),
+    set_cell_function!(getfield(body, :selection),
            () -> _caret_selection(span, clamp(_cursor(content), 0, span_len())))
     body
 end
@@ -431,11 +431,11 @@ function _editable_body(c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
     # type, red = dead end, neutral while empty) and is followed by the pale
     # completion hint span — the same feedback the syntax-leaf insertion shows.
-    # font_color is driven by `set_function!` below, so it must be a reactive Cell,
+    # font_color is driven by `set_cell_function!` below, so it must be a reactive Cell,
     # not the immutable default — pass it explicitly. font stays immutable (authored).
     value_span = TextString(Cell(() -> _value(c)), _FONT, Cell(color_default),
                             nothing, nothing, nothing)
-    set_function!(getfield(value_span, :font_color), function ()
+    set_cell_function!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
         state === :invalid ? color_solarized_red :
         state === :empty   ? color_default      : color_solarized_green
@@ -449,7 +449,7 @@ function _editable_body(c::DocumentInsertion)
     # While the value is empty, anchor the caret to the end of the (non-empty)
     # prefix span — `TextToGraphics` can't place a caret in a zero-width span, and
     # this lands at the same x (just after "Insert a new ").
-    set_function!(getfield(body, :selection), function ()
+    set_cell_function!(getfield(body, :selection), function ()
         v = _value(c)
         isempty(v) ? _caret_selection(1, length(_INS_PREFIX)) :
                      _caret_selection(2, clamp(_cursor(c), 0, length(v)))
@@ -463,7 +463,7 @@ function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
     ts = TextString(Cell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
-    set_function!(getfield(ts, :font_color),
+    set_cell_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     _attach_caret!(TextBlock(ts), c, 1, () -> length(show()))
 end

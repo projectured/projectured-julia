@@ -8,7 +8,7 @@ assistant).
 """
 module WorkbenchModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -23,7 +23,7 @@ import ..OperationModule: insert_elements, delete_elements
 import ..JsonParserModule: jsonparse_file
 import ..XmlParserModule: xmlparse_file
 import ..JuliaParserModule: juliaparse_file
-export WorkbenchDocument, title, set_function!, DEFAULT_ASSISTANT_SYSTEM,
+export WorkbenchDocument, title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
@@ -76,7 +76,7 @@ function WorkbenchWorkbench(navigation_page::WorkbenchDocument,
                        Cell(nothing))
 end
 
-set_function!(p::WorkbenchPage, f::Function) = (set_function!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)
+set_cell_function!(p::WorkbenchPage, f::Function) = (set_cell_function!(getfield(p.elements, :elements), () -> Cell[Cell(x) for x in f()]); p)
 
 # ── WorkbenchNavigator ────────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@ function WorkbenchConsole(content::TextBlock)
 end
 
 title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
-set_function!(c::WorkbenchConsole, f::Function) = (set_function!(getfield(c, :content), f); c)
+set_cell_function!(c::WorkbenchConsole, f::Function) = (set_cell_function!(getfield(c, :content), f); c)
 
 # ── WorkbenchDescriptor ───────────────────────────────────────────────────────
 
@@ -186,7 +186,7 @@ function WorkbenchEvaluator(content)
 end
 
 title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
-set_function!(e::WorkbenchEvaluator, f::Function) = (set_function!(getfield(e, :content), f); e)
+set_cell_function!(e::WorkbenchEvaluator, f::Function) = (set_cell_function!(getfield(e, :content), f); e)
 
 # ── WorkbenchAssistant ────────────────────────────────────────────────────────
 
@@ -296,7 +296,7 @@ function WorkbenchAssistant(; conversation::ConversationConversation = Conversat
 end
 
 title(::WorkbenchAssistant) = WORKBENCH_ASSISTANT_TITLE
-set_function!(a::WorkbenchAssistant, f::Function) = (set_function!(getfield(a, :conversation), f); a)
+set_cell_function!(a::WorkbenchAssistant, f::Function) = (set_cell_function!(getfield(a, :conversation), f); a)
 
 # ── WorkbenchEditor ──────────────────────────────────────────────────────────
 
@@ -323,7 +323,7 @@ function WorkbenchEditor(content;
 end
 
 title(e::WorkbenchEditor) = e.title
-set_function!(e::WorkbenchEditor, f::Function) = (set_function!(getfield(e, :content), f); e)
+set_cell_function!(e::WorkbenchEditor, f::Function) = (set_cell_function!(getfield(e, :content), f); e)
 
 # ── Workbench manipulation (B1) ───────────────────────────────────────────────
 #

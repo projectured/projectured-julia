@@ -76,7 +76,7 @@ SyntaxNode("[", "]", ", ",
     CellVector(() -> [project_child(c) for c in input.children]))
 ```
 
-The function is wrapped via `set_function!` and re-runs whenever its reactive
+The function is wrapped via `set_cell_function!` and re-runs whenever its reactive
 dependencies invalidate.
 
 ### Access patterns

@@ -191,7 +191,7 @@ of truth.
 #### Incremental rendering (dirty-rect patches)
 
 Rather than resend a whole window on every change, a reactive **dirty-walk**
-(`_collect_canvas_dirty!` and friends) keyed on the cells' `is_up_to_date` flags
+(`_collect_canvas_dirty!` and friends) keyed on the cells' `is_cell_up_to_date` flags
 computes the smallest rectangle covering everything that changed since the last
 paint, reusing SDL's bounds helpers. Per-window `prev_bounds` unions a unit's old
 and new extent so moved/shrunk content clears its vacated pixels.

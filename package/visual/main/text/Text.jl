@@ -26,7 +26,7 @@ Each span has reactive styling fields:
 """
 module TextModule
 
-import ..CellModule: Cell, set_function!, set_value!
+import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..DomainModule
@@ -44,7 +44,7 @@ import ..TextRangeReferenceModule: TextRangeReference, is_text_caret
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!, evaluate_operation, reroot_operation, reroot_reference
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
-export set_function!, text_flat_length, text_flat_offsets, text_selection_flat, hinted_text,
+export set_cell_function!, text_flat_length, text_flat_offsets, text_selection_flat, hinted_text,
        text_selection_substring, text_insert_op, ReplaceTextRangeOperation,
        text_flat_to_elem, text_elem_to_flat, _lower_text_range
 
@@ -703,10 +703,10 @@ function _is_structural_selection(sel)
          (sel.head isa TextSpanReference || sel.head isa TextColumnReference))
 end
 
-# ── set_function! delegation ───────────────────────────────────────────────
+# ── set_cell_function! delegation ───────────────────────────────────────────────
 
-set_function!(s::TextString, f::Function) = (set_function!(getfield(s, :content), f); s)
-set_function!(st::TextBlock, f::Function) = (set_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
+set_cell_function!(s::TextString, f::Function) = (set_cell_function!(getfield(s, :content), f); s)
+set_cell_function!(st::TextBlock, f::Function) = (set_cell_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
 
 # ── Selection → flat character range ───────────────────────────────
 #

@@ -21,7 +21,7 @@ node1 = ListNode(PrimitiveNumber(10))
 # Helper to create a lazy node with thunk for next direction
 function lazy_node(value, next_thunk::Function)
     node = ListNode(value)
-    set_function!(getfield(node, :next), next_thunk)
+    set_cell_function!(getfield(node, :next), next_thunk)
     node
 end
 
