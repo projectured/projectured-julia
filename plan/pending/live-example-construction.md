@@ -290,13 +290,38 @@ whole YAML example surface (printer / reader / navigation / repl / typein) is gr
 fix carried straight over. This also incidentally reconstructs a bare `JsonObjectEntry` (discovery finds
 its `:` create key).
 
+**XML is also complete — the engine is now fully domain-agnostic.** XML stretched it furthest: an
+`XmlElement` is a scalar `tag` beside *two* collections (attributes + children), an `XmlAttribute` is a
+two-scalar `name`/`value` record, its collections start *empty* (every element is appended, none
+pre-exists), and each is grown by a *different, kind-specific* gesture — a child element with `<`, a child
+text with `"`, an attribute with `KeyDown(:space)`. Four generalizations covered it, all discovered, none
+domain-coded:
+- **Grow-event discovery** (`_grow_event`): the event that appends kind K to collection F, found by
+  building a fresh empty container and trying each event its gestures offer plus K's create keystroke,
+  keeping the one that grows F — preferring the event that lands K's kind (XML) over a placeholder
+  (JSON/YAML's `,`). The container must *survive* the probe (JSON's inherited `n` would replace the array
+  with a `JsonNull`).
+- **Event-based feeding** (`_synth_event` / `_feed_event!`): `KeyDown` gestures (`:space`), not just chars.
+- **Multi-scalar records**: a node with >1 scalar (an attribute's `name`+`value`) is created, then each
+  scalar navigated to (`<field>` + `Position(0)`, the shape `move_to_field` produces) and typed.
+- **Already-created skip**: a node a grow gesture built directly (an XML child) skips its create keystroke
+  and fills in place; a JSON placeholder (`,`-grown) does not, so it is still created in place.
+
+One small domain change enabled it (approved): `_xml_replaceable` now treats the empty `XmlNothing` as
+replaceable too, so `<`/`"`/`@` build a node directly from nothing (as JSON's `[`/`{`/`"` do), without the
+typed-name insertion buffer. `test_xml_construct` reconstructs text, the attribute record, elements with
+attributes / text / multiple / nested children, and the full nested `make_xml_document_example()` — **10
+pass / 0 broken** (XML has no empty-container gap: an element is created empty). Regression-verified: the
+whole XML example surface is **10647 pass / 0 fail / 0 broken** on the worktree versus **98 fail / 4
+broken** on clean `main` — the changes *fix* pre-existing XML boundary-delete typein failures, none new.
+
 Next, in order of remaining value:
-- **XML, then the remaining domains** — apply the same generic engine; XML adds attributes (records) and
-  mixed content.
+- **The remaining domains** — apply the same generic engine (sql, then the text/graph domains as their
+  authoring models allow).
 - **Julia insertion-domain recipes** — a `kind → commit-string` reflection table + `Insert → type →
   Enter`, for a domain whose nodes are created by a typed-name buffer rather than a single char (the one
-  shape `_create_keystroke` returns `nothing` for).
+  shape `_create_keystroke` still returns `nothing` for).
 - **Phase 4 — generic `test_construct(example::Example)` sweep** across all domains.
 
-The reader fixes + JSON reconstruction engine landed on branch `fix-json-number-string-readers`
+The reader fixes + reconstruction engine landed on branch `fix-json-number-string-readers`
 (worktree `../projectured-julia-jsonfix`).

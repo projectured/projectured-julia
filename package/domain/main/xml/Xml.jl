@@ -87,9 +87,12 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 
 _xml_selected(doc) = try_evaluate_reference(doc, getfield(doc, :selection)[])
 
-# Only an insertion placeholder is replaceable. The keys are non-alphanumeric because
-# the insertion is a typed-name buffer: a letter goes into the buffer instead.
-_xml_replaceable(doc, sel) = _xml_selected(doc) isa XmlInsertion
+# A placeholder is replaceable — the empty `XmlNothing` as well as a typed-name
+# `XmlInsertion` buffer — so `<`/`"`/`@` build the node directly (as JSON's `[`/`{`/`"`
+# do), and a structure can be authored from nothing without going through the buffer. The
+# keys are non-alphanumeric so that, while a buffer *is* selected, a letter still goes
+# into the buffer (its name) rather than replacing it.
+_xml_replaceable(doc, sel) = _xml_selected(doc) isa Union{XmlNothing, XmlInsertion}
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
