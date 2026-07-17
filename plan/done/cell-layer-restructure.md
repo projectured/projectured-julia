@@ -1,10 +1,14 @@
 # Cell layer — restructure for cohesion and guessability
 
-**Status:** in progress on branch `worktree-cell-layer-restructure`. **Landed:**
-C-B (rename, `7c956018`), C-A (module split, `c53d7051`), C-E (folded into C-A),
-C-C (Clock promoted to its own layer 2). **Remaining:** C-D (put `cell` in every
-external name) — needs the four sealed kind files unsealed. Each change below is
-independently approvable.
+**Status:** ✅ **Complete.** All changes landed on `main`: C-B (`7c956018`),
+C-A + C-E (`c53d7051`), C-C (`51afa4db`), C-D Part 1 (toolkit → `cell_struct_*`)
+and C-D Part 2 (protocol verbs → `set_cell_value!`/`set_cell_function!`/
+`is_cell_up_to_date`). C-D was re-applied over intervening main work (widget/SQL/
+text-caret commits) by re-running the mechanical rename, so it also caught the new
+old-name occurrences those commits added. The four sealed kind files were edited
+for C-D Part 2 with the user's go-ahead (rename only; they remain sealed).
+Verified at each step: full-stack loads, the cell/toolkit tests, and the
+kernel/base/visual/domain layering guards.
 
 Scope: layer 1 of the kernel, `package/kernel/main/cell/`. The user asked four
 questions — (Q1) should exported names carry `cell`/`Cell`? (Q2) is there a
@@ -233,7 +237,7 @@ in its **own top-level concern** (a sibling module, not inside `cell/`'s engine
 story) and rename the layer's self-description away from "the reactive cell
 engine." Recommend the dedicated layer.
 
-### C-D — Put `cell` in every external name (⇢ Q1). **Decided by the user.**
+### C-D — Put `cell` in every external name (⇢ Q1). ✅ Done.
 
 The user chose to carry `cell` in *every* exported name, one way or another —
 this supersedes the original "targeted, leave the protocol verbs alone"
