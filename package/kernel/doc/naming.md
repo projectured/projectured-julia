@@ -159,13 +159,16 @@ dispatch, not by the name.
 
 - **snake_case with underscores between all words**: `is_cell_up_to_date`, not
   `isuptodate`; `insert_row!`, not `insertrow!`.
-- **No abbreviated words inside names**: `value` not `val`, `function` not
-  `fn`, `reference` not `ref`, `operation` not `op`, `performance` not
+- **No ad-hoc abbreviated words inside names**: `value` not `val`, `function`
+  not `fn`, `reference` not `ref`, `operation` not `op`, `performance` not
   `perf`, `evaluated` not `eval`.
-- **The sanctioned compact words are exactly these**: `Api` (the layer
-  marker), `IoMap`/`iomap` (a name in its own right), the generated
-  `I<Document>` prefix, and the canonical keyboard modifier labels
-  `ctrl`/`alt`/`meta` (`is_ctrl`; nobody says `is_alternate`). Nothing else.
+- **The sanctioned compact forms are these**: `Api` (the layer marker),
+  `IoMap`/`iomap` (a name in its own right), the generated `I<Document>` prefix,
+  the canonical keyboard modifier labels `ctrl`/`alt`/`meta` (`is_ctrl`; nobody
+  says `is_alternate`), and any well-known, widely-used abbreviation that reads
+  unambiguously as its one expansion (`ctor` for constructor, `expr` for
+  expression). The bar is guessability in both directions: `ctor` clears it, a
+  coined shortening of a domain word (`val`, `ref`, `op`) does not.
 - This convention governs exported names. Local and argument names are
   outside its scope, though full words are encouraged there too
   (`context` over `ctx`).

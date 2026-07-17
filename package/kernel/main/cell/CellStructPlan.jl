@@ -1,11 +1,11 @@
 # Fragment of `CellModule` — the **struct plan**: what a macro needs to know about
 # a `struct` definition before it can emit code for it, parsed once.
 #
-# A transparent-cell struct macro reads the same three field forms — bare `f`,
-# typed `f::T`, defaulted `f[::T] = v` — strips the defaults out of the body (a
-# `struct` cannot carry them), and remembers them for the constructors. That parse
-# is the same wherever it is written, so it is written here, once, and the macros
-# that build on it consume a `CellStructPlan` instead of re-walking the AST.
+# A `struct` definition uses the same three field forms — bare `f`, typed
+# `f::T`, defaulted `f[::T] = v`. The plan reads all three, strips the defaults
+# out of the body (a `struct` cannot carry them), and remembers them for the
+# constructors. That parse is the same wherever it is needed, so it is written
+# here, once — a caller takes a `CellStructPlan` instead of re-walking the AST.
 #
 # The plan keeps each field's *slot* — its index in the struct body — rather than
 # rebuilding the body, because the body's `LineNumberNode`s are what give a field a
@@ -20,8 +20,8 @@ declared types, and the slot each occupies in the body), and the `@kwdef`-style
 defaults stripped out of it.
 
 `n_declared` and `n_programmer_defaults` record the counts **as the programmer
-wrote them**, before any macro injects a field of its own — a macro that appends
-a field needs to tell "the user defaulted something" apart from "I did".
+wrote them**, before any field is appended — a caller that appends a field needs
+to tell the programmer's defaults apart from its own.
 """
 struct CellStructPlan
     structdef             :: Expr
@@ -80,9 +80,9 @@ end
 """
     add_cell_struct_field!(plan, name, type, default) -> CellStructPlan
 
-Append a field the macro supplies rather than the programmer — it lands last, in
-the body and in the plan alike. The body slot is a placeholder; `retype_cell_struct_fields!`
-writes the field's real cell type into it.
+Append a field the caller supplies rather than one written in the source `struct`
+— it lands last, in the body and in the plan alike. The body slot is a
+placeholder; `retype_cell_struct_fields!` writes the field's real cell type into it.
 """
 function add_cell_struct_field!(plan::CellStructPlan, name::Symbol, type, default)
     body = plan.structdef.args[3]
@@ -122,8 +122,8 @@ _cell_kind_name(s::Symbol) =
     cell_kind_of(sym) -> :reactive | :immutable | :mutable | nothing
 
 Map a cell-kind **name** (`:ImmutableCell`, `:MutableCell`, `:ReactiveCell`, `:Cell`) to its kind,
-or `nothing` when `sym` names no kind. The struct macros use it to read a leading struct-level
-default kind (`@document ImmutableCell struct …`).
+or `nothing` when `sym` names no kind. Used to read a leading struct-level default
+kind (`ImmutableCell struct …`).
 """
 cell_kind_of(s::Symbol) = _cell_kind_name(s)
 
@@ -159,7 +159,7 @@ cell_struct_value_types(plan::CellStructPlan) =
 
 Each field's cell kind — `:reactive` / `:immutable` / `:mutable`. A field that **names** a kind
 (`f::ImmutableCell{T}`) keeps it; every other field (bare `f`, plain `f::T`) takes `default`, the
-struct-level default a macro passes from its leading kind argument. `default = :reactive` (no
+struct-level default the caller passes from a leading kind argument. `default = :reactive` (no
 leading kind) leaves the result exactly as before.
 """
 function cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reactive)
