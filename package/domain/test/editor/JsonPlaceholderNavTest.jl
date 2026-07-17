@@ -37,6 +37,28 @@ function test_json_placeholder_navigation()
         @test !(strip_reference_types(t.path) isa EmptyReferencePath)  # a cursor again
     end
 
+    @testset "Ctrl+Space toggles a lone leaf value (inherited from the syntax layer)" begin
+        # A single-leaf JSON document — not nested in an object — toggles between a
+        # text cursor and a whole-element (∅) selection exactly like the root above.
+        # This is the syntax-layer leaf gesture (`@gestures SyntaxLeaf`) reaching JSON
+        # purely through the backward selection map, so it needs no JSON-specific reader.
+        # JsonNothing (an authoring placeholder with a projection-introduced label) is
+        # included — it is the case the editor most needs the toggle for.
+        for doc in (JsonNull(), JsonString("hi"), JsonNumber(5), JsonNothing())
+            clear_selection!(doc); io = print_document(proj, doc)
+            seed = read_intent(proj, io, _JPN_CTRL_END)
+            @test seed isa ReplaceSelectionOperation                       # a text cursor
+            set_selection!(doc, seed.path); io = print_document(proj, doc)
+            s = read_intent(proj, io, _JPN_CS)                             # → structural
+            @test s isa ReplaceSelectionOperation
+            @test strip_reference_types(s.path) isa EmptyReferencePath     # ∅ (whole leaf)
+            set_selection!(doc, s.path); io = print_document(proj, doc)
+            t = read_intent(proj, io, _JPN_CS)                             # → text again
+            @test t isa ReplaceSelectionOperation
+            @test !(strip_reference_types(t.path) isa EmptyReferencePath)  # a cursor again
+        end
+    end
+
     @testset "empty insertion buffer: navigable + Ctrl+Space selects the whole insertion" begin
         doc = make_json_document_example()
         buf = only(filter(s -> occursin("entries[8].value.value{0}", _jpn_str(s)),

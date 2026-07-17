@@ -34,17 +34,13 @@ _applies(tester, ex::Example) = (r = _required_terminal(tester); r === nothing |
 # the @test_broken TODO. Grouped by root cause below; a *different* error class on one of them
 # still surfaces as an unmarked Fail (a regression). Fix the projection, drop it from the set.
 const _CATALOG_EDIT_BROKEN = (
-    # @catalog-broken julia node repl reprint → FieldError(Nothing, :output)
-    "julia/binary_op/", "julia/assignment/", "julia/field_access/", "julia/for_iterator/",
-    "julia/lambda/", "julia/range/", "julia/return/", "julia/ternary/",
-    "julia/type_annotation/", "julia/unary_op/", "julia/using/",
     # @catalog-broken sql node ChildrenIoMap read_intent has no edit-gesture method
     #   (read_intent MethodError; TypeError / FieldError reprint fallout)
     "sql/comparison/", "sql/select_item/", "sql/from_item/", "sql/join_on_condition/",
     "sql/joined_from_item/", "sql/update_assignment/", "sql/update_statement/",
     "sql/column_definition/", "sql/where_filter_condition/",
     # @catalog-broken under-typed @reference in a node's backward map (on a click)
-    "filesystem/directory/", "sql/statement_list/",
+    "filesystem/directory/",
 )
 _catalog_edit_broken(name) =
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?

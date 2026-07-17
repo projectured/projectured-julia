@@ -203,10 +203,17 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRan
     lowered === nothing ? nothing : read_intent(p, iomap, lowered)
 end
 
-# Pass KeyDown events through so upstream projections (e.g.
-# PrimitiveStringToSyntaxLeaf) can react to Backspace/Delete. TextToGraphics
-# returns the raw KeyDown for keys it doesn't consume.
-read_intent(::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown) = evt
+# A KeyDown on a leaf first offers itself to the Syntax domain's reified leaf gesture
+# table (`@gestures SyntaxLeaf` — Ctrl+Space toggles text⇄structural selection, Ctrl+Alt+Home
+# selects the whole leaf). Whatever the table declines falls back to the raw event, so
+# upstream projections (e.g. PrimitiveStringToSyntaxLeaf) still see Backspace/Delete and
+# TextToGraphics still gets the untouched KeyDown for keys nothing consumes. This mirrors
+# `SyntaxCompoundToText`'s KeyDown reader and is what gives every domain the selection-mode
+# toggle for free through the backward selection map.
+function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown)
+    op = read_gesture(iomap.input, evt)
+    op === nothing ? evt : op
+end
 
 # ── SyntaxCompoundToText ───────────────────────────────────────────────
 # For nodes with non-empty open/close delimiters (like { } or [ ]):

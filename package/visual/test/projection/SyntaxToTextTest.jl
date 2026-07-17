@@ -292,6 +292,33 @@ end
     # round-trip lands back in the same leaf (at its start — stateless).
     @test is_reference_equal(op_path(promoted, :space, ctrl), descended)
 end
+
+@testset "Ctrl+Space toggles a bare leaf (no compound above it)" begin
+    # A `SyntaxLeaf` is not a compound, so the SyntaxCompound gesture table does not
+    # reach it; the `@gestures SyntaxLeaf` table (fired by `SyntaxLeafToText`) gives a
+    # lone leaf the same text⇄structural toggle. This is what makes Ctrl+Space work on
+    # a bare `JsonNothing` / any single-leaf document, with every domain inheriting it
+    # through the backward selection map.
+    ctrl = ModifierKeys(ctrl=true)
+    leaf = SyntaxLeaf("hi"; open="\"", close="\"")
+    l2t  = RecursiveProjection(SyntaxToText())
+    leaf_path(sel, key, mods=ModifierKeys()) = begin
+        clear_selection!(leaf); set_selection!(leaf, sel)
+        io = print_document(l2t, leaf)
+        op = read_intent(l2t, io, KeyDown(key, mods))
+        op isa ReplaceSelectionOperation ? op.path : op
+    end
+    # text cursor → the whole leaf (∅)
+    promoted = leaf_path(@reference(leaf, value{1}), :space, ctrl)
+    @test strip_reference_types(promoted) isa EmptyReferencePath
+    # whole leaf (∅) → a character cursor at the value start
+    descended = leaf_path(EmptyReferencePath(), :space, ctrl)
+    @test is_reference_equal(strip_reference_types(descended),
+                             strip_reference_types(@reference(leaf, value{0})))
+    # Ctrl+Alt+Home selects the whole leaf from a character cursor
+    whole = leaf_path(@reference(leaf, value{1}), :home, ModifierKeys(ctrl=true, alt=true))
+    @test strip_reference_types(whole) isa EmptyReferencePath
+end
 end # let
 end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"
 

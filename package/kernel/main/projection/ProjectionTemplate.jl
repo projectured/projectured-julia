@@ -405,7 +405,9 @@ _dtype(x) = Base.typename(typeof(x)).wrapper
 function _atomic_print(p, doc, out)
     wiring = _scan_atomic!(p, doc, out)
     # Wire the output leaf's selection cell (construction-time, deferred-iomap trick):
-    #   opaque (no bound field) ⇒ forward-map (∅↔∅, else unmapped).
+    #   opaque (no bound field) ⇒ forward-map (∅↔∅, else unmapped). The generic
+    #                             mapper tolerates the `nothing` iomap (a ∅ stays
+    #                             untyped, an unmapped path returns as-is).
     #   bound on :value         ⇒ share doc's cell raw — the leaf's value span is
     #                             literally `.value`, so the input cursor already
     #                             reads as a leaf cursor (JSON/SQL fast path).

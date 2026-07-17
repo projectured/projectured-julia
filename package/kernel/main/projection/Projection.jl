@@ -85,13 +85,20 @@ function map_reference_forward(projection::Projection, iomap, reference)
     r = @reference_case reference begin
         # Whole-element selection maps by identity, but the *output* whole
         # element has the output document's type, not the input's — so the
-        # empty path is retyped against `iomap.output`.
-        ∅ => EmptyReferencePath(reference_node_type(iomap.output))
+        # empty path is retyped against `iomap.output`. A caller with no iomap
+        # yet (the deferred-iomap trick some selection cells use, e.g.
+        # `map_reference_forward(p, nothing, sel)`) can't supply that type here,
+        # so the empty path stays untyped — a whole-element selection is stripped
+        # to its skeleton before use anyway.
+        ∅ => iomap === nothing ? EmptyReferencePath() :
+             EmptyReferencePath(reference_node_type(iomap.output))
         proj(^(projection), inner) => inner
     end
     # Self-type the result (the unwrapped `proj` inner may be a bare path) against
-    # the output document, so the strict-typing invariant holds at the source.
-    (r === nothing || is_fully_typed(r)) ? r : annotate_reference_types(iomap.output, r)
+    # the output document, so the strict-typing invariant holds at the source. With
+    # no iomap the output document is unknown, so the result is left as mapped.
+    (r === nothing || iomap === nothing || is_fully_typed(r)) ? r :
+        annotate_reference_types(iomap.output, r)
 end
 
 """
@@ -104,9 +111,14 @@ directly correspond to output elements.
 """
 function map_reference_backward(projection::Projection, iomap, reference)
     # A whole-element output selection maps back to a whole-element input
-    # selection, typed against the input document.
+    # selection, typed against the input document (untyped when no iomap is
+    # available yet — the deferred-iomap trick, mirroring the forward mapper).
     reference isa EmptyReferencePath &&
-        return EmptyReferencePath(reference_node_type(iomap.input))
+        return iomap === nothing ? EmptyReferencePath() :
+               EmptyReferencePath(reference_node_type(iomap.input))
+    # Without the input document there is no pre-image to wrap against, so the
+    # reference is returned unchanged.
+    iomap === nothing && return reference
     # The projection-introduced element has no input pre-image; build the
     # `proj`-wrapped path and annotate it against the input document (the 2-arg
     # `@reference(doc, …)` form) so its node carries the input type (a

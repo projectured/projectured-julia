@@ -852,4 +852,28 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
     return path
 end
 
+# A leaf IS its own first leaf: structural→text lands the cursor at the start of its
+# value. This lets the leaf gesture table below share the compound's Ctrl+Space arm.
+_descend_to_text_cursor(::SyntaxLeaf, _sel) =
+    ConcreteReferencePath(FieldReference("value"),
+        ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+
+# The leaf half of the Syntax reader. A `SyntaxLeaf` is not a `SyntaxCompound`, so the
+# table above does not reach it — yet a leaf has the same two selection modes: the whole
+# element (`∅`) and a character cursor in its value (`.value{k}`). Ctrl+Space toggles
+# between them and Ctrl+Alt+Home selects the whole leaf, exactly as on a compound. There
+# is no tree to navigate inside a leaf, so the arrow arms are omitted. Every projection
+# whose input is a leaf (`SyntaxLeafToText`) fires this through the generic `read_gesture`
+# interpreter, so the toggle backward-maps into every domain for free.
+@gestures SyntaxLeaf begin
+    KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
+        ReplaceSelectionOperation(EmptyReferencePath())
+    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
+        sel = doc.selection
+        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
+                                             _promote_to_structural(sel)
+        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    end
+end
+
 end # module
