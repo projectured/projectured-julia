@@ -77,5 +77,37 @@ function test_json_placeholder_navigation()
         @test length(reached) == length("empty json") + 1          # 11 caret positions
         @test all(occursin("SyntaxLeaf.value", s) for s in reached) # all on the introduced label
     end
+
+    @testset "type-to-replace fills a placeholder from any caret" begin
+        # The `empty json` label is a prompt, not editable content: a printable key
+        # creates the corresponding document whether the caret is a text cursor on
+        # the label or a whole-element (∅) selection. (`{` → object here; the other
+        # create keys route the same way.)
+        for seed in (:text, :struct)
+            doc = JsonNothing(); clear_selection!(doc); io = print_document(proj, doc)
+            if seed === :text
+                s = read_intent(proj, io, _JPN_CTRL_END)   # a cursor on the label
+                set_selection!(doc, s.path)
+            else
+                set_selection!(doc, EmptyReferencePath())
+            end
+            io = print_document(proj, doc)
+            op = read_intent(proj, io, KeyPress('{', "{", Modifiers()))
+            @test op isa CompoundOperation      # a create op, not a dead label edit / nothing
+        end
+    end
+
+    @testset "an insertion commits (Enter) / cancels (Escape) with a value cursor" begin
+        # After typing into a JsonInsertion the selection is a `value{k}` cursor — the
+        # normal state. Enter must still commit and Escape must still abort; a caret in
+        # the text must not swallow either (it did, via TextToGraphics returning the raw
+        # key into the operation slot).
+        vpath = ConcreteReferencePath(FieldReference("value"),
+                    ConcreteReferencePath(RangeReference(6, 6), EmptyReferencePath()))
+        ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
+        io = print_document(proj, ins)
+        @test read_intent(proj, io, KeyDown(:return, Modifiers())) isa CompoundOperation
+        @test read_intent(proj, io, KeyDown(:escape, Modifiers())) isa CompoundOperation
+    end
 end
 end

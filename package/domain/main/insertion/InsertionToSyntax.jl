@@ -40,7 +40,7 @@ import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..SelectionApiModule: with_selection
 import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyPress, KeyDown
+import ..EventModule: KeyPress, KeyDown, Modifiers
 import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
@@ -548,6 +548,21 @@ end
 # a whole-element (∅) selection — typed against the document — and wraps a cursor on
 # the display-only label as a projection-introduced caret (unwrapped by the forward
 # map above). A bespoke map here would only shadow that.
+
+# A printable key typed on the placeholder is a *create* gesture, not a text edit —
+# the label ("empty json") is a prompt, not content. The text layer, seeing a caret,
+# turned the key into an insert on the (non-editable) label, which arrives here as a
+# `ReplaceStringRangeOperation`; re-interpret it as the underlying document's own
+# gesture so `{` on an `empty json` makes a JsonObject, `[` an array, a digit a
+# number, and so on — from any caret, no ∅ selection required. This is what lets a
+# `*Nothing` placeholder be filled by typing directly. Non-empty text only (a
+# deletion has nothing to create); a key the document defines no create for
+# (`read_gesture` → `nothing`) is simply dropped, exactly as on a ∅ selection.
+function read_intent(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+    text = op.replacement
+    isempty(text) && return nothing
+    read_gesture(iomap.input, KeyPress(first(text), text, Modifiers()))
+end
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 #
