@@ -193,11 +193,10 @@ end
 #     `syntax` is covered structurally by the tree-navigation completeness suite.
 const _position_navigation_complete_examples = ["text", "json"]
 
-# @broken: on json the placeholder entry's value caret `.entries[8].value.value{0}`
-# is enumerated but unreachable by navigation (the trailing insertion slot is not
-# yet steppable). plan/pending/json-navigation-and-clicks.md
-_complete_unreached_broken(name) =
-    name == "json" ? (s -> occursin(".entries[8].value", s)) : nothing
+# Every enumerated position/tree selection is reachable for the curated completeness
+# examples (including json's placeholder insertion slot), so none needs an
+# unreached-broken marker. Kept as a hook for a future example that adds one.
+_complete_unreached_broken(_name) = nothing
 
 function test_position_navigations_complete()
     @testset "PositionNavigationComplete" begin

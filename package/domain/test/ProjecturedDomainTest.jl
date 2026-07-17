@@ -88,6 +88,7 @@ include("backend/ConsoleBackendTest.jl")
 include("backend/PdfTest.jl")
 include("reference/TypeReferenceTest.jl")
 include("editor/JsonContentClicksTest.jl")
+include("editor/JsonPlaceholderNavTest.jl")
 
 # ── moved down from the umbrella: tests whose fixtures are domain documents ───
 # (JSON/Julia/SQL/DbCatalog/Workbench/Conversation/GestureMap). Each drives a
@@ -169,6 +170,7 @@ function test_domain()
         test_type_reference()
         test_json_content_clicks_clean("json fixture",
             make_json_document_example(), make_graphics_image_projection_example())
+        test_json_placeholder_navigation()
         # ── moved down from the umbrella (domain-fixture tests) ──────────────
         test_gesture_map()
         test_gesture_help()
@@ -220,7 +222,7 @@ export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collec
 export test_versioning_to_any, test_syntax_tree_selection,
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference
-export test_json_content_clicks_clean, collect_json_tree_selections
+export test_json_content_clicks_clean, collect_json_tree_selections, test_json_placeholder_navigation
 export test_construct, reconstruct, test_json_construct, test_yaml_construct, test_xml_construct
 # moved down from the umbrella
 export test_gesture_map, test_gesture_help, test_db_catalog_sql,

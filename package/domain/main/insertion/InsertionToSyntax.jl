@@ -148,6 +148,7 @@ _typed_color(p, state::Symbol) =
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
+        ∅        => @reference()                        # whole insertion → whole delimitation
         value{k} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
@@ -164,7 +165,9 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     # mirroring SyntaxLeafToText's value/close-seam redirect one layer down.
     n = length(something(iomap.input.value, ""))
     @reference_case reference begin
+        ∅ => @reference()                              # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
+            ∅ => @reference()                          # whole content leaf → whole insertion
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
@@ -520,6 +523,12 @@ InsertionNothingToSyntaxLeaf() =
 print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx) =
     SimpleIoMap(p, doc, SyntaxLeaf(TextString(_nothing_label(doc), p.style);
         selection=getfield(doc, :selection)))
+
+# No reference maps: the generic `Projection` fallback already round-trips a
+# whole-element (∅) selection — typed against the document — so the placeholder is
+# structurally selectable (Alt-navigable, Ctrl+Space, click), and wraps a cursor on
+# the display-only label as a projection-introduced caret. A bespoke map here would
+# only shadow that.
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 #
