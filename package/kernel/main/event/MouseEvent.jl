@@ -1,7 +1,7 @@
 # Fragment of `EventModule` — the mouse events.
 #
-# `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll` are reported by a
-# backend polling the pointer. `MousePress` (a completed click) is synthesised
+# `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll` are reported by an
+# event source polling the pointer. `MousePress` (a completed click) is synthesised
 # from a down/up pair, and `MouseEnter`/`MouseLeave` from motion crossing a
 # region boundary; both kinds are matched the same way by whoever reads them.
 
@@ -83,7 +83,7 @@ MouseMove(x::Int, y::Int) = MouseMove(x, y, :none, ModifierKeys())
 
 Pointer-enter event: the pointer crossed into a region. Same fields as
 `MouseMove`. Synthesised from motion by whoever tracks the region, not reported
-by a backend.
+by an event source.
 """
 struct MouseEnter <: SyntheticEvent
     x::Int

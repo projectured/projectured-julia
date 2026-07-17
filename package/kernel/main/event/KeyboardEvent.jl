@@ -1,6 +1,6 @@
 # Fragment of `EventModule` — the keyboard events.
 #
-# Three of them model the physical/logical keyboard lifecycle a backend reports;
+# Three of them model the physical/logical keyboard lifecycle an event source reports;
 # `KeyChord` is synthesised from a recognised *sequence* of `KeyDown`s.
 
 """
@@ -69,7 +69,7 @@ then `Ctrl-K`) collapsed into a single event. `keys` holds the constituent
 presses in order, and the modifiers of each step live on those `KeyDown`s.
 
 A chord is purely a **combination of events** — it carries no intent. Which
-sequences are recognised is a recogniser's configuration; what a particular chord
+sequences are recognised is configured elsewhere; what a particular chord
 *means* is the decision of whoever reads it, exactly as for any other event.
 """
 struct KeyChord <: SyntheticEvent

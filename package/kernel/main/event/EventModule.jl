@@ -1,8 +1,8 @@
 """
     EventModule
 
-The **input event vocabulary**: the backend-agnostic values that flow from an
-input device into the editor. The fragments:
+The **input event vocabulary**: the backend-agnostic values an input source
+produces. The fragments:
 
 - [`EventInterface.jl`](EventInterface.jl) — the `Event`/`DeviceEvent`/`SyntheticEvent`
   types and the `get_modifier_keys` generic every event answers.

@@ -12,10 +12,10 @@ with these field values and these modifiers held", and two ways to use it.
 - Compiled — [`@event_case`](@ref) compiles a table of `pattern => result` rules to
   plain `isa`/field tests, first match wins, falling through to `nothing`.
 
-Both ride on one parser, exported here as a macro-authoring API
+Both ride on one parser, exported here as a reusable macro-authoring API
 ([`parse_event_pattern_rule`](@ref), [`build_event_pattern_expr`](@ref),
-[`build_event_field_bindings`](@ref)) so that any DSL binding events to something can
-reuse the surface syntax rather than re-implement it.
+[`build_event_field_bindings`](@ref)) — the surface syntax defined in one place
+rather than re-implemented.
 
 Every event type is matchable, and the field table is *derived* from the event
 structs themselves — a new event needs no entry here, and no pattern can go stale
@@ -431,8 +431,8 @@ end
 
 """
     @event_case event begin
-        KeyDown(:period; ctrl)                                 => ToggleCollapseOperation()
-        when(KeyDown(k; alt), k in (:up, :down))               => TreeNavigateOperation(k)
+        KeyDown(:period; ctrl)                                 => on_toggle()
+        when(KeyDown(k; alt), k in (:up, :down))               => on_navigate(k)
         KeyPress(c)                                            => insert_char(c)
         MousePress(:left, x, y)                                => select_at(x, y)
         _                                                      => nothing
