@@ -62,7 +62,7 @@ together: WindowManaging references ScreenDocument's types.
 
 The window *events* (`WindowClose`, `WindowResize`, `WindowDefocus`,
 `WindowQuit`) do **not** live here — they live with the rest of the input
-vocabulary in the kernel's `EventModule`, alongside `EventEnvelope` (which
+vocabulary in the kernel's `EventModule`, alongside `WindowInput` (which
 wraps every event with a window id): both are protocol types consumed by the
 editor loop and gesture recognizer, not document concepts.
 

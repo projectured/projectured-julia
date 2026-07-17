@@ -60,7 +60,7 @@ const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindi
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 # NOTE: the concrete generic + higher-order projections (Identity, Reversing,
 # Constant, Focusing, Chaining, TypeDispatching, Recursive, Switching,
-# PredicateDispatching, ReferenceDispatching, Nesting, EnvelopeUnwrapping) are
+# PredicateDispatching, ReferenceDispatching, Nesting, WindowInputUnwrapping) are
 # now *defined* in this package's projection layer below — they are no longer
 # kernel submodules, so they must NOT be aliased here.
 
@@ -111,7 +111,7 @@ include("projection/higherorder/Switching.jl")
 include("projection/higherorder/PredicateDispatching.jl")
 include("projection/higherorder/ReferenceDispatching.jl")
 include("projection/higherorder/Nesting.jl")
-include("projection/higherorder/EnvelopeUnwrapping.jl")
+include("projection/higherorder/WindowInputUnwrapping.jl")
 include("projection/generic/Focusing.jl")
 
 # ── The document-shaped generic projections + the reader defaults ──────────

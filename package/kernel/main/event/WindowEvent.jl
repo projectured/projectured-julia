@@ -1,7 +1,7 @@
 # Fragment of `EventModule` — the window events.
 #
 # All four report something the user did to a window. Which window is not part of
-# the event: it is the `EventEnvelope`'s `window_id`, so a window event names no
+# the event: it is the `WindowInput`'s `window_id`, so a window event names no
 # window type and stays pure input vocabulary.
 
 """
@@ -17,7 +17,7 @@ struct WindowQuit <: DeviceEvent end
 
 The user requested to close one window (its native close button). A *request*
 the application may refuse — the event reports what the user did, not what must
-happen. The window it refers to is the enclosing envelope's `window_id`.
+happen. The window it refers to is the enclosing `WindowInput`'s `window_id`.
 """
 struct WindowClose <: DeviceEvent end
 

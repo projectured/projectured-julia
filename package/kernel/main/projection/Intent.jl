@@ -18,7 +18,7 @@ document that flows forward through the printer. It carries the same user change
 in two coordinate frames:
 
 - `gesture` — the originating input (a device event such as `MousePress`/`KeyDown`,
-  or an `EventEnvelope` at the screen layer). **Invariant**: it is threaded
+  or an `WindowInput` at the screen layer). **Invariant**: it is threaded
   unchanged through the whole reader chain, so any reader can inspect *what the
   user did*, not just what it currently means.
 - `operation` — the change expressed in the current projection's input domain.

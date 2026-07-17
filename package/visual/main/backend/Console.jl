@@ -260,10 +260,10 @@ function DeviceModule.write_to_devices(::ConsoleBackend, devices, output)
 end
 
 """
-    read_from_devices(::ConsoleBackend, devices) -> EventEnvelope or nothing
+    read_from_devices(::ConsoleBackend, devices) -> WindowInput or nothing
 
 Poll `backend.input` (non-blocking) and translate the next keystroke into a
-backend-agnostic event wrapped in an `EventEnvelope`. The window id is the
+backend-agnostic event wrapped in an `WindowInput`. The window id is the
 sentinel `:console` (there is no `WindowDocument`). Returns `nothing` when no
 complete event is buffered.
 """
@@ -271,7 +271,7 @@ function DeviceModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
     event = _next_event!(backend.inbuf)
     event === nothing && return nothing
-    return EventEnvelope(:console, event)
+    return WindowInput(:console, event)
 end
 
 # Append all currently-available bytes from `input` to the pending buffer

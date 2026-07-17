@@ -1,5 +1,5 @@
 """
-The event layer — the `EventEnvelope`, the `@event_case` dispatch table, and the
+The event layer — the `WindowInput`, the `@event_case` dispatch table, and the
 reified event patterns.
 """
 
@@ -10,9 +10,9 @@ using ProjecturedKernel.EventPatternModule
 function test_event_module()
 @testset "EventModule" begin
 
-    @testset "EventEnvelope carries the window an event came from" begin
-        envelope = EventEnvelope(:default, KeyDown(:period, ModifierKeys(), false))
-        @test envelope isa EventEnvelope
+    @testset "WindowInput carries the window an event came from" begin
+        envelope = WindowInput(:default, KeyDown(:period, ModifierKeys(), false))
+        @test envelope isa WindowInput
         @test envelope.window_id === :default
         @test envelope.event isa KeyDown
     end

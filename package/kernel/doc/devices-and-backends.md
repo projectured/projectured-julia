@@ -60,7 +60,7 @@ quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
 
 # Device I/O interface (device/Device.jl) — driven by the backend
-read_from_devices(::Backend, devices)           # poll → EventEnvelope
+read_from_devices(::Backend, devices)           # poll → WindowInput
 write_to_devices(::Backend, devices, document)  # render the output
 ```
 
@@ -100,11 +100,11 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
   sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
-  an `EventEnvelope(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
+  an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
-  envelope-unwrapping seam — `EnvelopeUnwrappingProjection`
-  ([projection/higherorder/EnvelopeUnwrapping.jl](../../../package/kernel/main/projection/higherorder/EnvelopeUnwrapping.jl))
-  — that strips the `EventEnvelope` off the gesture before the readers run. (In
+  envelope-unwrapping seam — `WindowInputUnwrappingProjection`
+  ([projection/higherorder/WindowInputUnwrapping.jl](../../../package/kernel/main/projection/higherorder/WindowInputUnwrapping.jl))
+  — that strips the `WindowInput` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
 - **Limitation:** character-level text editing (cursor left/right, insertion,
   backspace/delete) lives in `TextToGraphics` and is therefore unavailable;
@@ -161,7 +161,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   skipped) and pushes it over the socket.
 - **`read_from_devices`** is non-blocking: a receive task decodes the client's
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
-  wrapped in `EventEnvelope`s on a `Channel`; the editor drains it each frame.
+  wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
   MousePress synthesis and motion-while-held filtering mirror the SDL backend.
 
 #### Wire protocol (JSON, both directions)
@@ -304,7 +304,7 @@ EventModule.jl   (EventModule)        — the input event vocabulary, five fragm
         ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
         │                       MouseEnter, MouseLeave, MouseScroll
         ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
-        └─ EventEnvelope.jl   — an event plus the id of the window it came from
+        └─ WindowInput.jl   — an event plus the id of the window it came from
 EventPattern.jl  (EventPatternModule) — the event pattern language: the reified
                                         EventPattern, matches/describe, the
                                         @event_case macro, and the parser API
@@ -342,16 +342,16 @@ reimplementing it. The field table each pattern may bind is *derived* from
 `EventModule`'s own exports, so a new event type is matchable the moment it
 is exported, with no entry to add here.
 
-### EventEnvelope
+### WindowInput
 
-`EventEnvelope` wraps every event with the id of the window it came from. It
+`WindowInput` wraps every event with the id of the window it came from. It
 lives in `EventModule`, not in the concrete `ScreenDocumentModule` document,
 because it is a protocol type consumed by the editor loop, the gesture
 recognizer, and the envelope-unwrapping projection — a plain struct
 declaration for a protocol type has no business living inside a concrete
 document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 
-(This is the canonical statement of the `EventEnvelope`-placement rationale;
+(This is the canonical statement of the `WindowInput`-placement rationale;
 other package docs defer here rather than repeat it.)
 
 ## The device layer (layer 4)
@@ -394,7 +394,7 @@ GestureRecognizer.jl (GestureRecognizerModule) — MousePress + KeyChord synthes
 ```
 
 `GestureRecognizer` is a stateful event → gesture recogniser:
-`recognize_gesture!` consumes one `EventEnvelope`, updating click/multi-click
+`recognize_gesture!` consumes one `WindowInput`, updating click/multi-click
 and chord-buffer state, and either returns the envelope to forward, enqueues
 a synthesised one (a completed click), or absorbs the event (a chord prefix,
 still incomplete); `pop_gesture!` is the consumer-facing pull, draining any

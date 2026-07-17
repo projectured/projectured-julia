@@ -22,9 +22,9 @@ doing nothing.
 function write_to_devices end
 
 """
-    read_from_devices(backend, devices) -> EventEnvelope or nothing
+    read_from_devices(backend, devices) -> WindowInput or nothing
 
-Poll all input devices in one shot and return the next event — an `EventEnvelope`
+Poll all input devices in one shot and return the next event — an `WindowInput`
 carrying a `DeviceEvent` — or `nothing` when there is none. A concrete backend
 adds a method dispatched on its own type (typically polling a shared event queue
 and classifying events across device types), and it is where a platform's raw

@@ -40,7 +40,7 @@ end
 
 @testset "open on trigger" begin
     show[] = true
-    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2          # output mirrors input
@@ -55,7 +55,7 @@ end
 end
 
 @testset "no-op when already open" begin
-    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -63,7 +63,7 @@ end
 
 @testset "close on trigger off" begin
     show[] = false
-    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 1
     @test length(iomap.output.windows) == 1
@@ -72,7 +72,7 @@ end
 
 @testset "re-open after close" begin
     show[] = true
-    op = read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
     @test !(op isa Operation)
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -106,18 +106,18 @@ projection = RecursiveProjection(
 iomap = print_document(projection, screen)
 
 # First open.
-read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 1 && screen.windows[2].width == 3
 
 # Re-open with new geometry: deco won't fire a second open (is_open=true),
 # so to verify duplicate-id update semantics, flip closed and re-open.
 show[] = false
-read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 1
 pos[] = (50, 60, 70, 80)
 show[] = true
-read_intent(projection, iomap, EventEnvelope(:default, MouseMove(0, 0)))
+read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0)))
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 50 && screen.windows[2].width == 70
 
@@ -126,7 +126,7 @@ end # @testset
 @testset "WindowClose removes the matching window" begin
 
 # A bare WindowManager over a two-window screen: the native close button on a
-# window arrives as an EventEnvelope(window_id, WindowClose()) and must
+# window arrives as an WindowInput(window_id, WindowClose()) and must
 # remove exactly that window from both the input and the mirrored output.
 main  = WindowDocument(; id=:default,  content=PrimitiveNumber(0))
 popup = WindowDocument(; id=:popup, content=PrimitiveString("p"))
@@ -144,7 +144,7 @@ iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Close the popup via its native close button.
-op = read_intent(projection, iomap, EventEnvelope(:popup, WindowClose()))
+op = read_intent(projection, iomap, WindowInput(:popup, WindowClose()))
 @test !(op isa Operation)
 @test length(screen.windows) == 1
 @test length(iomap.output.windows) == 1
@@ -152,11 +152,11 @@ op = read_intent(projection, iomap, EventEnvelope(:popup, WindowClose()))
 @test iomap.output.windows[1].id === :default
 
 # A close for an unknown id is a silent no-op.
-read_intent(projection, iomap, EventEnvelope(:ghost, WindowClose()))
+read_intent(projection, iomap, WindowInput(:ghost, WindowClose()))
 @test length(screen.windows) == 1
 
 # The default window can be closed too (e.g. quitting via the frame).
-read_intent(projection, iomap, EventEnvelope(:default, WindowClose()))
+read_intent(projection, iomap, WindowInput(:default, WindowClose()))
 @test length(screen.windows) == 0
 @test length(iomap.output.windows) == 0
 
@@ -183,17 +183,17 @@ iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Focus-lost on the default window: ignored (not a popup).
-read_intent(projection, iomap, EventEnvelope(:default, WindowDefocus()))
+read_intent(projection, iomap, WindowInput(:default, WindowDefocus()))
 @test length(screen.windows) == 2
 
 # Focus-lost on the popup: dismissed, on both input and output.
-read_intent(projection, iomap, EventEnvelope(:popup, WindowDefocus()))
+read_intent(projection, iomap, WindowInput(:popup, WindowDefocus()))
 @test length(screen.windows) == 1
 @test screen.windows[1].id === :default
 @test length(iomap.output.windows) == 1
 
 # Focus-lost for an unknown id: no-op.
-read_intent(projection, iomap, EventEnvelope(:ghost, WindowDefocus()))
+read_intent(projection, iomap, WindowInput(:ghost, WindowDefocus()))
 @test length(screen.windows) == 1
 
 end # @testset

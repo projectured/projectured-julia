@@ -30,7 +30,7 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.CellModule: Cell, is_cell_up_to_date
-import ProjecturedDomain.EventModule: EventEnvelope, ModifierKeys,
+import ProjecturedDomain.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
@@ -545,7 +545,7 @@ function _record_elem_bounds!(prev::Dict{UInt,NTuple{4,Int}}, elem, ox::Int, oy:
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Event decoding (client JSON → EventEnvelope on the inbound channel)
+# Event decoding (client JSON → WindowInput on the inbound channel)
 # ════════════════════════════════════════════════════════════════════════
 
 function _mods(obj)::ModifierKeys
@@ -558,7 +558,7 @@ end
 _button(obj)::Symbol = Symbol(String(get(obj, :button, "left")))
 _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :none
 
-# Decode one client message and enqueue the resulting EventEnvelope(s). Only raw
+# Decode one client message and enqueue the resulting WindowInput(s). Only raw
 # device events are emitted; click (`MousePress`) synthesis from a MouseDown/
 # MouseUp pair is the editor's `GestureRecognizer`'s job, not the backend's
 # (mirrors `SdlBackend`). Synthesising it here too made every click toggle/select
@@ -571,53 +571,53 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     if typ == "mousedown"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y])
-        put!(backend.inbound, EventEnvelope(wid, MouseDown(b, x, y, _mods(obj))))
+        put!(backend.inbound, WindowInput(wid, MouseDown(b, x, y, _mods(obj))))
 
     elseif typ == "mouseup"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y]); m = _mods(obj)
-        put!(backend.inbound, EventEnvelope(wid, MouseUp(b, x, y, m)))
+        put!(backend.inbound, WindowInput(wid, MouseUp(b, x, y, m)))
 
     elseif typ == "mousemove"
         buttons = Symbol(String(get(obj, :buttons, "none")))
         buttons === :none && return  # only forward motion while a button is held
-        put!(backend.inbound, EventEnvelope(wid,
+        put!(backend.inbound, WindowInput(wid,
             MouseMove(Int(obj[:x]), Int(obj[:y]), buttons, _mods(obj))))
 
     elseif typ == "scroll"
-        put!(backend.inbound, EventEnvelope(wid,
+        put!(backend.inbound, WindowInput(wid,
             MouseScroll(Int(obj[:dx]), Int(obj[:dy]), Int(obj[:x]), Int(obj[:y]), _mods(obj))))
 
     elseif typ == "keydown"
         m = _mods(obj)
         key = String(obj[:key])
         if key == "Escape"
-            put!(backend.inbound, EventEnvelope(:none, WindowQuit()))
+            put!(backend.inbound, WindowInput(:none, WindowQuit()))
             return
         end
         sym = web_key_to_symbol(key, String(get(obj, :code, "")), m)
-        put!(backend.inbound, EventEnvelope(wid, KeyDown(sym, m, Bool(get(obj, :repeat, false)))))
+        put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, Bool(get(obj, :repeat, false)))))
 
     elseif typ == "keyup"
         m = _mods(obj)
         sym = web_key_to_symbol(String(obj[:key]), String(get(obj, :code, "")), m)
-        put!(backend.inbound, EventEnvelope(wid, KeyUp(sym, m)))
+        put!(backend.inbound, WindowInput(wid, KeyUp(sym, m)))
 
     elseif typ == "keypress"
         text = String(obj[:text])
         isempty(text) && return
-        put!(backend.inbound, EventEnvelope(wid, KeyPress(first(text), text, _mods(obj))))
+        put!(backend.inbound, WindowInput(wid, KeyPress(first(text), text, _mods(obj))))
 
     elseif typ == "resize"
-        put!(backend.inbound, EventEnvelope(wid, WindowResize(Int(obj[:w]), Int(obj[:h]))))
+        put!(backend.inbound, WindowInput(wid, WindowResize(Int(obj[:w]), Int(obj[:h]))))
 
     elseif typ == "close"
-        put!(backend.inbound, EventEnvelope(wid, WindowClose()))
+        put!(backend.inbound, WindowInput(wid, WindowClose()))
 
     elseif typ == "blur"
-        put!(backend.inbound, EventEnvelope(wid, WindowDefocus()))
+        put!(backend.inbound, WindowInput(wid, WindowDefocus()))
 
     elseif typ == "quit"
-        put!(backend.inbound, EventEnvelope(:none, WindowQuit()))
+        put!(backend.inbound, WindowInput(:none, WindowQuit()))
 
     elseif typ == "resync"
         # Client (re)launched popups and wants a fresh full state for everything.

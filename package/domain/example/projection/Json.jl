@@ -12,14 +12,14 @@ end
 # the terminal directly — colors and all. No `measure` is needed because no
 # graphics layout happens.
 #
-# `EnvelopeUnwrappingProjection` wraps the chain so the editor's `EventEnvelope`
+# `WindowInputUnwrappingProjection` wraps the chain so the editor's `WindowInput`
 # gesture is stripped to its inner event before the readers see it. The SDL
 # pipeline gets that unwrapping from its `ScreenToScreen` window seam; this
 # pipeline has no screen/window layer, so it supplies the seam directly. Without
 # it, keyboard navigation produces no operations (the readers match on `KeyDown`,
 # not on the wrapping envelope).
 function make_json_console_projection_example()
-    EnvelopeUnwrappingProjection(
+    WindowInputUnwrappingProjection(
         ChainingProjection(
             RecursiveProjection(JsonToSyntax()),
             RecursiveProjection(SyntaxToText()),

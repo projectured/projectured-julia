@@ -49,7 +49,7 @@ The stem answers a different question per folder:
   *document***: Copying, Filtering, Focusing, Reversing, Searching, Sorting.
 - **`higherorder/` stems are gerunds saying what the projection does with
   its *child projections***: Chaining, Switching, Nesting, TypeDispatching,
-  PredicateDispatching, ReferenceDispatching, EnvelopeUnwrapping,
+  PredicateDispatching, ReferenceDispatching, WindowInputUnwrapping,
   WindowManaging.
 
 Two exceptions:

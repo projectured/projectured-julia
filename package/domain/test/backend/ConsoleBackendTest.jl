@@ -96,11 +96,11 @@ function test_console_backend()
         @test _parse(0x1b, UInt8('[')) === nothing
     end
 
-    # ── read_from_devices wraps events in a :console EventEnvelope ─────────
+    # ── read_from_devices wraps events in a :console WindowInput ─────────
     @testset "read_from_devices" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[UInt8('a')]))
         env = read_from_devices(b, Device[])
-        @test env isa EventEnvelope
+        @test env isa WindowInput
         @test env.window_id === :console
         @test env.event == KeyPress('a')
         # Empty input → nothing.

@@ -90,7 +90,7 @@ there's nothing to evaluate or repaint for them.
 Raw backend events are first pulled through the editor's `GestureRecognizer`
 (`pop_gesture!`), which is where multi-event combinations become gestures —
 e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
-recogniser returns an `EventEnvelope` wrapping a backend-agnostic gesture
+recogniser returns an `WindowInput` wrapping a backend-agnostic gesture
 (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
 MouseScroll, WindowQuit, WindowClose, …) together with the originating
 `WindowDocument.id`. The envelope is passed to the projection pipeline reader
@@ -103,7 +103,7 @@ function read!(editor::Editor)
         if env === nothing
             editor.operation = nothing
             return false
-        elseif env isa EventEnvelope && env.event isa WindowQuit
+        elseif env isa WindowInput && env.event isa WindowQuit
             editor.operation = QuitEditorOperation()
             return true
         elseif editor.iomap === nothing
@@ -140,7 +140,7 @@ anything else. Recognised at the editor level so zoom works regardless of what
 is selected.
 """
 function _zoom_operation(env)
-    env isa EventEnvelope || return nothing
+    env isa WindowInput || return nothing
     ev = env.event
     ev isa KeyDown || return nothing
     m = ev.modifiers

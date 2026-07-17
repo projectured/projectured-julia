@@ -41,7 +41,7 @@ import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_s
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
 import ProjecturedDomain.EventModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
-import ProjecturedDomain.EventModule: EventEnvelope, WindowClose, WindowResize, WindowDefocus
+import ProjecturedDomain.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.EventModule: ModifierKeys
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
@@ -184,7 +184,7 @@ the editor's `GestureRecognizer`'s job, not the backend's.
 `windows` is the live registry of native SDL windows, keyed by the
 `WindowDocument.id` they mirror. `window_ids` is the reverse map from
 SDL `windowID` to `WindowDocument.id`, used when translating raw SDL
-events into `EventEnvelope`s. Both are reconciled by
+events into `WindowInput`s. Both are reconciled by
 `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`.
 """
 mutable struct SdlBackend <: Backend
@@ -2193,20 +2193,20 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    read_from_devices(backend::SdlBackend, devices) -> EventEnvelope or nothing
+    read_from_devices(backend::SdlBackend, devices) -> WindowInput or nothing
 
-Poll the SDL event queue once and return an `EventEnvelope` wrapping a
+Poll the SDL event queue once and return an `WindowInput` wrapping a
 backend-agnostic inner event:
-- `SDL_QUIT`                           → `EventEnvelope(:none, WindowQuit())`
-- `SDL_WINDOWEVENT_CLOSE` for a window → `EventEnvelope(<id>, WindowClose())`
-- `SDL_WINDOWEVENT_RESIZED`            → `EventEnvelope(<id>, WindowResize(w, h))`
-- `SDL_KEYDOWN`                        → `EventEnvelope(<id>, KeyDown)` (Escape → `WindowQuit()`)
-- `SDL_KEYUP`                          → `EventEnvelope(<id>, KeyUp)`
-- `SDL_TEXTINPUT`                      → `EventEnvelope(<id>, KeyPress)`
-- `SDL_MOUSEBUTTONDOWN`                → `EventEnvelope(<id>, MouseDown)`
-- `SDL_MOUSEBUTTONUP`                  → `EventEnvelope(<id>, MouseUp)`
-- `SDL_MOUSEMOTION` (btn held)         → `EventEnvelope(<id>, MouseMove)`
-- `SDL_MOUSEWHEEL`                     → `EventEnvelope(<id>, MouseScroll)`
+- `SDL_QUIT`                           → `WindowInput(:none, WindowQuit())`
+- `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose())`
+- `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h))`
+- `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape → `WindowQuit()`)
+- `SDL_KEYUP`                          → `WindowInput(<id>, KeyUp)`
+- `SDL_TEXTINPUT`                      → `WindowInput(<id>, KeyPress)`
+- `SDL_MOUSEBUTTONDOWN`                → `WindowInput(<id>, MouseDown)`
+- `SDL_MOUSEBUTTONUP`                  → `WindowInput(<id>, MouseUp)`
+- `SDL_MOUSEMOTION` (btn held)         → `WindowInput(<id>, MouseMove)`
+- `SDL_MOUSEWHEEL`                     → `WindowInput(<id>, MouseScroll)`
 
 `<id>` is the `WindowDocument.id` of the originating window (looked up
 in `backend.window_ids`), or `:none` if the SDL event carries no window
@@ -2222,16 +2222,16 @@ function DeviceModule.read_from_devices(backend::SdlBackend, devices)
         t = evt.type
 
         if t == SDL_QUIT
-            return EventEnvelope(:none, WindowQuit())
+            return WindowInput(:none, WindowQuit())
 
         elseif t == 0x00000200  # SDL_WINDOWEVENT
             # event byte 1 = SDL_WindowEventID
             sub = evt.window.event
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
-                return EventEnvelope(wid, WindowClose())
+                return WindowInput(wid, WindowClose())
             elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
-                return EventEnvelope(wid, WindowDefocus())
+                return WindowInput(wid, WindowDefocus())
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1))
@@ -2244,7 +2244,7 @@ function DeviceModule.read_from_devices(backend::SdlBackend, devices)
                     res.width = nw
                     res.height = nh
                 end
-                return EventEnvelope(wid, WindowResize(nw, nh))
+                return WindowInput(wid, WindowResize(nw, nh))
             end
             # Other window events are not currently surfaced; keep polling.
             continue
@@ -2253,34 +2253,34 @@ function DeviceModule.read_from_devices(backend::SdlBackend, devices)
             keysym = evt.key.keysym.sym
             wid = _lookup_window_id(backend, evt.key.windowID)
             if keysym == Int32(27)  # SDLK_ESCAPE
-                return EventEnvelope(:none, WindowQuit())
+                return WindowInput(:none, WindowQuit())
             end
             is_repeat = evt.key.repeat != 0
-            return EventEnvelope(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
+            return WindowInput(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
 
         elseif t == 0x00000301  # SDL_KEYUP
             wid = _lookup_window_id(backend, evt.key.windowID)
-            return EventEnvelope(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod))
+            return WindowInput(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod))
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
             kp = sdl_to_keypress(evt)
             kp === nothing && continue
             wid = _lookup_window_id(backend, evt.text.windowID)
-            return EventEnvelope(wid, kp)
+            return WindowInput(wid, kp)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return EventEnvelope(wid, MouseDown(button, x, y, mods))
+            return WindowInput(wid, MouseDown(button, x, y, mods))
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return EventEnvelope(wid, MouseUp(button, x, y, mods))
+            return WindowInput(wid, MouseUp(button, x, y, mods))
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2296,7 +2296,7 @@ function DeviceModule.read_from_devices(backend::SdlBackend, devices)
             end
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.motion.windowID)
-            return EventEnvelope(wid,
+            return WindowInput(wid,
                 MouseMove(_to_logical(Int(evt.motion.x)), _to_logical(Int(evt.motion.y)),
                           buttons, mods))
 
@@ -2309,7 +2309,7 @@ function DeviceModule.read_from_devices(backend::SdlBackend, devices)
             if mods.shift && dx == 0
                 dx, dy = dy, 0
             end
-            return EventEnvelope(wid,
+            return WindowInput(wid,
                 MouseScroll(dx, dy, _to_logical(Int(mx_ref[])), _to_logical(Int(my_ref[])), mods))
         end
     end

@@ -38,7 +38,7 @@ end
     _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix::Tuple) -> Operation or nothing
 
 Turn one timeline entry into an operation, mirroring `read!`. An entry carrying
-`event` is wrapped in `EventEnvelope(window_id, event)` and run through the
+`event` is wrapped in `WindowInput(window_id, event)` and run through the
 reader pipeline (the same path live input takes), which already roots the
 resulting operation in the document root. An entry carrying `operation` is taken
 directly — either an `Operation` value or a `doc -> op` thunk evaluated against
@@ -58,7 +58,7 @@ function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix
         return isempty(op_prefix) ? op : reroot_operation(op, op_prefix)
     else
         editor.iomap === nothing && return nothing
-        env = EventEnvelope(window_id, entry.event)
+        env = WindowInput(window_id, entry.event)
         change = read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)
         op = change isa Intent ? change.operation : change
         return op isa Operation ? op : nothing
@@ -76,7 +76,7 @@ window. Entry `i` fires `initial_hold + Σ hold[1..i-1]` seconds after start;
 [`record_video`](@ref), so one timeline drives both the headless recording and
 this live playback).
 
-Each entry carries either an `event` (wrapped in an `EventEnvelope` for
+Each entry carries either an `event` (wrapped in an `WindowInput` for
 `window_id` and run through the reader, like live input) or an `operation` (a
 domain `Operation` value, or a `doc -> op` thunk, injected straight into the
 evaluator). At most one scheduled entry is applied per frame, so each resulting

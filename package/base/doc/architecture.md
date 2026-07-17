@@ -15,7 +15,7 @@ Layer 1 — document       Collection, DocumentCore, Primitive, Dragging
 Layer 2 — projection     generic/ (Identity, Reversing, Constant, Focusing) +
                          higherorder/ (Chaining, TypeDispatching, Recursive,
                          Switching, PredicateDispatching, ReferenceDispatching,
-                         Nesting, EnvelopeUnwrapping) + Sorting, Filtering,
+                         Nesting, WindowInputUnwrapping) + Sorting, Filtering,
                          Searching, Copying, ReaderDefaults, DraggingProjection
                          (the domain-independent projection algebra + reader
                          defaults; the projection interface/engine stays in kernel)
@@ -93,7 +93,7 @@ them — Sorting uses `IdentityProjection`; the compound aggregates use
 - **`higherorder/`** — the higher-order combinators: `ChainingProjection`,
   `TypeDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`,
   `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`,
-  `NestingProjection`, `EnvelopeUnwrappingProjection`. (Both folders moved down
+  `NestingProjection`, `WindowInputUnwrappingProjection`. (Both folders moved down
   from the kernel projection layer — they are domain-independent framework, not
   engine. The two `RuleIoMap` disambiguations keyed on `RecursiveProjection`
   live beside the reader defaults in `ReaderDefaults.jl`, since the kernel's

@@ -142,7 +142,7 @@ end
     test_hover_probe_pipeline()
 
 End-to-end through the real `_multi_window_projection_inspector` pipeline: an
-`EventEnvelope`-wrapped hover routed into the default window's content makes the
+`WindowInput`-wrapped hover routed into the default window's content makes the
 `WindowManagingProjection` add an `:inspector` follower window to the screen.
 """
 function test_hover_probe_pipeline()
@@ -177,7 +177,7 @@ function test_hover_probe_pipeline()
         iomap = print_document(composed, screen)
 
         nbefore = length(screen.windows)
-        env = EventEnvelope(:json, MouseMove(cx, cy, :none, ModifierKeys()))
+        env = WindowInput(:json, MouseMove(cx, cy, :none, ModifierKeys()))
         read_intent(composed, nothing, Intent(env, nothing), iomap)
 
         @test length(screen.windows) == nbefore + 1

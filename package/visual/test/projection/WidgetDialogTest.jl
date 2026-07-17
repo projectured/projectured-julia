@@ -90,12 +90,12 @@ end
     nbefore = length(screen.windows)
     # Clicking the select in the BASE window would normally open a dropdown popup;
     # while the modal is open the envelope is dropped, so no window opens.
-    env = EventEnvelope(:base, MousePress(:left, 10, 10, ModifierKeys()))
+    env = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys()))
     read_intent(sproj, nothing, Intent(env, nothing), iomap)
     @test length(screen.windows) == nbefore
 
     # Esc routed to the modal window itself IS processed → it closes.
-    env2 = EventEnvelope(:widget_dialog, KeyDown(:escape, ModifierKeys(), false))
+    env2 = WindowInput(:widget_dialog, KeyDown(:escape, ModifierKeys(), false))
     read_intent(sproj, nothing, Intent(env2, nothing), iomap)
     @test !any(w -> w isa WindowDocument && w.id === :widget_dialog, screen.windows)
 end
@@ -112,7 +112,7 @@ end
     iomap  = print_document(sproj, screen)
 
     nbefore = length(screen.windows)
-    env = EventEnvelope(:base, MousePress(:left, 10, 10, ModifierKeys()))
+    env = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys()))
     read_intent(sproj, nothing, Intent(env, nothing), iomap)
     @test length(screen.windows) == nbefore + 1
     opened = nothing

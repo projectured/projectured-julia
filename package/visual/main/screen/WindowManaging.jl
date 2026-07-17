@@ -28,7 +28,7 @@ import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 import ..EventModule: WindowResize, WindowClose, WindowDefocus
-import ..EventModule: EventEnvelope
+import ..EventModule: WindowInput
 import ..OperationModule: CompoundOperation
 
 export WindowManagingProjection, WindowManagingProjectionIoMap
@@ -71,14 +71,14 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     # per-widget input swallowing (this reuses the existing window_id routing). A
     # modal window is dismissed by an explicit choice (Esc / button / backdrop),
     # never by focus-lost, so it is opened with auto_dismiss=false.
-    if env isa EventEnvelope
+    if env isa WindowInput
         modal = _modal_window(iomap.input)
         (modal !== nothing && env.window_id !== modal.id) && return Intent(change.gesture, nothing)
     end
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
     # ResizeWindowOperation, before the inner copier ever sees the envelope.
-    if env isa EventEnvelope && env.event isa WindowResize
+    if env isa WindowInput && env.event isa WindowResize
         win = _find_window(iomap.input, env.window_id)
         win === nothing && return Intent(change.gesture, nothing)
         return Intent(change.gesture,
@@ -89,7 +89,7 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     # remove it from both input and output here — the same dual-mutation the
     # manager performs for a CloseWindowOperation bubbling up from below, so the
     # close is owned in one place rather than relying on evaluate_operation.
-    if env isa EventEnvelope && env.event isa WindowClose
+    if env isa WindowInput && env.event isa WindowClose
         win = _find_window(iomap.input, env.window_id)
         win === nothing && return Intent(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))
@@ -97,7 +97,7 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the default window or a tooltip.
-    if env isa EventEnvelope && env.event isa WindowDefocus
+    if env isa WindowInput && env.event isa WindowDefocus
         win = _find_window(iomap.input, env.window_id)
         (win !== nothing && win.auto_dismiss === true) || return Intent(change.gesture, nothing)
         _apply_close!(iomap, CloseWindowOperation(env.window_id))

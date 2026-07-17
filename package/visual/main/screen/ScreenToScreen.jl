@@ -10,7 +10,7 @@ domain-independent `CopyingProjection` need not. It:
   through the outer pipeline (`recursion`), seeding the window's
   `width`/`height` as the available layout extent so layout-aware content
   sizes itself to the window;
-- on the reader side, routes an `EventEnvelope` to the matching window by
+- on the reader side, routes an `WindowInput` to the matching window by
   `window_id`, hands the inner event to that window's `content` reader, and
   prepends the `windows[i].content` steps to the operation that comes back.
 
@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IntentModule: Intent
 import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument
-import ..EventModule: EventEnvelope
+import ..EventModule: WindowInput
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReference, RangeReference, ElementReference, head, tail
@@ -156,13 +156,13 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
     _map_window(map_reference_backward, iomap, reference)
 
 # ── Reader ────────────────────────────────────────────────────────────────────
-# Route an EventEnvelope to the matching window's content, then prepend the
+# Route an WindowInput to the matching window's content, then prepend the
 # steps that lead from the screen root to that content so the operation's path
 # is rooted at the ScreenDocument.
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
     env = change.gesture
-    if env isa EventEnvelope
+    if env isa WindowInput
         ims = iomap.window_iomaps[]
         for (i, wim) in enumerate(ims)
             win_in = wim.input
@@ -182,7 +182,7 @@ end
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
     env = change.gesture
-    if env isa EventEnvelope
+    if env isa WindowInput
         cim = iomap.content_iomap
         inner = read_intent(cim.projection, recursion, Intent(env.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReference("content"),))

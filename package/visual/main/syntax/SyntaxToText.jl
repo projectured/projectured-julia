@@ -808,7 +808,7 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
     # already filled the operation slot via its own `read_gesture` delegation, so
     # `op !== nothing` and we never reach here for a gesture. In the console
-    # pipeline (`… → SyntaxToText → EnvelopeUnwrapping`) there is no
+    # pipeline (`… → SyntaxToText → WindowInputUnwrapping`) there is no
     # `TextToGraphics`, so the operation slot is still empty: `payload` is the raw
     # gesture and `read_intent(p, iomap, gesture)` only handled the syntax
     # (tree-navigation) subset. When that yields nothing, the gesture may still be

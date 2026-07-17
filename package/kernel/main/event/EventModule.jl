@@ -12,7 +12,7 @@ input device into the editor. The fragments:
   `MouseEnter`, `MouseLeave`, `MouseScroll`.
 - [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`,
   `WindowDefocus`.
-- [`EventEnvelope.jl`](EventEnvelope.jl) — an event plus the id of the window it came from.
+- [`WindowInput.jl`](WindowInput.jl) — an event plus the id of the window it came from.
 - [`EventDefaults.jl`](EventDefaults.jl) — the `get_modifier_keys` fallback and the
   `has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` predicates derived over it.
 
@@ -26,14 +26,14 @@ export Event, DeviceEvent, SyntheticEvent,
        KeyDown, KeyUp, KeyPress, KeyChord,
        MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave, MouseScroll,
        WindowQuit, WindowClose, WindowResize, WindowDefocus,
-       EventEnvelope
+       WindowInput
 
 include("EventInterface.jl")
 include("ModifierKeys.jl")
 include("KeyboardEvent.jl")
 include("MouseEvent.jl")
 include("WindowEvent.jl")
-include("EventEnvelope.jl")
+include("WindowInput.jl")
 include("EventDefaults.jl")
 
 end # module

@@ -11,7 +11,7 @@
 using Test
 using ProjecturedKernel
 using ProjecturedKernel.GestureRecognizerModule: GestureRecognizer, recognize_gesture!, pop_gesture!
-using ProjecturedKernel.EventModule: EventEnvelope
+using ProjecturedKernel.EventModule: WindowInput
 using ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 using ProjecturedKernel.EventModule: KeyDown, KeyPress, KeyChord
 using ProjecturedKernel.EventModule: ModifierKeys
@@ -29,9 +29,9 @@ _mk_source(envs::Vector) = () -> isempty(envs) ? nothing : popfirst!(envs)
 function _drive_click!(rec, t::Ref{Float64}, x, y, t_up; button = :left)
     empty!(rec.pending)
     t[] = t_up - 0.02
-    recognize_gesture!(rec, EventEnvelope(:win, MouseDown(button, x, y, ModifierKeys())))
+    recognize_gesture!(rec, WindowInput(:win, MouseDown(button, x, y, ModifierKeys())))
     t[] = t_up
-    recognize_gesture!(rec, EventEnvelope(:win, MouseUp(button, x, y, ModifierKeys())))
+    recognize_gesture!(rec, WindowInput(:win, MouseUp(button, x, y, ModifierKeys())))
     isempty(rec.pending) ? 0 : rec.pending[end].event.count
 end
 
@@ -40,16 +40,16 @@ function test_gesture_recognizer()
 
     # ── a quick, in-place down/up pair synthesises a MousePress ──────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        down = EventEnvelope(:win, MouseDown(:left, 10, 20, ModifierKeys()))
+        down = WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys()))
         @test recognize_gesture!(rec, down) === down        # forwarded unchanged
         @test isempty(rec.pending)                  # nothing synthesised yet
 
         t[] = 0.1
-        up = EventEnvelope(:win, MouseUp(:left, 11, 21, ModifierKeys()))
+        up = WindowInput(:win, MouseUp(:left, 11, 21, ModifierKeys()))
         @test recognize_gesture!(rec, up) === up            # the up is still forwarded
         @test length(rec.pending) == 1              # plus a synthesised click
         press = rec.pending[1]
-        @test press isa EventEnvelope
+        @test press isa WindowInput
         @test press.window_id == :win               # window id preserved
         @test press.event isa MousePress
         @test (press.event.button, press.event.x, press.event.y) == (:left, 11, 21)
@@ -58,25 +58,25 @@ function test_gesture_recognizer()
 
     # ── too far away: no click ───────────────────────────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys())))
         t[] = 0.1
-        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:left, 100, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseUp(:left, 100, 20, ModifierKeys())))
         @test isempty(rec.pending)
     end
 
     # ── too slow: no click ───────────────────────────────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys())))
         t[] = 0.5   # > CLICK_MAX_DURATION (0.3)
-        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:left, 10, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseUp(:left, 10, 20, ModifierKeys())))
         @test isempty(rec.pending)
     end
 
     # ── different button up does not complete a click ────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
-        recognize_gesture!(rec, EventEnvelope(:win, MouseDown(:left, 10, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys())))
         t[] = 0.1
-        recognize_gesture!(rec, EventEnvelope(:win, MouseUp(:right, 10, 20, ModifierKeys())))
+        recognize_gesture!(rec, WindowInput(:win, MouseUp(:right, 10, 20, ModifierKeys())))
         @test isempty(rec.pending)
     end
 
@@ -85,7 +85,7 @@ function test_gesture_recognizer()
         for evt in (KeyDown(:home, ModifierKeys()), KeyPress('a'),
                     MouseScroll(0, -1, 5, 6, ModifierKeys()),
                     MouseMove(1, 2, :none, ModifierKeys()))
-            env = EventEnvelope(:win, evt)
+            env = WindowInput(:win, evt)
             @test recognize_gesture!(rec, env) === env
         end
         @test isempty(rec.pending)
@@ -94,8 +94,8 @@ function test_gesture_recognizer()
     # ── pop_gesture! drains pending before pulling new input, in order ──────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
         script = Any[
-            EventEnvelope(:win, MouseDown(:left, 10, 20, ModifierKeys())),
-            EventEnvelope(:win, MouseUp(:left, 10, 20, ModifierKeys())),
+            WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys())),
+            WindowInput(:win, MouseUp(:left, 10, 20, ModifierKeys())),
         ]
         source = _mk_source(script)
 
@@ -142,13 +142,13 @@ function test_gesture_recognizer()
         chords = [[KeyDown(:c, ctrl), KeyDown(:k, ctrl)]],
         rec    = GestureRecognizer(; chords = chords)
 
-        pfx = EventEnvelope(:win, KeyDown(:c, ctrl))
+        pfx = WindowInput(:win, KeyDown(:c, ctrl))
         @test recognize_gesture!(rec, pfx) === nothing       # prefix absorbed, nothing out
         @test length(rec.chord_buffer) == 1
 
-        fin   = EventEnvelope(:win, KeyDown(:k, ctrl))
+        fin   = WindowInput(:win, KeyDown(:k, ctrl))
         chord = recognize_gesture!(rec, fin)
-        @test chord isa EventEnvelope
+        @test chord isa WindowInput
         @test chord.window_id == :win                # window id of the first key
         @test chord.event isa KeyChord
         @test [k.key for k in chord.event.keys] == [:c, :k]
@@ -160,10 +160,10 @@ function test_gesture_recognizer()
         chords = [[KeyDown(:c, ctrl), KeyDown(:k, ctrl)]],
         rec    = GestureRecognizer(; chords = chords)
 
-        recognize_gesture!(rec, EventEnvelope(:win, KeyDown(:c, ctrl)))   # prefix buffered
-        breaker = EventEnvelope(:win, KeyDown(:x, ctrl))
+        recognize_gesture!(rec, WindowInput(:win, KeyDown(:c, ctrl)))   # prefix buffered
+        breaker = WindowInput(:win, KeyDown(:x, ctrl))
         flushed = recognize_gesture!(rec, breaker)
-        @test flushed isa EventEnvelope
+        @test flushed isa WindowInput
         @test flushed.event isa KeyDown && flushed.event.key == :c  # prefix emitted first
         @test length(rec.pending) == 1
         @test rec.pending[1].event.key == :x                        # breaker queued next
@@ -172,7 +172,7 @@ function test_gesture_recognizer()
 
     # ── chords disabled by default: every key passes straight through ────────
     let rec = GestureRecognizer()
-        e = EventEnvelope(:win, KeyDown(:c, ModifierKeys(ctrl = true)))
+        e = WindowInput(:win, KeyDown(:c, ModifierKeys(ctrl = true)))
         @test recognize_gesture!(rec, e) === e
         @test isempty(rec.chord_buffer)
     end
@@ -183,8 +183,8 @@ function test_gesture_recognizer()
         rec    = GestureRecognizer(; chords = chords)
 
         source = _mk_source(Any[
-            EventEnvelope(:win, KeyDown(:c, ctrl)),
-            EventEnvelope(:win, KeyDown(:k, ctrl)),
+            WindowInput(:win, KeyDown(:c, ctrl)),
+            WindowInput(:win, KeyDown(:k, ctrl)),
         ])
         g = pop_gesture!(rec, source)               # Ctrl-C absorbed, chord delivered
         @test g.event isa KeyChord
@@ -196,7 +196,7 @@ function test_gesture_recognizer()
         chords = [[KeyDown(:c, ctrl), KeyDown(:k, ctrl)]],
         rec    = GestureRecognizer(; chords = chords)
 
-        source = _mk_source(Any[EventEnvelope(:win, KeyDown(:c, ctrl))])
+        source = _mk_source(Any[WindowInput(:win, KeyDown(:c, ctrl))])
         @test pop_gesture!(rec, source) === nothing # prefix buffered, no more input
         @test length(rec.chord_buffer) == 1          # kept for the next frame
     end

@@ -90,7 +90,7 @@ function test_gesture_help()
         @test length(screen.windows) == 1
 
         # F1 in the focused window → a help window appears beside it.
-        op = read_intent(projection, iomap, EventEnvelope(:default, f1))
+        op = read_intent(projection, iomap, WindowInput(:default, f1))
         @test !(op isa Operation)                       # consumed by the manager
         @test length(screen.windows) == 2
         @test length(iomap.output.windows) == 2         # output mirrors input
@@ -101,7 +101,7 @@ function test_gesture_help()
         @test state.open
 
         # F1 again → the help window closes.
-        op2 = read_intent(projection, iomap, EventEnvelope(:default, f1))
+        op2 = read_intent(projection, iomap, WindowInput(:default, f1))
         @test !(op2 isa Operation)
         @test length(screen.windows) == 1
         @test screen.windows[1].id === :default
@@ -117,7 +117,7 @@ function test_gesture_help()
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
-        op = read_intent(composed, iomap, EventEnvelope(:json, f1))
+        op = read_intent(composed, iomap, WindowInput(:json, f1))
         @test !(op isa Operation)
         @test length(screen.windows) == 2
         @test screen.windows[2].id === :gesture_help

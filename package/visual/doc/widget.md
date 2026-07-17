@@ -366,7 +366,7 @@ scrim, opened as a window with **`modal = true`**. Unlike the popups above it is
 machinery) but it **is modal**:
 
 - **Modality is a `WindowManager` concern.** While any window has `modal = true`,
-  the manager's reader **drops every `EventEnvelope` routed to a different
+  the manager's reader **drops every `WindowInput` routed to a different
   window** — the base content receives no input, with no per-widget swallowing.
   This reuses the existing `window_id` routing rather than fighting it. A modal
   window ignores focus-lost auto-dismiss (it is dismissed by an explicit choice).

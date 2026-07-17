@@ -32,7 +32,7 @@ composite gestures a single home.
 
 ## Contract
 
-- [`recognize_gesture!`](@ref)`(recognizer, envelope)` consumes one `EventEnvelope`,
+- [`recognize_gesture!`](@ref)`(recognizer, envelope)` consumes one `WindowInput`,
   updates the recogniser's state, may enqueue *synthesised* gesture envelopes (e.g. a
   `MousePress` once a click completes) on `recognizer.pending`, and returns either the
   envelope to forward now or `nothing` when the event was *absorbed* (e.g. the first
@@ -85,7 +85,7 @@ says only *which* sequences are a chord, not what they mean.
 mutable struct GestureRecognizer
     # Synthesised gesture envelopes awaiting delivery (e.g. a recognised click),
     # drained before the next raw event is pulled.
-    pending::Vector{EventEnvelope}
+    pending::Vector{WindowInput}
     # Last MouseDown, for click recognition.
     last_down_button::Symbol
     last_down_x::Int
@@ -100,21 +100,21 @@ mutable struct GestureRecognizer
     # Chord recognition: the table of recognised sequences and the keys buffered
     # so far towards a (still incomplete) chord.
     chords::Vector{Vector{KeyDown}}
-    chord_buffer::Vector{EventEnvelope}
+    chord_buffer::Vector{WindowInput}
     # Time source (injectable for tests).
     clock::Function
 end
 
 GestureRecognizer(; clock::Function = time,
                     chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}()) =
-    GestureRecognizer(EventEnvelope[],
+    GestureRecognizer(WindowInput[],
                       :none, 0, 0, 0.0,
                       :none, 0, 0, 0.0, 0,
-                      chords, EventEnvelope[],
+                      chords, WindowInput[],
                       clock)
 
 """
-    recognize_gesture!(recognizer::GestureRecognizer, envelope::EventEnvelope) -> EventEnvelope or nothing
+    recognize_gesture!(recognizer::GestureRecognizer, envelope::WindowInput) -> WindowInput or nothing
 
 Feed one raw input envelope through the recogniser. Updates recognition state and,
 when an event *completes* a composite gesture, either enqueues the synthesised
@@ -136,7 +136,7 @@ Recognised today:
   emits a `KeyChord` when a sequence completes, or flushes the buffered keys back as
   ordinary events when a key breaks the in-progress chord.
 """
-function recognize_gesture!(recognizer::GestureRecognizer, envelope::EventEnvelope)
+function recognize_gesture!(recognizer::GestureRecognizer, envelope::WindowInput)
     event = envelope.event
     if event isa MouseDown
         recognizer.last_down_button = event.button
@@ -152,7 +152,7 @@ function recognize_gesture!(recognizer::GestureRecognizer, envelope::EventEnvelo
            (now - recognizer.last_down_time) < CLICK_MAX_DURATION
             count = _click_count!(recognizer, event, now)
             push!(recognizer.pending,
-                  EventEnvelope(envelope.window_id,
+                  WindowInput(envelope.window_id,
                                 MousePress(event.button, event.x, event.y, count, event.modifiers)))
         end
         return envelope
@@ -185,7 +185,7 @@ end
 
 # Advance chord recognition for one KeyDown. Returns the envelope to forward now, or
 # `nothing` when the key is absorbed into an in-progress chord.
-function _recognize_key!(recognizer::GestureRecognizer, envelope::EventEnvelope, event::KeyDown)
+function _recognize_key!(recognizer::GestureRecognizer, envelope::WindowInput, event::KeyDown)
     # Chords disabled (the common case): every key passes straight through.
     isempty(recognizer.chords) && return envelope
     # Auto-repeat never starts or extends a chord; ignore it while buffering.
@@ -198,7 +198,7 @@ function _recognize_key!(recognizer::GestureRecognizer, envelope::EventEnvelope,
             keys = KeyDown[b.event for b in recognizer.chord_buffer]
             window_id = recognizer.chord_buffer[1].window_id
             empty!(recognizer.chord_buffer)
-            return EventEnvelope(window_id, KeyChord(keys))
+            return WindowInput(window_id, KeyChord(keys))
         end
         return nothing                       # valid prefix, still waiting
     end
@@ -207,7 +207,7 @@ function _recognize_key!(recognizer::GestureRecognizer, envelope::EventEnvelope,
     # start a new chord — a deliberate simplification).
     pop!(recognizer.chord_buffer)             # remove the just-added breaking key
     flushed = recognizer.chord_buffer
-    recognizer.chord_buffer = EventEnvelope[]
+    recognizer.chord_buffer = WindowInput[]
     isempty(flushed) && return envelope       # no prefix was pending
     append!(recognizer.pending, flushed[2:end])
     push!(recognizer.pending, envelope)
@@ -215,7 +215,7 @@ function _recognize_key!(recognizer::GestureRecognizer, envelope::EventEnvelope,
 end
 
 # Does `buffer` match the first `length(buffer)` steps of chord `chord`?
-function _chord_is_prefix(buffer::Vector{EventEnvelope}, chord::Vector{KeyDown})
+function _chord_is_prefix(buffer::Vector{WindowInput}, chord::Vector{KeyDown})
     length(buffer) <= length(chord) || return false
     for i in eachindex(buffer)
         _keydown_matches(chord[i], buffer[i].event) || return false
@@ -223,7 +223,7 @@ function _chord_is_prefix(buffer::Vector{EventEnvelope}, chord::Vector{KeyDown})
     return true
 end
 
-_chord_is_complete(buffer::Vector{EventEnvelope}, chord::Vector{KeyDown}) =
+_chord_is_complete(buffer::Vector{WindowInput}, chord::Vector{KeyDown}) =
     length(buffer) == length(chord) && _chord_is_prefix(buffer, chord)
 
 # A chord step matches a key on `key` + modifiers; the `repeat` flag is ignored.
@@ -235,10 +235,10 @@ _keydown_matches(spec::KeyDown, e::KeyDown) =
     spec.modifiers.meta  == e.modifiers.meta
 
 """
-    pop_gesture!(recognizer::GestureRecognizer, source) -> EventEnvelope or nothing
+    pop_gesture!(recognizer::GestureRecognizer, source) -> WindowInput or nothing
 
 Pull the next gesture envelope to feed the consumer. `source` is a 0-arg callable
-returning the next raw `EventEnvelope` (or `nothing` when the input queue is empty)
+returning the next raw `WindowInput` (or `nothing` when the input queue is empty)
 — a caller polling devices passes a closure over that poll, a test passes a scripted
 source.
 
@@ -256,7 +256,7 @@ function pop_gesture!(recognizer::GestureRecognizer, source)
         isempty(recognizer.pending) || return popfirst!(recognizer.pending)
         envelope = source()
         envelope === nothing && return nothing
-        envelope isa EventEnvelope || return envelope
+        envelope isa WindowInput || return envelope
         gesture = recognize_gesture!(recognizer, envelope)
         gesture === nothing && continue       # absorbed (e.g. chord prefix)
         return gesture

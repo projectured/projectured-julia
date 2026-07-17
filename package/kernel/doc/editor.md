@@ -52,7 +52,7 @@ cleanly. The MCP server is started before the loop and stopped in the
 ### Read
 
 `read_from_devices(backend, devices)` polls the backend's event queue (in
-the SDL case, `SDL_PollEvent`) and returns the next `EventEnvelope` wrapping a
+the SDL case, `SDL_PollEvent`) and returns the next `WindowInput` wrapping a
 backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
 `MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The envelope is then
 wrapped in a `Intent` and passed through
@@ -132,7 +132,7 @@ A *timeline* is a vector of timed entries; the present key selects the kind
 recording and live playback):
 
 - `(event = <device event>, hold = <seconds>)` — wrapped in
-  `EventEnvelope(window_id, event)` and run through `read_intent`, exactly
+  `WindowInput(window_id, event)` and run through `read_intent`, exactly
   like live input.
 - `(operation = <Operation | doc -> op>, hold = <seconds>)` — a domain
   `Operation` (or a thunk evaluated at fire time) injected **straight into
@@ -179,7 +179,7 @@ In the example packages this is wired up for you — see `play_live_example` and
   `SelectionInverting` projection at the end of the pipeline, and
   `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/
   `WindowQuit` events. Because it has no screen/window layer, its pipeline adds an
-  `EnvelopeUnwrappingProjection` to strip the `EventEnvelope` that
+  `WindowInputUnwrappingProjection` to strip the `WindowInput` that
   `ScreenToScreen` would otherwise strip. Run it with
   `run_console_example()` / `run_console_example(interactive=true)`. See
   [the devices and backends guide](devices-and-backends.md#consolebackend).
@@ -258,7 +258,7 @@ dependency is `EventModule`, no editor coupling). The global animation clock
 depends on). What's left in `editor/` is the loop and its scripted
 playback. Alongside the four visible sub-steps, `read!` also folds
 MouseDown/MouseUp into MousePress and KeyDown sequences into KeyChords (via
-the gesture recognizer) before yielding an `EventEnvelope`, and
+the gesture recognizer) before yielding an `WindowInput`, and
 `tick_editor_time!(now)` advances the animation clock, invalidating every cell
 that subscribed to `get_reactive_editor_time()`.
 
@@ -268,7 +268,7 @@ that subscribed to `get_reactive_editor_time()`.
   `Intent`, `IoMap`.
 - `..DeviceModule` — `Device`, `Screen`, `read_from_devices`, `write_to_devices`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`.
-- `..EventModule` — `EventEnvelope`, `WindowQuit`, and the event type
+- `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MousePress`, …).
 - `..PerformanceCounterModule` — the counters bumped inline in the loop.
 - `..TimeModule` — `tick_editor_time!`.

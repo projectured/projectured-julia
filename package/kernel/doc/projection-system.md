@@ -254,7 +254,7 @@ A projection reader **delegates** to it and keeps only its geometry arms:
 
 The payoff: any backend that renders a domain **directly** gets the
 geometry-free editing for free. The console pipeline (`… → SyntaxToText →
-EnvelopeUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
+WindowInputUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
 which — when its operation slot is still empty (the console case) and it does not
 handle the gesture as a syntax gesture — falls back to
 `read_gesture(iomap.output, gesture)` on the output `TextBlock` and maps the
@@ -715,7 +715,7 @@ each:
   `content` back through the pipeline with `print_child` —
   seeding the window's `width`/`height` as the available layout extent so
   layout-aware content sizes itself to the window. Its reader routes an
-  `EventEnvelope` to the matching window by `window_id`, hands the inner event
+  `WindowInput` to the matching window by `window_id`, hands the inner event
   to that window's content reader, and prepends the `windows[i].content` steps
   to the operation that comes back. The window-content reference is
   `windows[i].content` (the i-th window is an `ElementReference`).

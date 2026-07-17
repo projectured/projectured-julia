@@ -4,10 +4,10 @@
 # trigger's screen-rooted anchor to absolute screen coordinates (shifting by each
 # window's origin), the resolver adds the trigger-baked offset and emits an
 # `OpenWindowOperation`, and WindowManager opens the window. Driven exactly like the
-# HoverProbe pipeline test (an `EventEnvelope` routed in grows the screen's window
+# HoverProbe pipeline test (an `WindowInput` routed in grows the screen's window
 # list).
 
-using ProjecturedKernel.EventModule: EventEnvelope
+using ProjecturedKernel.EventModule: WindowInput
 using ProjecturedKernel.IntentModule: Intent
 
 function test_widget_popup_example()
@@ -37,7 +37,7 @@ end
 
     nbefore = length(screen.windows)
     # A left press at (15, 12) lands on the select (top-left of the window content).
-    env = EventEnvelope(:default, MousePress(:left, 15, 12, ModifierKeys()))
+    env = WindowInput(:default, MousePress(:left, 15, 12, ModifierKeys()))
     read_intent(proj, nothing, Intent(env, nothing), iomap)
 
     @test length(screen.windows) == nbefore + 1

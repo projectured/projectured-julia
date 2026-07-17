@@ -224,7 +224,7 @@ composes with any higher-order projection.
 | `ReferenceDispatchingProjection` | Dispatches on the current selection reference |
 | `NestingProjection` | Scopes an inner projection to a sub-document |
 | `WindowManagingProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
-| `EnvelopeUnwrappingProjection` | Passthrough printer; reader strips the `EventEnvelope` off the gesture — the envelope-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
+| `WindowInputUnwrappingProjection` | Passthrough printer; reader strips the `WindowInput` off the gesture — the envelope-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
 | `DraggingProjection` | Dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` |
 | `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |
@@ -324,7 +324,7 @@ above it in this list:
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
  2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
-               KeyDown/KeyPress/Mouse*/Window*, EventEnvelope), the event pattern
+               KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
  3 device      Device abstract + Keyboard / Mouse / Screen, the read_from_devices /
                write_to_devices seam
@@ -357,7 +357,7 @@ that picks a loaded `Backend` subtype by reflection):
  2 projection     the domain-independent algebra — generic (Identity, Reversing,
                   Constant, Focusing) + higher-order (Chaining, TypeDispatching,
                   Recursive, Switching, PredicateDispatching, ReferenceDispatching,
-                  Nesting, EnvelopeUnwrapping) + Sorting / Filtering / Searching /
+                  Nesting, WindowInputUnwrapping) + Sorting / Filtering / Searching /
                   Copying / ReaderDefaults / DraggingProjection
  3 serialization  BinarySerialization
 ```
