@@ -4518,9 +4518,10 @@ function _wt_selection_shape(sel, geom::WTGeometry)
     return (:cell, r, c)
 end
 
-# `rows[r][c]∅` (element c of row r, terminating) → (r, c), else nothing.
-function _wt_cell_terminal(sel)
-    sel = sel
+# `rows[r][c]…` — element c of row r. Returns `(r, c, tail_after_cell)` for a path
+# that begins with the two element steps under `rows`, else nothing. The tail lets a
+# caller distinguish a whole cell (`tail` is `∅`) from an in-cell content cursor.
+function _wt_cell_split(sel)
     sel isa ConcreteReferencePath || return nothing
     (sel.head isa FieldReference && sel.head.name == "rows") || return nothing
     t = sel.tail
@@ -4531,9 +4532,18 @@ function _wt_cell_terminal(sel)
     t2 isa ConcreteReferencePath || return nothing
     (t2.head isa RangeReference && is_element_reference(t2.head)) || return nothing
     c = t2.head.start + 1
-    t2.tail isa EmptyReferencePath || return nothing
-    (r, c)
+    (r, c, t2.tail)
 end
+
+# `rows[r][c]∅` (whole cell, terminating) → (r, c), else nothing.
+_wt_cell_terminal(sel) =
+    (s = _wt_cell_split(sel); s === nothing || !(s[3] isa EmptyReferencePath) ? nothing : (s[1], s[2]))
+
+# `rows[r][c]…` (whole cell OR an in-cell content cursor beneath it) → (r, c), else
+# nothing — unlike `_wt_cell_terminal` it does not require the path to terminate at the
+# cell, so an in-cell cursor can be promoted to its enclosing cell.
+_wt_cell_prefix(sel) =
+    (s = _wt_cell_split(sel); s === nothing ? nothing : (s[1], s[2]))
 
 # (x, y, w, h) of the selection highlight band in outer-canvas coordinates, or
 # (0, 0, 0, 0) when there is no valid selection — a 0-size rect the renderer skips.
@@ -4985,8 +4995,15 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
                 return nothing
             end
         else
-            cell_rc === nothing && return nothing
-            r, c = cell_rc
+            # A whole cell moves directly; an in-cell content cursor (`rows[r][c].…`,
+            # so the terminating `cell_rc` is nothing) is first promoted to its whole
+            # cell, then moved. A plain arrow never reaches this branch on an in-cell
+            # cursor — `shape` is nothing and `alt` is unset, so the block above is
+            # skipped and the arrow stays with the cell's own text editing; only
+            # Alt+arrow promotes.
+            rc = cell_rc === nothing ? _wt_cell_prefix(sel) : cell_rc
+            rc === nothing && return nothing
+            r, c = rc
             if evt.key === :up
                 r = max(1, r - 1)
             elseif evt.key === :down

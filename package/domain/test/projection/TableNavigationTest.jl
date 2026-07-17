@@ -194,8 +194,8 @@ end
         op = read_intent(proj, print_document(proj, doc), KeyDown(:return, ModifierKeys()))
         op.path
     end
-    # @broken: Alt+arrow does not promote an in-cell cursor to the whole cell
-    @test_broken nav(KeyDown(:down, ModifierKeys(alt=true)), incell) == ".rows[3][2]"
+    # Alt+arrow promotes an in-cell cursor to the whole cell, then moves.
+    @test nav(KeyDown(:down, ModifierKeys(alt=true)), incell) == ".rows[3][2]"
     @test !startswith(nav(KeyDown(:down, ModifierKeys()), incell), ".rows[3][2]")
 
     # Shift+Space / Ctrl+Space widen the active cell to its row / column.
