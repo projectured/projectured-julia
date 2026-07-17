@@ -112,10 +112,22 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     loc = _flat_to_span_char(spans, flat)
     loc === nothing && return nothing
     span_idx, char_idx = loc
-    field = _leaf_field_at(iomap.input, span_idx)
-    field === :open  && return @reference(iomap.input, open{char_idx})
-    field === :value && return @reference(iomap.input, value{char_idx})
-    field === :close && return @reference(iomap.input, close{char_idx})
+    leaf = iomap.input
+    field = _leaf_field_at(leaf, span_idx)
+    # Prefer content over the projection's own closing delimiter at the value/close
+    # seam: a caret at the *start* of the close span is the same visual position as
+    # the *end* of the value, and the editable one is the value (typing there extends
+    # the string). Without this a delimited leaf's value-end caret — every string's
+    # last cursor, and an empty `""`'s only one — is unreachable, shadowed by
+    # `close{0}`. Mirrors the open→value redirect in the `ReplaceStringRangeOperation`
+    # reader below.
+    if field === :close && char_idx == 0 && leaf.value !== nothing
+        field = :value
+        char_idx = length(leaf.value.content::AbstractString)
+    end
+    field === :open  && return @reference(leaf, open{char_idx})
+    field === :value && return @reference(leaf, value{char_idx})
+    field === :close && return @reference(leaf, close{char_idx})
     return nothing
 end
 
