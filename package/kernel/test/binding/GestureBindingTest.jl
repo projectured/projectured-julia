@@ -63,37 +63,37 @@ function test_gesture_binding()
 
     @testset "matches: KeyPress ignores modifiers, honours char + guard" begin
         p = KeyPressPattern('n')
-        @test matches(p, KeyPress('n'))
-        @test matches(p, KeyPress('n', ModifierKeys(shift=true)))   # modifiers ignored
-        @test !matches(p, KeyPress('x'))
-        @test !matches(p, KeyDown(:n, ModifierKeys()))
+        @test matches_event_pattern(p, KeyPress('n'))
+        @test matches_event_pattern(p, KeyPress('n', ModifierKeys(shift=true)))   # modifiers ignored
+        @test !matches_event_pattern(p, KeyPress('x'))
+        @test !matches_event_pattern(p, KeyDown(:n, ModifierKeys()))
 
         digit = KeyPressPattern(nothing, e -> isdigit(e.char), "0-9")
-        @test matches(digit, KeyPress('5'))
-        @test !matches(digit, KeyPress('z'))
+        @test matches_event_pattern(digit, KeyPress('5'))
+        @test !matches_event_pattern(digit, KeyPress('z'))
     end
 
     @testset "matches: KeyDown honours key + exact modifiers" begin
         p = KeyDownPattern(:period, [:ctrl], nothing)
-        @test matches(p, KeyDown(:period, ModifierKeys(ctrl=true)))
-        @test !matches(p, KeyDown(:period, ModifierKeys()))                    # ctrl required
-        @test !matches(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true))) # exact: alt absent
-        @test !matches(p, KeyDown(:home, ModifierKeys(ctrl=true)))
+        @test matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true)))
+        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys()))                    # ctrl required
+        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true))) # exact: alt absent
+        @test !matches_event_pattern(p, KeyDown(:home, ModifierKeys(ctrl=true)))
     end
 
     @testset "matches: MousePress honours button, ignores position" begin
         p = MousePressPattern(:left, nothing, nothing)
-        @test matches(p, MousePress(:left, 10, 20))
-        @test matches(p, MousePress(:left, 99, 5))
-        @test !matches(p, MousePress(:right, 10, 20))
+        @test matches_event_pattern(p, MousePress(:left, 10, 20))
+        @test matches_event_pattern(p, MousePress(:left, 99, 5))
+        @test !matches_event_pattern(p, MousePress(:right, 10, 20))
     end
 
     @testset "describe renders readable gesture strings" begin
-        @test describe(KeyPressPattern('n')) == "n"
-        @test describe(KeyDownPattern(:period, [:ctrl], nothing)) == "Ctrl+."
-        @test describe(KeyDownPattern(:tab, nothing, nothing)) == "Tab"
-        @test describe(KeyDownPattern(:home, [:ctrl, :alt], nothing)) == "Ctrl+Alt+Home"
-        @test describe(MousePressPattern(:left, nothing, nothing)) == "Left click"
+        @test describe_event_pattern(KeyPressPattern('n')) == "n"
+        @test describe_event_pattern(KeyDownPattern(:period, [:ctrl], nothing)) == "Ctrl+."
+        @test describe_event_pattern(KeyDownPattern(:tab, nothing, nothing)) == "Tab"
+        @test describe_event_pattern(KeyDownPattern(:home, [:ctrl, :alt], nothing)) == "Ctrl+Alt+Home"
+        @test describe_event_pattern(MousePressPattern(:left, nothing, nothing)) == "Left click"
     end
 
     @testset "@gestures registers an own table; descriptions captured" begin

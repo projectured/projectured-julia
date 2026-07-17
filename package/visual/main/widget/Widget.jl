@@ -13,7 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..EventPatternModule: KeyDownPattern, matches
+import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText, DStyleText
@@ -1691,9 +1691,9 @@ function Shortcut(key::Symbol; ctrl::Bool=false, alt::Bool=false, shift::Bool=fa
 end
 
 # True when `evt` fires `action`'s shortcut and the action is enabled. Reuses the
-# gesture-layer `matches` (exact-modifier `KeyDownPattern` matching).
+# gesture-layer `matches_event_pattern` (exact-modifier `KeyDownPattern` matching).
 action_shortcut_matches(action::Action, evt) =
-    action.shortcut !== nothing && !(action.enabled === false) && matches(action.shortcut, evt)
+    action.shortcut !== nothing && !(action.enabled === false) && matches_event_pattern(action.shortcut, evt)
 
 """
     InvokeWidgetActionOperation(widget)

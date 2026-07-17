@@ -3,7 +3,7 @@
 
 A read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
-pairs a gesture rendering (`describe(pattern)`) with what it does and whether it
+pairs a gesture rendering (`describe_event_pattern(pattern)`) with what it does and whether it
 is currently applicable; [`GestureMapToSyntax`](../projection/primitive/GestureMapToSyntax.jl)
 projects a `GestureMap` onto the existing Syntax → Text → Graphics pipeline so the
 help window reuses the normal display path.
@@ -21,14 +21,14 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: describe
+import ..EventPatternModule: describe_event_pattern
 
 export GestureRow, gesture_map
 
 """
     GestureRow(gesture, description, domain, applicable)
 
-One display row: `gesture` is the keystroke/click rendering (`describe(pattern)`),
+One display row: `gesture` is the keystroke/click rendering (`describe_event_pattern(pattern)`),
 `description` is what it does, `domain` groups rows under a heading, and
 `applicable` is whether the binding can fire for the current selection (greyed
 when false).
@@ -64,7 +64,7 @@ precondition holds for `doc`'s current selection.
 """
 function gesture_map(bindings, doc)
     sel = getfield(doc, :selection)[]
-    rows = GestureRow[GestureRow(describe(b.pattern), b.description, b.domain,
+    rows = GestureRow[GestureRow(describe_event_pattern(b.pattern), b.description, b.domain,
                                  _row_applicable(b, doc, sel)) for b in bindings]
     GestureMap(rows, nothing)
 end

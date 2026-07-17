@@ -57,7 +57,7 @@ import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReference,
                           RangeReference, EmptyReferencePath
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern, KeyPressPattern, matches
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern, matches_event_pattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
@@ -587,7 +587,7 @@ end
 # a non-`ConversationDraft` first argument has no composer gestures.
 function composer_read(draft::ConversationDraft, evt)
     for b in _composer_bindings(draft)
-        if matches(b.pattern, evt) && b.applicable(draft, nothing)
+        if matches_event_pattern(b.pattern, evt) && b.applicable(draft, nothing)
             op = b.operation(draft, evt)
             op === nothing || return op
         end

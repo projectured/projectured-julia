@@ -39,8 +39,8 @@ function test_event_module()
     @testset "EventPattern matches and describes" begin
         p = KeyDownPattern(:period, [:ctrl], nothing)
         event = KeyDown(:period, ModifierKeys(ctrl=true), false)
-        @test matches(p, event)
-        @test occursin("Ctrl", describe(p))
+        @test matches_event_pattern(p, event)
+        @test occursin("Ctrl", describe_event_pattern(p))
     end
 
 end

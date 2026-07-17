@@ -193,7 +193,7 @@ function test_json_gesture_collection()
         all, app = collect_for(JsonNull(), EmptyReferencePath())
         @test length(all) == 8                       # n f t " [ : { digit
         @test length(app) == 8                        # whole value → all replaceable
-        @test "n" in [describe(b.pattern) for b in all]
+        @test "n" in [describe_event_pattern(b.pattern) for b in all]
         # No selection greys the whole set.
         _, none = collect_for(JsonNull(), nothing)
         @test isempty(none)
@@ -203,7 +203,7 @@ function test_json_gesture_collection()
         whole_all, whole_app = collect_for(JsonArray([JsonNumber(1)]), EmptyReferencePath())
         @test length(whole_all) == 9                  # 8 inherited + , insert
         @test length(whole_app) == 9
-        @test "," in [describe(b.pattern) for b in whole_all]
+        @test "," in [describe_event_pattern(b.pattern) for b in whole_all]
         # Selecting an element keeps the type-to-replace set applicable (it
         # targets the element) plus the always-on comma.
         arr2 = JsonArray([JsonNumber(1)])
@@ -218,7 +218,7 @@ function test_json_gesture_collection()
         # A whole entry is a key/value wrapper, not a replaceable value — the
         # type-to-replace set is greyed (its `applicable` precondition fails on a
         # JsonObjectEntry target); only the two always-on object gestures remain.
-        descs = sort([describe(b.pattern) for b in app])
+        descs = sort([describe_event_pattern(b.pattern) for b in app])
         @test descs == [",", "Tab"]
     end
 

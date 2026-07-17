@@ -1,7 +1,7 @@
 # Fragment of `GestureBindingModule` — the `@gestures` / `@gesture_set` authoring
 # DSL. The left-hand side of a rule is the event pattern syntax, parsed by
-# `EventPatternModule`'s exported parser (`parse_event_rule`, `event_pattern_expr`,
-# `event_field_bindings`) rather than re-implemented here.
+# `EventPatternModule`'s exported parser (`parse_event_pattern_rule`, `build_event_pattern_expr`,
+# `build_event_field_bindings`) rather than re-implemented here.
 #
 # Surface:
 #
@@ -61,7 +61,7 @@ function _parse_gesture_block(entries, domain::String)
             override = true
             e = Expr(:call, :(=>), lhs.args[2], e.args[3])
         end
-        rule = parse_event_rule(e)
+        rule = parse_event_pattern_rule(e)
         rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
 
         # Split an optional leading "description" out of the right side.
@@ -77,14 +77,14 @@ function _parse_gesture_block(entries, domain::String)
 
         # Per-rule event guard closure (from `when(PATTERN, cond)`).
         guard = rule.guard === nothing ? :nothing :
-            :($event -> $(event_field_bindings(rule, event, esc(rule.guard))))
+            :($event -> $(build_event_field_bindings(rule, event, esc(rule.guard))))
 
-        pattern = event_pattern_expr(rule, guard)
+        pattern = build_event_pattern_expr(rule, guard)
 
         # Operation closure: (doc, event) -> rhs, with bound fields in scope.
-        operation = :(($document, $event) -> $(event_field_bindings(rule, event, esc(body))))
+        operation = :(($document, $event) -> $(build_event_field_bindings(rule, event, esc(body))))
 
-        description_expr = description === nothing ? :(describe($pattern)) : description
+        description_expr = description === nothing ? :(describe_event_pattern($pattern)) : description
 
         push!(items, :(GestureBinding($pattern, $operation, _applicable,
                                       $description_expr, $domain, $override)))

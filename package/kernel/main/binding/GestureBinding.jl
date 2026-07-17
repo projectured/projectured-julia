@@ -133,7 +133,7 @@ get_instance_gesture_bindings(document) = GestureBinding[]
 """
     fire_gesture_bindings(bindings, target, selection, event, claimed = nothing) -> Operation | Nothing
 
-The firing loop: the first binding whose pattern `matches` the event, whose
+The firing loop: the first binding whose pattern matches the event, whose
 `applicable` precondition holds for `target` + `selection`, and whose `operation`
 returns non-`nothing`, wins. A binding whose operation returns `nothing` is a finer
 event-dependent decline and is skipped, so a later binding may still fire.
@@ -152,7 +152,7 @@ than walking them itself, so *what fires* cannot drift from what a listing shows
 function fire_gesture_bindings(bindings, target, selection, event, claimed = nothing)
     for binding in bindings
         claimed === nothing || binding.override || continue
-        if matches(binding.pattern, event) && binding.applicable(target, selection)
+        if matches_event_pattern(binding.pattern, event) && binding.applicable(target, selection)
             operation = binding.operation(target, event)
             operation === nothing || return operation
         end

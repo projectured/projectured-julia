@@ -27,7 +27,7 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
-import ..EventPatternModule: KeyDownPattern, matches
+import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..GestureMapModule: gesture_map
 
@@ -52,7 +52,7 @@ const HELP_GESTURE = KeyDownPattern(:f1)
 
 True when `event` is the gesture that summons the help window.
 """
-is_help_gesture(event) = matches(HELP_GESTURE, event)
+is_help_gesture(event) = matches_event_pattern(HELP_GESTURE, event)
 
 """
     GestureHelpState(open=false)
