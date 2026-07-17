@@ -911,7 +911,7 @@ uuid = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 version = "0.1.0"
 
 [[deps.ProjecturedVideoTest]]
-deps = ["Projectured", "ProjecturedExample", "ProjecturedVideo", "Test"]
+deps = ["Projectured", "ProjecturedBaseTest", "ProjecturedExample", "ProjecturedVideo", "Test"]
 entryfile = "ProjecturedVideoTest.jl"
 path = "package/video/test"
 uuid = "fbb35dcc-61b4-4d33-836d-9545da8fa976"

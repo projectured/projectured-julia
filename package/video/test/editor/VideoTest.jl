@@ -14,6 +14,15 @@
 
 using Projectured: set_selection!, evaluate_reference
 
+# The reference of the *string* a `{k}` position caret points into: the caret path
+# with its terminal position step dropped. `collect_position_selections` yields
+# `…{k}` carets, but `evaluate_reference` of a `{k}` returns the position step, not
+# the character — to read the edited text we evaluate the enclosing string.
+_caret_string_reference(p::ConcreteReferencePath) =
+    p.tail isa EmptyReferencePath ? EmptyReferencePath() :
+    ConcreteReferencePath(p.head, _caret_string_reference(p.tail))
+_caret_string_reference(p) = p
+
 function test_record_video()
 @testset "record_video" begin
     @testset "encodes an mp4" begin
@@ -39,13 +48,13 @@ function test_record_video()
     end
 
     @testset "typein edits the document with an initial selection" begin
-        try
         doc  = make_json_document_example()
         proj = make_json_projection_example()
         # A text caret so the keypress has somewhere to type; without a selection
         # the reader yields no operation and typein would be a silent no-op.
         caret = first(collect_position_selections(doc))
-        before = evaluate_reference(doc, caret)
+        string_ref = _caret_string_reference(caret)   # the string the caret sits in
+        before = evaluate_reference(doc, string_ref)
         filename = tempname() * ".mp4"
         ok = try
             record_video(doc, proj, [(event = KeyPress('z'), hold = 0.2)], filename;
@@ -60,18 +69,15 @@ function test_record_video()
             @test filesize(filename) > 0
             rm(filename; force=true)
         end
-        # The edit is applied regardless of whether encoding ran: the typed 'z'
-        # now sits at the caret.
-        @test evaluate_reference(doc, caret) == 'z'
-        @test evaluate_reference(doc, caret) != before
-        catch e
-            # @broken: pre-existing drift; typein testset setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
+        # The edit is applied regardless of whether encoding ran: the typed 'z' now
+        # sits at the caret (position 0 of the string), so the string gains a
+        # leading 'z' and its content changes.
+        after = evaluate_reference(doc, string_ref)
+        @test first(after) == 'z'
+        @test after != before
     end
 
     @testset "timed operation entry seeds the caret for a following keypress" begin
-        try
         # An `:operation` entry (ReplaceSelectionOperation) is injected straight
         # into the evaluator — no event needed — then a `:event` keypress edits
         # at that selection. Proves operation entries reach evaluate_operation and
@@ -79,6 +85,7 @@ function test_record_video()
         doc  = make_json_document_example()
         proj = make_json_projection_example()
         caret = first(collect_position_selections(doc))
+        string_ref = _caret_string_reference(caret)
         filename = tempname() * ".mp4"
         timeline = [
             (operation = ReplaceSelectionOperation(caret), hold = 0.2),
@@ -96,12 +103,9 @@ function test_record_video()
             @test filesize(filename) > 0
             rm(filename; force=true)
         end
-        # The keypress landed at the operation-seeded caret regardless of encoding.
-        @test evaluate_reference(doc, caret) == 'q'
-        catch e
-            # @broken: pre-existing drift; timed operation entry testset setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
+        # The keypress landed at the operation-seeded caret regardless of encoding:
+        # a leading 'q' now heads the string.
+        @test first(evaluate_reference(doc, string_ref)) == 'q'
     end
 
     # .mp4 is the only supported container.
