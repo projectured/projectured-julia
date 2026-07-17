@@ -312,9 +312,24 @@ end
 # `.elements[out_span].content[s:e]`; we look up the input span and shift
 # the character range by the sub-span's start offset. Ranges that span more
 # than one input span are rejected (return `nothing`) for now.
+# `.elements[i].elements[j].content[s:e]` — a caret inside a `TextLine`. `_wrap`
+# passes lines through unchanged, so the edit maps to itself.
+function _is_line_nested_content_range(path)
+    path = strip_reference_types(path)
+    path isa ConcreteReferencePath || return false
+    (path.head isa FieldReference && path.head.name == "elements") || return false
+    t1 = path.tail
+    (t1 isa ConcreteReferencePath && t1.head isa RangeReference) || return false
+    t2 = t1.tail
+    t2 isa ConcreteReferencePath || return false
+    t2.head isa FieldReference && t2.head.name == "elements"   # a second `elements` hop ⇒ line-nested
+end
+
 function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_text_elem_range(op.reference)
-    parsed === nothing && return nothing
+    # A line-nested edit reference addresses a passed-through `TextLine` span; map it
+    # to itself. `_parse_text_elem_range` only recognises the top-level span shape.
+    parsed === nothing && return _is_line_nested_content_range(op.reference) ? op : nothing
     out_span, char_start, char_stop = parsed
     segs = iomap.segs[]
     for seg in segs
