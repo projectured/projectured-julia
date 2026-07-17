@@ -264,8 +264,8 @@ function warm_file_editor(domain::Symbol; workbench::Bool = false)
         editor.iomap = print_document(composed, screen)
         _force_reactive!(editor.iomap)
         for event in _WARMUP_EVENTS
-            env    = WindowInput(window_id, event)
-            change = read_intent(composed, nothing, Intent(env), editor.iomap)
+            window_input    = WindowInput(window_id, event)
+            change = read_intent(composed, nothing, Intent(window_input), editor.iomap)
             op     = change isa Intent ? change.operation : change
             op isa Operation || continue
             editor.operation = op

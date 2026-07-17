@@ -58,8 +58,8 @@ function _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix
         return isempty(op_prefix) ? op : reroot_operation(op, op_prefix)
     else
         editor.iomap === nothing && return nothing
-        env = WindowInput(window_id, entry.event)
-        change = read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)
+        window_input = WindowInput(window_id, entry.event)
+        change = read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)
         op = change isa Intent ? change.operation : change
         return op isa Operation ? op : nothing
     end

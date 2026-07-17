@@ -161,30 +161,30 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
 # is rooted at the ScreenDocument.
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
-    env = change.gesture
-    if env isa WindowInput
+    window_input = change.gesture
+    if window_input isa WindowInput
         ims = iomap.window_iomaps[]
         for (i, wim) in enumerate(ims)
             win_in = wim.input
             win_in isa WindowDocument || continue
-            win_in.id === env.window_id || continue
+            win_in.id === window_input.window_id || continue
             inner = read_intent(wim.projection, recursion, change, wim)
             op = _prefix_op(inner.operation, (FieldReference("windows"), ElementReference(i)))
             return Intent(change.gesture, op)
         end
         return Intent(change.gesture, nothing)
     end
-    # Non-envelope change (operation threaded up, or coordless gesture):
+    # Non-window-input change (operation threaded up, or coordless gesture):
     # fall back to the generic per-reference mapping (selection/edit retarget).
     payload = change.operation === nothing ? change.gesture : change.operation
     return Intent(change.gesture, read_intent(p, iomap, payload))
 end
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
-    env = change.gesture
-    if env isa WindowInput
+    window_input = change.gesture
+    if window_input isa WindowInput
         cim = iomap.content_iomap
-        inner = read_intent(cim.projection, recursion, Intent(env.event, nothing), cim)
+        inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReference("content"),))
         return Intent(change.gesture, op)
     end

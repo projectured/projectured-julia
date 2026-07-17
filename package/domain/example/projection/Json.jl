@@ -17,7 +17,7 @@ end
 # pipeline gets that unwrapping from its `ScreenToScreen` window seam; this
 # pipeline has no screen/window layer, so it supplies the seam directly. Without
 # it, keyboard navigation produces no operations (the readers match on `KeyDown`,
-# not on the wrapping envelope).
+# not on the wrapping window input).
 function make_json_console_projection_example()
     WindowInputUnwrappingProjection(
         ChainingProjection(

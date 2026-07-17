@@ -102,7 +102,7 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
   an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
-  envelope-unwrapping seam — `WindowInputUnwrappingProjection`
+  window-input-unwrapping seam — `WindowInputUnwrappingProjection`
   ([projection/higherorder/WindowInputUnwrapping.jl](../../../package/kernel/main/projection/higherorder/WindowInputUnwrapping.jl))
   — that strips the `WindowInput` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
@@ -347,7 +347,7 @@ is exported, with no entry to add here.
 `WindowInput` wraps every event with the id of the window it came from. It
 lives in `EventModule`, not in the concrete `ScreenDocumentModule` document,
 because it is a protocol type consumed by the editor loop, the gesture
-recognizer, and the envelope-unwrapping projection — a plain struct
+recognizer, and the window-input-unwrapping projection — a plain struct
 declaration for a protocol type has no business living inside a concrete
 document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 
@@ -395,7 +395,7 @@ GestureRecognizer.jl (GestureRecognizerModule) — MousePress + KeyChord synthes
 
 `GestureRecognizer` is a stateful event → gesture recogniser:
 `recognize_gesture!` consumes one `WindowInput`, updating click/multi-click
-and chord-buffer state, and either returns the envelope to forward, enqueues
+and chord-buffer state, and either returns the window input to forward, enqueues
 a synthesised one (a completed click), or absorbs the event (a chord prefix,
 still incomplete); `pop_gesture!` is the consumer-facing pull, draining any
 pending synthesised gestures ahead of new raw input. A gesture is *only* a

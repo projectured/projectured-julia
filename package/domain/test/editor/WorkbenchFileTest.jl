@@ -13,8 +13,8 @@ mutable struct _WBFakeEditor; document::Any; iomap::Any; end
 
 # Fire a KeyDown through the composed pipeline and return the produced operation.
 function _wb_fire(composed, iomap, window_id, key; ctrl=false)
-    env = WindowInput(window_id, KeyDown(key, ModifierKeys(ctrl=ctrl)))
-    ch = read_intent(composed, nothing, Intent(env), iomap)
+    window_input = WindowInput(window_id, KeyDown(key, ModifierKeys(ctrl=ctrl)))
+    ch = read_intent(composed, nothing, Intent(window_input), iomap)
     ch isa Intent ? ch.operation : ch
 end
 

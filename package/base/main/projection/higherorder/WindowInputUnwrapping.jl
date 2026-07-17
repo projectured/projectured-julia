@@ -6,11 +6,11 @@ before handing it to its inner projection's reader.
 
 The editor wraps every backend event in an `WindowInput` (window id + inner
 event) and threads it as the `Intent.gesture`. In the SDL pipeline the
-`ScreenToScreen` projection is the seam that unwraps `env.event` and re-roots
+`ScreenToScreen` projection is the seam that unwraps `window_input.event` and re-roots
 the resulting operation under the window's `content`. A pipeline that has **no**
 screen/window layer — e.g. the `ConsoleBackend`'s `JsonToSyntax → SyntaxToText`
 chain, whose output is a bare `TextBlock` rooted at the domain document — still
-receives the wrapped envelope from the editor but has nothing to unwrap it.
+receives the wrapped window input from the editor but has nothing to unwrap it.
 
 `WindowInputUnwrappingProjection` is that missing seam in miniature: the printer is
 a transparent passthrough (its output is the inner projection's output, so the
@@ -54,11 +54,11 @@ function print_document(p::WindowInputUnwrappingProjection, recursion, input, ct
 end
 
 function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingProjectionIoMap)
-    env = change.gesture
-    inner_change = env isa WindowInput ? Intent(env.event, change.operation) : change
+    window_input = change.gesture
+    inner_change = window_input isa WindowInput ? Intent(window_input.event, change.operation) : change
     out = read_intent(p.inner, recursion, inner_change, iomap.inner_iomap)
     # Preserve the original (still-wrapped) gesture in the returned change so any
-    # outer layer continues to see the envelope it sent.
+    # outer layer continues to see the window input it sent.
     return Intent(change.gesture, out.operation)
 end
 

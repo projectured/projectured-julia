@@ -78,12 +78,12 @@ invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
 """
     read!(editor::Editor) -> Bool
 
-Drain input envelopes via the backend until one translates into an
+Drain input window inputs via the backend until one translates into an
 operation. Returns `true` when an operation was produced (stored in
 `editor.operation`), `false` once the backend has nothing left to
 deliver — used by `run_editor!` to decide when to stop draining and repaint.
 
-Envelopes that don't yield an operation (no iomap yet, or a projection
+Window inputs that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
 there's nothing to evaluate or repaint for them.
 
@@ -93,25 +93,25 @@ e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
 recogniser returns an `WindowInput` wrapping a backend-agnostic gesture
 (KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
 MouseScroll, WindowQuit, WindowClose, …) together with the originating
-`WindowDocument.id`. The envelope is passed to the projection pipeline reader
+`WindowDocument.id`. The window input is passed to the projection pipeline reader
 which translates it via the last stored IoMap.
 """
 function read!(editor::Editor)
     while true
-        env = pop_gesture!(editor.recognizer,
+        window_input = pop_gesture!(editor.recognizer,
                             () -> read_from_devices(editor.backend, editor.devices))
-        if env === nothing
+        if window_input === nothing
             editor.operation = nothing
             return false
-        elseif env isa WindowInput && env.event isa WindowQuit
+        elseif window_input isa WindowInput && window_input.event isa WindowQuit
             editor.operation = QuitEditorOperation()
             return true
         elseif editor.iomap === nothing
             continue
         else
-            # Seed a nothing-change carrying the gesture (the envelope) and read
+            # Seed a nothing-change carrying the gesture (the window input) and read
             # back the operation the reader pipeline produced.
-            change = read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)
+            change = read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)
             op = change isa Intent ? change.operation : change
             if op isa Operation
                 editor.operation = op
@@ -120,7 +120,7 @@ function read!(editor::Editor)
             # Editor-global readability zoom, recognised *after* the pipeline so a
             # projection that explicitly binds these keys (e.g. clipboard add/remove
             # on Ctrl+=/-) still wins when active.
-            z = _zoom_operation(env)
+            z = _zoom_operation(window_input)
             if z !== nothing
                 editor.operation = z
                 return true
@@ -130,7 +130,7 @@ function read!(editor::Editor)
 end
 
 """
-    _zoom_operation(env) -> Operation or nothing
+    _zoom_operation(window_input) -> Operation or nothing
 
 Map a Ctrl-modified `=`/`-`/`0` key gesture to a readability-zoom operation:
 `Ctrl` (optionally with Shift, so `Ctrl++` also works) → uniform
@@ -139,9 +139,9 @@ Map a Ctrl-modified `=`/`-`/`0` key gesture to a readability-zoom operation:
 anything else. Recognised at the editor level so zoom works regardless of what
 is selected.
 """
-function _zoom_operation(env)
-    env isa WindowInput || return nothing
-    ev = env.event
+function _zoom_operation(window_input)
+    window_input isa WindowInput || return nothing
+    ev = window_input.event
     ev isa KeyDown || return nothing
     m = ev.modifiers
     (m.ctrl && !m.meta) || return nothing

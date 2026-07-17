@@ -177,8 +177,8 @@ function test_hover_probe_pipeline()
         iomap = print_document(composed, screen)
 
         nbefore = length(screen.windows)
-        env = WindowInput(:json, MouseMove(cx, cy, :none, ModifierKeys()))
-        read_intent(composed, nothing, Intent(env, nothing), iomap)
+        window_input = WindowInput(:json, MouseMove(cx, cy, :none, ModifierKeys()))
+        read_intent(composed, nothing, Intent(window_input, nothing), iomap)
 
         @test length(screen.windows) == nbefore + 1
         insp = nothing

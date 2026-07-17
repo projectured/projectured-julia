@@ -99,10 +99,10 @@ function test_console_backend()
     # ── read_from_devices wraps events in a :console WindowInput ─────────
     @testset "read_from_devices" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[UInt8('a')]))
-        env = read_from_devices(b, Device[])
-        @test env isa WindowInput
-        @test env.window_id === :console
-        @test env.event == KeyPress('a')
+        window_input = read_from_devices(b, Device[])
+        @test window_input isa WindowInput
+        @test window_input.window_id === :console
+        @test window_input.event == KeyPress('a')
         # Empty input → nothing.
         @test read_from_devices(ConsoleBackend(; input=IOBuffer(UInt8[])), Device[]) === nothing
     end

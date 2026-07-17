@@ -54,9 +54,9 @@ cleanly. The MCP server is started before the loop and stopped in the
 `read_from_devices(backend, devices)` polls the backend's event queue (in
 the SDL case, `SDL_PollEvent`) and returns the next `WindowInput` wrapping a
 backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
-`MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The envelope is then
+`MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The window input is then
 wrapped in a `Intent` and passed through
-`read_intent(editor.projection, nothing, Intent(env, nothing), editor.iomap)`
+`read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
 — the entire pipeline walks backward, each projection contributing a translation
 step until an `Operation` falls out at the document end.
 

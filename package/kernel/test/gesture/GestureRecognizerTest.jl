@@ -85,8 +85,8 @@ function test_gesture_recognizer()
         for evt in (KeyDown(:home, ModifierKeys()), KeyPress('a'),
                     MouseScroll(0, -1, 5, 6, ModifierKeys()),
                     MouseMove(1, 2, :none, ModifierKeys()))
-            env = WindowInput(:win, evt)
-            @test recognize_gesture!(rec, env) === env
+            window_input = WindowInput(:win, evt)
+            @test recognize_gesture!(rec, window_input) === window_input
         end
         @test isempty(rec.pending)
     end

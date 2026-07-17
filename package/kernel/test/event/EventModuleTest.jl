@@ -11,10 +11,10 @@ function test_event_module()
 @testset "EventModule" begin
 
     @testset "WindowInput carries the window an event came from" begin
-        envelope = WindowInput(:default, KeyDown(:period, ModifierKeys(), false))
-        @test envelope isa WindowInput
-        @test envelope.window_id === :default
-        @test envelope.event isa KeyDown
+        window_input = WindowInput(:default, KeyDown(:period, ModifierKeys(), false))
+        @test window_input isa WindowInput
+        @test window_input.window_id === :default
+        @test window_input.event isa KeyDown
     end
 
     @testset "@event_case dispatches on event type" begin

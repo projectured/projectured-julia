@@ -65,42 +65,42 @@ end
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function read_intent(p::WindowManagingProjection, recursion, change::Intent, iomap::WindowManagingProjectionIoMap)
-    env = change.gesture
+    window_input = change.gesture
     # Modality: while a modal window is open, only it receives input. Drop any
-    # envelope routed to a different window — base content gets no events, with no
+    # window input routed to a different window — base content gets no events, with no
     # per-widget input swallowing (this reuses the existing window_id routing). A
     # modal window is dismissed by an explicit choice (Esc / button / backdrop),
     # never by focus-lost, so it is opened with auto_dismiss=false.
-    if env isa WindowInput
+    if window_input isa WindowInput
         modal = _modal_window(iomap.input)
-        (modal !== nothing && env.window_id !== modal.id) && return Intent(change.gesture, nothing)
+        (modal !== nothing && window_input.window_id !== modal.id) && return Intent(change.gesture, nothing)
     end
     # A window resize is a window-management concern owned here: resolve the
     # window by id (no coordinate mapping needed) and emit a
-    # ResizeWindowOperation, before the inner copier ever sees the envelope.
-    if env isa WindowInput && env.event isa WindowResize
-        win = _find_window(iomap.input, env.window_id)
+    # ResizeWindowOperation, before the inner copier ever sees the window input.
+    if window_input isa WindowInput && window_input.event isa WindowResize
+        win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
         return Intent(change.gesture,
-                      ResizeWindowOperation(win, env.event.width, env.event.height))
+                      ResizeWindowOperation(win, window_input.event.width, window_input.event.height))
     end
     # The native window close button (SDL_WINDOWEVENT_CLOSE / web close) arrives
     # as a WindowClose carrying the window id. Resolve the window and
     # remove it from both input and output here — the same dual-mutation the
     # manager performs for a CloseWindowOperation bubbling up from below, so the
     # close is owned in one place rather than relying on evaluate_operation.
-    if env isa WindowInput && env.event isa WindowClose
-        win = _find_window(iomap.input, env.window_id)
+    if window_input isa WindowInput && window_input.event isa WindowClose
+        win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
-        _apply_close!(iomap, CloseWindowOperation(env.window_id))
+        _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
         return Intent(change.gesture, nothing)
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the default window or a tooltip.
-    if env isa WindowInput && env.event isa WindowDefocus
-        win = _find_window(iomap.input, env.window_id)
+    if window_input isa WindowInput && window_input.event isa WindowDefocus
+        win = _find_window(iomap.input, window_input.window_id)
         (win !== nothing && win.auto_dismiss === true) || return Intent(change.gesture, nothing)
-        _apply_close!(iomap, CloseWindowOperation(env.window_id))
+        _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
         return Intent(change.gesture, nothing)
     end
 

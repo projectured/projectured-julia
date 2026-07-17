@@ -37,8 +37,8 @@ end
 
     nbefore = length(screen.windows)
     # A left press at (15, 12) lands on the select (top-left of the window content).
-    env = WindowInput(:default, MousePress(:left, 15, 12, ModifierKeys()))
-    read_intent(proj, nothing, Intent(env, nothing), iomap)
+    window_input = WindowInput(:default, MousePress(:left, 15, 12, ModifierKeys()))
+    read_intent(proj, nothing, Intent(window_input, nothing), iomap)
 
     @test length(screen.windows) == nbefore + 1
     popup = nothing
