@@ -256,12 +256,16 @@ function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_20, type_nam
         AbstractString => StringToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, string_color), include_selection=include_selection),
         Symbol         => SymbolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, symbol_color), include_selection=include_selection),
         Char           => CharToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, char_color), include_selection=include_selection),
+        # A predicate is data, not a reactive thunk. The `filter` cell field would
+        # read a bare `Function` as its thunk and *call* it (with no args) on every
+        # read, so hold it AS the cell's value via the `as_value` constructor.
         Any            => ObjectNodeToSyntaxNode(type_name=StyleText(type_name_font, type_name_color),
                                                  field_name=StyleText(field_name_font, field_name_color),
                                                  include_selection=include_selection,
                                                  open_delimiter=open_delimiter,
                                                  close_delimiter=close_delimiter,
-                                                 newlines=newlines, filter=filter),
+                                                 newlines=newlines,
+                                                 filter = filter === nothing ? nothing : Cell(filter; as_value=true)),
     )
 end
 

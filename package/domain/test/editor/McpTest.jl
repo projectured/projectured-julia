@@ -247,7 +247,6 @@ end
 
 function test_print_object_options()
     @testset "print_object: newlines / indent / filter" begin
-        try
         doc = jsonparse("[1, \"x\", true]")
 
         # default: multi-line, indented, default {} delimiters
@@ -270,18 +269,14 @@ function test_print_object_options()
         # indent widens the leading whitespace
         @test occursin("    ", print_object(doc; indent=4))
 
-        # filter: hide Bool-valued elements -> no JsonBool node
+        # filter: hide Bool-valued fields -> the JsonBool element's `value` is dropped
         filtered = print_object(doc; filter = v -> !(v isa JsonNull) && !(v isa Bool))
-        # the boolean element should be gone; numbers/strings remain
+        # numbers/strings remain
         @test occursin("JsonNumber", filtered)
 
         # scalars are unaffected by the formatting flags
         @test print_object(42) == "42"
         @test print_object(42; newlines=false) == "42"
-        catch e
-            # @broken: pre-existing drift; print_object / setup path throws
-            @test_broken (@warn "setup threw: $e"; false)
-        end
     end
 end
 
