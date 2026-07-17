@@ -56,22 +56,36 @@ split.
 
 ## Implementation steps
 
-- [ ] 1. Add `_compute_span_rows(coord_map, span_flat_offsets, hl_start, hl_stop, p)` →
-      `Vector{NTuple{4,Int}}` (per-row content-hugging rects), reusing the overlap +
-      `_seg_cursor_x` math from `_compute_span_geo`.
-- [ ] 2. `_layout_overlay` returns `highlight` as a `Vector{NTuple{4,Int}}` (empty when
-      no box selection) via `_compute_span_rows`.
-- [ ] 3. Replace the single `highlight_rect` in `print_document` with a highlight
-      **sub-canvas** whose element `CellVector` builds one persistent `GraphicsRect`
-      per rect in `overlay[].highlight`. Keep `top_elements` a fixed 3-slot vector
-      `[highlight_canvas, lines_stack, cursor_rect]` (so it never regenerates; the
-      per-selection churn is isolated to the sub-canvas). `highlight_offset` stays 1
-      (one leading highlight element).
-- [ ] 4. Keep `_compute_span_geo` only if still referenced; otherwise remove it. Add a
-      per-row unit test mirroring the existing `_compute_column_geo` test.
-- [ ] 5. Verify: JSON `address` selection now hugs content; run `test_text_to_graphics`
-      / relevant visual tests; smoke the JSON example.
+- [x] 1. Added `_compute_span_rows(coord_map, span_flat_offsets, hl_start, hl_stop, p)`
+      → `Vector{NTuple{4,Int}}` (per-row content-hugging rects), reusing the overlap +
+      `_seg_cursor_x` math from the old `_compute_span_geo`. Blank pieces (indent /
+      newline / zero-width slots) are skipped for anchoring via `_hl_piece_blank`.
+- [x] 2. `_layout_overlay` now returns `highlight` as a `Vector{NTuple{4,Int}}` (empty
+      when no box selection) via `_compute_span_rows`.
+- [x] 3. Replaced the single `highlight_rect` with a highlight **sub-canvas** whose
+      element `CellVector` builds one persistent `GraphicsRect` per rect in
+      `overlay[].highlight` (`get_highlight_rect(k)`, keyed + evicted by row index).
+      `top_elements` stays the fixed 3-slot vector `[highlight_canvas, lines_stack,
+      cursor_rect]`; per-selection churn is isolated to the sub-canvas.
+      `highlight_offset` stays 1 (one leading highlight element).
+- [x] 4. `_compute_span_geo` is removed (only `_layout_overlay` used it). Added a
+      per-row unit test mirroring the `_compute_column_geo` test.
+- [x] 5. Verified end-to-end: rendered `json_example` with `entries[4]` (the whole
+      `address` entry) selected → the PNG shows content-hugging (first line hugs
+      `"address": {`, interior lines start at their indent, `},` shows only `}`).
+      `test_text_to_graphics()` green (all testsets, incl. the new one). Broad
+      `test_visual()` sweep: 47104 pass / 1 broken (pre-existing) / 0 fail / 0 error
+      — zero regressions across the shared seam.
 
 ## Notes / discoveries
 
-(filled in during implementation)
+- The selection reaches `TextToGraphics` correctly as a box: `set_selection!(doc,
+  @reference(doc, entries[4]))` forward-maps to `TextSpanReference(57, 149)` at the
+  text layer, and `_highlight_char_range` returns `(57, 149)`. So the model already
+  did the right thing; only the *geometry* was wrong. Confirms the change is a pure
+  view refinement.
+- The whole `address` entry (`entries[4]`) highlights the key too, matching the
+  screenshot; the whole `address` value (`entries[4].value`) starts at `{`.
+- Interior member separators (`, ` between object members) sit *inside* the range and
+  are correctly hugged; only the separator *after* `}` (between address and scores)
+  is outside the range and stays unhighlighted — exactly the requested last-line rule.
