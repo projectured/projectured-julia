@@ -524,15 +524,30 @@ end
 InsertionNothingToSyntaxLeaf() =
     InsertionNothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
 
-print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx) =
-    SimpleIoMap(p, doc, SyntaxLeaf(TextString(_nothing_label(doc), p.style);
-        selection=getfield(doc, :selection)))
+# The rendered leaf's selection is the *forward image* of the document's own — not
+# the raw path. A cursor on the label is carried on the placeholder as a
+# projection-introduced caret (`proj(p, value{k})`, from the generic backward
+# below); forward-mapping unwraps it to the leaf's own `value{k}`, so the label is
+# char-navigable via `ProjectionReference` steps (like every literal leaf). Copying
+# the raw path instead left the leaf holding a `proj(p, …)` cursor that
+# `SyntaxLeafToText` cannot place, so navigation stalled at the label. The forward
+# ref-break (fill `iomap_cell` after) mirrors the compound printers.
+function print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx)
+    iomap_cell = Cell(nothing)
+    leaf = SyntaxLeaf(TextString(_nothing_label(doc), p.style);
+        selection = Cell(() -> begin
+            s = getfield(doc, :selection)[]
+            s === nothing ? nothing : map_reference_forward(p, iomap_cell[], s)
+        end))
+    io = SimpleIoMap(p, doc, leaf)
+    iomap_cell[] = io
+    io
+end
 
-# No reference maps: the generic `Projection` fallback already round-trips a
-# whole-element (∅) selection — typed against the document — so the placeholder is
-# structurally selectable (Alt-navigable, Ctrl+Space, click), and wraps a cursor on
-# the display-only label as a projection-introduced caret. A bespoke map here would
-# only shadow that.
+# No reference maps of our own: the generic `Projection` fallback already round-trips
+# a whole-element (∅) selection — typed against the document — and wraps a cursor on
+# the display-only label as a projection-introduced caret (unwrapped by the forward
+# map above). A bespoke map here would only shadow that.
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 #

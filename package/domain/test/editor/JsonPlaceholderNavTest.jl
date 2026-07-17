@@ -69,5 +69,13 @@ function test_json_placeholder_navigation()
         # The JsonNothing value itself is a reachable whole-element (tree) selection.
         @test ".entries[1].value" in explore_tree_selections(doc, pr).visited
     end
+
+    @testset "JsonNothing label is char-navigable via ProjectionReference steps" begin
+        # A bare `empty json` placeholder: the cursor steps through its display label
+        # (each position a projection-introduced caret), like every literal leaf.
+        reached = explore_position_selections(JsonNothing(), make_json_projection_example()).visited
+        @test length(reached) == length("empty json") + 1          # 11 caret positions
+        @test all(occursin("SyntaxLeaf.value", s) for s in reached) # all on the introduced label
+    end
 end
 end
