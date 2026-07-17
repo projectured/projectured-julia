@@ -142,7 +142,15 @@ end
 # A projection *sequence* (thunks; compile with `_compile`) reaching `:text` — a direct
 # single-step (e.g. primitives, whose `Primitive*ToText*` skips syntax), else the
 # whole-tree bridge BFS. `nothing` when text is unreachable from `D`.
+#
+# A document already AT the text level (a `TextDocument`) is its own `:text` variant:
+# the empty sequence compiles to `IdentityProjection`. The BFS below would otherwise
+# discard it — `path_sequences` returns the already-there empty path and the
+# `!isempty` filter drops it — leaving a text atom with no text (hence no graphics)
+# variant. The `:graphics` sequence then chains `_TEXT_TO_GRAPHICS` onto this empty
+# base, yielding the default text projection.
 function _text_sequence(@nospecialize(D), doc)
+    is_text(D) && return Function[]
     t = _single_step(D, doc, :text)
     t === nothing || return Function[() -> t()]
     seqs = filter(!isempty, path_sequences(doc, is_text))

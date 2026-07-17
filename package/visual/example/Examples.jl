@@ -142,4 +142,13 @@ const visual_atomic_documents = AtomicDocument[
     AtomicDocument(:primitive, "string", make_primitive_string_document_example),
     AtomicDocument(:primitive, "number", make_primitive_number_document_example),
     AtomicDocument(:primitive, "bool",   make_primitive_bool_document_example),
+    # Text atoms are already at the `:text` level, so the catalog derives their
+    # identity `:text` variant plus the `:graphics` variant (WordWrapping →
+    # TextToGraphics, the default text projection). Each is a minimal `TextBlock`
+    # exercising one span/structure type.
+    AtomicDocument(:text, "string",   make_text_string_document_example),
+    AtomicDocument(:text, "newline",  make_text_newline_document_example),
+    AtomicDocument(:text, "spacing",  make_text_spacing_document_example),
+    AtomicDocument(:text, "graphics", make_text_graphics_document_example),
+    AtomicDocument(:text, "line",     make_text_line_document_example),
 ]

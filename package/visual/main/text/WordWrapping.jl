@@ -261,7 +261,11 @@ function _forward_map(segs, in_block, out_block, sel)
     flat = text_caret_flat(in_block, sel)
     flat === nothing && return nothing
     loc = text_flat_to_elem(in_block, flat)
-    loc === nothing && return nothing
+    # A caret inside a `TextLine` has no flat top-level span mapping — `_wrap` passes
+    # `TextLine` elements through unchanged (it reflows only top-level spans), so they
+    # carry no `WrapSeg`. The line is identical in the output, so such a caret maps to
+    # itself; returning `sel` keeps the cursor visible over a line-structured block.
+    loc === nothing && return sel
     in_span, in_char = loc
     best = nothing
     for seg in segs
@@ -285,7 +289,9 @@ function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, refer
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
     loc = text_flat_to_elem(iomap.output, flat)
-    loc === nothing && return nothing
+    # A caret over a `TextLine` (passed through unchanged, so no `WrapSeg` and no
+    # flat top-level span) maps backward to itself — the mirror of the forward map.
+    loc === nothing && return reference
     out_span, out_char = loc
     for seg in iomap.segs[]
         seg.out_index == out_span || continue

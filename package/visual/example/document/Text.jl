@@ -58,3 +58,44 @@ function _load_inline_image(name::AbstractString)
     end)
     img
 end
+
+# ── Atomic text documents ───────────────────────────────────────────────────
+# One minimal `TextBlock` per text structure — the hand-authored building blocks
+# the discovered catalog turns into `text/<name>/{text,graphics}` examples,
+# mirroring the JSON leaf/compound atoms (`make_json_string_document_example`, …).
+# The default text projection (WordWrapping → TextToGraphics) renders a `TextBlock`
+# root, so every atom is a block that exercises one span/structure type: a plain
+# `TextString`, an explicit line break (`TextNewline`), inter-word `TextSpacing`,
+# an inline `TextGraphics` image, and a `TextLine`-structured (indented) block.
+# `make_document` is a thunk, so each derived example gets a fresh instance.
+
+_atom_font() = font_ubuntu_monospace_regular_20
+
+make_text_string_document_example() =
+    TextBlock(TextString("Hello", _atom_font(), color_default))
+
+make_text_newline_document_example() =
+    TextBlock(
+        TextString("first", _atom_font(), color_default),
+        TextNewline(font=_atom_font()),
+        TextString("second", _atom_font(), color_default),
+    )
+
+make_text_spacing_document_example() =
+    TextBlock(
+        TextString("left", _atom_font(), color_default),
+        TextSpacing(4; font=_atom_font()),
+        TextString("right", _atom_font(), color_default),
+    )
+
+make_text_graphics_document_example() =
+    TextBlock(
+        TextString("logo ", _atom_font(), color_default),
+        TextGraphics(_load_inline_image("file.png"), 24, 24),
+    )
+
+make_text_line_document_example() =
+    TextBlock(
+        TextLine(TextString("alpha", _atom_font(), color_default); indentation=2),
+        TextLine(TextString("beta",  _atom_font(), color_default); indentation=4),
+    )
