@@ -18,7 +18,7 @@ The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
 
 - **Layer 1 — cell** (`cell/`)
-  - ⬜ `cell/CellLayer.jl`
+  - 🔒 `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
   - ⬜ `cell/CellModule.jl`
   - 🔒 `cell/AbstractCell.jl`
