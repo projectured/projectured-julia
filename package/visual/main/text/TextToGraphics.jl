@@ -220,7 +220,14 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
             return _flat_hit_op(styled, best_sc.span_path, best_pos)
         end
     end
-    return evt
+    # A KeyDown this layer neither edits nor resolves with geometry (e.g. Return,
+    # Escape, Insert while a text caret exists) is declined, NOT passed on as a raw
+    # gesture: a reader must yield an Operation or `nothing`, never an event. Putting
+    # the gesture in the operation slot marks the change "already produced" and stops
+    # the enclosing chain from re-offering it to the domain — which is why committing
+    # an insertion (Enter) or aborting it (Escape) silently did nothing once the buffer
+    # had a cursor. Returning `nothing` lets it propagate inward to the domain reader.
+    return nothing
 end
 
 # ── Layout engine (wrap-free) ──────────────────────────────────────────
