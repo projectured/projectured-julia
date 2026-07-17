@@ -21,7 +21,7 @@ function make_versioning_projection_example(; measure=truetype_measure_text)
             JsonArray       => JsonArrayToSyntaxNode(),
             JsonObject      => JsonObjectToSyntaxNode(),
             JsonInsertion   => JsonInsertionToSyntaxLeaf(),
-            JsonObjectEntry => CopyingProjection(),
+            JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
             Vector{Cell}    => CopyingProjection(),
         )),
         RecursiveProjection(SyntaxToText()),
