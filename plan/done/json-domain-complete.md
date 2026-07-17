@@ -40,10 +40,15 @@ shared-flat seam** — applied at three layers:
    untyped `@reference()` broke `YamlSequence`'s `.children[i].content.^(inner)`
    composition (under-typed reference; yaml/sequence repl). Commits 6234d591, 44c7ba0a.
 
-4. **`InsertionNothingToSyntaxLeaf`** — dropped its bespoke (redundant) maps; the
-   generic `Projection` fallback already round-trips a *typed* ∅ and wraps the
-   display-only label as a projection-introduced caret, so `JsonNothing` is
-   structurally selectable and a cursor rests on it. Commit 6234d591.
+4. **`InsertionNothingToSyntaxLeaf`** — structurally selectable via the generic
+   `Projection` fallback (typed ∅ + introduced-caret wrap); no bespoke maps. Its
+   `print_document` now **forward-maps** the document's selection instead of copying
+   it raw — a cursor carried as `proj(p, value{k})` reached the rendered leaf
+   unmapped, so `SyntaxLeafToText` could not place it and the label stalled at one
+   caret. Forward-mapping unwraps it to the leaf's own `value{k}`, so the `empty
+   json` label (and every `*Nothing` label) is char-navigable via `ProjectionReference`
+   steps like any literal leaf (root `JsonNothing` 1 → 11 caret states). Commits
+   6234d591, 7ea12aae.
 
 Ctrl+Space itself (`@gestures SyntaxCompound`, `Syntax.jl`) already worked; no change.
 
