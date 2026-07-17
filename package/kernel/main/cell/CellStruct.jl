@@ -1,13 +1,13 @@
 # Fragment of `CellModule` — the transparent-Cell struct codegen: the
 # `@cell_struct` macro, its assembler `cell_struct_exprs`, and the four
 # expr-builders they compose. `cell_struct_exprs` is the composition seam a
-# macro author reuses — inject a default supertype into the struct definition,
+# caller reuses — inject a default supertype into the struct definition,
 # delegate to it, and escape the result — while `@cell_struct` is the standalone
 # macro over it.
 #
 # The symbols the builders emit (`Cell`, `new`, `getfield`, …) are spliced as
-# bare names and resolve in the *caller's* scope when the calling macro escapes
-# its result — a caller therefore needs `Cell` in scope, nothing else.
+# bare names and resolve in the *caller's* scope when the caller escapes
+# the result — a caller therefore needs `Cell` in scope, nothing else.
 
 """
     cell_struct_autowrap_ctor(struct_name, field_names, field_wraps) -> Expr
@@ -16,9 +16,9 @@ Build the single auto-wrapping inner constructor: `T(vals...)` wrapping each
 cell-typed field's value in *its kind's* cell unless it already is a cell.
 `field_names` is every field (declaration order); `field_wraps[i]` is `nothing`
 for a non-cell field, or `(kind, celltype)` where `kind ∈ (:reactive, :immutable,
-:mutable)` and `celltype` is the cell type to construct. A reactive field keeps the
-historic `isa Cell ? … : Cell(…)`; a fixed immutable/mutable field lets any
-`AbstractCell` through and wraps a raw value in its typed cell.
+:mutable)` and `celltype` is the cell type to construct. A reactive field uses
+`isa Cell ? … : Cell(…)`; a fixed immutable/mutable field lets any `AbstractCell`
+through and wraps a raw value in its typed cell.
 """
 function cell_struct_autowrap_ctor(struct_name, field_names, field_wraps)
     arg_names = [gensym(f) for f in field_names]
@@ -95,26 +95,25 @@ every field is a `::Cell`, then return a block with the rewritten struct (its
 auto-wrapping inner constructor appended), the transparent property accessors,
 and — when at least one field declares a default — the keyword constructor.
 
-This is the composition seam for macro authors: a macro injects its default
-supertype into `structdef` and returns `esc(cell_struct_exprs(structdef))`. The
-result must be escaped by the calling macro so the emitted bare names resolve at
-the expansion site.
+This is the composition seam for a caller: it injects its default supertype into
+`structdef` and returns `esc(cell_struct_exprs(structdef))`. The result must be
+escaped by the caller so the emitted bare names resolve at the expansion site.
 """
 function cell_struct_exprs(structdef; default::Symbol = :reactive)
     plan = cell_struct_plan(structdef)
     isempty(plan.field_names) && return structdef
 
     # Each field becomes a transparent cell of its kind: `default` (the struct-level
-    # default from a leading macro argument, `:reactive` when none) unless the field
-    # names its own kind (`f::ImmutableCell{T}`). The declared value type is otherwise
-    # documentation only, as before.
+    # default the caller passes, `:reactive` when none) unless the field names its
+    # own kind (`f::ImmutableCell{T}`). The declared value type is otherwise
+    # documentation only.
     kinds = cell_struct_field_kinds(plan; default = default)
     vts   = cell_struct_value_types(plan)
     cell_types  = Any[]
     field_wraps = Any[]
     # Splice the kind as the type OBJECT (not a symbol) so the emitted field type
-    # resolves in any consumer module, even one that does not import `ImmutableCell`
-    # / `MutableCell` (reactive stays the universally-imported `:Cell`).
+    # resolves in any module it expands into, even one that does not import
+    # `ImmutableCell` / `MutableCell` (reactive stays the universally-imported `:Cell`).
     for i in eachindex(plan.field_names)
         ct = kinds[i] === :immutable ? Expr(:curly, ImmutableCell, vts[i]) :
              kinds[i] === :mutable   ? Expr(:curly, MutableCell,  vts[i]) : :Cell
@@ -148,9 +147,8 @@ end
     cell_struct_macro_default(args) -> (default_kind::Symbol, structdef)
 
 Parse a transparent-cell struct macro's arguments. An optional **leading cell-kind name** sets the
-struct-level default (`@document ImmutableCell struct …` → `:immutable`); with no leading kind the
-default is `:reactive` (unchanged behaviour). Used by `@cell_struct` / `@projection` / `@iomap` /
-`@document` so they share one arg convention.
+struct-level default (`ImmutableCell struct …` → `:immutable`); with no leading kind the default is
+`:reactive`. The shared arg convention for any macro built over this codegen.
 """
 function cell_struct_macro_default(args)
     if length(args) == 2
@@ -182,7 +180,7 @@ field (declared value types are documentation only); the macro generates:
 A leading cell-kind name (`@cell_struct ImmutableCell struct …`) sets the struct-level default kind
 for every unannotated field; a field naming its own kind overrides it.
 
-The struct keeps whatever supertype the definition declares (or none). A macro
+The struct keeps whatever supertype the definition declares (or none). A caller
 that needs to compose this codegen with its own additions calls the assembler
 `cell_struct_exprs` directly rather than this macro.
 """

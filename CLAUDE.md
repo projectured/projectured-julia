@@ -28,7 +28,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/CellDefaults.jl`
   - 🔒 `cell/CellStructModule.jl`
   - 🔒 `cell/CellStructPlan.jl`
-  - ⬜ `cell/CellStruct.jl`
+  - 🔒 `cell/CellStruct.jl`
 - **Layer 2 — clock** (`clock/`)
   - ⬜ `clock/ClockLayer.jl`
   - 🔒 `clock/Clock.jl`
