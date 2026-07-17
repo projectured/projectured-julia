@@ -6,20 +6,15 @@ the reference/operation/IO-map machinery, the projection *interface and
 infrastructure* (the four generic functions, the IO maps, the `@projection`
 macro, the projection-template engine, gesture bindings), the input-device
 abstraction, the editor read-eval-print loop, and the agent control surface
-(LLM/MCP). It carries no concrete projections — the domain-independent
-projection algebra (higher-order combinators + generic projections) lives in
-`ProjecturedBase` — and no concrete documents at all — the foundational
-document *vocabulary* (`PrimitiveModule`, `CollectionModule`) also lives in
-`ProjecturedBase` and `ScreenDocumentModule` in `ProjecturedVisual` — no
-concrete domains
-(JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy
-dependencies** — `using ProjecturedKernel` precompiles and loads on its own.
-The real LLM/MCP transports are standalone opt-in packages (`ProjecturedLlm`
-in `package/llm`, `ProjecturedMcp` in `package/mcp`) that depend on this
-package; the kernel carries only their dependency-free seams.
+(LLM/MCP).
 
-The concrete domains live in `ProjecturedDomain`; the flat public API is
-re-exported by the `Projectured` umbrella.
+It carries no concrete projections, no concrete documents, no concrete domains
+(JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy dependencies** —
+so `using ProjecturedKernel` precompiles and loads on its own. The
+domain-independent projection algebra, the foundational document vocabulary,
+the render substrate, and the concrete domains all live in the packages above
+(`base`, `visual`, `domain`). The real LLM/MCP transports are opt-in packages
+that depend on this one; the kernel carries only their dependency-free seams.
 """
 module ProjecturedKernel
 

@@ -12,7 +12,7 @@ The list below is authoritative. It is the ordered inventory of the kernel main 
 
 ### `package/kernel/main/` seal status
 
-- ⬜ `ProjecturedKernel.jl` — module root, the layer diagram
+- 🔒 `ProjecturedKernel.jl` — module root, the layer diagram
 
 The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
