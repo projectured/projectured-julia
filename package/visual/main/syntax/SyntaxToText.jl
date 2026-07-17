@@ -464,6 +464,16 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     ranges = iomap.child_elem_ranges[]
     for (i, r) in enumerate(ranges)
         if j in r
+            # An indent span is pure whitespace chrome, rendered at *this* level's
+            # widened width (re-indent-on-splice). Its interior carets have no
+            # counterpart in the child's own, narrower version of the span — the
+            # widening is chrome this level added — so delegating there re-flattens
+            # over the un-widened spans and collapses the caret onto the following
+            # delimiter. Let an indent-span cursor fall through to a
+            # projection-introduced position here instead, which round-trips (its
+            # forward image is just this flat). ∅ (whole-element) queries still
+            # delegate: they select the child subtree, not a caret in the chrome.
+            char !== nothing && j in iomap.indent_indices[] && break
             cim = iomap.child_iomaps[][i]
             child_local = j - r.start + 1
             sub = char === nothing ? _child_tree_path(child_local) :
