@@ -233,7 +233,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     end
     server === nothing || start_agent_server!(server)
     # Advance this editor's private animation clock once per frame; subscribers
-    # via `get_reactive_time(editor.clock)` re-evaluate on the next pull.
+    # via `get_reactive_clock_time(editor.clock)` re-evaluate on the next pull.
     # Logical time is wall-clock seconds since the loop started.
     t_start = Base.time()
     try
@@ -241,7 +241,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
-                tick!(editor.clock, Base.time() - t_start)
+                set_clock_time!(editor.clock, Base.time() - t_start)
                 @performance_time :read_time     read!(editor)
                 @performance_time :evaluate_time evaluate!(editor)
                 @performance_time :print_time    print!(editor)

@@ -30,7 +30,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/CellStructPlan.jl`
   - 🔒 `cell/CellStruct.jl`
 - **Layer 2 — clock** (`clock/`)
-  - ⬜ `clock/ClockLayer.jl`
+  - 🔒 `clock/ClockLayer.jl`
   - 🔒 `clock/Clock.jl`
 - **Layer 3 — event** (`event/`)
   - ⬜ `event/EventLayer.jl`

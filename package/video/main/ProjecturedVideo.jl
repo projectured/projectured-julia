@@ -25,7 +25,7 @@ import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell
-import ProjecturedDomain.ClockModule: Clock, seek!
+import ProjecturedDomain.ClockModule: Clock, set_clock_time!
 import ProjecturedDomain.ReferenceModule: EmptyReferencePath
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
@@ -137,14 +137,14 @@ function record_video(document, projection, gestures::AbstractVector,
     # streamed parts, typed characters, the live progress card and the animation
     # all appear incrementally — *without* re-running the whole (heavy) projection
     # per frame, which would allocate a fresh graphics tree every frame and thrash
-    # GC / memory. `seek!(clock, frame/fps)` advances the recording clock so
+    # GC / memory. `set_clock_time!(clock, frame/fps)` advances the recording clock so
     # time-reading cells recompute deterministically (no wall-clock coupling —
     # faster-than-real-time render is exactly what falls out). The projection
     # is only re-printed if an operation swaps the whole document.
     iomap = nothing
     reprint!() = (iomap = print_iomap(document); nothing)
     emit_frames! = (n::Integer) -> for _ in 1:max(n, 0)
-        seek!(clock, frame[] / fps)
+        set_clock_time!(clock, frame[] / fps)
         _emit_frames!(off, canvas_of(iomap), width, height, background, tmpdir, frame, 1)
     end
     try

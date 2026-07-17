@@ -28,7 +28,7 @@ guards, docs, and tests:
 
 ```
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
-Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_time/get_time, tick!/seek!, the shared wall clock
+Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
 Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
 Layer 4  — device/     Device abstract + Keyboard/Mouse/Screen + the read_from_devices/write_to_devices seam
 Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)

@@ -1,20 +1,20 @@
 """
     ClockModule
 
-The animation clock, modelled as a `Clock` document with a reactive `time`
-field. Every `Clock` instance is independent: writing one instance's `time`
+The animation clock, modelled as a `Clock` (a `@cell_struct`) with a reactive
+`time` field. Every `Clock` instance is independent: writing one instance's `time`
 invalidates only its own subscribers, so a process holding many concurrent
 clocks never cross-invalidates them — the property that lets many editors run
 side by side without their animation graphs colliding.
 
 Two ways to read a clock, named for intent:
 
-  • `get_reactive_time(clock)` — SUBSCRIBE. A tracked read; the calling cell
-    becomes a dependent and re-runs on every tick. Use inside an animated
+  • `get_reactive_clock_time(clock)` — SUBSCRIBE. A tracked read; the calling
+    cell becomes a dependent and re-runs on every tick. Use inside an animated
     thunk. The `reactive_` prefix is the loud one: calling it makes you
     reactive.
 
-  • `get_time(clock)` — SAMPLE. An untracked read that registers no
+  • `get_clock_time(clock)` — SAMPLE. An untracked read that registers no
     dependency. Use to *arm* an animation (capture a start instant) without
     the arming code itself re-running every frame.
 
@@ -31,7 +31,7 @@ module ClockModule
 using ..CellModule
 using ..CellStructModule
 
-export Clock, get_reactive_time, get_time, tick!, seek!, get_wall_clock
+export Clock, get_reactive_clock_time, get_clock_time, set_clock_time!, get_wall_clock
 
 """
     Clock(; time = 0.0) -> Clock
@@ -52,37 +52,30 @@ provides.
 end
 
 """
-    get_reactive_time(clock) -> Float64
+    get_reactive_clock_time(clock) -> Float64
 
 SUBSCRIBE: a tracked read of `clock.time`. The calling cell becomes a
 dependent and re-runs on every tick.
 """
-get_reactive_time(clock::Clock) = clock.time
+get_reactive_clock_time(clock::Clock) = clock.time
 
 """
-    get_time(clock) -> Float64
+    get_clock_time(clock) -> Float64
 
 SAMPLE: an untracked read of `clock.time`. Registers no dependency; use to
 capture a start instant that must not itself re-run every frame.
 """
-get_time(clock::Clock) = peek(getfield(clock, :time))
+get_clock_time(clock::Clock) = peek(getfield(clock, :time))
 
 """
-    tick!(clock, t) -> nothing
+    set_clock_time!(clock, t) -> nothing
 
-Advance `clock` to logical time `t` (in seconds). Writes `clock.time`,
-invalidating every subscriber.
+Set `clock` to logical time `t` (in seconds, absolute). Writes `clock.time`,
+invalidating every subscriber. The only clock mutator: a live frame advancing by
+measured wall delta and a deterministic seek to an exact instant are the same
+absolute write.
 """
-tick!(clock::Clock, t::Real) = (clock.time = Float64(t); nothing)
-
-"""
-    seek!(clock, t) -> nothing
-
-Set `clock` to logical time `t` deterministically. Same effect as `tick!`; the
-name is used at recording / test call sites where the semantics are
-"jump to this exact time", not "advance by measured wall delta".
-"""
-seek!(clock::Clock, t::Real) = tick!(clock, t)
+set_clock_time!(clock::Clock, t::Real) = (clock.time = Float64(t); nothing)
 
 # The one process-wide clock reflecting OS time — the singleton `get_wall_clock`
 # returns. Not exported; the accessor is the public entry point.
@@ -112,7 +105,7 @@ function _start_wall_clock_heartbeat!()
         t_start = Base.time()
         _HEARTBEAT_TASK[] = @async begin
             while true
-                tick!(_WALL_CLOCK, Base.time() - t_start)
+                set_clock_time!(_WALL_CLOCK, Base.time() - t_start)
                 sleep(_HEARTBEAT_INTERVAL)
             end
         end
