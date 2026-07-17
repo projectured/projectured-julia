@@ -33,7 +33,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `clock/ClockLayer.jl`
   - 🔒 `clock/Clock.jl`
 - **Layer 3 — event** (`event/`)
-  - ⬜ `event/EventLayer.jl`
+  - 🔒 `event/EventLayer.jl`
   - ⬜ `event/EventModule.jl`
   - ⬜ `event/Modifiers.jl`
   - ⬜ `event/KeyboardEvent.jl`
