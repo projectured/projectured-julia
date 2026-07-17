@@ -28,9 +28,22 @@ _wt_cell(r, c) = ConcreteReferencePath(FieldReference("rows"),
                     ConcreteReferencePath(ElementReference(r),
                         ConcreteReferencePath(ElementReference(c), EmptyReferencePath())))
 
-# The translucent selection rects the renderer prepends (alpha 0x40).
+# The translucent selection band(s) the renderer prepends (alpha 0x40),
+# materialised to value tuples *immediately*. The band is a single persistent
+# reactive overlay whose (x, y, w, h) cells read the LIVE `w.selection`, so holding
+# the `GraphicsRect` and reading its cells later would report whichever selection is
+# current then — not the one active at this print. Snapshotting here pins each band
+# to the selection that produced it. A 0×0 band (no whole-element selection — e.g. an
+# in-cell cursor) draws nothing and is filtered out.
 function _table_highlights(io)
-    GraphicsRect[c for c in collect(io.output.elements) if c isa GraphicsRect && c.color.alpha == 0x40 / 255]
+    bands = @NamedTuple{x::Int, y::Int, w::Int, h::Int}[]
+    for c in collect(io.output.elements)
+        (c isa GraphicsRect && c.color.alpha == 0x40 / 255) || continue
+        x, y, w, h = Int(c.x[]), Int(c.y[]), Int(c.w[]), Int(c.h[])
+        (w > 0 && h > 0) || continue
+        push!(bands, (x = x, y = y, w = w, h = h))
+    end
+    bands
 end
 
 function _print_with(doc, proj, path)
@@ -62,18 +75,15 @@ function test_table_selection()
     T, R, C, X = table_hs[1], row_hs[1], col_hs[1], cell_hs[1]
 
     # Whole table starts at the origin.
-    # @broken: pre-existing table-header extent drift; band geometry off
-    @test_broken T.x == 0 && T.y == 0
+    @test T.x == 0 && T.y == 0
     @test T.w > 0 && T.h > 0
 
     # Row band: full width, below the header row, real height.
-    # @broken: pre-existing table-header extent drift; band geometry off
-    @test_broken R.x == 0 && R.w == T.w
+    @test R.x == 0 && R.w == T.w
     @test R.y > 0 && R.h > 0
 
     # Column band: full height, right of the header column, real width.
-    # @broken: pre-existing table-header extent drift; band geometry off
-    @test_broken C.y == 0 && C.h == T.h
+    @test C.y == 0 && C.h == T.h
     @test C.x > 0 && C.w > 0
 
     # The cell band is exactly the intersection of its row band and column band.
@@ -97,13 +107,15 @@ end
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
 
-    # A content cursor (`rows[r][c].…`) is not a whole-element shape: no band.
+    # A content cursor (`rows[1][1].value`, inside the PrimitiveNumber cell) is not
+    # a whole-element shape: the band collapses to 0×0 (draws nothing), so no visible
+    # band. (rows[2][2] is a MathBinaryOperation with no `.value` — an unselectable
+    # path — so use the primitive cell the click test below also lands on.)
     inner = ConcreteReferencePath(FieldReference("rows"),
-                ConcreteReferencePath(ElementReference(2),
-                    ConcreteReferencePath(ElementReference(2),
+                ConcreteReferencePath(ElementReference(1),
+                    ConcreteReferencePath(ElementReference(1),
                         ConcreteReferencePath(FieldReference("value"), EmptyReferencePath()))))
-    # @broken: pre-existing; in-cell cursor still produces a band
-    @test_broken isempty(_table_highlights(_print_with(doc, proj, inner)))
+    @test isempty(_table_highlights(_print_with(doc, proj, inner)))
 
     # A plain left click routes into the clicked cell's content, landing on a
     # `rows[r][c].…` cursor.
