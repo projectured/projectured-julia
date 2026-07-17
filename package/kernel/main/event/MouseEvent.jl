@@ -125,5 +125,5 @@ end
 
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, ModifierKeys())
 
-get_modifiers(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
+get_modifier_keys(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
                            MouseEnter,MouseLeave,MouseScroll}) = event.modifiers

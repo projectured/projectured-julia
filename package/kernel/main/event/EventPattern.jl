@@ -125,7 +125,7 @@ function matches(pattern::EventPattern{E}, event) where {E}
     for (name, value) in pairs(pattern.fields)
         getfield(event, name) == value || return false
     end
-    _mods_match(pattern.modifiers, get_modifiers(event)) || return false
+    _mods_match(pattern.modifiers, get_modifier_keys(event)) || return false
     return pattern.guard === nothing || pattern.guard(event)
 end
 

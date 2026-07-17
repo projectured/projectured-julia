@@ -1039,7 +1039,7 @@ Operation → Document**, not alongside it: events are noun-first and suffixless
 verb-first with the `Operation` suffix (`CloseWindowOperation` — they express
 an intended edit). A projection type is a gerund stem + `Projection`
 (`FilteringProjection`); getter/derive/mutate is the `get_x` / `with_x` /
-`set_x!` trio; factories are `make_*`, predicates `is_*`, mutators end in `!`.
+`set_x!` trio; factories are `make_*`, predicates `is_*` or `has_*`, mutators end in `!`.
 Use full words, not ad-hoc abbreviations (`value` not `val`, `reference` not
 `ref`, `operation` not `op`); the sanctioned compact forms are `Api`, `IoMap`,
 the `I<Document>` prefix, `ctrl`/`alt`/`meta`, and any well-known, widely-used

@@ -317,8 +317,8 @@ Every concrete event subtypes either `DeviceEvent` (what a device reports —
 `KeyDown`, `MouseDown`, `WindowClose`, …) or `SyntheticEvent` (derived from
 several device events by whoever holds the state spanning them — `MousePress`
 from a down/up pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave`
-from motion crossing a boundary); both are `Event`s. `get_modifiers` (and
-`is_ctrl`/`is_shift`/`is_alt`/`is_meta` on top of it) is defined once over
+from motion crossing a boundary); both are `Event`s. `get_modifier_keys` (and
+`has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` on top of it) is defined once over
 `Event`, so it works for mouse events as well as keyboard ones.
 `WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
 concrete `ScreenDocument` in `visual` — a window event is report-only input

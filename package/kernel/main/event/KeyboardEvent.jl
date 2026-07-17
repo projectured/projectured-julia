@@ -76,4 +76,4 @@ struct KeyChord <: SyntheticEvent
     keys::Vector{KeyDown}
 end
 
-get_modifiers(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers
+get_modifier_keys(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers

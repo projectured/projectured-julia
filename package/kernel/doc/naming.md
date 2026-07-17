@@ -164,8 +164,8 @@ dispatch, not by the name.
   `perf`, `evaluated` not `eval`.
 - **The sanctioned compact forms are these**: `Api` (the layer marker),
   `IoMap`/`iomap` (a name in its own right), the generated `I<Document>` prefix,
-  the canonical keyboard modifier labels `ctrl`/`alt`/`meta` (`is_ctrl`; nobody
-  says `is_alternate`), and any well-known, widely-used abbreviation that reads
+  the canonical keyboard modifier labels `ctrl`/`alt`/`meta` (`has_ctrl_modifier_key`;
+  nobody says `has_alternate_modifier_key`), and any well-known, widely-used abbreviation that reads
   unambiguously as its one expansion (`ctor` for constructor, `expr` for
   expression). The bar is guessability in both directions: `ctor` clears it, a
   coined shortening of a domain word (`val`, `ref`, `op`) does not.
@@ -196,6 +196,6 @@ Two shapes are exempt from the verb-first rule, and only these:
 | `with_<stem>` | derived copy | `with_property` |
 | `<verb>_<flowing unit>` | pipeline protocol | `print_document`, `read_intent` |
 | `make_<thing>` | factory | `make_agent_server` |
-| `is_<condition>` | predicate | `is_valid_reference` |
+| `is_<condition>` / `has_<possession>` | predicate | `is_valid_reference`, `has_ctrl_modifier_key` |
 | `<verb>…!` | mutates its subject | `insert_row!` |
 | `…_<qualifier>` | variant of the base name | `…_ignoring_types` |

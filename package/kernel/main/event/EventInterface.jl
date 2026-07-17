@@ -1,6 +1,6 @@
 # Fragment of `EventModule` — the event **contract**: the abstract event types
 # and the one generic every event answers. Included before the concrete event
-# structs, which subtype these and add their own `get_modifiers` methods.
+# structs, which subtype these and add their own `get_modifier_keys` methods.
 
 """
     Event
@@ -30,10 +30,10 @@ it; a device never does.
 abstract type SyntheticEvent <: Event end
 
 """
-    get_modifiers(event) -> ModifierKeys
+    get_modifier_keys(event) -> ModifierKeys
 
 The modifier keys held when `event` occurred. Events that carry no modifier state
 of their own answer `ModifierKeys()` — including `KeyChord`, whose modifiers live on
 its constituent `KeyDown`s.
 """
-function get_modifiers end
+function get_modifier_keys end

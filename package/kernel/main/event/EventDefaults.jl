@@ -1,20 +1,20 @@
 # Fragment of `EventModule` — the behaviour the event contract supplies itself:
-# the modifier-free fallback for `get_modifiers`, and the per-flag predicates
+# the modifier-free fallback for `get_modifier_keys`, and the per-flag predicates
 # derived over it.
 
 # An event with no modifier state of its own carries none.
-get_modifiers(::Event) = ModifierKeys()
+get_modifier_keys(::Event) = ModifierKeys()
 
 """
-    is_ctrl(event)  -> Bool
-    is_shift(event) -> Bool
-    is_alt(event)   -> Bool
-    is_meta(event)  -> Bool
+    has_ctrl_modifier_key(event)  -> Bool
+    has_shift_modifier_key(event) -> Bool
+    has_alt_modifier_key(event)   -> Bool
+    has_meta_modifier_key(event)  -> Bool
 
 Whether the given modifier was held when `event` occurred. Defined once over
-[`get_modifiers`](@ref), so they work for every event, mouse ones included.
+[`get_modifier_keys`](@ref), so they work for every event, mouse ones included.
 """
-is_ctrl(event::Event)  = get_modifiers(event).ctrl
-is_shift(event::Event) = get_modifiers(event).shift
-is_alt(event::Event)   = get_modifiers(event).alt
-is_meta(event::Event)  = get_modifiers(event).meta
+has_ctrl_modifier_key(event::Event)  = get_modifier_keys(event).ctrl
+has_shift_modifier_key(event::Event) = get_modifier_keys(event).shift
+has_alt_modifier_key(event::Event)   = get_modifier_keys(event).alt
+has_meta_modifier_key(event::Event)  = get_modifier_keys(event).meta

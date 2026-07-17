@@ -37,7 +37,7 @@ import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
-import ..EventModule: KeyDown, is_ctrl
+import ..EventModule: KeyDown, has_ctrl_modifier_key
 
 export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 
@@ -152,7 +152,7 @@ end
 function _toggle_operation(gesture, control_widget)
     gesture isa KeyDown || return nothing
     hidden = control_widget.visible == false
-    if gesture.key === :f && is_ctrl(gesture)
+    if gesture.key === :f && has_ctrl_modifier_key(gesture)
         return ReplaceReferencedValueOperation(control_widget, "visible", hidden)
     elseif gesture.key === :escape
         return hidden ? nothing : ReplaceReferencedValueOperation(control_widget, "visible", false)
