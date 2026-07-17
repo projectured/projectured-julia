@@ -59,18 +59,29 @@ export EventPattern,
 # ─────────────────────────────────────────────────────────────────────────
 # The event table
 #
-# Derived from `EVENT_TYPES`: every concrete event, mapped to the ordered list of
-# fields a positional pattern argument may bind or match. `modifiers` is never
-# positional — it is written after the `;` — so it is excluded.
+# Every concrete event type in `EventModule`, reflected off its exports and mapped
+# to the ordered list of fields a positional pattern argument may bind or match.
+# `modifiers` is never positional — it is written after the `;` — so it is excluded.
 #
 # Deriving rather than declaring is what keeps a pattern from going stale against
 # the struct it matches: an event type is matchable the moment the event layer
 # exports it, with the fields it actually has.
 # ─────────────────────────────────────────────────────────────────────────
 
+# The concrete event types, read off `EventModule`'s exports.
+function _concrete_event_types()
+    types = Type[]
+    for name in names(EventModule)
+        isdefined(EventModule, name) || continue
+        value = getproperty(EventModule, name)
+        value isa Type && value <: Event && isconcretetype(value) && push!(types, value)
+    end
+    types
+end
+
 const _EVENT_TYPES = Dict{Symbol,Tuple{Type,Vector{Symbol}}}(
     nameof(T) => (T, Symbol[f for f in fieldnames(T) if f !== :modifiers])
-    for T in EVENT_TYPES)
+    for T in _concrete_event_types())
 
 const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 

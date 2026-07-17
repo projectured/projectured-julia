@@ -35,11 +35,13 @@ include order — the source files state their dependencies, never their index.
 - **Layer 3 — event** (`event/`)
   - 🔒 `event/EventLayer.jl`
   - ⬜ `event/EventModule.jl`
+  - ⬜ `event/EventInterface.jl`
   - ⬜ `event/Modifiers.jl`
   - ⬜ `event/KeyboardEvent.jl`
   - ⬜ `event/MouseEvent.jl`
   - ⬜ `event/WindowEvent.jl`
   - ⬜ `event/EventEnvelope.jl`
+  - ⬜ `event/EventDefaults.jl`
   - ⬜ `event/EventPattern.jl`
 - **Layer 4 — device** (`device/`)
   - ⬜ `device/DeviceLayer.jl`
