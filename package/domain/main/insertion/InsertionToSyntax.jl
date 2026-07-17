@@ -156,10 +156,21 @@ function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
 end
 
 function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
+    # The value buffer's end sits at the same flat as the suffix (closing delimiter)
+    # starts, and for an *empty* buffer (a fresh `JsonInsertion`) that is the buffer's
+    # only caret — otherwise unreachable, since the zero-width value span is shadowed
+    # by the suffix when the flat resolves. Redirect `closing_delimiter{0}` into
+    # `value{len}` so the insertion buffer is always navigable (type there to fill it),
+    # mirroring SyntaxLeafToText's value/close-seam redirect one layer down.
+    n = length(something(iomap.input.value, ""))
     @reference_case reference begin
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
+        ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
+            ConcreteReferencePath(DocumentInsertion, FieldReference("value"),
+                ConcreteReferencePath(String, RangeReference(n, n), EmptyReferencePath(Position))) :
+            nothing)
     end
 end
 
