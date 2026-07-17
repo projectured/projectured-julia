@@ -163,6 +163,7 @@ requirement; the rule is its own lead sentence.
 | [AR-NO-TEST-DOUBLES-IN-MAIN](#ar-no-test-doubles-in-main) | No test doubles live in `main` packages |
 | [AR-NO-CONSUMER-DOCS](#ar-no-consumer-docs) | A module's documentation describes its own contract, never its consumers |
 | [AR-TIGHT-COMMENTS](#ar-tight-comments) | A comment carries only what the code cannot — keep it tight |
+| [AR-CITE-EXCEPTIONS-ONLY](#ar-cite-exceptions-only) | Cite an architectural requirement only to flag an exception, never to announce compliance |
 
 ## Reactivity — the cell engine
 
@@ -1144,3 +1145,24 @@ paragraph restating `make_insertion_document`'s own docstring and
 `@with_selection`'s semantics, keeping only the one line no reader could derive
 — why an empty `JsonNumber` is selected whole while an empty `JsonString` gets
 a caret at position 0.
+
+### AR-CITE-EXCEPTIONS-ONLY
+
+**Cite an architectural requirement in a comment or docstring only to flag an
+exception, never to announce compliance.** The sanctioned places to cite an
+`AR-…` ID are reviews, commit messages, guard failures, and `plan/` documents; a
+*source comment or docstring* is not one of them. There, a rule reference earns
+its place only when it marks a **deviation** — an accepted non-compliance, or a
+non-obvious constraint the rule forces at that spot which a reader would
+otherwise question or "correct". Naming the rule a piece of code simply *follows*
+is noise: compliance is the default, it is enforced elsewhere (the layering
+guards, review, this document), and the citation only rots when the rule is
+renamed or the code moves. A file that is the textbook case of a rule states its
+role in plain terms — an interface file says "nothing here carries a body", it
+does not cite AR-INTERFACE-DECLARES-ONLY to prove it. This is the citation-level
+companion to AR-TIGHT-COMMENTS (a comment carries only what the code cannot): a
+rule name the reader can look up, pinned to code that plainly obeys it, carries
+nothing. A guide (or this document) that *teaches* a rule is stating it, not
+announcing compliance, and is exempt. Precedent: the cell layer's
+`CellInterface.jl`/`CellDefaults.jl` name their interface/implementation split in
+plain words and cite no rule to justify it.

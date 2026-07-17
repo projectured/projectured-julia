@@ -14,10 +14,10 @@ module CellModule
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell
 
-include("AbstractCell.jl")    # the base type; the kinds below subtype it
+include("CellInterface.jl")
 include("ReactiveCell.jl")
 include("MutableCell.jl")
 include("ImmutableCell.jl")
-include("CellUnwrap.jl")      # unwrap_cell — reading a slot that may hold a cell
+include("CellDefaults.jl")
 
 end # module

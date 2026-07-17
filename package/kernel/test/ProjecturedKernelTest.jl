@@ -102,7 +102,7 @@ function test_kernel_layering()
                    # A layer's contract file, and its owning module. The projection
                    # layer declares two contracts, so it has two.
                    interface_files = Dict(
-                       "cell/AbstractCell.jl"        => :CellModule,
+                       "cell/CellInterface.jl"       => :CellModule,
                        "document/Document.jl"        => :DocumentModule,
                        "reference/Interface.jl"      => :ReferenceModule,
                        "selection/Interface.jl"      => :SelectionModule,

@@ -21,11 +21,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
   - ⬜ `cell/CellModule.jl`
-  - 🔒 `cell/AbstractCell.jl`
+  - ⬜ `cell/CellInterface.jl`
   - 🔒 `cell/ReactiveCell.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
-  - ⬜ `cell/CellUnwrap.jl`
+  - ⬜ `cell/CellDefaults.jl`
   - ⬜ `cell/CellStructModule.jl`
   - ⬜ `cell/CellStructPlan.jl`
   - ⬜ `cell/CellStruct.jl`

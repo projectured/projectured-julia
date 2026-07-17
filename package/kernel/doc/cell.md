@@ -147,20 +147,20 @@ struct codegen, loaded in this order:
 PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
         │  @count_performance imported by ↓
 CellModule.jl            (CellModule)                 — the cell kinds, one file each:
-        ├─ AbstractCell.jl    — the AbstractCell{T} base + shared protocol
+        ├─ CellInterface.jl   — the AbstractCell{T} base + shared protocol
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         ├─ ImmutableCell.jl   — read-only, zero-cost wrapper
-        └─ CellUnwrap.jl      — unwrap_cell: reading a slot that may hold a cell
+        └─ CellDefaults.jl    — unwrap_cell body: reading a slot that may hold a cell
         │  Cell / AbstractCell used by ↓
 CellStructModule.jl      (CellStructModule)           — transparent-Cell struct codegen:
         ├─ CellStructPlan.jl      — the struct-definition parse the struct macros share
         └─ CellStruct.jl      — @cell_struct + its expr-builders
 ```
 
-`AbstractCell.jl` is the layer's **interface file**: it declares the contract and
-nothing else (AR-INTERFACE-DECLARES-ONLY). `unwrap_cell` therefore sits in the sibling `CellUnwrap.jl`
-rather than beside the type it dispatches on — it has a body, and a body is
+`CellInterface.jl` is the layer's **interface file**: it declares the contract and
+nothing else (AR-INTERFACE-DECLARES-ONLY). The default body for `unwrap_cell`
+therefore sits in the sibling `CellDefaults.jl` — it has a body, and a body is
 implementation.
 
 The layer bundles everything at **cell dependency height**: `PerformanceCounter`
