@@ -100,3 +100,21 @@ function test_catalog(; domain = nothing, document = nothing, terminal = nothing
         end
     end
 end
+
+"""
+    test_catalog_typeins(; domain=:text)
+
+Run `test_typein` (the character insert/backspace/delete round-trip at every caret)
+over the `:graphics` variant of each atomic document in `domain` — the one tester
+`test_catalog`'s set omits, because most domains route their leaf edits through
+domain-specific readers already covered by the curated `test_typeins`. The text
+atoms render straight through `TextToGraphics`, so every caret is a real editable
+text cursor; this asserts each atom types cleanly under the default text projection.
+"""
+function test_catalog_typeins(; domain = :text)
+    @testset "CatalogTypeins" begin
+        for ex in catalog(; domain = domain, terminal = :graphics)
+            test_typein(ex.name, ex.make_document(), ex.make_projection())
+        end
+    end
+end

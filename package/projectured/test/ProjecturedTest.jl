@@ -183,6 +183,10 @@ function test_all()
     test_position_navigations_complete()
     test_repls()
     test_typeins()
+    # Character-editing round trip over the generated text atoms (the tester the
+    # catalog's default set omits); every text atom types cleanly under the default
+    # text projection.
+    test_catalog_typeins()
     test_mcp_tools()
     test_conversation_serialization()
     test_parse_markdown_blocks()
@@ -234,7 +238,7 @@ export explore_position_selections, collect_position_selections, collect_tree_se
 export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
-export test_catalog
+export test_catalog, test_catalog_typeins
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
