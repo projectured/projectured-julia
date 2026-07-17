@@ -60,7 +60,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, Position
+                          ElementReference, EmptyReferencePath, Position, reference_node_type
 import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -148,7 +148,10 @@ _typed_color(p, state::Symbol) =
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        ∅        => @reference()                        # whole insertion → whole delimitation
+        # Whole insertion → whole delimitation, typed against the output (as the
+        # generic `Projection` fallback does) so a parent that splices it — e.g.
+        # `YamlSequence`'s `.content.^(inner)` — keeps a fully-typed reference.
+        ∅        => EmptyReferencePath(reference_node_type(iomap.output))
         value{k} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
@@ -164,10 +167,11 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     # `value{len}` so the insertion buffer is always navigable (type there to fill it),
     # mirroring SyntaxLeafToText's value/close-seam redirect one layer down.
     n = length(something(iomap.input.value, ""))
+    whole = EmptyReferencePath(reference_node_type(iomap.input))   # typed whole insertion
     @reference_case reference begin
-        ∅ => @reference()                              # whole delimitation → whole insertion
+        ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
-            ∅ => @reference()                          # whole content leaf → whole insertion
+            ∅ => whole                                 # whole content leaf → whole insertion
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
