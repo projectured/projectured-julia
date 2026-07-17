@@ -44,7 +44,7 @@
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedBase.CollectionModule: CellVector
 using ProjecturedVisual.FontModule: StyleFont
-using ProjecturedVisual.TextModule: TextString, TextBlock
+using ProjecturedVisual.TextModule: TextString, TextBlock, TextDocument, TextGraphics
 using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
@@ -117,6 +117,17 @@ function _walk_strings!(node, path, visited, refs)
         # SyntaxLeafToText reader, so there is no edit op to type into them.
         (node isa Union{SyntaxLeaf, SyntaxNode} &&
          fname in (:open, :close, :sep)) && continue
+        # Presentation style on a text span (font / colours / padding) is not
+        # editable document content — the same reasoning that skips `StyleFont`
+        # below. Some of these fields default to a bare "" placeholder, which the
+        # walk would otherwise treat as an empty editable string with no caret to
+        # render (a spurious "no cursor" failure).
+        (node isa TextDocument &&
+         fname in (:font, :font_color, :fill_color, :line_color, :padding)) && continue
+        # A `TextGraphics` embeds a graphics document (an inline image); its
+        # `content` is not text-editable, and descending into it would reach the
+        # image file's `filename` String — presentation metadata, not text content.
+        (node isa TextGraphics && fname === :content) && continue
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
         field_path = append_reference(path, FieldReference(string(fname)))
