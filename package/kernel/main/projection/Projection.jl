@@ -215,7 +215,7 @@ injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
 — same mechanic as `@iomap`/`IoMap`.
 """
 macro projection(args...)
-    default, structdef = struct_macro_default(args)
+    default, structdef = cell_struct_macro_default(args)
     structdef.head === :struct || error("@projection expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))

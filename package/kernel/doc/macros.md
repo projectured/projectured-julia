@@ -26,7 +26,7 @@ supertype: they inject `<: IoMap` / `<: Projection` when none is written and
 delegate to the cell layer's assembler (`cell_struct_exprs`). `@document`
 generates its own kind-parameterized stem (see below), but shares the cell
 layer's codegen kit for everything that is not document-specific: the field
-parse (`struct_plan`, which reads the three field forms into a `StructPlan`),
+parse (`cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
 the keyword-constructor builders (`cell_struct_kw_params`,
 `cell_struct_kwctor`), and **Rule Y** (`cell_struct_positional_ctors` — filling
 a trailing run of defaults positionally is a rule about any cell struct, not

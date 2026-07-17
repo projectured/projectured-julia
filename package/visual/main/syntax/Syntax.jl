@@ -226,7 +226,7 @@ end
 #
 # The defaulted delimiters precede the required `content` for the same reason
 # `SyntaxNode` leads with its own: `@document`'s Rule Y generates a positional
-# constructor per arity from `required_count` upward, and `required_count` counts the
+# constructor per arity from `cell_struct_required_count` upward, and `cell_struct_required_count` counts the
 # fields *before the trailing run of defaulted ones*. Content-first would make the
 # generated arity-1 form collide with the coercing constructor below.
 SyntaxDelimitation(content; opening_delimiter=nothing, closing_delimiter=nothing, kwargs...) =
@@ -379,9 +379,9 @@ back as projection-introduced chrome, exactly as `SyntaxNode`'s `sep` does.
 
 The field order is not cosmetic: the defaulted `separator` must precede the required
 `children`, exactly as `SyntaxNode`'s delimiters do. `@document`'s Rule Y generates a
-positional constructor per arity from `required_count` upward, where `required_count`
+positional constructor per arity from `cell_struct_required_count` upward, where `cell_struct_required_count`
 counts the fields *before the trailing run of defaulted ones*. With `children` first,
-that run is `separator, selection`, `required_count` is 1, and the generated arity-1
+that run is `separator, selection`, `cell_struct_required_count` is 1, and the generated arity-1
 `SyntaxSeparation(Any)` collides head-on with the coercing keyword constructor below —
 a fatal method overwrite during precompilation. Leading with `separator` puts the
 required field last, so generation starts at arity 2 and the arity-1 form is ours.

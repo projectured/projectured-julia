@@ -1,7 +1,7 @@
 # Fragment of `DocumentModule` — the `@document` codegen.
 #
 # The macro is a parse followed by six emitters. It reads the struct definition
-# into a `StructPlan` (the cell layer's shared parse), appends the `selection`
+# into a `CellStructPlan` (the cell layer's shared parse), appends the `selection`
 # field every document must carry, and then each emitter below is a pure function
 # of that plan producing one piece of the expansion. Rule Y — positional
 # constructors filling a trailing run of defaults — is not document-specific and
@@ -35,7 +35,7 @@ types are enforced by the kind constructors, not the type system.
 """
 function _emit_stem!(plan)
     Cs = _cell_params(plan)
-    retype_fields!(plan, Cs)
+    retype_cell_struct_fields!(plan, Cs)
     # The cell types are spliced as *objects* (not names), so callers need no
     # extra imports.
     plan.structdef.args[2] = Expr(:(<:),
@@ -67,8 +67,8 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     # `selection` field is such a field, so it follows `default` too. With no leading
     # kind (`default = :reactive`) and nothing annotated these are all `ReactiveCell{Any}`
     # and every path below reduces to the historic codegen.
-    kinds     = field_cell_kinds(plan; default = default)
-    vts       = declared_value_types(plan)
+    kinds     = cell_struct_field_kinds(plan; default = default)
+    vts       = cell_struct_value_types(plan)
     def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
     raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
                                            :($(def_types[i])($(arg_names[i])))
@@ -116,8 +116,8 @@ so a fully-conforming node inhabits its alias.
 """
 function _emit_kind_aliases(plan, arg_names; default::Symbol = :reactive)
     n     = length(plan.field_names)
-    Tvals = declared_value_types(plan)
-    kinds = field_cell_kinds(plan; default = default)
+    Tvals = cell_struct_value_types(plan)
+    kinds = cell_struct_field_kinds(plan; default = default)
     r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("R", "I", "M", "D"))
 
     alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
@@ -166,7 +166,7 @@ this way leaves that signature to a struct that must hand-write one because it
 does more than fill fields (back-linking a draft, coercing its arguments). A
 struct with no fields of its own is the exception — it holds nothing but its
 selection, so there is no hand-written constructor to protect and `Foo()` must
-come from somewhere, which Rule Y cannot supply (`required_count == 0`).
+come from somewhere, which Rule Y cannot supply (`cell_struct_required_count == 0`).
 """
 function _emit_keyword_ctors(plan)
     (plan.n_programmer_defaults > 0 || plan.n_declared == 0) || return Any[]
@@ -195,7 +195,7 @@ instead of a `CellVector`. Hence this companion. The two coexist: the
 `CellVector` (which is `<: Document`, not `<: AbstractVector`) falls through to the
 raw form. Emitted only for an arity whose kept prefix actually reaches the
 collection slot; it is passed to `cell_struct_positional_ctors` as its
-`each_arity` hook, which is what ties it to Rule Y's own `required_count ≥ 1` gate.
+`each_arity` hook, which is what ties it to Rule Y's own `cell_struct_required_count ≥ 1` gate.
 """
 function _emit_collection_ctor_at(plan, k)
     p = _cell_vector_slot(plan)
@@ -215,7 +215,7 @@ end
 defaults — the bracketed `Foo([a, b])` and the variadic `Foo(a, b)`.
 
 The bracketed "fill everything" form is emitted only when Rule Y did **not** run
-(`required_count == 0`, i.e. the collection itself defaults); otherwise
+(`cell_struct_required_count == 0`, i.e. the collection itself defaults); otherwise
 [`_emit_collection_ctor_at`](@ref) already produced that exact signature alongside
 the arity-`k` Rule Y form, and emitting it again would silently redefine it. The
 variadic never collides, so it is always emitted. Elements are typed `Document`
@@ -236,7 +236,7 @@ function _emit_collection_ctors(plan)
     all(haskey(defaults, f) for (i, f) in enumerate(fields) if i != p) || return Any[]
 
     ctors = Any[]
-    if required_count(plan) == 0
+    if cell_struct_required_count(plan) == 0
         cargs = Any[i == p ? :(CellVector(items)) : defaults[f]
                     for (i, f) in enumerate(fields)]
         push!(ctors, :($(plan.name)(items::AbstractVector) =
@@ -314,9 +314,9 @@ construction (`setfield!` is gone); all mutation flows through the cells, and
 construction-time cell sharing replaces field-level retargeting.
 """
 macro document(args...)
-    default, structdef = struct_macro_default(args)
+    default, structdef = cell_struct_macro_default(args)
     structdef.head === :struct || error("@document expects a struct definition")
-    plan = struct_plan(structdef)
+    plan = cell_struct_plan(structdef)
 
     # Default the supertype to `Document` unless one is written explicitly, so
     # `@document struct Foo … end` means `struct Foo <: Document … end`. The
@@ -347,10 +347,10 @@ macro document(args...)
             error("@document $(plan.name): an explicit `selection` field must be declared last.")
         haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
     else
-        add_plan_field!(plan, :selection, :Reference, :nothing)
+        add_cell_struct_field!(plan, :selection, :Reference, :nothing)
     end
 
-    plan = StructPlan(plan.structdef, plan.name, supertype, plan.field_names,
+    plan = CellStructPlan(plan.structdef, plan.name, supertype, plan.field_names,
                       plan.field_types, plan.field_slots, plan.defaults,
                       plan.n_declared, plan.n_programmer_defaults)
 

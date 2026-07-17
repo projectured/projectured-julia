@@ -101,15 +101,15 @@ result must be escaped by the calling macro so the emitted bare names resolve at
 the expansion site.
 """
 function cell_struct_exprs(structdef; default::Symbol = :reactive)
-    plan = struct_plan(structdef)
+    plan = cell_struct_plan(structdef)
     isempty(plan.field_names) && return structdef
 
     # Each field becomes a transparent cell of its kind: `default` (the struct-level
     # default from a leading macro argument, `:reactive` when none) unless the field
     # names its own kind (`f::ImmutableCell{T}`). The declared value type is otherwise
     # documentation only, as before.
-    kinds = field_cell_kinds(plan; default = default)
-    vts   = declared_value_types(plan)
+    kinds = cell_struct_field_kinds(plan; default = default)
+    vts   = cell_struct_value_types(plan)
     cell_types  = Any[]
     field_wraps = Any[]
     # Splice the kind as the type OBJECT (not a symbol) so the emitted field type
@@ -121,7 +121,7 @@ function cell_struct_exprs(structdef; default::Symbol = :reactive)
         push!(cell_types, ct)
         push!(field_wraps, (kinds[i], ct))
     end
-    retype_fields!(plan, cell_types)
+    retype_cell_struct_fields!(plan, cell_types)
 
     body = plan.structdef.args[3]
 
@@ -145,14 +145,14 @@ function cell_struct_exprs(structdef; default::Symbol = :reactive)
 end
 
 """
-    struct_macro_default(args) -> (default_kind::Symbol, structdef)
+    cell_struct_macro_default(args) -> (default_kind::Symbol, structdef)
 
 Parse a transparent-cell struct macro's arguments. An optional **leading cell-kind name** sets the
 struct-level default (`@document ImmutableCell struct …` → `:immutable`); with no leading kind the
 default is `:reactive` (unchanged behaviour). Used by `@cell_struct` / `@projection` / `@iomap` /
 `@document` so they share one arg convention.
 """
-function struct_macro_default(args)
+function cell_struct_macro_default(args)
     if length(args) == 2
         k = args[1] isa Symbol ? cell_kind_of(args[1]) : nothing
         k === nothing && error("expected a cell kind (ImmutableCell / MutableCell / ReactiveCell) " *
@@ -187,6 +187,6 @@ that needs to compose this codegen with its own additions calls the assembler
 `cell_struct_exprs` directly rather than this macro.
 """
 macro cell_struct(args...)
-    default, structdef = struct_macro_default(args)
+    default, structdef = cell_struct_macro_default(args)
     esc(cell_struct_exprs(structdef; default = default))
 end

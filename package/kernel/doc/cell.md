@@ -154,7 +154,7 @@ CellModule.jl            (CellModule)                 — the cell kinds, one fi
         └─ CellUnwrap.jl      — unwrap_cell: reading a slot that may hold a cell
         │  Cell / AbstractCell used by ↓
 CellStructModule.jl      (CellStructModule)           — transparent-Cell struct codegen:
-        ├─ StructPlan.jl      — the struct-definition parse the struct macros share
+        ├─ CellStructPlan.jl      — the struct-definition parse the struct macros share
         └─ CellStruct.jl      — @cell_struct + its expr-builders
 ```
 
@@ -204,7 +204,7 @@ The macro is assembled by `cell_struct_exprs(structdef)`, which composes two
 module-internal expr-builders (`cell_struct_autowrap_ctor`,
 `cell_struct_property_accessors`) with the exported keyword/positional builders
 (`cell_struct_kw_params`, `cell_struct_kwctor`, `cell_struct_positional_ctors`)
-and the `StructPlan` parse — together the **composition seam for macro
+and the `CellStructPlan` parse — together the **composition seam for macro
 authors**: `@iomap` and `@projection` (projection layer) inject their default
 supertype and return `esc(cell_struct_exprs(structdef))` wholesale; `@document`
 (document layer) generates its own kind-parameterized stem and reuses only the
@@ -215,10 +215,10 @@ requires `using ..CellStructModule`. See [the macros guide](macros.md) for the
 full field-wrapping and `@document` codegen details.
 
 Public surface: `@cell_struct`, `cell_struct_exprs`, `cell_struct_kw_params`,
-`cell_struct_kwctor`, `cell_struct_positional_ctors`, `struct_macro_default`, and
-the `StructPlan` parse toolkit (`StructPlan`, `struct_plan`, `add_plan_field!`,
-`retype_fields!`, `declared_value_types`, `field_cell_kinds`, `cell_kind_of`,
-`required_count`, `trailing_default_count`). The expr-builders
+`cell_struct_kwctor`, `cell_struct_positional_ctors`, `cell_struct_macro_default`, and
+the `CellStructPlan` parse toolkit (`CellStructPlan`, `cell_struct_plan`, `add_cell_struct_field!`,
+`retype_cell_struct_fields!`, `cell_struct_value_types`, `cell_struct_field_kinds`, `cell_kind_of`,
+`cell_struct_required_count`, `cell_struct_trailing_default_count`). The expr-builders
 `cell_struct_autowrap_ctor` and `cell_struct_property_accessors` are
 module-internal.
 

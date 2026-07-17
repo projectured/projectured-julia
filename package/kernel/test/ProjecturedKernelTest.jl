@@ -56,7 +56,7 @@ include("layering/CheckLayering.jl")
 # ── kernel unit tests (one suite per kernel layer) ──────────────────────────
 include("cell/CellTest.jl")
 include("cell/CellStructTest.jl")
-include("cell/StructPlanTest.jl")
+include("cell/CellStructPlanTest.jl")
 include("cell/PerformanceCounterTest.jl")
 include("clock/ClockTest.jl")
 include("document/DocumentContractTest.jl")

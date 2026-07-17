@@ -94,7 +94,7 @@ one default: a struct without an explicit supertype gets `<: IoMap`. The
 injected `:IoMap` resolves in the caller's scope (the result is `esc`'d).
 """
 macro iomap(args...)
-    default, structdef = struct_macro_default(args)
+    default, structdef = cell_struct_macro_default(args)
     structdef.head === :struct || error("@iomap expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))

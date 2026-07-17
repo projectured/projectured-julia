@@ -5,15 +5,15 @@
 # typed `f::T`, defaulted `f[::T] = v` — strips the defaults out of the body (a
 # `struct` cannot carry them), and remembers them for the constructors. That parse
 # is the same wherever it is written, so it is written here, once, and the macros
-# that build on it consume a `StructPlan` instead of re-walking the AST.
+# that build on it consume a `CellStructPlan` instead of re-walking the AST.
 #
 # The plan keeps each field's *slot* — its index in the struct body — rather than
 # rebuilding the body, because the body's `LineNumberNode`s are what give a field a
-# source location in errors and docs. `retype_fields!` overwrites the slots in
+# source location in errors and docs. `retype_cell_struct_fields!` overwrites the slots in
 # place and leaves those nodes where they are.
 
 """
-    StructPlan
+    CellStructPlan
 
 The parsed form of a `struct` definition: its name, supertype, fields (names,
 declared types, and the slot each occupies in the body), and the `@kwdef`-style
@@ -23,7 +23,7 @@ defaults stripped out of it.
 wrote them**, before any macro injects a field of its own — a macro that appends
 a field needs to tell "the user defaulted something" apart from "I did".
 """
-struct StructPlan
+struct CellStructPlan
     structdef             :: Expr
     name                  :: Symbol
     supertype             :: Any            # expr / symbol, or `nothing` if unwritten
@@ -36,15 +36,15 @@ struct StructPlan
 end
 
 """
-    struct_plan(structdef) -> StructPlan
+    cell_struct_plan(structdef) -> CellStructPlan
 
 Parse a `struct` definition. Handles the three field forms (`f`, `f::T`,
 `f[::T] = v`) and strips each default out of the body into the plan — the declared
 type is kept, since it still feeds typed constructors and aliases.
 """
-function struct_plan(structdef)
+function cell_struct_plan(structdef)
     structdef isa Expr && structdef.head === :struct ||
-        error("struct_plan expects a struct definition")
+        error("cell_struct_plan expects a struct definition")
     name_expr = structdef.args[2]
     has_super = name_expr isa Expr && name_expr.head === :(<:)
     name      = has_super ? name_expr.args[1] : name_expr
@@ -73,18 +73,18 @@ function struct_plan(structdef)
         push!(field_slots, i)
     end
 
-    StructPlan(structdef, name, supertype, field_names, field_types, field_slots,
+    CellStructPlan(structdef, name, supertype, field_names, field_types, field_slots,
                Dict(defaults), length(field_names), length(defaults))
 end
 
 """
-    add_plan_field!(plan, name, type, default) -> StructPlan
+    add_cell_struct_field!(plan, name, type, default) -> CellStructPlan
 
 Append a field the macro supplies rather than the programmer — it lands last, in
-the body and in the plan alike. The body slot is a placeholder; `retype_fields!`
+the body and in the plan alike. The body slot is a placeholder; `retype_cell_struct_fields!`
 writes the field's real cell type into it.
 """
-function add_plan_field!(plan::StructPlan, name::Symbol, type, default)
+function add_cell_struct_field!(plan::CellStructPlan, name::Symbol, type, default)
     body = plan.structdef.args[3]
     push!(body.args, :($(name)::Any))
     push!(plan.field_names, name)
@@ -95,12 +95,12 @@ function add_plan_field!(plan::StructPlan, name::Symbol, type, default)
 end
 
 """
-    retype_fields!(plan, cell_types) -> plan
+    retype_cell_struct_fields!(plan, cell_types) -> plan
 
 Rewrite every field in the struct body to `name::cell_types[i]` — in place, so the
 body's `LineNumberNode`s (and with them each field's source location) survive.
 """
-function retype_fields!(plan::StructPlan, cell_types)
+function retype_cell_struct_fields!(plan::CellStructPlan, cell_types)
     body = plan.structdef.args[3]
     for (i, slot) in enumerate(plan.field_slots)
         body.args[slot] = :($(plan.field_names[i])::$(cell_types[i]))
@@ -144,25 +144,25 @@ function _field_kind_type(ftype)
 end
 
 """
-    declared_value_types(plan) -> Vector
+    cell_struct_value_types(plan) -> Vector
 
 Each field's declared **value** type as an expr, with `Any` standing in for an
 untyped field. A field that names a cell kind (`ImmutableCell{T}`, …) contributes
 its parameter `T` — the kind wrapper is stripped, since this is the value-type
 vocabulary the typed (immutable / mutable) constructors and aliases are written in.
 """
-declared_value_types(plan::StructPlan) =
+cell_struct_value_types(plan::CellStructPlan) =
     Any[_field_kind_type(t)[2] for t in plan.field_types]
 
 """
-    field_cell_kinds(plan; default = :reactive) -> Vector{Symbol}
+    cell_struct_field_kinds(plan; default = :reactive) -> Vector{Symbol}
 
 Each field's cell kind — `:reactive` / `:immutable` / `:mutable`. A field that **names** a kind
 (`f::ImmutableCell{T}`) keeps it; every other field (bare `f`, plain `f::T`) takes `default`, the
 struct-level default a macro passes from its leading kind argument. `default = :reactive` (no
 leading kind) leaves the result exactly as before.
 """
-function field_cell_kinds(plan::StructPlan; default::Symbol = :reactive)
+function cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reactive)
     kinds = Symbol[]
     for t in plan.field_types
         k, _, explicit = _field_kind_type(t)
@@ -172,12 +172,12 @@ function field_cell_kinds(plan::StructPlan; default::Symbol = :reactive)
 end
 
 """
-    trailing_default_count(plan) -> Int
+    cell_struct_trailing_default_count(plan) -> Int
 
 How many fields at the **end** of the declaration run all the way to the last one
 with a default — the suffix a positional constructor may omit.
 """
-function trailing_default_count(plan::StructPlan)
+function cell_struct_trailing_default_count(plan::CellStructPlan)
     n = 0
     for fname in Iterators.reverse(plan.field_names)
         haskey(plan.defaults, fname) || break
@@ -187,12 +187,12 @@ function trailing_default_count(plan::StructPlan)
 end
 
 """
-    required_count(plan) -> Int
+    cell_struct_required_count(plan) -> Int
 
 How many leading fields a positional constructor must be given: every field before
 the trailing run of defaulted ones.
 """
-required_count(plan::StructPlan) = length(plan.field_names) - trailing_default_count(plan)
+cell_struct_required_count(plan::CellStructPlan) = length(plan.field_names) - cell_struct_trailing_default_count(plan)
 
 """
     cell_struct_positional_ctors(plan, target_name; each_arity = _ -> ()) -> Vector
@@ -200,18 +200,18 @@ required_count(plan::StructPlan) = length(plan.field_names) - trailing_default_c
 **Rule Y** — the positional analog of `@kwdef`: for a trailing run of defaulted
 fields, constructors `T(f₁..f_k)` that fill the omitted suffix with its defaults.
 
-Emitted only when at least one leading field is *required* (`required_count ≥ 1`),
+Emitted only when at least one leading field is *required* (`cell_struct_required_count ≥ 1`),
 so a zero-argument form is never generated — that signature belongs to the keyword
 constructor, and a struct whose fields all default is left to it.
 
 `each_arity(k)` is called after the arity-`k` constructor and its result appended,
 so a caller can emit a companion constructor for the same arity. A caller whose
-companion *only* makes sense next to a Rule Y form gets the `required_count ≥ 1`
+companion *only* makes sense next to a Rule Y form gets the `cell_struct_required_count ≥ 1`
 gate for free this way, rather than re-deriving it and getting it wrong.
 """
-function cell_struct_positional_ctors(plan::StructPlan, target_name; each_arity = _ -> ())
+function cell_struct_positional_ctors(plan::CellStructPlan, target_name; each_arity = _ -> ())
     n   = length(plan.field_names)
-    req = required_count(plan)
+    req = cell_struct_required_count(plan)
     ctors = Any[]
     req ≥ 1 || return ctors
     for k in req:(n - 1)

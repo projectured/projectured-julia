@@ -83,7 +83,7 @@ function test_document_macro()
     # constructor, which this struct also has (it declared defaults of its own) —
     # so `DmRuleY()` reaches *it*, and complains about the required keywords rather
     # than about there being no method. That is the collision Rule Y's
-    # `required_count ≥ 1` gate exists to avoid.
+    # `cell_struct_required_count ≥ 1` gate exists to avoid.
     @test DmRuleY(a = 1, b = 2).c == "c"
     @test_throws UndefKeywordError DmRuleY()
 end
@@ -112,7 +112,7 @@ end
 end
 
 @testset "Rule C emits its bracketed form exactly ONCE" begin
-    # Regression. When every field defaults (required_count == 0) the element-sugar
+    # Regression. When every field defaults (cell_struct_required_count == 0) the element-sugar
     # tail emits `T(::AbstractVector)`; when a field is required, the *companion* to
     # Rule Y's arity-k form emits that same signature. Emitting both would silently
     # redefine the method. No behavioural test would ever catch it — the duplicate
