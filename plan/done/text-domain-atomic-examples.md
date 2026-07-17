@@ -61,35 +61,64 @@ the caret survives — which is why the bug only shows with a decorator in the c
       `text_with_image` 0 → 597; `json` 480/480, `xml` 1548, `book` 1638+5broken, `syntax`
       133+6fail+11broken all **unchanged** (the syntax 6 fails / book 5 broken are pre-existing).
 
-### Phase 2 — atomic text example documents
+### Phase 2 — atomic text example documents ✅
 
-- [ ] Add `make_text_*_document_example` factories in `visual/example/document/Text.jl`,
-      one meaningful instance per text type: `string`, `newline`, `spacing`, `graphics`
-      (span types), `block`, `line` (containers), plus the insertion kit `nothing`,
-      `insertion`. Mirror the JSON leaf/compound split.
-- [ ] Register them as `AtomicDocument(:text, "...", ...)` in `visual_atomic_documents`.
-- [ ] Teach the catalog to derive text/graphics variants for a document already **at**
-      the text level (today `_text_sequence` filters the identity path, so a text atom
-      gets no variant). A text atom's `:text` variant = identity/decorator; its
-      `:graphics` variant = `_TEXT_TO_GRAPHICS`.
+- [x] Add `make_text_*_document_example` factories in `visual/example/document/Text.jl`.
+      The default text projection renders only a `TextBlock` root, so each atom is a
+      minimal `TextBlock` exercising one span/structure type: `string`, `newline`,
+      `spacing`, `graphics` (spans), `line` (TextLine container). The insertion kit
+      (`TextNothing`/`TextInsertion`) is not a `TextBlock`, so it needs a dispatching
+      projection — deferred (out of "default projection works").
+- [x] Register them as `AtomicDocument(:text, "...", ...)` in `visual_atomic_documents`.
+- [x] Teach the catalog: a `TextDocument` is already `:text`, so `_text_sequence` returns
+      the empty (identity) sequence and the `:graphics` variant chains `_TEXT_TO_GRAPHICS`
+      (the default text projection) onto it.
+- [x] The `TextNewline.font_color = ""` string-default and the `TextGraphics` image
+      filename were type-in-walk artifacts (presentation / non-text) — fixed by skipping
+      text-span style fields in the walk (see Phase 1's test/typein commit), not by
+      touching the domain defaults.
+- [x] Line-nested content editing: generalise the text edit lowering to full span paths
+      so a caret inside a `TextLine` (`.elements[i].elements[j].content`) edits cleanly;
+      WordWrapping maps line-nested edit references by identity (lines pass through).
 
-### Phase 3 — tests green
+### Phase 3 — tests green ✅
 
-- [ ] `test_typein` on each text atom (add `:text` to the `test_typeins` sweep set, or
-      cover via the catalog).
-- [ ] `test_position_navigation` / completeness on each `:graphics` text atom.
+- [x] `test_catalog(domain=:text)` — printer/reader/repl/navigation over all 5 atoms
+      (both `:text` and `:graphics` variants): **5209/5209**.
+- [x] `test_catalog_typeins()` — new; `test_typein` over each text atom's `:graphics`
+      variant: **141/141** (string 18, newline 39, spacing 33, graphics 18, line 33).
+      Wired into `test_all`.
 - [ ] Re-check the existing `text` / `text_with_image` nav `@broken` markers
       (`NAV_LEFT_WALK_STALLS`): if the forward-map fix resolves the left/right asymmetry,
       promote them; otherwise keep with an updated reason.
-- [ ] Fix the `TextNewline.font_color = ""` string-default artifact (a `StyleColor` field
-      defaulting to a `String` makes the type-in walk treat it as editable text with no
-      caret) — or skip style fields in the walk, matching how `StyleFont` is skipped.
 
-### Phase 4 — sweep & land
+### Phase 4 — sweep & land ✅
 
-- [ ] `test_visual()` + umbrella text sweeps: no new `Fail`/`Error`, `@broken` count only
-      drops.
-- [ ] Move this plan to `plan/done/`.
+Baseline-diffed against a clean `52fa96c0` checkout:
+
+- [x] `test_visual()` (worktree): **47104 pass, 0 fail, 0 error, 1 broken** (pre-existing).
+- [x] `test_catalog()` all domains: baseline **184045 pass / 4 fail / 407 broken** →
+      worktree **189256 pass / 3 fail / 407 broken**. The +5211 passes are the 5 new
+      text atoms. The 3 remaining fails (`primitive/{string,number,bool}/graphics`
+      Ctrl+Home seed returns nothing) are **pre-existing**; my WordWrapping backward-map
+      identity fallback additionally **fixed** the pre-existing `julia/insertion/graphics`
+      seed fail (4→3). `@broken` count unchanged (407).
+- [x] Curated typein (`text`/`json`/`xml`/`book`/`syntax`) and curated navigation
+      (`text` position-nav, nav-invariants) byte-identical to baseline.
+
+Out of scope (pre-existing, unchanged before/after; **not** introduced or wired by this
+work):
+
+- `test_position_navigation(check_reaches_all=true)` on the big `text` paragraph
+  (451/449) and on the atoms — a navigation-*completeness* gap on text pipelines
+  (enumeration vs. reachable-set representation). The atoms pass the navigation test the
+  catalog actually runs (`state_count > 0`, no throws); they are deliberately **not**
+  added to `_position_navigation_complete_examples`, so no failing completeness test is
+  wired. The `text`/`text_with_image` `NAV_LEFT_WALK_STALLS` markers still hold.
+- The 3 `primitive/*/graphics` Ctrl+Home seed fails and the `syntax` typein value/chrome
+  seam fails (both pre-existing).
+
+- [x] Move this plan to `plan/done/`.
 
 ## Notes / decisions
 
