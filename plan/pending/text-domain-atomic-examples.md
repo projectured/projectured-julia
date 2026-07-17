@@ -45,8 +45,21 @@ the caret survives — which is why the bug only shows with a decorator in the c
 - [x] Refactor `_text_selection_range(text)` to parse an arbitrary stripped ref
       (`_parse_selection_range(sel)`) so `text_caret_flat` can share the structural parse.
 - [x] In each decorator's `_forward_map`, resolve the caret via `text_caret_flat(in_block, sel)`
-      instead of the flat-only `_text_range_caret(sel)`. (5 files.)
+      instead of the flat-only `_text_range_caret(sel)`. (4 files: WordWrapping, TextFiltering,
+      TextHighlighting, SelectionInverting; LineNumbering hardcodes `selection = Cell(nothing)`
+      and maps via `map_reference_forward`, so it is out of this path.)
 - [x] Verify: the repro keeps the cursor present across every edit on the `text` projection.
+- [x] Wrap-boundary backspace: at a soft wrap the delete range straddles the inserted
+      newline, so `TextToGraphics` declines and the raw gesture reaches WordWrapping. Give
+      WordWrapping the same lower-on-fallback `read_intent(::KeyPress/::KeyDown)` that
+      `TextToGraphics._gesture_op` and a downstream `SyntaxToText` already have (lower the flat
+      `ReplaceTextRangeOperation` against the un-wrapped input block). Proven behaviour-preserving
+      for the syntax pipelines: `SyntaxCompoundToText`'s `ReplaceTextRangeOperation` handler
+      lowers against the *same* block, so JSON/XML/book/syntax typein counts are byte-identical
+      to baseline; only the pure-text pipeline (nothing below to lower) is fixed.
+- [x] Baseline-diffed typein against clean `52fa96c0`: `text` 0/1347 → **1347/1347**;
+      `text_with_image` 0 → 597; `json` 480/480, `xml` 1548, `book` 1638+5broken, `syntax`
+      133+6fail+11broken all **unchanged** (the syntax 6 fails / book 5 broken are pre-existing).
 
 ### Phase 2 — atomic text example documents
 

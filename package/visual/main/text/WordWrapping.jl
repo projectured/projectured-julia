@@ -16,7 +16,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat, ReplaceTextRangeOperation, _lower_text_range
 import ..TextRangeReferenceModule: TextRangeReference
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
@@ -29,6 +29,8 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyDown, KeyPress
 export WordWrapping, WordWrappingIoMap, WrapSeg
 
 # ── Projection struct ───────────────────────────────────────────────────────
@@ -323,9 +325,23 @@ function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStrin
     nothing
 end
 
+# A raw character/edit gesture reaches this stage only because the layers above
+# (TextToGraphics) declined it — e.g. a Backspace whose delete range straddles a
+# soft wrap in the laid-out block, which is cross-span there but a clean in-span edit
+# on the UN-wrapped input. Read it against the input block and lower the flat
+# `ReplaceTextRangeOperation` to the structural single-span `ReplaceStringRangeOperation`,
+# exactly as `TextToGraphics._gesture_op` does at the top and a `SyntaxToText` stage
+# would do below (`_lower_text_range` against the same block SyntaxToText owns as its
+# output). In a pure-text pipeline there is no syntax stage beneath to lower it, so
+# without this the caret at a wrap boundary keeps a flat `TextRangeReference` and the
+# edit surfaces as a raw `ReplaceTextRangeOperation`.
+function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown})
+    op = read_gesture(iomap.input, evt)
+    op isa ReplaceTextRangeOperation ? _lower_text_range(iomap.input, op) : op
+end
+
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
-# MousePress) falls through to the base `Projection.read_intent`, which delegates
-# via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
+# MousePress) is handled above — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
