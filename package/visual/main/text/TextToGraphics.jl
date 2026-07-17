@@ -289,11 +289,35 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     set_cell_function!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
     set_cell_function!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
-    highlight_rect = GraphicsRect(0, 0, 0, 0, StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255), 4)
-    set_cell_function!(getfield(highlight_rect, :x), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[1])))
-    set_cell_function!(getfield(highlight_rect, :y), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[2])))
-    set_cell_function!(getfield(highlight_rect, :w), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[3])))
-    set_cell_function!(getfield(highlight_rect, :h), () -> (g = overlay[].highlight; g === nothing ? Int32(0) : Int32(g[4])))
+    # A structural selection hugs its content per visual row (see `_compute_span_rows`),
+    # so the highlight is a *vector* of rects, not one box. They live in their own
+    # sub-canvas (a single top-canvas slot, below), each a persistent `GraphicsRect`
+    # keyed by row index and reused across re-layouts; the k-th reads `overlay`'s k-th
+    # rect (a zero width hides a rect whose row no longer exists, matching the cursor).
+    hl_color = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
+    hl_cache = Dict{Int,GraphicsRect}()
+    _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
+    function get_highlight_rect(k::Int)
+        haskey(hl_cache, k) && return hl_cache[k]
+        r = GraphicsRect(0, 0, 0, 0, hl_color, 4)
+        set_cell_function!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
+        set_cell_function!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
+        set_cell_function!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
+        set_cell_function!(getfield(r, :h), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[4])))
+        hl_cache[k] = r
+        r
+    end
+    # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
+    # so a caret move that keeps the same row count reuses the exact rects. Evict rows
+    # that no longer exist so the cache cannot grow unbounded across selections.
+    highlight_elements = CellVector(function ()
+        n = length(overlay[].highlight)
+        out = Any[get_highlight_rect(k) for k in 1:n]
+        for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
+        out
+    end)
+    highlight_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                                      highlight_elements, layout_none, false, Cell(nothing))
 
     # The block resolved into visual lines (see `_line_groups`). Reads only the
     # element structure, the element types and a line's indentation — never a span's
@@ -357,8 +381,9 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
 
     # Top canvas: the line stack with the selection-driven caret/highlight overlays
     # floating above it in absolute coordinates. A fixed three-slot vector, so its
-    # membership never regenerates.
-    top_elements = CellVector(Cell[Cell(highlight_rect), Cell(lines_stack), Cell(cursor_rect)])
+    # membership never regenerates — the highlight's per-selection churn is confined
+    # to the highlight sub-canvas's own element vector.
+    top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect)])
 
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
@@ -377,11 +402,12 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         out
     end)
     # `highlight_offset` keeps its value of 1 — the rasterized-image click
-    # path (`_translate_click`) indexes the coord_map past a leading highlight
-    # rect. That path is only reached when a *leaf* canvas is rasterized by
-    # GraphicsCanvasToGraphicsImage; this canvas is now non-leaf (it nests line
-    # sub-canvases), so the bare text examples use the MousePress/coord_map reader
-    # instead, but the value is preserved for the rasterized-image path.
+    # path (`_translate_click`) indexes the coord_map past the single leading
+    # highlight element (now the highlight sub-canvas, holding the per-row rects).
+    # That path is only reached when a *leaf* canvas is rasterized by
+    # GraphicsCanvasToGraphicsImage; this canvas is non-leaf (it nests the highlight
+    # and line sub-canvases), so the bare text examples use the MousePress/coord_map
+    # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
     canvas_w = Cell(function ()
         w = 0
@@ -606,10 +632,10 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
         y += laid.height
     end
 
-    highlight = nothing
+    highlight = NTuple{4,Int}[]
     hl_range = _highlight_char_range(sel, coord_map)
     hl_range === nothing ||
-        (highlight = _compute_span_geo(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
+        (highlight = _compute_span_rows(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
     (cursor = cursor, highlight = highlight)
 end
 
@@ -1064,41 +1090,75 @@ function _highlight_char_range(sel, coord_map::Vector{SegCoord})
     return (h.start, h.stop)
 end
 
-"""
-    _compute_span_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> (x, y, w, h) or nothing
+# Whether the highlighted sub-range `[s, e)` (offsets in this segment's own base
+# space) of `sc` is entirely whitespace — a leading indent span, a newline span, or
+# a zero-width indent slot. Such a piece must not anchor a row's left/right edge, so
+# the highlight hugs the content and each interior line starts at its indentation
+# level. A partly-highlighted content segment keeps only its highlighted substring
+# for the whitespace test, so a content run whose *highlighted* part is blank is
+# skipped too (rare, but correct at a range boundary).
+function _hl_piece_blank(sc::SegCoord, s::Int, e::Int)
+    e <= s && return true
+    t = sc.text
+    lo = s - sc.char_start           # 0-based char offset into sc.text
+    hi = e - sc.char_start
+    (lo < 0 || hi > length(t)) && return all(isspace, t)   # fallback: whole piece
+    chars = collect(t)
+    all(isspace, @view chars[(lo + 1):hi])
+end
 
-The **bounding-box** geometry of variant 3 (`TextSpanReference`): a single rect
-enclosing every `SegCoord` whose character range overlaps `[hl_start, hl_stop)`,
-as an `(x, y, w, h)` tuple, or `nothing` when no segment overlaps. The caller
-paints it as the persistent highlight rect (light blue, ~25% alpha, rounded).
 """
-function _compute_span_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
-    x0, y0 = typemax(Int), typemax(Int)
-    x1, y1 = 0, 0
-    found = false
+    _compute_span_rows(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> Vector of (x, y, w, h)
+
+The **content-hugging per-row** geometry of a `TextSpanReference` / `∅` box selection:
+one rect per visual row the range `[hl_start, hl_stop)` touches, each hugging that
+row's highlighted *content* rather than filling a bounding box. Per row, only the
+in-range segment pieces carrying a non-whitespace character anchor the rect, which
+then runs `[min px_left … max px_right]` of those pieces; a row whose only in-range
+content is whitespace (a bare indent line) yields no rect.
+
+This makes a structural (whole-node) selection read as the subtree's own glyphs: the
+first line starts at the node's first char, interior lines start at their indentation
+level (the node's own indent spans are in range but blank, so they don't anchor), and
+the last line ends at the node's last char — never the empty box a single bounding
+rect painted to the right of the `{`/`}` lines. Rows are returned top-to-bottom; the
+caller paints each as a persistent highlight rect (light blue, ~25% alpha, rounded).
+"""
+function _compute_span_rows(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+    rows = Dict{Int,NTuple{4,Int}}()   # row y => (x_left, x_right, y_top, y_bot)
+    order = Int[]                      # rows in first-seen order (deduped to sort)
     for sc in coord_map
         base = get(span_flat_offsets, sc.span_path, 0)
         abs_start = base + sc.char_start
         abs_end = base + sc.char_end
-        # Check overlap with [hl_start, hl_stop)
+        # Overlap with [hl_start, hl_stop)?
         (abs_end <= hl_start || abs_start >= hl_stop) && continue
-        # Compute the pixel sub-range within this segment that's highlighted
         seg_hl_start = max(hl_start, abs_start) - base
         seg_hl_end = min(hl_stop, abs_end) - base
+        # Blank (indent/newline) pieces don't anchor a row — that is what makes the
+        # highlight hug content and interior lines begin at their indentation.
+        _hl_piece_blank(sc, seg_hl_start, seg_hl_end) && continue
         px_left = _seg_cursor_x(sc, seg_hl_start, p.measure)
         px_right = _seg_cursor_x(sc, seg_hl_end, p.measure)
         fs = font_logical_size(sc.font)
-        x0 = min(x0, px_left)
-        y0 = min(y0, sc.y)
-        x1 = max(x1, px_right)
-        y1 = max(y1, sc.y + fs)
-        found = true
+        if haskey(rows, sc.y)
+            (l, r, t, b) = rows[sc.y]
+            rows[sc.y] = (min(l, px_left), max(r, px_right), min(t, sc.y), max(b, sc.y + fs))
+        else
+            rows[sc.y] = (px_left, px_right, sc.y, sc.y + fs)
+            push!(order, sc.y)
+        end
     end
-    found || return nothing
-    w = x1 - x0
-    h = y1 - y0
-    (w <= 0 || h <= 0) && return nothing
-    (x0, y0, w, h)
+    sort!(order)
+    rects = NTuple{4,Int}[]
+    for y in order
+        (l, r, t, b) = rows[y]
+        w = r - l
+        h = b - t
+        (w <= 0 || h <= 0) && continue
+        push!(rects, (l, t, w, h))
+    end
+    rects
 end
 
 """
