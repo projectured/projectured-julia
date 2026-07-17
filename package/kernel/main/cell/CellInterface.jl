@@ -30,9 +30,8 @@ The cell-or-value accessor: read `x`'s value when it is a cell, pass it through
 unchanged when it is not.
 
 Any walk over a structure whose slots may hold *either* a raw value or a cell
-wrapping one needs this — a document's fields, a `Vector{Cell}`'s elements, a
-projection's output. It is one expression, but it has exactly one meaning and so
-exactly one home; open-coding it at each such walk is how it ends up written a
+wrapping one needs this. It is one expression, but it has exactly one meaning and
+so exactly one home; open-coding it at each such walk is how it ends up written a
 dozen ways.
 
 The read is `x[]`, so unwrapping a `ReactiveCell` inside a cell computation
