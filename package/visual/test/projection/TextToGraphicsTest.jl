@@ -379,4 +379,49 @@ sel = ConcreteReferencePath(TextColumnReference(1, 11), EmptyReferencePath())
 
 end # @testset "TextColumnReference column-box geometry"
 
+@testset "TextSpanReference draws content-hugging per-row rects (variant 3)" begin
+
+# A structural (whole-node) selection maps to a single contiguous TextSpanReference
+# flat range that crosses the interior lines' indent/newline chrome. It must be drawn
+# as one rect per row hugging that row's *content* — not a bounding box. Model the
+# JSON `address` shape (monospace, 10px/glyph): a first line at indent 0, an interior
+# line whose leading indent is a separate whitespace span, and a close line.
+_font = font_ubuntu_monospace_regular_20
+measure = (t, f) -> (length(t) * 10, 18)
+p = TextToGraphics(measure = measure)
+SC = TextToGraphicsModule.SegCoord
+fs = TextToGraphicsModule.font_logical_size(_font)
+#   row y=0 : "AB{"          flat 0..3   (node's first line, starts at x=0)
+#   break                    flat 3
+#   row y=20: "    " indent  flat 4..8   (blank — must NOT anchor the row)
+#   row y=20: "CD"           flat 8..10  (content at x=40, the indentation level)
+#   break                    flat 10
+#   row y=40: "  " indent    flat 11..13 (blank)
+#   row y=40: "}"            flat 13..14 (the close, at x=20)
+coord_map = [SC([1], 0, 3,  0,  0, _font, "AB{",  30, 18),
+             SC([2], 0, 4,  0, 20, _font, "    ", 40, 18),
+             SC([3], 0, 2, 40, 20, _font, "CD",   20, 18),
+             SC([4], 0, 2,  0, 40, _font, "  ",   20, 18),
+             SC([5], 0, 1, 20, 40, _font, "}",    10, 18)]
+span_flat_offsets = Dict([1] => 0, [2] => 4, [3] => 8, [4] => 11, [5] => 13)
+
+rects = TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 0, 14, p)
+@test length(rects) == 3                              # one rect per visual row
+@test [r[2] for r in rects] == [0, 20, 40]            # top to bottom
+@test all(r -> r[4] == fs, rects)                     # each the row's font height
+# Row 1 hugs "AB{" — starts at the node's first char, ends at "{", NOT extended to
+# the wider interior line's right edge (x=60).
+@test (rects[1][1], rects[1][3]) == (0, 30)
+# Interior line starts at its indentation level (x=40), not the highlighted indent's
+# x=0, and ends at "CD"'s right edge.
+@test (rects[2][1], rects[2][3]) == (40, 20)
+# Close line starts at "}" (x=20), skipping its 2-space indent, and ends at x=30.
+@test (rects[3][1], rects[3][3]) == (20, 10)
+
+# A row whose only in-range content is whitespace yields no rect: select just the
+# interior indent (flat 4..8) — blank, so no highlight.
+@test TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 4, 8, p) == []
+
+end # @testset "TextSpanReference content-hugging per-row rects"
+
 end # test_text_to_graphics
