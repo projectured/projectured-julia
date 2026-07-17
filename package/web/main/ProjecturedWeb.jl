@@ -30,7 +30,7 @@ import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size
 import ProjecturedDomain.CellModule: Cell, is_cell_up_to_date
-import ProjecturedDomain.EventModule: EventEnvelope, Modifiers,
+import ProjecturedDomain.EventModule: EventEnvelope, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
@@ -120,7 +120,7 @@ to the backend-agnostic key vocabulary, mirroring `sdl_keysym_to_symbol`.
 Printable keys whose specific identity is not tracked return `:char` (the
 character itself arrives separately via a `keypress` → `KeyPress`).
 """
-function web_key_to_symbol(key::AbstractString, code::AbstractString, mods::Modifiers)::Symbol
+function web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
     # Navigation
     key == "ArrowLeft"  && return :left
     key == "ArrowRight" && return :right
@@ -548,10 +548,10 @@ end
 # Event decoding (client JSON → EventEnvelope on the inbound channel)
 # ════════════════════════════════════════════════════════════════════════
 
-function _mods(obj)::Modifiers
+function _mods(obj)::ModifierKeys
     m = get(obj, :mods, nothing)
-    m === nothing && return Modifiers(false, false, false, false)
-    Modifiers(Bool(get(m, :ctrl, false)), Bool(get(m, :shift, false)),
+    m === nothing && return ModifierKeys(false, false, false, false)
+    ModifierKeys(Bool(get(m, :ctrl, false)), Bool(get(m, :shift, false)),
               Bool(get(m, :alt, false)), Bool(get(m, :meta, false)))
 end
 

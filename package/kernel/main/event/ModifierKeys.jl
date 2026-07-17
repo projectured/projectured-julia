@@ -2,7 +2,7 @@
 # mouse events.
 
 """
-    Modifiers(ctrl, shift, alt, meta)
+    ModifierKeys(ctrl, shift, alt, meta)
 
 Immutable struct carrying the state of the four common modifier keys.
 - `ctrl`  — either Ctrl key
@@ -11,10 +11,10 @@ Immutable struct carrying the state of the four common modifier keys.
 - `meta`  — Super/Windows/Command key
 
 Convenience constructors:
-- `Modifiers()` — all false (no modifier held)
-- `Modifiers(ctrl=true)` — keyword form; unspecified fields default to false
+- `ModifierKeys()` — all false (no modifier held)
+- `ModifierKeys(ctrl=true)` — keyword form; unspecified fields default to false
 """
-struct Modifiers
+struct ModifierKeys
     ctrl::Bool
     shift::Bool
     alt::Bool
@@ -22,5 +22,5 @@ struct Modifiers
 end
 
 # Keyword constructor — any subset of fields, all defaulting to false.
-Modifiers(; ctrl::Bool=false, shift::Bool=false, alt::Bool=false, meta::Bool=false) =
-    Modifiers(ctrl, shift, alt, meta)
+ModifierKeys(; ctrl::Bool=false, shift::Bool=false, alt::Bool=false, meta::Bool=false) =
+    ModifierKeys(ctrl, shift, alt, meta)

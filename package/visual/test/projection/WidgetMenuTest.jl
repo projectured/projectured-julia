@@ -38,7 +38,7 @@ function _click_first_item(menu, button=:left)
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     xy === nothing && return (nothing, nothing)
-    op = read_intent(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, ModifierKeys()))
     (op, iomap)
 end
 
@@ -92,7 +92,7 @@ end
     item = WidgetMenuItem("File"; submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
@@ -108,7 +108,7 @@ end
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa OpenPopupOperation            # opened the submenu, did not run the action
     @test !(op isa CompoundOperation)
 end
@@ -117,7 +117,7 @@ end
     submenu = WidgetMenu([WidgetMenuItem("New")])
     item = WidgetMenuItem("File"; submenu = submenu, enabled = false)
     iomap = print_document(proj, item)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "the resolver maps the submenu anchor to an absolute OpenWindowOperation" begin
@@ -129,7 +129,7 @@ end
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = print_document(resolver, item)
 
-    op = read_intent(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(resolver, rio, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa OpenWindowOperation
     @test op.id === :widget_popup
     @test op.style === :floating
@@ -148,7 +148,7 @@ end
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
-    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, Modifiers()))
+    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, ModifierKeys()))
     @test op isa ReplaceReferencedValueOperation
     @test op.value === true
 

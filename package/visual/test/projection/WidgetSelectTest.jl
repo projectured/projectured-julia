@@ -21,7 +21,7 @@ proj = make_layout_projection_example()
                           options=["Apple", "Banana", "Cherry"], width=180)
     iomap = print_document(proj, select)
 
-    op = read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
@@ -43,13 +43,13 @@ end
 @testset "a select with no options is inert" begin
     select = WidgetSelect(Point2D(0, 0), "x"; width=120)
     iomap = print_document(proj, select)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "a disabled select swallows the click" begin
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], enabled=false)
     iomap = print_document(proj, select)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "the resolver maps the anchor to an absolute OpenWindowOperation" begin
@@ -60,7 +60,7 @@ end
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = print_document(resolver, select)
 
-    op = read_intent(resolver, rio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(resolver, rio, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa OpenWindowOperation
     @test op.id === :widget_popup
     @test op.style === :floating
@@ -77,7 +77,7 @@ end
     option = WidgetOption(Point2D(0, 0), select, "Banana"; width=180)
     oio = print_document(proj, option)
 
-    op = read_intent(proj, oio, MousePress(:left, 5, 5, Modifiers()))
+    op = read_intent(proj, oio, MousePress(:left, 5, 5, ModifierKeys()))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
 
@@ -101,7 +101,7 @@ end
     select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple"], width=120)
     option = WidgetOption(Point2D(0, 0), select, "Apple"; width=120)
     oio = print_document(proj, option)
-    @test read_intent(proj, oio, MousePress(:right, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, oio, MousePress(:right, 5, 5, ModifierKeys())) === nothing
     @test select.value == "Apple"
 end
 

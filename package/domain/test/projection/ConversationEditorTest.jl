@@ -93,24 +93,24 @@ function test_conversation_editor()
 
             # text typein
             @test read_intent(proj, iom, KeyPress('a')) isa ComposerInputOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerSubmitOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
-            @test read_intent(proj, iom, KeyDown(:insert, Modifiers())) isa ComposerInsertPartOperation
-            @test read_intent(proj, iom, KeyDown(:tab, Modifiers())) isa ComposerInsertPartOperation
-            @test read_intent(proj, iom, KeyDown(:backspace, Modifiers())) isa ComposerBackspaceOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa ComposerSubmitOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true))) isa ComposerNewlineOperation
+            @test read_intent(proj, iom, KeyDown(:insert, ModifierKeys())) isa ComposerInsertPartOperation
+            @test read_intent(proj, iom, KeyDown(:tab, ModifierKeys())) isa ComposerInsertPartOperation
+            @test read_intent(proj, iom, KeyDown(:backspace, ModifierKeys())) isa ComposerBackspaceOperation
 
             # kind chooser
             _ce_apply!(ComposerInsertPartOperation(turn))
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitChooserOperation
-            @test read_intent(proj, iom, KeyDown(:escape, Modifiers())) isa ComposerRevertOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa ComposerCommitChooserOperation
+            @test read_intent(proj, iom, KeyDown(:escape, ModifierKeys())) isa ComposerRevertOperation
 
             # julia source
             _ce_type!(turn, "julia")
             _ce_apply!(ComposerCommitChooserOperation(turn))
             @test turn.parts[length(turn.parts)].content isa JuliaInsertion
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa ComposerCommitSourceOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers(alt=true))) isa ComposerEvaluateOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers(shift=true))) isa ComposerNewlineOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa ComposerCommitSourceOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(alt=true))) isa ComposerEvaluateOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true))) isa ComposerNewlineOperation
         end
 
         @testset "show: get_projection_gesture_bindings mirrors what the reader fires (fire == show)" begin

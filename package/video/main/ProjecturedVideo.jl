@@ -79,7 +79,7 @@ coordinates line up with what is rendered. Errors from the pipeline propagate
 gestures = [
     (event = KeyPress('h'),                        hold = 0.3),
     (event = KeyPress('i'),                        hold = 0.3),
-    (event = KeyDown(:right, Modifiers(), false),  hold = 0.5),
+    (event = KeyDown(:right, ModifierKeys(), false),  hold = 0.5),
 ]
 record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
 ```

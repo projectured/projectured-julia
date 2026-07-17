@@ -30,10 +30,10 @@ it; a device never does.
 abstract type SyntheticEvent <: Event end
 
 """
-    get_modifiers(event) -> Modifiers
+    get_modifiers(event) -> ModifierKeys
 
 The modifier keys held when `event` occurred. Events that carry no modifier state
-of their own answer `Modifiers()` — including `KeyChord`, whose modifiers live on
+of their own answer `ModifierKeys()` — including `KeyChord`, whose modifiers live on
 its constituent `KeyDown`s.
 """
 function get_modifiers end

@@ -15,8 +15,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 _jpn_str(p) = string(strip_reference_types(p))
-const _JPN_CS       = KeyDown(:space, Modifiers(ctrl=true))
-const _JPN_CTRL_END = KeyDown(:end, Modifiers(ctrl=true))
+const _JPN_CS       = KeyDown(:space, ModifierKeys(ctrl=true))
+const _JPN_CTRL_END = KeyDown(:end, ModifierKeys(ctrl=true))
 
 function test_json_placeholder_navigation()
 @testset "json placeholder nav & Ctrl+Space" begin
@@ -92,7 +92,7 @@ function test_json_placeholder_navigation()
                 set_selection!(doc, EmptyReferencePath())
             end
             io = print_document(proj, doc)
-            op = read_intent(proj, io, KeyPress('{', "{", Modifiers()))
+            op = read_intent(proj, io, KeyPress('{', "{", ModifierKeys()))
             @test op isa CompoundOperation      # a create op, not a dead label edit / nothing
         end
     end
@@ -106,8 +106,8 @@ function test_json_placeholder_navigation()
                     ConcreteReferencePath(RangeReference(6, 6), EmptyReferencePath()))
         ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
         io = print_document(proj, ins)
-        @test read_intent(proj, io, KeyDown(:return, Modifiers())) isa CompoundOperation
-        @test read_intent(proj, io, KeyDown(:escape, Modifiers())) isa CompoundOperation
+        @test read_intent(proj, io, KeyDown(:return, ModifierKeys())) isa CompoundOperation
+        @test read_intent(proj, io, KeyDown(:escape, ModifierKeys())) isa CompoundOperation
     end
 end
 end

@@ -20,7 +20,7 @@ function test_record_video()
         gestures = [
             (event = KeyPress('h'),                        hold = 0.3),
             (event = KeyPress('i'),                        hold = 0.3),
-            (event = KeyDown(:right, Modifiers(), false),  hold = 0.4),
+            (event = KeyDown(:right, ModifierKeys(), false),  hold = 0.4),
         ]
         filename = tempname() * ".mp4"
         ok = try

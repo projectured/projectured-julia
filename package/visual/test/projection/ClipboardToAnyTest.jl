@@ -9,8 +9,8 @@ cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=E
 _rd_ref(rd) = rd.operations[1].reference
 _rd_val(rd) = rd.operations[1].value
 
-ctrl = Modifiers(ctrl=true)
-ctrl_shift = Modifiers(ctrl=true, shift=true)
+ctrl = ModifierKeys(ctrl=true)
+ctrl_shift = ModifierKeys(ctrl=true, shift=true)
 
 @testset "copy_document independence" begin
     orig = PrimitiveString("hi")

@@ -126,7 +126,7 @@ end
     set_selection!(s, _value_range_ref(2, 2))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, Modifiers())
+    evt = KeyDown(:backspace, ModifierKeys())
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
@@ -138,7 +138,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, Modifiers())
+    evt = KeyDown(:delete, ModifierKeys())
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
@@ -156,7 +156,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", Modifiers(true, false, false, false))
+    evt = KeyPress('x', "x", ModifierKeys(true, false, false, false))
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
@@ -167,7 +167,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, Modifiers())
+    evt = KeyDown(:backspace, ModifierKeys())
     @test read_intent(p, iomap, evt) === nothing
 end
 
@@ -176,7 +176,7 @@ end
     set_selection!(s, _value_range_ref(2, 2))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, Modifiers())
+    evt = KeyDown(:delete, ModifierKeys())
     @test read_intent(p, iomap, evt) === nothing
 end
 

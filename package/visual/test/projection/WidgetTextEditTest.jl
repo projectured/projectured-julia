@@ -39,7 +39,7 @@ end
     set_selection!(doc, _cursor(3))            # cursor after "edi"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    op = read_intent(_proj(), iomap, KeyPress('X', "X", Modifiers()))
+    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
     @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
     @test op.reference.head == FieldReference("content")
@@ -54,7 +54,7 @@ end
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", Modifiers())) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
     @test doc.content.elements[1].content == "edit me"         # value unchanged
 end
 
@@ -63,14 +63,14 @@ end
     set_selection!(doc, _cursor(4))            # cursor after "edit"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    bs = read_intent(_proj(), iomap, KeyDown(:backspace, Modifiers()))
+    bs = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys()))
     @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReference("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].content == "edi me"
 
     iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
-    arrow = read_intent(_proj(), iomap2, KeyDown(:left, Modifiers()))
+    arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys()))
     @test arrow isa ReplaceSelectionOperation
     @test arrow.path.head == FieldReference("content")
 end

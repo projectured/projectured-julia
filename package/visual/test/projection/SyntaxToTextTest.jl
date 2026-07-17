@@ -230,13 +230,13 @@ node = SyntaxNode(
     ]; open="[", close="]", sep=", ", indentation=1)
 
 # Drive the SyntaxCompoundToText reader with `sel` as the current selection.
-read_key(sel, key, mods=Modifiers()) = begin
+read_key(sel, key, mods=ModifierKeys()) = begin
     clear_selection!(node)
     set_selection!(node, sel)
     io = print_document(s2st, node)
     read_intent(s2st, io, KeyDown(key, mods))
 end
-op_path(sel, key, mods=Modifiers()) = begin
+op_path(sel, key, mods=ModifierKeys()) = begin
     op = read_key(sel, key, mods)
     op isa ReplaceSelectionOperation ? op.path : op
 end
@@ -253,7 +253,7 @@ child2 = @reference(node, children[2])            # .children[2]∅
 end
 
 @testset "plain arrows match their Alt counterparts in structural mode" begin
-    alt = Modifiers(alt=true)
+    alt = ModifierKeys(alt=true)
     for (sel, key) in ((root, :down), (child1, :right), (child2, :left), (child1, :up))
         @test is_reference_equal(op_path(sel, key), op_path(sel, key, alt))
     end
@@ -280,7 +280,7 @@ end
 end
 
 @testset "Ctrl+Space toggles structural ⇄ text" begin
-    ctrl = Modifiers(ctrl=true)
+    ctrl = ModifierKeys(ctrl=true)
     # text → structural: promote a leaf cursor to the whole leaf.
     cursor = @reference(node, children[1].value{2})
     promoted = op_path(cursor, :space, ctrl)
@@ -375,12 +375,12 @@ end
     inner = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
     node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
 
-    read_key(sel, key, mods=Modifiers()) = begin
+    read_key(sel, key, mods=ModifierKeys()) = begin
         clear_selection!(node)
         set_selection!(node, sel)
         read_intent(s2st, print_document(s2st, node), KeyDown(key, mods))
     end
-    op_path(sel, key, mods=Modifiers()) = begin
+    op_path(sel, key, mods=ModifierKeys()) = begin
         op = read_key(sel, key, mods)
         op isa ReplaceSelectionOperation ? op.path : op
     end
@@ -479,7 +479,7 @@ end
     op_path(sel, key) = begin
         clear_selection!(node)
         set_selection!(node, sel)
-        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, Modifiers()))
+        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, ModifierKeys()))
         op isa ReplaceSelectionOperation ? op.path : op
     end
     sep_el = @reference(node, children[2])
@@ -606,7 +606,7 @@ end
     op_path(sel, key) = begin
         clear_selection!(node)
         set_selection!(node, sel)
-        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, Modifiers()))
+        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, ModifierKeys()))
         op isa ReplaceSelectionOperation ? op.path : op
     end
     wrapper = @reference(node, children[2])            # the delimitation

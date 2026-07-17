@@ -148,7 +148,7 @@ end
 
 @testset "Tab moves from an entry key to its value" begin
     obj = JsonObject("a" => JsonNumber(1))
-    op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, Modifiers()))
+    op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, ModifierKeys()))
     @test op isa ReplaceSelectionOperation
     # The Tab op selects the entry's value whole, carrying its folded types. The
     # terminal checkpoint is the value's *concrete* type, not the declared `Document`
@@ -157,7 +157,7 @@ end
     @test is_reference_equal(op.path,
           @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::JsonNumber)
     # Tab outside a key does nothing.
-    @test read_key(obj, whole, KeyDown(:tab, Modifiers())) === nothing
+    @test read_key(obj, whole, KeyDown(:tab, ModifierKeys())) === nothing
 end
 
 @testset "empty values render a muted placeholder hint" begin

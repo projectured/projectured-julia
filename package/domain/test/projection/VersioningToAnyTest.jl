@@ -3,8 +3,8 @@ function test_versioning_to_any()
 # A reference path built from raw steps.
 cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
 
-ctrl = Modifiers(ctrl=true)
-ctrl_shift = Modifiers(ctrl=true, shift=true)
+ctrl = ModifierKeys(ctrl=true)
+ctrl_shift = ModifierKeys(ctrl=true, shift=true)
 
 # A small versioned object: three versions, newest-first.
 function make_versioned()
@@ -134,7 +134,7 @@ end
     # A value-domain selection move flowing up from the value child is re-rooted
     # under versions[1].value (IdentityProjection passes it through unchanged).
     value_sel = ReplaceSelectionOperation(EmptyReferencePath())
-    change = Intent(KeyDown(:right, Modifiers()), value_sel)
+    change = Intent(KeyDown(:right, ModifierKeys()), value_sel)
     out = read_intent(p, IdentityProjection(), change, iomap)
     @test out.operation isa ReplaceSelectionOperation
     rerooted = out.operation.path
@@ -147,7 +147,7 @@ end
     empty_vo = VersionedObject(ObjectVersion[])
     iomap_e = print_document(p, IdentityProjection(), empty_vo, PrinterContext())
     out_e = read_intent(p, IdentityProjection(),
-        Intent(KeyDown(:right, Modifiers()), value_sel), iomap_e)
+        Intent(KeyDown(:right, ModifierKeys()), value_sel), iomap_e)
     @test out_e.operation === nothing
 end
 

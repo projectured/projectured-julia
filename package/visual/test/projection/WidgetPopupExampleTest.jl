@@ -37,7 +37,7 @@ end
 
     nbefore = length(screen.windows)
     # A left press at (15, 12) lands on the select (top-left of the window content).
-    env = EventEnvelope(:default, MousePress(:left, 15, 12, Modifiers()))
+    env = EventEnvelope(:default, MousePress(:left, 15, 12, ModifierKeys()))
     read_intent(proj, nothing, Intent(env, nothing), iomap)
 
     @test length(screen.windows) == nbefore + 1

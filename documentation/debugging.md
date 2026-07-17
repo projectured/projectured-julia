@@ -97,8 +97,8 @@ julia> iomap = print_document(proj, doc);    # forward projection
 julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
-julia> using Projectured: KeyDown, Modifiers, Intent
-julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, Modifiers())), iomap);
+julia> using Projectured: KeyDown, ModifierKeys, Intent
+julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys())), iomap);
 julia> change.operation                              # the operation the reader produced
 julia> evaluate_operation((; document = doc), change.operation);   # apply it (editor.document)
 julia> print_document(proj, doc)                   # reprint after the edit
@@ -255,7 +255,7 @@ functions as an indented tree, with **no edits to any projection method**:
 
 ```julia
 julia> using Cassette, Projectured
-julia> using Projectured: KeyDown, Modifiers, Intent
+julia> using Projectured: KeyDown, ModifierKeys, Intent
 julia> Cassette.@context TraceCtx
 julia> const _depth = Ref(0)
 
@@ -269,7 +269,7 @@ julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.read_intent), p, 
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;
 julia> iomap = print_document(proj, doc);
-julia> Cassette.overdub(TraceCtx(), () -> read_intent(proj, nothing, Intent(KeyDown(:right, Modifiers())), iomap))
+julia> Cassette.overdub(TraceCtx(), () -> read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys())), iomap))
 ```
 
 You get an indented call tree of every read as the event flows through the
@@ -347,7 +347,7 @@ julia> using Projectured, ProjecturedExample
 julia> gestures = [
            (event = KeyPress('h'),                       hold = 0.3),
            (event = KeyPress('i'),                       hold = 0.3),
-           (event = KeyDown(:right, Modifiers(), false), hold = 0.5),
+           (event = KeyDown(:right, ModifierKeys(), false), hold = 0.5),
        ]
 julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```

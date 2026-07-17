@@ -101,7 +101,7 @@ end # @testset
 
     cb = WidgetCheckbox(Point2D(0, 0), false)
     iomap = print_document(cb_proj, nothing, cb, PrinterContext())
-    op = read_intent(cb_proj, iomap, MousePress(:left, 1, 1, Modifiers()))
+    op = read_intent(cb_proj, iomap, MousePress(:left, 1, 1, ModifierKeys()))
 
     @test op isa ReplaceReferencedValueOperation
     @test op.document === cb

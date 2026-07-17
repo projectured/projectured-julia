@@ -156,8 +156,8 @@ end
 const json_typein_live = LiveExample("json_typein", json_example,
     vcat(
         make_typein_gestures(" world"),
-        [timed_event(KeyDown(:left, Modifiers(), false); hold=0.4),
-         timed_event(KeyDown(:left, Modifiers(), false); hold=0.6)],
+        [timed_event(KeyDown(:left, ModifierKeys(), false); hold=0.4),
+         timed_event(KeyDown(:left, ModifierKeys(), false); hold=0.6)],
     );
     initial_selection = @reference(make_json_document_example(), entries[1].value.value{5}))
 
@@ -178,7 +178,7 @@ const json_insert_live = LiveExample("json_insert", json_example,
     vcat(
         [timed_event(KeyPress(','); hold=0.6)],               # add a new entry, cursor on its key
         make_typein_gestures("role"),                          # type the key
-        [timed_event(KeyDown(:tab, Modifiers()); hold=0.6),    # Tab: key → value (whole)
+        [timed_event(KeyDown(:tab, ModifierKeys()); hold=0.6),    # Tab: key → value (whole)
          timed_event(KeyPress('"'); hold=0.5)],                # start a string value
         make_typein_gestures("admin"),                         # type the value
     );
@@ -208,9 +208,9 @@ const json_build_example = Example("json_build", () -> JsonInsertion(), make_jso
 # a single plain Right to leave a finished *string* value (where `,` is literal) for
 # the structural caret just past it. A same-container sibling after a number/bool
 # needs neither — `,` inserts there directly.
-_jb_up(n) = [timed_event(KeyDown(:up, Modifiers(alt=true)); hold=0.22) for _ in 1:n]
-_jb_right() = timed_event(KeyDown(:right, Modifiers()); hold=0.25)
-_jb_tab()   = timed_event(KeyDown(:tab, Modifiers()); hold=0.32)
+_jb_up(n) = [timed_event(KeyDown(:up, ModifierKeys(alt=true)); hold=0.22) for _ in 1:n]
+_jb_right() = timed_event(KeyDown(:right, ModifierKeys()); hold=0.25)
+_jb_tab()   = timed_event(KeyDown(:tab, ModifierKeys()); hold=0.32)
 _jb_comma() = timed_event(KeyPress(','); hold=0.40)
 _jb_open(c) = timed_event(KeyPress(c); hold=0.40)            # '{' or '['
 _jb_key(s)  = make_typein_gestures(s)                        # caret already on the (empty) key

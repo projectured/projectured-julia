@@ -40,7 +40,7 @@ import ..ProjectionModule: var"@projection"
 import ..DocumentApiModule: Document
 import ..SelectionApiModule: with_selection
 import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyPress, KeyDown, Modifiers
+import ..EventModule: KeyPress, KeyDown, ModifierKeys
 import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainModule: var"@insertion", insertion_root, nothing_document, insertion_names,
@@ -260,7 +260,7 @@ end
 # shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
 # Commit / Cancel are projection-specific (they call `p.commit` / abort to a
 # `DocumentNothing`), which is why this stays a projection table rather than a
-# document-level `@gestures`. Modifiers are matched loosely (`mods=nothing`) to
+# document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`) to
 # preserve the old bare `@event_case` patterns exactly. Operations capture `p`/`ins`
 # and return `nothing` to decline (no value cursor / commit refused).
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
@@ -561,7 +561,7 @@ end
 function read_intent(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     text = op.replacement
     isempty(text) && return nothing
-    read_gesture(iomap.input, KeyPress(first(text), text, Modifiers()))
+    read_gesture(iomap.input, KeyPress(first(text), text, ModifierKeys()))
 end
 
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────

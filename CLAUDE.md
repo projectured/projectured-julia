@@ -36,7 +36,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `event/EventLayer.jl`
   - ⬜ `event/EventModule.jl`
   - ⬜ `event/EventInterface.jl`
-  - ⬜ `event/Modifiers.jl`
+  - ⬜ `event/ModifierKeys.jl`
   - ⬜ `event/KeyboardEvent.jl`
   - ⬜ `event/MouseEvent.jl`
   - ⬜ `event/WindowEvent.jl`

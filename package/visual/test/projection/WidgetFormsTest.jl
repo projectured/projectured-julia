@@ -11,35 +11,35 @@ proj = make_widget_projection_example()
     s = WidgetSpinBox(Point2D(0, 0), 5; min=0, max=10, step=2)
     io = print_document(proj, s)
     cw = Int(io.output.w[]); ch = Int(io.output.h[])
-    up   = read_intent(proj, io, MousePress(:left, cw - 2, 2, Modifiers()))           # top stepper
-    down = read_intent(proj, io, MousePress(:left, cw - 2, ch - 2, Modifiers()))       # bottom stepper
+    up   = read_intent(proj, io, MousePress(:left, cw - 2, 2, ModifierKeys()))           # top stepper
+    down = read_intent(proj, io, MousePress(:left, cw - 2, ch - 2, ModifierKeys()))       # bottom stepper
     @test up isa ReplaceReferencedValueOperation && up.value == 7
     @test down isa ReplaceReferencedValueOperation && down.value == 3
     # A click in the field area (left of the steppers) does not step.
-    @test read_intent(proj, io, MousePress(:left, 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, io, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
     # Clamp: stepping past max stays at max; past min stays at min.
     hi = print_document(proj, WidgetSpinBox(Point2D(0, 0), 10; min=0, max=10, step=5))
-    @test read_intent(proj, hi, MousePress(:left, Int(hi.output.w[]) - 2, 2, Modifiers())).value == 10
+    @test read_intent(proj, hi, MousePress(:left, Int(hi.output.w[]) - 2, 2, ModifierKeys())).value == 10
     lo = print_document(proj, WidgetSpinBox(Point2D(0, 0), 0; min=0, max=10, step=5))
-    @test read_intent(proj, lo, MousePress(:left, Int(lo.output.w[]) - 2, Int(lo.output.h[]) - 2, Modifiers())).value == 0
+    @test read_intent(proj, lo, MousePress(:left, Int(lo.output.w[]) - 2, Int(lo.output.h[]) - 2, ModifierKeys())).value == 0
 
     # Disabled is inert.
     dis = print_document(proj, WidgetSpinBox(Point2D(0, 0), 5; enabled=false))
-    @test read_intent(proj, dis, MousePress(:left, Int(dis.output.w[]) - 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, dis, MousePress(:left, Int(dis.output.w[]) - 2, 2, ModifierKeys())) === nothing
 end
 
 @testset "list click + arrow keys move the selection" begin
     l  = WidgetList(Point2D(0, 0), ["Alpha", "Beta", "Gamma"]; selected=1)
     io = print_document(proj, l)
     rh = Int(io.output.h[]) ÷ 3
-    pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, Modifiers()))           # row 2
+    pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, ModifierKeys()))           # row 2
     @test pick2 isa ReplaceReferencedValueOperation && pick2.value == 2
-    @test read_intent(proj, io, KeyDown(:down, Modifiers(), false)).value == 2          # 1 → 2
-    @test read_intent(proj, io, KeyDown(:up, Modifiers(), false)).value == 1            # 1 → 1 (floor)
+    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false)).value == 2          # 1 → 2
+    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false)).value == 1            # 1 → 1 (floor)
     # An empty list is inert.
     @test read_intent(proj, print_document(proj, WidgetList(Point2D(0, 0), String[])),
-                          MousePress(:left, 2, 2, Modifiers())) === nothing
+                          MousePress(:left, 2, 2, ModifierKeys())) === nothing
 end
 
 @testset "numeric_validator accepts digits, rejects letters" begin

@@ -79,18 +79,18 @@ function test_console_backend()
 
     # ── byte → event translation ─────────────────────────────────────────
     @testset "input parsing" begin
-        @test _parse(0x1b, UInt8('['), UInt8('A')) == KeyDown(:up, Modifiers())
-        @test _parse(0x1b, UInt8('['), UInt8('B')) == KeyDown(:down, Modifiers())
-        @test _parse(0x1b, UInt8('['), UInt8('C')) == KeyDown(:right, Modifiers())
-        @test _parse(0x1b, UInt8('['), UInt8('D')) == KeyDown(:left, Modifiers())
+        @test _parse(0x1b, UInt8('['), UInt8('A')) == KeyDown(:up, ModifierKeys())
+        @test _parse(0x1b, UInt8('['), UInt8('B')) == KeyDown(:down, ModifierKeys())
+        @test _parse(0x1b, UInt8('['), UInt8('C')) == KeyDown(:right, ModifierKeys())
+        @test _parse(0x1b, UInt8('['), UInt8('D')) == KeyDown(:left, ModifierKeys())
         # Home maps to the reader's "select root" chord (Ctrl+Alt+Home).
-        @test _parse(0x1b, UInt8('['), UInt8('H')) == KeyDown(:home, Modifiers(ctrl=true, alt=true))
-        @test _parse(0x1b, UInt8('['), UInt8('F')) == KeyDown(:end, Modifiers())
+        @test _parse(0x1b, UInt8('['), UInt8('H')) == KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
+        @test _parse(0x1b, UInt8('['), UInt8('F')) == KeyDown(:end, ModifierKeys())
         @test _parse(0x03) isa WindowQuit           # Ctrl-C
-        @test _parse(0x00) == KeyDown(:space, Modifiers(ctrl=true))  # Ctrl-Space
-        @test _parse(0x0d) == KeyDown(:return, Modifiers())
-        @test _parse(0x7f) == KeyDown(:backspace, Modifiers())
-        @test _parse(0x09) == KeyDown(:tab, Modifiers())
+        @test _parse(0x00) == KeyDown(:space, ModifierKeys(ctrl=true))  # Ctrl-Space
+        @test _parse(0x0d) == KeyDown(:return, ModifierKeys())
+        @test _parse(0x7f) == KeyDown(:backspace, ModifierKeys())
+        @test _parse(0x09) == KeyDown(:tab, ModifierKeys())
         @test _parse(UInt8('a')) == KeyPress('a')
         # An incomplete CSI (just "ESC [") yields no event and is left buffered.
         @test _parse(0x1b, UInt8('[')) === nothing

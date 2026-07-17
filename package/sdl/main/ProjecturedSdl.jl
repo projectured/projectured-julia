@@ -42,7 +42,7 @@ import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_s
 import ProjecturedDomain.EventModule: WindowQuit
 import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedDomain.EventModule: EventEnvelope, WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.EventModule: Modifiers
+import ProjecturedDomain.EventModule: ModifierKeys
 import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedDomain.ImageModule: ImageFile
@@ -293,9 +293,9 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    sdl_modifiers(mod::UInt16) -> Modifiers
+    sdl_modifiers(mod::UInt16) -> ModifierKeys
 
-Decode an SDL modifier bitmask into a `Modifiers` struct.
+Decode an SDL modifier bitmask into a `ModifierKeys` struct.
 
 Bitmask layout (same as SDL_Keymod):
 - Ctrl  : bits 6–7   (KMOD_LCTRL=0x0040, KMOD_RCTRL=0x0080)
@@ -303,12 +303,12 @@ Bitmask layout (same as SDL_Keymod):
 - Alt   : bits 8–9   (KMOD_LALT=0x0100, KMOD_RALT=0x0200)
 - Meta  : bits 10–11 (KMOD_LGUI=0x0400, KMOD_RGUI=0x0800)
 """
-function sdl_modifiers(mod::UInt16)::Modifiers
+function sdl_modifiers(mod::UInt16)::ModifierKeys
     ctrl  = (mod & UInt16(0x00C0)) != UInt16(0)  # KMOD_LCTRL | KMOD_RCTRL
     shift = (mod & UInt16(0x0003)) != UInt16(0)  # KMOD_LSHIFT | KMOD_RSHIFT
     alt   = (mod & UInt16(0x0300)) != UInt16(0)  # KMOD_LALT | KMOD_RALT
     meta  = (mod & UInt16(0x0C00)) != UInt16(0)  # KMOD_LGUI | KMOD_RGUI
-    Modifiers(ctrl, shift, alt, meta)
+    ModifierKeys(ctrl, shift, alt, meta)
 end
 
 # Convenience overload: extract modifiers from the current SDL state.

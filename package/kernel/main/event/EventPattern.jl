@@ -130,7 +130,7 @@ function matches(pattern::EventPattern{E}, event) where {E}
 end
 
 # Exact modifier test. `nothing` = don't care.
-function _mods_match(modifiers::Union{Vector{Symbol},Nothing}, held::Modifiers)
+function _mods_match(modifiers::Union{Vector{Symbol},Nothing}, held::ModifierKeys)
     modifiers === nothing && return true
     for flag in _MODIFIER_FLAGS
         (getfield(held, flag) === (flag in modifiers)) || return false

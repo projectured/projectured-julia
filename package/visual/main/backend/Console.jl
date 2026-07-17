@@ -295,16 +295,16 @@ function _next_event!(buf::Vector{UInt8})
         if length(buf) >= 2 && buf[2] == UInt8('[')
             length(buf) < 3 && return nothing  # incomplete CSI; wait for more
             final = buf[3]
-            if final == UInt8('A'); deleteat!(buf, 1:3); return KeyDown(:up, Modifiers())
-            elseif final == UInt8('B'); deleteat!(buf, 1:3); return KeyDown(:down, Modifiers())
-            elseif final == UInt8('C'); deleteat!(buf, 1:3); return KeyDown(:right, Modifiers())
-            elseif final == UInt8('D'); deleteat!(buf, 1:3); return KeyDown(:left, Modifiers())
+            if final == UInt8('A'); deleteat!(buf, 1:3); return KeyDown(:up, ModifierKeys())
+            elseif final == UInt8('B'); deleteat!(buf, 1:3); return KeyDown(:down, ModifierKeys())
+            elseif final == UInt8('C'); deleteat!(buf, 1:3); return KeyDown(:right, ModifierKeys())
+            elseif final == UInt8('D'); deleteat!(buf, 1:3); return KeyDown(:left, ModifierKeys())
             elseif final == UInt8('H'); deleteat!(buf, 1:3); return _home_event()
-            elseif final == UInt8('F'); deleteat!(buf, 1:3); return KeyDown(:end, Modifiers())
+            elseif final == UInt8('F'); deleteat!(buf, 1:3); return KeyDown(:end, ModifierKeys())
             elseif final == UInt8('3')  # ESC [ 3 ~  → Delete
                 length(buf) < 4 && return nothing
                 deleteat!(buf, 1:min(4, length(buf)))
-                return KeyDown(:delete, Modifiers())
+                return KeyDown(:delete, ModifierKeys())
             elseif final == UInt8('1')  # ESC [ 1 ~  → Home (some terminals)
                 length(buf) < 4 && return nothing
                 deleteat!(buf, 1:min(4, length(buf)))
@@ -321,10 +321,10 @@ function _next_event!(buf::Vector{UInt8})
 
     deleteat!(buf, 1)
     if b0 == 0x03;  return WindowQuit()                                  # Ctrl-C
-    elseif b0 == 0x00; return KeyDown(:space, Modifiers(ctrl=true))     # Ctrl-Space
-    elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, Modifiers())
-    elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, Modifiers())
-    elseif b0 == 0x09; return KeyDown(:tab, Modifiers())
+    elseif b0 == 0x00; return KeyDown(:space, ModifierKeys(ctrl=true))     # Ctrl-Space
+    elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, ModifierKeys())
+    elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, ModifierKeys())
+    elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys())
     elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0))                 # printable ASCII
     elseif b0 >= 0x80                                                   # UTF-8 lead byte
         nbytes = b0 >= 0xf0 ? 4 : b0 >= 0xe0 ? 3 : 2
@@ -342,6 +342,6 @@ end
 # The terminal Home key maps to the reader's "select the root node" chord
 # (Ctrl+Alt+Home). It is the console's entry point into structural navigation
 # (there is no mouse to click a starting selection).
-_home_event() = KeyDown(:home, Modifiers(ctrl=true, alt=true))
+_home_event() = KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
 
 end # module

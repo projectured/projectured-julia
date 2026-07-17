@@ -4,7 +4,7 @@
 # `KeyChord` is synthesised from a recognised *sequence* of `KeyDown`s.
 
 """
-    KeyDown(key::Symbol, modifiers::Modifiers[, repeat::Bool])
+    KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool])
 
 Physical key-press event.
 
@@ -23,25 +23,25 @@ Physical key-press event.
 """
 struct KeyDown <: DeviceEvent
     key::Symbol
-    modifiers::Modifiers
+    modifiers::ModifierKeys
     repeat::Bool
 end
 
 # Convenience: KeyDown without repeat flag (defaults to false).
-KeyDown(key::Symbol, modifiers::Modifiers) = KeyDown(key, modifiers, false)
+KeyDown(key::Symbol, modifiers::ModifierKeys) = KeyDown(key, modifiers, false)
 
 """
-    KeyUp(key::Symbol, modifiers::Modifiers)
+    KeyUp(key::Symbol, modifiers::ModifierKeys)
 
 Physical key-release event. Same `key` vocabulary as `KeyDown`.
 """
 struct KeyUp <: DeviceEvent
     key::Symbol
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
 """
-    KeyPress(char::Char, text::String, modifiers::Modifiers)
+    KeyPress(char::Char, text::String, modifiers::ModifierKeys)
 
 Logical character-input event. The OS input method — including dead-key
 composition and IME — delivers a fully composed Unicode character here. Most
@@ -55,11 +55,11 @@ Convenience constructors:
 struct KeyPress <: DeviceEvent
     char::Char
     text::String
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-KeyPress(char::Char) = KeyPress(char, string(char), Modifiers())
-KeyPress(char::Char, mods::Modifiers) = KeyPress(char, string(char), mods)
+KeyPress(char::Char) = KeyPress(char, string(char), ModifierKeys())
+KeyPress(char::Char, mods::ModifierKeys) = KeyPress(char, string(char), mods)
 
 """
     KeyChord(keys::Vector{KeyDown})

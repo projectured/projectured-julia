@@ -27,7 +27,7 @@
 using ProjecturedKernel.ReferenceModule: EmptyReferencePath
 using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
-using ProjecturedKernel.EventModule: KeyPress, KeyDown, Modifiers
+using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
 using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
 using ProjecturedKernel.EventPatternModule: EventPattern
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
@@ -112,9 +112,9 @@ _feed!(ed, projection, ch::Char) = _feed_event!(ed, projection, KeyPress(ch))
 # A concrete event synthesised from a gesture pattern — a `KeyPress` char, or a `KeyDown`
 # key with its modifiers. `nothing` for a pattern with no fixed key (an unconstrained
 # `KeyPress(c) when isdigit(c)`, a mouse pattern).
-_mods(::Nothing) = Modifiers()
+_mods(::Nothing) = ModifierKeys()
 _mods(v::Vector{Symbol}) =
-    Modifiers(ctrl = :ctrl in v, shift = :shift in v, alt = :alt in v, meta = :meta in v)
+    ModifierKeys(ctrl = :ctrl in v, shift = :shift in v, alt = :alt in v, meta = :meta in v)
 
 function _synth_event(pattern)
     pattern isa EventPattern || return nothing

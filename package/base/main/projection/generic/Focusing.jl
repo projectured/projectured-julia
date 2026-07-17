@@ -92,7 +92,7 @@ end
 # `read_projection_gesture`) is the one `collect_gesture_bindings` shows. Focus-out is
 # gated by `applicable` (so its op may assume a non-empty part); focus-in
 # self-declines in its operation (no selection, or no deeper part of the right
-# type). Modifiers are matched exactly.
+# type). ModifierKeys are matched exactly.
 function get_projection_gesture_bindings(p::FocusingProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:comma, [:ctrl], nothing),

@@ -152,7 +152,7 @@ and stored in the `JsonString.selection`.
 
 ## 9. `KeyPress` abstraction
 
-SDL keysyms are converted to a `KeyDown(key::Symbol, modifiers::Modifiers)`
+SDL keysyms are converted to a `KeyDown(key::Symbol, modifiers::ModifierKeys)`
 struct in the backend before being passed to `read_intent`. This decouples
 projections from the SDL backend — a future terminal or web backend produces
 the same events, and projection reader code stays unchanged.

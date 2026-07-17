@@ -7,7 +7,7 @@
 
 function test_gesture_help()
 @testset "GestureHelpProjection" begin
-    none = Modifiers()
+    none = ModifierKeys()
     f1   = KeyDown(:f1, none)
 
     # A real content pipeline whose collector yields reified gestures.

@@ -15,10 +15,10 @@ struct MouseDown <: DeviceEvent
     button::Symbol
     x::Int
     y::Int
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseDown(button::Symbol, x::Int, y::Int) = MouseDown(button, x, y, Modifiers())
+MouseDown(button::Symbol, x::Int, y::Int) = MouseDown(button, x, y, ModifierKeys())
 
 """
     MouseUp(button, x, y[, modifiers])
@@ -29,10 +29,10 @@ struct MouseUp <: DeviceEvent
     button::Symbol
     x::Int
     y::Int
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseUp(button::Symbol, x::Int, y::Int) = MouseUp(button, x, y, Modifiers())
+MouseUp(button::Symbol, x::Int, y::Int) = MouseUp(button, x, y, ModifierKeys())
 
 """
     MousePress(button, x, y[, count][, modifiers])
@@ -52,15 +52,15 @@ struct MousePress <: SyntheticEvent
     x::Int
     y::Int
     count::Int
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-# Convenience constructors default the multi-click count to 1. The `::Modifiers`
+# Convenience constructors default the multi-click count to 1. The `::ModifierKeys`
 # form disambiguates from the 5-arg primary by argument type.
-MousePress(button::Symbol, x::Int, y::Int, modifiers::Modifiers) =
+MousePress(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys) =
     MousePress(button, x, y, 1, modifiers)
 MousePress(button::Symbol, x::Int, y::Int) =
-    MousePress(button, x, y, 1, Modifiers())
+    MousePress(button, x, y, 1, ModifierKeys())
 
 """
     MouseMove(x, y[, buttons, modifiers])
@@ -73,10 +73,10 @@ struct MouseMove <: DeviceEvent
     x::Int
     y::Int
     buttons::Symbol
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseMove(x::Int, y::Int) = MouseMove(x, y, :none, Modifiers())
+MouseMove(x::Int, y::Int) = MouseMove(x, y, :none, ModifierKeys())
 
 """
     MouseEnter(x, y[, buttons, modifiers])
@@ -89,10 +89,10 @@ struct MouseEnter <: SyntheticEvent
     x::Int
     y::Int
     buttons::Symbol
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseEnter(x::Int, y::Int) = MouseEnter(x, y, :none, Modifiers())
+MouseEnter(x::Int, y::Int) = MouseEnter(x, y, :none, ModifierKeys())
 
 """
     MouseLeave(x, y[, buttons, modifiers])
@@ -104,10 +104,10 @@ struct MouseLeave <: SyntheticEvent
     x::Int
     y::Int
     buttons::Symbol
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseLeave(x::Int, y::Int) = MouseLeave(x, y, :none, Modifiers())
+MouseLeave(x::Int, y::Int) = MouseLeave(x, y, :none, ModifierKeys())
 
 """
     MouseScroll(dx, dy, x, y[, modifiers])
@@ -120,10 +120,10 @@ struct MouseScroll <: DeviceEvent
     dy::Int
     x::Int
     y::Int
-    modifiers::Modifiers
+    modifiers::ModifierKeys
 end
 
-MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, Modifiers())
+MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, ModifierKeys())
 
 get_modifiers(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
                            MouseEnter,MouseLeave,MouseScroll}) = event.modifiers

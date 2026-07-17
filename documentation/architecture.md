@@ -323,7 +323,7 @@ above it in this list:
 ```
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
- 2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers,
+ 2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, EventEnvelope), the event pattern
                language (EventPattern, matches, describe, @event_case)
  3 device      Device abstract + Keyboard / Mouse / Screen, the read_from_devices /

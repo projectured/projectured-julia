@@ -21,7 +21,7 @@ for (T, pr) in _w2g.dispatch
 end
 @test _treeproj !== nothing
 
-_mods = Modifiers()
+_mods = ModifierKeys()
 _readop(io, g) = begin
     ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
     ch isa Intent ? ch.operation : ch

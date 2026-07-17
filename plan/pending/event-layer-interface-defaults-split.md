@@ -21,10 +21,10 @@ concerns (interface, defaults, aggregator) in one file.
 - [x] CLAUDE.md Layer-3 inventory: added `EventInterface.jl` (after EventModule)
       and `EventDefaults.jl` (after EventEnvelope) in load order.
 
-## Deferred to a separate commit
+## Modifiers → ModifierKeys rename (follow-up commit)
 
-- **Rename `Modifiers` → a discriminated name** (e.g. `KeyModifiers`): the type
-  name is too generic. Blast radius is large — **448 occurrences across ~75 files
-  in every package** (tests build events with `Modifiers(ctrl=true)`, native
-  backends construct them), so it needs a confirmed target name and its own
-  mechanical sweep + verification.
+- [x] Renamed the type `Modifiers` → **`ModifierKeys`** and the file
+      `Modifiers.jl` → `ModifierKeys.jl`; kept `get_modifiers`, the `is_*`
+      predicates, and the `.modifiers` field name. Whole-word sweep across **77
+      `.jl` files** in every package, plus the active guides and the CLAUDE.md
+      inventory. `plan/` files left untouched as historical records.

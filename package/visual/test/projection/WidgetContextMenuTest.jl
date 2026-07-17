@@ -22,7 +22,7 @@ proj = make_layout_projection_example()
     wrap  = WidgetContextMenu(child, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MousePress(:right, 12, 7, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:right, 12, 7, ModifierKeys()))
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
@@ -40,7 +40,7 @@ end
     wrap  = WidgetContextMenu(btn, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MousePress(:left, 2, 2, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys()))
     @test !(op isa OpenPopupOperation)
     @test op isa InvokeWidgetActionOperation
     @test op.widget === btn
@@ -52,13 +52,13 @@ end
     menu  = WidgetMenu([WidgetMenuItem("X")])
     wrap  = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "x"), menu; enabled = false)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "a wrapper with no menu is inert on right click" begin
     wrap  = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "x"), nothing)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "the resolver places the menu at the pointer (absolute OpenWindowOperation)" begin
@@ -70,7 +70,7 @@ end
     resolver = WidgetPopupResolverProjection(inner = inner)
     rio = print_document(resolver, wrap)
 
-    op = read_intent(resolver, rio, MousePress(:right, 20, 9, Modifiers()))
+    op = read_intent(resolver, rio, MousePress(:right, 20, 9, ModifierKeys()))
     @test op isa OpenWindowOperation
     @test op.id === :widget_popup
     @test op.style === :floating

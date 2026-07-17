@@ -238,11 +238,11 @@ function _edit_spec(kind::Symbol, old::AbstractString, k::Int, ch::AbstractStrin
     if kind === :insert
         (KeyPress(first(ch)), _expected_splice(old, k, k, ch), k + length(ch), true)
     elseif kind === :backspace
-        event = KeyDown(:backspace, Modifiers())
+        event = KeyDown(:backspace, ModifierKeys())
         k > 0 ? (event, _expected_splice(old, k - 1, k, ""), k - 1, true) :
                 (event, old, k, false)
     elseif kind === :delete
-        event = KeyDown(:delete, Modifiers())
+        event = KeyDown(:delete, ModifierKeys())
         k < n ? (event, _expected_splice(old, k, k + 1, ""), k, true) :
                 (event, old, k, false)
     else

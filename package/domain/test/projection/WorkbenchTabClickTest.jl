@@ -96,7 +96,7 @@ end
 
     (tx, ty, _) = first(tab)
     ch = read_intent(proj, nothing,
-                         Intent(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
+                         Intent(MousePress(:left, tx + 5, ty + 8, ModifierKeys()), nothing), iomap)
     op = ch === nothing ? nothing : ch.operation
     @test op isa ReplaceSelectionOperation
 
@@ -125,7 +125,7 @@ end
         isempty(m) && return false
         (tx, ty, _) = first(m)
         ch = read_intent(proj, nothing,
-                             Intent(MousePress(:left, tx + 5, ty + 8, Modifiers()), nothing), iomap)
+                             Intent(MousePress(:left, tx + 5, ty + 8, ModifierKeys()), nothing), iomap)
         op = ch === nothing ? nothing : ch.operation
         op isa ReplaceSelectionOperation && occursin("editing_page", string(op))
     end
@@ -137,7 +137,7 @@ end
     # A wheel over the strip (top row of the editing column) produces a horizontal
     # scroll write on the tabbed pane.
     sch = read_intent(proj, nothing,
-                          Intent(MouseScroll(0, -3, 430, 17, Modifiers()), nothing), iomap)
+                          Intent(MouseScroll(0, -3, 430, 17, ModifierKeys()), nothing), iomap)
     sop = sch === nothing ? nothing : sch.operation
     @test sop isa ReplaceReferencedValueOperation
     @test sop.value isa Integer && sop.value > 0    # scrolled the strip rightwards

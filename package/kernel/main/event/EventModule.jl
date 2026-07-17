@@ -6,7 +6,7 @@ input device into the editor. The fragments:
 
 - [`EventInterface.jl`](EventInterface.jl) — the `Event`/`DeviceEvent`/`SyntheticEvent`
   types and the `get_modifiers` generic every event answers.
-- [`Modifiers.jl`](Modifiers.jl) — the Ctrl/Shift/Alt/Meta state an event carries.
+- [`ModifierKeys.jl`](ModifierKeys.jl) — the Ctrl/Shift/Alt/Meta state an event carries.
 - [`KeyboardEvent.jl`](KeyboardEvent.jl) — `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord`.
 - [`MouseEvent.jl`](MouseEvent.jl) — `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`,
   `MouseEnter`, `MouseLeave`, `MouseScroll`.
@@ -28,14 +28,14 @@ consumer matching one need not care which side of that line it came from.
 module EventModule
 
 export Event, DeviceEvent, SyntheticEvent,
-       Modifiers, get_modifiers, is_ctrl, is_shift, is_alt, is_meta,
+       ModifierKeys, get_modifiers, is_ctrl, is_shift, is_alt, is_meta,
        KeyDown, KeyUp, KeyPress, KeyChord,
        MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave, MouseScroll,
        WindowQuit, WindowClose, WindowResize, WindowDefocus,
        EventEnvelope
 
 include("EventInterface.jl")
-include("Modifiers.jl")
+include("ModifierKeys.jl")
 include("KeyboardEvent.jl")
 include("MouseEvent.jl")
 include("WindowEvent.jl")

@@ -21,7 +21,7 @@ proj = make_widget_projection_example()
     # Menu item bound to the command.
     item = WidgetMenuItem("Save"; command = save)
     iio  = print_document(proj, item)
-    iop  = read_intent(proj, iio, MousePress(:left, 2, 2, Modifiers()))
+    iop  = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys()))
     @test iop isa CompoundOperation
     @test iop.operations[1] isa InvokeActionOperation
     @test iop.operations[1].action === save
@@ -29,7 +29,7 @@ proj = make_widget_projection_example()
     # Button bound to the same command.
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
     bio = print_document(proj, btn)
-    bop = read_intent(proj, bio, MousePress(:left, 2, 2, Modifiers()))
+    bop = read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys()))
     @test bop isa InvokeActionOperation
     @test bop.action === save
 
@@ -38,7 +38,7 @@ proj = make_widget_projection_example()
                         menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
-    sop = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
     @test sop isa InvokeActionOperation
     @test sop.action === save
 
@@ -55,23 +55,23 @@ end
 
     item = WidgetMenuItem("Save"; command = save)
     iio  = print_document(proj, item)
-    @test read_intent(proj, iio, MousePress(:left, 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
     bio = print_document(proj, btn)
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
                         menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
     # The disabled action's shortcut does not fire; the key falls through instead.
-    sop = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
     @test !(sop isa InvokeActionOperation)
 
     # Re-enabling makes the shortcut fire again (reactive `enabled` cell).
     save.enabled = true
-    sop2 = read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false))
+    sop2 = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
     @test sop2 isa InvokeActionOperation
 end
 
@@ -84,11 +84,11 @@ end
     sio = print_document(proj, shell)
 
     # The matching chord is consumed (returns the action op).
-    @test read_intent(proj, sio, KeyDown(:s, Modifiers(ctrl = true), false)) isa InvokeActionOperation
+    @test read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false)) isa InvokeActionOperation
     # A non-matching chord is not claimed as a shortcut (it falls through).
-    @test !(read_intent(proj, sio, KeyDown(:x, Modifiers(ctrl = true), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:x, ModifierKeys(ctrl = true), false)) isa InvokeActionOperation)
     # Exact-modifier matching: bare `s` (no Ctrl) is not the Ctrl+S shortcut.
-    @test !(read_intent(proj, sio, KeyDown(:s, Modifiers(), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:s, ModifierKeys(), false)) isa InvokeActionOperation)
 end
 
 @testset "InvokeActionOperation respects enabled at evaluate time" begin
@@ -110,7 +110,7 @@ end
     @test _dialog_text_xy(iomap.output, "Ready") !== nothing
     @test _dialog_text_xy(iomap.output, "Ln 1, Col 1") !== nothing
     # A status bar is inert.
-    @test read_intent(proj, iomap, MousePress(:left, 2, 2, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 end
 
 end # @testset

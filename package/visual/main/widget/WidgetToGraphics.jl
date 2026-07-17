@@ -76,7 +76,7 @@ import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLay
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
 import ..EventModule: KeyDown
-import ..EventModule: Modifiers
+import ..EventModule: ModifierKeys
 import ..GestureBindingModule: read_bound_gesture
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
@@ -5022,7 +5022,7 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     entry = entries[gidx]
     entry === nothing && return nothing
     cim = entry[3]
-    op = read_intent(cim.projection, cim, KeyDown(:home, Modifiers(ctrl=true)))
+    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true)))
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
         ConcreteReferencePath(FieldReference("children"),

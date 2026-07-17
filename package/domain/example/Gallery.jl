@@ -546,9 +546,9 @@ function record_assistant_conversation_video(filename::AbstractString = tempname
     projection = make_assistant_projection_example()
 
     # A composer part-break: commit the active part and start the next one.
-    tab   = (event = KeyDown(:tab, Modifiers()),              hold = 0.5)
-    enter = (event = KeyDown(:return, Modifiers()),           hold = 0.6)
-    alt_enter = (event = KeyDown(:return, Modifiers(alt=true)), hold = 0.8)
+    tab   = (event = KeyDown(:tab, ModifierKeys()),              hold = 0.5)
+    enter = (event = KeyDown(:return, ModifierKeys()),           hold = 0.6)
+    alt_enter = (event = KeyDown(:return, ModifierKeys(alt=true)), hold = 0.8)
 
     gestures = vcat(
         make_typein_gestures("Look what I can do!"),

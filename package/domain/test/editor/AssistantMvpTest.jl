@@ -104,7 +104,7 @@ _mvp_draft_text(a::WorkbenchAssistant) =
 function _mvp_enter!(a::WorkbenchAssistant)
     chain = _workbench_chain()
     iomap = print_document(chain, a)
-    op = read_intent(chain, iomap, KeyDown(:return, Modifiers()))
+    op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys()))
     op === nothing && return nothing
     evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op

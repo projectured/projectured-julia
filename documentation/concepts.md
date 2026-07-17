@@ -296,7 +296,7 @@ You are editing a JSON string `"hello"` and the cursor is between `l` and `l`
 (position 2). You press the right arrow key.
 
 **Step 1 — SDL delivers a key event.**
-The SDL backend translates the raw SDL keycode into a `KeyDown(:right, Modifiers(...))` event.
+The SDL backend translates the raw SDL keycode into a `KeyDown(:right, ModifierKeys(...))` event.
 
 **Step 2 — `TextToGraphics` reader receives the event.**
 It looks at the current flat cursor offset (2) and produces:

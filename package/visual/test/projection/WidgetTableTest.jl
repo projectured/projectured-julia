@@ -17,7 +17,7 @@ _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 # A recursive dispatcher so the table's cell content is recursed (and so a nested
 # layout/tab/shell dispatches too), and reads reach the table's readers.
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
-_mods = Modifiers()
+_mods = ModifierKeys()
 _mktable() = WidgetTable(Point2D(0, 0), ["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
 _rd(io, g) = begin

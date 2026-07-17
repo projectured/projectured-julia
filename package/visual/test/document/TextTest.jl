@@ -97,18 +97,18 @@ b = caret(fb(Int[1, 2], 0))
 # Character motion is `± 1` in the flat stream. Every offset — including the break
 # and the indentation gap between the lines — is now a valid caret rest (those
 # positions are deletable), so motion no longer skips them.
-motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, Modifiers())))
+motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, ModifierKeys())))
 @test motion(fb(Int[1, 1], 2), :right) == fb(Int[1, 1], 3)   # 2 → 3
 @test motion(fb(Int[1, 1], 5), :right) == fb(Int[1, 2], 1)   # 5 → 6, into span 2
 @test motion(fb(Int[1, 2], 6), :right) == 12                 # 11 → 12, onto the break gap
 @test motion(fb(Int[2, 1], 0), :left)  == 13                 # 14 → 13, into the indent gap
 
 # Bare End is geometry — TextToGraphics owns it, the domain table has no binding.
-@test read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, Modifiers())) === nothing
+@test read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys())) === nothing
 # Ctrl+End reaches the flat end; Ctrl+Left is word-wise.
-@test cflat(read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, Modifiers(; ctrl = true)))) ==
+@test cflat(read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys(; ctrl = true)))) ==
       fb(Int[2, 1], 6)
-@test cflat(read_bound_gesture(caret(fb(Int[1, 2], 6)), KeyDown(:left, Modifiers(; ctrl = true)))) ==
+@test cflat(read_bound_gesture(caret(fb(Int[1, 2], 6)), KeyDown(:left, ModifierKeys(; ctrl = true)))) ==
       fb(Int[1, 2], 1)
 
 # Typing edits that line's own span (a flat ReplaceTextRangeOperation, lowered to a
@@ -124,7 +124,7 @@ evaluate_operation((document = b,), op)
 # before it (the indentation gap); the standalone evaluate still declines a gap /
 # cross-span delete (v1), leaving the line unchanged.
 bb  = caret(fb(Int[2, 1], 0))
-bop = read_bound_gesture(bb, KeyDown(:backspace, Modifiers()))
+bop = read_bound_gesture(bb, KeyDown(:backspace, ModifierKeys()))
 @test bop isa ReplaceTextRangeOperation
 evaluate_operation((document = bb,), bop)
 @test bb.elements[2].elements[1].content == "second"
@@ -137,7 +137,7 @@ flat = with_selection(TextBlock(TextString("ab"),
 @test text_flat_offsets(flat) == [0, 2, 3]
 @test text_selection_flat(flat) == (4, 4, true)
 @test TextModule._flat_cursor_coord(flat) == (span = [3], char = 1)
-@test cflat(read_bound_gesture(flat, KeyDown(:left, Modifiers()))) == 3
+@test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys()))) == 3
 
 end # @testset "TextLine: line-structured blocks"
 end # test_text

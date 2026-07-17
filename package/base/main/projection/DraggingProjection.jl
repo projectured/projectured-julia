@@ -42,7 +42,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationRerootingModule: reroot_operation
 import ..EventModule: MouseDown, MouseUp, MouseMove, MousePress
-import ..EventModule: Modifiers
+import ..EventModule: ModifierKeys
 
 export DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
 

@@ -116,7 +116,7 @@ function test_hover_probe()
         hpio = print_document(hp, doc)
 
         # Hover → OpenWindowOperation carrying a ReferenceInspector.
-        mv = read_intent(hp, hpio, MouseMove(cx, cy, :none, Modifiers()))
+        mv = read_intent(hp, hpio, MouseMove(cx, cy, :none, ModifierKeys()))
         @test mv isa OpenWindowOperation
         if mv isa OpenWindowOperation
             @test mv.id === :inspector
@@ -126,14 +126,14 @@ function test_hover_probe()
             @test mv.x == 7 + 16
             @test mv.y == 9 + 20
             # The displayed reference equals what a real click here selects.
-            press = read_intent(proj, plain, MousePress(:left, cx, cy, Modifiers()))
+            press = read_intent(proj, plain, MousePress(:left, cx, cy, ModifierKeys()))
             if press isa ReplaceSelectionOperation
                 @test is_reference_equal(mv.content.reference, press.path)
             end
         end
 
         # A real click is not intercepted — it still selects through the probe.
-        click = read_intent(hp, hpio, MousePress(:left, cx, cy, Modifiers()))
+        click = read_intent(hp, hpio, MousePress(:left, cx, cy, ModifierKeys()))
         @test click isa ReplaceSelectionOperation
     end
 end
@@ -177,7 +177,7 @@ function test_hover_probe_pipeline()
         iomap = print_document(composed, screen)
 
         nbefore = length(screen.windows)
-        env = EventEnvelope(:json, MouseMove(cx, cy, :none, Modifiers()))
+        env = EventEnvelope(:json, MouseMove(cx, cy, :none, ModifierKeys()))
         read_intent(composed, nothing, Intent(env, nothing), iomap)
 
         @test length(screen.windows) == nbefore + 1

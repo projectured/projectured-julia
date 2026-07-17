@@ -3,7 +3,7 @@
 # derived over it.
 
 # An event with no modifier state of its own carries none.
-get_modifiers(::Event) = Modifiers()
+get_modifiers(::Event) = ModifierKeys()
 
 """
     is_ctrl(event)  -> Bool

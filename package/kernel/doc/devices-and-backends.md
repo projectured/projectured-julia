@@ -25,7 +25,7 @@ projection pipeline, or domains changes.
 | Device | Defined in | Purpose |
 |---|---|---|
 | `Screen` | `device/Screen.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
-| `Keyboard` | `device/Keyboard.jl` | Input — polled for `KeyPress(char::Char)` (character input) and `KeyDown(key::Symbol, modifiers::Modifiers)` (navigation) events, defined in `event/KeyboardEvent.jl` |
+| `Keyboard` | `device/Keyboard.jl` | Input — polled for `KeyPress(char::Char)` (character input) and `KeyDown(key::Symbol, modifiers::ModifierKeys)` (navigation) events, defined in `event/KeyboardEvent.jl` |
 | `Mouse` | `device/Mouse.jl` | Input — polled for `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` events, defined in `event/MouseEvent.jl` |
 
 Each is a stateless singleton struct. The editor holds a `Vector{Device}`
@@ -37,8 +37,8 @@ Projection readers only see these events, never SDL-specific structs:
 
 ```julia
 KeyPress('a')                          # character input
-KeyDown(:left, Modifiers())            # arrow key, no modifiers
-KeyDown(:return, Modifiers(ctrl=true)) # Ctrl-Enter
+KeyDown(:left, ModifierKeys())            # arrow key, no modifiers
+KeyDown(:return, ModifierKeys(ctrl=true)) # Ctrl-Enter
 MousePress(:left, 132, 47)             # left button at pixel (132, 47)
 MouseMove(120, 90)                     # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
@@ -299,7 +299,7 @@ The layer lives in [main/event/](../../../package/kernel/main/event/):
 
 ```
 EventModule.jl   (EventModule)        — the input event vocabulary, five fragments:
-        ├─ Modifiers.jl       — the Ctrl/Shift/Alt/Meta struct
+        ├─ ModifierKeys.jl       — the Ctrl/Shift/Alt/Meta struct
         ├─ KeyboardEvent.jl   — KeyDown, KeyUp, KeyPress, KeyChord
         ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
         │                       MouseEnter, MouseLeave, MouseScroll

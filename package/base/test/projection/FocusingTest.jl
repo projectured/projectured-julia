@@ -5,7 +5,7 @@
 
 function test_focusing()
 @testset "FocusingProjection gestures" begin
-    ctrl = Modifiers(ctrl=true)
+    ctrl = ModifierKeys(ctrl=true)
     input = [[1, 2], [3, 4]]
 
     # ── focus out: Ctrl+, drops the last step of the focus part ──────────────
@@ -32,7 +32,7 @@ function test_focusing()
     # ── exact modifiers: a bare comma (no Ctrl) is not the focus-out gesture ──
     let fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
         iomap = print_document(fp, nothing, input, nothing)
-        @test read_intent(fp, iomap, KeyDown(:comma, Modifiers())) === nothing
+        @test read_intent(fp, iomap, KeyDown(:comma, ModifierKeys())) === nothing
     end
 end
 end

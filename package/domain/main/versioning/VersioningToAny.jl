@@ -209,7 +209,7 @@ end
 # fires (via `read_projection_gesture`) is the one `collect_gesture_bindings` shows. The
 # operations capture `iomap` (they snapshot/delete the selected version) and
 # return `nothing` to decline (no selected version), falling through to the
-# value-child delegation. Modifiers are matched exactly.
+# value-child delegation. ModifierKeys are matched exactly.
 function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),

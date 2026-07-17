@@ -16,7 +16,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M isa AffineTransform
@@ -30,7 +30,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 50, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 50, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
@@ -41,7 +41,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         # Already at ZOOM_MAX (4.0); a further zoom-in is a no-op.
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
         @test op === nothing
     end
 
@@ -49,7 +49,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers()))
+        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys()))
         @test op isa ReplaceReferencedValueOperation
         M = op.value
         @test M.a ≈ 1.0            # no scale change
@@ -62,7 +62,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, Modifiers()))
+        op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, ModifierKeys()))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.e ≈ 24.0
         @test op.value.f ≈ 0.0
@@ -72,9 +72,9 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op1 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op1 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
         evaluate_operation(nothing, op1)
-        op2 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, Modifiers(ctrl=true)))
+        op2 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
         @test op2.value.a ≈ 1.1 * 1.1
     end
 
@@ -82,7 +82,7 @@ function test_widget_transform_pane()
         doc   = _doc()                       # 200×200, no insets → centre (100,100)
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:equals, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, KeyDown(:equals, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.1
         @test all(affine_apply(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
@@ -92,7 +92,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:minus, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, KeyDown(:minus, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.0 / 1.1
     end
@@ -102,7 +102,7 @@ function test_widget_transform_pane()
                                     size=Point2D(200, 200), transform=affine_scale(2.0, 2.0))
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true)))
+        op = read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value == affine_identity
     end
@@ -111,14 +111,14 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        @test read_intent(proj, iomap, KeyDown(:zero, Modifiers(ctrl=true))) === nothing
+        @test read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true))) === nothing
     end
 
     @testset "plain = (no Ctrl) does not zoom" begin
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        @test read_intent(proj, iomap, KeyDown(:equals, Modifiers())) === nothing
+        @test read_intent(proj, iomap, KeyDown(:equals, ModifierKeys())) === nothing
     end
 
 end

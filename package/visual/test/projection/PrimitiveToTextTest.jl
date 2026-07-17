@@ -134,7 +134,7 @@ end
     set_selection!(s, _value_range(2, 2))
     p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
-    op = read_intent(p, iomap, KeyDown(:backspace, Modifiers()))
+    op = read_intent(p, iomap, KeyDown(:backspace, ModifierKeys()))
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
     @test op.reference.tail.head.start == 1 && op.reference.tail.head.stop == 2
@@ -145,7 +145,7 @@ end
     set_selection!(s, _value_range(0, 0))
     p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
-    op = read_intent(p, iomap, KeyDown(:delete, Modifiers()))
+    op = read_intent(p, iomap, KeyDown(:delete, ModifierKeys()))
     @test op isa ReplaceStringRangeOperation
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 1
 end
@@ -159,7 +159,7 @@ end
     set_selection!(s, _value_range(0, 0))
     p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", Modifiers(true, false, false, false))
+    evt = KeyPress('x', "x", ModifierKeys(true, false, false, false))
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
@@ -170,7 +170,7 @@ end
     set_selection!(s, _value_range(0, 0))
     p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
-    @test read_intent(p, iomap, KeyDown(:backspace, Modifiers())) === nothing
+    @test read_intent(p, iomap, KeyDown(:backspace, ModifierKeys())) === nothing
 end
 
 @testset "string delete at end returns nothing" begin
@@ -178,7 +178,7 @@ end
     set_selection!(s, _value_range(2, 2))
     p = PrimitiveStringToTextBlock()
     iomap = SimpleIoMap(p, s, nothing)
-    @test read_intent(p, iomap, KeyDown(:delete, Modifiers())) === nothing
+    @test read_intent(p, iomap, KeyDown(:delete, ModifierKeys())) === nothing
 end
 
 # ── Composite constructor ────────────────────────────────────────────────────

@@ -64,9 +64,9 @@ function test_gesture_binding()
     @testset "matches: KeyPress ignores modifiers, honours char + guard" begin
         p = KeyPressPattern('n')
         @test matches(p, KeyPress('n'))
-        @test matches(p, KeyPress('n', Modifiers(shift=true)))   # modifiers ignored
+        @test matches(p, KeyPress('n', ModifierKeys(shift=true)))   # modifiers ignored
         @test !matches(p, KeyPress('x'))
-        @test !matches(p, KeyDown(:n, Modifiers()))
+        @test !matches(p, KeyDown(:n, ModifierKeys()))
 
         digit = KeyPressPattern(nothing, e -> isdigit(e.char), "0-9")
         @test matches(digit, KeyPress('5'))
@@ -75,10 +75,10 @@ function test_gesture_binding()
 
     @testset "matches: KeyDown honours key + exact modifiers" begin
         p = KeyDownPattern(:period, [:ctrl], nothing)
-        @test matches(p, KeyDown(:period, Modifiers(ctrl=true)))
-        @test !matches(p, KeyDown(:period, Modifiers()))                    # ctrl required
-        @test !matches(p, KeyDown(:period, Modifiers(ctrl=true, alt=true))) # exact: alt absent
-        @test !matches(p, KeyDown(:home, Modifiers(ctrl=true)))
+        @test matches(p, KeyDown(:period, ModifierKeys(ctrl=true)))
+        @test !matches(p, KeyDown(:period, ModifierKeys()))                    # ctrl required
+        @test !matches(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true))) # exact: alt absent
+        @test !matches(p, KeyDown(:home, ModifierKeys(ctrl=true)))
     end
 
     @testset "matches: MousePress honours button, ignores position" begin
@@ -118,7 +118,7 @@ function test_gesture_binding()
         leaf.selection = EmptyReferencePath()
         @test read_bound_gesture(leaf, KeyPress('n')) == MarkOperation(:neg)
         @test read_bound_gesture(leaf, KeyPress('7')) == MarkOperation(Symbol('7'))
-        @test read_bound_gesture(leaf, KeyDown(:period, Modifiers(ctrl=true))) == MarkOperation(:toggle)
+        @test read_bound_gesture(leaf, KeyDown(:period, ModifierKeys(ctrl=true))) == MarkOperation(:toggle)
         # An unbound gesture yields nothing.
         @test read_bound_gesture(leaf, KeyPress('z')) === nothing
     end
@@ -156,8 +156,8 @@ function test_gesture_binding()
         # Both unrelated types fire the shared gestures; each keeps its own.
         a = ProbeAlpha(); a.selection = EmptyReferencePath()
         b = ProbeBeta();  b.selection = EmptyReferencePath()
-        @test read_gesture(a, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
-        @test read_gesture(b, KeyDown(:c, Modifiers(ctrl=true))) == MarkOperation(:copy)
+        @test read_gesture(a, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
+        @test read_gesture(b, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
         @test read_gesture(a, KeyPress('a')) == MarkOperation(:alpha)
         @test read_gesture(b, KeyPress('b')) == MarkOperation(:beta)
         @test read_gesture(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha

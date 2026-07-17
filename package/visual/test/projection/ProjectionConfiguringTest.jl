@@ -52,13 +52,13 @@ end # @testset
     iomap = print_document(pcp, nothing, _input(), PrinterContext())
 
     # Control starts visible → Ctrl+F hides it.
-    ctrl_f = KeyDown(:f, Modifiers(ctrl=true))
+    ctrl_f = KeyDown(:f, ModifierKeys(ctrl=true))
     op = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
     @test op isa ReplaceReferencedValueOperation && op.value == false   # hide = visible←false
     @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
-    esc = KeyDown(:escape, Modifiers())
+    esc = KeyDown(:escape, ModifierKeys())
     op_esc = read_intent(pcp, nothing, _mkchange(esc, nothing), iomap).operation
     @test op_esc isa ReplaceReferencedValueOperation && op_esc.value == false
 
@@ -91,7 +91,7 @@ end # @testset
     # redirects it onto the inner projection's bool cell.
     flipped = false
     for y in 0:4:120, x in 150:5:230
-        op = read_intent(proj, iomap, MousePress(:left, x, y, Modifiers()))
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
         op isa ReplaceReferencedValueOperation || continue
         evaluate_operation(_PcEditor(doc), op)
         if inner.case_insensitive[] || inner.invert[]
@@ -131,7 +131,7 @@ end # @testset
     # test's expectation needs either an autofocus semantic in the widget layer
     # or a pcp change that lets control-directed selections persist — both are
     # design decisions, not local test fixes.
-    op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", Modifiers()), nothing), iomap).operation
+    op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", ModifierKeys()), nothing), iomap).operation
     @test_broken op isa ReplaceReferencedValueOperation
     op isa ReplaceReferencedValueOperation || return
     @test op.reference.head == FieldReference("pattern")

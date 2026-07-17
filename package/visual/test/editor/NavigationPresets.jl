@@ -18,28 +18,28 @@
 
 # Position navigation: character / word / line / document moves.
 const POSITION_NAV_KEYS = [
-    KeyDown(:left,  Modifiers()),
-    KeyDown(:right, Modifiers()),
-    KeyDown(:up,    Modifiers()),
-    KeyDown(:down,  Modifiers()),
-    KeyDown(:home,  Modifiers()),
-    KeyDown(:end,   Modifiers()),
-    KeyDown(:home,  Modifiers(ctrl=true)),
-    KeyDown(:end,   Modifiers(ctrl=true)),
-    KeyDown(:left,  Modifiers(ctrl=true)),
-    KeyDown(:right, Modifiers(ctrl=true)),
+    KeyDown(:left,  ModifierKeys()),
+    KeyDown(:right, ModifierKeys()),
+    KeyDown(:up,    ModifierKeys()),
+    KeyDown(:down,  ModifierKeys()),
+    KeyDown(:home,  ModifierKeys()),
+    KeyDown(:end,   ModifierKeys()),
+    KeyDown(:home,  ModifierKeys(ctrl=true)),
+    KeyDown(:end,   ModifierKeys(ctrl=true)),
+    KeyDown(:left,  ModifierKeys(ctrl=true)),
+    KeyDown(:right, ModifierKeys(ctrl=true)),
 ]
-const POSITION_SEED_GESTURE = KeyDown(:home, Modifiers(ctrl=true))
+const POSITION_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true))
 
 # Tree navigation: Alt+arrow structural moves. The seed Ctrl+Alt+Home is
 # recognised and resolved at the syntax layer, selecting the root ∅.
 const TREE_NAV_KEYS = [
-    KeyDown(:up,    Modifiers(alt=true)),
-    KeyDown(:down,  Modifiers(alt=true)),
-    KeyDown(:left,  Modifiers(alt=true)),
-    KeyDown(:right, Modifiers(alt=true)),
+    KeyDown(:up,    ModifierKeys(alt=true)),
+    KeyDown(:down,  ModifierKeys(alt=true)),
+    KeyDown(:left,  ModifierKeys(alt=true)),
+    KeyDown(:right, ModifierKeys(alt=true)),
 ]
-const TREE_SEED_GESTURE = KeyDown(:home, Modifiers(ctrl=true, alt=true))
+const TREE_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
 
 explore_position_selections(document, projection, initial_selection=nothing; onstate=nothing) =
     explore_selections(document, projection;

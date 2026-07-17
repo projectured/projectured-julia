@@ -9,7 +9,7 @@ let classify(e) = @event_case e begin
         MouseScroll => :scroll
         _           => :other
     end
-    @test classify(KeyDown(:a, Modifiers())) == :keydown
+    @test classify(KeyDown(:a, ModifierKeys())) == :keydown
     @test classify(KeyPress('a')) == :keypress
     @test classify(MousePress(:left, 1, 2)) == :press
     @test classify(MouseScroll(0, -1, 3, 4)) == :scroll
@@ -21,8 +21,8 @@ let nav(e) = @event_case e begin
         KeyDown(:home) => :home
         KeyDown(key)   => key
     end
-    @test nav(KeyDown(:home, Modifiers())) == :home
-    @test nav(KeyDown(:left, Modifiers())) == :left   # bound key returned
+    @test nav(KeyDown(:home, ModifierKeys())) == :home
+    @test nav(KeyDown(:left, ModifierKeys())) == :left   # bound key returned
 end
 
 # binding several positional fields
@@ -38,7 +38,7 @@ let typed(e) = @event_case e begin
         KeyPress(c) => c
     end
     @test typed(KeyPress('a')) == 'a'
-    @test typed(KeyPress('A', Modifiers(shift=true))) == 'A'
+    @test typed(KeyPress('A', ModifierKeys(shift=true))) == 'A'
 end
 
 # ── exact modifier matching ─────────────────────────────────────────────
@@ -46,19 +46,19 @@ let chord(e) = @event_case e begin
         KeyDown(:period; ctrl)      => :ctrl_period
         KeyDown(:home; ctrl, alt)   => :ctrl_alt_home
     end
-    @test chord(KeyDown(:period, Modifiers(ctrl=true))) == :ctrl_period
+    @test chord(KeyDown(:period, ModifierKeys(ctrl=true))) == :ctrl_period
     # exact: ctrl+shift must NOT match the ctrl-only rule
-    @test chord(KeyDown(:period, Modifiers(ctrl=true, shift=true))) === nothing
-    @test chord(KeyDown(:home, Modifiers(ctrl=true, alt=true))) == :ctrl_alt_home
-    @test chord(KeyDown(:home, Modifiers(ctrl=true))) === nothing  # missing alt
+    @test chord(KeyDown(:period, ModifierKeys(ctrl=true, shift=true))) === nothing
+    @test chord(KeyDown(:home, ModifierKeys(ctrl=true, alt=true))) == :ctrl_alt_home
+    @test chord(KeyDown(:home, ModifierKeys(ctrl=true))) === nothing  # missing alt
 end
 
 # omitting the `;` block leaves modifiers unconstrained
 let any_mod(e) = @event_case e begin
         KeyDown(:tab) => :tab
     end
-    @test any_mod(KeyDown(:tab, Modifiers())) == :tab
-    @test any_mod(KeyDown(:tab, Modifiers(ctrl=true, shift=true))) == :tab
+    @test any_mod(KeyDown(:tab, ModifierKeys())) == :tab
+    @test any_mod(KeyDown(:tab, ModifierKeys(ctrl=true, shift=true))) == :tab
 end
 
 # ── when-guards (with bound variables) ──────────────────────────────────
@@ -66,9 +66,9 @@ let arrows(e) = @event_case e begin
         when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => (:arrow, k)
         KeyDown(k; alt) => (:other, k)
     end
-    @test arrows(KeyDown(:up, Modifiers(alt=true))) == (:arrow, :up)
-    @test arrows(KeyDown(:tab, Modifiers(alt=true))) == (:other, :tab)
-    @test arrows(KeyDown(:up, Modifiers())) === nothing   # alt required
+    @test arrows(KeyDown(:up, ModifierKeys(alt=true))) == (:arrow, :up)
+    @test arrows(KeyDown(:tab, ModifierKeys(alt=true))) == (:other, :tab)
+    @test arrows(KeyDown(:up, ModifierKeys())) === nothing   # alt required
 end
 
 # ── first match wins, fallthrough to nothing ────────────────────────────
@@ -76,14 +76,14 @@ let order(e) = @event_case e begin
         KeyDown(key)        => :specific
         KeyDown(:ignored)   => :unreachable
     end
-    @test order(KeyDown(:x, Modifiers())) == :specific
+    @test order(KeyDown(:x, ModifierKeys())) == :specific
 end
 
 let m(e) = @event_case e begin
         MouseScroll(dx, dy) => (dx, dy)
     end
     @test m(MouseScroll(2, -3, 0, 0)) == (2, -3)
-    @test m(KeyDown(:a, Modifiers())) === nothing   # no rule, no catch-all
+    @test m(KeyDown(:a, ModifierKeys())) === nothing   # no rule, no catch-all
 end
 
 # wildcard field ignores a slot
@@ -99,8 +99,8 @@ let want = :delete
         KeyDown(^(want)) => :matched
         _                => :no
     end
-    @test del(KeyDown(:delete, Modifiers())) == :matched
-    @test del(KeyDown(:backspace, Modifiers())) == :no
+    @test del(KeyDown(:delete, ModifierKeys())) == :matched
+    @test del(KeyDown(:backspace, ModifierKeys())) == :no
 end
 
 end

@@ -37,7 +37,7 @@ using ProjecturedBase.PrimitiveModule
 using ProjecturedBase.CopyingProjectionModule
 using ProjecturedBase.FocusingProjectionModule: FocusingProjection, ReplaceFocusPartOperation
 using ProjecturedBase.EventModule: KeyDown
-using ProjecturedBase.EventModule: Modifiers
+using ProjecturedBase.EventModule: ModifierKeys
 
 include("document/CollectionTest.jl")
 include("document/DocumentWalkTest.jl")

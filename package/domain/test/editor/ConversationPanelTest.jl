@@ -19,7 +19,7 @@ function test_assistant_composer_panel()
             iom = print_document(proj, a)
             @test iom.output isa GraphicsCanvas
             @test read_intent(proj, iom, KeyPress('h')) isa ComposerInputOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin
@@ -65,7 +65,7 @@ function test_assistant_composer_panel()
             end
             @test a !== nothing
             @test read_intent(proj, iom, KeyPress('h')) isa ComposerInputOperation
-            @test read_intent(proj, iom, KeyDown(:return, Modifiers())) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
         end
     end
 end

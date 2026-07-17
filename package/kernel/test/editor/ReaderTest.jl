@@ -9,11 +9,11 @@ const _ALL_KEY_SYMBOLS = [
 
 const _ALL_KEY_EVENTS = vcat(
     # KeyDown with each symbol, with and without ctrl
-    [KeyDown(key, Modifiers(ctrl=ctrl)) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
+    [KeyDown(key, ModifierKeys(ctrl=ctrl)) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
     # KeyDown with repeat flag
-    [KeyDown(key, Modifiers(), true)    for key in (:left, :right, :backspace, :delete)],
+    [KeyDown(key, ModifierKeys(), true)    for key in (:left, :right, :backspace, :delete)],
     # KeyUp
-    [KeyUp(key, Modifiers())            for key in _ALL_KEY_SYMBOLS],
+    [KeyUp(key, ModifierKeys())            for key in _ALL_KEY_SYMBOLS],
     # KeyPress — printable characters
     [KeyPress(ch) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', 'é', '€')],
 )

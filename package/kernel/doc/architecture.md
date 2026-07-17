@@ -29,7 +29,7 @@ guards, docs, and tests:
 ```
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
 Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
-Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, Modifiers, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
+Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + EventEnvelope + the event pattern language (EventPattern, @event_case)
 Layer 4  — device/     Device abstract + Keyboard/Mouse/Screen + the read_from_devices/write_to_devices seam
 Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
 Layer 6  — backend/    Backend + Display + HeadlessBackend
@@ -148,7 +148,7 @@ Each layer lives in its own folder under [main/](../main/):
 | Folder | Holds |
 | --- | --- |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounter` (see [cell.md](cell.md)) |
-| `event/` | the input event vocabulary — `EventModule` (Modifiers, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, EventEnvelope) and `EventPatternModule` (`EventPattern`, `@event_case`) |
+| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, EventEnvelope) and `EventPatternModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — `Device`, `Keyboard`, `Mouse`, `Screen`, the `read_from_devices`/`write_to_devices` seam |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | Backend, Display, HeadlessBackend |

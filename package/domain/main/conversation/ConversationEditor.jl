@@ -517,7 +517,7 @@ into the conversation instead of merely normalizing it.
 # with the assistant panel) is the set the gesture-help window shows
 # (`get_projection_gesture_bindings`) — fire == show. Char insert + Backspace are shared by every
 # editable mode; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
-# mode-specific. Modifiers are matched as the old `@event_case` did: `[:shift]`/`[:alt]`
+# mode-specific. ModifierKeys are matched as the old `@event_case` did: `[:shift]`/`[:alt]`
 # are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
 # rows precede the bare one so Shift/Alt+Return win over plain Return (first match).
 function _composer_bindings(draft::ConversationDraft)

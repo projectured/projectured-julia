@@ -31,9 +31,9 @@ _bproj() = ChainingProjection(
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
     # Right-click fires the custom binding.
-    op = read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys()))
     @test op isa InvokeWidgetActionOperation && op.widget === btn
     evaluate_operation(_WidgetGestureMockEditor(btn), op)
     @test fired[] == true
@@ -48,7 +48,7 @@ end
                        action = (_e) -> (fired[] = true), gestures = [shadow])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
     @test op isa ReplaceReferencedValueOperation                 # the instance binding won…
     @test !(op isa InvokeWidgetActionOperation)         # …the default primary op did not fire
 end
@@ -62,7 +62,7 @@ end
                        action = (_e) -> (fired[] = true), gestures = [suppress])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
     @test op isa DoNothingOperation                            # consumed, not declined
     evaluate_operation(_WidgetGestureMockEditor(btn), op)   # …and does nothing
     @test fired[] == false
@@ -73,8 +73,8 @@ end
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> (fired[] = true))
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, Modifiers())) isa InvokeWidgetActionOperation
-    @test read_intent(proj, iomap, MousePress(:right, 10, 10, Modifiers())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys())) === nothing
 end
 
 # ── WidgetCheckbox / WidgetSwitch (same pattern as the button) ───────────────
@@ -90,9 +90,9 @@ end
     cb = WidgetCheckbox(Point2D(0, 0), false; gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys()))
     @test fired[] == true && op isa DoNothingOperation
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) isa ReplaceReferencedValueOperation
 end
 
 @testset "switch: a right-click binding fires; left-click still toggles" begin
@@ -103,9 +103,9 @@ end
     sw = WidgetSwitch(Point2D(0, 0), false; gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, sw, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:right, 5, 5, Modifiers()))
+    op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys()))
     @test fired[] == true && op isa DoNothingOperation
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, Modifiers())) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) isa ReplaceReferencedValueOperation
 end
 
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────
@@ -135,7 +135,7 @@ _pathref(i) = ConcreteReferencePath(FieldReference("roots"),
     w = WidgetTree(Point2D(0, 0), Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry[].rows[1]
-    op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, Modifiers()))
+    op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
     @test opened[] == true
     @test op isa DoNothingOperation
 end
@@ -145,7 +145,7 @@ end
     w = WidgetTree(Point2D(0, 0), Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry[].rows[1]
-    op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, Modifiers()))
+    op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
     @test op isa ReplaceSelectionOperation          # built-in select intact
 end
 
@@ -158,7 +158,7 @@ end
     w = WidgetTree(Point2D(0, 0), Any[node])
     io = print_document(_treeproj, w)
     getfield(w, :selection)[] = _pathref(1)          # select the node
-    op = _readop(io, KeyDown(:return, Modifiers()))
+    op = _readop(io, KeyDown(:return, ModifierKeys()))
     @test entered[] == true
     @test op isa DoNothingOperation
 end

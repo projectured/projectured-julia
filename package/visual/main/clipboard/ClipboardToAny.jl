@@ -502,7 +502,7 @@ end
 # operations capture the projection `p` (for the display toggle) and take the
 # clipboard document as their `doc` argument; they return `nothing` to decline
 # (e.g. no usable selection), falling through to the content-child delegation.
-# Modifiers are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
+# ModifierKeys are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
     GestureBinding[

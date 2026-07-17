@@ -331,8 +331,8 @@ iomap = print_document(p, with_selection(mkblock(), TextModule._flat_caret_ref(f
 click = read_intent(p, iomap, MousePress(:left, 31, 20))
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
-@test coord(read_intent(p, iomap, KeyDown(:down, Modifiers())))[1] == [2, 1]
-@test coord(read_intent(p, iomap, KeyDown(:end, Modifiers()))) == ([1, 1], 5)
+@test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys())))[1] == [2, 1]
+@test coord(read_intent(p, iomap, KeyDown(:end, ModifierKeys()))) == ([1, 1], 5)
 
 # A blank line keeps its row. It has neither a glyph nor a terminating
 # `TextNewline` to take a height from, so the block's prevailing font sizes it.

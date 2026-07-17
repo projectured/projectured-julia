@@ -12,7 +12,7 @@ function test_widget_toolbar()
 
 _det = (t, f) -> (length(t) * 8, 16)
 proj = make_widget_projection_example(measure = _det)
-_mods = Modifiers()
+_mods = ModifierKeys()
 _unwrap(el) = el isa Cell ? el[] : el
 
 # The bound item canvas: a lone menu item projects to a non-auto-sized canvas.
