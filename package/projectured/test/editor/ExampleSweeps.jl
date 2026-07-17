@@ -378,30 +378,22 @@ end
 
 # ── keyboard nav invariants ──────────────────────────────────────────────────
 
-# @broken: the leftward walk does not retrace the rightward one. Character motion
-# itself is a clean flat ±1, but a caret that sits on a projection-introduced token
-# — the width-0 indent slot SyntaxToText emits before each close delimiter, a graph
-# vertex's delimiter, a block-sequence indent — does not survive the backward∘forward
-# projection round-trip, so stepping left off it lands on a different caret than the
-# rightward walk passed through. The leftward walk then visits far fewer carets than
-# the rightward one (`:same_length`) and does not arrive back at the start
-# (`:left_reaches_start`).
-#
-# Root cause is the introduced-token caret round-trip in the projection maps, not
-# the flat text caret; diagnosed in
-# plan/pending/left-motion-stalls-on-introduced-text.md and tracked with the
-# introduced-caret work (plan/pending/simplest-syntax-document.md).
-const NAV_LEFT_WALK_STALLS = ("json", "json_sorted", "mixed", "formula", "yaml",
-                              "text", "text_with_image", "markdown_rendered")
-
-# @broken: on these the leftward walk not only fails to retrace but revisits a caret
-# it already stepped through — the round-trip above maps a later caret back onto an
-# earlier one, so the walk is not a chain (`:cycle_left`).
-const NAV_LEFT_WALK_CYCLES = ("json", "json_sorted", "mixed", "yaml")
+# @broken: the leftward walk visits fewer carets than the rightward one
+# (`:same_length`) and does not arrive back at the start (`:left_reaches_start`).
+# Each remaining member fails for its own reason, none of them the shared
+# widened-indent round-trip (that one is handled in `_backward_zone`):
+#   * formula — the leftward walk steps out of one formula's syntax children into a
+#     different subtree and stops; its rightward walk misses the end too (see
+#     `NAV_RIGHT_WALK_MISSES_END`).
+#   * text / text_with_image — a left/right asymmetry in the plain Text pipeline,
+#     with no projection involved.
+#   * markdown_rendered — rendered inline chrome (styled links/images) has no
+#     backward caret for every rendered glyph.
+const NAV_LEFT_WALK_STALLS = ("formula", "text", "text_with_image", "markdown_rendered")
 
 # @broken: on formula the *rightward* walk also ends somewhere other than where
-# Ctrl+End lands — the same introduced-token round-trip asymmetry, in the forward
-# direction (`:right_reaches_end`).
+# Ctrl+End lands, the same out-of-subtree drift in the forward direction
+# (`:right_reaches_end`).
 const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 
 # @broken: these examples cannot complete a walk at all — the seed gesture or a
@@ -427,7 +419,6 @@ function nav_broken(name)
     broken = Symbol[]
     append!(broken, get(NAV_WALK_THROWS, name, ()))
     name in NAV_LEFT_WALK_STALLS && append!(broken, (:same_length, :left_reaches_start))
-    name in NAV_LEFT_WALK_CYCLES && push!(broken, :cycle_left)
     name in NAV_RIGHT_WALK_MISSES_END && push!(broken, :right_reaches_end)
     broken
 end
