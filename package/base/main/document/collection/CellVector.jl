@@ -19,6 +19,11 @@ end
 # `.elements`. See `is_element_collection` (DocumentModule) for the contract.
 is_element_collection(::CellVector) = true
 
+# Opt a `::CellVector` `@document` field into the collection-construction sugar
+# (`Foo([a, b])` wraps the raw vector via `CellVector`). Keyed on the type's symbol
+# so `@document` decides at expansion without naming `CellVector`.
+is_collection_field_type(::Val{:CellVector}) = true
+
 # `CellVector()` is the macro's keyword constructor: `elements` defaults to an
 # empty `Cell[]` and `selection` to `nothing`. Because *every* field defaults,
 # Rule Y emits no positional constructor — which is what keeps the variadic below

@@ -7,6 +7,7 @@
 
 is_element_collection(value) = false
 is_walk_opaque(value) = false
+is_collection_field_type(::Val) = false
 
 """
 Maximum nesting depth printed by the generic document `show` before child

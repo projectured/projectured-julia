@@ -175,10 +175,12 @@ function _emit_keyword_ctors(plan)
      for p in ("", "I", "M")]
 end
 
-# The single `CellVector` field's position, or 0 when there is not exactly one.
-# Detected by the declared type's *name* — see `_emit_collection_ctors`.
-function _cell_vector_slot(plan)
-    hits = findall(t -> t === :CellVector, plan.field_types)
+# The single collection field's position, or 0 when there is not exactly one. A
+# field's declared type opts in through `is_collection_field_type(::Val{name})`,
+# which the type registers from its own package — so this macro names no concrete
+# collection type. See `_emit_collection_ctors`.
+function _collection_slot(plan)
+    hits = findall(t -> t isa Symbol && is_collection_field_type(Val(t)), plan.field_types)
     length(hits) == 1 ? hits[1] : 0
 end
 
@@ -186,25 +188,26 @@ end
     _emit_collection_ctor_at(plan, k) -> Vector
 
 **Rule C**, the part that accompanies Rule Y: the arity-`k` constructor whose
-`CellVector` slot is typed `::AbstractVector` and wrapped via `CellVector(...)`.
+collection slot is typed `::AbstractVector` and wrapped via that slot's declared
+type.
 
-Rule Y passes a kept `CellVector` slot through *raw*, and the auto-wrapping inner
+Rule Y passes a kept collection slot through *raw*, and the auto-wrapping inner
 constructor would then store `Cell(vector)` — a cell wrapping a plain `Vector` —
-instead of a `CellVector`. Hence this companion. The two coexist: the
+instead of the collection. Hence this companion. The two coexist: the
 `::AbstractVector` variant is more specific for a `Vector` argument, while a real
-`CellVector` (which is `<: Document`, not `<: AbstractVector`) falls through to the
-raw form. Emitted only for an arity whose kept prefix actually reaches the
-collection slot; it is passed to `cell_struct_positional_ctors` as its
-`each_arity` hook, which is what ties it to Rule Y's own `cell_struct_required_count ≥ 1` gate.
+collection value (a `Document`, not an `AbstractVector`) falls through to the raw
+form. Emitted only for an arity whose kept prefix actually reaches the collection
+slot; it is passed to `cell_struct_positional_ctors` as its `each_arity` hook,
+which is what ties it to Rule Y's own `cell_struct_required_count ≥ 1` gate.
 """
 function _emit_collection_ctor_at(plan, k)
-    p = _cell_vector_slot(plan)
+    p = _collection_slot(plan)
     (1 ≤ p ≤ k) || return ()
     n = length(plan.field_names)
     fields, defaults = plan.field_names, plan.defaults
     filled   = Any[defaults[fields[j]] for j in (k + 1):n]
-    params   = Any[j == p ? :($(fields[p])::AbstractVector) : fields[j] for j in 1:k]
-    callargs = Any[j == p ? :(CellVector($(fields[p])))     : fields[j] for j in 1:k]
+    params   = Any[j == p ? :($(fields[p])::AbstractVector)         : fields[j] for j in 1:k]
+    callargs = Any[j == p ? :($(plan.field_types[p])($(fields[p]))) : fields[j] for j in 1:k]
     (:($(plan.name)($(params...)) = $(Expr(:call, plan.name, callargs..., filled...))),)
 end
 
@@ -221,15 +224,12 @@ the arity-`k` Rule Y form, and emitting it again would silently redefine it. The
 variadic never collides, so it is always emitted. Elements are typed `Document`
 (the universal base), so a collection may hold children of any domain, even a mix.
 
-**Known wart.** The `CellVector` field is found by matching the declared type's
-*symbol* — a kernel-layer macro string-matching the name of a type defined in the
-`base` package, one package up. It works only because the name is unique, and it
-silently does nothing if a domain aliases the type. The honest fix is a trait
-resolved at expansion time, but a macro cannot call a runtime trait on a type that
-does not exist yet, so this needs its own design. Recorded, not fixed.
+The collection field is identified by `is_collection_field_type(::Val{name})` on
+its declared type's symbol, and wrapped by calling that same declared type — so a
+collection type opts in from its own package and this macro names none.
 """
 function _emit_collection_ctors(plan)
-    p = _cell_vector_slot(plan)
+    p = _collection_slot(plan)
     p ≥ 1 || return Any[]
     fields, defaults = plan.field_names, plan.defaults
     # Element sugar applies only when every field *other than* the collection defaults.
@@ -237,7 +237,7 @@ function _emit_collection_ctors(plan)
 
     ctors = Any[]
     if cell_struct_required_count(plan) == 0
-        cargs = Any[i == p ? :(CellVector(items)) : defaults[f]
+        cargs = Any[i == p ? :($(plan.field_types[p])(items)) : defaults[f]
                     for (i, f) in enumerate(fields)]
         push!(ctors, :($(plan.name)(items::AbstractVector) =
             $(Expr(:call, plan.name, cargs...))))
@@ -302,9 +302,9 @@ constructors are the exception and need a default you declared yourself.
    field is required (so the zero-arg form never shadows the keyword ctor);
    fully-defaulted structs get none.
 
-6. **Single-`CellVector` constructors** (Rule C, bare name only) — when exactly
-   one field is a `CellVector`, a positional ctor accepts that slot as an
-   `AbstractVector` and wraps it per-element via `CellVector(items)`, filling any
+6. **Single-collection constructors** (Rule C, bare name only) — when exactly one
+   field's declared type opts into `is_collection_field_type`, a positional ctor
+   accepts that slot as an `AbstractVector` and wraps it via that type, filling any
    trailing defaults. This holds whether the sibling fields are **required**
    (`Foo(callee, [args])`) or all default (`Foo([a, b])`, plus the variadic
    `Foo(a, b)` when the collection is the sole content).

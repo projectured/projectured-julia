@@ -42,6 +42,20 @@ structure opts in with its own method.
 function is_walk_opaque end
 
 """
+    is_collection_field_type(::Val{name}) -> Bool
+
+`true` when a `@document` field declared with type `name` should receive the
+collection-construction sugar — a positional constructor that wraps a raw
+`AbstractVector` into that type (`Foo([a, b])` / `Foo(a, b)`). The expansion-time
+companion of `is_element_collection`, keyed on the declared type's **symbol** so
+the `@document` macro can ask without resolving — or even naming — the type: a
+collection type registers `Val{:ItsName}` from the package that defines it (and
+must offer a `Type(::AbstractVector)` constructor), so the document layer names no
+concrete collection type. Defaults to `false`.
+"""
+function is_collection_field_type end
+
+"""
     copy_document(value)     -> value      # preserve every cell's kind
     copy_document(K, value)  -> value      # rebuild every cell as kind K
 
