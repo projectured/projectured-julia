@@ -1,9 +1,7 @@
 # ── Backend layer — rendering targets ──────────────────────────────────────
 # The ordered include list of the backend layer; a fragment of ProjecturedKernel.
-# BackendModule declares the abstract Backend and the batch generics
-# (initialize_backend!, quit_backend!, measure_text, write_image, record_video,
-# render_canvas, decode_image, get_pointer_position). DisplayModule holds the
-# display-size query with a provider indirection.
+# BackendModule declares the abstract Backend and the backend generics a backend
+# package implements (lifecycle, text measurement, device I/O, display query,
+# device configuration, image/video output, pointer position).
 include("BackendModule.jl")
-include("Display.jl")
 include("HeadlessBackend.jl")

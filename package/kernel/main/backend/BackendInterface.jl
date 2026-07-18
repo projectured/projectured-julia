@@ -1,12 +1,8 @@
 # Fragment of `BackendModule` — the backend **contract**: the abstract `Backend`
 # type every backend subtypes, and the open generics a backend package answers
 # with a method for its own concrete type. Nothing here carries a body — the
-# concrete backends live in opt-in packages, and the one behaviour the contract
-# supplies for itself (what a backend that cannot report a pointer position
-# says) sits in `BackendDefaults.jl`.
-#
-# `get_display_size` + its provider glue (mutable global state) live in
-# `DisplayModule` (backend/Display.jl), not in this contract.
+# concrete backends live in opt-in packages, and the fallback behaviours for the
+# capabilities a backend may decline sit in `BackendDefaults.jl`.
 
 """
     Backend
@@ -69,6 +65,23 @@ so it stays free of any concrete backend dependency (the same indirection as
 `measure_text`).
 """
 function get_pointer_position end
+
+"""
+    get_display_size(backend; display=0) -> (width, height)
+
+The pixel size of display `display` as reported by `backend`, or the
+display-free default `(1280, 800)` for a backend that cannot query a display.
+"""
+function get_display_size end
+
+"""
+    configure_devices!(backend, devices)
+
+Fill in the physical properties of each device in `devices` from what `backend`
+can discover about the real hardware — e.g. a `Screen`'s resolution and HiDPI
+scale. A backend that discovers nothing leaves the devices at their defaults.
+"""
+function configure_devices! end
 
 """
     write_image(document, projection, filename; kwargs...)

@@ -58,7 +58,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
   - ⬜ `backend/BackendDefaults.jl`
-  - ⬜ `backend/Display.jl`
   - ⬜ `backend/HeadlessBackend.jl`
 - **Layer 7 — document** (`document/`)
   - ⬜ `document/DocumentLayer.jl`

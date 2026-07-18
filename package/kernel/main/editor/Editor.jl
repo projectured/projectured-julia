@@ -282,6 +282,7 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               devices::Vector{Device}=Device[Screen(), Keyboard(), Mouse()])
     initialize_backend!(backend)
     try
+        configure_devices!(backend, devices)
         editor = Editor(backend, document, projection, devices)
         run_editor!(editor; mcp=mcp)
     finally

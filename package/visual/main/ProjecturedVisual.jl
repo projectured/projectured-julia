@@ -101,7 +101,6 @@ const WindowInputUnwrappingProjectionModule = ProjecturedBase.WindowInputUnwrapp
 const FocusingProjectionModule = ProjecturedBase.FocusingProjectionModule
 const ReversingProjectionModule = ProjecturedBase.ReversingProjectionModule
 const ConstantProjectionModule = ProjecturedBase.ConstantProjectionModule
-const DisplayModule = ProjecturedKernel.DisplayModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule

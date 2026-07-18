@@ -169,12 +169,12 @@ opens and edits a file but does not write it back.
 function run_file_editor(domain::Symbol; file=nothing, workbench::Bool=false,
                          backend=nothing, width=nothing, height=nothing, mcp::Bool=false)
     document, projection, name = build_file_editor(domain; file=file, workbench=workbench)
+    backend === nothing && (backend = default_backend())
     if width === nothing || height === nothing
-        sw, sh = get_display_size()
+        sw, sh = get_display_size(backend)
         width  = something(width,  sw)
         height = something(height, sh)
     end
-    backend === nothing && (backend = default_backend())
     _run_window_scene(Any[document], Any[projection], String[name];
                       width=width, height=height, backend=backend,
                       compose=(p, b) -> _multi_window_projection(p), mcp=mcp)

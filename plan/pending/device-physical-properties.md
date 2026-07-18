@@ -68,24 +68,30 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
 
 ## Steps (each its own commit)
 
+> **Note:** steps 2–5 could not be separate commits — `get_display_size` cannot
+> exist in two modules at once (the no-duplicate-export rule), so moving it out
+> of `DisplayModule` into `BackendModule` and migrating every consumer had to be
+> one atomic change. Landed together; SDL verified populating a real display
+> `(2560×1440 @ 2.0)`.
+
 - [x] **1. Device structs.** Make `Screen`/`Mouse`/`Keyboard` mutable with the
   fields + defaults + keyword/zero-arg ctors. Update their docstrings (physical
   properties, honestly noting which the backend fills). Kernel-only; verify load
   + `test_kernel_layering()` (Device.jl still declares only `abstract type
   Device`; the fragments gain fields — Device.jl interface purity unaffected).
   **Done** — smoke (defaults, keyword ctors, in-place mutation) + guard 10/10.
-- [ ] **2. Backend seam.** Add `get_display_size(backend; display=0)` and
+- [x] **2. Backend seam.** Add `get_display_size(backend; display=0)` and
   `configure_devices!(backend, devices)` to `BackendInterface.jl`; export both
   from `BackendModule`; add the `configure_devices!` no-op + the
   `get_display_size` `(1280,800)` default to `BackendDefaults.jl`. Delete
   `backend/Display.jl` + its `BackendLayer.jl` include + `CLAUDE.md` line.
-- [ ] **3. Editor.** `run_editor!` calls `configure_devices!(backend, devices)`
+- [x] **3. Editor.** `run_editor!` calls `configure_devices!(backend, devices)`
   after `initialize_backend!`. Verify with HeadlessBackend (no-op path: defaults
   survive).
-- [ ] **4. SDL.** Implement `get_display_size(backend::SdlBackend; display)` and
+- [x] **4. SDL.** Implement `get_display_size(backend::SdlBackend; display)` and
   `configure_devices!(backend::SdlBackend, devices)`; drop the `__init__`
   `set_display_size_provider!` registration. Load SDL, confirm methods attach.
-- [ ] **5. Consumers.** FileEditor/Gallery: `get_display_size()` →
+- [x] **5. Consumers.** FileEditor/Gallery: `get_display_size()` →
   `get_display_size(backend)` (thread the resolved backend into the sizing).
 - [ ] **6. Docs.** `naming.md`, `editor.md`, `devices-and-backends.md`,
   `architecture.md` (both), `BackendInterface.jl` header (drop the Display note),

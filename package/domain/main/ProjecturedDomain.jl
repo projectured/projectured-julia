@@ -33,7 +33,6 @@ const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 const DomainModule = ProjecturedBase.DomainModule
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const DeviceModule = ProjecturedKernel.DeviceModule
-const DisplayModule = ProjecturedKernel.DisplayModule
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceApiModule = ProjecturedKernel.ReferenceModule

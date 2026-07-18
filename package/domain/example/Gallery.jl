@@ -138,8 +138,13 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     if clipboard && (tooltip || inspector)
         error("run_example: clipboard=true is not compatible with tooltip=true or inspector=true")
     end
+    # Resolve the backend up front — the display-size query below and the
+    # inspector's pointer closure both need it. An explicit `backend` wins;
+    # otherwise pick a default by reflection over the loaded backends (SDL when
+    # loaded, see `default_backend`).
+    backend === nothing && (backend = default_backend())
     if width === nothing || height === nothing
-        sw, sh = get_display_size()
+        sw, sh = get_display_size(backend)
         width  = something(width,  sw)
         height = something(height, sh)
     end
@@ -205,13 +210,6 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         docs = tt_docs
     end
 
-    # An explicit `backend` (e.g. a WebBackend the caller constructed) wins;
-    # otherwise pick a default by reflection over the loaded backends — SDL when
-    # it is loaded (see `default_backend`). Built before composing because the
-    # inspector pipeline needs a pointer closure over the backend's global mouse
-    # position. SDL render knobs (partial_render / debug_dirty) now live on
-    # SdlBackend's constructor: pass `backend=SdlBackend(; …)` to set them.
-    backend === nothing && (backend = default_backend())
     # How deep the original (selection-bearing) document sits under `win.content`.
     content_unwrap = tooltip ? :tooltip : clipboard ? :clipboard : :plain
     # `compose(projs, backend)` — the inspector pipeline needs the backend for its

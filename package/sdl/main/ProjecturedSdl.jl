@@ -4,8 +4,7 @@
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
 rasterisation, offscreen image output). Depends on `ProjecturedDomain` +
 SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` provides the
-render/decode/image seam methods, and (via
-`__init__`) installs SDL as the real `get_display_size` provider. Exposes `SdlBackend`,
+render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
 primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!`)
 that the opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives there,
@@ -26,7 +25,6 @@ using SimpleDirectMediaLayer.LibSDL2
 # module's *real* name, so the extension sites read BackendModule.*;
 # DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedDomain.BackendApiModule
-using ProjecturedDomain.DisplayModule
 using ProjecturedDomain.DeviceModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -2526,13 +2524,24 @@ end
 # Image decode via the generic seam.
 BackendModule.decode_image(filename::AbstractString) = sdl_decode_image(filename)
 
-# Register SDL as the real display-size provider so `get_display_size()` returns the
-# actual display once this package is loaded. This mutates a Ref owned by
-# ProjecturedKernel (via ProjecturedDomain), so it MUST run in `__init__` (at load
-# time) — doing it at top level would write the Ref during *this* package's
-# precompile, where the change would not persist into the loaded session.
-function __init__()
-    set_display_size_provider!(sdl_display_size)
+# Display size via the generic seam (delegates to the SDL-specific query).
+BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
+    sdl_display_size(; display=display)
+
+# Populate the Screen devices with the real display geometry and HiDPI scale
+# discovered at start-up (called after `initialize_backend!`, so the scale is
+# already detected). Mouse/Keyboard are left at their defaults — SDL2 cannot
+# reliably report button count or keyboard layout.
+function BackendModule.configure_devices!(::SdlBackend, devices)
+    width, height = sdl_display_size()
+    scale = _DISPLAY_SCALE[]
+    for device in devices
+        device isa Screen || continue
+        device.width  = width
+        device.height = height
+        device.scale  = scale
+    end
+    return nothing
 end
 
 end # module Sdl
