@@ -77,33 +77,34 @@ load-bearing work, done per projection.
 ## Phases
 
 **Phase 0 — Foundations.**
-- [ ] Write the invariant as a new AR rule in `architecture-requirements.md`;
-      cross-link the four rules it subsumes.
-- [ ] **Accessor contract change** (decision 2): make `get_iomap_output` /
-      `_input` / `_projection` return the value uniformly (off raw `getfield`) in
-      `IoMapDefaults.jl`; establish the `@iomap` conversion recipe (the
-      `.field[]` → `.field` / `getfield` access audit) on `SimpleIoMap` /
-      `ChildrenIoMap` / `ContentIoMap` first, as the reference for the sweep. Hold
-      the iomap-layer seal.
-- [ ] Promote the reconciliation helpers to the **iomap layer** (correction: they
+- [x] Write the invariant as a new AR rule in `architecture-requirements.md`;
+      cross-link the four rules it subsumes. **Done `cd82b9cd`** (AR-STABLE-IOMAP-IDENTITY).
+- [x] **Accessor contract change** (decision 2): `get_iomap_output` / `_input` /
+      `_projection` return the value uniformly (property access, off raw `getfield`).
+      **Done `5e106fc7`** (no-op on the plain IoMaps; enables the @iomap recipe).
+      `SimpleIoMap` was the recipe reference (Phase 1, `1fa78c5a`); ChildrenIoMap/
+      ContentIoMap deferred to their batches. iomap-layer seal held.
+- [x] Promote the reconciliation helpers to the **iomap layer** (correction: they
       do *not* call `print_child` — the caller's closure does; they need only
       `Cell` + `objectid`, so the iomap layer is their lowest home and reaches every
       projection consumer). New fragment `IoMapReconcile.jl` exporting public
       `reconcile_child_iomaps` / `reconcile_child_iomap`; `ProjectionTemplate` and the
-      hand-written projections call them.
-- [ ] **Build the reactive test harness** — the critical enabler. Given a
-      pipeline: print it, capture output + IoMap `objectid`, drive a *structural*
-      change (focus swap / type-to-replace / element splice), re-pull, and assert
-      (a) output updated correctly, (b) IoMap identity unchanged, (c)
-      `editor.iomap` NOT nulled. Today's printer/reader tests check only a single
-      print — this gap is the top risk, so it is fixed first.
+      hand-written projections call them. **Done `f12c5595`.**
+- [x] **Reactive test harness** — found to already exist: `printer_locality_report`
+      prints once, holds the iomap+output, drives an arbitrary `mutate!`, and diffs
+      identity (tests reactive-propagation-vs-reprint). Per-projection reactive tests
+      add the content-correctness + iomap-identity assertions directly (done first in
+      the Focusing test, `a5f1a1bb`).
 
-**Phase 1 — Exemplar: `FocusingProjection`.**
-- [ ] `@projection FocusingProjection`; wire `output` as a computed cell deriving
-      from `part` + `input`, keep IoMap identity stable; `ReplaceFocusPartOperation`
-      writes the `part` cell and relies on no re-print.
-- [ ] Reactive test: focus in/out → output tracks, IoMap identity preserved, no
-      iomap drop. Validates the whole pattern on the simplest real case.
+**Phase 1 — Exemplar: `FocusingProjection`.** **Done.**
+- [x] `@projection FocusingProjection`; `output` a computed cell
+      `Cell(() -> evaluate_reference(input, p.part))` on a **stable** `SimpleIoMap`;
+      dropped `part_evaluator`; `ReplaceFocusPartOperation` writes the `part` cell.
+      Dropped the eager selection mutation entirely (design review: the cursor rides
+      the `map_reference_forward` composition). `SimpleIoMap → @iomap` (`1fa78c5a`)
+      first; Focusing (`a5f1a1bb`).
+- [x] Reactive test: hold the iomap, write `part`, assert `iomap.output` tracks the
+      new focus through the same object. gestures 6/6, reactive output 3/3.
 
 **Phase 2 — base generic / degenerate** (Identity, Constant, Reversing, Copying,
 Sorting, Filtering, Searching, Dragging): convert struct + wire output/children +
