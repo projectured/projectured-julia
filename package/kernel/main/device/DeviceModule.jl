@@ -15,7 +15,6 @@ module DeviceModule
 
 export Device, Keyboard, Mouse, Display
 
-# Device.jl first — the concrete devices below subtype the `Device` it declares.
 include("Device.jl")
 include("Keyboard.jl")
 include("Mouse.jl")
