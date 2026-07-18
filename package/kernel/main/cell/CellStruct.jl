@@ -188,3 +188,24 @@ macro cell_struct(args...)
     default, structdef = cell_struct_macro_default(args)
     esc(cell_struct_exprs(structdef; default = default))
 end
+
+# The kind constructor behind a cell's concrete type — the runtime companion of
+# `cell_kind_of` (which maps a kind *name*): a cell's kind lives in its type.
+_cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
+_cell_kind(::Type{<:MutableCell})   = MutableCell
+_cell_kind(::Type{<:ImmutableCell}) = ImmutableCell
+
+"""
+    get_cell_struct_kind(x) -> Type{<:AbstractCell} | Nothing
+
+The cell kind a transparent-cell struct is built from — `ReactiveCell`,
+`MutableCell`, or `ImmutableCell` — read off its first cell-backed field. A
+cell-struct's kind lives in its field cells, not in its type name, so this is how
+a caller that must *build* something in the same kind (a copy, a shadow slot)
+discovers which one. Returns `nothing` when the first field is not a cell.
+"""
+function get_cell_struct_kind(x)
+    isempty(fieldnames(typeof(x))) && return nothing
+    c = getfield(x, 1)
+    c isa AbstractCell ? _cell_kind(typeof(c)) : nothing
+end

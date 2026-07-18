@@ -13,7 +13,7 @@ module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell,
-       copy_cell_as, get_cell_struct_kind
+       copy_cell_as
 
 include("CellInterface.jl")
 include("ReactiveCell.jl")

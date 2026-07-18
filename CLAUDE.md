@@ -21,14 +21,14 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
   - ⬜ `cell/CellModule.jl`
-  - 🔒 `cell/CellInterface.jl`
+  - ⬜ `cell/CellInterface.jl`
   - 🔒 `cell/ReactiveCell.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
   - ⬜ `cell/CellDefaults.jl`
-  - 🔒 `cell/CellStructModule.jl`
+  - ⬜ `cell/CellStructModule.jl`
   - 🔒 `cell/CellStructPlan.jl`
-  - 🔒 `cell/CellStruct.jl`
+  - ⬜ `cell/CellStruct.jl`
 - **Layer 2 — clock** (`clock/`)
   - 🔒 `clock/ClockLayer.jl`
   - 🔒 `clock/Clock.jl`

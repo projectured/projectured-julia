@@ -87,10 +87,10 @@ uniformly:
   **positional collection** (`is_element_collection`) syncs its elements by index
   through the vector protocol.
 
-Both lean on cell-layer primitives — `get_cell_struct_kind` (the cell kind a
-value's fields are built from) and `copy_cell_as` (clone a cell in its own kind),
-in [CellDefaults.jl](../main/cell/CellDefaults.jl) — since a document's kind lives
-in its field cells, not in its type name.
+Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own kind;
+the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are
+built from; the cell-struct toolkit) — since a document's kind lives in its field
+cells, not in its type name.
 
 ## The reflection walk
 

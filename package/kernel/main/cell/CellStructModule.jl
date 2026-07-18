@@ -28,7 +28,8 @@ export var"@cell_struct", cell_struct_exprs, cell_struct_kw_params, cell_struct_
 # types, defaults, cell kinds) done before any code is emitted — public for the
 # same reason, part of the composition seam.
 export CellStructPlan, cell_struct_plan, add_cell_struct_field!, retype_cell_struct_fields!,
-       cell_struct_value_types, cell_struct_field_kinds, cell_kind_of, cell_struct_required_count, cell_struct_trailing_default_count
+       cell_struct_value_types, cell_struct_field_kinds, cell_kind_of, cell_struct_required_count, cell_struct_trailing_default_count,
+       get_cell_struct_kind
 
 include("CellStructPlan.jl")      # the shared struct-definition parse
 include("CellStruct.jl")      # transparent-Cell struct codegen (@cell_struct)
