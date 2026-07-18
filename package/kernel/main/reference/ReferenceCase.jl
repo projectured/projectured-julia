@@ -12,18 +12,11 @@
 # `get_reference_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
-"""
-    when(pattern, condition)
-
-Surface syntax helper recognized only inside `@reference_case`.
-
-Example:
-    @reference_case r begin
-        when(items[i].name, i > 0) => ("later", i)
-    end
-"""
-when(pattern, condition) = error("when() is only valid inside @reference_case")
-prefix(path) = error("prefix() is only valid inside @reference_case")
+# `when(pattern, cond)` and `prefix(path)` are surface-syntax keywords the
+# `@reference_case` macro recognizes *by symbol* (see `_parse_rule`) and consumes at
+# macroexpand time — they are never evaluated as functions, so the layer defines and
+# exports nothing for them. Writing either outside `@reference_case` is a plain
+# `UndefVarError`. See the `@reference_case` docstring for what they mean.
 
 # ------------------------------------------------------------
 # Pattern representation

@@ -81,7 +81,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        # DSL extension seams:
        build_reference_step, match_reference_step, get_reference_step_subpath_args,
        # ReferenceCase DSL:
-       @reference_case, when, prefix,
+       @reference_case,
        # ReferenceBuilder DSL:
        @reference, @reference_step
 
