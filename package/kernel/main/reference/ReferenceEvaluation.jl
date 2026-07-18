@@ -2,7 +2,7 @@
 # "types always present" invariant that walk maintains.
 #
 # The three walkers are structurally parallel and all descend through the
-# `evaluate_step` / `step_kind` seam declared in `Interface.jl`:
+# `evaluate_step` / `step_kind` seam declared in `ReferenceInterface.jl`:
 #
 # - `evaluate_reference`        — follow the path, return the node it lands on
 # - `get_valid_reference_prefix` — follow as far as the document still allows

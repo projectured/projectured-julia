@@ -21,9 +21,9 @@ types and modules, `!` for mutation, and avoiding abbreviations.
   (`Device.jl`). The rule above still reads in both directions —
   the module is the file name, the `Module` suffix already spelled out. Where the
   bare concept name would be ambiguous with the type it declares, the contract
-  fragment takes the prefix (`BackendInterface.jl`, `DocumentInterface.jl`); where
-  the folder holds one contract and the bare name reads cleanly, `Interface.jl`
-  says it (`reference/`, `selection/`, `operation/`).
+  fragment takes the prefix (`BackendInterface.jl`, `DocumentInterface.jl`,
+  `ReferenceInterface.jl`); where the folder holds one contract and the bare name
+  reads cleanly, `Interface.jl` says it (`selection/`, `operation/`).
 - **`Api` is a layer marker carried in the filename.** Every file in `api/`
   ends in `Api` (`DocumentApi.jl`, `BackendApi.jl`), so the rule above yields
   its `XApiModule` directly — no special case.

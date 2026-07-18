@@ -68,7 +68,7 @@ no second grouping to learn. What the plain stack does not show is the two place
 the shape is more interesting than "N depends on N−1":
 
 **The interface files are the cycle-breaker.** Each layer opens with its contract:
-`document/Interface.jl` (the `Document` supertype), `reference/Interface.jl` (the
+`document/DocumentInterface.jl` (the `Document` supertype), `reference/ReferenceInterface.jl` (the
 `ReferenceStep` / `ReferencePath` types and the step seam), `selection/Interface.jl`,
 `operation/Interface.jl` (`Operation` + `evaluate_operation`), and the projection
 layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
@@ -154,7 +154,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`DocumentInterface.jl`), the `@document` codegen (`DocumentMacro.jl`), the value protocol (`DocumentCopy.jl` / `DocumentSync.jl`), the reflection walk (`DocumentWalk.jl` / `DocumentSearch.jl`), and the protocol forward/adapt helpers (`ForwardProtocol.jl`) |
-| `reference/` | the step/path contract (`Interface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
+| `reference/` | the step/path contract (`ReferenceInterface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |

@@ -7,7 +7,7 @@
 # `ReferenceCase.jl`, lowers the very same AST into match branches.
 #
 # Extension steps owned by higher packages are reached through the `dsl_build_step` /
-# `dsl_step_subpath_args` seams declared in `Interface.jl`, so this fragment names no step
+# `dsl_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
 # ------------------------------------------------------------

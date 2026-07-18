@@ -105,7 +105,7 @@ function test_kernel_layering()
                        "cell/CellInterface.jl"       => :CellModule,
                        "event/EventInterface.jl"     => :EventModule,
                        "document/DocumentInterface.jl" => :DocumentModule,
-                       "reference/Interface.jl"      => :ReferenceModule,
+                       "reference/ReferenceInterface.jl" => :ReferenceModule,
                        "selection/Interface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,
                        "backend/BackendInterface.jl" => :BackendModule,

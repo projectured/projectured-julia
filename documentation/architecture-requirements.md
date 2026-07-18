@@ -790,8 +790,8 @@ wired in or deleted before it gets a home — no orphan shapes the structure.
 ### AR-INTERFACE-DECLARES-ONLY
 
 **An interface file declares; it never implements.** A layer's interface file —
-the contract file its module includes first (`document/Interface.jl`,
-`reference/Interface.jl`, `backend/BackendInterface.jl`, …) — carries *only*
+the contract file its module includes first (`document/DocumentInterface.jl`,
+`reference/ReferenceInterface.jl`, `backend/BackendInterface.jl`, …) — carries *only*
 declarations: the module docstring, the abstract types and type aliases that
 form the layer's vocabulary, and its open generics as bodiless `function f
 end`. **No method bodies.** Not a delegation, not an accessor, and not a

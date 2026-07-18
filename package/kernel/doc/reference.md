@@ -23,7 +23,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │ imports Cell (from CellModule), @cell_struct (from CellStructModule),
         │ and Document (from DocumentModule, for the reflection-walker traits) and exports every
         │ public name below
-        ├─ Interface.jl        — the contract: the ReferenceStep and
+        ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
         │                        ReferencePath abstract types, the Reference
         │                        union, and the open generics higher packages
         │                        add methods to (step_kind, evaluate_step, and
@@ -72,7 +72,7 @@ difference lives:
 A leading identifier is also read differently by `@step` (a placeholder, dropped:
 `@step xs[i]` yields just `[i]`) than by `@reference` (a field name).
 
-`Interface.jl` comes first for a reason beyond convention: the abstract types it
+`ReferenceInterface.jl` comes first for a reason beyond convention: the abstract types it
 declares are named in the struct field annotations below it
 (`head::ReferenceStep`, `tail::ReferencePath`), and those are evaluated at
 definition time, so the contract must be loaded before the types that satisfy it.
@@ -114,7 +114,7 @@ Each step descends one level into a document tree. The full vocabulary:
 
 The first four are the kernel's own steps (`ReferenceStep.jl`). The last three are
 owned by the packages that need them: each subtypes `ReferenceStep` and registers
-its navigation and DSL behaviour through the seams in `Interface.jl`, at its own
+its navigation and DSL behaviour through the seams in `ReferenceInterface.jl`, at its own
 definition site, with no edit to the reference layer.
 
 `TypeReference(T)` also exists but is **not** a navigation step in stored

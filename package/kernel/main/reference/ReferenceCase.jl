@@ -9,7 +9,7 @@
 # — a bare symbol binds here where it would name a field in the builder.
 #
 # Extension steps owned by higher packages are reached through the `dsl_match_step` /
-# `dsl_step_subpath_args` seams declared in `Interface.jl`, so this fragment names no step
+# `dsl_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
 """

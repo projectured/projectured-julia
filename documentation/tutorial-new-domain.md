@@ -105,7 +105,7 @@ end # module
   `entries` by `getfield`, so these names *are* the domain's reference
   vocabulary — choose them deliberately; renaming one later breaks stored
   references. (See the `Document` contract in
-  [document/Interface.jl](../package/kernel/main/document/Interface.jl).)
+  [document/DocumentInterface.jl](../package/kernel/main/document/DocumentInterface.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
 - See [reactive cells](../package/kernel/doc/cell.md) and [macros](../package/kernel/doc/macros.md)

@@ -19,7 +19,7 @@ imported together and separating them just multiplied import headers.
 
 The module lives in eight fragments that share this namespace:
 
-- [`Interface.jl`](Interface.jl) — the contract: the `ReferenceStep` and
+- [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `ReferencePath` abstract types, the `Reference` union a selection field holds,
   and the open generics higher packages add methods to (`step_kind`,
   `evaluate_step`, and the `dsl_*` DSL seams).
@@ -89,13 +89,13 @@ export Reference, ReferenceStep, ElementReference, PositionReference, TypeRefere
 # field annotations below (`head::ReferenceStep`, `tail::ReferencePath`), which
 # are evaluated at definition time. Then the types, the value protocol on them,
 # and finally the DSL fragments that consume the seams.
-include("Interface.jl")
+include("ReferenceInterface.jl")
 include("ReferenceStep.jl")
 include("ReferencePath.jl")
 include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
 # The shared surface grammar, then the two DSLs that lower it. Syntax must precede
-# both: it calls the `dsl_step_subpath_args` seam (declared in `Interface.jl`) to tag
+# both: it calls the `dsl_step_subpath_args` seam (declared in `ReferenceInterface.jl`) to tag
 # an extension step's subpath arguments while parsing.
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")

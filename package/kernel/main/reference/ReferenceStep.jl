@@ -8,7 +8,7 @@
 # `evaluate_step` seam methods sit together, the same way a step type owned by a
 # higher package packages itself (`PointReference.jl`, `ProjectionReference.jl`,
 # `TextSpanReference.jl`). The abstract `ReferenceStep` and the seam generics
-# are declared in `Interface.jl`; the paths these steps are threaded onto live in
+# are declared in `ReferenceInterface.jl`; the paths these steps are threaded onto live in
 # `ReferencePath.jl`.
 
 # ── Cell-transparent navigation ───────────────────────────────────────────

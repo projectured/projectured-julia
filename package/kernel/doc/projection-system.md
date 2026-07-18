@@ -236,7 +236,7 @@ really the *projection's* business:
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
 `read_gesture(document, gesture) -> Union{Operation, Nothing}`
-([document/Interface.jl](../../../package/kernel/main/document/Interface.jl)): the document maps the
+([document/DocumentInterface.jl](../../../package/kernel/main/document/DocumentInterface.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
 the gesture (which also serves as "I decline this gesture so an outer layer can

@@ -15,7 +15,7 @@
 # grammar one thing rather than two nearly-identical things that drift.
 #
 # The step vocabulary this produces lives in `ReferenceStep.jl`; the `dsl_*` seams the
-# extension steps dispatch through are declared in `Interface.jl`.
+# extension steps dispatch through are declared in `ReferenceInterface.jl`.
 
 # ── The shared step AST ───────────────────────────────────────────────────
 
