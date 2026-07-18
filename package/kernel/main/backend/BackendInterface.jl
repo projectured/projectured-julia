@@ -37,6 +37,28 @@ Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
 function measure_text end
 
 """
+    write_to_devices(backend, devices, document)
+
+Render `document` to all output devices in `devices` using `backend`. A concrete
+backend adds a method dispatched on its own type; there is deliberately no
+catch-all, so an unimplemented backend raises `MethodError` rather than silently
+doing nothing.
+"""
+function write_to_devices end
+
+"""
+    read_from_devices(backend, devices) -> WindowInput or nothing
+
+Poll all input devices in one shot and return the next event — a `WindowInput`
+carrying a `DeviceEvent` — or `nothing` when there is none. A concrete backend
+adds a method dispatched on its own type (typically polling a shared event queue
+and classifying events across device types), and it is where a platform's raw
+events are translated into that vocabulary: a device reports only what happened,
+never a gesture derived from several events.
+"""
+function read_from_devices end
+
+"""
     get_pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in screen pixels, or `(-1, -1)` when

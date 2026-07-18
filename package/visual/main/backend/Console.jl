@@ -38,7 +38,6 @@ module ConsoleBackendModule
 # The alias is how visual reaches the kernel's backend contract; a bare
 # `using` binds the module's *real* name, so extensions qualify BackendModule.
 using ..BackendApiModule
-using ..DeviceModule
 using ..TextModule
 using ..ColorModule
 using ..FontModule
@@ -248,12 +247,12 @@ end
 
 Render the Text-domain output of the projection pipeline to the terminal.
 """
-DeviceModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
+BackendModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
     console_render(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
 # and so produces a graphics/screen document instead of a `TextBlock`).
-function DeviceModule.write_to_devices(::ConsoleBackend, devices, output)
+function BackendModule.write_to_devices(::ConsoleBackend, devices, output)
     error("write_to_devices(::ConsoleBackend, …): pipeline output is " *
           "$(typeof(output)), expected a TextBlock. The console backend renders " *
           "the Text domain directly — drop the TextToGraphics step from the pipeline.")
@@ -267,7 +266,7 @@ backend-agnostic event wrapped in an `WindowInput`. The window id is the
 sentinel `:console` (there is no `WindowDocument`). Returns `nothing` when no
 complete event is buffered.
 """
-function DeviceModule.read_from_devices(backend::ConsoleBackend, devices)
+function BackendModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
     event = _next_event!(backend.inbuf)
     event === nothing && return nothing

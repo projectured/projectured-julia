@@ -25,7 +25,6 @@ document-free.
 module HeadlessBackendModule
 
 using ..BackendModule
-using ..DeviceModule
 
 export HeadlessBackend, rendered_output, push_event!
 
@@ -53,9 +52,9 @@ BackendModule.measure_text(::HeadlessBackend, text::AbstractString, font) =
 # Batch I/O:
 # - write_to_devices logs the document for later assertion
 # - read_from_devices pops the next scripted event, or nothing on drain
-DeviceModule.write_to_devices(b::HeadlessBackend, devices, document) =
+BackendModule.write_to_devices(b::HeadlessBackend, devices, document) =
     (push!(b.rendered, document); nothing)
-DeviceModule.read_from_devices(b::HeadlessBackend, devices) =
+BackendModule.read_from_devices(b::HeadlessBackend, devices) =
     isempty(b.events) ? nothing : popfirst!(b.events)
 
 """

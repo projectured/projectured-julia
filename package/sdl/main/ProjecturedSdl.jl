@@ -23,8 +23,8 @@ using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 # The backend + device contracts (AR-QUALIFIED-EXTENSION): bare `using`,
 # extended by qualification below. A bare `using` of an alias binds the
-# module's *real* name, so the
-# extension sites read BackendModule.* / DeviceModule.*.
+# module's *real* name, so the extension sites read BackendModule.*;
+# DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedDomain.BackendApiModule
 using ProjecturedDomain.DisplayModule
 using ProjecturedDomain.DeviceModule
@@ -2215,7 +2215,7 @@ id or refers to a window the backend does not track.
 The backend emits only raw events; the `MousePress` click is synthesised from
 the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
 """
-function DeviceModule.read_from_devices(backend::SdlBackend, devices)
+function BackendModule.read_from_devices(backend::SdlBackend, devices)
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
@@ -2342,7 +2342,7 @@ least one `Screen` entry — `Screen` itself carries no per-window
 state and exists only to indicate that the editor wants to render
 onto a display.
 """
-function DeviceModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     desired_ids = Set{Symbol}()
     for w in screen.windows
         w isa WindowDocument || continue

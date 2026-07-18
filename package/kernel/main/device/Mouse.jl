@@ -3,7 +3,6 @@
 """
     Mouse()
 
-A mouse input device. Included among the `devices` passed to
-`read_from_devices(backend, devices)` to poll for mouse events.
+A mouse input device.
 """
 struct Mouse <: Device end

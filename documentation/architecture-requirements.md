@@ -639,8 +639,11 @@ from scratch. (Product requirements R-UNDO-REDO and R-REVISITABLE-HISTORY.)
 
 **Keep backends behind the `Backend`/`Device` seam; the same editor runs
 unchanged across them.** A backend provides `initialize_backend!`,
-`quit_backend!`, and `measure_text`, with `read_from_devices`/
-`write_to_devices` as the `Device` interface; swapping `SdlBackend()` for
+`quit_backend!`, `measure_text`, and the per-frame device I/O
+`read_from_devices`/`write_to_devices` — all declared in `BackendInterface.jl`
+and dispatched on the concrete backend; the device layer supplies only the
+`Device`/`Keyboard`/`Mouse`/`Screen` marker types those two take as a list.
+Swapping `SdlBackend()` for
 `WebBackend()` or `ConsoleBackend()` must change nothing in the editor loop,
 pipeline, or domains. Convert platform events to the backend-agnostic device
 vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so

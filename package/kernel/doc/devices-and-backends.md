@@ -54,12 +54,10 @@ any specific backend.
 ```julia
 abstract type Backend end
 
-# Backend interface (backend/BackendInterface.jl)
+# Backend interface (backend/BackendInterface.jl) — all dispatched on the concrete backend
 initialize_backend!(::Backend)                    # set up libraries, allocate caches
 quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
-
-# Device I/O interface (device/Device.jl) — driven by the backend
 read_from_devices(::Backend, devices)           # poll → WindowInput
 write_to_devices(::Backend, devices, document)  # render the output
 ```
@@ -266,8 +264,8 @@ itself never sees the backend type.
 ## Adding a new backend
 
 1. Subtype `Backend` (defined in `package/kernel/main/backend/`) in your backend package.
-2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`, `measure_text`) and the
-   `Device` I/O functions (`read_from_devices`, `write_to_devices`).
+2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`,
+   `measure_text`, `read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
    so projection code does not need to change.
 4. Provide a `measure_text` callback for projections that need it.
@@ -356,26 +354,27 @@ other package docs defer here rather than repeat it.)
 
 ## The device layer (layer 4)
 
-Layer 4 of the kernel — **the input/output devices and their batch I/O
-seam**. A device is *where events come from*; it interprets none of them, so
-this layer names no document, no operation, and no backend type — it has no
-imports of its own.
+Layer 4 of the kernel — **the input/output devices**: `Screen`, `Keyboard`,
+and `Mouse`, inert marker types under an abstract `Device`. A device carries no
+state and interprets nothing; it only names an I/O endpoint, so this layer
+names no document, no operation, and no backend type — it has no imports of its
+own.
 
 The layer lives in [main/device/](../../../package/kernel/main/device/):
 
 ```
 DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
-        ├─ Device.jl    — Device abstract + read_from_devices/write_to_devices
+        ├─ Device.jl    — the Device abstract supertype
         ├─ Keyboard.jl  — the Keyboard device
         ├─ Mouse.jl     — the Mouse device
         └─ Screen.jl    — the Screen device
 ```
 
-`read_from_devices` and `write_to_devices` are pure interface stubs: a
-concrete backend adds the methods, dispatching on its own type. The interface
-names no such type, so a device does not depend on whatever drives it — the
-device and backend abstractions are independent siblings, and only a
-concrete implementation binds them together.
+The devices only *name* the input to poll and the output to render to; the
+batch I/O that drives them — `read_from_devices` / `write_to_devices` — is
+declared one layer up in the backend interface (see [Backends](#backends)) and
+dispatched on the concrete backend. That keeps the device and backend
+abstractions independent siblings, bound only by a concrete implementation.
 
 ## The gesture layer (layer 5)
 

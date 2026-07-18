@@ -326,10 +326,10 @@ above it in this list:
  2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
- 3 device      Device abstract + Keyboard / Mouse / Screen, the read_from_devices /
-               write_to_devices seam
+ 3 device      Device abstract + Keyboard / Mouse / Screen (marker types)
  4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
- 5 backend     the Backend / Display seam and HeadlessBackend
+ 5 backend     the Backend / Display seam, the read_from_devices / write_to_devices
+               device-I/O seam, and HeadlessBackend
  6 document    the Document supertype, @document, the is_element_collection /
                is_opaque traits, search_documents, Clock
  7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,

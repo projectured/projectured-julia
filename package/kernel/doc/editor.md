@@ -168,8 +168,8 @@ In the example packages this is wired up for you — see `play_live_example` and
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. There are two
   implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
-  backend provides `initialize_backend!`, `quit_backend!`, and `measure_text`; `read_from_devices` /
-  `write_to_devices` are the `Device` interface.
+  backend provides `initialize_backend!`, `quit_backend!`, `measure_text`, and
+  the per-frame device I/O `read_from_devices` / `write_to_devices`.
 - Projections that need to measure text take a `measure::Function` argument
   (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
   injection.
@@ -266,8 +266,9 @@ that subscribed to `get_reactive_editor_time()`.
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
   `Intent`, `IoMap`.
-- `..DeviceModule` — `Device`, `Screen`, `read_from_devices`, `write_to_devices`.
-- `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`.
+- `..DeviceModule` — `Device`, `Screen`.
+- `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
+  `read_from_devices`, `write_to_devices`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MousePress`, …).
 - `..PerformanceCounterModule` — the counters bumped inline in the loop.

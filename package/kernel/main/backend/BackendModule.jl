@@ -21,7 +21,8 @@ fragments that share this namespace:
 """
 module BackendModule
 
-export Backend, initialize_backend!, quit_backend!, measure_text, write_image, record_video,
+export Backend, initialize_backend!, quit_backend!, measure_text,
+       write_to_devices, read_from_devices, write_image, record_video,
        render_canvas, decode_image, get_pointer_position
 
 include("BackendInterface.jl")  # the backend contract (declaration-only)

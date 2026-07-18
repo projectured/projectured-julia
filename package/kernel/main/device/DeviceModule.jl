@@ -1,26 +1,19 @@
 """
     DeviceModule
 
-The device *interface* — the contract for rendering a document to, and polling
-input from, a set of devices, plus the concrete devices an editor is given.
+The I/O devices: inert marker types that name what to poll for input and render
+for output. Its fragments:
 
-`read_from_devices` and `write_to_devices` are pure interface stubs: a concrete
-implementation adds the methods, dispatching on its own type. The interface names
-no such type, so a device does not depend on whatever drives it — the two
-abstractions are independent siblings, and only the implementation binds them
-together.
-
-The module lives in four fragments that share this namespace:
-
-- [`Device.jl`](Device.jl) — the contract: the `Device` supertype and the two
-  batch I/O generics a backend answers.
+- [`Device.jl`](Device.jl) — the `Device` supertype every device subtypes.
 - [`Keyboard.jl`](Keyboard.jl) — the `Keyboard` device.
 - [`Mouse.jl`](Mouse.jl) — the `Mouse` device.
 - [`Screen.jl`](Screen.jl) — the `Screen` device.
+
+A device carries no per-device state; it names an endpoint and nothing more.
 """
 module DeviceModule
 
-export Device, Keyboard, Mouse, Screen, write_to_devices, read_from_devices
+export Device, Keyboard, Mouse, Screen
 
 # Device.jl first — the concrete devices below subtype the `Device` it declares.
 include("Device.jl")
