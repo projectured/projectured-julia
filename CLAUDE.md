@@ -51,8 +51,8 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `device/Mouse.jl`
   - 🔒 `device/Display.jl`
 - **Layer 5 — gesture** (`gesture/`)
-  - ⬜ `gesture/GestureLayer.jl`
-  - ⬜ `gesture/GestureRecognizer.jl`
+  - 🔒 `gesture/GestureLayer.jl`
+  - 🔒 `gesture/GestureRecognizer.jl`
 - **Layer 6 — backend** (`backend/`)
   - ⬜ `backend/BackendLayer.jl`
   - ⬜ `backend/BackendModule.jl`

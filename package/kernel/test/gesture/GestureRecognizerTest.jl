@@ -67,7 +67,7 @@ function test_gesture_recognizer()
     # ── too slow: no click ───────────────────────────────────────────────────
     let t = Ref(0.0), rec = GestureRecognizer(; clock = _mk_clock(t))
         recognize_gesture!(rec, WindowInput(:win, MouseDown(:left, 10, 20, ModifierKeys())))
-        t[] = 0.5   # > CLICK_MAX_DURATION (0.3)
+        t[] = 0.5   # > click_max_duration default (0.3)
         recognize_gesture!(rec, WindowInput(:win, MouseUp(:left, 10, 20, ModifierKeys())))
         @test isempty(rec.pending)
     end

@@ -30,20 +30,6 @@ never decides what a click or a chord *means*. Recognising here rather than insi
 a backend makes it backend-agnostic and unit-testable without a display, and gives
 composite gestures a single home.
 
-## Contract
-
-- [`recognize_gesture!`](@ref)`(recognizer, window_input)` consumes one `WindowInput`,
-  updates the recogniser's state, may enqueue *synthesised* gesture window inputs (e.g. a
-  `MousePress` once a click completes) on `recognizer.pending`, and returns either the
-  window input to forward now or `nothing` when the event was *absorbed* (e.g. the first
-  key of a not-yet-complete chord).
-- [`pop_gesture!`](@ref)`(recognizer, source)` is the consumer-facing pull: it drains
-  any previously-synthesised gestures first, otherwise pulls raw window inputs from
-  `source` and runs them through `recognize_gesture!`, skipping absorbed events until
-  one produces a gesture (or input runs out). A buffered chord prefix is therefore
-  swallowed *inside* a single `pop_gesture!` call and never surfaces as the "input
-  exhausted" `nothing`.
-
 The recogniser holds all of its state on its own instance, so one process can run
 any number of them independently.
 """
@@ -53,20 +39,10 @@ using ..EventModule
 
 export GestureRecognizer, recognize_gesture!, pop_gesture!
 
-# Click recognition window: a MouseUp counts as a click (synthesises a
-# `MousePress`) when it lands within this many pixels of the preceding MouseDown
-# for the same button, within this many seconds.
-const CLICK_MAX_DISPLACEMENT = 5
-const CLICK_MAX_DURATION = 0.3
-
-# Multi-click window: a freshly-recognised click counts as a continuation of the
-# previous one (incrementing the `MousePress` count) when it is the same button,
-# within this many pixels of the previous click, within this many seconds of it.
-const MULTI_CLICK_MAX_DISPLACEMENT = 5
-const MULTI_CLICK_MAX_INTERVAL = 0.3
-
 """
-    GestureRecognizer(; clock = time, chords = Vector{Vector{KeyDown}}())
+    GestureRecognizer(; clock = time, chords = Vector{Vector{KeyDown}}(),
+                        click_max_displacement = 5, click_max_duration = 0.3,
+                        multi_click_max_displacement = 5, multi_click_max_interval = 0.3)
 
 Stateful event → gesture recogniser. Holds the pending queue of synthesised gesture
 window inputs (drained before new input is read), the last-MouseDown and last-click
@@ -81,6 +57,12 @@ injectable so tests can drive recognition deterministically.
 ignored). It defaults to **empty**, so no chords are recognised and every key passes
 straight through — chord recognition is opt-in, configured per recogniser. The table
 says only *which* sequences are a chord, not what they mean.
+
+The click windows tune recognition, defaulting to the usual desktop values: a
+`MouseUp` is a click when within `click_max_displacement` px and `click_max_duration`
+s of its `MouseDown`, and a following click becomes a multi-click (higher `count`)
+when within `multi_click_max_displacement` px and `multi_click_max_interval` s of the
+previous one.
 """
 mutable struct GestureRecognizer
     # Synthesised gesture window inputs awaiting delivery (e.g. a recognised click),
@@ -103,15 +85,24 @@ mutable struct GestureRecognizer
     chord_buffer::Vector{WindowInput}
     # Time source (injectable for tests).
     clock::Function
+    # Recognition windows (see the constructor).
+    click_max_displacement::Int
+    click_max_duration::Float64
+    multi_click_max_displacement::Int
+    multi_click_max_interval::Float64
 end
 
 GestureRecognizer(; clock::Function = time,
-                    chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}()) =
+                    chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}(),
+                    click_max_displacement::Int = 5, click_max_duration::Real = 0.3,
+                    multi_click_max_displacement::Int = 5, multi_click_max_interval::Real = 0.3) =
     GestureRecognizer(WindowInput[],
                       :none, 0, 0, 0.0,
                       :none, 0, 0, 0.0, 0,
                       chords, WindowInput[],
-                      clock)
+                      clock,
+                      click_max_displacement, Float64(click_max_duration),
+                      multi_click_max_displacement, Float64(multi_click_max_interval))
 
 """
     recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowInput) -> WindowInput or nothing
@@ -126,11 +117,12 @@ skips over such absorbed events.
 Recognised today:
 
 - `MouseDown` — records the press position/time as the start of a potential click.
-- `MouseUp` — if it lands within [`CLICK_MAX_DISPLACEMENT`] px and
-  [`CLICK_MAX_DURATION`] s of the matching-button `MouseDown`, enqueues a
-  `MousePress` carrying the up position, modifiers, originating window id, and a
-  multi-click `count` (2/3/… when within [`MULTI_CLICK_MAX_INTERVAL`] s /
-  [`MULTI_CLICK_MAX_DISPLACEMENT`] px of the previous click).
+- `MouseUp` — if it lands within the recogniser's click window
+  (`click_max_displacement` px, `click_max_duration` s) of the matching-button
+  `MouseDown`, enqueues a `MousePress` carrying the up position, modifiers,
+  originating window id, and a multi-click `count` (2/3/… within the multi-click
+  window `multi_click_max_displacement` px / `multi_click_max_interval` s of the
+  previous click).
 - `KeyDown` — if the chord table is non-empty, advances chord recognition: buffers a
   key that is a prefix of some configured sequence (absorbed → returns `nothing`),
   emits a `KeyChord` when a sequence completes, or flushes the buffered keys back as
@@ -147,9 +139,9 @@ function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowI
     elseif event isa MouseUp
         now = recognizer.clock()
         if event.button == recognizer.last_down_button &&
-           abs(event.x - recognizer.last_down_x) < CLICK_MAX_DISPLACEMENT &&
-           abs(event.y - recognizer.last_down_y) < CLICK_MAX_DISPLACEMENT &&
-           (now - recognizer.last_down_time) < CLICK_MAX_DURATION
+           abs(event.x - recognizer.last_down_x) < recognizer.click_max_displacement &&
+           abs(event.y - recognizer.last_down_y) < recognizer.click_max_displacement &&
+           (now - recognizer.last_down_time) < recognizer.click_max_duration
             count = _click_count!(recognizer, event, now)
             push!(recognizer.pending,
                   WindowInput(window_input.window_id,
@@ -168,9 +160,9 @@ end
 # multi-click window/displacement — incrementing the count; otherwise it resets to 1.
 function _click_count!(recognizer::GestureRecognizer, event::MouseUp, now::Float64)
     if event.button == recognizer.last_click_button &&
-       abs(event.x - recognizer.last_click_x) < MULTI_CLICK_MAX_DISPLACEMENT &&
-       abs(event.y - recognizer.last_click_y) < MULTI_CLICK_MAX_DISPLACEMENT &&
-       (now - recognizer.last_click_time) < MULTI_CLICK_MAX_INTERVAL
+       abs(event.x - recognizer.last_click_x) < recognizer.multi_click_max_displacement &&
+       abs(event.y - recognizer.last_click_y) < recognizer.multi_click_max_displacement &&
+       (now - recognizer.last_click_time) < recognizer.multi_click_max_interval
         count = recognizer.last_click_count + 1
     else
         count = 1
