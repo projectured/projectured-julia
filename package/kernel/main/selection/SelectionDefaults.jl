@@ -54,9 +54,9 @@ end
 # reference layer's tested resolver (`is_valid_reference`) after removing a
 # terminal caret: a cursor step (`start == stop`) addresses a position *inside* a
 # leaf, and a text leaf exposes no length/index, so the resolver would reject a
-# real caret (see the base `SelectionEnumeration` note). Dropping it validates the
-# path up to the node the caret sits on and accepts the caret by reachability,
-# while still failing a missing field, an out-of-range element, or a stale type.
+# real caret. Dropping it validates the path up to the node the caret sits on and
+# accepts the caret by reachability, while still failing a missing field, an
+# out-of-range element, or a stale type.
 _selection_matches(document, canonical) =
     is_valid_reference(document, _drop_terminal_cursor(canonical))
 

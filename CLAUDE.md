@@ -81,10 +81,10 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferenceCase.jl`
   - 🔒 `reference/ReferenceBuilder.jl`
 - **Layer 9 — selection** (`selection/`)
-  - ⬜ `selection/SelectionLayer.jl`
-  - ⬜ `selection/SelectionModule.jl`
-  - ⬜ `selection/SelectionInterface.jl`
-  - ⬜ `selection/SelectionDefaults.jl`
+  - 🔒 `selection/SelectionLayer.jl`
+  - 🔒 `selection/SelectionModule.jl`
+  - 🔒 `selection/SelectionInterface.jl`
+  - 🔒 `selection/SelectionDefaults.jl`
 - **Layer 10 — operation** (`operation/`)
   - ⬜ `operation/OperationLayer.jl`
   - ⬜ `operation/OperationModule.jl`
