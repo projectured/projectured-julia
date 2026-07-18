@@ -70,9 +70,9 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      16 layers: cell → clock → event → device → gesture → backend →
+        ▲                      17 layers: cell → clock → event → device → gesture → backend →
         │                      document → reference → selection → operation → binding →
-        │                      projection → tool → llm → agent → editor
+        │                      iomap → projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         ▲                      3 layers: document (Collection, DocumentCore, Primitive,
@@ -317,36 +317,40 @@ ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄─�
    (opt-in)                                                        (opt-in)
 ```
 
-**Inside ProjecturedKernel — 15 layers**, in include order; each imports only layers
+**Inside ProjecturedKernel — 17 layers**, in include order; each imports only layers
 above it in this list:
 
 ```
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
- 2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
+ 2 clock       the animation Clock (a @cell_struct with a reactive time field),
+               get_clock_time / set_clock_time!, the get_wall_clock singleton
+ 3 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
- 3 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
- 5 backend     the Backend seam (lifecycle, text, device I/O, display size, device
+ 4 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
+ 5 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 6 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
- 6 document    the Document supertype, @document, the is_element_collection /
-               is_walk_opaque traits, search_documents, Clock
- 7 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
+ 7 document    the Document supertype, @document, the is_element_collection /
+               is_walk_opaque traits, search_documents
+ 8 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case DSLs
- 8 selection   get_selection / set_selection! / clear_selection! / with_selection
- 9 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-10 binding     GestureBinding, the per-document-type registry, @gestures /
+ 9 selection   get_selection / set_selection! / clear_selection! / with_selection
+10 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+11 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-11 projection  the four interface functions, Intent, the IO maps, @projection,
+12 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
+               (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
+13 projection  the four interface functions, Intent, @projection,
                ProjectionTemplate, ProjectionReferenceStep
-12 tool        the editor's capability surface: Tool / Resource / ToolSet,
+14 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-13 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
+15 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-14 agent       the AI control surface: AgentServerModule (inbound, the MCP
+16 agent       the AI control surface: AgentServerModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
-15 editor      run_editor!, the read-eval-print loop, Playback
+17 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
 **Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble

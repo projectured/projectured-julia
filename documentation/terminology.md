@@ -16,8 +16,8 @@ and no synonyms.
 
 - **Layer** — a horizontal stratum inside a package. Layers are **ordered**:
   a layer may depend only on **lower** layers, never sideways or up. The
-  kernel is sixteen layers (`cell` → `clock` → `event` → `device` → `gesture` → `backend` →
-  `document` → `reference` → `selection` → `operation` → `binding` → `projection` →
+  kernel is seventeen layers (`cell` → `clock` → `event` → `device` → `gesture` → `backend` →
+  `document` → `reference` → `selection` → `operation` → `binding` → `iomap` → `projection` →
   `tool` → `llm` → `agent` → `editor`); base is three (`document` → `projection` → `serialization`).
 
 - **Slice** — a **vertical** split of a single layer. Where a layer stacks

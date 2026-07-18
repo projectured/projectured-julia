@@ -95,19 +95,21 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `binding/BindingLayer.jl`
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
-- **Layer 12 — projection** (`projection/`)
+- **Layer 12 — iomap** (`iomap/`)
+  - ⬜ `iomap/IoMapLayer.jl`
+  - ⬜ `iomap/IoMapApi.jl`
+  - ⬜ `iomap/IoMap.jl`
+- **Layer 13 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReferenceStep.jl`
   - ⬜ `projection/ProjectionApi.jl`
-  - ⬜ `projection/IoMapApi.jl`
   - ⬜ `projection/Intent.jl`
-  - ⬜ `projection/IoMap.jl`
   - ⬜ `projection/PrinterContext.jl`
   - ⬜ `projection/ChildrenContainer.jl`
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/Projection.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 13 — tool** (`tool/`)
+- **Layer 14 — tool** (`tool/`)
   - ⬜ `tool/ToolLayer.jl`
   - ⬜ `tool/ToolModule.jl`
   - ⬜ `tool/Tool.jl`

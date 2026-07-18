@@ -39,11 +39,12 @@ Layer 8  — reference/  reference paths + @reference / @reference_case DSLs
 Layer 9  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
 Layer 10 — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 12 — projection/ ProjectionApi/IoMap/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
-Layer 13 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
-Layer 14 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 15 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
-Layer 16 — editor/     the run_editor! loop + Playback
+Layer 12 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
+Layer 13 — projection/ ProjectionApi/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
+Layer 14 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 16 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 17 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -62,7 +63,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The sixteen layers *are* the dependency diagram.** A layer imports only layers below
+**The seventeen layers *are* the dependency diagram.** A layer imports only layers below
 it, and that is the whole rule — the static guard enforces exactly it, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -70,17 +71,17 @@ the shape is more interesting than "N depends on N−1":
 **The interface files are the cycle-breaker.** Each layer opens with its contract:
 `document/DocumentInterface.jl` (the `Document` supertype), `reference/ReferenceInterface.jl` (the
 `ReferenceStep` / `Reference` types and the step seam), `selection/SelectionInterface.jl`,
-`operation/Interface.jl` (`Operation` + `evaluate_operation`), and the projection
-layer's `ProjectionApi.jl` / `IoMapApi.jl`. These hold abstract types plus open
+`operation/Interface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
+`IoMapApi.jl`, and the projection layer's `ProjectionApi.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReferenceStep` (layer 12), `PointReferenceStep`, and the
+the clearest case: `ProjectionReferenceStep` (layer 13), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
 (all in `ProjecturedVisual`) subtype it and register
 their navigation through `evaluate_reference_step`, with no edit to layer 8.
 
-**The agent stack is a side-stack.** The editor (layer 16) reaches it only through
+**The agent stack is a side-stack.** The editor (layer 17) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
 (`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their

@@ -187,7 +187,7 @@ undefined name:
 | Selection generics | layer 9 — `selection/SelectionInterface.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 10) calls down into this layer. |
 | `Operation` | layer 10 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |
 | `gesture` and `read_gesture` | layer 11 — `binding/GestureBinding.jl` | the reified gesture patterns, the `@gestures` registry, the `read_gesture(document, gesture)` open seam and its `@gestures`-driven catch-all (`read_bound_gesture`). |
-| `projection` | layer 12 — `projection/Projection.jl` | the `Projection` abstract type, the four interface functions (`print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`), and the `@projection` macro. |
+| `projection` | layer 13 — `projection/Projection.jl` | the `Projection` abstract type, the four interface functions (`print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`), and the `@projection` macro. |
 
 The umbrella package (`Projectured`) re-exports every name from every home, so
 downstream code that writes `using Projectured` sees the cluster flat and does
