@@ -1,7 +1,7 @@
 # Fragment of `SelectionModule` — the selection **interface**: the open generics
 # that read, clear, set, and replace a document's current selection. A document
 # with unconventional selection storage overrides these; the default
-# implementations (and the private path-walking helpers) live in `Selection.jl`.
+# implementations (and the private path-walking helpers) live in `SelectionDefaults.jl`.
 
 """
     get_selection(document) -> reference or nothing
