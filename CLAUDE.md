@@ -73,13 +73,13 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferenceLayer.jl`
   - 🔒 `reference/ReferenceModule.jl`
   - 🔒 `reference/ReferenceInterface.jl`
-  - ⬜ `reference/ReferenceStep.jl`
-  - ⬜ `reference/ReferencePath.jl`
-  - ⬜ `reference/ReferenceEvaluation.jl`
-  - ⬜ `reference/ReferenceSearch.jl`
-  - ⬜ `reference/ReferenceSyntax.jl`
-  - ⬜ `reference/ReferenceCase.jl`
-  - ⬜ `reference/ReferenceBuilder.jl`
+  - 🔒 `reference/ReferenceStep.jl`
+  - 🔒 `reference/ReferencePath.jl`
+  - 🔒 `reference/ReferenceEvaluation.jl`
+  - 🔒 `reference/ReferenceSearch.jl`
+  - 🔒 `reference/ReferenceSyntax.jl`
+  - 🔒 `reference/ReferenceCase.jl`
+  - 🔒 `reference/ReferenceBuilder.jl`
 - **Layer 9 — selection** (`selection/`)
   - ⬜ `selection/SelectionLayer.jl`
   - ⬜ `selection/SelectionModule.jl`

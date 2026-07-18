@@ -8,11 +8,9 @@
 # defaults that hand back the child object.
 
 # The path-valued walk: descending by a field appends a `FieldReferenceStep`, by an
-# index an `ElementReferenceStep`, and the root is the empty path. Its cycle rule is
-# `:once_per_path` — a node reachable by two paths sits in two different *places*,
-# and a place is what a selection names, so both must be reported; only a path that
-# loops back through one of its own ancestors is dropped, keeping a cyclic graph
-# finite.
+# index an `ElementReferenceStep`, and the root is the empty path. The `:once_per_path`
+# cycle policy (reports distinct paths, not objects) is documented on
+# `search_references` below.
 const _PATH_WALK = DocumentWalk(
     locate_field   = (location, name, child) -> extend_reference(location, FieldReferenceStep(string(name))),
     locate_element = (location, index, child) -> extend_reference(location, ElementReferenceStep(index)),
@@ -68,10 +66,6 @@ covers it (those paths are for inspection only, not selectable).
 function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
     paths = walk_document(_PATH_WALK, root, predicate; kwargs...)
-    # Leave search results in canonical form: annotate each plain navigation path
-    # with `TypeReferenceStep(typeof(node))` checkpoints against `obj`, so the
-    # references are self-describing and carry replay-validation checkpoints
-    # (see annotate_reference_types).
     Reference[annotate_reference_types(root, p) for p in paths]
 end
 

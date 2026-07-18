@@ -68,16 +68,14 @@ function _build_subpath(ex)
     return parse_reference_path(ex)
 end
 
-# Wrap a value so it can stand in as a Reference: pass paths through,
-# wrap steps into a one-element path.
 _splice(p::ReferenceModule.Reference) = p
 _splice(s::ReferenceModule.ReferenceStep) =
     ReferenceModule.ConcreteReference(s, ReferenceModule.EmptyReference())
 
-# Concatenate two paths via the canonical, type-preserving `concat_references`
-# (ReferenceModule), so an already-folded spliced sub-path keeps its node types
-# even when it is not the last segment (e.g. `^(expr).field`). The `_concat` name
-# is kept because the generated code below emits `ReferenceModule._concat`.
+# The `_concat` alias lets the generated code below emit `ReferenceModule._concat`;
+# it is the canonical, type-preserving `concat_references`, so an already-folded
+# spliced sub-path keeps its node types even when it is not the last segment
+# (e.g. `^(expr).field`).
 const _concat = ReferenceModule.concat_references
 
 # Wrap a built (possibly TypeReferenceStep-bearing) path expression in the runtime
@@ -89,7 +87,6 @@ _maybe_fold(expr, steps) =
     any(s -> s isa RefType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
 
 function _gen_build_path(steps::Vector{RefStep})
-    # No steps → empty path.
     if isempty(steps)
         return :(ReferenceModule.EmptyReference())
     end

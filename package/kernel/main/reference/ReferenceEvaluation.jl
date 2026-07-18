@@ -46,9 +46,9 @@ end
 
 A path is not a guarantee. It can name a node that no longer exists (the document
 changed under a stale selection), or one that never existed in `document` at all (a
-projection-introduced position, whose head is a `ProjectionReferenceStep` with no input
-pre-image). A caller that is *asking whether* the path resolves — a gesture
-precondition deciding whether it has a target — wants an answer, not an exception.
+projection-introduced position with no input pre-image). A caller that is *asking
+whether* the path resolves — a gesture precondition deciding whether it has a target —
+wants an answer, not an exception.
 """
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
@@ -135,7 +135,6 @@ here — e.g. a whole-element selection mapped across a projection carries
 """
 get_reference_node_type(document) = Base.typename(typeof(document)).wrapper
 
-# Internal alias kept for the annotation walkers below.
 const _node_type = get_reference_node_type
 
 """

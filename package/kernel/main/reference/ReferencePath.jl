@@ -116,7 +116,6 @@ function Base.show(io::IO, e::EmptyReference)
 end
 
 function Base.show(io::IO, p::ConcreteReference)
-    # Folded: print this node's recorded type (if any) before its navigation step.
     p.type === nothing || _show_node_type(io, p.type)
     show(io, head(p))
     t = tail(p)
@@ -128,11 +127,8 @@ function Base.show(io::IO, p::ConcreteReference)
 end
 
 # ── Equality ─────────────────────────────────────────────────────────────
-
-# Strict equality: the folded node `type` fields are significant, so an
-# annotated (canonical) path is not `==` its stripped skeleton. Callers that
-# want a shape-only comparison strip both sides first
-# (`strip_reference_types(a) == strip_reference_types(b)`).
+# Strict: the folded node `type` fields are significant (see `is_reference_equal`),
+# so shape-only callers strip both sides first.
 Base.:(==)(a::EmptyReference,   b::EmptyReference)   = a.type === b.type
 Base.:(==)(::EmptyReference,   ::ConcreteReference) = false
 Base.:(==)(::ConcreteReference, ::EmptyReference)  = false
