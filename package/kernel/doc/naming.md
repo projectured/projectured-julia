@@ -11,7 +11,7 @@ types and modules, `!` for mutation, and avoiding abbreviations.
 
 ## Files and modules
 
-- **Module = filename + `Module`.** `Display.jl` defines `DisplayModule`,
+- **Module = filename + `Module`.** `Clock.jl` defines `ClockModule`,
   `ProjectionApi.jl` defines `ProjectionApiModule`. Grep-by-guess must work in
   both directions — with no per-folder exceptions.
 - **A module that owns a folder of fragments is `<Concept>Module.jl` itself.**

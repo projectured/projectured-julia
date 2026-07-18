@@ -93,9 +93,11 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
   `set_display_size_provider!` registration. Load SDL, confirm methods attach.
 - [x] **5. Consumers.** FileEditor/Gallery: `get_display_size()` →
   `get_display_size(backend)` (thread the resolved backend into the sizing).
-- [ ] **6. Docs.** `naming.md`, `editor.md`, `devices-and-backends.md`,
-  `architecture.md` (both), `BackendInterface.jl` header (drop the Display note),
-  device fragment docstrings. Note the retired global + the new device fields.
+- [x] **6. Docs.** `naming.md`, `editor.md`, `devices-and-backends.md`,
+  `architecture.md` (both kernel + top-level), `visual/doc/architecture.md`,
+  `AR-BACKEND-SEAM`, `BackendInterface.jl` header (done in step 2), device
+  fragment docstrings (done in step 1). Retired-global + new device fields noted;
+  the deleted `### DisplayModule` section removed.
 - [ ] **7. Tests.** Update `ProjecturedSdlTest`/`HeadlessBackendTest` for the
   seam changes; add a kernel test that a `Screen()` carries defaults and a
   HeadlessBackend `configure_devices!` leaves them, and (sdl) that SDL populates

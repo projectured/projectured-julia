@@ -355,10 +355,10 @@ other package docs defer here rather than repeat it.)
 ## The device layer (layer 4)
 
 Layer 4 of the kernel — **the input/output devices**: `Screen`, `Keyboard`,
-and `Mouse`, inert marker types under an abstract `Device`. A device carries no
-state and interprets nothing; it only names an I/O endpoint, so this layer
-names no document, no operation, and no backend type — it has no imports of its
-own.
+and `Mouse` under an abstract `Device`. Each carries its physical properties —
+a screen's resolution and HiDPI scale, a mouse's button count and scroll wheel,
+a keyboard's layout — but interprets nothing, so this layer names no document,
+no operation, and no backend type, and has no imports of its own.
 
 The layer lives in [main/device/](../../../package/kernel/main/device/):
 
@@ -370,11 +370,12 @@ DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragm
         └─ Screen.jl    — the Screen device
 ```
 
-The devices only *name* the input to poll and the output to render to; the
-batch I/O that drives them — `read_from_devices` / `write_to_devices` — is
-declared one layer up in the backend interface (see [Backends](#backends)) and
-dispatched on the concrete backend. That keeps the device and backend
-abstractions independent siblings, bound only by a concrete implementation.
+The devices carry their physical properties but no behaviour. The batch I/O
+that drives them — `read_from_devices` / `write_to_devices` — is declared one
+layer up in the backend interface (see [Backends](#backends)) and dispatched on
+the concrete backend, which also fills in the physical properties at start-up
+via `configure_devices!`. That keeps the device and backend abstractions
+independent siblings, bound only by a concrete implementation.
 
 ## The gesture layer (layer 5)
 
@@ -404,24 +405,23 @@ combination of events — it carries no intent. Its only import is
 ## The backend layer (layer 6)
 
 Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
-`Backend` type, the batch generics, the display-size seam, and the
-dependency-free `HeadlessBackend` that CI and documentation examples run
-against.
+`Backend` type, the backend generics, and the dependency-free `HeadlessBackend`
+that CI and documentation examples run against.
 
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
 ```
 BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
 BackendInterface.jl (BackendModule)         — Backend abstract + batch generics
-BackendDefaults.jl  (BackendModule)         — the one behaviour the contract supplies itself
-Display.jl          (DisplayModule)         — display-size query + provider indirection
+BackendDefaults.jl  (BackendModule)         — the fallback behaviours the contract supplies itself
 HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
 
 ### BackendModule
 
-Declares `Backend <: Any` and the batch generics `initialize_backend!`,
-`quit_backend!`, `measure_text`, `write_image`, `record_video`,
+Declares `Backend <: Any` and the backend generics `initialize_backend!`,
+`quit_backend!`, `measure_text`, `read_from_devices`, `write_to_devices`,
+`get_display_size`, `configure_devices!`, `write_image`, `record_video`,
 `render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
 (SDL, Web, Console, Headless, …) live in opt-in packages that subtype `Backend`
 and add methods for their own `::MyBackend` type. A backend is constructed by
@@ -433,23 +433,17 @@ against the loaded `Backend` subtypes by reflection — no coined `:kind` key an
 no per-backend registration.
 
 `BackendInterface.jl` is an **interface file** (AR-INTERFACE-DECLARES-ONLY): it declares and never implements,
-so every generic there is a bodiless `function f end`. The one behaviour the
-contract supplies for itself sits beside it in `BackendDefaults.jl` —
-`get_pointer_position` answers `(-1, -1)` for a backend that adds no method,
-because "this display system cannot report a pointer" is a legal answer rather
-than a missing implementation. The batch generics deliberately have no such
-fallback: an unimplemented `measure_text` or `write_image` must raise a
+so every generic there is a bodiless `function f end`. The fallback behaviours
+the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
+capabilities a backend may decline: `get_pointer_position` answers `(-1, -1)`,
+`get_display_size` answers `(1280, 800)`, and `configure_devices!` is a no-op
+that leaves the devices at their default properties — each a legal answer
+rather than a missing implementation. The batch generics deliberately have no
+such fallback: an unimplemented `measure_text` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
 
 No document is imported here. The batch I/O generics are duck-typed on the
 `document` argument, so the layer stays document-free.
-
-### DisplayModule
-
-Display-size query with a process-global provider indirection. The SDL
-backend registers a provider; without one, a fixed SDL-free default is
-returned so headless callers still get a sensible size. Belongs in the
-backend layer — displays are what backends render to.
 
 ### HeadlessBackendModule
 

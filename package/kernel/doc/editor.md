@@ -106,8 +106,8 @@ editor in a browser instead of a native window (see the
 `ConsoleBackend()` for the terminal. Nothing else changes.
 
 This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default
-`Screen()`, `Keyboard()`, `Mouse()`), constructs the `Editor`, and runs the
-loop. Native windows are not pre-allocated — the backend opens them on demand
+`Screen()`, `Keyboard()`, `Mouse()`), populates their physical properties from the
+backend with `configure_devices!`, constructs the `Editor`, and runs the loop. Native windows are not pre-allocated — the backend opens them on demand
 the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
 expected to end in one). `quit_backend!(backend)` cleanup is in a `finally` block. Pass
 `mcp=true` to start an MCP server alongside the loop. A backend that drives a
