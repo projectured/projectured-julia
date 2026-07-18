@@ -1,6 +1,8 @@
 """
 `HeadlessBackendModule` — the dependency-free in-memory backend. Exercises
-construction, the lifecycle no-ops, and the write/read/measure I/O paths.
+construction, the lifecycle no-ops, the write/read/measure I/O paths, the
+device physical-property defaults, and the `get_display_size` /
+`configure_devices!` fallbacks.
 """
 
 using Test
@@ -44,6 +46,30 @@ function test_headless_backend()
         b = HeadlessBackend()
         @test measure_text(b, "abc", nothing) == (24, 16)
         @test measure_text(b, "", nothing) == (0, 16)
+    end
+
+    @testset "device markers carry physical-property defaults" begin
+        s = Screen()
+        @test (s.width, s.height, s.scale) == (1280, 800, 1.0)
+        @test Screen(width=1920, height=1080, scale=2.0).scale === 2.0
+        m = Mouse()
+        @test (m.button_count, m.has_scroll_wheel) == (3, true)
+        @test Mouse(button_count=5, has_scroll_wheel=false).button_count == 5
+        @test Keyboard().layout === :qwerty
+        @test Keyboard(layout=:azerty).layout === :azerty
+    end
+
+    @testset "get_display_size falls back to the display-free default" begin
+        b = HeadlessBackend()
+        @test get_display_size(b) == (1280, 800)
+        @test get_display_size(b; display=2) == (1280, 800)
+    end
+
+    @testset "configure_devices! is a no-op for a backend that discovers nothing" begin
+        b = HeadlessBackend()
+        s = Screen()
+        @test configure_devices!(b, Device[s, Mouse(), Keyboard()]) === nothing
+        @test (s.width, s.height, s.scale) == (1280, 800, 1.0)   # unchanged
     end
 
 end

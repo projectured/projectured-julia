@@ -98,10 +98,19 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
   `AR-BACKEND-SEAM`, `BackendInterface.jl` header (done in step 2), device
   fragment docstrings (done in step 1). Retired-global + new device fields noted;
   the deleted `### DisplayModule` section removed.
-- [ ] **7. Tests.** Update `ProjecturedSdlTest`/`HeadlessBackendTest` for the
-  seam changes; add a kernel test that a `Screen()` carries defaults and a
-  HeadlessBackend `configure_devices!` leaves them, and (sdl) that SDL populates
-  a non-default resolution. AR-NEW-CODE-SHIPS-TESTS.
+- [x] **7. Tests.** `HeadlessBackendTest`: device defaults + keyword ctors,
+  `get_display_size` fallback `(1280,800)`, `configure_devices!` no-op leaves
+  defaults (→ 21/21). New `sdl/test/backend/DeviceConfigTest.jl`
+  (`test_device_config`): `get_display_size(SdlBackend())` is a positive Int
+  tuple, `configure_devices!` populates the Screen to match + a Float64 scale,
+  Mouse/Keyboard untouched (→ SDL 37/37). AR-NEW-CODE-SHIPS-TESTS.
+
+## Status: DONE
+
+All seven steps landed. Commits: `18fa5b76` (device structs), `11713291`
+(backend seam + retire the display-size global), `f642b7fe` (docs), and the
+test commit. Follow-ups recorded above (SDL `_DISPLAY_SCALE` global; actually
+consuming Mouse/Keyboard properties in event→operation mapping) remain open.
 
 ## Out of scope / follow-ups
 - Retiring SDL's internal `_DISPLAY_SCALE` global (33 sites).

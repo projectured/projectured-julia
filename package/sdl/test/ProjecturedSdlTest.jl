@@ -26,16 +26,18 @@ function __init__()
 end
 
 include("backend/DirtyRectTest.jl")
+include("backend/DeviceConfigTest.jl")
 include("projection/GraphicsToFileTest.jl")
 
 "Run the whole SDL backend suite."
 function test_sdl()
     @testset "ProjecturedSdl" begin
         test_dirty_rect()
+        test_device_config()
         test_write_image()
     end
 end
 
-export test_sdl, test_dirty_rect, test_write_image
+export test_sdl, test_dirty_rect, test_device_config, test_write_image
 
 end # module ProjecturedSdlTest
