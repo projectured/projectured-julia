@@ -1,4 +1,4 @@
-# Fragment of `ReferenceModule` — the `@reference` / `@step` construction DSL: the
+# Fragment of `ReferenceModule` — the `@reference` / `@reference_step` construction DSL: the
 # compact surface syntax for building `ReferencePath`s / `ReferenceStep`s.
 #
 # This fragment is a **lowering**, not a parser. The surface grammar is parsed once by
@@ -6,8 +6,8 @@
 # constructor expressions. The pattern-matching counterpart, `@reference_case` in
 # `ReferenceCase.jl`, lowers the very same AST into match branches.
 #
-# Extension steps owned by higher packages are reached through the `dsl_build_step` /
-# `dsl_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
+# Extension steps owned by higher packages are reached through the `build_reference_step` /
+# `get_reference_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
 # ------------------------------------------------------------
@@ -38,23 +38,23 @@ _gen_build_step(step::RefType) =
 # construct from it, so the shared grammar's tail-bind node is rejected here rather than
 # silently lowered to something else.
 _gen_build_step(step::RefTailBind) =
-    error("`$(step.name)...` (tail binding) is only valid inside @reference_case, not @reference/@step")
+    error("`$(step.name)...` (tail binding) is only valid inside @reference_case, not @reference/@reference_step")
 
 # Extension-registered `.name(args...)` DSL entries dispatch through
-# `dsl_build_step(::Val{name}, escaped_args...)`. A subpath argument (declared via
-# `dsl_step_subpath_args`) is parsed with the *construction* subpath rule and lowered to
+# `build_reference_step(::Val{name}, escaped_args...)`. A subpath argument (declared via
+# `get_reference_step_subpath_args`) is parsed with the *construction* subpath rule and lowered to
 # its path expression; every other argument is an escaped Julia expression. So no step
 # type is named here.
 function _gen_build_step(step::RefExtension)
     args = Any[a isa RefArgSubPath ? _gen_build_path(_build_subpath(a.expr)) : esc(a.expr)
                for a in step.args]
-    return dsl_build_step(Val(step.name), args...)
+    return build_reference_step(Val(step.name), args...)
 end
 
 # The seam's answer for a name no package registered: this DSL is where an unknown
 # `.name(…)` is first reachable, so this is where it is reported.
-dsl_build_step(::Val{n}, args...) where {n} =
-    error("no `dsl_build_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
+build_reference_step(::Val{n}, args...) where {n} =
+    error("no `build_reference_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
 
 # The construction reading of a subpath argument: `^(expr)` splices an already-computed
 # `ReferencePath` directly; anything else is an ordinary path. (The matcher reads a bare
@@ -178,15 +178,15 @@ macro reference(document, ex)
 end
 
 """
-    @step(expr)
+    @reference_step(expr)
 
 Build a single `ReferenceStep` from a one-step DSL expression (the same step
 grammar as `@reference`, e.g. `xs[i]`, `xs{k}`, a `.name(...)` extension step, or
-a bare `value` for a field). Useful for passing varargs to `append_reference`, or any
+a bare `value` for a field). Useful for passing varargs to `extend_reference`, or any
 API that takes raw steps rather than whole paths. Unlike `@reference`, a leading
 identifier before an operator (`xs[i]`) is a placeholder, not a field name; only
 a bare symbol (`value`) is taken as a field name.
 """
-macro step(ex)
+macro reference_step(ex)
     return _gen_build_step(parse_reference_step(ex))
 end

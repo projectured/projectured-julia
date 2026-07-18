@@ -61,7 +61,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
         # Sequence container: descend by element, matching `.f[i]`.
         for i in 1:length(node)
             child = node[i]                       # CellVector getindex unwraps the Cell
-            _walk_document(child, append_reference(path, ElementReferenceStep(i)),
+            _walk_document(child, extend_reference(path, ElementReferenceStep(i)),
                            on_node, on_text, seen)
         end
         return
@@ -76,7 +76,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
         v  = fv isa Cell ? fv[] : fv
         v === nothing && continue
         v isa Union{Number, Bool, Symbol, ReferencePath} && continue
-        field_path = append_reference(path, FieldReferenceStep(string(fname)))
+        field_path = extend_reference(path, FieldReferenceStep(string(fname)))
         n = _text_leaf_length(v)
         if n !== nothing
             on_text(field_path, n)               # caret sits directly on this field
@@ -102,7 +102,7 @@ function collect_position_selections(document)
     on_node = (_n, _p) -> nothing
     on_text = (field_path, charcount) -> begin
         for k in 0:charcount
-            push!(results, append_reference(field_path, PositionReferenceStep(k)))
+            push!(results, extend_reference(field_path, PositionReferenceStep(k)))
         end
     end
     _walk_document(document, EmptyReferencePath(), on_node, on_text, Set{UInt64}())

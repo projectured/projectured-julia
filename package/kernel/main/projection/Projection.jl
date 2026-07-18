@@ -91,13 +91,13 @@ function map_reference_forward(projection::Projection, iomap, reference)
         # so the empty path stays untyped — a whole-element selection is stripped
         # to its skeleton before use anyway.
         ∅ => iomap === nothing ? EmptyReferencePath() :
-             EmptyReferencePath(reference_node_type(iomap.output))
+             EmptyReferencePath(get_reference_node_type(iomap.output))
         proj(^(projection), inner) => inner
     end
     # Self-type the result (the unwrapped `proj` inner may be a bare path) against
     # the output document, so the strict-typing invariant holds at the source. With
     # no iomap the output document is unknown, so the result is left as mapped.
-    (r === nothing || iomap === nothing || is_fully_typed(r)) ? r :
+    (r === nothing || iomap === nothing || is_fully_typed_reference(r)) ? r :
         annotate_reference_types(iomap.output, r)
 end
 
@@ -115,7 +115,7 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # available yet — the deferred-iomap trick, mirroring the forward mapper).
     reference isa EmptyReferencePath &&
         return iomap === nothing ? EmptyReferencePath() :
-               EmptyReferencePath(reference_node_type(iomap.input))
+               EmptyReferencePath(get_reference_node_type(iomap.input))
     # Without the input document there is no pre-image to wrap against, so the
     # reference is returned unchanged.
     iomap === nothing && return reference

@@ -1,5 +1,5 @@
 """
-`ReferenceModule` — the `@reference` / `@step` construction DSL and the
+`ReferenceModule` — the `@reference` / `@reference_step` construction DSL and the
 `@reference_case` pattern-matching DSL. The reference types and both DSLs are
 one `ReferenceModule`, so this whole suite lives on the reference layer's
 test folder.
@@ -100,12 +100,12 @@ let p = @reference ::A.children::B[2]::C.name::D
 
     @test strip_reference_types(@reference ::E.^(p)) == strip_reference_types(p)
 
-    # @step returns a FieldReferenceStep (a single step, no type). To splice it via
+    # @reference_step returns a FieldReferenceStep (a single step, no type). To splice it via
     # ^() in a strict-typed @reference, first build a typed 1-step path from it.
     # (Note: ::A.^(step_path).field::B cannot be written with leading ::A when
     # .^ is involved — Julia parses ::A as the minimal grab, leaving .^(step_path)
     # as a broadcast. Use ^(step_path).field::B with a pre-typed step_path instead.)
-    let step = @step value
+    let step = @reference_step value
         step_path = @reference ::A.value::E
         @test strip_reference_types(@reference ^(step_path).field::B) ==
               ConcreteReferencePath(FieldReferenceStep("value"),
@@ -131,13 +131,13 @@ let base = @reference ::A.root::B.outer::C
                   ConcreteReferencePath(FieldReferenceStep("inner"), EmptyReferencePath())))
 end
 
-# ── @step companion ─────────────────────────────────────────────────────
+# ── @reference_step companion ─────────────────────────────────────────────────────
 
-@test (@step value) == FieldReferenceStep("value")
-@test (@step xs[4]) == ElementReferenceStep(4)
-@test (@step xs{3}) == PositionReferenceStep(3)
-@test (@step xs{1:5}) == RangeReferenceStep(1, 5)
-# `@step c.point(2, 3)` moved to the visual test suite alongside PointReferenceStep.
+@test (@reference_step value) == FieldReferenceStep("value")
+@test (@reference_step xs[4]) == ElementReferenceStep(4)
+@test (@reference_step xs{3}) == PositionReferenceStep(3)
+@test (@reference_step xs{1:5}) == RangeReferenceStep(1, 5)
+# `@reference_step c.point(2, 3)` moved to the visual test suite alongside PointReferenceStep.
 
 # ── @reference_case range pattern ───────────────────────────────────────
 

@@ -400,7 +400,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
                                       recursion=IdentityProjection())
         end
         for t in targets
-            is_prefix_of(ref, t) || continue
+            is_reference_prefix(ref, t) || continue
             return CopyingProjection()
         end
         return IdentityProjection()
@@ -437,7 +437,7 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
             return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
         end
         for t in targets
-            is_prefix_of(ref, t) || continue
+            is_reference_prefix(ref, t) || continue
             return CopyingProjection()
         end
         return IdentityProjection()

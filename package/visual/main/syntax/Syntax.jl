@@ -34,7 +34,7 @@ import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
                           FieldReferenceStep, RangeReferenceStep, ReferencePath,
-                          reference_node_type
+                          get_reference_node_type
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -121,7 +121,7 @@ syntax_children(::SyntaxDocument) = nothing
     syntax_child_path(doc, i, inner) -> ReferencePath
 
 The path from `doc` down into its `i`-th child, with `inner` beneath it. The type
-checkpoint is the compound's own — `reference_node_type`, never `typeof`, which on a
+checkpoint is the compound's own — `get_reference_node_type`, never `typeof`, which on a
 `@document` struct is the reactive `R`-prefixed type.
 
 **Reads nothing from the document**, deliberately. The reference mappers call this on
@@ -132,11 +132,11 @@ that genuinely needs the child — see `_child_step`, which runs in a reader onc
 keystroke — must already have it in hand.
 """
 syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep("children"),
+    ConcreteReferencePath(get_reference_node_type(doc), FieldReferenceStep("children"),
         ConcreteReferencePath(CellVector, RangeReferenceStep(i - 1, i), inner))
 
 syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep("content"), inner)
+    ConcreteReferencePath(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
 
 """
     peel_child_step(path) -> (i, tail) | nothing
@@ -712,7 +712,7 @@ _unwrap_projection_ref(sel) =
 # Without this, walking `:up` out of a nested node yields a path that *is* the child but
 # does not compare equal to it.
 _typed_terminal(t::EmptyReferencePath, child) =
-    t.type === nothing ? EmptyReferencePath(reference_node_type(child)) : t
+    t.type === nothing ? EmptyReferencePath(get_reference_node_type(child)) : t
 _typed_terminal(t, _child) = t
 
 # The navigation-side child step: `syntax_child_path` plus the child's type on a bare

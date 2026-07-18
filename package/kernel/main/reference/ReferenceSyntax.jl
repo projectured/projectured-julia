@@ -1,5 +1,5 @@
 # Fragment of `ReferenceModule` — the **surface grammar** shared by the two reference
-# DSLs. `@reference` / `@step` (`ReferenceBuilder.jl`) and `@reference_case`
+# DSLs. `@reference` / `@reference_step` (`ReferenceBuilder.jl`) and `@reference_case`
 # (`ReferenceCase.jl`) accept the same path syntax; this fragment parses it once, into
 # one step AST, and each DSL *lowers* that AST its own way — the builder to constructor
 # calls, the matcher to match branches.
@@ -75,7 +75,7 @@ end
 
 """
 An argument of a `.name(args...)` extension step that the step declares to be a
-**subpath** (via the `dsl_step_subpath_args` seam). The raw expression is kept: the two
+**subpath** (via the `get_reference_step_subpath_args` seam). The raw expression is kept: the two
 DSLs disagree on what a bare symbol means here — a field to the builder, a whole-path
 bind to the matcher — so each applies its own subpath rule at lowering time.
 """
@@ -85,8 +85,8 @@ end
 
 """
 `.name(args...)` — an extension step whose type is owned by a higher package and reached
-through the `dsl_build_step` / `dsl_match_step` seams. The parser names no step type it
-does not own; it only asks `dsl_step_subpath_args` which argument positions are subpaths.
+through the `build_reference_step` / `match_reference_step` seams. The parser names no step type it
+does not own; it only asks `get_reference_step_subpath_args` which argument positions are subpaths.
 """
 struct RefExtension <: RefStep
     name::Symbol
@@ -250,15 +250,15 @@ function _ref_braces_step(inner)
 end
 
 # A `.name(args...)` / `name(args...)` extension step. Arguments the step declares as
-# subpaths (via `dsl_step_subpath_args`) are tagged as such and kept raw; the rest are
+# subpaths (via `get_reference_step_subpath_args`) are tagged as such and kept raw; the rest are
 # ordinary value expressions. So the parser names no specific step type — `.proj`'s
 # subpath argument is discovered through the seam, keeping the reference layer ignorant
 # of the projection concept. A step that registers nothing takes only value arguments,
 # which is what the seam answers here for every unregistered name.
-dsl_step_subpath_args(::Val) = ()
+get_reference_step_subpath_args(::Val) = ()
 
 function _ref_extension_step(name::Symbol, args)
-    subpaths = dsl_step_subpath_args(Val(name))
+    subpaths = get_reference_step_subpath_args(Val(name))
     RefExtension(name, Any[(i in subpaths ? RefArgSubPath(a) : RefArgValue(a))
                            for (i, a) in enumerate(args)])
 end
@@ -320,12 +320,12 @@ function _ref_leading_type!(steps::Vector{RefStep}, X)
     end
 end
 
-# ── The single-step grammar (`@step`) ─────────────────────────────────────
+# ── The single-step grammar (`@reference_step`) ─────────────────────────────────────
 
 """
     parse_reference_step(ex) -> RefStep
 
-Parse a one-step expression (the `@step` grammar). Unlike [`parse_reference_path`](@ref),
+Parse a one-step expression (the `@reference_step` grammar). Unlike [`parse_reference_path`](@ref),
 a leading identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) is a
 **placeholder** and is dropped; only a bare symbol (`value`) is taken as a field name.
 """
@@ -338,10 +338,10 @@ function parse_reference_step(ex)
         elseif length(ex.args) == 3
             return RefRange(ex.args[2], ex.args[3])
         else
-            error("indexing supports 1 or 2 dimensions in @step: $ex")
+            error("indexing supports 1 or 2 dimensions in @reference_step: $ex")
         end
     elseif ex isa Expr && ex.head == :curly
-        length(ex.args) == 2 || error("only one-dimensional position is supported in @step: $ex")
+        length(ex.args) == 2 || error("only one-dimensional position is supported in @reference_step: $ex")
         return _ref_braces_step(ex.args[2])
     elseif ex isa Expr && ex.head == :vect
         if length(ex.args) == 1
@@ -349,26 +349,26 @@ function parse_reference_step(ex)
         elseif length(ex.args) == 2
             return RefRange(ex.args[1], ex.args[2])
         else
-            error("vector syntax supports 1 or 2 elements in @step: $ex")
+            error("vector syntax supports 1 or 2 elements in @reference_step: $ex")
         end
     elseif ex isa Expr && ex.head == :braces
-        length(ex.args) == 1 || error("braces syntax supports exactly one element in @step: $ex")
+        length(ex.args) == 1 || error("braces syntax supports exactly one element in @reference_step: $ex")
         return _ref_braces_step(ex.args[1])
     elseif ex isa Expr && ex.head == :call
         f = ex.args[1]
         if f isa Expr && f.head == :. && f.args[2] isa QuoteNode
             opname = f.args[2].value
             if opname == :field
-                length(ex.args) == 2 || error(".field(name) expects exactly one argument in @step: $ex")
+                length(ex.args) == 2 || error(".field(name) expects exactly one argument in @reference_step: $ex")
                 return RefFieldExpr(ex.args[2])
             else
                 # A `.name(...)` extension step, dispatched through the seam.
                 return _ref_extension_step(opname, ex.args[2:end])
             end
         else
-            error("unsupported call form in @step: $ex")
+            error("unsupported call form in @reference_step: $ex")
         end
     else
-        error("unsupported @step syntax: $ex")
+        error("unsupported @reference_step syntax: $ex")
     end
 end

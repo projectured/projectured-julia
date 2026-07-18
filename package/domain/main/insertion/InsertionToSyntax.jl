@@ -60,7 +60,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReferencePath, Position, reference_node_type
+                          ElementReferenceStep, EmptyReferencePath, Position, get_reference_node_type
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -151,7 +151,7 @@ function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
         # Whole insertion → whole delimitation, typed against the output (as the
         # generic `Projection` fallback does) so a parent that splices it — e.g.
         # `YamlSequence`'s `.content.^(inner)` — keeps a fully-typed reference.
-        ∅        => EmptyReferencePath(reference_node_type(iomap.output))
+        ∅        => EmptyReferencePath(get_reference_node_type(iomap.output))
         value{k} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
@@ -167,7 +167,7 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     # `value{len}` so the insertion buffer is always navigable (type there to fill it),
     # mirroring SyntaxLeafToText's value/close-seam redirect one layer down.
     n = length(something(iomap.input.value, ""))
-    whole = EmptyReferencePath(reference_node_type(iomap.input))   # typed whole insertion
+    whole = EmptyReferencePath(get_reference_node_type(iomap.input))   # typed whole insertion
     @reference_case reference begin
         ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin

@@ -40,7 +40,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
                            ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
-                           FieldReferenceStep, append_reference
+                           FieldReferenceStep, extend_reference
 import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"

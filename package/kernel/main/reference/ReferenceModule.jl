@@ -14,28 +14,28 @@ sibling, which needs no reference machinery, lives one layer down in the documen
 layer).
 
 The reference types/values, the `@reference_case` pattern-matching DSL, and the
-`@reference` / `@step` construction DSL are one module, because they are only ever
+`@reference` / `@reference_step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
 The module lives in eight fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `ReferencePath` abstract types, the `Reference` union a selection field holds,
-  and the open generics higher packages add methods to (`step_kind`,
-  `evaluate_step`, and the `dsl_*` DSL seams).
+  and the open generics higher packages add methods to (`get_reference_step_kind`,
+  `evaluate_reference_step`, and the `dsl_*` DSL seams).
 - [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
   (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, the `Position` a cursor
   evaluates to), each step type packaged with its own `show`, `==`, and seam
   methods.
 - [`ReferencePath.jl`](ReferencePath.jl) — the path structure and its
   document-free algebra: the two path types, their constructors/accessors/
-  iteration, the equality and prefix predicates, and `append_reference` /
-  `concat_references` / `reference_steps`.
+  iteration, the equality and prefix predicates, and `extend_reference` /
+  `concat_references` / `get_reference_steps`.
 - [`ReferenceEvaluation.jl`](ReferenceEvaluation.jl) — walking a path against a
   document (`evaluate_reference`, `get_valid_reference_prefix`,
   `is_valid_reference`) and the "types always present" invariant
   (`annotate_reference_types`, `strip_reference_types`, `fold_reference_types`,
-  `reference_node_type`, `is_fully_typed`).
+  `get_reference_node_type`, `is_fully_typed_reference`).
 - [`ReferenceSearch.jl`](ReferenceSearch.jl) — the path-producing reflection
   search (`search_references`) over documents.
 - [`ReferenceSyntax.jl`](ReferenceSyntax.jl) — the **surface grammar both DSLs
@@ -44,7 +44,7 @@ The module lives in eight fragments that share this namespace:
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
-- [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@step`
+- [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@reference_step`
   construction DSL (compact surface syntax for building paths).
 
 The linked-list *shape* is persistent — extending a path reuses the existing
@@ -68,22 +68,22 @@ using ..DocumentModule
 export Reference, ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
        RangeReferenceStep, ReferencePath,
-       EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
-       evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference,
-       is_position_reference, is_reference_equal, is_prefix_of,
+       EmptyReferencePath, ConcreteReferencePath, extend_reference, concat_references, get_reference_steps,
+       evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference_step,
+       is_position_reference_step, is_reference_equal, is_reference_prefix,
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
-       fold_reference_types, reference_node_type, is_fully_typed,
+       fold_reference_types, get_reference_node_type, is_fully_typed_reference,
        # Reflection search (produces reference paths):
        search_references,
        # Step-type extensibility seam:
-       step_kind, evaluate_step,
+       get_reference_step_kind, evaluate_reference_step,
        # DSL extension seams:
-       dsl_build_step, dsl_match_step, dsl_step_subpath_args,
+       build_reference_step, match_reference_step, get_reference_step_subpath_args,
        # ReferenceCase DSL:
        @reference_case, when, prefix,
        # ReferenceBuilder DSL:
-       @reference, @step
+       @reference, @reference_step
 
 # The contract first — the abstract types it declares are named in the struct
 # field annotations below (`head::ReferenceStep`, `tail::ReferencePath`), which
@@ -95,7 +95,7 @@ include("ReferencePath.jl")
 include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
 # The shared surface grammar, then the two DSLs that lower it. Syntax must precede
-# both: it calls the `dsl_step_subpath_args` seam (declared in `ReferenceInterface.jl`) to tag
+# both: it calls the `get_reference_step_subpath_args` seam (declared in `ReferenceInterface.jl`) to tag
 # an extension step's subpath arguments while parsing.
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")

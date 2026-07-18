@@ -400,7 +400,7 @@ exports.
 `import ..Mod: sym` is not the only way to reach into another module —
 `Mod.sym` in the body reaches just as far, and bypasses the export list
 *entirely*. AR-QUALIFIED-EXTENSION makes qualification the normal way to extend
-another module's generic (`ReferenceModule.step_kind(s::PointReferenceStep) = …`),
+another module's generic (`ReferenceModule.get_reference_step_kind(s::PointReferenceStep) = …`),
 so without this check the migration would quietly open a hole exactly where
 AR-MODULE-BOUNDARY-IS-API matters most: "the module boundary *is* the API
 boundary" would hold for import headers and be unenforced everywhere else.
@@ -924,7 +924,7 @@ function test_layering_checkers()
     @testset "interface_purity_errors separates declaration from implementation" begin
         no_syms = Pair{Symbol, Vector{Symbol}}[]
         entries = [("cell/CellModule.jl", :CellModule, Symbol[], no_syms,
-                    [:AbstractCell, :Reference, :is_cell_up_to_date, :step_kind])]
+                    [:AbstractCell, :Reference, :is_cell_up_to_date, :get_reference_step_kind])]
         interface_files = Dict("cell/Interface.jl" => :CellModule)
         check(source) = mktempdir() do root
             mkpath(joinpath(root, "cell"))
@@ -944,7 +944,7 @@ function test_layering_checkers()
         # A default is behaviour — long form, short form, and a `where` method alike.
         for method in ("function is_cell_up_to_date(c::AbstractCell)\n    true\nend",
                        "is_cell_up_to_date(c::AbstractCell) = true",
-                       "step_kind(::T) where {T} = :structural")
+                       "get_reference_step_kind(::T) where {T} = :structural")
             errs = check("abstract type AbstractCell{T} end\n$method\n")
             @test length(errs) == 1
             @test occursin("defines a method", errs[1]) && occursin("AR-INTERFACE-DECLARES-ONLY", errs[1])
@@ -952,7 +952,7 @@ function test_layering_checkers()
 
         # An error fallback is a method too — the loophole this rule closes.
         @test occursin("defines a method",
-                       only(check("""step_kind(::Val{n}) where {n} = error("no method")\n""")))
+                       only(check("""get_reference_step_kind(::Val{n}) where {n} = error("no method")\n""")))
 
         # State, a concrete struct, and a macro are all implementation.
         @test occursin("binds a value", only(check("const Reference = Ref{Any}(nothing)\n")))

@@ -14,8 +14,8 @@
 # loops back through one of its own ancestors is dropped, keeping a cyclic graph
 # finite.
 const _PATH_WALK = DocumentWalk(
-    locate_field   = (location, name, child) -> append_reference(location, FieldReferenceStep(string(name))),
-    locate_element = (location, index, child) -> append_reference(location, ElementReferenceStep(index)),
+    locate_field   = (location, name, child) -> extend_reference(location, FieldReferenceStep(string(name))),
+    locate_element = (location, index, child) -> extend_reference(location, ElementReferenceStep(index)),
     initial        = root -> EmptyReferencePath(),
     policy         = :once_per_path)
 

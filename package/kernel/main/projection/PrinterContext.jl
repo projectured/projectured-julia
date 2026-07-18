@@ -83,7 +83,7 @@ re-allocates space calls `with_available_size` explicitly.
 """
 function make_child_context(ctx::PrinterContext, steps::ReferenceStep...)
     PrinterContext(
-        append_reference(ctx.reference, steps...),
+        extend_reference(ctx.reference, steps...),
         ctx.available_width,
         ctx.available_height,
         ctx.properties,

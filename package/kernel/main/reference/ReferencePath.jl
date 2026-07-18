@@ -1,8 +1,8 @@
 # Fragment of `ReferenceModule` — the **path structure and its algebra**: the two
 # concrete `ReferencePath` types (`EmptyReferencePath`, `ConcreteReferencePath`),
 # their constructors/accessors/iteration, the `show` and equality/prefix
-# predicates, and the pure path-building operations (`append_reference`,
-# `concat_references`, `reference_steps`).
+# predicates, and the pure path-building operations (`extend_reference`,
+# `concat_references`, `get_reference_steps`).
 #
 # Everything here is document-free: it is the shape of a path and the operations
 # on that shape. Walking a path *against a document* (`evaluate_reference`,
@@ -148,21 +148,21 @@ significant, so an annotated path is not equal to its stripped form.
 is_reference_equal(a::ReferencePath, b::ReferencePath) = a == b
 
 """
-    is_prefix_of(a, b)
+    is_reference_prefix(a, b)
 
 Return `true` if reference path `a` is a proper prefix of `b` (i.e. `a` is
 strictly shorter and matches the leading steps of `b`).
 """
-is_prefix_of(::EmptyReferencePath, ::EmptyReferencePath) = false
-is_prefix_of(::EmptyReferencePath, ::ConcreteReferencePath) = true
-is_prefix_of(::ConcreteReferencePath, ::EmptyReferencePath) = false
-is_prefix_of(a::ConcreteReferencePath, b::ConcreteReferencePath) =
-    a.type === b.type && head(a) == head(b) && is_prefix_of(tail(a), tail(b))
+is_reference_prefix(::EmptyReferencePath, ::EmptyReferencePath) = false
+is_reference_prefix(::EmptyReferencePath, ::ConcreteReferencePath) = true
+is_reference_prefix(::ConcreteReferencePath, ::EmptyReferencePath) = false
+is_reference_prefix(a::ConcreteReferencePath, b::ConcreteReferencePath) =
+    a.type === b.type && head(a) == head(b) && is_reference_prefix(tail(a), tail(b))
 
 # ── Path construction helpers ────────────────────────────────────────────
 
 """
-    append_reference(base::ReferencePath, steps::ReferenceStep...) -> ReferencePath
+    extend_reference(base::ReferencePath, steps::ReferenceStep...) -> ReferencePath
 
 Return a new `ReferencePath` formed by appending `steps` to the end of
 `base`. The first step in `steps` becomes the direct successor of the last
@@ -174,14 +174,14 @@ and `base`'s terminal type — the type of the node the first appended step desc
 (`nothing`), since the types they would stand on are not yet known. For an untyped
 `base` this is a plain skeleton, exactly as before.
 """
-function append_reference(base::EmptyReferencePath, steps...)
+function extend_reference(base::EmptyReferencePath, steps...)
     isempty(steps) && return base
     # `base.type` is the type of the node the first appended step descends from.
-    ConcreteReferencePath(base.type, steps[1], append_reference(EmptyReferencePath(), steps[2:end]...))
+    ConcreteReferencePath(base.type, steps[1], extend_reference(EmptyReferencePath(), steps[2:end]...))
 end
 
-function append_reference(base::ConcreteReferencePath, steps...)
-    ConcreteReferencePath(base.type, base.head, append_reference(tail(base), steps...))
+function extend_reference(base::ConcreteReferencePath, steps...)
+    ConcreteReferencePath(base.type, base.head, extend_reference(tail(base), steps...))
 end
 
 """
@@ -194,7 +194,7 @@ first node has none, `a`'s terminal type, so an annotated prefix is not silently
 de-annotated. It never invents a type. For untyped inputs the result is a plain
 skeleton, identical to a naive rebuild.
 
-This is the one canonical path-concatenation (vs `append_reference`, which appends
+This is the one canonical path-concatenation (vs `extend_reference`, which appends
 raw *steps*); readers/builders that splice whole paths route through it.
 """
 concat_references(a::ConcreteReferencePath, b::ReferencePath) =
@@ -205,7 +205,7 @@ concat_references(a::EmptyReferencePath, b::EmptyReferencePath) =
     EmptyReferencePath(b.type === nothing ? a.type : b.type)
 
 """
-    reference_steps(path::ReferencePath) -> Vector{ReferenceStep}
+    get_reference_steps(path::ReferencePath) -> Vector{ReferenceStep}
 
 Unroll `path` into its ordered vector of navigation steps (heads), dropping the
 terminal type/`EmptyReferencePath`. The inverse is `ReferencePath(steps...)`, which
@@ -214,7 +214,7 @@ vector" conversion used by callers that need to inspect or rewrite a path's tail
 (e.g. splitting off the terminal step). Type checkpoints are read as steps; strip
 first (`strip_reference_types`) when a pure navigation skeleton is wanted.
 """
-function reference_steps(path::ReferencePath)
+function get_reference_steps(path::ReferencePath)
     steps = ReferenceStep[]
     cur = path
     while cur isa ConcreteReferencePath

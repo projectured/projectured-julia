@@ -18,7 +18,7 @@ import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          FieldReferenceStep, ElementReferenceStep, append_reference, head, tail,
+                          FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
                           strip_reference_types
 import ..ReferenceModule: var"@reference_case"
 export SearchingProjection, SearchingProjectionIoMap
@@ -109,7 +109,7 @@ function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
         # A bare collection is not itself an object with fields; only its
         # element objects can match. Address elements directly on the vector.
         for i in 1:length(node)
-            _walk(p, node[i], append_reference(path, ElementReferenceStep(i)), matches, seen)
+            _walk(p, node[i], extend_reference(path, ElementReferenceStep(i)), matches, seen)
         end
         return
     end
@@ -123,7 +123,7 @@ function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
         raw = getfield(node, nm)
         val = unwrap_cell(raw)
         val isa Document || continue
-        _walk(p, val, append_reference(path, FieldReferenceStep(string(nm))), matches, seen)
+        _walk(p, val, extend_reference(path, FieldReferenceStep(string(nm))), matches, seen)
     end
     return
 end
@@ -179,8 +179,8 @@ function map_reference_backward(p::SearchingProjection, iomap::SearchingProjecti
 end
 
 # ── Path helpers ──────────────────────────────────────────────────────────
-# `is_prefix_of` is a *proper*-prefix boolean (excludes equality, no tail) and
-# `append_reference` joins step varargs — neither covers "strip a path prefix,
+# `is_reference_prefix` is a *proper*-prefix boolean (excludes equality, no tail) and
+# `extend_reference` joins step varargs — neither covers "strip a path prefix,
 # return the remaining tail" or "concatenate two paths", so these fill the gap.
 
 _strip_prefix(ref::ReferencePath, ::EmptyReferencePath) = ref

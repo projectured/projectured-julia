@@ -309,7 +309,7 @@ function _preorder_documents!(node, ...)
     ...
     if node isa CellVector
         for i in 1:length(node)
-            _preorder_documents!(node[i], append_reference(path, RangeReferenceStep(i-1, i)), ...)
+            _preorder_documents!(node[i], extend_reference(path, RangeReferenceStep(i-1, i)), ...)
         end
         return
     end
@@ -393,7 +393,7 @@ higher-layer type at layer 10.
 
 - `..CellModule: Cell, AbstractCell`
 - `..DocumentModule: Document`
-- `..ReferenceModule: ReferencePath, …, append_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
+- `..ReferenceModule: ReferencePath, …, extend_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
 
 That is the whole import surface. No projection, no device, no editor. This
 is what keeps the operation layer at index 5 in the DAG.

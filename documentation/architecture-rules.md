@@ -207,7 +207,7 @@ package whose document walk can express them.
 - **An interface file declares; it never implements.** It holds the abstract types,
   the type aliases, and the open generics as bodiless `function f end` — and no
   method bodies at all, defaults and error fallbacks included (a default is
-  behaviour; it belongs beside the concrete methods, as `step_kind`'s default belongs
+  behaviour; it belongs beside the concrete methods, as `get_reference_step_kind`'s default belongs
   in `ReferenceStep.jl`). No concrete structs, no state, no algorithms. Everything an
   interface file declares is exported: the export list *is* the layer's API surface.
   See architecture requirement #72.

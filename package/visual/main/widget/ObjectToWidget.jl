@@ -54,7 +54,7 @@ import ..ColorModule: StyleColor, color_default
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          append_reference, evaluate_reference
+                          extend_reference, evaluate_reference
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 
@@ -164,7 +164,7 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::ReferencePath, controls,
     for nm in _displayable_fields(p, obj, basepath)
         f = getfield(obj, nm)
         value = f isa Cell ? f[] : f
-        path = append_reference(basepath, FieldReferenceStep(String(nm)))
+        path = extend_reference(basepath, FieldReferenceStep(String(nm)))
         push!(children, WidgetLabel(Point2D(0, 0), String(nm)))
         push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
     end
@@ -212,7 +212,7 @@ end
 function _print_vector(p::ObjectToWidget, vec, path::ReferencePath, controls, depth::Int)
     items = Any[]
     for (i, element) in enumerate(vec)
-        elpath = append_reference(path, ElementReferenceStep(i))   # 1-based
+        elpath = extend_reference(path, ElementReferenceStep(i))   # 1-based
         push!(items, _print_value(p, element, nothing, elpath, controls, depth))
     end
     body = VerticalLayout(items; horizontal_align=:left, gap=_ROW_GAP)

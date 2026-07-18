@@ -25,7 +25,7 @@ import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..GestureBindingModule: GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath,
-                          is_element_reference
+                          is_element_reference_step
 export FileSystemToWidgetTree, FileSystemToWidget
 
 # ── Projection ────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ function _fs_ref_indices(reference)
         h = cur.head
         (h isa FieldReferenceStep && h.name == "elements") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end
@@ -145,7 +145,7 @@ function _tree_ref_indices(reference)
     cur isa ConcreteReferencePath || return nothing
     (cur.head isa FieldReferenceStep && cur.head.name == "roots") || return nothing
     t = cur.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     (t.head.start + 1 == 1) || return nothing      # only one root node
     cur = t.tail
     idxs = Int[]
@@ -153,7 +153,7 @@ function _tree_ref_indices(reference)
         cur isa ConcreteReferencePath || return nothing
         (cur.head isa FieldReferenceStep && cur.head.name == "children") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end

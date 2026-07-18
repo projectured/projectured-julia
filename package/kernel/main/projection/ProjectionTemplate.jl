@@ -792,7 +792,7 @@ end
 # path against the mapper's own document (the one it navigates) fills every node
 # type at the source, so consumers need no boundary re-annotation.
 _typed_generic(::Nothing, _doc) = nothing
-_typed_generic(r, doc) = is_fully_typed(r) ? r : annotate_reference_types(doc, r)
+_typed_generic(r, doc) = is_fully_typed_reference(r) ? r : annotate_reference_types(doc, r)
 
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     w = iomap.wiring

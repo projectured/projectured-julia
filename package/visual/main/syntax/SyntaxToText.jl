@@ -27,12 +27,12 @@ import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocum
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, ReferencePath, strip_reference_types, Position, reference_node_type
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, ReferencePath, strip_reference_types, Position, get_reference_node_type
 import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..TextRangeReferenceModule: TextRangeReferenceStep
 import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@step"
+import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
@@ -449,7 +449,7 @@ _prepend_child(doc::SyntaxCompound, i::Int, inner) = syntax_child_path(doc, i, i
 
 # A cursor in one of this compound's own delimiter spans: `.<field>{c}`.
 _own_span_path(doc::SyntaxCompound, field::Symbol, c::Int) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep(String(field)),
+    ConcreteReferencePath(get_reference_node_type(doc), FieldReferenceStep(String(field)),
         ConcreteReferencePath(TextString, RangeReferenceStep(c, c), EmptyReferencePath(Position)))
 
 function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, reference)
@@ -511,7 +511,7 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     field = _own_field(iomap, j)
     field !== nothing && return _own_span_path(node, field, c)
     flat = _text_elem_path_to_flat(elements, j, c)
-    return ConcreteReferencePath(reference_node_type(node), ProjectionReferenceStep(p,
+    return ConcreteReferencePath(get_reference_node_type(node), ProjectionReferenceStep(p,
                ConcreteReferencePath(Position, PositionReferenceStep(flat), EmptyReferencePath(Position))),
                EmptyReferencePath(Position))
 end
@@ -539,7 +539,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         kids = syntax_children(node)
         result = IoMap[]
         for (i, child) in enumerate(kids)
-            child_ctx = make_child_context(ctx, node, (@step children), (@step [i]))
+            child_ctx = make_child_context(ctx, node, (@reference_step children), (@reference_step [i]))
             push!(result, get!(() -> print_child(recursion, child, child_ctx), child_cache, child))
         end
         seen = Set{UInt}(objectid(c) for c in kids)
@@ -878,7 +878,7 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
             end
             # Leaf child: Alt selects the whole leaf; a plain click places a cursor.
             return gesture.modifiers.alt ?
-                ReplaceSelectionOperation(_prepend_child(node, i, EmptyReferencePath(reference_node_type(cim.input)))) : nothing
+                ReplaceSelectionOperation(_prepend_child(node, i, EmptyReferencePath(get_reference_node_type(cim.input)))) : nothing
         end
     end
     # Own delimiters / decoration: Alt selects this whole node.
@@ -971,7 +971,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     if span_idx in iomap.sep_indices[]
         separator = syntax_separator(iomap.input)
         if separator !== nothing
-            new_ref = ConcreteReferencePath(reference_node_type(iomap.input),
+            new_ref = ConcreteReferencePath(get_reference_node_type(iomap.input),
                           FieldReferenceStep(String(separator.first)),
                           ConcreteReferencePath(TextString, RangeReferenceStep(char_start, char_stop),
                               EmptyReferencePath(Position)))

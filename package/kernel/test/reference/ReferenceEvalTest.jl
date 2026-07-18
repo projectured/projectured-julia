@@ -55,8 +55,8 @@ function test_reference_eval()
     @testset "prefix + suffix predicates" begin
         base = strip_reference_types(@reference ::EA.left::EB)
         deep = strip_reference_types(@reference ::EA.left::EB.value::EC)
-        @test is_prefix_of(base, deep)
-        @test !is_prefix_of(deep, base)
+        @test is_reference_prefix(base, deep)
+        @test !is_reference_prefix(deep, base)
     end
 
 end

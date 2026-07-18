@@ -45,10 +45,10 @@ current text.
     stop::Int
 end
 
-ReferenceModule.step_kind(::TextColumnReferenceStep) = :structural
+ReferenceModule.get_reference_step_kind(::TextColumnReferenceStep) = :structural
 
 # A column text range's descended value is the range itself.
-ReferenceModule.evaluate_step(step::TextColumnReferenceStep, document) = (step.start, step.stop)
+ReferenceModule.evaluate_reference_step(step::TextColumnReferenceStep, document) = (step.start, step.stop)
 
 Base.:(==)(a::TextColumnReferenceStep, b::TextColumnReferenceStep) =
     a.start == b.start && a.stop == b.stop

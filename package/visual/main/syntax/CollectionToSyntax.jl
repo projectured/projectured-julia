@@ -23,7 +23,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
                           PositionReferenceStep, ReferencePath,
-                          EmptyReferencePath, append_reference, is_element_reference
+                          EmptyReferencePath, extend_reference, is_element_reference_step
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
@@ -53,7 +53,7 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
         # ElementReferenceStep(j) is RangeReferenceStep(j-1, j); start+1 recovers the
         # 1-based child index.
         h = core.head
-        if h isa RangeReferenceStep && is_element_reference(h)
+        if h isa RangeReferenceStep && is_element_reference_step(h)
             j = h.start + 1  # 1-based child index
             1 <= j <= length(iomap.input) || return nothing
             child_iomaps_vec = iomap.child_iomaps[]

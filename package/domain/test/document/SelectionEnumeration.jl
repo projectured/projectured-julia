@@ -22,16 +22,16 @@ function _json_collect!(node, path, results)
     if node isa JsonObject
         for i in 1:length(node.entries)
             entry = node.entries[i]
-            epath = append_reference(path, FieldReferenceStep("entries"), ElementReferenceStep(i))
+            epath = extend_reference(path, FieldReferenceStep("entries"), ElementReferenceStep(i))
             push!(results, epath)                                          # the entry pair node
-            push!(results, append_reference(epath, FieldReferenceStep("key"))) # the key leaf
+            push!(results, extend_reference(epath, FieldReferenceStep("key"))) # the key leaf
             _json_collect!(getfield(entry, :value)[],
-                           append_reference(epath, FieldReferenceStep("value")), results)
+                           extend_reference(epath, FieldReferenceStep("value")), results)
         end
     elseif node isa JsonArray
         for i in 1:length(node.elements)
             _json_collect!(node.elements[i],
-                           append_reference(path, FieldReferenceStep("elements"), ElementReferenceStep(i)),
+                           extend_reference(path, FieldReferenceStep("elements"), ElementReferenceStep(i)),
                            results)
         end
     end

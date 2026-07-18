@@ -8,8 +8,8 @@
 # *value* vocabulary below (`PatValue`: wildcards, binders, typed binders, interpolation)
 # — a bare symbol binds here where it would name a field in the builder.
 #
-# Extension steps owned by higher packages are reached through the `dsl_match_step` /
-# `dsl_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
+# Extension steps owned by higher packages are reached through the `match_reference_step` /
+# `get_reference_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
 """
@@ -70,9 +70,9 @@ struct PatStepRange <: PatStep
 end
 
 # A `.name(patterns...)` DSL pattern whose match code is registered by dispatch
-# on `dsl_match_step(::Val{name}, hex, argpats, rest_success, bound)`. The
+# on `match_reference_step(::Val{name}, hex, argpats, rest_success, bound)`. The
 # cross-package step types (`.point`, `.proj`, …) register their own
-# `dsl_match_step` in the package that owns them; none is kernel-registered here.
+# `match_reference_step` in the package that owns them; none is kernel-registered here.
 struct PatStepExtension <: PatStep
     name::Symbol
     argpats::Vector{Any}   # per-arg PatValue or Vector{PatStep} (subpath)
@@ -295,7 +295,7 @@ function _gen_step_match(hex, tex, step::PatStepIndex, rest_success, bound::Set{
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_element_reference($hex)
+        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_element_reference_step($hex)
             $inner
         else
             _nomatch
@@ -309,7 +309,7 @@ function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::S
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_position_reference($hex)
+        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_position_reference_step($hex)
             $inner
         else
             _nomatch
@@ -336,14 +336,14 @@ function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{
 end
 
 function _gen_step_match(hex, tex, step::PatStepExtension, rest_success, bound::Set{Symbol})
-    dsl_match_step(Val(step.name), hex, step.argpats, rest_success, bound,
+    match_reference_step(Val(step.name), hex, step.argpats, rest_success, bound,
                    _gen_value_match, _gen_path_match)
 end
 
 # The seam's answer for a name no package registered: this DSL is where an unknown
 # `.name(…)` pattern is first reachable, so this is where it is reported.
-dsl_match_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
-    error("no `dsl_match_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
+match_reference_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) where {n} =
+    error("no `match_reference_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
 
 # `^(expr)` interpolates a whole path to compare against, so it is only meaningful as the
 # *sole* step of a pattern — `_gen_path_match` / `_gen_prefix_match` intercept it there.
@@ -446,7 +446,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     if length(steps) == 1 && steps[1] isa PatStepPathInterp
         expr = esc(steps[1].expr)
         # Shape-only prefix check: both sides stripped first.
-        return :(ReferenceModule.is_prefix_of(
+        return :(ReferenceModule.is_reference_prefix(
                     ReferenceModule.strip_reference_types($path_ex),
                     ReferenceModule.strip_reference_types($expr)) ?
                  $success : _nomatch), bound

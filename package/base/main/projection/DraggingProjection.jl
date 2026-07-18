@@ -35,7 +35,7 @@ import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          RangeReferenceStep, FieldReferenceStep, is_element_reference, evaluate_reference,
+                          RangeReferenceStep, FieldReferenceStep, is_element_reference_step, evaluate_reference,
                           head, tail
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
@@ -248,7 +248,7 @@ function _locate_collection_index(content, path::ReferencePath)
     last_elem = 0
     for i in length(steps):-1:1
         s = steps[i]
-        if s isa RangeReferenceStep && is_element_reference(s)
+        if s isa RangeReferenceStep && is_element_reference_step(s)
             last_elem = i
             break
         end

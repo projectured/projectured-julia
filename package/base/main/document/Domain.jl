@@ -33,8 +33,8 @@ import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document"
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
                           EmptyReferencePath, ElementReferenceStep, PositionReferenceStep,
-                          append_reference, concat_references, annotate_reference_types,
-                          reference_node_type, try_evaluate_reference
+                          extend_reference, concat_references, annotate_reference_types,
+                          get_reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
 import ..ProjectionReferenceModule: named_node_reference
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
@@ -381,7 +381,7 @@ function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T
         ConcreteReferencePath(FieldReferenceStep(String(field)), EmptyReferencePath()))
     element_path = concat_references(field_path,
         ConcreteReferencePath(ElementReferenceStep(n + 1),
-                              EmptyReferencePath(reference_node_type(inserted))))
+                              EmptyReferencePath(get_reference_node_type(inserted))))
     inner = get_selection(inserted)
     cursor = inner === nothing ? element_path : concat_references(element_path, inner)
     insert_elements(field_path, n, Any[inserted], cursor)
@@ -412,7 +412,7 @@ function move_to_field(document, selection, from::Symbol, to::Symbol)
     value = try_evaluate_reference(document, target)
     value === nothing && return nothing
     cursor = value isa Document ? target :
-        annotate_reference_types(document, append_reference(target, PositionReferenceStep(0)))
+        annotate_reference_types(document, extend_reference(target, PositionReferenceStep(0)))
     ReplaceSelectionOperation(cursor)
 end
 

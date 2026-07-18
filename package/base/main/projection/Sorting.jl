@@ -11,7 +11,7 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, append_reference, reference_node_type
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
@@ -98,7 +98,7 @@ function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoM
             elem_iomap = iomap.element_iomaps[][j]
             mapped_tail = map_reference_forward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
-            ConcreteReferencePath(reference_node_type(iomap.output), ElementReferenceStep(j), mapped_tail)
+            ConcreteReferencePath(get_reference_node_type(iomap.output), ElementReferenceStep(j), mapped_tail)
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -113,7 +113,7 @@ function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIo
             mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             i = iomap.index_map[j]
-            ConcreteReferencePath(reference_node_type(iomap.input), ElementReferenceStep(i), mapped_tail)
+            ConcreteReferencePath(get_reference_node_type(iomap.input), ElementReferenceStep(i), mapped_tail)
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end

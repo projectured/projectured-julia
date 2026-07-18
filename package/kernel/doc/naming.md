@@ -179,7 +179,7 @@ Two shapes are exempt from the verb-first rule, and only these:
 
 - **DSL words** inside macros: `when` and `prefix` in `@reference_case`.
 - **Declarative macros** are noun-named: `@document`, `@iomap`,
-  `@projection`, `@gestures`, `@reference`, `@step`, `@event_case`. A macro
+  `@projection`, `@gestures`, `@reference`, `@reference_step`, `@event_case`. A macro
   is a DSL keyword — `@document` reads as "here is a document definition" —
   not an action.
 

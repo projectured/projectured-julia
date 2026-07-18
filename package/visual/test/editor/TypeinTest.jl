@@ -97,13 +97,13 @@ function _walk_strings!(node, path, visited, refs)
     if node isa CellVector
         for i in 1:length(node)
             child = node[i]
-            _walk_strings!(child, append_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
+            _walk_strings!(child, extend_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
         end
         return
     end
     if node isa AbstractVector
         for (i, child) in enumerate(node)
-            _walk_strings!(child, append_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
+            _walk_strings!(child, extend_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
         end
         return
     end
@@ -130,7 +130,7 @@ function _walk_strings!(node, path, visited, refs)
         (node isa TextGraphics && fname === :content) && continue
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
-        field_path = append_reference(path, FieldReferenceStep(string(fname)))
+        field_path = extend_reference(path, FieldReferenceStep(string(fname)))
         if val isa TextString
             # Document-domain TextString: cursor anchors at the field, the
             # characters are its `.content`. Do not descend further.
@@ -272,7 +272,7 @@ function _selection_caret_ok(document, target, pos::Int)
         return (false, "reading document selection threw: $e")
     end
     sel === nothing && return (false, "selection is nothing, expected caret at $pos")
-    expected = append_reference(target.cursor, PositionReferenceStep(pos))
+    expected = extend_reference(target.cursor, PositionReferenceStep(pos))
     ok = try
         is_reference_equal(strip_reference_types(sel), strip_reference_types(expected))
     catch e
@@ -310,7 +310,7 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
     old isa AbstractString ||
         return _typein_failed("reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
     event, expected_str, expected_pos, op_expected = _edit_spec(kind, old, k, ch)
-    sel = append_reference(target.cursor, PositionReferenceStep(k))
+    sel = extend_reference(target.cursor, PositionReferenceStep(k))
 
     # 1. Point the selection into this string.
     clear_selection!(document)
@@ -390,7 +390,7 @@ function _restore!(document, target, pristine::AbstractString)
     current isa AbstractString || return false
     current == pristine && return true
     op = ReplaceStringRangeOperation(
-        append_reference(target.cursor, RangeReferenceStep(0, length(current))), pristine)
+        extend_reference(target.cursor, RangeReferenceStep(0, length(current))), pristine)
     evaluate_operation((document=document,), op)
     _read_target_string(document, target) == pristine
 end

@@ -15,7 +15,7 @@ import ..ProjectionApiModule: print_document, print_child, map_reference_forward
 import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, is_element_reference, head, tail
+                          ElementReferenceStep, is_element_reference_step, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ListNode
 import ..IoMapApiModule: IoMap
@@ -194,7 +194,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
             return ConcreteReferencePath(h, mapped)
         elseif iomap.children === nothing && iomap.recursion !== nothing
             # ListNode path: walk to the indexed node and project on demand
-            is_element_reference(h) || return reference
+            is_element_reference_step(h) || return reference
             index = h.start + 1
             child_iomap = _get_listnode_child_iomap(iomap, index)
             child_iomap === nothing && return nothing

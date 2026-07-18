@@ -32,7 +32,7 @@ import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
                           EmptyReferencePath
-import ..ReferenceBuilderModule: var"@reference", var"@step"
+import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
@@ -72,7 +72,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v = graph.vertices[i]
             content = v isa GraphVertex ? getfield(v, :content)[] : nothing
             if content !== nothing
-                push!(ims, print_child(recursion, content, make_child_context(ctx, graph, (@step vertices), (@step [i]), (@step content))))
+                push!(ims, print_child(recursion, content, make_child_context(ctx, graph, (@reference_step vertices), (@reference_step [i]), (@reference_step content))))
             else
                 push!(ims, nothing)
             end

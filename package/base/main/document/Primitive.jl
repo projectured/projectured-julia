@@ -15,7 +15,7 @@ import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
                           ReferenceStep, FieldReferenceStep, RangeReferenceStep, evaluate_reference,
-                          strip_reference_types, reference_steps
+                          strip_reference_types, get_reference_steps
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ end
 function _split_replace_reference(path::ReferencePath)
     # Operate on the plain navigation path: drop selection-style type checkpoints
     # so the `.<field>[range]` suffix split sees only real steps.
-    steps = reference_steps(strip_reference_types(path))
+    steps = get_reference_steps(strip_reference_types(path))
     # An un-splittable reference has no editable `.<field>[range]` slot — e.g. an
     # edit aimed at a projection-introduced span (a placeholder/insertion rendered
     # as `…[i].proj(p, .value[k])`, whose terminal is a `ProjectionReferenceStep` with
@@ -158,7 +158,7 @@ end
 function _replace_terminal_with_cursor(path::ReferencePath, replacement::AbstractString)
     # Plain navigation path only; the rebuilt path is re-canonicalized when it is
     # handed to `set_selection!`.
-    steps = reference_steps(strip_reference_types(path))
+    steps = get_reference_steps(strip_reference_types(path))
     range_step = steps[end]::RangeReferenceStep
     new_pos = range_step.start + length(replacement)
     steps[end] = RangeReferenceStep(new_pos, new_pos)

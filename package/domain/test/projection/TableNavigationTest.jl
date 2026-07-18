@@ -110,13 +110,13 @@ function _wt_is_structural(path)
     h isa FieldReferenceStep || return false
     t = path.tail
     t isa ConcreteReferencePath || return false
-    (t.head isa RangeReferenceStep && is_element_reference(t.head)) || return false
+    (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return false
     if h.name == "rows"
         # rows[r]∅  or  rows[r][c]∅
         t.tail isa EmptyReferencePath && return true
         t2 = t.tail
         t2 isa ConcreteReferencePath || return false
-        (t2.head isa RangeReferenceStep && is_element_reference(t2.head)) || return false
+        (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return false
         return t2.tail isa EmptyReferencePath
     elseif h.name == "column_headers"
         return t.tail isa EmptyReferencePath

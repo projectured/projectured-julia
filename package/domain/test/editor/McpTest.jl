@@ -492,8 +492,8 @@ function test_function_availability()
         @test isa(result, String)
         @test occursin("5", result)
         
-        # Test that append_reference is available by calling it
-        result = execute_julia_code(tools, editor, "append_reference(EmptyReferencePath(), PositionReferenceStep(1))")
+        # Test that extend_reference is available by calling it
+        result = execute_julia_code(tools, editor, "extend_reference(EmptyReferencePath(), PositionReferenceStep(1))")
         @test isa(result, String)
         # Should not error
         

@@ -39,7 +39,7 @@ using ProjecturedVisual.SyntaxModule: SyntaxLeaf
 using ProjecturedBase.DomainModule: nothing_document, domain_insertion, insertion_root
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque
 using ProjecturedKernel.CellModule: unwrap_cell
-using ProjecturedKernel.ReferenceModule: append_reference, FieldReferenceStep, ElementReferenceStep,
+using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, ElementReferenceStep,
                                          try_evaluate_reference, PositionReferenceStep,
                                          annotate_reference_types
 using ProjecturedBase.CollectionModule: CellVector
@@ -146,11 +146,11 @@ function _node_slots(node, node_path)
     for fname in fieldnames(typeof(node))
         (fname === :selection || fname === :ref || fname === :collapsed) && continue
         fv = unwrap_cell(getfield(node, fname))
-        fpath = append_reference(node_path, FieldReferenceStep(string(fname)))
+        fpath = extend_reference(node_path, FieldReferenceStep(string(fname)))
         if fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector
             for i in 1:length(fv)
                 el = unwrap_cell(fv[i])
-                el isa Document && push!(slots, (:element, append_reference(fpath, ElementReferenceStep(i)), el, i, fname))
+                el isa Document && push!(slots, (:element, extend_reference(fpath, ElementReferenceStep(i)), el, i, fname))
             end
         elseif fv isa Document
             push!(slots, (:document, fpath, fv))
@@ -366,7 +366,7 @@ end
 # 0 is `<field>` + Position(0), the same shape `move_to_field` produces.
 function _fill_scalar!(ed, projection, fpath, value)
     value isa AbstractString || return
-    cursor = annotate_reference_types(ed.document, append_reference(fpath, PositionReferenceStep(0)))
+    cursor = annotate_reference_types(ed.document, extend_reference(fpath, PositionReferenceStep(0)))
     _select!(ed, projection, cursor)
     for ch in value
         _feed!(ed, projection, ch)

@@ -504,7 +504,7 @@ reference↔container crossing rather than assuming one base throughout.
 ### AR-REFERENCE-DSL
 
 **Build and match reference paths with the DSL, not by hand.** Construct paths
-with `@reference` (or `ReferencePath(steps...)` / `@step` for programmatic
+with `@reference` (or `ReferencePath(steps...)` / `@reference_step` for programmatic
 use), and pattern-match them with `@reference_case` in mappers and readers. Do
 not cons `ConcreteReferencePath` cells by hand. `evaluate_reference(document,
 path)` is the canonical `(document, reference) → node` walk.
@@ -797,7 +797,7 @@ form the layer's vocabulary, and its open generics as bodiless `function f
 end`. **No method bodies.** Not a delegation, not an accessor, and not a
 "trivial" default or error fallback either: a default is behaviour, and
 behaviour is implementation. It belongs in the sibling file that implements the
-contract — the default `step_kind` sits with the step types in
+contract — the default `get_reference_step_kind` sits with the step types in
 `ReferenceStep.jl`, next to their concrete methods. Nor may an interface file
 hold a concrete struct, mutable or global state, or an algorithm. When a
 contract's default has no natural sibling home, that is the signal the layer
@@ -877,15 +877,15 @@ the `nothing` leaf in visual and the `*Nothing` insertion placeholder in
 domain; the more specific concept took the qualifier
 (`InsertionNothingToSyntaxLeaf`).
 
-Migrated so far: the reference-step seam (`step_kind`, `evaluate_step`,
-`dsl_build_step`, `dsl_match_step`, `dsl_step_subpath_args`) and the
+Migrated so far: the reference-step seam (`get_reference_step_kind`, `evaluate_reference_step`,
+`build_reference_step`, `match_reference_step`, `get_reference_step_subpath_args`) and the
 backend/device seam (`initialize_backend!`, `quit_backend!`, `measure_text`,
 `write_image`, `read_from_devices`, `write_to_devices`, …). Known remaining:
 the four projection generics (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`, ~793 sites) and
 `evaluate_operation` (46), which are entangled with `@projection`/`@iomap`
 codegen and get their own sweep. A macro can emit a qualified extension by
-interpolating the *module object* (`:(function $(ReferenceModule).step_kind(…)
+interpolating the *module object* (`:(function $(ReferenceModule).get_reference_step_kind(…)
 end)`), which needs no import at the call site at all.
 
 ### AR-PARALLEL-TRIADS

@@ -37,7 +37,7 @@ import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, reference_steps
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
 import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..TextColumnReferenceModule: TextColumnReferenceStep
 import ..TextRangeReferenceModule: TextRangeReferenceStep, is_text_caret
@@ -912,7 +912,7 @@ end
 # step must be a `TextRangeReferenceStep`; returns `nothing` otherwise. Type
 # checkpoints are stripped first so the terminal is read from the plain skeleton.
 function _split_text_range_reference(path)
-    steps = reference_steps(strip_reference_types(path))
+    steps = get_reference_steps(strip_reference_types(path))
     isempty(steps) && return nothing
     term = steps[end]
     term isa TextRangeReferenceStep || return nothing
@@ -954,7 +954,7 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     span = _span_at(block, a[1])
     span.content = splice_string(span.content::AbstractString, a[2], b[2], op.replacement)
     newpos = start + length(op.replacement)
-    steps = reference_steps(strip_reference_types(op.reference))
+    steps = get_reference_steps(strip_reference_types(op.reference))
     newref = ReferencePath(steps[1:end-1]..., TextRangeReferenceStep(newpos, newpos))
     clear_selection!(document)
     set_selection!(document, newref)

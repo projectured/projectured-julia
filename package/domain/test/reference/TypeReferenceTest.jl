@@ -125,7 +125,7 @@ end
 # type (String) and keeps its position step as `head`.
 pos_ann = annotate_reference_types("hello",
               ConcreteReferencePath(PositionReferenceStep(3), EmptyReferencePath()))
-@test pos_ann.type === String && is_position_reference(pos_ann.head)
+@test pos_ann.type === String && is_position_reference_step(pos_ann.head)
 @test pos_ann.tail isa EmptyReferencePath && pos_ann.tail.type === Position
 @test strip_reference_types(pos_ann) ==
       ConcreteReferencePath(PositionReferenceStep(3), EmptyReferencePath())

@@ -19,7 +19,7 @@ using ProjecturedKernel.CellModule: Cell, ImmutableCell, is_cell_up_to_date
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
 using ProjecturedKernel.ReferenceModule: Reference, EmptyReferencePath, ReferencePath,
-                                         FieldReferenceStep, append_reference,
+                                         FieldReferenceStep, extend_reference,
                                          strip_reference_types
 
 @document struct ToyNode
@@ -45,7 +45,7 @@ function test_document_contract()
     @testset "selection contract: with_selection sets, clear_selection! clears" begin
         n = ToyNode("root", ToyNode("child", nothing, nothing), nothing)
         # A path selecting the label field.
-        path = append_reference(EmptyReferencePath(), FieldReferenceStep("label"))
+        path = extend_reference(EmptyReferencePath(), FieldReferenceStep("label"))
         n2 = with_selection(n, path)
         @test n2 === n                                              # returns the document
         # Selection round-trips ignoring the reference-type annotation that
@@ -56,8 +56,8 @@ function test_document_contract()
         @test get_selection(n) === nothing
         # Deep clear: a child's selection is also cleared. Set a compound path,
         # then clear the root; the leaf's selection cell should read `nothing`.
-        deep = append_reference(
-            append_reference(EmptyReferencePath(), FieldReferenceStep("child")),
+        deep = extend_reference(
+            extend_reference(EmptyReferencePath(), FieldReferenceStep("child")),
             FieldReferenceStep("label"))
         set_selection!(n, deep)
         @test strip_reference_types(get_selection(n)) == deep

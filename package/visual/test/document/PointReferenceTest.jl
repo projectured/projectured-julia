@@ -1,5 +1,5 @@
 """
-Tests for `PointReferenceModule` — struct equality, the `@step c.point(x, y)`
+Tests for `PointReferenceModule` — struct equality, the `@reference_step c.point(x, y)`
 DSL build registration, and the `@reference_case c.point(x, y)` pattern-match
 registration.
 """
@@ -19,13 +19,13 @@ pr = PointReferenceStep(3, 7)
 @test pr == PointReferenceStep(3, 7)
 @test pr != PointReferenceStep(3, 8)
 
-# ── @step DSL build registration ─────────────────────────────────────────
+# ── @reference_step DSL build registration ─────────────────────────────────────────
 
 # The `c.point(x, y)` notation is registered by PointReferenceModule's
-# `dsl_build_step(::Val{:point}, …)` seam — exercised here to confirm the
+# `build_reference_step(::Val{:point}, …)` seam — exercised here to confirm the
 # registration survived the move out of the kernel.
-@test (@step c.point(2, 3)) == PointReferenceStep(2, 3)
-@test (@step c.point(0, 0)) == PointReferenceStep(0, 0)
+@test (@reference_step c.point(2, 3)) == PointReferenceStep(2, 3)
+@test (@reference_step c.point(0, 0)) == PointReferenceStep(0, 0)
 
 # ── @reference DSL via .point(…) ────────────────────────────────────────
 
@@ -43,9 +43,9 @@ let doc = (cursor = (10, 20),)
           ConcreteReferencePath(FieldReferenceStep("cursor"), EmptyReferencePath())
 end
 
-# Verify the .point(x, y) extension step is built correctly via @step and
+# Verify the .point(x, y) extension step is built correctly via @reference_step and
 # that it can be assembled into a ConcreteReferencePath.
-let step = @step c.point(10, 20)
+let step = @reference_step c.point(10, 20)
     @test step == PointReferenceStep(10, 20)
     pr_ref = ConcreteReferencePath(FieldReferenceStep("cursor"),
                  ConcreteReferencePath(PointReferenceStep(10, 20), EmptyReferencePath()))
@@ -55,7 +55,7 @@ end
 
 # ── @reference_case pattern matching ─────────────────────────────────────
 
-# Confirm `dsl_match_step(::Val{:point}, …)` works: match a path that ends
+# Confirm `match_reference_step(::Val{:point}, …)` works: match a path that ends
 # with a `.point(x, y)` step and extract the coordinates.
 # Build sample paths directly (can't use typed @reference for .point steps).
 let sample = ConcreteReferencePath(FieldReferenceStep("cursor"),

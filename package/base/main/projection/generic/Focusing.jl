@@ -9,7 +9,7 @@ module FocusingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, append_reference, strip_reference_types
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, extend_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: set_cell_function!
 import ..GestureBindingModule: GestureBinding
@@ -147,7 +147,7 @@ function _longest_prefix_of_type(document, sel::ReferencePath, part_type)
     best = nothing
     path = EmptyReferencePath()
     for step in sel
-        path = append_reference(path, step)
+        path = extend_reference(path, step)
         # `missing` (not `nothing`): a path that resolves to an empty field *is* a
         # resolution, and must not end the walk.
         node = try_evaluate_reference(document, path, missing)

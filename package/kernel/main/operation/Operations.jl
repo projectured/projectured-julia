@@ -185,7 +185,7 @@ end
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).
 function _split_terminal_step(path::ConcreteReferencePath)
-    steps = reference_steps(path)
+    steps = get_reference_steps(path)
     (ReferencePath(steps[1:end-1]...), steps[end])
 end
 
@@ -320,7 +320,7 @@ into the new element (re-rooting prepends the same steps to both members).
 for an identity-rooted splice against a document that is not in the tree.
 """
 function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
-    write = ReplaceReferencedValueOperation(root, append_reference(path, RangeReferenceStep(index, index)),
+    write = ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
@@ -335,7 +335,7 @@ terminal step is `RangeReferenceStep(index, index+count)` and whose value is the
 vector (replace the range with nothing). The inverse of `insert_elements`.
 """
 delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
-    ReplaceReferencedValueOperation(root, append_reference(path, RangeReferenceStep(index, index + count)), Any[])
+    ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
 
 # ─────────────────────────────────────────────────────────────────────────
 # SelectNextInsertionOperation — move the cursor to the next "hole"
@@ -420,7 +420,7 @@ function _preorder_documents!(node, path::ReferencePath, seen, out)
     push!(seen, node)
     push!(out, (path, node))
     for (step, child) in child_reference_steps(node)
-        _preorder_documents!(child, append_reference(path, step), seen, out)
+        _preorder_documents!(child, extend_reference(path, step), seen, out)
     end
     return
 end

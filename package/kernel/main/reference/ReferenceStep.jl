@@ -4,8 +4,8 @@
 # failed checkpoint throws, and the cell-transparent navigation helpers the steps
 # descend with.
 #
-# Each step type is self-contained: its struct, `show`, `==`, and its `step_kind` /
-# `evaluate_step` seam methods sit together, the same way a step type owned by a
+# Each step type is self-contained: its struct, `show`, `==`, and its `get_reference_step_kind` /
+# `evaluate_reference_step` seam methods sit together, the same way a step type owned by a
 # higher package packages itself (`PointReference.jl`, `ProjectionReference.jl`,
 # `TextSpanReference.jl`). The abstract `ReferenceStep` and the seam generics
 # are declared in `ReferenceInterface.jl`; the paths these steps are threaded onto live in
@@ -64,10 +64,10 @@ PositionReferenceStep(index::Int) = RangeReferenceStep(index, index)
 # ── Predicates ────────────────────────────────────────────────────────────
 
 "True when `r` encodes a single element (stop == start + 1)."
-is_element_reference(r::RangeReferenceStep) = r.stop == r.start + 1
+is_element_reference_step(r::RangeReferenceStep) = r.stop == r.start + 1
 
 "True when `r` encodes a cursor position (start == stop)."
-is_position_reference(r::RangeReferenceStep) = r.start == r.stop
+is_position_reference_step(r::RangeReferenceStep) = r.start == r.stop
 
 """
     Position(index)
@@ -88,9 +88,9 @@ Base.:(==)(a::Position, b::Position) = a.index == b.index
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
 function Base.show(io::IO, s::RangeReferenceStep)
-    if is_element_reference(s)
+    if is_element_reference_step(s)
         print(io, "[", s.start + 1, "]")
-    elseif is_position_reference(s)
+    elseif is_position_reference_step(s)
         print(io, "{", s.start, "}")
     else
         print(io, "{", s.start, ":", s.stop, "}")
@@ -99,12 +99,12 @@ end
 
 Base.:(==)(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
 
-step_kind(::RangeReferenceStep) = :structural
+get_reference_step_kind(::RangeReferenceStep) = :structural
 
 # A zero-width cursor evaluates to a `Position` (a caret between elements); a
 # single element / range descends into the item at start+1 (cell-transparent).
-function evaluate_step(step::RangeReferenceStep, document)
-    is_position_reference(step) && return Position(step.start)
+function evaluate_reference_step(step::RangeReferenceStep, document)
+    is_position_reference_step(step) && return Position(step.start)
     unwrap_cell(document[step.start + 1])
 end
 
@@ -139,9 +139,9 @@ end
 
 Base.:(==)(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
 
-step_kind(::FieldReferenceStep) = :structural
+get_reference_step_kind(::FieldReferenceStep) = :structural
 
-evaluate_step(step::FieldReferenceStep, document) =
+evaluate_reference_step(step::FieldReferenceStep, document) =
     _get_field(document, step.name)
 
 # ── TypeReferenceStep ─────────────────────────────────────────────────────────
@@ -188,9 +188,9 @@ end
 
 Base.:(==)(a::TypeReferenceStep, b::TypeReferenceStep) = a.type === b.type
 
-step_kind(::TypeReferenceStep) = :checkpoint
+get_reference_step_kind(::TypeReferenceStep) = :checkpoint
 
-function evaluate_step(step::TypeReferenceStep, document)
+function evaluate_reference_step(step::TypeReferenceStep, document)
     document isa step.type ||
         throw(ReferenceTypeMismatch(step.type, typeof(document)))
     document

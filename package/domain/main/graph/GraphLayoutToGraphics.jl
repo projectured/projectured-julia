@@ -30,7 +30,7 @@ import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath
-import ..ReferenceBuilderModule: var"@reference", var"@step"
+import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
@@ -91,7 +91,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 v = getfield(vl, :vertex)[]
                 content = v isa GraphVertex ? getfield(v, :content)[] : nothing
                 if content !== nothing
-                    cim = print_child(recursion, content, make_child_context(ctx, layout, (@step vertex_layouts), (@step [i]), (@step vertex), (@step content)))
+                    cim = print_child(recursion, content, make_child_context(ctx, layout, (@reference_step vertex_layouts), (@reference_step [i]), (@reference_step vertex), (@reference_step content)))
                     push!(entries, (Int(vl.x), Int(vl.y), cim))
                 else
                     push!(entries, (Int(vl.x), Int(vl.y), nothing))
@@ -113,7 +113,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             e = el isa EdgeLayout ? getfield(el, :edge)[] : nothing
             label = e isa GraphEdge ? getfield(e, :label)[] : nothing
             if label !== nothing
-                push!(out, print_child(recursion, label, make_child_context(ctx, layout, (@step edge_layouts), (@step [i]), (@step edge), (@step label))))
+                push!(out, print_child(recursion, label, make_child_context(ctx, layout, (@reference_step edge_layouts), (@reference_step [i]), (@reference_step edge), (@reference_step label))))
             else
                 push!(out, nothing)
             end

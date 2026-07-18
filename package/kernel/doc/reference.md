@@ -26,7 +26,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
         │                        ReferencePath abstract types, the Reference
         │                        union, and the open generics higher packages
-        │                        add methods to (step_kind, evaluate_step, and
+        │                        add methods to (get_reference_step_kind, evaluate_reference_step, and
         │                        the dsl_* DSL seams)
         ├─ ReferenceStep.jl    — the kernel step types (RangeReferenceStep,
         │                        FieldReferenceStep, TypeReferenceStep) and the Position
@@ -34,8 +34,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        own show, ==, and seam methods
         ├─ ReferencePath.jl    — the path structure and its document-free
         │                        algebra (EmptyReferencePath,
-        │                        ConcreteReferencePath, append_reference,
-        │                        concat_references, reference_steps, the
+        │                        ConcreteReferencePath, extend_reference,
+        │                        concat_references, get_reference_steps, the
         │                        equality/prefix predicates)
         ├─ ReferenceEvaluation.jl — walking a path against a document
         │                        (evaluate_reference, get_valid_reference_prefix)
@@ -50,7 +50,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
-        └─ ReferenceBuilder.jl — the @reference / @step construction DSL
+        └─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
                                  (compact surface syntax for building paths)
 ```
 
@@ -60,7 +60,7 @@ resulting AST: the builder to constructor calls, the matcher to match branches. 
 forms deliberately mean different things on each side, and the lowering is where that
 difference lives:
 
-| Syntax | `@reference` / `@step` builds | `@reference_case` matches |
+| Syntax | `@reference` / `@reference_step` builds | `@reference_case` matches |
 | --- | --- | --- |
 | bare symbol as a **subpath argument** | a field name | **binds** the whole subpath |
 | bare symbol in a **value** position (`[i]`, `.field(e)`) | a runtime expression | **binds** the value |
@@ -69,8 +69,8 @@ difference lives:
 | `name...` | *rejected* — matcher-only | binds the remaining tail |
 | `base.^(e)` | splices a runtime path | *rejected* — builder-only |
 
-A leading identifier is also read differently by `@step` (a placeholder, dropped:
-`@step xs[i]` yields just `[i]`) than by `@reference` (a field name).
+A leading identifier is also read differently by `@reference_step` (a placeholder, dropped:
+`@reference_step xs[i]` yields just `[i]`) than by `@reference` (a field name).
 
 `ReferenceInterface.jl` comes first for a reason beyond convention: the abstract types it
 declares are named in the struct field annotations below it
@@ -401,23 +401,23 @@ at the front of a chain (`^(base).rest`) or at the tail (`prefix.^(tail)`).
 Mid-chain splices are not supported because the surrounding Julia surface syntax
 does not parse `prefix.^(x).suffix` the way the DSL would need.
 
-### Building single steps: `@step`
+### Building single steps: `@reference_step`
 
-The `@step` macro builds a single `ReferenceStep`, useful for passing to
-`append_reference` or any API that takes raw steps instead of full paths.
+The `@reference_step` macro builds a single `ReferenceStep`, useful for passing to
+`extend_reference` or any API that takes raw steps instead of full paths.
 
 ```julia
-@step value              # FieldReferenceStep("value")
-@step xs[i]              # ElementReferenceStep(i)
-@step xs{k}              # PositionReferenceStep(k)
-@step xs{s:e}            # RangeReferenceStep(s, e)
-@step c.point(x, y)      # PointReferenceStep(x, y)
-@step config.field(name) # FieldReferenceStep(name)
+@reference_step value              # FieldReferenceStep("value")
+@reference_step xs[i]              # ElementReferenceStep(i)
+@reference_step xs{k}              # PositionReferenceStep(k)
+@reference_step xs{s:e}            # RangeReferenceStep(s, e)
+@reference_step c.point(x, y)      # PointReferenceStep(x, y)
+@reference_step config.field(name) # FieldReferenceStep(name)
 ```
 
 The leading identifier (`xs`, `c`, `config`) is a placeholder — only the
 trailing operator determines the step's kind. For a bare symbol like
-`@step value`, the symbol itself becomes the field name.
+`@reference_step value`, the symbol itself becomes the field name.
 
 ## Reference pattern matching: `@reference_case`
 

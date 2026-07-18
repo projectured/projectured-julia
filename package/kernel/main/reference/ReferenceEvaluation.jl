@@ -2,14 +2,14 @@
 # "types always present" invariant that walk maintains.
 #
 # The three walkers are structurally parallel and all descend through the
-# `evaluate_step` / `step_kind` seam declared in `ReferenceInterface.jl`:
+# `evaluate_reference_step` / `get_reference_step_kind` seam declared in `ReferenceInterface.jl`:
 #
 # - `evaluate_reference`        — follow the path, return the node it lands on
 # - `get_valid_reference_prefix` — follow as far as the document still allows
 # - `annotate_reference_types`   — follow, recording each node's type as it goes
 #
-# The type protocol around them (`reference_node_type`, `strip_reference_types`,
-# `fold_reference_types`, `is_fully_typed`) is the same concept from the other
+# The type protocol around them (`get_reference_node_type`, `strip_reference_types`,
+# `fold_reference_types`, `is_fully_typed_reference`) is the same concept from the other
 # side: a path is *canonical at rest* when every node records the type of the
 # document node it stands on. The path shape these walk lives in
 # `ReferencePath.jl`; the steps they descend through in `ReferenceStep.jl`.
@@ -35,7 +35,7 @@ function evaluate_reference(document, path::ConcreteReferencePath)
     # Folded checkpoint: this node records the type of the document it stands on.
     path.type === nothing || document isa path.type ||
         throw(ReferenceTypeMismatch(path.type, typeof(document)))
-    child = evaluate_step(step, document)
+    child = evaluate_reference_step(step, document)
     evaluate_reference(child, rest)
 end
 
@@ -86,10 +86,10 @@ function get_valid_reference_prefix(document, path::ConcreteReferencePath)
     path.type === nothing || document isa path.type || return EmptyReferencePath()
     step = path.head
     rest = path.tail
-    if step_kind(step) === :checkpoint
+    if get_reference_step_kind(step) === :checkpoint
         # Assert on the current node; a mismatch truncates.
         try
-            evaluate_step(step, document)
+            evaluate_reference_step(step, document)
         catch
             return EmptyReferencePath()
         end
@@ -99,7 +99,7 @@ function get_valid_reference_prefix(document, path::ConcreteReferencePath)
     # allowed to throw (out-of-range, non-indexable container without a length
     # method) and simply truncates.
     child = try
-        evaluate_step(step, document)
+        evaluate_reference_step(step, document)
     catch
         return EmptyReferencePath()
     end
@@ -119,7 +119,7 @@ is_valid_reference(document, path::ReferencePath) =
 # ── Type-checkpoint annotation ───────────────────────────────────────────
 
 """
-    reference_node_type(document) -> Type
+    get_reference_node_type(document) -> Type
 
 The kind-agnostic type token a reference records for `document`: the UnionAll
 wrapper of a kind-parameterized `@document` type
@@ -131,12 +131,12 @@ immutable snapshot, and matches the bare names the `@reference` macro emits.
 Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
 here — e.g. a whole-element selection mapped across a projection carries
-`reference_node_type(output_document)`.
+`get_reference_node_type(output_document)`.
 """
-reference_node_type(document) = Base.typename(typeof(document)).wrapper
+get_reference_node_type(document) = Base.typename(typeof(document)).wrapper
 
 # Internal alias kept for the annotation walkers below.
-const _node_type = reference_node_type
+const _node_type = get_reference_node_type
 
 """
     annotate_reference_types(document, path::ReferencePath) -> ReferencePath
@@ -163,13 +163,13 @@ function annotate_reference_types(document, path::ConcreteReferencePath)
     rest = path.tail
     # Checkpoint steps get folded away — this node's type replaces the
     # standalone assertion.
-    step_kind(step) === :checkpoint && return annotate_reference_types(document, rest)
+    get_reference_step_kind(step) === :checkpoint && return annotate_reference_types(document, rest)
     nodetype = _node_type(document)
     # Descend one step to type the rest. A zero-width cursor descends to a
     # `Position` (so its terminal records `::Position`); a structural step that
     # cannot be followed throws and leaves the rest untyped.
     child = try
-        evaluate_step(step, document)
+        evaluate_reference_step(step, document)
     catch
         nothing
     end
@@ -234,7 +234,7 @@ fold_reference_types(other) = other
 # `strip_reference_types` produces one — but they are never surfaced untyped.)
 
 """
-    is_fully_typed(path::ReferencePath) -> Bool
+    is_fully_typed_reference(path::ReferencePath) -> Bool
 
 `true` when every node of `path` (each `ConcreteReferencePath` and the terminal
 `EmptyReferencePath`) records a non-`nothing` `type`. This is the strict-typing
@@ -242,13 +242,13 @@ invariant `@reference` enforces: a path built from a fully-typed `@reference`
 literal (or annotated against a document) is fully typed; a path with any bare
 navigation node is not.
 """
-is_fully_typed(p::ConcreteReferencePath) = p.type !== nothing && is_fully_typed(p.tail)
-is_fully_typed(p::EmptyReferencePath)    = p.type !== nothing
-is_fully_typed(::Nothing)                = true   # no-selection sentinel: not our concern
+is_fully_typed_reference(p::ConcreteReferencePath) = p.type !== nothing && is_fully_typed_reference(p.tail)
+is_fully_typed_reference(p::EmptyReferencePath)    = p.type !== nothing
+is_fully_typed_reference(::Nothing)                = true   # no-selection sentinel: not our concern
 
 # Enforce the strict-typing invariant on a freshly built `@reference` path.
 # `src` is the macro-call `LineNumberNode`, so a violation names its file:line.
 function _strict_check(path, src)
-    is_fully_typed(path) && return path
+    is_fully_typed_reference(path) && return path
     error("under-typed @reference (missing node types) at $(src.file):$(src.line)")
 end

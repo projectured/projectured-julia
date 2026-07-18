@@ -67,7 +67,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReferencePath, is_element_reference
+                          ElementReferenceStep, EmptyReferencePath, is_element_reference_step
 import ..PointReferenceModule: PointReferenceStep
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -4487,7 +4487,7 @@ function _wt_field_element_terminal(sel)
     t = sel.tail
     t isa ConcreteReferencePath || return nothing
     r = t.head
-    (r isa RangeReferenceStep && is_element_reference(r)) || return nothing
+    (r isa RangeReferenceStep && is_element_reference_step(r)) || return nothing
     t.tail isa EmptyReferencePath || return nothing
     (h.name, r.start + 1)
 end
@@ -4526,11 +4526,11 @@ function _wt_cell_split(sel)
     (sel.head isa FieldReferenceStep && sel.head.name == "rows") || return nothing
     t = sel.tail
     t isa ConcreteReferencePath || return nothing
-    (t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+    (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     r = t.head.start + 1
     t2 = t.tail
     t2 isa ConcreteReferencePath || return nothing
-    (t2.head isa RangeReferenceStep && is_element_reference(t2.head)) || return nothing
+    (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return nothing
     c = t2.head.start + 1
     (r, c, t2.tail)
 end
@@ -4722,7 +4722,7 @@ function _wt_ref_to_grid_index(reference, geom::WTGeometry)
     t = reference.tail
     t isa ConcreteReferencePath || return nothing
     e = t.head
-    (e isa RangeReferenceStep && is_element_reference(e)) || return nothing
+    (e isa RangeReferenceStep && is_element_reference_step(e)) || return nothing
     idx1 = e.start + 1
     if h.name == "column_headers"
         (1 <= idx1 <= geom.ncols) || return nothing
@@ -4739,7 +4739,7 @@ function _wt_ref_to_grid_index(reference, geom::WTGeometry)
         t2 = t.tail
         t2 isa ConcreteReferencePath || return nothing
         e2 = t2.head
-        (e2 isa RangeReferenceStep && is_element_reference(e2)) || return nothing
+        (e2 isa RangeReferenceStep && is_element_reference_step(e2)) || return nothing
         c = e2.start + 1
         r = idx1
         (1 <= r <= geom.nrows && 1 <= c <= geom.ncols) || return nothing
@@ -4756,7 +4756,7 @@ function _wt_grid_ref_to_table(reference, geom::WTGeometry)
     (reference.head isa FieldReferenceStep && reference.head.name == "children") || return nothing
     t = reference.tail
     t isa ConcreteReferencePath || return nothing
-    (t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+    (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     gidx = t.head.start + 1
     tail = t.tail
     geom.grid_cols <= 0 && return nothing
@@ -5161,7 +5161,7 @@ function _wtree_ref_path(reference)
         h = cur.head
         (h isa FieldReferenceStep && h.name == (first ? "roots" : "children")) || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
+        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(path, t.head.start + 1)
         cur = t.tail
         cur isa EmptyReferencePath && return path

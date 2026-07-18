@@ -13,7 +13,7 @@ bridges; the reference layer (below) never names it. Registered as a
 `:terminal` step type — it identifies a location but does not participate
 in structural navigation — and registers its own `.proj(projection, sub)`
 entries with the `@reference` / `@reference_case` DSLs via the reference
-layer's `dsl_build_step` / `dsl_match_step` / `dsl_step_subpath_args` seams.
+layer's `build_reference_step` / `match_reference_step` / `get_reference_step_subpath_args` seams.
 """
 module ProjectionReferenceModule
 
@@ -37,7 +37,7 @@ the tree is evaluatable.
     output_path::ReferencePath
 end
 
-ReferenceModule.step_kind(::ProjectionReferenceStep) = :structural
+ReferenceModule.get_reference_step_kind(::ProjectionReferenceStep) = :structural
 
 """
     is_introduced_reference(reference) -> Bool
@@ -76,7 +76,7 @@ named_node_reference(reference) =
 
 # A projection step descends to the location the projection introduced —
 # reified as the output path within that projection's output.
-ReferenceModule.evaluate_step(step::ProjectionReferenceStep, document) = step.output_path
+ReferenceModule.evaluate_reference_step(step::ProjectionReferenceStep, document) = step.output_path
 
 Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
     a.projection === b.projection && a.output_path == b.output_path
@@ -86,12 +86,12 @@ Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
 # `.proj(projection, subpath)` — argument 2 is a subpath, so both DSL parsers
 # parse it as a reference path (not a value). This is the only kernel-side
 # coupling the reference layer needs; the parsers stay ignorant of `.proj` itself.
-ReferenceModule.dsl_step_subpath_args(::Val{:proj}) = (2,)
+ReferenceModule.get_reference_step_subpath_args(::Val{:proj}) = (2,)
 
-ReferenceModule.dsl_build_step(::Val{:proj}, projex, outpathex) =
+ReferenceModule.build_reference_step(::Val{:proj}, projex, outpathex) =
     :($(GlobalRef(ProjectionReferenceModule, :ProjectionReferenceStep))($projex, $outpathex))
 
-function ReferenceModule.dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound,
+function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
     projpat, outpath = argpats[1], argpats[2]
     projexpr = :($hex.projection)

@@ -47,11 +47,11 @@ end
 "True when this range is a zero-width caret (`start == stop`)."
 is_text_caret(s::TextRangeReferenceStep) = s.start == s.stop
 
-ReferenceModule.step_kind(::TextRangeReferenceStep) = :structural
+ReferenceModule.get_reference_step_kind(::TextRangeReferenceStep) = :structural
 
 # A caret evaluates to a `Position` (a flat caret between characters); a non-empty
 # range's descended value is the offset pair itself.
-ReferenceModule.evaluate_step(step::TextRangeReferenceStep, document) =
+ReferenceModule.evaluate_reference_step(step::TextRangeReferenceStep, document) =
     step.start == step.stop ? Position(step.start) : (step.start, step.stop)
 
 Base.:(==)(a::TextRangeReferenceStep, b::TextRangeReferenceStep) =

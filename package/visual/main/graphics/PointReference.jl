@@ -9,7 +9,7 @@ domain's own vocabulary; the kernel reference layer never names it.
 Registered as a `:terminal` step type (identifies a location but does not
 descend), and registers its own `.point(x, y)` entries with the kernel
 `@reference` / `@reference_case` DSLs via the reference layer's
-`dsl_build_step` / `dsl_match_step` seams.
+`build_reference_step` / `match_reference_step` seams.
 """
 module PointReferenceModule
 
@@ -33,11 +33,11 @@ that coordinate in the current document.
     y::Int
 end
 
-ReferenceModule.step_kind(::PointReferenceStep) = :structural
+ReferenceModule.get_reference_step_kind(::PointReferenceStep) = :structural
 
 # Every reference descends to a value; a point step's value is its
 # coordinate pair.
-ReferenceModule.evaluate_step(step::PointReferenceStep, document) = (step.x, step.y)
+ReferenceModule.evaluate_reference_step(step::PointReferenceStep, document) = (step.x, step.y)
 
 Base.:(==)(a::PointReferenceStep, b::PointReferenceStep) = a.x == b.x && a.y == b.y
 
@@ -47,10 +47,10 @@ end
 
 # ── DSL registrations ──────────────────────────────────────────────────────
 
-ReferenceModule.dsl_build_step(::Val{:point}, xex, yex) =
+ReferenceModule.build_reference_step(::Val{:point}, xex, yex) =
     :($(GlobalRef(PointReferenceModule, :PointReferenceStep))(Int($xex), Int($yex)))
 
-function ReferenceModule.dsl_match_step(::Val{:point}, hex, argpats, rest_success, bound,
+function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
     xpat, ypat = argpats[1], argpats[2]
     xexpr = :($hex.x)

@@ -78,7 +78,7 @@ lower layer never names its implementors and no cycle is needed. `ReferenceStep`
 the clearest case: `ProjectionReferenceStep` (layer 12), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
 (all in `ProjecturedVisual`) subtype it and register
-their navigation through `evaluate_step`, with no edit to layer 8.
+their navigation through `evaluate_reference_step`, with no edit to layer 8.
 
 **The agent stack is a side-stack.** The editor (layer 16) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
@@ -154,7 +154,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`DocumentInterface.jl`), the `@document` codegen (`DocumentMacro.jl`), the value protocol (`DocumentCopy.jl` / `DocumentSync.jl`), the reflection walk (`DocumentWalk.jl` / `DocumentSearch.jl`), and the protocol forward/adapt helpers (`ForwardProtocol.jl`) |
-| `reference/` | the step/path contract (`ReferenceInterface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
+| `reference/` | the step/path contract (`ReferenceInterface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@reference_step` / `@reference_case` DSLs |
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |

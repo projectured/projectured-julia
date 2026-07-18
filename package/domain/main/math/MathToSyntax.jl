@@ -24,10 +24,10 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, ReferencePath, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, ReferencePath, EmptyReferencePath, extend_reference
 import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@step"
+import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
@@ -129,8 +129,8 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
 end
 
 function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
-    left_ctx  = make_child_context(ctx, m, @step left)
-    right_ctx = make_child_context(ctx, m, @step right)
+    left_ctx  = make_child_context(ctx, m, @reference_step left)
+    right_ctx = make_child_context(ctx, m, @reference_step right)
     left_iomap = Cell(() -> print_child(recursion, m.left, left_ctx))
     right_iomap = Cell(() -> print_child(recursion, m.right, right_ctx))
 
@@ -207,7 +207,7 @@ function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::Childre
 end
 
 function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
-    content_ctx = make_child_context(ctx, m, @step content)
+    content_ctx = make_child_context(ctx, m, @reference_step content)
     content_iomap = Cell(() -> print_child(recursion, m.content, content_ctx))
 
     sel = Cell(() -> begin
@@ -291,8 +291,8 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
 end
 
 function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
-    target_ctx = make_child_context(ctx, m, @step target)
-    value_ctx  = make_child_context(ctx, m, @step value)
+    target_ctx = make_child_context(ctx, m, @reference_step target)
+    value_ctx  = make_child_context(ctx, m, @reference_step value)
     target_iomap = Cell(() -> print_child(recursion, m.target, target_ctx))
     value_iomap = Cell(() -> print_child(recursion, m.value, value_ctx))
 

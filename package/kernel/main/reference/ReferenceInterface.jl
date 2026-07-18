@@ -37,27 +37,27 @@ const Reference = Union{Nothing, ReferencePath}
 
 # ── Step navigation seam ──────────────────────────────────────────────────
 # Each step type registers its own behaviour by adding methods on
-# `step_kind` (classification) and `evaluate_step` (one-level navigation).
+# `get_reference_step_kind` (classification) and `evaluate_reference_step` (one-level navigation).
 # The three path walkers (`evaluate_reference`,
 # `get_valid_reference_prefix`, `annotate_reference_types`) all dispatch
 # through this seam — a new step type living in a higher package registers
 # its methods at its own definition site and needs no edits here.
 
 """
-    step_kind(step) -> Symbol
+    get_reference_step_kind(step) -> Symbol
 
 Classify a reference step: `:structural` (descends to a child or synthetic
 value) or `:checkpoint` (stays on the current node, asserts an invariant).
-Every step type answers for itself, beside its `evaluate_step` — there is no
+Every step type answers for itself, beside its `evaluate_reference_step` — there is no
 default, so a new step type that forgets to classify itself fails loudly at the
 first path walk rather than being silently treated as structural. A
 `:structural` step must be evaluatable under the "types always present"
 invariant.
 """
-function step_kind end
+function get_reference_step_kind end
 
 """
-    evaluate_step(step, document) -> child
+    evaluate_reference_step(step, document) -> child
 
 Navigate through `step`. For a `:structural` step, return the descended
 value (throws on descent failure). Some step types descend to a document
@@ -68,10 +68,10 @@ path, `TextSpanReferenceStep` returns the character range). For a
 `:checkpoint` step, return `document` unchanged after asserting the
 invariant (throws on mismatch).
 """
-function evaluate_step end
+function evaluate_reference_step end
 
 # ── DSL seams ─────────────────────────────────────────────────────────────
-# The `@reference` / `@step` construction DSL and the `@reference_case`
+# The `@reference` / `@reference_step` construction DSL and the `@reference_case`
 # pattern-matching DSL both reach a step type through these generics, so
 # neither parser names a step type it does not own. A step type registers a
 # `::Val{:name}` method for its `.name(args...)` surface syntax in the package
@@ -81,7 +81,7 @@ function evaluate_step end
 # `ReferenceBuilder.jl`, `ReferenceCase.jl`).
 
 """
-    dsl_build_step(::Val{name}, escaped_args...) -> Expr
+    build_reference_step(::Val{name}, escaped_args...) -> Expr
 
 Return the expression that constructs the step type mapped to `.name(args...)`
 in the `@reference` DSL. `escaped_args` are `esc`'d Julia expressions ready
@@ -90,10 +90,10 @@ to splice into the returned constructor call. Each package registers a
 layer (`.point` / `.proj` register in the packages that own them). An unregistered
 name is an error the builder raises.
 """
-function dsl_build_step end
+function build_reference_step end
 
 """
-    dsl_match_step(::Val{name}, hex, argpats, rest_success, bound,
+    match_reference_step(::Val{name}, hex, argpats, rest_success, bound,
                    gen_value_match, gen_path_match) -> (Expr, Set{Symbol})
 
 Return `(match_branch, updated_bound)` for a `.name(patterns...)` pattern in the
@@ -111,17 +111,17 @@ Each package registers a `::Val{:name}` method for its own step types; none
 live in the kernel's reference layer (`.point` / `.proj` register in the packages
 that own them). An unregistered name is an error the matcher raises.
 """
-function dsl_match_step end
+function match_reference_step end
 
 """
-    dsl_step_subpath_args(::Val{name}) -> Tuple{Vararg{Int}}
+    get_reference_step_subpath_args(::Val{name}) -> Tuple{Vararg{Int}}
 
 The 1-based argument positions of a `.name(args...)` DSL step that are
 **subpaths** (parsed as reference paths) rather than value expressions — `()`
 unless a step type says otherwise, i.e. every argument is a value. A step type
 whose surface syntax takes a subpath argument at position `n` registers `(n,)`
 here, so neither DSL parser needs to name the step. Consulted by
-both the `@reference_case` pattern parser and the `@reference` / `@step`
+both the `@reference_case` pattern parser and the `@reference` / `@reference_step`
 construction parser.
 """
-function dsl_step_subpath_args end
+function get_reference_step_subpath_args end

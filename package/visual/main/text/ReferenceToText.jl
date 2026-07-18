@@ -26,8 +26,8 @@ import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
                           ReferenceStep, RangeReferenceStep, FieldReferenceStep,
                           TypeReferenceStep,
-                          is_element_reference, is_position_reference,
-                          head, tail, evaluate_reference, append_reference
+                          is_element_reference_step, is_position_reference_step,
+                          head, tail, evaluate_reference, extend_reference
 import ..PointReferenceModule: PointReferenceStep
 import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
@@ -100,11 +100,11 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
 end
 
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::RangeReferenceStep)
-    if is_element_reference(step)
+    if is_element_reference_step(step)
         push!(spans, _tok("[", p.font, color_solarized_gray))
         push!(spans, _tok(string(step.start + 1), p.font, color_solarized_magenta))
         push!(spans, _tok("]", p.font, color_solarized_gray))
-    elseif is_position_reference(step)
+    elseif is_position_reference_step(step)
         push!(spans, _tok("{", p.font, color_solarized_gray))
         push!(spans, _tok(string(step.start), p.font, color_solarized_magenta))
         push!(spans, _tok("}", p.font, color_solarized_gray))
@@ -247,10 +247,10 @@ end
 function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReferenceStep)
     line = TextDocument[]
     push!(line, _tok("the ", p.font, color_solarized_gray))
-    if is_element_reference(step)
+    if is_element_reference_step(step)
         push!(line, _tok(_ordinal(step.start + 1), p.font, color_solarized_magenta))
         push!(line, _tok(" element", p.font, color_solarized_gray))
-    elseif is_position_reference(step)
+    elseif is_position_reference_step(step)
         push!(line, _tok(_ordinal(step.start), p.font, color_solarized_magenta))
         push!(line, _tok(" position", p.font, color_solarized_gray))
     else
@@ -303,7 +303,7 @@ function _walk_long!(lines::Vector{Vector{TextDocument}},
                      path::ConcreteReferencePath,
                      document, prefix::ReferencePath, parent_type)
     step = head(path)
-    new_prefix = append_reference(prefix, step)
+    new_prefix = extend_reference(prefix, step)
     t = tail(path)
     if step isa TypeReferenceStep
         # Checkpoint: emit no line; carry its type to the next nav step.
