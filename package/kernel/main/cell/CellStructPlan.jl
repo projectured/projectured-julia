@@ -1,5 +1,5 @@
-# Fragment of `CellModule` — the **struct plan**: what a macro needs to know about
-# a `struct` definition before it can emit code for it, parsed once.
+# Fragment of `CellStructModule` — the **struct plan**: what a macro needs to know
+# about a `struct` definition before it can emit code for it, parsed once.
 #
 # A `struct` definition uses the same three field forms — bare `f`, typed
 # `f::T`, defaulted `f[::T] = v`. The plan reads all three, strips the defaults

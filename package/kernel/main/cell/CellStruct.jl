@@ -1,9 +1,10 @@
-# Fragment of `CellModule` — the transparent-Cell struct codegen: the
+# Fragment of `CellStructModule` — the transparent-Cell struct codegen: the
 # `@cell_struct` macro, its assembler `cell_struct_exprs`, and the four
 # expr-builders they compose. `cell_struct_exprs` is the composition seam a
 # caller reuses — inject a default supertype into the struct definition,
 # delegate to it, and escape the result — while `@cell_struct` is the standalone
-# macro over it.
+# macro over it. `get_cell_struct_kind` (at the foot) reads back, at runtime, the
+# cell kind a generated struct is built from.
 #
 # The symbols the builders emit (`Cell`, `new`, `getfield`, …) are spliced as
 # bare names and resolve in the *caller's* scope when the caller escapes
