@@ -71,7 +71,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `document/ForwardProtocol.jl`
 - **Layer 8 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
-  - ⬜ `reference/ReferenceModule.jl`
+  - 🔒 `reference/ReferenceModule.jl`
   - ⬜ `reference/ReferenceInterface.jl`
   - ⬜ `reference/ReferenceStep.jl`
   - ⬜ `reference/ReferencePath.jl`

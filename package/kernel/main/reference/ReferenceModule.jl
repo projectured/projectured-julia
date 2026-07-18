@@ -74,29 +74,16 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ReferenceTypeMismatch,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
-       # Reflection search (produces reference paths):
        search_references,
-       # Step-type extensibility seam:
        get_reference_step_kind, evaluate_reference_step,
-       # DSL extension seams:
        build_reference_step, match_reference_step, get_reference_step_subpath_args,
-       # ReferenceCase DSL:
-       @reference_case,
-       # ReferenceBuilder DSL:
-       @reference, @reference_step
+       @reference_case, @reference, @reference_step
 
-# The contract first — the abstract types it declares are named in the struct
-# field annotations below (`head::ReferenceStep`, `tail::Reference`), which
-# are evaluated at definition time. Then the types, the value protocol on them,
-# and finally the DSL fragments that consume the seams.
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")
 include("ReferencePath.jl")
 include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
-# The shared surface grammar, then the two DSLs that lower it. Syntax must precede
-# both: it calls the `get_reference_step_subpath_args` seam (declared in `ReferenceInterface.jl`) to tag
-# an extension step's subpath arguments while parsing.
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")
 include("ReferenceBuilder.jl")
