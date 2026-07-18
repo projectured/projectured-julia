@@ -7,13 +7,13 @@
 # ProjecturedKernelTest's generic explore_selections driver) compare these
 # against the states their BFS actually reaches.
 #
-# collect_position_selections(document) -> Vector{ReferencePath}
+# collect_position_selections(document) -> Vector{Reference}
 #   Every position selection: for each navigable String leaf of length n, the
 #   cursors {0}…{n} (PositionReferenceStep). Numeric leaves are skipped (phase 1).
 #
-# collect_tree_selections(document; is_node) -> Vector{ReferencePath}
+# collect_tree_selections(document; is_node) -> Vector{Reference}
 #   Every whole-element (∅) selection: the path terminating at each node for
-#   which `is_node` holds. The root is EmptyReferencePath() (∅).
+#   which `is_node` holds. The root is EmptyReference() (∅).
 #
 #   What counts as a *structural* node is domain-specific (it is defined by the
 #   projection to syntax, not by the raw input struct): a CellVector container
@@ -75,7 +75,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
         fv = getfield(node, fname)
         v  = fv isa Cell ? fv[] : fv
         v === nothing && continue
-        v isa Union{Number, Bool, Symbol, ReferencePath} && continue
+        v isa Union{Number, Bool, Symbol, Reference} && continue
         field_path = extend_reference(path, FieldReferenceStep(string(fname)))
         n = _text_leaf_length(v)
         if n !== nothing
@@ -91,21 +91,21 @@ end
 # navigation driver in ProjecturedKernelTest receives them as its `collect`
 # argument (wired up by the ProjecturedVisualTest presets).
 """
-    collect_position_selections(document) -> Vector{ReferencePath}
+    collect_position_selections(document) -> Vector{Reference}
 
 Every navigable position selection in `document`: for each String leaf of
 length `n`, the cursors `{0}…{n}` (PositionReferenceStep) — in the text domain
 these are the carets. Numeric leaves are skipped (phase 1).
 """
 function collect_position_selections(document)
-    results = ReferencePath[]
+    results = Reference[]
     on_node = (_n, _p) -> nothing
     on_text = (field_path, charcount) -> begin
         for k in 0:charcount
             push!(results, extend_reference(field_path, PositionReferenceStep(k)))
         end
     end
-    _walk_document(document, EmptyReferencePath(), on_node, on_text, Set{UInt64}())
+    _walk_document(document, EmptyReference(), on_node, on_text, Set{UInt64}())
     # No is_valid_reference filter: a caret terminates with `{k}` on the text
     # leaf, and the document-aware validator rejects that step whenever the leaf
     # is a TextString (no length/getindex) — yet such carets are real, navigable
@@ -116,10 +116,10 @@ end
 
 """
     collect_tree_selections(document; is_node = n -> hasproperty(n, :selection))
-        -> Vector{ReferencePath}
+        -> Vector{Reference}
 
 Every whole-element (∅) selection in `document`: the path terminating at each
-node for which `is_node` holds. The root yields `EmptyReferencePath()` (∅).
+node for which `is_node` holds. The root yields `EmptyReference()` (∅).
 Candidates are filtered through the document-aware `is_valid_reference`.
 
 `is_node` selects which nodes are *structurally* selectable; this is
@@ -128,10 +128,10 @@ domain-specific (see the file header). The default — any node carrying a
 domain predicate (the syntax suite uses `n -> n isa SyntaxDocument`).
 """
 function collect_tree_selections(document; is_node = n -> hasproperty(n, :selection))
-    results = ReferencePath[]
+    results = Reference[]
     on_node = (n, path) -> is_node(n) && push!(results, path)
     on_text = (_p, _n) -> nothing
-    _walk_document(document, EmptyReferencePath(), on_node, on_text, Set{UInt64}())
+    _walk_document(document, EmptyReference(), on_node, on_text, Set{UInt64}())
     filter!(p -> is_valid_reference(document, p), results)
     results
 end

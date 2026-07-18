@@ -29,7 +29,7 @@ import ..ProjectionApiModule: print_document, map_reference_forward,
                               map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
-import ..ReferenceModule: ConcreteReferencePath, annotate_reference_types
+import ..ReferenceModule: ConcreteReference, annotate_reference_types
 import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
@@ -72,10 +72,10 @@ end
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
     short_proj = ReferenceToText(font = p.font)
     out = TextBlock(() -> begin
-        ref    = input.reference        # tracked: ReferencePath or nothing
+        ref    = input.reference        # tracked: Reference or nothing
         target = input.target
         # Annotate with TypeReferenceStep checkpoints so both forms show types.
-        canonical = (ref isa ConcreteReferencePath && target !== nothing) ?
+        canonical = (ref isa ConcreteReference && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
         long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
         ictx = PrinterContext()

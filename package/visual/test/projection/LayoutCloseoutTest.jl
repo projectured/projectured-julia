@@ -34,7 +34,7 @@ end
     cells = Any[WidgetLabel(Point2D(0, 0), "Name:"), WidgetText(Point2D(0, 0), "x")]
     plain  = GridLayout(copy(cells), 2)
     filled = GridLayout(copy(cells), 2; column_stretch=[0, 1], horizontal_gap=8)
-    ctx = with_available_size(PrinterContext(EmptyReferencePath());
+    ctx = with_available_size(PrinterContext(EmptyReference());
                               width=_LC_Cell(600), height=_LC_Cell(400))
     pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
     fw = Int(print_document(proj, nothing, filled, ctx).output.w[])

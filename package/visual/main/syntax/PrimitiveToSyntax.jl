@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReferenceStep, RangeReferenceStep, Position
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
@@ -50,7 +50,7 @@ end
 
 function read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep && h.name == "value" || return nothing
     return op
@@ -80,7 +80,7 @@ end
 
 function read_intent(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep && h.name == "value" || return nothing
     return op
@@ -115,13 +115,13 @@ end
 
 function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
     if h.name == "value"
         return op
     else
-        return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
+        return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
     end
 end
 

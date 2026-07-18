@@ -124,7 +124,7 @@ interact — real input is polled every frame, and Escape / window-close quits).
 ```julia
 play_live!(backend, projection, document, timeline;
            window_id::Symbol, initial_hold=0.5,
-           op_prefix=EmptyReferencePath())
+           op_prefix=EmptyReference())
 ```
 
 A *timeline* is a vector of timed entries; the present key selects the kind
@@ -153,7 +153,7 @@ the content. `:event` entries are rerooted automatically — the
 `ScreenToScreen` / `WindowManagingProjection` readers prepend the
 `windows[i].content` steps to every operation they emit. A directly-injected
 `:operation` **bypasses the reader**, so its bare-content path would be applied
-to the screen root and fail. `op_prefix` (a `ReferencePath`) closes the gap:
+to the screen root and fail. `op_prefix` (a `Reference`) closes the gap:
 `play_live!` reroots each `:operation` entry through
 `reroot_operation(op, steps(op_prefix))`. Pass
 `op_prefix = @reference windows[1].content` when the example sits in window 1;

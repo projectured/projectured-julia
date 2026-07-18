@@ -40,8 +40,8 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
-                         ReferencePath, EmptyReferencePath, extend_reference
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
+                         Reference, EmptyReference, extend_reference
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
@@ -116,7 +116,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
 
     sel = Cell(() -> begin
         path = b.selection
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         h = path.head
         if h isa ProjectionReferenceStep
             return path
@@ -133,7 +133,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
             @reference ::SyntaxNode.children::CellVector[2].^(as_)
         elseif name == "elements"
             rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
+            rest isa ConcreteReference || return nothing
             h2 = rest.head
             h2 isa RangeReferenceStep || return nothing
             child_i = h2.start + 1
@@ -184,8 +184,8 @@ function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
-        ::BookBook.title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
-        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
+        ::BookBook.title.rest...     => rest isa ConcreteReference && rest.head isa RangeReferenceStep ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
+        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReference && rest.head isa RangeReferenceStep) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -235,7 +235,7 @@ function read_intent(p::BookBookToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
@@ -299,7 +299,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
 
     sel = Cell(() -> begin
         path = b.selection
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         h = path.head
         if h isa ProjectionReferenceStep
             return path
@@ -312,7 +312,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
             @reference ::SyntaxNode.children::CellVector[1].^(ts)
         elseif name == "elements"
             rest = path.tail
-            rest isa ConcreteReferencePath || return nothing
+            rest isa ConcreteReference || return nothing
             h2 = rest.head
             h2 isa RangeReferenceStep || return nothing
             child_i = h2.start + 1
@@ -414,7 +414,7 @@ function read_intent(p::BookChapterToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
@@ -545,7 +545,7 @@ function read_intent(p::BookListToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit

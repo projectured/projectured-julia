@@ -86,7 +86,7 @@ end
 # end up wrapped in a ProjectionReferenceStep — that signals a missing
 # domain-level translation step somewhere in the chain.
 function _path_contains_projection_ref(path)
-    while path isa ConcreteReferencePath
+    while path isa ConcreteReference
         head(path) isa ProjectionReferenceStep && return true
         path = tail(path)
     end

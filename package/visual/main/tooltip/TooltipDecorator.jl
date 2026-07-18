@@ -22,7 +22,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReferenceStep, head, tail
+import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
@@ -145,7 +145,7 @@ function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecor
     # Strip a leading FieldReferenceStep("child") if present, then delegate.
     # Skip canonical TypeReferenceStep checkpoints before reading the `child` step.
     reference = reference
-    if reference isa ConcreteReferencePath
+    if reference isa ConcreteReference
         h = head(reference)
         if h isa FieldReferenceStep && h.name == "child"
             return map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, tail(reference))
@@ -160,7 +160,7 @@ end
 function map_reference_backward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
     inner = map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
     inner === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("child"), inner)
+    ConcreteReference(FieldReferenceStep("child"), inner)
 end
 
 end # module

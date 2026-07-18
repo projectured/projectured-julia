@@ -30,7 +30,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraph
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, strip_reference_types, Position
+import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
@@ -153,11 +153,11 @@ function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStr
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
-    new_ref = ConcreteReferencePath(FieldReferenceStep("elements"),
-                  ConcreteReferencePath(RangeReferenceStep(out_span - 1, out_span),
-                      ConcreteReferencePath(FieldReferenceStep("content"),
-                          ConcreteReferencePath(RangeReferenceStep(char_start, char_stop),
-                                                EmptyReferencePath()))))
+    new_ref = ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(out_span - 1, out_span),
+                      ConcreteReference(FieldReferenceStep("content"),
+                          ConcreteReference(RangeReferenceStep(char_start, char_stop),
+                                                EmptyReference()))))
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
@@ -174,20 +174,20 @@ _text_elem_path(span_idx::Int, char_idx::Int) =
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h1 = path.head
     h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
-    t1 isa ConcreteReferencePath || return nothing
+    t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
-    t2 isa ConcreteReferencePath || return nothing
+    t2 isa ConcreteReference || return nothing
     h3 = t2.head
     h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
-    t3 isa ConcreteReferencePath || return nothing
+    t3 isa ConcreteReference || return nothing
     h4 = t3.head
     h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int)
@@ -195,20 +195,20 @@ end
 
 function _parse_text_elem_range(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h1 = path.head
     h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
-    t1 isa ConcreteReferencePath || return nothing
+    t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
-    t2 isa ConcreteReferencePath || return nothing
+    t2 isa ConcreteReference || return nothing
     h3 = t2.head
     h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
-    t3 isa ConcreteReferencePath || return nothing
+    t3 isa ConcreteReference || return nothing
     h4 = t3.head
     h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int, h4.stop::Int)

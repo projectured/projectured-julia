@@ -28,7 +28,7 @@ function abs_top_left(root::GraphicsCanvas, path)
 end
 
 # children[i] (1-based i) as a document reference.
-cref(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
+cref(steps...) = foldr((s, acc) -> ConcreteReference(s, acc), steps; init=EmptyReference())
 child(i) = (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
 elem(i)  = (FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))
 field(name) = (FieldReferenceStep(name),)

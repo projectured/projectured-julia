@@ -31,8 +31,8 @@ import InteractiveUtils: subtypes
 import ..EventPatternModule
 import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document"
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReferencePath, ElementReferenceStep, PositionReferenceStep,
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReference, ElementReferenceStep, PositionReferenceStep,
                           extend_reference, concat_references, annotate_reference_types,
                           get_reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
@@ -330,8 +330,8 @@ end
 # ── Insert-key gesture (shared by @domain and DocumentNothing) ────────────────
 
 # The char cursor at offset 0 of an insertion's `value` buffer.
-const _INSERTION_CURSOR = ConcreteReferencePath(FieldReferenceStep("value"),
-    ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+const _INSERTION_CURSOR = ConcreteReference(FieldReferenceStep("value"),
+    ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
 
 """
     insert_document_operation(I::Type) -> Operation
@@ -341,7 +341,7 @@ rerooted by the enclosing projections) with a fresh insertion `I`, cursor
 pre-placed at the start of its `value` buffer.
 """
 insert_document_operation(::Type{I}) where {I} =
-    replace_document(EmptyReferencePath(), with_selection(I(), _INSERTION_CURSOR))
+    replace_document(EmptyReference(), with_selection(I(), _INSERTION_CURSOR))
 
 """
     replace_selected_document(document, replacement) -> Operation
@@ -378,10 +378,10 @@ function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T
     # be annotated that way — it is not in the document yet — so its terminal type
     # checkpoint comes from the insertion itself.
     field_path = annotate_reference_types(document,
-        ConcreteReferencePath(FieldReferenceStep(String(field)), EmptyReferencePath()))
+        ConcreteReference(FieldReferenceStep(String(field)), EmptyReference()))
     element_path = concat_references(field_path,
-        ConcreteReferencePath(ElementReferenceStep(n + 1),
-                              EmptyReferencePath(get_reference_node_type(inserted))))
+        ConcreteReference(ElementReferenceStep(n + 1),
+                              EmptyReference(get_reference_node_type(inserted))))
     inner = get_selection(inserted)
     cursor = inner === nothing ? element_path : concat_references(element_path, inner)
     insert_elements(field_path, n, Any[inserted], cursor)
@@ -407,8 +407,8 @@ function move_to_field(document, selection, from::Symbol, to::Symbol)
     prefix = _prefix_before_field(selection, String(from))
     prefix === nothing && return nothing
     target = annotate_reference_types(document,
-        concat_references(prefix, ConcreteReferencePath(FieldReferenceStep(String(to)),
-                                                        EmptyReferencePath())))
+        concat_references(prefix, ConcreteReference(FieldReferenceStep(String(to)),
+                                                        EmptyReference())))
     value = try_evaluate_reference(document, target)
     value === nothing && return nothing
     cursor = value isa Document ? target :
@@ -420,13 +420,13 @@ end
 # whose sibling field the caret is moving to. `nothing` if no such step is on the path,
 # including when there is no caret at all.
 _prefix_before_field(::Nothing, field) = nothing
-_prefix_before_field(path::EmptyReferencePath, field) = nothing
-function _prefix_before_field(path::ConcreteReferencePath, field)
+_prefix_before_field(path::EmptyReference, field) = nothing
+function _prefix_before_field(path::ConcreteReference, field)
     h = path.head
-    h isa FieldReferenceStep && h.name == field && return EmptyReferencePath(path.type)
+    h isa FieldReferenceStep && h.name == field && return EmptyReference(path.type)
     rest = _prefix_before_field(path.tail, field)
     rest === nothing && return nothing
-    ConcreteReferencePath(path.type, h, rest)
+    ConcreteReference(path.type, h, rest)
 end
 
 _insert_gesture_binding(::Type{I}, tag::String) where {I} = GestureBinding(

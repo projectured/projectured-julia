@@ -323,9 +323,9 @@ function test_search_object()
         # preceded by a TypeReferenceStep checkpoint (as search_references produces),
         # and stripping them recovers a usable plain path.
         ar = search_references(doc, "Alice")[1]
-        steps = ConcreteReferencePath[]
+        steps = ConcreteReference[]
         let p = ar
-            while p isa ConcreteReferencePath
+            while p isa ConcreteReference
                 push!(steps, p)
                 p = p.tail
             end
@@ -456,10 +456,10 @@ function test_workbench_editor_reference()
 
         a = WorkbenchAssistant(; llm = FakeLlm("ok"))
         a.input.value = "editor !== nothing"
-        a.input.selection = ConcreteReferencePath(
+        a.input.selection = ConcreteReference(
             FieldReferenceStep("value"),
-            ConcreteReferencePath(RangeReferenceStep(0, length(a.input.value)),
-                                  EmptyReferencePath()))
+            ConcreteReference(RangeReferenceStep(0, length(a.input.value)),
+                                  EmptyReference()))
 
         stand_in = (document = a, tools = tools)
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
@@ -470,10 +470,10 @@ function test_workbench_editor_reference()
         @test !exec.is_error
 
         a.input.value = "editor.document isa WorkbenchAssistant"
-        a.input.selection = ConcreteReferencePath(
+        a.input.selection = ConcreteReference(
             FieldReferenceStep("value"),
-            ConcreteReferencePath(RangeReferenceStep(0, length(a.input.value)),
-                                  EmptyReferencePath()))
+            ConcreteReference(RangeReferenceStep(0, length(a.input.value)),
+                                  EmptyReference()))
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
         exec2 = a.conversation.turns[2].parts[1].content
         @test occursin("true", _eval_result(exec2))
@@ -488,17 +488,17 @@ function test_function_availability()
         tools = ToolSet()
 
         # Test that evaluate_reference is available by calling it
-        result = execute_julia_code(tools, editor, "evaluate_reference(5, EmptyReferencePath())")
+        result = execute_julia_code(tools, editor, "evaluate_reference(5, EmptyReference())")
         @test isa(result, String)
         @test occursin("5", result)
         
         # Test that extend_reference is available by calling it
-        result = execute_julia_code(tools, editor, "extend_reference(EmptyReferencePath(), PositionReferenceStep(1))")
+        result = execute_julia_code(tools, editor, "extend_reference(EmptyReference(), PositionReferenceStep(1))")
         @test isa(result, String)
         # Should not error
         
         # Test that is_reference_equal is available by calling it
-        result = execute_julia_code(tools, editor, "is_reference_equal(EmptyReferencePath(), EmptyReferencePath())")
+        result = execute_julia_code(tools, editor, "is_reference_equal(EmptyReference(), EmptyReference())")
         @test isa(result, String)
         # Should not error
         
@@ -517,8 +517,8 @@ function test_function_availability()
         @test isa(result, String)
         # Should not error
         
-        # Test that EmptyReferencePath is available by constructing it
-        result = execute_julia_code(tools, editor, "EmptyReferencePath()")
+        # Test that EmptyReference is available by constructing it
+        result = execute_julia_code(tools, editor, "EmptyReference()")
         @test isa(result, String)
         # Should not error
     end

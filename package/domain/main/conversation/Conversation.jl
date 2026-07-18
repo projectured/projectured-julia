@@ -13,7 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextBlock, TextString
-import ..ReferenceModule: Reference, ReferencePath
+import ..ReferenceModule: Reference
 
 export ConversationDocument, thinking_part
 

@@ -1,7 +1,7 @@
 function test_versioning_to_any()
 
 # A reference path built from raw steps.
-cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
+cpath(steps...) = foldr((s, acc) -> ConcreteReference(s, acc), steps; init=EmptyReference())
 
 ctrl = ModifierKeys(ctrl=true)
 ctrl_shift = ModifierKeys(ctrl=true, shift=true)
@@ -98,7 +98,7 @@ end
 
     # Reference maps decline on the empty case.
     @test map_reference_forward(p, iomap, cpath(FieldReferenceStep("versions"))) === nothing
-    @test map_reference_backward(p, iomap, EmptyReferencePath()) === nothing
+    @test map_reference_backward(p, iomap, EmptyReference()) === nothing
 end
 
 @testset "reference mapping peel / prepend" begin
@@ -108,8 +108,8 @@ end
 
     # Backward: delegate to value child (IdentityProjection is identity) and
     # prepend versions[1].value.
-    back = map_reference_backward(p, iomap, EmptyReferencePath())
-    @test back isa ConcreteReferencePath
+    back = map_reference_backward(p, iomap, EmptyReference())
+    @test back isa ConcreteReference
     @test back.head.name == "versions"
     @test back.tail.head isa RangeReferenceStep
     @test back.tail.head.start == 0          # ElementReferenceStep(1) → start 0
@@ -118,7 +118,7 @@ end
     # Forward: strip versions[1].value and return the (identity) tail.
     fwd = map_reference_forward(p, iomap,
         cpath(FieldReferenceStep("versions"), ElementReferenceStep(1), FieldReferenceStep("value")))
-    @test fwd isa EmptyReferencePath
+    @test fwd isa EmptyReference
 
     # Forward declines a path that does not descend through the selected version.
     @test map_reference_forward(p, iomap,
@@ -133,7 +133,7 @@ end
 
     # A value-domain selection move flowing up from the value child is re-rooted
     # under versions[1].value (IdentityProjection passes it through unchanged).
-    value_sel = ReplaceSelectionOperation(EmptyReferencePath())
+    value_sel = ReplaceSelectionOperation(EmptyReference())
     change = Intent(KeyDown(:right, ModifierKeys()), value_sel)
     out = read_intent(p, IdentityProjection(), change, iomap)
     @test out.operation isa ReplaceSelectionOperation

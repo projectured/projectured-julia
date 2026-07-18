@@ -21,10 +21,10 @@ end
 _ref(span, char) = @reference ::TextBlock.elements::CellVector[span]::TextString.content::String{char}::Position
 
 # `elements[span].content[start:stop]` range path.
-_range(span, start, stop) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))))
+_range(span, start, stop) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(span - 1, span),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))))
 
 _contents(text) = [e.content for e in text.elements if e isa TextString]
 

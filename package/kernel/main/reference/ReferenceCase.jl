@@ -208,14 +208,14 @@ function _parse_rule(ex)
     elseif lhs === :∅
         # Empty-path pattern: matches a reference that terminates *at* the
         # element itself — a whole-element ("tree") selection. Compiles to a
-        # zero-step exact match (`_ref_input isa EmptyReferencePath`). This only
+        # zero-step exact match (`_ref_input isa EmptyReference`). This only
         # adds a writable pattern; the no-match fallthrough is still `nothing`.
         return (:exact, PatStep[], nothing, rhs)
     elseif lhs isa Expr && lhs.head == :(::) && length(lhs.args) == 2 && lhs.args[1] === :∅
         # `∅::t` / `∅::T` — a whole-element selection whose terminal type is
-        # bound (`::t`) or asserted (`::T`). Matches an `EmptyReferencePath`
+        # bound (`::t`) or asserted (`::T`). Matches an `EmptyReference`
         # and reads its `type` field. The empty-path match falls out of the
-        # single type step operating on an EmptyReferencePath.
+        # single type step operating on an EmptyReference.
         return (:exact, PatStep[_pat_type_step(lhs.args[2])], nothing, rhs)
     else
         pat = _parse_path(lhs)
@@ -358,7 +358,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # node field), so patterns written against the navigation skeleton match the
     # path as-is — there are no interleaved checkpoint steps to skip.
     if isempty(steps)
-        return :(($path_ex isa ReferenceModule.EmptyReferencePath) ? $success : _nomatch), bound
+        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
     end
 
     if length(steps) == 1 && steps[1] isa PatStepWholePathBind
@@ -380,7 +380,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
+                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
                     $rest_on_tail
                 else
                     $rest_on_same
@@ -393,7 +393,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # `::t` binds the matched node's folded `type` field to `t`, then continues
     # matching the rest on the SAME path (a folded type consumes no step, the
     # dual of construction where `::t` splices `t`'s runtime type value). Both
-    # `ConcreteReferencePath` and `EmptyReferencePath` carry a `type` field.
+    # `ConcreteReference` and `EmptyReference` carry a `type` field.
     if steps[1] isa PatStepTypeBind
         name = steps[1].name
         sp = gensym(:sp)
@@ -424,7 +424,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
 
     ex = quote
         let $p = $path_ex
-            if $p isa ReferenceModule.ConcreteReferencePath
+            if $p isa ReferenceModule.ConcreteReference
                 let $h = ReferenceModule.head($p),
                     $t = ReferenceModule.tail($p)
                     $step_success
@@ -461,7 +461,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
         rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
+                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
                     $rest_on_tail
                 else
                     $rest_on_same
@@ -494,9 +494,9 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
 
     ex = quote
         let $p = $path_ex
-            if $p isa ReferenceModule.EmptyReferencePath
+            if $p isa ReferenceModule.EmptyReference
                 $success
-            elseif $p isa ReferenceModule.ConcreteReferencePath
+            elseif $p isa ReferenceModule.ConcreteReference
                 let $h = ReferenceModule.head($p),
                     $t = ReferenceModule.tail($p)
                     $step_match

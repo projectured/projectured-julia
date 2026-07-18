@@ -24,7 +24,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │ and Document (from DocumentModule, for the reflection-walker traits) and exports every
         │ public name below
         ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
-        │                        ReferencePath abstract types, the Reference
+        │                        Reference abstract types, the Reference
         │                        union, and the open generics higher packages
         │                        add methods to (get_reference_step_kind, evaluate_reference_step, and
         │                        the dsl_* DSL seams)
@@ -33,8 +33,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        a cursor evaluates to, each packaged with its
         │                        own show, ==, and seam methods
         ├─ ReferencePath.jl    — the path structure and its document-free
-        │                        algebra (EmptyReferencePath,
-        │                        ConcreteReferencePath, extend_reference,
+        │                        algebra (EmptyReference,
+        │                        ConcreteReference, extend_reference,
         │                        concat_references, get_reference_steps, the
         │                        equality/prefix predicates)
         ├─ ReferenceEvaluation.jl — walking a path against a document
@@ -74,7 +74,7 @@ A leading identifier is also read differently by `@reference_step` (a placeholde
 
 `ReferenceInterface.jl` comes first for a reason beyond convention: the abstract types it
 declares are named in the struct field annotations below it
-(`head::ReferenceStep`, `tail::ReferencePath`), and those are evaluated at
+(`head::ReferenceStep`, `tail::Reference`), and those are evaluated at
 definition time, so the contract must be loaded before the types that satisfy it.
 
 The seven fragments are only ever imported together, so they share one
@@ -158,28 +158,28 @@ separators) that have no counterpart in the underlying document.
 
 ```julia
 ProjectionReferenceStep(projection,
-    ConcreteReferencePath(FieldReferenceStep("open"),
-        ConcreteReferencePath(PositionReferenceStep(0))))
+    ConcreteReference(FieldReferenceStep("open"),
+        ConcreteReference(PositionReferenceStep(0))))
 ```
 
 ## Reference paths and their structs
 
-A `ReferencePath` chains steps. It is an **immutable linked list**, so
+A `Reference` chains steps. It is an **immutable linked list**, so
 extending or sharing a path costs no copying — a new prefix reuses the existing
 tail:
 
 ```julia
-abstract type ReferencePath end
-struct EmptyReferencePath <: ReferencePath end
-struct ConcreteReferencePath <: ReferencePath
+abstract type Reference end
+struct EmptyReference <: Reference end
+struct ConcreteReference <: Reference
     head::Cell   # holds a ReferenceStep
-    tail::Cell   # holds the next ReferencePath
+    tail::Cell   # holds the next Reference
     type         # the Julia type this node stands on (a type checkpoint)
 end
 ```
 
-`EmptyReferencePath()` terminates the list at the root/leaf;
-`ConcreteReferencePath(step, tail)` is one cons cell. Both fields are `Cell`s so
+`EmptyReference()` terminates the list at the root/leaf;
+`ConcreteReference(step, tail)` is one cons cell. Both fields are `Cell`s so
 the path is reactive — a computed cell can depend on a path's content. The list
 *shape* is persistent, but because each `@cell_struct`-backed step/path struct is
 mutable and stores its dynamic values in reactive `Cell`s, `replace_selection!`
@@ -194,19 +194,19 @@ capable way to construct a reference:
 @reference()                    # the empty path (the whole element / root)
 ```
 
-For programmatic construction from a list of steps, `ReferencePath(steps...)`
+For programmatic construction from a list of steps, `Reference(steps...)`
 threads them into a path:
 
 ```julia
-ReferencePath(ElementReferenceStep(1), FieldReferenceStep("name"))
+Reference(ElementReferenceStep(1), FieldReferenceStep("name"))
 ```
 
 You rarely construct the cons cells by hand; prefer `@reference` or
-`ReferencePath`.
+`Reference`.
 
 ### Whole-element selection: the empty path
 
-An **empty path** (`EmptyReferencePath()`, written `@reference()`, matched by
+An **empty path** (`EmptyReference()`, written `@reference()`, matched by
 the `∅` pattern) means *the whole element at this level is selected* — there is
 no sub-position within it. This is a first-class selection convention, not an
 absence of selection (that is `nothing`).
@@ -240,11 +240,11 @@ the document tree to locate a node.
 is_valid_reference(PositionReferenceStep(5))    # true
 is_valid_reference(FieldReferenceStep("name"))  # true
 is_valid_reference("not a reference")       # false
-is_valid_reference(EmptyReferencePath())    # true
+is_valid_reference(EmptyReference())    # true
 ```
 
-For a `ConcreteReferencePath` it recursively validates that the head cell holds
-a valid `ReferenceStep` and the tail cell a valid `ReferencePath`, ensuring the
+For a `ConcreteReference` it recursively validates that the head cell holds
+a valid `ReferenceStep` and the tail cell a valid `Reference`, ensuring the
 whole chain is well-formed. This one-argument form is a purely *structural*
 check. The two-argument, document-aware method is described under
 [Type checkpoints](#type-checkpoints-and-replay-validity).
@@ -257,9 +257,9 @@ A reference is often captured before an edit and replayed against the document
 steps would silently mis-navigate or throw a bare `getfield` error.
 
 Per-node **type checkpoints** guard against this. The type is **folded into
-every path node**: each `ConcreteReferencePath` carries a `type` field recording
+every path node**: each `ConcreteReference` carries a `type` field recording
 the Julia type of the node it stands on (the type its `head` step descends
-*from*), and the terminal `EmptyReferencePath` records the type of the node the
+*from*), and the terminal `EmptyReference` records the type of the node the
 path lands on. A node's `head` is therefore **always a navigation step** — there
 is no separate interleaved `TypeReferenceStep` *step* and nothing to "skip". The
 match rule is `node isa T`.
@@ -349,7 +349,7 @@ suffix with a `proj(P, …)` step to round-trip cleanly.
 ## Reference DSL: `@reference`
 
 The `@reference` macro turns compact source into the nested
-`ConcreteReferencePath(…)` you would otherwise write by hand:
+`ConcreteReference(…)` you would otherwise write by hand:
 
 ```julia
 # Field references
@@ -381,9 +381,9 @@ The `@reference` macro turns compact source into the nested
 
 # Path-tail splice
 @reference value.^(tail)
-# Concatenates the spliced ReferencePath (or single ReferenceStep) onto the
+# Concatenates the spliced Reference (or single ReferenceStep) onto the
 # prefix; useful for rebuilding paths like
-#   ConcreteReferencePath(FieldReferenceStep("value"), tail)
+#   ConcreteReference(FieldReferenceStep("value"), tail)
 # in projection mappers.
 
 # Splice at the front
@@ -395,7 +395,7 @@ let s = FieldReferenceStep("foo")
 end
 ```
 
-The `^()` operator accepts either a `ReferencePath` (concatenated) or a
+The `^()` operator accepts either a `Reference` (concatenated) or a
 `ReferenceStep` (wrapped into a one-step path then concatenated). It can appear
 at the front of a chain (`^(base).rest`) or at the tail (`prefix.^(tail)`).
 Mid-chain splices are not supported because the surrounding Julia surface syntax
@@ -438,7 +438,7 @@ end
 
 Pattern syntax:
 - `_` — wildcard, matches anything
-- `∅` — the **empty path** (`EmptyReferencePath`), i.e. a *whole-element*
+- `∅` — the **empty path** (`EmptyReference`), i.e. a *whole-element*
   selection
 - `i` — binder, captures the value
 - `"name"` or `0` — literal, matches a specific value
@@ -586,7 +586,7 @@ for projection-introduced elements like delimiters and brackets).
 
 To find every path to a matching node, use `search_references(document, query)`
 — it takes a predicate, a substring `String`, or a `Regex`, and returns a
-`Vector{ReferencePath}` whose results are annotated with type checkpoints (so
+`Vector{Reference}` whose results are annotated with type checkpoints (so
 they are self-describing and replay-safe):
 
 ```julia

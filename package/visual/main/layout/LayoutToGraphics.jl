@@ -35,7 +35,7 @@ import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
 import ..PointReferenceModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -209,10 +209,10 @@ function _selected_layout_slot(doc, n::Int)
     hasproperty(doc, :selection) || return 0
     sel = getfield(doc, :selection)[]
     sel = sel
-    sel isa ConcreteReferencePath || return 0
+    sel isa ConcreteReference || return 0
     (sel.head isa FieldReferenceStep && sel.head.name == "children") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
+    (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
 end
@@ -244,8 +244,8 @@ function _layout_tab(w, entries::Vector, evt)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
     sub === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(FieldReferenceStep("children"),
-        ConcreteReferencePath(RangeReferenceStep(j - 1, j), sub)))
+    ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("children"),
+        ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
 end
 
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
@@ -360,7 +360,7 @@ end
 
 function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
     reference = reference
-    reference isa ConcreteReferencePath || return nothing
+    reference isa ConcreteReference || return nothing
     h = reference.head
     h isa FieldReferenceStep && h.name == "child" || return nothing
     map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
@@ -396,11 +396,11 @@ end
 # result by this container's placement. Shared by every container that addresses
 # children by an indexed field (`children` for layouts, `elements` for composite).
 function _forward_descend(entries::Vector, field::String, reference)
-    reference isa ConcreteReferencePath || return nothing
+    reference isa ConcreteReference || return nothing
     h = reference.head
     (h isa FieldReferenceStep && h.name == field) || return nothing
     rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     h2 = rest.head
     h2 isa RangeReferenceStep || return nothing
     idx = h2.start + 1

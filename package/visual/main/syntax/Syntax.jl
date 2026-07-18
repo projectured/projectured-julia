@@ -32,8 +32,8 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextString
-import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReferenceStep, RangeReferenceStep, ReferencePath,
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
+                          FieldReferenceStep, RangeReferenceStep, Reference,
                           get_reference_node_type
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceBuilderModule: var"@reference"
@@ -52,7 +52,7 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
     SyntaxDocument
 
 Abstract base type for all syntax document types. Every concrete syntax type
-subtypes `SyntaxDocument`; `@document` injects the `selection::Reference` field the
+subtypes `SyntaxDocument`; `@document` injects the `selection::Union{Nothing, Reference}` field the
 `Document` contract requires.
 """
 abstract type SyntaxDocument <: Document end
@@ -118,7 +118,7 @@ syntax_children(::SyntaxDocument) = nothing
 # metric — is written against these two functions and so does not care which it has.
 
 """
-    syntax_child_path(doc, i, inner) -> ReferencePath
+    syntax_child_path(doc, i, inner) -> Reference
 
 The path from `doc` down into its `i`-th child, with `inner` beneath it. The type
 checkpoint is the compound's own — `get_reference_node_type`, never `typeof`, which on a
@@ -132,11 +132,11 @@ that genuinely needs the child — see `_child_step`, which runs in a reader onc
 keystroke — must already have it in hand.
 """
 syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
-    ConcreteReferencePath(get_reference_node_type(doc), FieldReferenceStep("children"),
-        ConcreteReferencePath(CellVector, RangeReferenceStep(i - 1, i), inner))
+    ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("children"),
+        ConcreteReference(CellVector, RangeReferenceStep(i - 1, i), inner))
 
 syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
-    ConcreteReferencePath(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
+    ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
 
 """
     peel_child_step(path) -> (i, tail) | nothing
@@ -146,12 +146,12 @@ Structural, because the matchers that need it (`_is_tree_selection`,
 `_promote_to_structural`) are handed a path with no document to ask.
 """
 function peel_child_step(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
     if h.name == "children"                      # a sequence: .children[i]
         t = path.tail
-        t isa ConcreteReferencePath || return nothing
+        t isa ConcreteReference || return nothing
         t.head isa RangeReferenceStep || return nothing
         return (t.head.start + 1, t.tail)
     elseif h.name == "content"                   # a wrapper: .content
@@ -162,12 +162,12 @@ end
 
 # Rebuild a peeled child step over a new tail, keeping its shape and node types. Used
 # where a path must be reassembled without the documents in hand.
-function _rebuild_child_step(node::ConcreteReferencePath, tail)
+function _rebuild_child_step(node::ConcreteReference, tail)
     h = node.head
     (h isa FieldReferenceStep && h.name == "content") &&
-        return ConcreteReferencePath(node.type, h, tail)
-    idx = node.tail::ConcreteReferencePath       # .children[i]
-    ConcreteReferencePath(node.type, h, ConcreteReferencePath(idx.type, idx.head, tail))
+        return ConcreteReference(node.type, h, tail)
+    idx = node.tail::ConcreteReference       # .children[i]
+    ConcreteReference(node.type, h, ConcreteReference(idx.type, idx.head, tail))
 end
 
 "The compound's opening / closing delimiter and separator, as `field => span`, or `nothing`."
@@ -466,7 +466,7 @@ layout / selection field is an optional keyword:
     closing one is absent, and vice versa.
   - `indentation::Int` — pretty-print indentation; default `0`.
   - `collapsed::Bool` — collapsed state; default `false`.
-  - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
+  - `selection` — a `Reference`/`Cell`/`nothing`; default `nothing`.
 
 Renders as: open.content * value.content * close.content, skipping absent delimiters.
 
@@ -532,7 +532,7 @@ layout / selection field is an optional keyword:
     Each is independently optional.
   - `indentation::Int` — pretty-print indentation; default `0`.
   - `collapsed::Bool` — collapsed state; default `false`.
-  - `selection` — a `ReferencePath`/`Cell`/`nothing`; default `nothing`.
+  - `selection` — a `Reference`/`Cell`/`nothing`; default `nothing`.
 
 Renders as: open.content * join(children, sep.content) * close.content, skipping
 absent delimiters (an absent `sep` joins the children with nothing between them).
@@ -676,7 +676,7 @@ set_cell_function!(n::SyntaxSequence, f::Function) = (set_cell_function!(getfiel
 # same result as the old reader.
 @gestures SyntaxCompound begin
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
-        ReplaceSelectionOperation(EmptyReferencePath())
+        ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
         sel = doc.selection
         new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
@@ -711,8 +711,8 @@ _unwrap_projection_ref(sel) =
 # (`@reference(doc, children[i])`, a click, a backward map) produces the typed form.
 # Without this, walking `:up` out of a nested node yields a path that *is* the child but
 # does not compare equal to it.
-_typed_terminal(t::EmptyReferencePath, child) =
-    t.type === nothing ? EmptyReferencePath(get_reference_node_type(child)) : t
+_typed_terminal(t::EmptyReference, child) =
+    t.type === nothing ? EmptyReference(get_reference_node_type(child)) : t
 _typed_terminal(t, _child) = t
 
 # The navigation-side child step: `syntax_child_path` plus the child's type on a bare
@@ -723,7 +723,7 @@ _child_step(doc, i::Int, inner) =
     syntax_child_path(doc, i, _typed_terminal(inner, syntax_children(doc)[i]))
 
 # The whole element: `doc`'s `i`-th child, selected entirely.
-_child_element(doc, i::Int) = _child_step(doc, i, EmptyReferencePath())
+_child_element(doc, i::Int) = _child_step(doc, i, EmptyReference())
 
 function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
     # sel must be a tree selection: child steps ending in ∅.
@@ -732,9 +732,9 @@ function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
     children = syntax_children(doc)
 
     # ∅ on this node: it is wholly selected.
-    if sel isa EmptyReferencePath
+    if sel isa EmptyReference
         if direction === :down
-            length(children) > 0 || return EmptyReferencePath()
+            length(children) > 0 || return EmptyReference()
             return _child_element(doc, 1)
         end
         # up has no parent at this level; left/right need one — propagate up.
@@ -747,10 +747,10 @@ function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
     (1 <= child_idx <= length(children)) || return nothing
     child = children[child_idx]
 
-    if child_rest isa EmptyReferencePath
+    if child_rest isa EmptyReference
         # The selected node is this child.
         if direction === :up
-            return EmptyReferencePath()  # select the current node
+            return EmptyReference()  # select the current node
         elseif direction === :down
             # Descend into the child, if it is an interior node with children of
             # its own; otherwise stay where we are.
@@ -778,10 +778,10 @@ end
 # on the root, or a chain of `.children[i]` steps ending in `∅`. A character
 # cursor differs by terminating in a leaf field step (`.value{k}` / `.open{k}`
 # / `.close{k}`), which breaks the all-`children` requirement here.
-_is_tree_selection(::EmptyReferencePath) = true
+_is_tree_selection(::EmptyReference) = true
 function _is_tree_selection(sel)
     sel = _unwrap_projection_ref(sel)
-    sel isa EmptyReferencePath && return true
+    sel isa EmptyReference && return true
     step = peel_child_step(sel)
     step === nothing && return false
     _is_tree_selection(step[2])
@@ -796,15 +796,15 @@ end
 # shape it had — `.children[i]` or `.content` — without this function having to know
 # which kind of compound produced it.
 function _promote_to_structural(sel)
-    steps = ConcreteReferencePath[]
+    steps = ConcreteReference[]
     cur = sel
     while true
         step = peel_child_step(cur)
         step === nothing && break
-        push!(steps, cur::ConcreteReferencePath)
+        push!(steps, cur::ConcreteReference)
         cur = step[2]
     end
-    path = EmptyReferencePath()
+    path = EmptyReference()
     for node in Iterators.reverse(steps)
         path = _rebuild_child_step(node, path)
     end
@@ -823,7 +823,7 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
     indices = Int[]
     cur = node
     p = sel
-    while !(p isa EmptyReferencePath)
+    while !(p isa EmptyReference)
         step = peel_child_step(p)
         step === nothing && return nothing
         i, tail = step
@@ -844,8 +844,8 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
         cur = syntax_children(cur)[1]
     end
     cur isa SyntaxLeaf || return nothing
-    path = ConcreteReferencePath(FieldReferenceStep("value"),
-               ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+    path = ConcreteReference(FieldReferenceStep("value"),
+               ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
     for k in length(indices):-1:1
         path = syntax_child_path(docs[k], indices[k], path)
     end
@@ -855,8 +855,8 @@ end
 # A leaf IS its own first leaf: structural→text lands the cursor at the start of its
 # value. This lets the leaf gesture table below share the compound's Ctrl+Space arm.
 _descend_to_text_cursor(::SyntaxLeaf, _sel) =
-    ConcreteReferencePath(FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+    ConcreteReference(FieldReferenceStep("value"),
+        ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
 
 # The leaf half of the Syntax reader. A `SyntaxLeaf` is not a `SyntaxCompound`, so the
 # table above does not reach it — yet a leaf has the same two selection modes: the whole
@@ -867,7 +867,7 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
 # interpreter, so the toggle backward-maps into every domain for free.
 @gestures SyntaxLeaf begin
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
-        ReplaceSelectionOperation(EmptyReferencePath())
+        ReplaceSelectionOperation(EmptyReference())
     KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
         sel = doc.selection
         new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :

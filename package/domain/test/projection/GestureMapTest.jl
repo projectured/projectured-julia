@@ -10,7 +10,7 @@ function test_gesture_map()
 
     @testset "renders gesture → description rows grouped by domain" begin
         obj = JsonObject("a" => JsonNumber(1))
-        set_selection!(obj, EmptyReferencePath())
+        set_selection!(obj, EmptyReference())
         gmap = gesture_map(get_document_gesture_bindings(JsonObject), obj)
         text = render(print_document(g2s, gmap).output)
         # Domain headings.
@@ -36,7 +36,7 @@ function test_gesture_map()
     @testset "contextual collection feeds the map" begin
         j2s = RecursiveProjection(JsonToSyntax())
         arr = JsonArray([JsonNumber(1)])
-        set_selection!(arr, EmptyReferencePath())
+        set_selection!(arr, EmptyReference())
         iomap = print_document(j2s, arr)
         gmap = gesture_map(collect_gesture_bindings(j2s, nothing, iomap), arr)
         @test length(gmap.rows) == 9                            # array's full set

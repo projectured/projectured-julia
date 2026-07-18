@@ -1,5 +1,5 @@
 # Fragment of `ReferenceModule` — the **path structure and its algebra**: the two
-# concrete `ReferencePath` types (`EmptyReferencePath`, `ConcreteReferencePath`),
+# concrete `Reference` types (`EmptyReference`, `ConcreteReference`),
 # their constructors/accessors/iteration, the `show` and equality/prefix
 # predicates, and the pure path-building operations (`extend_reference`,
 # `concat_references`, `get_reference_steps`).
@@ -10,10 +10,10 @@
 # `ReferenceEvaluation.jl`; the steps threaded onto these nodes live in
 # `ReferenceStep.jl`.
 
-# ── ReferencePath (immutable linked list) ────────────────────────────────
+# ── Reference (immutable linked list) ────────────────────────────────
 
 """
-    EmptyReferencePath([type])
+    EmptyReference([type])
 
 The empty reference path — a path that terminates *at* a node. `type` records the
 Julia type of the node the path lands on (the **terminal** node's type); it is
@@ -24,15 +24,15 @@ node carries that node's type here.
 The type is a field of the terminal node, not a separate trailing
 `TypeReferenceStep` checkpoint step.
 """
-@cell_struct struct EmptyReferencePath <: ReferencePath
+@cell_struct struct EmptyReference <: Reference
     type::Any = nothing
 end
 
 """
-    ConcreteReferencePath([type], head, tail)
+    ConcreteReference([type], head, tail)
 
 A non-empty path node. `head` is **always a navigation step** (never a
-`TypeReferenceStep`); `tail` is the remaining `ReferencePath`. `type` records the
+`TypeReferenceStep`); `tail` is the remaining `Reference`. `type` records the
 Julia type of the node you are standing on *at this node* — i.e. the type the
 `head` step descends *from*. It is `nothing` when the type is unknown (a plain
 `@reference` skeleton, or a generic two-arg construction); `annotate_reference_types`
@@ -46,64 +46,64 @@ result and the next step's source.
 
 # Example
 
-    path = ConcreteReferencePath(FieldReferenceStep("address"),
-               ConcreteReferencePath(FieldReferenceStep("city"),
-                   EmptyReferencePath()))
+    path = ConcreteReference(FieldReferenceStep("address"),
+               ConcreteReference(FieldReferenceStep("city"),
+                   EmptyReference()))
 """
-@cell_struct struct ConcreteReferencePath <: ReferencePath
+@cell_struct struct ConcreteReference <: Reference
     type::Any
     head::ReferenceStep
-    tail::ReferencePath
+    tail::Reference
 end
 
 # Two-arg construction: type unknown (`nothing`). Fully
-# untyped so it also catches the pre-wrapped `ConcreteReferencePath(Cell(h), Cell(t))`
+# untyped so it also catches the pre-wrapped `ConcreteReference(Cell(h), Cell(t))`
 # call sites; the `@cell_struct` inner constructor Cell-wraps each field as needed.
-ConcreteReferencePath(head, tail) = ConcreteReferencePath(nothing, head, tail)
+ConcreteReference(head, tail) = ConcreteReference(nothing, head, tail)
 
 # Whole-element ("tree") selection is not a distinct reference step: it is just
-# a path that terminates *at* the element, i.e. an `EmptyReferencePath`. The one
+# a path that terminates *at* the element, i.e. an `EmptyReference`. The one
 # node holding `∅` in its `selection` cell is the wholly-selected one; its
 # ancestors hold a non-empty path routing down to it, and its descendants hold
-# `nothing`. `evaluate_reference(document, EmptyReferencePath())` already returns
+# `nothing`. `evaluate_reference(document, EmptyReference())` already returns
 # the element itself, so no marker step is needed.
 
 # ── Convenience constructors ─────────────────────────────────────────────
 
-ConcreteReferencePath(head::ReferenceStep) = ConcreteReferencePath(nothing, head, EmptyReferencePath())
+ConcreteReference(head::ReferenceStep) = ConcreteReference(nothing, head, EmptyReference())
 
 """
-    ReferencePath(steps::ReferenceStep...)
+    Reference(steps::ReferenceStep...)
 
-Build a `ReferencePath` from a sequence of reference steps (left = outermost).
+Build a `Reference` from a sequence of reference steps (left = outermost).
 """
-function ReferencePath(steps::ReferenceStep...)
-    path = EmptyReferencePath()
+function Reference(steps::ReferenceStep...)
+    path = EmptyReference()
     for i in length(steps):-1:1
-        path = ConcreteReferencePath(steps[i], path)
+        path = ConcreteReference(steps[i], path)
     end
     path
 end
 
 # ── Accessors ────────────────────────────────────────────────────────────
 
-Base.isempty(::EmptyReferencePath) = true
-Base.isempty(::ConcreteReferencePath) = false
+Base.isempty(::EmptyReference) = true
+Base.isempty(::ConcreteReference) = false
 
-head(p::ConcreteReferencePath) = p.head
-tail(p::ConcreteReferencePath) = p.tail
+head(p::ConcreteReference) = p.head
+tail(p::ConcreteReference) = p.tail
 
-Base.length(::EmptyReferencePath) = 0
-Base.length(p::ConcreteReferencePath) = 1 + length(tail(p))
+Base.length(::EmptyReference) = 0
+Base.length(p::ConcreteReference) = 1 + length(tail(p))
 
 # ── Iteration ────────────────────────────────────────────────────────────
 
-Base.iterate(::EmptyReferencePath) = nothing
-Base.iterate(p::ConcreteReferencePath) = (head(p), tail(p))
-Base.iterate(::EmptyReferencePath, ::ReferencePath) = nothing
-Base.iterate(::ConcreteReferencePath, rest::ReferencePath) = iterate(rest)
+Base.iterate(::EmptyReference) = nothing
+Base.iterate(p::ConcreteReference) = (head(p), tail(p))
+Base.iterate(::EmptyReference, ::Reference) = nothing
+Base.iterate(::ConcreteReference, rest::Reference) = iterate(rest)
 
-Base.eltype(::Type{<:ReferencePath}) = ReferenceStep
+Base.eltype(::Type{<:Reference}) = ReferenceStep
 
 # ── Display ──────────────────────────────────────────────────────────────
 
@@ -111,16 +111,16 @@ Base.eltype(::Type{<:ReferencePath}) = ReferenceStep
 # `SomeModule.Foo`; falls back to `string` for non-types.
 _show_node_type(io::IO, t) = print(io, "::", t isa Type ? nameof(t) : t)
 
-function Base.show(io::IO, e::EmptyReferencePath)
+function Base.show(io::IO, e::EmptyReference)
     e.type === nothing ? print(io, "∅") : _show_node_type(io, e.type)
 end
 
-function Base.show(io::IO, p::ConcreteReferencePath)
+function Base.show(io::IO, p::ConcreteReference)
     # Folded: print this node's recorded type (if any) before its navigation step.
     p.type === nothing || _show_node_type(io, p.type)
     show(io, head(p))
     t = tail(p)
-    if t isa EmptyReferencePath
+    if t isa EmptyReference
         t.type === nothing || _show_node_type(io, t.type)
     else
         show(io, t)
@@ -133,10 +133,10 @@ end
 # annotated (canonical) path is not `==` its stripped skeleton. Callers that
 # want a shape-only comparison strip both sides first
 # (`strip_reference_types(a) == strip_reference_types(b)`).
-Base.:(==)(a::EmptyReferencePath,   b::EmptyReferencePath)   = a.type === b.type
-Base.:(==)(::EmptyReferencePath,   ::ConcreteReferencePath) = false
-Base.:(==)(::ConcreteReferencePath, ::EmptyReferencePath)  = false
-Base.:(==)(a::ConcreteReferencePath, b::ConcreteReferencePath) =
+Base.:(==)(a::EmptyReference,   b::EmptyReference)   = a.type === b.type
+Base.:(==)(::EmptyReference,   ::ConcreteReference) = false
+Base.:(==)(::ConcreteReference, ::EmptyReference)  = false
+Base.:(==)(a::ConcreteReference, b::ConcreteReference) =
     a.type === b.type && head(a) == head(b) && tail(a) == tail(b)
 
 """
@@ -145,7 +145,7 @@ Base.:(==)(a::ConcreteReferencePath, b::ConcreteReferencePath) =
 Structural equality of two reference paths. **Strict**: node type fields are
 significant, so an annotated path is not equal to its stripped form.
 """
-is_reference_equal(a::ReferencePath, b::ReferencePath) = a == b
+is_reference_equal(a::Reference, b::Reference) = a == b
 
 """
     is_reference_prefix(a, b)
@@ -153,18 +153,18 @@ is_reference_equal(a::ReferencePath, b::ReferencePath) = a == b
 Return `true` if reference path `a` is a proper prefix of `b` (i.e. `a` is
 strictly shorter and matches the leading steps of `b`).
 """
-is_reference_prefix(::EmptyReferencePath, ::EmptyReferencePath) = false
-is_reference_prefix(::EmptyReferencePath, ::ConcreteReferencePath) = true
-is_reference_prefix(::ConcreteReferencePath, ::EmptyReferencePath) = false
-is_reference_prefix(a::ConcreteReferencePath, b::ConcreteReferencePath) =
+is_reference_prefix(::EmptyReference, ::EmptyReference) = false
+is_reference_prefix(::EmptyReference, ::ConcreteReference) = true
+is_reference_prefix(::ConcreteReference, ::EmptyReference) = false
+is_reference_prefix(a::ConcreteReference, b::ConcreteReference) =
     a.type === b.type && head(a) == head(b) && is_reference_prefix(tail(a), tail(b))
 
 # ── Path construction helpers ────────────────────────────────────────────
 
 """
-    extend_reference(base::ReferencePath, steps::ReferenceStep...) -> ReferencePath
+    extend_reference(base::Reference, steps::ReferenceStep...) -> Reference
 
-Return a new `ReferencePath` formed by appending `steps` to the end of
+Return a new `Reference` formed by appending `steps` to the end of
 `base`. The first step in `steps` becomes the direct successor of the last
 step already in `base`.
 
@@ -174,18 +174,18 @@ and `base`'s terminal type — the type of the node the first appended step desc
 (`nothing`), since the types they would stand on are not yet known. For an untyped
 `base` this is a plain skeleton, exactly as before.
 """
-function extend_reference(base::EmptyReferencePath, steps...)
+function extend_reference(base::EmptyReference, steps...)
     isempty(steps) && return base
     # `base.type` is the type of the node the first appended step descends from.
-    ConcreteReferencePath(base.type, steps[1], extend_reference(EmptyReferencePath(), steps[2:end]...))
+    ConcreteReference(base.type, steps[1], extend_reference(EmptyReference(), steps[2:end]...))
 end
 
-function extend_reference(base::ConcreteReferencePath, steps...)
-    ConcreteReferencePath(base.type, base.head, extend_reference(tail(base), steps...))
+function extend_reference(base::ConcreteReference, steps...)
+    ConcreteReference(base.type, base.head, extend_reference(tail(base), steps...))
 end
 
 """
-    concat_references(a::ReferencePath, b::ReferencePath) -> ReferencePath
+    concat_references(a::Reference, b::Reference) -> Reference
 
 Concatenate two reference paths, **preserving folded node types** on both. Every
 node of `a` and of `b` keeps its own recorded `type`. The single junction boundary
@@ -197,27 +197,27 @@ skeleton, identical to a naive rebuild.
 This is the one canonical path-concatenation (vs `extend_reference`, which appends
 raw *steps*); readers/builders that splice whole paths route through it.
 """
-concat_references(a::ConcreteReferencePath, b::ReferencePath) =
-    ConcreteReferencePath(a.type, a.head, concat_references(tail(a), b))
-concat_references(a::EmptyReferencePath, b::ConcreteReferencePath) =
-    b.type === nothing ? ConcreteReferencePath(a.type, b.head, tail(b)) : b
-concat_references(a::EmptyReferencePath, b::EmptyReferencePath) =
-    EmptyReferencePath(b.type === nothing ? a.type : b.type)
+concat_references(a::ConcreteReference, b::Reference) =
+    ConcreteReference(a.type, a.head, concat_references(tail(a), b))
+concat_references(a::EmptyReference, b::ConcreteReference) =
+    b.type === nothing ? ConcreteReference(a.type, b.head, tail(b)) : b
+concat_references(a::EmptyReference, b::EmptyReference) =
+    EmptyReference(b.type === nothing ? a.type : b.type)
 
 """
-    get_reference_steps(path::ReferencePath) -> Vector{ReferenceStep}
+    get_reference_steps(path::Reference) -> Vector{ReferenceStep}
 
 Unroll `path` into its ordered vector of navigation steps (heads), dropping the
-terminal type/`EmptyReferencePath`. The inverse is `ReferencePath(steps...)`, which
+terminal type/`EmptyReference`. The inverse is `Reference(steps...)`, which
 rebuilds a plain (untyped) skeleton — so this pair is the shared "path ↔ steps
 vector" conversion used by callers that need to inspect or rewrite a path's tail
 (e.g. splitting off the terminal step). Type checkpoints are read as steps; strip
 first (`strip_reference_types`) when a pure navigation skeleton is wanted.
 """
-function get_reference_steps(path::ReferencePath)
+function get_reference_steps(path::Reference)
     steps = ReferenceStep[]
     cur = path
-    while cur isa ConcreteReferencePath
+    while cur isa ConcreteReference
         push!(steps, cur.head)
         cur = cur.tail
     end

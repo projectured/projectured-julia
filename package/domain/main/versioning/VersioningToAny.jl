@@ -52,7 +52,7 @@ import ..SelectionApiModule: clear_selection!
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
 import ..CollectionModule: CellVector
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
@@ -130,7 +130,7 @@ end
 # rooted at the VersionedObject.
 
 function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, reference)
-    reference isa ConcreteReferencePath || return reference
+    reference isa ConcreteReference || return reference
     child = iomap.value_iomap
     child === nothing && return nothing
     idx = iomap.index
@@ -138,11 +138,11 @@ function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToA
     h = head(reference)
     (h isa FieldReferenceStep && h.name == "versions") || return nothing
     rest = tail(reference)
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     e = head(rest)
     (e isa RangeReferenceStep && e.start + 1 == idx) || return nothing
     rest2 = tail(rest)
-    rest2 isa ConcreteReferencePath || return nothing
+    rest2 isa ConcreteReference || return nothing
     f = head(rest2)
     (f isa FieldReferenceStep && f.name == "value") || return nothing
     map_reference_forward(child.projection, child, tail(rest2))
@@ -154,9 +154,9 @@ function map_reference_backward(::VersioningToAnyProjection, iomap::VersioningTo
     idx = iomap.index
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("versions"),
-        ConcreteReferencePath(ElementReferenceStep(idx),
-            ConcreteReferencePath(FieldReferenceStep("value"), mapped)))
+    ConcreteReference(FieldReferenceStep("versions"),
+        ConcreteReference(ElementReferenceStep(idx),
+            ConcreteReference(FieldReferenceStep("value"), mapped)))
 end
 
 # ── Operations ────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ end
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
-    ConcreteReferencePath(FieldReferenceStep(name), EmptyReferencePath())
+    ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
 # push it to the front of `versions` (index 0, newest-first). A standard sequence
@@ -270,10 +270,10 @@ function _prefix_op(op, steps::Tuple)
     end
 end
 
-function _prepend(steps::Tuple, path::ReferencePath)
+function _prepend(steps::Tuple, path::Reference)
     result = path
     for step in reverse(steps)
-        result = ConcreteReferencePath(step, result)
+        result = ConcreteReference(step, result)
     end
     result
 end

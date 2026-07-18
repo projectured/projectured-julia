@@ -25,8 +25,8 @@ end
 
 # `content` + flat text caret at offset n — a cursor at char n inside the widget's
 # single-span text (flat offset == char index for one span).
-_cursor(n) = ConcreteReferencePath(FieldReferenceStep("content"),
-    ConcreteReferencePath(TextRangeReferenceStep(n, n), EmptyReferencePath()))
+_cursor(n) = ConcreteReference(FieldReferenceStep("content"),
+    ConcreteReference(TextRangeReferenceStep(n, n), EmptyReference()))
 
 @testset "WidgetText recurses Document content and renders to graphics" begin
     doc = _doc()

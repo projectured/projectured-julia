@@ -10,7 +10,7 @@
 # a caller that wants the *paths* names it by a location it builds up as it descends.
 # Those location functions are the `DocumentWalk`'s parameters — supplied by the
 # caller, not dispatched off a subtype — which is what lets the walk sit below the
-# reference layer (whose `ReferencePath` a caller passes back in as a location) while
+# reference layer (whose `Reference` a caller passes back in as a location) while
 # knowing nothing of it.
 
 """

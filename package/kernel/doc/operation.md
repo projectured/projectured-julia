@@ -18,7 +18,7 @@ function evaluate_operation(editor, op::Operation) end   # generic function
 
 ### `ReplaceSelectionOperation(path)`
 
-Carries a `ReferencePath` and is produced by every reader translating a
+Carries a `Reference` and is produced by every reader translating a
 cursor-navigation gesture. Its evaluation:
 
 ```julia
@@ -54,7 +54,7 @@ slot, and what value:
 ```julia
 struct ReplaceReferencedValueOperation
     document    # root to resolve `reference` against; `nothing` ⇒ editor.document
-    reference   # ReferencePath to the slot being written
+    reference   # Reference to the slot being written
     value       # the value to write
 end
 ```
@@ -241,7 +241,7 @@ When you do need a new one:
   swap) does. An operation that silently rebinds structure without dropping the iomap
   renders stale.
 - **A new *reference-carrying* operation must be registered in two places.** If
-  your operation embeds a `ReferencePath` that has to cross projection boundaries
+  your operation embeds a `Reference` that has to cross projection boundaries
   — the generic `ReplaceReferencedValueOperation` (when `document === nothing`), or the
   remaining path-bearing types `ReplaceSelectionOperation` /
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
@@ -393,7 +393,7 @@ higher-layer type at layer 10.
 
 - `..CellModule: Cell, AbstractCell`
 - `..DocumentModule: Document`
-- `..ReferenceModule: ReferencePath, …, extend_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
+- `..ReferenceModule: Reference, …, extend_reference, evaluate_reference, …, clear_selection!, set_selection!, with_selection`
 
 That is the whole import surface. No projection, no device, no editor. This
 is what keeps the operation layer at index 5 in the DAG.

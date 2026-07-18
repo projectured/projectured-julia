@@ -38,7 +38,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
+import ..ReferenceModule: ConcreteReference, EmptyReference, Reference,
                            ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
                            FieldReferenceStep, extend_reference
 import ..ProjectionReferenceModule: ProjectionReferenceStep
@@ -70,17 +70,17 @@ end
 
 function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
     reference = reference
-    reference isa EmptyReferencePath && return EmptyReferencePath()
-    reference isa ConcreteReferencePath || return nothing
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
     h = reference.head
     h isa ProjectionReferenceStep || return nothing
     return h.output_path
 end
 
 function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
-    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa EmptyReference && return EmptyReference()
     reference === nothing && return nothing
-    ConcreteReferencePath(Cell(ProjectionReferenceStep(p, reference)), Cell(EmptyReferencePath()))
+    ConcreteReference(Cell(ProjectionReferenceStep(p, reference)), Cell(EmptyReference()))
 end
 
 function read_intent(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
@@ -102,14 +102,14 @@ Forward: `<field_name>[i].rest → children[1].children[i].delegated(rest)`
 """
 function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
     reference = reference
-    reference isa EmptyReferencePath && return EmptyReferencePath()
-    reference isa ConcreteReferencePath || return nothing
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
     h = reference.head
     h isa ProjectionReferenceStep && h.projection === p && return reference
     # Match: field_name{s:e}.rest (FieldReferenceStep + RangeReferenceStep + tail)
     h isa FieldReferenceStep && h.name == field_name || return nothing
     rest = reference.tail
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     h2 = rest.head
     h2 isa RangeReferenceStep || return nothing
     child_i = h2.start + 1
@@ -127,7 +127,7 @@ Backward: `children[1].children[i].rest → <field_name>[i].delegated(rest)`
 Peels 2 levels of children (keyword group, then the actual item).
 """
 function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::String)
-    reference isa EmptyReferencePath && return EmptyReferencePath()
+    reference isa EmptyReference && return EmptyReference()
     # Peel: children[1] (the keyword group), then children[i] (the item).
     @reference_case reference begin
         ::SyntaxNode.children[1].rest1... => begin
@@ -139,9 +139,9 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
                     child = iomaps[child_i]
                     inner = map_reference_backward(child.projection, child, rest2)
                     inner === nothing && return nothing
-                    ConcreteReferencePath(
+                    ConcreteReference(
                         Cell(FieldReferenceStep(field_name)),
-                        Cell(ConcreteReferencePath(
+                        Cell(ConcreteReference(
                             Cell(ElementReferenceStep(child_i)),
                             Cell(inner))))
                 end
@@ -163,9 +163,9 @@ function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOp
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        ConcreteReferencePath(Cell(ProjectionReferenceStep(p,
-            ConcreteReferencePath(Cell(PositionReferenceStep(flat)), Cell(EmptyReferencePath())))),
-            Cell(EmptyReferencePath())))
+        ConcreteReference(Cell(ProjectionReferenceStep(p,
+            ConcreteReference(Cell(PositionReferenceStep(flat)), Cell(EmptyReference())))),
+            Cell(EmptyReference())))
 end
 
 # ── Lazy-expansion helper ─────────────────────────────────────────────────────

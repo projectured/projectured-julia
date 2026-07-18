@@ -13,7 +13,7 @@ path that no longer matches the live document is rejected with `SelectionMismatc
 *before any cell is written*, so applying a selection either matches and takes
 effect or fails atomically — it is never half-applied.
 
-A selection's payload is a `ReferencePath` stored on a `Document`, which is why
+A selection's payload is a `Reference` stored on a `Document`, which is why
 these primitives live above references and the
 document contract.
 

@@ -17,8 +17,8 @@ import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText, DStyleText
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReferenceStep,
-                          EmptyReferencePath, FieldReferenceStep, RangeReferenceStep
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep,
+                          EmptyReference, FieldReferenceStep, RangeReferenceStep
 import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_size, inset_width, inset_height,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -40,7 +40,7 @@ contract.  Every
 concrete widget carries the seven base fields (`visible`, `margin`,
 `margin_color`, `border`, `border_color`, `padding`, `padding_color`)
 plus its own positional / content fields; `@document` injects the
-`selection::Reference`.
+`selection::Union{Nothing, Reference}`.
 """
 abstract type WidgetDocument <: Document end
 
@@ -1479,7 +1479,7 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     padding::Int
     border_width::Int
     visible::Bool
-    hovered::Reference   # transient: whole-row (or column-header) ref under the pointer, or nothing
+    hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
 
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
@@ -1570,7 +1570,7 @@ part of the tree's content.
     position::Point2D
     roots::CellVector
     visible::Bool
-    hovered::Reference           # transient: node-path ref of the row under the pointer, or nothing
+    hovered::Union{Nothing, Reference}           # transient: node-path ref of the row under the pointer, or nothing
     collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
     gestures::Any                # per-instance tree-level gesture bindings
 end
@@ -1730,7 +1730,7 @@ end
 Apply a widget operation.
 """
 function evaluate_operation(editor, op::SelectTabOperation)
-    op.widget.selection = ConcreteReferencePath(ElementReferenceStep(op.tab_index), EmptyReferencePath())
+    op.widget.selection = ConcreteReference(ElementReferenceStep(op.tab_index), EmptyReference())
 end
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
@@ -1850,9 +1850,9 @@ function _child_document_refs(node)
 end
 
 # Prepend `steps` (outermost-first tuple) onto `path`.
-function _prepend_steps(steps::Tuple, path::ReferencePath)
+function _prepend_steps(steps::Tuple, path::Reference)
     for s in Base.reverse(steps)
-        path = ConcreteReferencePath(s, path)
+        path = ConcreteReference(s, path)
     end
     path
 end
@@ -1866,7 +1866,7 @@ end
 # widget examples) visit each node once regardless, so their focus order is unchanged.
 function _focusable_path(node, reverse::Bool, visited::Set{UInt}=Set{UInt}())
     node === nothing && return nothing
-    _is_focusable_widget(node) && return EmptyReferencePath()
+    _is_focusable_widget(node) && return EmptyReference()
     id = objectid(node)
     id in visited && return nothing
     push!(visited, id)

@@ -90,8 +90,8 @@ function map_reference_forward(projection::Projection, iomap, reference)
         # `map_reference_forward(p, nothing, sel)`) can't supply that type here,
         # so the empty path stays untyped — a whole-element selection is stripped
         # to its skeleton before use anyway.
-        ∅ => iomap === nothing ? EmptyReferencePath() :
-             EmptyReferencePath(get_reference_node_type(iomap.output))
+        ∅ => iomap === nothing ? EmptyReference() :
+             EmptyReference(get_reference_node_type(iomap.output))
         proj(^(projection), inner) => inner
     end
     # Self-type the result (the unwrapped `proj` inner may be a bare path) against
@@ -113,9 +113,9 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # A whole-element output selection maps back to a whole-element input
     # selection, typed against the input document (untyped when no iomap is
     # available yet — the deferred-iomap trick, mirroring the forward mapper).
-    reference isa EmptyReferencePath &&
-        return iomap === nothing ? EmptyReferencePath() :
-               EmptyReferencePath(get_reference_node_type(iomap.input))
+    reference isa EmptyReference &&
+        return iomap === nothing ? EmptyReference() :
+               EmptyReference(get_reference_node_type(iomap.input))
     # Without the input document there is no pre-image to wrap against, so the
     # reference is returned unchanged.
     iomap === nothing && return reference

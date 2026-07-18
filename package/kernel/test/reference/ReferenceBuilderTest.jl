@@ -30,38 +30,38 @@ function test_reference_builder()
 
 # ── basic forms ──────────────────────────────────────────────────────────
 
-@test (@reference()) == EmptyReferencePath()
+@test (@reference()) == EmptyReference()
 @test strip_reference_types(@reference ::A.value::B) ==
-      ConcreteReferencePath(FieldReferenceStep("value"), EmptyReferencePath())
+      ConcreteReference(FieldReferenceStep("value"), EmptyReference())
 @test strip_reference_types(@reference ::A.a::B.b::C.c::D) ==
-      ConcreteReferencePath(FieldReferenceStep("a"),
-          ConcreteReferencePath(FieldReferenceStep("b"),
-              ConcreteReferencePath(FieldReferenceStep("c"), EmptyReferencePath())))
+      ConcreteReference(FieldReferenceStep("a"),
+          ConcreteReference(FieldReferenceStep("b"),
+              ConcreteReference(FieldReferenceStep("c"), EmptyReference())))
 
 @test strip_reference_types(@reference ::A.xs::B[3]::C) ==
-      ConcreteReferencePath(FieldReferenceStep("xs"),
-          ConcreteReferencePath(ElementReferenceStep(3), EmptyReferencePath()))
+      ConcreteReference(FieldReferenceStep("xs"),
+          ConcreteReference(ElementReferenceStep(3), EmptyReference()))
 
 @test strip_reference_types(@reference ::A.xs::B{2}::C) ==
-      ConcreteReferencePath(FieldReferenceStep("xs"),
-          ConcreteReferencePath(PositionReferenceStep(2), EmptyReferencePath()))
+      ConcreteReference(FieldReferenceStep("xs"),
+          ConcreteReference(PositionReferenceStep(2), EmptyReference()))
 
 # ── {s:e} range syntax ──────────────────────────────────────────────────
 
 @test strip_reference_types(@reference ::A.xs::B{1:3}::C) ==
-      ConcreteReferencePath(FieldReferenceStep("xs"),
-          ConcreteReferencePath(RangeReferenceStep(1, 3), EmptyReferencePath()))
+      ConcreteReference(FieldReferenceStep("xs"),
+          ConcreteReference(RangeReferenceStep(1, 3), EmptyReference()))
 
 let s = 2, e = 7
     @test strip_reference_types(@reference ::A.xs::B{s:e}::C) ==
-          ConcreteReferencePath(FieldReferenceStep("xs"),
-              ConcreteReferencePath(RangeReferenceStep(2, 7), EmptyReferencePath()))
+          ConcreteReference(FieldReferenceStep("xs"),
+              ConcreteReference(RangeReferenceStep(2, 7), EmptyReference()))
 end
 
 # bare {s:e} as a relative subpath
 let s = 4, e = 9
     @test strip_reference_types(@reference ::A{s:e}::B) ==
-          ConcreteReferencePath(RangeReferenceStep(4, 9), EmptyReferencePath())
+          ConcreteReference(RangeReferenceStep(4, 9), EmptyReference())
 end
 
 # ── typed steps: `::T` interleaved with `.field` / `[i]` (step 3b) ────────
@@ -69,16 +69,16 @@ end
 # `getfield` on the type value. The types fold onto the nodes their following
 # step descends from; the terminal records the landed type.
 @test (@reference ::A.entries::B[1]::C.key::D) ==
-      ConcreteReferencePath(A, FieldReferenceStep("entries"),
-          ConcreteReferencePath(B, ElementReferenceStep(1),
-              ConcreteReferencePath(C, FieldReferenceStep("key"),
-                  EmptyReferencePath(D))))
+      ConcreteReference(A, FieldReferenceStep("entries"),
+          ConcreteReference(B, ElementReferenceStep(1),
+              ConcreteReference(C, FieldReferenceStep("key"),
+                  EmptyReference(D))))
 
 # A cursor terminal after a typed chain.
 @test (@reference ::A.value::String{0}::Position) ==
-      ConcreteReferencePath(A, FieldReferenceStep("value"),
-          ConcreteReferencePath(String, RangeReferenceStep(0, 0),
-              EmptyReferencePath(Position)))
+      ConcreteReference(A, FieldReferenceStep("value"),
+          ConcreteReference(String, RangeReferenceStep(0, 0),
+              EmptyReference(Position)))
 
 # `@reference(document, path)` — a typeless skeleton annotated against a live
 # document, so the result carries the document's exact node types. Equivalent
@@ -93,10 +93,10 @@ end
 
 let p = @reference ::A.children::B[2]::C.name::D
     @test strip_reference_types(@reference ::E.value.^(p)) ==
-          ConcreteReferencePath(FieldReferenceStep("value"),
-              ConcreteReferencePath(FieldReferenceStep("children"),
-                  ConcreteReferencePath(ElementReferenceStep(2),
-                      ConcreteReferencePath(FieldReferenceStep("name"), EmptyReferencePath()))))
+          ConcreteReference(FieldReferenceStep("value"),
+              ConcreteReference(FieldReferenceStep("children"),
+                  ConcreteReference(ElementReferenceStep(2),
+                      ConcreteReference(FieldReferenceStep("name"), EmptyReference()))))
 
     @test strip_reference_types(@reference ::E.^(p)) == strip_reference_types(p)
 
@@ -108,16 +108,16 @@ let p = @reference ::A.children::B[2]::C.name::D
     let step = @reference_step value
         step_path = @reference ::A.value::E
         @test strip_reference_types(@reference ^(step_path).field::B) ==
-              ConcreteReferencePath(FieldReferenceStep("value"),
-                  ConcreteReferencePath(FieldReferenceStep("field"), EmptyReferencePath()))
+              ConcreteReference(FieldReferenceStep("value"),
+                  ConcreteReference(FieldReferenceStep("field"), EmptyReference()))
     end
 end
 
 # splice with a single step at the tail
 let s = @reference ::A.foo::B
     @test strip_reference_types(@reference ::C.value.^(s)) ==
-          ConcreteReferencePath(FieldReferenceStep("value"),
-              ConcreteReferencePath(FieldReferenceStep("foo"), EmptyReferencePath()))
+          ConcreteReference(FieldReferenceStep("value"),
+              ConcreteReference(FieldReferenceStep("foo"), EmptyReference()))
 end
 
 # splice at start with subsequent steps
@@ -126,9 +126,9 @@ end
 # Instead, rely on base being fully typed and add ::B only for the terminal.
 let base = @reference ::A.root::B.outer::C
     @test strip_reference_types(@reference ^(base).inner::B) ==
-          ConcreteReferencePath(FieldReferenceStep("root"),
-              ConcreteReferencePath(FieldReferenceStep("outer"),
-                  ConcreteReferencePath(FieldReferenceStep("inner"), EmptyReferencePath())))
+          ConcreteReference(FieldReferenceStep("root"),
+              ConcreteReference(FieldReferenceStep("outer"),
+                  ConcreteReference(FieldReferenceStep("inner"), EmptyReference())))
 end
 
 # ── @reference_step companion ─────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ end
 # the runtime type value, so a bound type round-trips through reconstruction.
 
 # Terminal type binding on a whole-element (∅) selection.
-let typed = ConcreteReferencePath(Int, FieldReferenceStep("value"), EmptyReferencePath(String))
+let typed = ConcreteReference(Int, FieldReferenceStep("value"), EmptyReference(String))
     bound_terminal = @reference_case typed begin
         value::t => t
     end
@@ -192,7 +192,7 @@ let typed = ConcreteReferencePath(Int, FieldReferenceStep("value"), EmptyReferen
 end
 
 # ∅::t binds the terminal type of a whole-element selection.
-let whole = EmptyReferencePath(Symbol)
+let whole = EmptyReference(Symbol)
     got = @reference_case whole begin
         (∅::t) => t
         _      => :miss
@@ -202,7 +202,7 @@ end
 
 # A bound type splices back through construction (the identity-preserving
 # reconstruction pattern generic combinators use).
-let src = ConcreteReferencePath(Int, FieldReferenceStep("value"), EmptyReferencePath(String))
+let src = ConcreteReference(Int, FieldReferenceStep("value"), EmptyReference(String))
     rebuilt = @reference_case src begin
         ::a.value::b => @reference ::a.value::b
     end

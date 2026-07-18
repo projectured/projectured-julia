@@ -36,7 +36,7 @@ import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
 import ..EventModule: KeyDown, has_ctrl_modifier_key
 
 export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
@@ -140,10 +140,10 @@ function _strip_control_slot(ref)
     # Skip canonical TypeReferenceStep checkpoints at each level before reading the
     # `elements[1]` control-slot structure.
     ref = ref
-    ref isa ConcreteReferencePath || return nothing
+    ref isa ConcreteReference || return nothing
     (ref.head isa FieldReferenceStep && ref.head.name == "elements") || return nothing
     t = ref.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && t.head.start == 0) || return nothing
+    (t isa ConcreteReference && t.head isa RangeReferenceStep && t.head.start == 0) || return nothing
     t.tail
 end
 

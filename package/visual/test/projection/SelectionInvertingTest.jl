@@ -3,16 +3,16 @@ function test_selection_inverting()
 _font = font_ubuntu_monospace_regular_20
 
 # `elements[span].content{char}` cursor path (span 1-based, char 0-based).
-_ref(span, char) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(char, char), EmptyReferencePath()))))
+_ref(span, char) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(span - 1, span),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(char, char), EmptyReference()))))
 
 # `elements[span].content[start:stop]` range path.
-_range(span, start, stop) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))))
+_range(span, start, stop) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(span - 1, span),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))))
 
 _contents(text) = [e.content for e in text.elements if e isa TextString]
 _fills(text)    = [e.fill_color for e in text.elements if e isa TextString]
@@ -151,7 +151,7 @@ end # @testset
     )
     # Flat range [3:6) selects the whole second span via a whole-element ref.
     input = TextBlock(CellVector(Cell[Cell(input.elements[1]), Cell(input.elements[2])]),
-                     Cell(ConcreteReferencePath(TextSpanReferenceStep(3, 6), EmptyReferencePath())))
+                     Cell(ConcreteReference(TextSpanReferenceStep(3, 6), EmptyReference())))
     out = print_document(SelectionInverting(), input).output
     @test _contents(out) == ["foo", "bar"]
     @test out.elements[1] === input.elements[1]   # first span untouched (same object)

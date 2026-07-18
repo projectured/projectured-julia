@@ -21,16 +21,16 @@
 # `ProjectionModule.read_intent`; see package/kernel/doc/operation.md.
 
 """
-    reroot_reference(ref, steps::Tuple) -> ReferencePath
+    reroot_reference(ref, steps::Tuple) -> Reference
 
 Prepend each step in `steps` (outermost first) to `ref`, producing a longer
-`ConcreteReferencePath`. Used by container readers that need to add several
+`ConcreteReference`. Used by container readers that need to add several
 steps at once (e.g. a split pane's `elements[i].child`).
 """
-function reroot_reference(ref::ReferencePath, steps::Tuple)
+function reroot_reference(ref::Reference, steps::Tuple)
     result = ref
     for step in reverse(steps)
-        result = ConcreteReferencePath(step, result)
+        result = ConcreteReference(step, result)
     end
     result
 end

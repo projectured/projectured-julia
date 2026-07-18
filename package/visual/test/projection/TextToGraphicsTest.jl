@@ -210,8 +210,8 @@ iomap = print_document(p, st)
 # rect is element 1, so the image (2nd text segment) is element index 2 (0-based);
 # rx<32 is its left half, rx>=32 its right half.
 click(rx) = ReplaceSelectionOperation(
-    ConcreteReferencePath(RangeReferenceStep(2, 3),
-        ConcreteReferencePath(PointReferenceStep(rx, 0), EmptyReferencePath())))
+    ConcreteReference(RangeReferenceStep(2, 3),
+        ConcreteReference(PointReferenceStep(rx, 0), EmptyReference())))
 left  = read_intent(p, iomap, click(10))
 right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
@@ -372,7 +372,7 @@ rects = TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 1
 
 # A `TextColumnReferenceStep` selection is structural — not a character cursor, so char
 # motion / flat edits decline (block editing is future work).
-sel = ConcreteReferencePath(TextColumnReferenceStep(1, 11), EmptyReferencePath())
+sel = ConcreteReference(TextColumnReferenceStep(1, 11), EmptyReference())
 @test TextModule._is_structural_selection(sel)
 @test TextModule._text_flat_selection(
           with_selection(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing

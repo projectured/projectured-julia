@@ -33,7 +33,7 @@ Abstract base type for all component documents. Components are composed
 from widget primitives and deliver higher-level interactive behavior
 (e.g. master-detail selection, forms, dashboards).
 
-Like all documents, every concrete component carries a `selection::Reference`
+Like all documents, every concrete component carries a `selection::Union{Nothing, Reference}`
 field.
 """
 abstract type ComponentDocument <: Document end

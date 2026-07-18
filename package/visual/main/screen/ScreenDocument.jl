@@ -24,7 +24,7 @@ import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ReferencePath
+import ..ReferenceModule: Reference
 import ..OperationModule: Operation, evaluate_operation
 
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
@@ -144,7 +144,7 @@ OpenWindowOperation(; id::Symbol,
     OpenPopupOperation(; id, anchor, dx, dy, width, height, auto_dismiss, content)
 
 Request a popup window **anchored to another element** rather than at absolute
-coordinates. `anchor` is a `ReferencePath` (captured at print time by the trigger)
+coordinates. `anchor` is a `Reference` (captured at print time by the trigger)
 naming the element to anchor under; `(dx, dy)` is the trigger-supplied offset (the
 trigger bakes its own size in, so "below the box" is `(0, box_height + gap)`).
 
@@ -155,7 +155,7 @@ coordinates. It does not reach `evaluate_operation`.
 """
 struct OpenPopupOperation <: Operation
     id::Symbol
-    anchor::ReferencePath
+    anchor::Reference
     dx::Int
     dy::Int
     width::Int
@@ -164,7 +164,7 @@ struct OpenPopupOperation <: Operation
     content::Document
 end
 
-OpenPopupOperation(; id::Symbol, anchor::ReferencePath,
+OpenPopupOperation(; id::Symbol, anchor::Reference,
                      dx::Integer = 0, dy::Integer = 0,
                      width::Integer = 0, height::Integer = 0,
                      auto_dismiss::Bool = true, content::Document) =

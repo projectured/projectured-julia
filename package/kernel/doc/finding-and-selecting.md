@@ -46,7 +46,7 @@ opt out: `search_documents(doc, "Alice"; raw=true)` returns `["Alice"]` (the bar
 traversal — `walk_document` in the document layer — run under two `DocumentWalk`s that differ
 in exactly one thing: **what a visited node's *location* is.** `search_documents` uses the
 default, so the location is the node itself; `search_references` (which lives in the reference
-layer, because the document layer cannot name a `ReferencePath`) passes in location functions
+layer, because the document layer cannot name a `Reference`) passes in location functions
 that build the path to the node. Everything else — how to descend a collection, a dict, a
 struct; where to stop; how to fold a scalar match up to its enclosing document — is written
 once, and those location functions are its only parameters.
@@ -70,11 +70,11 @@ Reach for a predicate when you need to match by type or shape, or to match a lea
 ## Searching for references — `search_references`
 
 ```julia
-search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{ReferencePath}
-search_references(obj, query::Union{AbstractString,Regex}; …)                       -> Vector{ReferencePath}
+search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{Reference}
+search_references(obj, query::Union{AbstractString,Regex}; …)                       -> Vector{Reference}
 ```
 
-Walks `obj` and returns a document-rooted `ReferencePath` for **every** node whose
+Walks `obj` and returns a document-rooted `Reference` for **every** node whose
 (cell-unwrapped) value satisfies the query. With a predicate, a predicate that
 throws on some node is treated as "no match" there, not an error.
 

@@ -1,8 +1,8 @@
 # Fragment of `ReferenceModule` — the **path-producing** walk over
-# `walk_document`: locations are `ReferencePath`s.
+# `walk_document`: locations are `Reference`s.
 #
 # The walk itself lives in the document layer, one layer down, and knows nothing
-# of references. It cannot: a `ReferencePath` is declared *here*. It takes the
+# of references. It cannot: a `Reference` is declared *here*. It takes the
 # location functions as parameters instead — this file supplies ones that build
 # reference paths, while the value-collecting `search_documents` supplies the
 # defaults that hand back the child object.
@@ -16,14 +16,14 @@
 const _PATH_WALK = DocumentWalk(
     locate_field   = (location, name, child) -> extend_reference(location, FieldReferenceStep(string(name))),
     locate_element = (location, index, child) -> extend_reference(location, ElementReferenceStep(index)),
-    initial        = root -> EmptyReferencePath(),
+    initial        = root -> EmptyReference(),
     policy         = :once_per_path)
 
 """
-    search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{ReferencePath}
-    search_references(obj, query::Union{AbstractString,Regex}; …)                      -> Vector{ReferencePath}
+    search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{Reference}
+    search_references(obj, query::Union{AbstractString,Regex}; …)                      -> Vector{Reference}
 
-Walk any object and return a `ReferencePath` to every match. Pass a predicate, or
+Walk any object and return a `Reference` to every match. Pass a predicate, or
 a `String` (substring) / `Regex` that matches leaf nodes by their string form,
 e.g. `search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
 Cells are unwrapped transparently (no path step); struct fields contribute a
@@ -72,7 +72,7 @@ function search_references(obj, predicate; kwargs...)
     # with `TypeReferenceStep(typeof(node))` checkpoints against `obj`, so the
     # references are self-describing and carry replay-validation checkpoints
     # (see annotate_reference_types).
-    ReferencePath[annotate_reference_types(root, p) for p in paths]
+    Reference[annotate_reference_types(root, p) for p in paths]
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =

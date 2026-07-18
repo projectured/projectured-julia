@@ -26,7 +26,7 @@ import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell
 import ProjecturedDomain.ClockModule: Clock, set_clock_time!
-import ProjecturedDomain.ReferenceModule: EmptyReferencePath
+import ProjecturedDomain.ReferenceModule: EmptyReference
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
 
@@ -86,7 +86,7 @@ record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
 
 `initial_selection` controls where the caret starts. Keyboard typein (e.g.
 `KeyPress`) only produces an edit when something is selected, so to record a
-typing demo either pass an `initial_selection` (a `ReferencePath` into the
+typing demo either pass an `initial_selection` (a `Reference` into the
 document) or make the first gesture a `MousePress` that places the caret. When
 `initial_selection` is `nothing` (the default) the selection is cleared and the
 recording starts caret-free, mirroring a freshly opened editor.
@@ -120,7 +120,7 @@ function record_video(document, projection, gestures::AbstractVector,
     # subscribe to `clock`) advances deterministically frame-by-frame; a
     # non-animated document ignores it.
     print_iomap = doc -> print_document(projection, nothing, doc,
-        PrinterContext(EmptyReferencePath(), Cell(Int(width)), Cell(Int(height)),
+        PrinterContext(EmptyReference(), Cell(Int(width)), Cell(Int(height)),
                        Dict{Symbol,Any}(), clock))
     canvas_of = iomap -> begin
         canvas = iomap.output

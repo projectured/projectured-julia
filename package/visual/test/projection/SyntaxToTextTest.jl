@@ -52,7 +52,7 @@ let
 _S2T = SyntaxToTextModule
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+    ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
 
 _check_roundtrip = function (label, node, p)
     iomap = print_document(RecursiveProjection(SyntaxToText()), node)
@@ -141,7 +141,7 @@ iomap_e = print_document(pipe_on, empty_node)
 @test _S2T._subtree_len(node, p_on, 0) == _S2T._subtree_len(node, p_off, 0) + 1
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+    ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
 
 iomap_pon = print_document(pipe_on, node)
 
@@ -185,7 +185,7 @@ collapsed = join(s.content for s in print_document(pipe, node).output.elements)
 
 # Flat-position round-trip holds while collapsed.
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+    ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
 
 iomap_c = print_document(pipe, node)   # node.collapsed = true above
 flat_len = _S2T._subtree_len(node, p, 0)
@@ -241,7 +241,7 @@ op_path(sel, key, mods=ModifierKeys()) = begin
     op isa ReplaceSelectionOperation ? op.path : op
 end
 
-root   = EmptyReferencePath()
+root   = EmptyReference()
 child1 = @reference(node, children[1])            # .children[1]∅
 child2 = @reference(node, children[2])            # .children[2]∅
 
@@ -310,14 +310,14 @@ end
     end
     # text cursor → the whole leaf (∅)
     promoted = leaf_path(@reference(leaf, value{1}), :space, ctrl)
-    @test strip_reference_types(promoted) isa EmptyReferencePath
+    @test strip_reference_types(promoted) isa EmptyReference
     # whole leaf (∅) → a character cursor at the value start
-    descended = leaf_path(EmptyReferencePath(), :space, ctrl)
+    descended = leaf_path(EmptyReference(), :space, ctrl)
     @test is_reference_equal(strip_reference_types(descended),
                              strip_reference_types(@reference(leaf, value{0})))
     # Ctrl+Alt+Home selects the whole leaf from a character cursor
     whole = leaf_path(@reference(leaf, value{1}), :home, ModifierKeys(ctrl=true, alt=true))
-    @test strip_reference_types(whole) isa EmptyReferencePath
+    @test strip_reference_types(whole) isa EmptyReference
 end
 end # let
 end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"
@@ -375,7 +375,7 @@ end
     @test join(s.content for s in iomap.output.elements) == "(x,ab)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+                  ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end
@@ -412,7 +412,7 @@ end
         op isa ReplaceSelectionOperation ? op.path : op
     end
 
-    root   = EmptyReferencePath()
+    root   = EmptyReference()
     child1 = @reference(node, children[1])                 # the leaf "x"
     concat = @reference(node, children[2])                 # the concatenation
     inner1 = @reference(node, children[2].children[1])     # the leaf "a" inside it
@@ -488,7 +488,7 @@ end
     @test join(x.content for x in iomap.output.elements) == "(x,a|b)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+                  ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end
@@ -582,7 +582,7 @@ end
     @test join(c.content for c in iomap.output.elements) == "[x,(ab)]"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+                  ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end

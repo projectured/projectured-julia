@@ -19,7 +19,7 @@ import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: ConcreteReferencePath, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -96,8 +96,8 @@ end
 # The flat caret offset of a `TextRangeReferenceStep` selection, or `nothing`.
 function _text_range_caret(ref)
     r = strip_reference_types(ref)
-    r isa ConcreteReferencePath && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
+        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
     r.head.start::Int
 end
 
@@ -121,7 +121,7 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
     end
     f = text_elem_to_flat(iomap.input, in_span, char_offset + out_char)
     f === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(TextRangeReferenceStep(f, f), EmptyReferencePath()))
+    ReplaceSelectionOperation(ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference()))
 end
 
 read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
@@ -157,20 +157,20 @@ end
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return (nothing, nothing)
+    path isa ConcreteReference || return (nothing, nothing)
     h1 = path.head
     (h1 isa FieldReferenceStep && h1.name == "elements") || return (nothing, nothing)
     t1 = path.tail
-    t1 isa ConcreteReferencePath || return (nothing, nothing)
+    t1 isa ConcreteReference || return (nothing, nothing)
     h2 = t1.head
     h2 isa RangeReferenceStep || return (nothing, nothing)
     span_idx = h2.start::Int + 1
     t2 = t1.tail
-    t2 isa ConcreteReferencePath || return (nothing, nothing)
+    t2 isa ConcreteReference || return (nothing, nothing)
     h3 = t2.head
     (h3 isa FieldReferenceStep && h3.name == "content") || return (nothing, nothing)
     t3 = t2.tail
-    t3 isa ConcreteReferencePath || return (nothing, nothing)
+    t3 isa ConcreteReference || return (nothing, nothing)
     h4 = t3.head
     h4 isa RangeReferenceStep || return (nothing, nothing)
     (span_idx, h4.start::Int)

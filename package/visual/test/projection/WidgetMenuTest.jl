@@ -96,7 +96,7 @@ end
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
-    @test op.anchor isa EmptyReferencePath      # anchored to the item itself (root)
+    @test op.anchor isa EmptyReference      # anchored to the item itself (root)
     @test op.dx == 0                            # opens directly below
     @test op.dy > 0
     @test op.content === submenu                # the popup content is the submenu

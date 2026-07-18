@@ -123,8 +123,8 @@ _readop(io, g) = begin
     ch isa Intent ? ch.operation : ch
 end
 # The path-[i] selection reference the tree reader recognises (roots[i]).
-_pathref(i) = ConcreteReferencePath(FieldReferenceStep("roots"),
-                ConcreteReferencePath(RangeReferenceStep(i - 1, i), EmptyReferencePath()))
+_pathref(i) = ConcreteReference(FieldReferenceStep("roots"),
+                ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
 
 @testset "tree: a per-node right-click binding fires on the resolved row" begin
     opened = Ref(false)

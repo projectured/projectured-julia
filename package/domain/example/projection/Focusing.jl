@@ -6,7 +6,7 @@ function make_focusing_projection_example(; measure=truetype_measure_text)
             # descends into an *element* — `ElementReferenceStep`, not a cursor
             # `PositionReferenceStep` (a zero-width caret evaluates to a `Position`,
             # not a document, so it can't be focused into).
-            part=ReferencePath(ElementReferenceStep(3)),
+            part=Reference(ElementReferenceStep(3)),
         ),
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),

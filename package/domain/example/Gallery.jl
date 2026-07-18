@@ -326,7 +326,7 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
         # through WindowManagingProjection (window open/close/resize ops are
         # owned there) wrapping ScreenToScreen, which projects the screen
         # shell and recurses each window's content back through this dispatch.
-        ref isa EmptyReferencePath &&
+        ref isa EmptyReference &&
             return WindowManagingProjection(inner = ScreenToScreen())
         # Anything outside a window's content target — preserve.
         return IdentityProjection()

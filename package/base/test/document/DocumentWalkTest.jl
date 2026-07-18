@@ -1,7 +1,7 @@
 """
 `DocumentModule`'s `walk_document` — the one reflection walk, and the two searches
 over it: `search_documents` (locations are the matched objects) and
-`search_references` (locations are `ReferencePath`s).
+`search_references` (locations are `Reference`s).
 
 The point of this suite is the one thing the two **deliberately disagree** about:
 the cycle policy. A shared node is *one object* but *two places*, so the value

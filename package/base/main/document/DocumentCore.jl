@@ -13,7 +13,7 @@ module DocumentCoreModule
 
 import ..CellModule: Cell
 import ..DocumentModule: Document, @document
-import ..ReferenceModule: Reference, ReferencePath
+import ..ReferenceModule: Reference
 export DocumentBase
 
 # ── DocumentBase (abstract) ───────────────────────────────────────────────────
@@ -70,10 +70,10 @@ suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
 A document that holds a reference path into another document tree.
 """
 @document struct DocumentReference <: DocumentBase
-    path::ReferencePath
+    path::Reference
 end
 
-DocumentReference(path::ReferencePath; selection=nothing) =
+DocumentReference(path::Reference; selection=nothing) =
     DocumentReference(Cell(path), Cell(selection))
 
 # The load/save/import/export document operations now live with the serializers

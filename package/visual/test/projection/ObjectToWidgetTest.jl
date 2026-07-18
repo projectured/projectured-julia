@@ -3,7 +3,7 @@ function test_object_to_widget()
 # A renderable string field + a renderable bool field + an opaque (skipped) field.
 _proj() = TextHighlighting("dolor"; case_insensitive=false, color=color_red)
 
-_content_ref() = ConcreteReferencePath(FieldReferenceStep("content"), EmptyReferencePath())
+_content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 
 @testset "ObjectToWidget reflects renderable Cell fields into controls" begin
 
@@ -38,13 +38,13 @@ end # @testset
     # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
     # control is grid child 2 (row 1) → 0-based children[1], then into the
     # WidgetText's TextBlock: children[1].content.elements[1].content[5:5].
-    ref = ConcreteReferencePath(FieldReferenceStep("children"),
-            ConcreteReferencePath(RangeReferenceStep(1, 2),
-              ConcreteReferencePath(FieldReferenceStep("content"),
-                ConcreteReferencePath(FieldReferenceStep("elements"),
-                  ConcreteReferencePath(RangeReferenceStep(0, 1),
-                    ConcreteReferencePath(FieldReferenceStep("content"),
-                      ConcreteReferencePath(RangeReferenceStep(5, 5), EmptyReferencePath())))))))
+    ref = ConcreteReference(FieldReferenceStep("children"),
+            ConcreteReference(RangeReferenceStep(1, 2),
+              ConcreteReference(FieldReferenceStep("content"),
+                ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(0, 1),
+                    ConcreteReference(FieldReferenceStep("content"),
+                      ConcreteReference(RangeReferenceStep(5, 5), EmptyReference())))))))
     op = read_intent(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === proj

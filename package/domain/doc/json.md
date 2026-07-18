@@ -88,7 +88,7 @@ obj = JsonObject("name" => JsonString("Alice"), "age" => JsonNumber(30))
 
 ## Selection
 
-Each JSON value carries a `selection::Reference` field, injected automatically by `@document` — a `ReferencePath` or `nothing` (stored in a `Cell` so changes propagate reactively). Both readings of the boundary axis are available everywhere: `.elements[i]` / `.entries[i]` / `.value[i]` selects the i-th item (1-based); `.elements{k}` / `.entries{k}` / `.value{k}` is the cursor at boundary `k` (0-based) — between elements/entries (an insertion point) or between characters.
+Each JSON value carries a `selection::Reference` field, injected automatically by `@document` — a `Reference` or `nothing` (stored in a `Cell` so changes propagate reactively). Both readings of the boundary axis are available everywhere: `.elements[i]` / `.entries[i]` / `.value[i]` selects the i-th item (1-based); `.elements{k}` / `.entries{k}` / `.value{k}` is the cursor at boundary `k` (0-based) — between elements/entries (an insertion point) or between characters.
 
 ## Collapsed and indentation fields
 

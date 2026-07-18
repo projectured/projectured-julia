@@ -175,7 +175,7 @@ which travels the reader chain in the `Intent`, rather than off a flag on this
 operation.
 """
 struct ReplaceSelectionOperation <: Operation
-    path::ReferencePath
+    path::Reference
 end
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
@@ -184,9 +184,9 @@ end
 
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).
-function _split_terminal_step(path::ConcreteReferencePath)
+function _split_terminal_step(path::ConcreteReference)
     steps = get_reference_steps(path)
-    (ReferencePath(steps[1:end-1]...), steps[end])
+    (Reference(steps[1:end-1]...), steps[end])
 end
 
 # Write `value` into the slot `step` selects on `parent`. A FieldReferenceStep names a
@@ -223,7 +223,7 @@ end
 """
     ReplaceReferencedValueOperation(document, reference, value)
 
-Set the scalar `value` at `reference` (a `ReferencePath`) resolved against a
+Set the scalar `value` at `reference` (a `Reference`) resolved against a
 root selected by the `document` field:
 
 - **`document !== nothing`** — the root is the carried object, so this works on
@@ -245,17 +245,17 @@ subject of `plan/done/consolidate-operations-replace.md`.)
 """
 struct ReplaceReferencedValueOperation <: Operation
     document::Any
-    reference::ReferencePath
+    reference::Reference
     value::Any
 end
 
 # Convenience for the common single-field write on a carried root:
 # `ReplaceReferencedValueOperation(obj, "field", v)` writes `obj.field = v`. Dispatches by
-# the second argument's type (`AbstractString` vs `ReferencePath`), so it never
+# the second argument's type (`AbstractString` vs `Reference`), so it never
 # collides with the field-by-field constructor above.
 ReplaceReferencedValueOperation(document, field::AbstractString, value) =
     ReplaceReferencedValueOperation(document,
-        ConcreteReferencePath(FieldReferenceStep(field), EmptyReferencePath()), value)
+        ConcreteReference(FieldReferenceStep(field), EmptyReference()), value)
 
 function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
@@ -263,7 +263,7 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     # (where the former `ReplaceDocumentOperation` rooted its path); otherwise the
     # operation carries its own root object (a widget, a projection parameter `Cell`).
     root = op.document === nothing ? editor.document : op.document
-    if reference isa EmptyReferencePath
+    if reference isa EmptyReference
         # Whole-root swap: only meaningful when the root *is* `editor.document`
         # (there is no in-place "replace the object itself" for a carried root).
         # Rebind and ask the editor to drop its cached projection so the next print
@@ -277,7 +277,7 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
         return
     end
     parent_path, terminal = _split_terminal_step(reference)
-    parent = parent_path isa EmptyReferencePath ? root :
+    parent = parent_path isa EmptyReference ? root :
              evaluate_reference(root, parent_path)
     _write_slot!(parent, terminal, op.value)
 end
@@ -297,9 +297,9 @@ This is the folded form of the former `ReplaceDocumentOperation`: a
 the same steps to both as the operation bubbles up. An empty `path` is a whole-root
 swap (the `ReplaceReferencedValueOperation` rebinds `editor.document` and drops the iomap).
 """
-function replace_document(path::ReferencePath, document)
+function replace_document(path::Reference, document)
     inner_sel = getfield(document, :selection)[]
-    inner_sel === nothing && (inner_sel = EmptyReferencePath())
+    inner_sel === nothing && (inner_sel = EmptyReference())
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(nothing, path, document),
         ReplaceSelectionOperation(concat_references(strip_reference_types(path), inner_sel)),
@@ -319,7 +319,7 @@ into the new element (re-rooting prepends the same steps to both members).
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
 for an identity-rooted splice against a document that is not in the tree.
 """
-function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
+function insert_elements(path::Reference, index::Integer, items, selection=nothing; root=nothing)
     write = ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :
@@ -334,7 +334,7 @@ at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOpera
 terminal step is `RangeReferenceStep(index, index+count)` and whose value is the empty
 vector (replace the range with nothing). The inverse of `insert_elements`.
 """
-delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
+delete_elements(path::Reference, index::Integer, count::Integer=1; root=nothing) =
     ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -358,17 +358,17 @@ hole's `cursor` suffix (default whole-element). Clamps at the last hole.
 """
 struct SelectNextInsertionOperation <: Operation
     predicate::Any        # (node::Document) -> Bool ; true marks a hole to land on
-    cursor::ReferencePath # suffix appended to the found hole's path (e.g. value{0})
+    cursor::Reference # suffix appended to the found hole's path (e.g. value{0})
 end
 
 SelectNextInsertionOperation(predicate) =
-    SelectNextInsertionOperation(predicate, EmptyReferencePath())
+    SelectNextInsertionOperation(predicate, EmptyReference())
 
 function evaluate_operation(editor, op::SelectNextInsertionOperation)
     root = editor.document
     root isa Document || return
-    nodes = Tuple{ReferencePath,Any}[]
-    _preorder_documents!(root, EmptyReferencePath(), Base.IdSet{Any}(), nodes)
+    nodes = Tuple{Reference,Any}[]
+    _preorder_documents!(root, EmptyReference(), Base.IdSet{Any}(), nodes)
     owner = _selection_owner_node(root, getfield(root, :selection)[])
     cur = 0
     if owner !== nothing
@@ -414,7 +414,7 @@ end
 
 # Pre-order Document walk building set_selection!-compatible paths. Skips
 # `selection` and guards cycles/shared substructure by identity.
-function _preorder_documents!(node, path::ReferencePath, seen, out)
+function _preorder_documents!(node, path::Reference, seen, out)
     node isa Document || return
     node in seen && return
     push!(seen, node)
@@ -434,7 +434,7 @@ function _selection_owner_node(root, sel)
     while true
         v = try_evaluate_reference(root, p)
         v isa Document && return v
-        p isa EmptyReferencePath && return root
+        p isa EmptyReference && return root
         (p, _) = _split_terminal_step(p)
     end
 end

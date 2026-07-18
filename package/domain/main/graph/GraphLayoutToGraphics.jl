@@ -29,7 +29,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_
 import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context

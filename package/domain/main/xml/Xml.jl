@@ -117,9 +117,9 @@ _xml_insert_node(e) = append_insertion_operation(e, :children, XmlInsertion)
 # A new attribute may be added only from the element itself, its tag, or an
 # existing attribute — never while editing a child.
 _xml_in_attr_context(sel) =
-    sel isa EmptyReferencePath ||
+    sel isa EmptyReference ||
     is_introduced_reference(sel) ||
-    (sel isa ConcreteReferencePath && sel.head isa FieldReferenceStep &&
+    (sel isa ConcreteReference && sel.head isa FieldReferenceStep &&
      (sel.head.name == "tag" || sel.head.name == "attrs"))
 
 _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?

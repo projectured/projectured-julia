@@ -23,8 +23,8 @@ const _JT_M      = DocumentInsertionToSyntaxModule
 const _jt_reroot = OperationModule.reroot_operation
 
 # `value{0}` — an empty hole's own char cursor.
-_jt_v0() = ConcreteReferencePath(FieldReferenceStep("value"),
-             ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+_jt_v0() = ConcreteReference(FieldReferenceStep("value"),
+             ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
 _jt_hole(node) = node isa JuliaInsertion
 
 # A minimal mutable editor (a whole-root swap rebinds `.document`).
@@ -55,16 +55,16 @@ end
 function _jt_hole_path(sel)
     p = strip_reference_types(sel)
     steps = Any[]
-    while p isa ConcreteReferencePath
+    while p isa ConcreteReference
         push!(steps, p.head); p = p.tail
     end
     steps = steps[1:end-2]
-    r = EmptyReferencePath()
-    for s in Iterators.reverse(steps); r = ConcreteReferencePath(s, r); end
+    r = EmptyReference()
+    for s in Iterators.reverse(steps); r = ConcreteReference(s, r); end
     r
 end
 
-_jt_steps(p) = (out = Any[]; while p isa ConcreteReferencePath; push!(out, p.head); p = p.tail; end; Tuple(out))
+_jt_steps(p) = (out = Any[]; while p isa ConcreteReference; push!(out, p.head); p = p.tail; end; Tuple(out))
 
 # Simulate: type `text` into the focused hole, then run the gesture (`:tab` =
 # commit-and-advance, `:enter` = commit in place). The gesture op is `∅`-rooted at

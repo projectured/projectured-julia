@@ -24,7 +24,7 @@ import ..ColorModule: StyleColor, color_yellow
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, strip_reference_types, Position
+import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
@@ -199,11 +199,11 @@ end
 # by `_is_structural_ref` before these are reached.
 function _text_range_caret(ref)
     r = strip_reference_types(ref)
-    r isa ConcreteReferencePath && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
+    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
+        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
     r.head.start::Int
 end
-_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReferenceStep(f, f), EmptyReferencePath())
+_flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
 
 # A whole-element selection at this layer is either `∅` (the whole text) or a
 # `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
@@ -211,8 +211,8 @@ _flat_caret(f::Int) = ConcreteReferencePath(TextRangeReferenceStep(f, f), EmptyR
 # flat character space, which highlighting leaves unchanged, so they map
 # identically in either direction.
 _is_structural_ref(ref) =
-    ref isa EmptyReferencePath ||
-    (ref isa ConcreteReferencePath && ref.head isa TextSpanReferenceStep)
+    ref isa EmptyReference ||
+    (ref isa ConcreteReference && ref.head isa TextSpanReferenceStep)
 
 # Forward: rebuild an input flat caret against the split output by finding the
 # sub-span the cursor falls into. At the exact boundary between two sub-spans
@@ -277,11 +277,11 @@ function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::Repl
         seg.out_index == out_span || continue
         new_start = seg.in_char_start + char_start
         new_stop  = seg.in_char_start + char_stop
-        new_ref = ConcreteReferencePath(FieldReferenceStep("elements"),
-                      ConcreteReferencePath(RangeReferenceStep(seg.in_span - 1, seg.in_span),
-                          ConcreteReferencePath(FieldReferenceStep("content"),
-                              ConcreteReferencePath(RangeReferenceStep(new_start, new_stop),
-                                                    EmptyReferencePath()))))
+        new_ref = ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(seg.in_span - 1, seg.in_span),
+                          ConcreteReference(FieldReferenceStep("content"),
+                              ConcreteReference(RangeReferenceStep(new_start, new_stop),
+                                                    EmptyReference()))))
         return ReplaceStringRangeOperation(new_ref, op.replacement)
     end
     nothing
@@ -299,20 +299,20 @@ _text_elem_path(span_idx::Int, char_idx::Int) =
 
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h1 = path.head
     h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
-    t1 isa ConcreteReferencePath || return nothing
+    t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
-    t2 isa ConcreteReferencePath || return nothing
+    t2 isa ConcreteReference || return nothing
     h3 = t2.head
     h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
-    t3 isa ConcreteReferencePath || return nothing
+    t3 isa ConcreteReference || return nothing
     h4 = t3.head
     h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int)
@@ -321,20 +321,20 @@ end
 # Like `_parse_text_elem_path` but returns the full terminal `(span, start, stop)`.
 function _parse_text_elem_range(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h1 = path.head
     h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
-    t1 isa ConcreteReferencePath || return nothing
+    t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
-    t2 isa ConcreteReferencePath || return nothing
+    t2 isa ConcreteReference || return nothing
     h3 = t2.head
     h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
-    t3 isa ConcreteReferencePath || return nothing
+    t3 isa ConcreteReference || return nothing
     h4 = t3.head
     h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int, h4.stop::Int)

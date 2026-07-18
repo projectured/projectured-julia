@@ -3,8 +3,8 @@ function make_assistant_document_example()
     # Production `main` never fabricates a fake; examples opt in explicitly.
     assistant = WorkbenchAssistant(; llm = FakeLlm())
     # Seed selection so the first KeyPress lands inside the input.
-    assistant.input.selection = ConcreteReferencePath(
+    assistant.input.selection = ConcreteReference(
         FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+        ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
     assistant
 end

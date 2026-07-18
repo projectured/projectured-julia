@@ -53,7 +53,7 @@ import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..TextModule: TextBlock, TextString, text_selection_substring, text_insert_op
 import ..CollectionModule: CellVector
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, try_evaluate_reference, head, tail,
                           strip_reference_types
@@ -177,7 +177,7 @@ function _slice_active(iomap::ClipboardSliceToAnyProjectionIoMap)
 end
 
 function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, reference)
-    reference isa ConcreteReferencePath || return reference
+    reference isa ConcreteReference || return reference
     name, child = _slice_active(iomap)
     h = head(reference)
     (h isa FieldReferenceStep && h.name == name) || return nothing
@@ -188,16 +188,16 @@ function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::Clipboar
     name, child = _slice_active(iomap)
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep(name), mapped)
+    ConcreteReference(FieldReferenceStep(name), mapped)
 end
 
 function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
-    reference isa ConcreteReferencePath || return reference
+    reference isa ConcreteReference || return reference
     if iomap.projection.display_collection[]
         h = head(reference)
         (h isa FieldReferenceStep && h.name == "elements") || return nothing
         rest = tail(reference)
-        rest isa ConcreteReferencePath || return nothing
+        rest isa ConcreteReference || return nothing
         e = head(rest)
         e isa RangeReferenceStep || return nothing
         i = e.stop
@@ -206,7 +206,7 @@ function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::Clip
         child = ims[i]
         mapped = map_reference_forward(child.projection, child, tail(rest))
         mapped === nothing && return nothing
-        ConcreteReferencePath(e, mapped)
+        ConcreteReference(e, mapped)
     else
         h = head(reference)
         (h isa FieldReferenceStep && h.name == "content") || return nothing
@@ -217,7 +217,7 @@ end
 
 function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
     if iomap.projection.display_collection[]
-        reference isa ConcreteReferencePath || return reference
+        reference isa ConcreteReference || return reference
         e = head(reference)
         e isa RangeReferenceStep || return nothing
         i = e.stop
@@ -226,12 +226,12 @@ function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::Cli
         child = ims[i]
         mapped = map_reference_backward(child.projection, child, tail(reference))
         mapped === nothing && return nothing
-        ConcreteReferencePath(FieldReferenceStep("elements"), ConcreteReferencePath(e, mapped))
+        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(e, mapped))
     else
         child = iomap.content_iomap
         mapped = map_reference_backward(child.projection, child, reference)
         mapped === nothing && return nothing
-        ConcreteReferencePath(FieldReferenceStep("content"), mapped)
+        ConcreteReference(FieldReferenceStep("content"), mapped)
     end
 end
 
@@ -288,7 +288,7 @@ evaluate_operation(editor, op::WriteOsClipboardOperation) = (os_clipboard_write(
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
-    ConcreteReferencePath(FieldReferenceStep(name), EmptyReferencePath())
+    ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
 # Append an OS-clipboard mirror write to `ops` when the projection can serialize
 # `obj` to text (a `to_text` converter is set and yields a String). No-op otherwise.
@@ -365,7 +365,7 @@ end
 # usable (non-empty) selection.
 function _selected(input)
     sel = input.selection
-    (sel === nothing || sel isa EmptyReferencePath) && return nothing, nothing
+    (sel === nothing || sel isa EmptyReference) && return nothing, nothing
     obj = try_evaluate_reference(input, sel, missing)
     obj === missing && return nothing, nothing
     sel, obj
@@ -427,7 +427,7 @@ end
 function _clipboard_paste(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
     sel = input.selection
-    (sel === nothing || sel isa EmptyReferencePath) && return nothing
+    (sel === nothing || sel isa EmptyReference) && return nothing
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)
@@ -449,7 +449,7 @@ end
 function _clipboard_paste_copy(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
     sel = input.selection
-    (sel === nothing || sel isa EmptyReferencePath) && return nothing
+    (sel === nothing || sel isa EmptyReference) && return nothing
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)
@@ -485,11 +485,11 @@ end
 # path does not descend through `elements[i]`.
 function _elements_index(path)
     path = strip_reference_types(path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     (h isa FieldReferenceStep && h.name == "elements") || return nothing
     rest = path.tail
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     e = rest.head
     e isa RangeReferenceStep || return nothing
     e.start
@@ -606,10 +606,10 @@ function _prefix_op(op, steps::Tuple)
     end
 end
 
-function _prepend(steps::Tuple, path::ReferencePath)
+function _prepend(steps::Tuple, path::Reference)
     result = path
     for step in reverse(steps)
-        result = ConcreteReferencePath(step, result)
+        result = ConcreteReference(step, result)
     end
     result
 end

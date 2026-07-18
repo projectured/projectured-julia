@@ -28,7 +28,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanv
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, head, tail
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
 import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..PointReferenceModule: PointReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
@@ -984,7 +984,7 @@ end
 # x-offset to a character position using _char_position_at_x, and return
 # a fresh ReplaceSelectionOperation on the flat PositionReferenceStep domain.
 function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h1 = head(path)
     h1 isa RangeReferenceStep || return nothing
     i  = h1.start + 1
@@ -997,7 +997,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
 
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     h2 = head(rest)
     h2 isa PointReferenceStep || return nothing
     rx = h2.x::Int
@@ -1064,23 +1064,23 @@ end
 
 Extract the flat character range for a box selection from the TextBlock's
 selection. Recognized shapes:
-- `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
+- `EmptyReference` (∅) → highlight the full extent `(0, N)` where N is
   the total character count across all segments.
-- `ConcreteReferencePath(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`.
+- `ConcreteReference(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegCoord})
     # The selection is canonical at rest: skip its non-navigating TypeReferenceStep
     # checkpoints before reading the box structure underneath.
     sel = sel
-    if sel isa EmptyReferencePath
+    if sel isa EmptyReference
         isempty(coord_map) && return nothing
         # Cover all segments: use a large sentinel that exceeds any absolute offset.
         return (0, typemax(Int) >> 1)
     end
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     h = sel.head
-    sel.tail isa EmptyReferencePath || return nothing
+    sel.tail isa EmptyReference || return nothing
     if h isa TextRangeReferenceStep
         # A non-empty text selection highlights its flat range; a caret has none
         # (it is drawn as the cursor rect instead).

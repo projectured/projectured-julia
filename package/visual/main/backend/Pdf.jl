@@ -39,7 +39,7 @@ import ..ImageModule: ImageFile
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: EmptyReferencePath
+import ..ReferenceModule: EmptyReference
 import ..CellModule: Cell
 
 export write_pdf, GraphicsCanvasToPdfFile
@@ -670,7 +670,7 @@ function write_pdf(document, projection, filename::AbstractString;
                    background::NTuple{4,UInt8} = DEFAULT_BG,
                    measure = truetype_measure_text)
     print_canvas = (aw, ah) -> begin
-        ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
+        ctx = PrinterContext(EmptyReference(), aw, ah, Dict{Symbol,Any}())
         iomap = print_document(projection, nothing, document, ctx)
         canvas = iomap.output
         canvas isa GraphicsCanvas ||

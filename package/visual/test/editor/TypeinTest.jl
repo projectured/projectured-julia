@@ -6,7 +6,7 @@
 # **backspace**, **delete** — through the full projection reader, checking both
 # the resulting string *and* where the caret lands:
 #
-#   1. Walk every field (with a circularity guard), building a ReferencePath
+#   1. Walk every field (with a circularity guard), building a Reference
 #      to each String the walk reaches; keep that reference.
 #   2. Replace the selection so the cursor points into that string, at the
 #      boundary under test (`0` … `n` for a string of length `n` — the `positions`
@@ -56,7 +56,7 @@ using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 # An objectid set guards against cycles.
 #
 # A cursor target is `(cursor, kind)`:
-#   * `cursor` is the ReferencePath the **cursor convention** anchors at —
+#   * `cursor` is the Reference the **cursor convention** anchors at —
 #     appending a PositionReferenceStep turns it into a cursor selection.
 #   * `kind` says where the editable characters live relative to `cursor`,
 #     so the test can read the string before/after the edit:
@@ -76,7 +76,7 @@ using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 function _collect_string_refs(document)
     refs = NamedTuple{(:cursor, :kind)}[]
-    _walk_strings!(document, EmptyReferencePath(), Set{UInt64}(), refs)
+    _walk_strings!(document, EmptyReference(), Set{UInt64}(), refs)
     refs
 end
 
@@ -87,7 +87,7 @@ function _walk_strings!(node, path, visited, refs)
     node isa Symbol       && return
     node isa AbstractString && return   # recorded by the caller at field level
     node isa Function     && return
-    node isa ReferencePath && return
+    node isa Reference && return
     node isa StyleFont    && return     # font metadata, not editable content
 
     id = objectid(node)
@@ -476,7 +476,7 @@ function walk_typein(document, projection; replacement::AbstractString="X",
     targets = try
         _collect_string_refs(document)
     catch e
-        return [(ref=EmptyReferencePath(), position=0, length=0, edit=:insert, ok=false,
+        return [(ref=EmptyReference(), position=0, length=0, edit=:insert, ok=false,
                  message="collecting string references threw: $e")]
     end
     results = NamedTuple{(:ref, :position, :length, :edit, :ok, :message)}[]

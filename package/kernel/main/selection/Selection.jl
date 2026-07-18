@@ -11,7 +11,7 @@ function clear_selection!(document)
     sel = getfield(document, :selection)
     path = sel[]
     sel[] = nothing
-    path isa ConcreteReferencePath || return
+    path isa ConcreteReference || return
     # Descend into the child the path's head step routes to (see `_selection_child`,
     # which returns `nothing` when the head terminates here — a leaf char cursor,
     # a stale/cross-domain step, or a non-Document field) and clear it too.
@@ -62,14 +62,14 @@ end
 _selection_matches(document, canonical) =
     is_valid_reference(document, _drop_terminal_cursor(canonical))
 
-_drop_terminal_cursor(path::EmptyReferencePath) = path
-function _drop_terminal_cursor(path::ConcreteReferencePath)
-    if path.tail isa EmptyReferencePath && path.head isa RangeReferenceStep &&
+_drop_terminal_cursor(path::EmptyReference) = path
+function _drop_terminal_cursor(path::ConcreteReference)
+    if path.tail isa EmptyReference && path.head isa RangeReferenceStep &&
        path.head.start == path.head.stop
         # Terminal caret: stop at the node it sits on, keeping that node's type.
-        return EmptyReferencePath(path.type)
+        return EmptyReference(path.type)
     end
-    ConcreteReferencePath(path.type, path.head, _drop_terminal_cursor(path.tail))
+    ConcreteReference(path.type, path.head, _drop_terminal_cursor(path.tail))
 end
 
 function set_selection!(document, path)
@@ -83,7 +83,7 @@ function _set_selection_walk!(document, path)
     if hasproperty(document, :selection)
         getfield(document, :selection)[] = path
     end
-    path isa ConcreteReferencePath || return
+    path isa ConcreteReference || return
     # Descend into the child this step routes to and write the remaining tail there
     # (see `_selection_child`: `nothing` means the step terminates at a leaf here).
     child = _selection_child(document, path)
@@ -116,7 +116,7 @@ macro with_selection(document, path...)
     # The reference is built through `ReferenceModule.@reference` under its own
     # module, so the calling module needs only `@with_selection` in scope.
     selection = isempty(path) ?
-        :($annotate_reference_types($d, $EmptyReferencePath())) :
+        :($annotate_reference_types($d, $EmptyReference())) :
         Expr(:macrocall, Expr(:., ReferenceModule, QuoteNode(Symbol("@reference"))),
              __source__, d, path[1])
     esc(:(let $d = $document
@@ -145,7 +145,7 @@ end
 # content actually changed:
 #
 #   * `set_selection!` stores `child.selection === parent.selection.tail` (the
-#     same path objects), and `ConcreteReferencePath`'s head/tail — and a
+#     same path objects), and `ConcreteReference`'s head/tail — and a
 #     `RangeReferenceStep`'s start/stop — are themselves `Cell`s. A caret move
 #     within a leaf therefore differs from the stored selection only in the
 #     terminal cursor step's start/stop: we mutate those two cells in place and
@@ -168,9 +168,9 @@ function _sync_selection!(document, path)
     hasproperty(document, :selection) || return path
     cell = getfield(document, :selection)
     old = cell[]
-    (old isa ReferencePath && path isa ReferencePath && is_reference_equal(old, path)) && return old
+    (old isa Reference && path isa Reference && is_reference_equal(old, path)) && return old
 
-    if old isa ConcreteReferencePath && path isa ConcreteReferencePath
+    if old isa ConcreteReference && path isa ConcreteReference
         old_child = _selection_child(document, old)
         new_child = _selection_child(document, path)
         # Same routing step into the same child Document: keep this cell, recurse
@@ -189,12 +189,12 @@ function _sync_selection!(document, path)
     end
 
     # Divergence: clear the old branch hanging here, install the new suffix.
-    if old isa ConcreteReferencePath
+    if old isa ConcreteReference
         oc = _selection_child(document, old)
         oc === nothing || clear_selection!(oc)
     end
     cell[] = path
-    if path isa ConcreteReferencePath
+    if path isa ConcreteReference
         nc = _selection_child(document, path)
         nc === nothing || set_selection!(nc, path.tail)
     end
@@ -205,7 +205,7 @@ end
 # the head terminates at `document` (a leaf cursor: string char, out-of-range,
 # or a non-Document field). This is the single descent helper shared by
 # `clear_selection!`, `_set_selection_walk!`, and `_sync_selection!`.
-function _selection_child(document, path::ConcreteReferencePath)
+function _selection_child(document, path::ConcreteReference)
     h = path.head
     child = if h isa FieldReferenceStep
         sym = Symbol(h.name)

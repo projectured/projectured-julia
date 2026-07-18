@@ -9,7 +9,7 @@ module JuliaModule
 
 using ..DocumentModule
 using ..CollectionModule
-using ..ReferenceModule   # `@document` injects the implicit `selection::Reference` field
+using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
 using ..DomainModule
 export _julia_operator_string
 

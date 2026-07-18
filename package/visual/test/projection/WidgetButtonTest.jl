@@ -257,7 +257,7 @@ end
     for mk in (() -> WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"),
                () -> WidgetCheckbox(Point2D(0, 0), false))
         un = print_document(proj, nothing, mk(), PrinterContext()).output
-        fw = mk(); getfield(fw, :selection)[] = EmptyReferencePath()
+        fw = mk(); getfield(fw, :selection)[] = EmptyReference()
         fo = print_document(proj, nothing, fw, PrinterContext()).output
         # Same element count in both states (the ring element is persistent)…
         @test length(collect(fo.elements)) == length(collect(un.elements))
@@ -295,7 +295,7 @@ end
 # relative ∅ paths, skipping disabled ones, and recurse through containers.
 @testset "first/last_focusable_path find enabled leaves and skip disabled" begin
     # A bare focusable leaf is its own whole-element (∅) selection.
-    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReferencePath
+    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReference
     # A disabled leaf has no focusable path.
     @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A"; enabled=false)) === nothing
     # A display-only widget has none either.
@@ -307,10 +307,10 @@ end
         WidgetCheckbox(Point2D(0,0), true),
     ])
     fp = first_focusable_path(comp)
-    @test fp isa ConcreteReferencePath
+    @test fp isa ConcreteReference
     @test fp.head isa FieldReferenceStep && fp.head.name == "elements"
     @test fp.tail.head isa RangeReferenceStep && fp.tail.head.start == 0      # slot 1 (enabled button)
-    @test fp.tail.tail isa EmptyReferencePath
+    @test fp.tail.tail isa EmptyReference
     lp = last_focusable_path(comp)
     @test lp.tail.head.start == 2                                         # slot 3 (checkbox); disabled slot 2 skipped
 
@@ -337,15 +337,15 @@ end
     # A focusable widget stored as a node's value is still reached (the walk doesn't loop).
     c = ListNode(WidgetButton(Point2D(0,0), Point2D(40,20), "OK")); d = ListNode("z")
     c.next = d; d.prev = c
-    @test first_focusable_path(c) isa ConcreteReferencePath
+    @test first_focusable_path(c) isa ConcreteReference
 end
 
 # Stage 2, Step 3: distributed Tab traversal in the composite reader. Tab moves
 # the selection to the next focusable child (skipping disabled ones); bootstrap
 # focuses the first; the last child declines (no wrap yet). Shift-Tab reverses.
 @testset "composite Tab advances the selection across focusable children" begin
-    _mk(i) = ConcreteReferencePath(FieldReferenceStep("elements"),
-                ConcreteReferencePath(RangeReferenceStep(i - 1, i), EmptyReferencePath()))
+    _mk(i) = ConcreteReference(FieldReferenceStep("elements"),
+                ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
     _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
     _slot(op) = op.path.tail.head.start + 1          # 1-based selected slot from the op
     proj = _proj()
@@ -385,8 +385,8 @@ end
 # children sit under `children[i]` (vs the composite's `elements[i]`), so this
 # exercises the layout-specific path shape and the cross-module focus helpers.
 @testset "layout Tab advances the selection across focusable children" begin
-    _mk(i) = ConcreteReferencePath(FieldReferenceStep("children"),
-                ConcreteReferencePath(RangeReferenceStep(i - 1, i), EmptyReferencePath()))
+    _mk(i) = ConcreteReference(FieldReferenceStep("children"),
+                ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
     _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
     _slot(op) = op.path.tail.head.start + 1
     # A renderer that dispatches both layout nodes and widget nodes (as the widget

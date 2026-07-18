@@ -23,8 +23,8 @@ struct _StubInner
     output::Any
 end
 
-_elem_path(i) = ConcreteReferencePath(FieldReferenceStep("elements"),
-                    ConcreteReferencePath(ElementReferenceStep(i), EmptyReferencePath()))
+_elem_path(i) = ConcreteReference(FieldReferenceStep("elements"),
+                    ConcreteReference(ElementReferenceStep(i), EmptyReference()))
 
 # Build (projection, iomap) for a DraggingState wrapping `content`; the inner
 # stub resolves a synthetic MousePress via `hit` (a `gesture -> op` function).

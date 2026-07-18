@@ -39,7 +39,7 @@ function _json_collect!(node, path, results)
 end
 
 """
-    collect_json_tree_selections(document::JsonDocument) -> Vector{ReferencePath}
+    collect_json_tree_selections(document::JsonDocument) -> Vector{Reference}
 
 Every Alt+arrow-reachable whole-element selection in a JSON document: the root
 (∅), each object entry (`.entries[i]`) with its key (`.entries[i].key`) and value
@@ -48,7 +48,7 @@ value / element subtree. Mirrors JsonToSyntax's entry pair-node decomposition, s
 the path strings match navigation output.
 """
 collect_json_tree_selections(document) =
-    _json_collect!(document, EmptyReferencePath(), ReferencePath[])
+    _json_collect!(document, EmptyReference(), Reference[])
 
 # ── Example-typed tree-navigation overload ────────────────────────────────
 

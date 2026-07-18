@@ -9,7 +9,7 @@ module FocusingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath, evaluate_reference, extend_reference, strip_reference_types
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, evaluate_reference, extend_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: set_cell_function!
 import ..GestureBindingModule: GestureBinding
@@ -19,25 +19,25 @@ import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_
 export FocusingProjection, ReplaceFocusPartOperation
 
 """
-    FocusingProjection(; part_type=Any, part=EmptyReferencePath())
+    FocusingProjection(; part_type=Any, part=EmptyReference())
 
 A generic projection that focuses on a specific sub-document by navigating
-into the input along `part` (a `ReferencePath`). Only sub-documents whose
+into the input along `part` (a `Reference`). Only sub-documents whose
 type is a subtype of `part_type` may be targeted.
 
 # Example
 
-    fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReferenceStep(1)))
+    fp = FocusingProjection(part_type=Vector, part=Reference(PositionReferenceStep(1)))
     iomap = print_document(fp, nothing, [[1, 2], [3, 4]], nothing)
     iomap.output  # [1, 2]
 """
 mutable struct FocusingProjection <: Projection
     part_type::Any
-    part::ReferencePath
+    part::Reference
     part_evaluator::Function
 end
 
-FocusingProjection(; part_type=Any, part::ReferencePath=EmptyReferencePath()) =
+FocusingProjection(; part_type=Any, part::Reference=EmptyReference()) =
     FocusingProjection(part_type, part, document -> evaluate_reference(document, part))
 
 function print_document(p::FocusingProjection, recursion, input, ctx)
@@ -74,7 +74,7 @@ so that subsequent `print_document` calls navigate to the new `part`.
 """
 struct ReplaceFocusPartOperation <: Operation
     projection::FocusingProjection
-    part::ReferencePath
+    part::Reference
 end
 
 function evaluate_operation(editor, op::ReplaceFocusPartOperation)
@@ -117,35 +117,35 @@ end
 read_intent(p::FocusingProjection, iomap::SimpleIoMap, event) =
     read_projection_gesture(p, iomap, event)
 
-function _concat_path(prefix::EmptyReferencePath, suffix::ReferencePath)
+function _concat_path(prefix::EmptyReference, suffix::Reference)
     suffix
 end
 
-function _concat_path(prefix::ConcreteReferencePath, suffix::ReferencePath)
-    ConcreteReferencePath(prefix.head, _concat_path(prefix.tail, suffix))
+function _concat_path(prefix::ConcreteReference, suffix::Reference)
+    ConcreteReference(prefix.head, _concat_path(prefix.tail, suffix))
 end
 
-function _strip_prefix(::EmptyReferencePath, path::ReferencePath)
+function _strip_prefix(::EmptyReference, path::Reference)
     path
 end
 
-function _strip_prefix(::ConcreteReferencePath, ::EmptyReferencePath)
+function _strip_prefix(::ConcreteReference, ::EmptyReference)
     nothing
 end
 
-function _strip_prefix(prefix::ConcreteReferencePath, path::ConcreteReferencePath)
+function _strip_prefix(prefix::ConcreteReference, path::ConcreteReference)
     prefix.head == path.head || return nothing
     _strip_prefix(prefix.tail, path.tail)
 end
 
-function _drop_last(path::ConcreteReferencePath)
+function _drop_last(path::ConcreteReference)
     tail = path.tail
-    tail isa EmptyReferencePath ? EmptyReferencePath() : ConcreteReferencePath(path.head, _drop_last(tail))
+    tail isa EmptyReference ? EmptyReference() : ConcreteReference(path.head, _drop_last(tail))
 end
 
-function _longest_prefix_of_type(document, sel::ReferencePath, part_type)
+function _longest_prefix_of_type(document, sel::Reference, part_type)
     best = nothing
-    path = EmptyReferencePath()
+    path = EmptyReference()
     for step in sel
         path = extend_reference(path, step)
         # `missing` (not `nothing`): a path that resolves to an empty field *is* a

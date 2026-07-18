@@ -136,7 +136,7 @@ reference path contains a `ProjectionReferenceStep` step:
 ```julia
 struct ProjectionReferenceStep <: ReferenceStep
     projection::Any             # which projection introduced this element
-    output_path::ReferencePath  # where within that projection's output
+    output_path::Reference  # where within that projection's output
 end
 ```
 

@@ -18,9 +18,9 @@ using Projectured: set_selection!, evaluate_reference
 # with its terminal position step dropped. `collect_position_selections` yields
 # `…{k}` carets, but `evaluate_reference` of a `{k}` returns the position step, not
 # the character — to read the edited text we evaluate the enclosing string.
-_caret_string_reference(p::ConcreteReferencePath) =
-    p.tail isa EmptyReferencePath ? EmptyReferencePath() :
-    ConcreteReferencePath(p.head, _caret_string_reference(p.tail))
+_caret_string_reference(p::ConcreteReference) =
+    p.tail isa EmptyReference ? EmptyReference() :
+    ConcreteReference(p.head, _caret_string_reference(p.tail))
 _caret_string_reference(p) = p
 
 function test_record_video()

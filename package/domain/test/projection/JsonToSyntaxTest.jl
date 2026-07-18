@@ -48,7 +48,7 @@ function test_json_to_syntax_reader()
 @testset "JsonToSyntax reader commands" begin
 
 j2s = RecursiveProjection(JsonToSyntax())
-whole = EmptyReferencePath()
+whole = EmptyReference()
 selof(x) = getfield(x, :selection)[]
 
 read_key(doc, sel, evt) = begin
@@ -102,7 +102,7 @@ end
     @test arr[1] isa JsonNumber
     @test arr[1].value == 5
     # Cursor landed inside the new number's text.
-    @test selof(arr[1]) isa ConcreteReferencePath
+    @test selof(arr[1]) isa ConcreteReference
 end
 
 @testset "digit gating: the chain gates the digit, not the domain" begin
@@ -130,7 +130,7 @@ end
     evaluate_operation(ed, op)
     @test length(arr.elements) == 2
     @test arr[2] isa JsonInsertion
-    @test selof(arr[2]) isa EmptyReferencePath   # new element wholly selected
+    @test selof(arr[2]) isa EmptyReference   # new element wholly selected
 end
 
 @testset "object insert appends an entry and selects its key" begin
@@ -143,7 +143,7 @@ end
     new_entry = obj.entries[2]
     @test new_entry isa JsonObjectEntry
     @test new_entry.key == ""
-    @test selof(new_entry) isa ConcreteReferencePath   # cursor in the key
+    @test selof(new_entry) isa ConcreteReference   # cursor in the key
 end
 
 @testset "Tab moves from an entry key to its value" begin
@@ -190,7 +190,7 @@ function test_json_gesture_collection()
     end
 
     @testset "root scalar exposes the type-to-replace set" begin
-        all, app = collect_for(JsonNull(), EmptyReferencePath())
+        all, app = collect_for(JsonNull(), EmptyReference())
         @test length(all) == 8                       # n f t " [ : { digit
         @test length(app) == 8                        # whole value → all replaceable
         @test "n" in [describe_event_pattern(b.pattern) for b in all]
@@ -200,7 +200,7 @@ function test_json_gesture_collection()
     end
 
     @testset "array adds comma-insert; element selection stays replaceable" begin
-        whole_all, whole_app = collect_for(JsonArray([JsonNumber(1)]), EmptyReferencePath())
+        whole_all, whole_app = collect_for(JsonArray([JsonNumber(1)]), EmptyReference())
         @test length(whole_all) == 9                  # 8 inherited + , insert
         @test length(whole_app) == 9
         @test "," in [describe_event_pattern(b.pattern) for b in whole_all]

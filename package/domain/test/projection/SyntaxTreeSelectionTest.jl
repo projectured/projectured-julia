@@ -4,7 +4,7 @@
 # Whole-element ("tree") selection across the JSON → Syntax → Text chain.
 #
 # A whole-element selection is *not* a distinct reference step: it is simply a
-# path that terminates AT the element, i.e. an `EmptyReferencePath` (`∅`). Each
+# path that terminates AT the element, i.e. an `EmptyReference` (`∅`). Each
 # node stores only its remaining path, so the one node whose `selection` cell
 # holds `∅` is the wholly-selected one; its ancestors hold a non-empty path
 # routing down to it, and its descendants hold `nothing`. These tests pin:
@@ -21,7 +21,7 @@ function test_syntax_tree_selection()
 @testset "SyntaxTreeSelection" begin
 
 # Whole-element selection == a path that ends at the element.
-whole = EmptyReferencePath()
+whole = EmptyReference()
 selof(x) = getfield(x, :selection)[]
 
 j2s = RecursiveProjection(JsonToSyntax())
@@ -39,19 +39,19 @@ end
 @testset "set/clear_selection! place ∅ at the target node" begin
     leaf = SyntaxLeaf("hi"; open="\"", close="\"")
     set_selection!(leaf, whole)
-    @test strip_reference_types(selof(leaf)) isa EmptyReferencePath
+    @test strip_reference_types(selof(leaf)) isa EmptyReference
     clear_selection!(leaf)
     @test selof(leaf) === nothing
 
     # Nested: the array holds `.elements[2]` (non-empty), the child holds ∅, and
     # everything else is untouched — the tree-position invariant.
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
-    nested = ConcreteReferencePath(FieldReferenceStep("elements"),
-                 ConcreteReferencePath(ElementReferenceStep(2), whole))
+    nested = ConcreteReference(FieldReferenceStep("elements"),
+                 ConcreteReference(ElementReferenceStep(2), whole))
     set_selection!(arr, nested)
-    @test selof(arr) isa ConcreteReferencePath          # ancestor: non-empty path
+    @test selof(arr) isa ConcreteReference          # ancestor: non-empty path
     @test !isempty(selof(arr))
-    @test strip_reference_types(selof(arr[2])) isa EmptyReferencePath   # target: ∅
+    @test strip_reference_types(selof(arr[2])) isa EmptyReference   # target: ∅
     @test selof(arr[1]) === nothing                     # sibling: nothing
     clear_selection!(arr)
     @test selof(arr) === nothing
@@ -63,10 +63,10 @@ end
     set_selection!(arr, whole)
 
     node_io = print_document(j2s, arr)
-    @test strip_reference_types(node_io.output.selection) isa EmptyReferencePath
+    @test strip_reference_types(node_io.output.selection) isa EmptyReference
 
     text_io = print_document(s2t, node_io.output)
-    @test text_io.output.selection isa EmptyReferencePath
+    @test text_io.output.selection isa EmptyReference
     # The whole-element selection does not alter the rendered text.
     @test occursin("1", join(s.content for s in text_io.output.elements))
 end
@@ -76,17 +76,17 @@ end
     set_selection!(obj, whole)
 
     node_io = print_document(j2s, obj)
-    @test strip_reference_types(node_io.output.selection) isa EmptyReferencePath
+    @test strip_reference_types(node_io.output.selection) isa EmptyReference
 
     text_io = print_document(s2t, node_io.output)
-    @test text_io.output.selection isa EmptyReferencePath
+    @test text_io.output.selection isa EmptyReference
 end
 
 @testset "forward: SyntaxLeaf whole → Text ∅" begin
     leaf = SyntaxLeaf("hi"; open="\"", close="\"")
     set_selection!(leaf, whole)
     text_io = print_document(s2t, leaf)
-    @test text_io.output.selection isa EmptyReferencePath
+    @test text_io.output.selection isa EmptyReference
 end
 
 @testset "backward: ∅ at Text → Syntax → JSON (array)" begin
@@ -97,34 +97,34 @@ end
 
     op_syntax = read_intent(s2t, text_io, ReplaceSelectionOperation(whole))
     @test op_syntax isa ReplaceSelectionOperation
-    @test op_syntax.path isa EmptyReferencePath
+    @test op_syntax.path isa EmptyReference
 
     op_json = read_intent(j2s, node_io, op_syntax)
     @test op_json isa ReplaceSelectionOperation
-    @test strip_reference_types(op_json.path) isa EmptyReferencePath
+    @test strip_reference_types(op_json.path) isa EmptyReference
 end
 
 @testset "nested whole-child emits TextSpanReferenceStep at Text level" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     # Select the 2nd element as a whole: .elements[2] (terminating ∅).
-    nested = ConcreteReferencePath(FieldReferenceStep("elements"),
-                 ConcreteReferencePath(ElementReferenceStep(2), whole))
+    nested = ConcreteReference(FieldReferenceStep("elements"),
+                 ConcreteReference(ElementReferenceStep(2), whole))
     set_selection!(arr, nested)
 
     # Forward: reaches the SyntaxNode as `.children[2]` (a complete path ending
     # at the child — i.e. the child wholly selected).
     node_io = print_document(j2s, arr)
-    expected_child = ConcreteReferencePath(FieldReferenceStep("children"),
-                         ConcreteReferencePath(ElementReferenceStep(2), EmptyReferencePath()))
+    expected_child = ConcreteReference(FieldReferenceStep("children"),
+                         ConcreteReference(ElementReferenceStep(2), EmptyReference()))
     @test is_reference_equal(strip_reference_types(node_io.output.selection), expected_child)
 
     # The text layer now emits a TextSpanReferenceStep carrying the child's
     # flat character range for the highlight box.
     text_io = print_document(s2t, node_io.output)
     text_sel = text_io.output.selection
-    @test text_sel isa ConcreteReferencePath
+    @test text_sel isa ConcreteReference
     @test text_sel.head isa TextSpanReferenceStep
-    @test text_sel.tail isa EmptyReferencePath
+    @test text_sel.tail isa EmptyReference
     # The range must be non-empty and cover the child's extent.
     tr = text_sel.head::TextSpanReferenceStep
     @test tr.start >= 0

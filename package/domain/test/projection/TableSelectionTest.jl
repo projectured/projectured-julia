@@ -20,13 +20,13 @@
 _table_measure() = (text, font) -> (length(text) * 10, 20)
 
 # Reference builders in the WidgetTable vocabulary.
-_wt_row(r)     = ConcreteReferencePath(FieldReferenceStep("rows"),
-                    ConcreteReferencePath(ElementReferenceStep(r), EmptyReferencePath()))
-_wt_col(c)     = ConcreteReferencePath(FieldReferenceStep("column_headers"),
-                    ConcreteReferencePath(ElementReferenceStep(c), EmptyReferencePath()))
-_wt_cell(r, c) = ConcreteReferencePath(FieldReferenceStep("rows"),
-                    ConcreteReferencePath(ElementReferenceStep(r),
-                        ConcreteReferencePath(ElementReferenceStep(c), EmptyReferencePath())))
+_wt_row(r)     = ConcreteReference(FieldReferenceStep("rows"),
+                    ConcreteReference(ElementReferenceStep(r), EmptyReference()))
+_wt_col(c)     = ConcreteReference(FieldReferenceStep("column_headers"),
+                    ConcreteReference(ElementReferenceStep(c), EmptyReference()))
+_wt_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
+                    ConcreteReference(ElementReferenceStep(r),
+                        ConcreteReference(ElementReferenceStep(c), EmptyReference())))
 
 # The translucent selection band(s) the renderer prepends (alpha 0x40),
 # materialised to value tuples *immediately*. The band is a single persistent
@@ -62,7 +62,7 @@ function test_table_selection()
 
     th(path) = _table_highlights(_print_with(doc, proj, path))
 
-    table_hs = th(EmptyReferencePath())
+    table_hs = th(EmptyReference())
     row_hs   = th(_wt_row(2))
     col_hs   = th(_wt_col(3))
     cell_hs  = th(_wt_cell(2, 3))     # row 2, column 3 = intersection of the bands
@@ -111,10 +111,10 @@ end
     # a whole-element shape: the band collapses to 0×0 (draws nothing), so no visible
     # band. (rows[2][2] is a MathBinaryOperation with no `.value` — an unselectable
     # path — so use the primitive cell the click test below also lands on.)
-    inner = ConcreteReferencePath(FieldReferenceStep("rows"),
-                ConcreteReferencePath(ElementReferenceStep(1),
-                    ConcreteReferencePath(ElementReferenceStep(1),
-                        ConcreteReferencePath(FieldReferenceStep("value"), EmptyReferencePath()))))
+    inner = ConcreteReference(FieldReferenceStep("rows"),
+                ConcreteReference(ElementReferenceStep(1),
+                    ConcreteReference(ElementReferenceStep(1),
+                        ConcreteReference(FieldReferenceStep("value"), EmptyReference()))))
     @test isempty(_table_highlights(_print_with(doc, proj, inner)))
 
     # A plain left click routes into the clicked cell's content, landing on a
@@ -136,7 +136,7 @@ end
     proj = make_table_projection_example(measure=m)
 
     th(path) = _table_highlights(_print_with(doc, proj, path))
-    @test length(th(EmptyReferencePath())) == 1     # whole table
+    @test length(th(EmptyReference())) == 1     # whole table
     @test length(th(_wt_row(2))) == 1               # row band
     @test length(th(_wt_col(2))) == 1               # column band
     @test length(th(_wt_cell(2, 2))) == 1           # cell band

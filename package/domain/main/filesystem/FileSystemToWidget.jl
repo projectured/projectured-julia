@@ -24,7 +24,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..GestureBindingModule: GestureBinding
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath,
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference,
                           is_element_reference_step
 export FileSystemToWidgetTree, FileSystemToWidget
 
@@ -106,12 +106,12 @@ end
 function _fs_ref_indices(reference)
     cur = reference
     idxs = Int[]
-    while !(cur isa EmptyReferencePath)
-        cur isa ConcreteReferencePath || return nothing
+    while !(cur isa EmptyReference)
+        cur isa ConcreteReference || return nothing
         h = cur.head
         (h isa FieldReferenceStep && h.name == "elements") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end
@@ -119,11 +119,11 @@ function _fs_ref_indices(reference)
 end
 
 # Build `elements[a].elements[b]…` (empty list → `∅`, the root directory).
-_fs_ref_from_indices(idxs::Vector{Int}) = isempty(idxs) ? EmptyReferencePath() : _fs_build(idxs, 1)
+_fs_ref_from_indices(idxs::Vector{Int}) = isempty(idxs) ? EmptyReference() : _fs_build(idxs, 1)
 function _fs_build(idxs::Vector{Int}, k::Int)
-    tail = k == length(idxs) ? EmptyReferencePath() : _fs_build(idxs, k + 1)
-    ConcreteReferencePath(FieldReferenceStep("elements"),
-        ConcreteReferencePath(RangeReferenceStep(idxs[k] - 1, idxs[k]), tail))
+    tail = k == length(idxs) ? EmptyReference() : _fs_build(idxs, k + 1)
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(idxs[k] - 1, idxs[k]), tail))
 end
 
 # Build `roots[1].children[a].children[b]…` from element indices.
@@ -133,27 +133,27 @@ function _tree_ref_from_indices(idxs::Vector{Int})
 end
 function _tree_build(path::Vector{Int}, k::Int)
     field = k == 1 ? "roots" : "children"
-    tail = k == length(path) ? EmptyReferencePath() : _tree_build(path, k + 1)
-    ConcreteReferencePath(FieldReferenceStep(field),
-        ConcreteReferencePath(RangeReferenceStep(path[k] - 1, path[k]), tail))
+    tail = k == length(path) ? EmptyReference() : _tree_build(path, k + 1)
+    ConcreteReference(FieldReferenceStep(field),
+        ConcreteReference(RangeReferenceStep(path[k] - 1, path[k]), tail))
 end
 
 # Decode `roots[1].children[a].children[b]…` into the element indices [a, b, …]
 # ([] = the root node), or nothing on an unexpected shape.
 function _tree_ref_indices(reference)
     cur = reference
-    cur isa ConcreteReferencePath || return nothing
+    cur isa ConcreteReference || return nothing
     (cur.head isa FieldReferenceStep && cur.head.name == "roots") || return nothing
     t = cur.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
+    (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     (t.head.start + 1 == 1) || return nothing      # only one root node
     cur = t.tail
     idxs = Int[]
-    while !(cur isa EmptyReferencePath)
-        cur isa ConcreteReferencePath || return nothing
+    while !(cur isa EmptyReference)
+        cur isa ConcreteReference || return nothing
         (cur.head isa FieldReferenceStep && cur.head.name == "children") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end

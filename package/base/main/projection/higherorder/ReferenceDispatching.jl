@@ -23,7 +23,7 @@ A compound projection that dispatches to different inner projections based on
 the current `reference` path argument.
 
 The pair-based form uses structural equality: `default` is used when no key
-matches; `pairs` is a list of `ReferencePath => Projection` pairs.
+matches; `pairs` is a list of `Reference => Projection` pairs.
 
 The function-based form takes a `reference -> Projection` callable, enabling
 `@reference_case` patterns (including `prefix()` and `_` wildcards).

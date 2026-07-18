@@ -21,9 +21,9 @@ import ..ColorModule: StyleColor, color_solarized_gray
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
-                          PositionReferenceStep, ReferencePath,
-                          EmptyReferencePath, extend_reference, is_element_reference_step
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
+                          PositionReferenceStep, Reference,
+                          EmptyReference, extend_reference, is_element_reference_step
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
@@ -39,8 +39,8 @@ end
 function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
     core = reference
-    core isa EmptyReferencePath && return EmptyReferencePath()
-    if core isa ConcreteReferencePath
+    core isa EmptyReference && return EmptyReference()
+    if core isa ConcreteReference
         # A projection-introduced position (structural delimiter) was encoded as
         # proj(p, {flat}) by the reader.  Keep it wrapped so that
         # SyntaxCompoundToText._syntax_to_flat can extract the flat position via its
@@ -61,8 +61,8 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
             child = child_iomaps_vec[j]
             inner = map_reference_forward(child.projection, child, core.tail)
             inner === nothing && return nothing
-            return ConcreteReferencePath(FieldReferenceStep("children"),
-                       ConcreteReferencePath(RangeReferenceStep(j - 1, j - 1), inner))
+            return ConcreteReference(FieldReferenceStep("children"),
+                       ConcreteReference(RangeReferenceStep(j - 1, j - 1), inner))
         end
     end
     nothing
@@ -101,19 +101,19 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
 end
 
 # Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.
-# Returns ConcreteReferencePath(ElementReferenceStep(child_i), rest) or nothing.
-function _translate_collection_path(cv::CellVector, path::ReferencePath)
+# Returns ConcreteReference(ElementReferenceStep(child_i), rest) or nothing.
+function _translate_collection_path(cv::CellVector, path::Reference)
     path = path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep && h.name == "children" || return nothing
     rest0 = path.tail
-    rest0 isa ConcreteReferencePath || return nothing
+    rest0 isa ConcreteReference || return nothing
     h2 = rest0.head
     h2 isa RangeReferenceStep || return nothing
     child_i = h2.start + 1
     1 <= child_i <= length(cv) || return nothing
-    ConcreteReferencePath(ElementReferenceStep(child_i), rest0.tail)
+    ConcreteReference(ElementReferenceStep(child_i), rest0.tail)
 end
 
 function read_intent(p::CollectionCellVectorToSyntax,
@@ -124,7 +124,7 @@ function read_intent(p::CollectionCellVectorToSyntax,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+        ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # ── CollectionListNodeToSyntax ───────────────────────────────────────────────

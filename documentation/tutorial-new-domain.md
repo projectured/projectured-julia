@@ -165,8 +165,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ChainingProjectionModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep,
-                           PositionReferenceStep, ReferencePath, EmptyReferencePath
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
+                           PositionReferenceStep, Reference, EmptyReference
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"

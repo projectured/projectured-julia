@@ -32,7 +32,7 @@ function make_widget_popup_projection_example(; measure=truetype_measure_text)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         _is_window_content(ref) &&
             return NestingProjection(widget_proj; recursion=IdentityProjection())
-        ref isa EmptyReferencePath &&
+        ref isa EmptyReference &&
             return WindowManagingProjection(
                 inner = WidgetPopupResolverProjection(inner = ScreenToScreen()))
         return IdentityProjection()
@@ -46,16 +46,16 @@ end
 
 # True iff `ref` addresses a window's whole content: `windows[i].content`.
 function _is_window_content(ref)
-    ref isa ConcreteReferencePath || return false
+    ref isa ConcreteReference || return false
     h = ref.head
     (h isa FieldReferenceStep && h.name == "windows") || return false
     r1 = ref.tail
-    r1 isa ConcreteReferencePath || return false
+    r1 isa ConcreteReference || return false
     r1.head isa RangeReferenceStep || return false
     r2 = r1.tail
-    r2 isa ConcreteReferencePath || return false
+    r2 isa ConcreteReference || return false
     (r2.head isa FieldReferenceStep && r2.head.name == "content") || return false
-    r2.tail isa EmptyReferencePath
+    r2.tail isa EmptyReference
 end
 
 # The editable-text widget projection. A WidgetText whose content is a TextBlock

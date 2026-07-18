@@ -17,7 +17,7 @@ import ..IoMapApiModule: IoMap
 import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
                           strip_reference_types
 import ..ReferenceModule: var"@reference_case"
@@ -29,7 +29,7 @@ struct SearchingProjectionIoMap <: IoMap
     projection::Any
     input::Any
     output::Any                          # CellVector of the matched objects
-    match_paths::Vector{ReferencePath}   # input-root-relative path to each match
+    match_paths::Vector{Reference}   # input-root-relative path to each match
 end
 
 # ── Projection ────────────────────────────────────────────────────────────
@@ -67,14 +67,14 @@ SearchingProjection(pattern::AbstractString; kw...) =
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::SearchingProjection, recursion, input, ctx)
-    matches = Tuple{ReferencePath,Any}[]
+    matches = Tuple{Reference,Any}[]
     seen = Base.IdSet{Any}()
-    _walk(p, input, EmptyReferencePath(), matches, seen)
+    _walk(p, input, EmptyReference(), matches, seen)
 
     out_cells = Cell[Cell(obj) for (_, obj) in matches]
     output = CellVector(out_cells)
     iomap = SearchingProjectionIoMap(p, input, output,
-        ReferencePath[path for (path, _) in matches])
+        Reference[path for (path, _) in matches])
 
     # Forward-project the input selection so the cursor lands on the matching
     # result when it points inside one. Lazy so the not-yet-needed `iomap`
@@ -100,7 +100,7 @@ print_document(p::SearchingProjection, input) =
 # `value`/`prev`/`next` fields are ordinary `Document`-valued fields, so the
 # seen set is what terminates the prev/next chain.
 
-function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
+function _walk(p::SearchingProjection, node, path::Reference, matches, seen)
     node isa Document || return
     node in seen && return
     push!(seen, node)
@@ -141,7 +141,7 @@ end
 # ── Reference mapping ─────────────────────────────────────────────────────
 
 function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
-    reference isa ReferencePath || return nothing
+    reference isa Reference || return nothing
     stripped = strip_reference_types(reference)   # match the plain skeleton; selections are canonical
     # Choose the longest matching prefix so a selection inside a nested match
     # resolves to the most specific (deepest) result.
@@ -158,7 +158,7 @@ function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectio
             best_rest = rest
         end
     end
-    best_j != 0 && return ConcreteReferencePath(ElementReferenceStep(best_j), best_rest)
+    best_j != 0 && return ConcreteReference(ElementReferenceStep(best_j), best_rest)
     # Fallback: a projection-introduced position (e.g. a structural delimiter
     # clicked by the user) has been wrapped in proj(SearchingProjection, inner)
     # by map_reference_backward's wildcard branch. Strip the wrapper so the
@@ -183,15 +183,15 @@ end
 # `extend_reference` joins step varargs — neither covers "strip a path prefix,
 # return the remaining tail" or "concatenate two paths", so these fill the gap.
 
-_strip_prefix(ref::ReferencePath, ::EmptyReferencePath) = ref
-_strip_prefix(::EmptyReferencePath, ::ConcreteReferencePath) = nothing
-function _strip_prefix(ref::ConcreteReferencePath, prefix::ConcreteReferencePath)
+_strip_prefix(ref::Reference, ::EmptyReference) = ref
+_strip_prefix(::EmptyReference, ::ConcreteReference) = nothing
+function _strip_prefix(ref::ConcreteReference, prefix::ConcreteReference)
     head(ref) == head(prefix) || return nothing
     _strip_prefix(tail(ref), tail(prefix))
 end
 
-_concat(::EmptyReferencePath, t::ReferencePath) = t
-_concat(p::ConcreteReferencePath, t::ReferencePath) =
-    ConcreteReferencePath(head(p), _concat(tail(p), t))
+_concat(::EmptyReference, t::Reference) = t
+_concat(p::ConcreteReference, t::Reference) =
+    ConcreteReference(head(p), _concat(tail(p), t))
 
 end # module

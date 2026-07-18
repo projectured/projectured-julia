@@ -185,7 +185,7 @@ you.) That gap is itself a diagnostic (below).
 
 ### Reading an iomap path
 
-An iomap-rooted `ReferencePath` prints as its stages, so the path tells you which
+An iomap-rooted `Reference` prints as its stages, so the path tells you which
 pipeline stage each hit is in at a glance:
 
 ```
@@ -363,7 +363,7 @@ recording above is `15 + 9 + 9 + 15 = 48` frames at `fps=30`.
 Keyboard typein only edits when something is selected — with no caret the reader
 produces no operation and `KeyPress` gestures are silent no-ops. To record a
 typing demo, either make the first gesture a `MousePress` that places the caret,
-or pass an `initial_selection` (a `ReferencePath` into the document, the same
+or pass an `initial_selection` (a `Reference` into the document, the same
 kind of value `set_selection!` and `run_example(...; selection=…)` take):
 
 ```julia

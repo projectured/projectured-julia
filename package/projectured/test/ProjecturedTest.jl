@@ -87,7 +87,7 @@ using ProjecturedVideoTest
 using ProjecturedOdbcTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
-                   ConcreteReferencePath, EmptyReferencePath, ReferencePath,
+                   ConcreteReference, EmptyReference, Reference,
                    map_reference_forward, map_reference_backward,
                    color_red, color_blue, color_green, color_white, color_default,
                    color_solarized_background_dark,

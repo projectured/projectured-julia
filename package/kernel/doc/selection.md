@@ -2,7 +2,7 @@
 
 Selection is the mechanism that tracks the current cursor position or focused
 region within a document. A **selection** is a specific use of a *reference*:
-the [`ReferencePath`](reference.md) stored in a document's `selection::Cell`
+the [`Reference`](reference.md) stored in a document's `selection::Cell`
 that identifies the currently focused position. Every `Document` carries a
 `selection::Cell` holding the path relative to that node.
 
@@ -20,7 +20,7 @@ restating the vocabulary. For a gentler introduction see
 
 Only types that subtype `Document` participate in the selection mechanism.
 Every concrete `Document` **must** carry a `selection::Cell` field that holds the
-`ReferencePath` *relative to this node* — the suffix of the full path starting
+`Reference` *relative to this node* — the suffix of the full path starting
 at this level.
 
 The invariant: **every child reached by a step in the path must itself be a
@@ -62,13 +62,13 @@ To set the selection to a specific location, use `set_selection!` with a
 reference path:
 
 ```julia
-path = ReferencePath(FieldReferenceStep("name"), PositionReferenceStep(5))
+path = Reference(FieldReferenceStep("name"), PositionReferenceStep(5))
 set_selection!(document, path)
 ```
 
 The generic implementation in `ReferenceEvaluation.jl` walks the path step by step:
 
-1. If `path` is `EmptyReferencePath`, stop.
+1. If `path` is `EmptyReference`, stop.
 2. Read the head step `h = path.head[]`.
 3. Navigate to the child document:
    - `FieldReferenceStep(name)` → `getfield(document, Symbol(name))`, unwrapping a
@@ -189,7 +189,7 @@ A leaf printer illustrates the reactive wiring:
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
-        c < 0 ? nothing : ConcreteReferencePath(PositionReferenceStep(c))
+        c < 0 ? nothing : ConcreteReference(PositionReferenceStep(c))
     end)
     SimpleIoMap(p, leaf, Text(Cell(...spans...), sel))
 end
@@ -314,7 +314,7 @@ sel = Cell(() -> begin
     (i + 1 > length(iomaps)) && return nothing
     child_sel = iomaps[i + 1].output.selection[]
     child_sel === nothing && return nothing
-    ConcreteReferencePath(ElementReferenceStep(i), child_sel)
+    ConcreteReference(ElementReferenceStep(i), child_sel)
 end)
 ```
 

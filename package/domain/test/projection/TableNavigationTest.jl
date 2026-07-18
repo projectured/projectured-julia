@@ -104,22 +104,22 @@ end
 # A structural selection is `∅`, `rows[r]∅`, `column_headers[c]∅`, or
 # `rows[r][c]∅` — i.e. it terminates at an element, not inside cell content.
 function _wt_is_structural(path)
-    path isa EmptyReferencePath && return true
-    path isa ConcreteReferencePath || return false
+    path isa EmptyReference && return true
+    path isa ConcreteReference || return false
     h = path.head
     h isa FieldReferenceStep || return false
     t = path.tail
-    t isa ConcreteReferencePath || return false
+    t isa ConcreteReference || return false
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return false
     if h.name == "rows"
         # rows[r]∅  or  rows[r][c]∅
-        t.tail isa EmptyReferencePath && return true
+        t.tail isa EmptyReference && return true
         t2 = t.tail
-        t2 isa ConcreteReferencePath || return false
+        t2 isa ConcreteReference || return false
         (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return false
-        return t2.tail isa EmptyReferencePath
+        return t2.tail isa EmptyReference
     elseif h.name == "column_headers"
-        return t.tail isa EmptyReferencePath
+        return t.tail isa EmptyReference
     end
     return false
 end
@@ -265,7 +265,7 @@ end
     # Top-left corner (header intersection) selects the whole table.
     corner_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys()))
     @test corner_op isa ReplaceSelectionOperation
-    @test corner_op.path isa EmptyReferencePath
+    @test corner_op.path isa EmptyReference
 end
 
 end # @testset "TableNavigation"

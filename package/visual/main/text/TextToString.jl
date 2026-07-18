@@ -15,7 +15,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
 import ..CellModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, extend_reference
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, extend_reference
 import ..PrinterContextModule: make_child_context
 export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
 

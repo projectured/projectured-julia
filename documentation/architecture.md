@@ -184,7 +184,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 | Module | Types |
 |---|---|
-| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep` (`ReferenceStep.jl`). `ElementReferenceStep`/`PositionReferenceStep` are convenience constructors producing a `RangeReferenceStep`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReferenceStep` (kernel `projection/`), `PointReferenceStep` (visual `graphics/`), `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep` (visual `text/`) |
+| kernel `reference/` | `Reference`, `EmptyReference`, `ConcreteReference` (`ReferencePath.jl`); the kernel step structs `RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep` (`ReferenceStep.jl`). `ElementReferenceStep`/`PositionReferenceStep` are convenience constructors producing a `RangeReferenceStep`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReferenceStep` (kernel `projection/`), `PointReferenceStep` (visual `graphics/`), `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
 | `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
@@ -332,7 +332,7 @@ above it in this list:
                config, image/video output)
  6 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents, Clock
- 7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
+ 7 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case DSLs
  8 selection   get_selection / set_selection! / clear_selection! / with_selection
  9 operation   the Operation supertype, evaluate_operation, the reroot_operation seam

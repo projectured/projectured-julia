@@ -12,7 +12,7 @@ function test_gesture_help()
 
     # A real content pipeline whose collector yields reified gestures.
     inner = RecursiveProjection(JsonToSyntax())
-    mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReferencePath()); a)
+    mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
 
     @testset "F1 opens a window carrying the collected GestureMap" begin
         arr = mkarr()

@@ -33,24 +33,24 @@ pr = PointReferenceStep(3, 7)
 # PointReferenceStep extension step has no ::T{...} or ::T[...] equivalent
 # in the @reference DSL. Build the typed path with @reference(doc, path)
 # or directly; here we verify the SKELETON equality using strip on a typed
-# reference built with @reference(doc, …), or directly via ConcreteReferencePath.
+# reference built with @reference(doc, …), or directly via ConcreteReference.
 # We use @reference(doc, path) on a toy document for end-to-end DSL coverage.
 # (The 2-arg @reference form is not strict-type-checked.)
 let doc = (cursor = (10, 20),)
     # 2-arg form auto-annotates types from doc — no ::T needed, no strict check.
     pr_ref_typed = @reference(doc, cursor)
     @test strip_reference_types(pr_ref_typed) ==
-          ConcreteReferencePath(FieldReferenceStep("cursor"), EmptyReferencePath())
+          ConcreteReference(FieldReferenceStep("cursor"), EmptyReference())
 end
 
 # Verify the .point(x, y) extension step is built correctly via @reference_step and
-# that it can be assembled into a ConcreteReferencePath.
+# that it can be assembled into a ConcreteReference.
 let step = @reference_step c.point(10, 20)
     @test step == PointReferenceStep(10, 20)
-    pr_ref = ConcreteReferencePath(FieldReferenceStep("cursor"),
-                 ConcreteReferencePath(PointReferenceStep(10, 20), EmptyReferencePath()))
-    @test pr_ref == ConcreteReferencePath(FieldReferenceStep("cursor"),
-                        ConcreteReferencePath(PointReferenceStep(10, 20), EmptyReferencePath()))
+    pr_ref = ConcreteReference(FieldReferenceStep("cursor"),
+                 ConcreteReference(PointReferenceStep(10, 20), EmptyReference()))
+    @test pr_ref == ConcreteReference(FieldReferenceStep("cursor"),
+                        ConcreteReference(PointReferenceStep(10, 20), EmptyReference()))
 end
 
 # ── @reference_case pattern matching ─────────────────────────────────────
@@ -58,8 +58,8 @@ end
 # Confirm `match_reference_step(::Val{:point}, …)` works: match a path that ends
 # with a `.point(x, y)` step and extract the coordinates.
 # Build sample paths directly (can't use typed @reference for .point steps).
-let sample = ConcreteReferencePath(FieldReferenceStep("cursor"),
-                 ConcreteReferencePath(PointReferenceStep(5, 9), EmptyReferencePath()))
+let sample = ConcreteReference(FieldReferenceStep("cursor"),
+                 ConcreteReference(PointReferenceStep(5, 9), EmptyReference()))
     matched = @reference_case sample begin
         cursor.point(px, py) => (px, py)
     end
@@ -67,8 +67,8 @@ let sample = ConcreteReferencePath(FieldReferenceStep("cursor"),
 end
 
 # Wildcard-bound coordinates
-let sample = ConcreteReferencePath(FieldReferenceStep("img"),
-                 ConcreteReferencePath(PointReferenceStep(0, 42), EmptyReferencePath()))
+let sample = ConcreteReference(FieldReferenceStep("img"),
+                 ConcreteReference(PointReferenceStep(0, 42), EmptyReference()))
     matched = @reference_case sample begin
         img.point(_, py) => py
         _ => nothing

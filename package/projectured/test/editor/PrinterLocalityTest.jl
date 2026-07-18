@@ -92,7 +92,7 @@ function _collect_locality!(x, owner, field::Symbol,
     length(visited) >= _WALK_MAX_NODES && return
 
     # Once the walk crosses a `:selection` cell, everything below it is a
-    # selection-path artifact (a ReferencePath / Reference), never output content.
+    # selection-path artifact (a Reference / Reference), never output content.
     # `sel_objects` records those ids so a move's lost objects can be split into
     # selection churn (expected) vs. lost content (a routing change). See
     # `printer_locality_report`.
@@ -243,7 +243,7 @@ function explore_selection_locality(document, projection; onstate=nothing)
         msgs = String[]
         append!(msgs, r.errors)
         # Dimension A is measured by the INVALIDATION set, not object identity: a
-        # selection cell legitimately recomputes to a fresh ReferencePath value
+        # selection cell legitimately recomputes to a fresh Reference value
         # (the old path object is "lost"), so lost_objects > 0 is expected here
         # and is NOT a violation — only a *content* cell going stale is.
         #

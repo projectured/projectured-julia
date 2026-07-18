@@ -16,7 +16,7 @@ import ..TextModule: TextBlock
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: Llm
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, is_element_reference_step
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, is_element_reference_step
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: insert_elements, delete_elements
@@ -124,15 +124,15 @@ const WORKBENCH_DESCRIPTOR_TITLE = "Descriptor"
 """
     WorkbenchDescriptor(content)
 
-The descriptor panel.  `content` is a `ReferencePath` pointing to the
+The descriptor panel.  `content` is a `Reference` pointing to the
 document node currently being described.  Its title is the class-level
 constant `"Descriptor"`.
 """
 @document struct WorkbenchDescriptor <: WorkbenchDocument
-    content::ReferencePath
+    content::Reference
 end
 
-function WorkbenchDescriptor(content::ReferencePath)
+function WorkbenchDescriptor(content::Reference)
     WorkbenchDescriptor(Cell(content), Cell(nothing))
 end
 
@@ -336,7 +336,7 @@ set_cell_function!(e::WorkbenchEditor, f::Function) = (set_cell_function!(getfie
 # package/kernel/doc/finding-and-selecting.md and package/kernel/doc/operation.md.
 
 # The `.elements` field path, shared by the open/close builders below.
-const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReferenceStep("elements"), EmptyReferencePath())
+const _WORKBENCH_ELEMENTS = ConcreteReference(FieldReferenceStep("elements"), EmptyReference())
 
 """
     WorkbenchOpenDocumentOperation(page, entry) -> operation

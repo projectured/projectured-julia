@@ -2,7 +2,7 @@ module GenericCompoundModule
 
 import ..HigherOrderCompoundModule: ApplyAtProjection
 import ..SortingProjectionModule: SortingProjection
-import ..ReferenceModule: ReferencePath
+import ..ReferenceModule: Reference
 
 export SortingAtProjection
 
@@ -12,7 +12,7 @@ export SortingAtProjection
 Sort a sequence at the given `reference` path using the `by` key function.
 Shorthand for `ApplyAtProjection(reference, SortingProjection(; by))`.
 """
-SortingAtProjection(reference::ReferencePath, by) =
+SortingAtProjection(reference::Reference, by) =
     ApplyAtProjection(reference, SortingProjection(; by))
 
 end

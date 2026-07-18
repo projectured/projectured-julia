@@ -39,7 +39,7 @@ function test_xml_to_syntax_reader()
 @testset "XmlToSyntax reader commands" begin
 
 x2s = RecursiveProjection(XmlToSyntax())
-whole = EmptyReferencePath()
+whole = EmptyReference()
 selof(x) = getfield(x, :selection)[]
 
 read_key(doc, sel, evt) = begin
@@ -70,7 +70,7 @@ end
     evaluate_operation(ed, op)
     @test ed.document isa XmlElement
     @test ed.iomap === nothing                  # forced reprint on a root swap
-    @test selof(ed.document) isa ConcreteReferencePath   # cursor in the new tag
+    @test selof(ed.document) isa ConcreteReference   # cursor in the new tag
 end
 
 @testset "replacing a selected child insertion writes the slot in place" begin
@@ -93,7 +93,7 @@ end
     evaluate_operation(ed, op)
     @test length(e.children) == 2
     @test e.children[2] isa XmlElement
-    @test selof(e.children[2]) isa ConcreteReferencePath  # cursor in the new tag
+    @test selof(e.children[2]) isa ConcreteReference  # cursor in the new tag
 end
 
 @testset "element insert appends a child text and selects its value" begin
@@ -104,7 +104,7 @@ end
     evaluate_operation(ed, op)
     @test length(e.children) == 1
     @test e.children[1] isa XmlText
-    @test selof(e.children[1]) isa ConcreteReferencePath  # cursor in the new text
+    @test selof(e.children[1]) isa ConcreteReference  # cursor in the new text
 end
 
 @testset "Space inserts an attribute and selects its name" begin
@@ -116,7 +116,7 @@ end
     evaluate_operation(ed, op)
     @test length(e.attrs) == 1
     @test e.attrs[1] isa XmlAttribute
-    @test selof(e.attrs[1]) isa ConcreteReferencePath  # cursor in the name
+    @test selof(e.attrs[1]) isa ConcreteReference  # cursor in the name
     # Gating: Space while editing a child node declines.
     e2 = XmlElement("a", XmlDocument[XmlText("hi")])
     @test read_key(e2, @reference(e2, children[1].content{0}), KeyDown(:space, ModifierKeys())) === nothing
@@ -176,8 +176,8 @@ end
 
 @testset "`<` / `\"` on a whole element insert a child" begin
     e = XmlElement("div", XmlDocument[XmlText("hi")])
-    @test read_key(e, EmptyReferencePath(), KeyPress('<')) isa CompoundOperation
-    @test read_key(e, EmptyReferencePath(), KeyPress('"')) isa CompoundOperation
+    @test read_key(e, EmptyReference(), KeyPress('<')) isa CompoundOperation
+    @test read_key(e, EmptyReference(), KeyPress('"')) isa CompoundOperation
 end
 
 end # @testset "XmlToSyntax override gestures (full chain)"

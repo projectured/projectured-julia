@@ -24,7 +24,7 @@
 # reason), not something this file patches.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.ReferenceModule: EmptyReferencePath
+using ProjecturedKernel.ReferenceModule: EmptyReference
 using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
 using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
@@ -216,7 +216,7 @@ function _create_keystroke(projection, target)
         c isa Char || continue
         scratch = construct_seed(target)
         sed = _ConstructEditor(scratch, print_document(projection, scratch))
-        _select!(sed, projection, EmptyReferencePath())
+        _select!(sed, projection, EmptyReference())
         _feed!(sed, projection, c)
         if Base.typename(typeof(sed.document)).wrapper === tw
             found = c
@@ -247,7 +247,7 @@ function _fresh_container(projection, container)
     ck === nothing && return nothing
     seed = construct_seed(container)
     ed = _ConstructEditor(seed, print_document(projection, seed))
-    _select!(ed, projection, EmptyReferencePath())
+    _select!(ed, projection, EmptyReference())
     _feed!(ed, projection, ck)
     Base.typename(typeof(ed.document)).wrapper === Base.typename(typeof(container)).wrapper ?
         ed : nothing
@@ -274,7 +274,7 @@ function _grow_event(projection, container, field, child)
         ed = _fresh_container(projection, container)
         ed === nothing && continue
         n0 = _coll_length(ed.document, field)
-        _select!(ed, projection, EmptyReferencePath())
+        _select!(ed, projection, EmptyReference())
         _feed_event!(ed, projection, ev)
         # The container must survive: a replace gesture the container inherits (JSON's `n`
         # turns the whole array into a `JsonNull`) destroys it rather than growing it.
@@ -388,7 +388,7 @@ reader; a divergence is reported, not patched.
 function reconstruct(target, projection)
     doc = construct_seed(target)
     ed = _ConstructEditor(doc, print_document(projection, doc))
-    construct_node!(ed, projection, target, EmptyReferencePath())
+    construct_node!(ed, projection, target, EmptyReference())
     ed.document
 end
 

@@ -438,7 +438,7 @@ import ProjecturedDomain.IoMapModule: SimpleIoMap
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.CellModule: set_cell_function!
-import ProjecturedDomain.ReferenceModule: EmptyReferencePath
+import ProjecturedDomain.ReferenceModule: EmptyReference
 import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
 import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
 
@@ -524,7 +524,7 @@ function map_reference_forward(p::DatabaseInstanceToDbCatalog, iomap, reference)
 end
 
 function map_reference_backward(p::DatabaseInstanceToDbCatalog, iomap, reference)
-    reference isa EmptyReferencePath && return @reference()
+    reference isa EmptyReference && return @reference()
     @reference(iomap.input, proj(p, ^(reference)))
 end
 # No read_intent override — the generic default in Projection.jl handles

@@ -24,11 +24,11 @@
 # (the printer then renders tab 1).
 function _active_tab_index(tabbed)
     sel = getfield(tabbed, :selection)[]
-    sel isa ConcreteReferencePath || return 0
+    sel isa ConcreteReference || return 0
     h = sel.head
     (h isa FieldReferenceStep && h.name == "selector_element_pairs") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
+    (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
     t.head.start + 1
 end
 
@@ -114,7 +114,7 @@ end
     # ones are clipped off and unreachable until scrolled in. One persistent iomap,
     # re-forced after each write, mirrors the editor (the WidgetTabbedPane carrying
     # `tab_scroll` is transient output, rebuilt by a fresh print).
-    ctx = PrinterContext(EmptyReferencePath(),
+    ctx = PrinterContext(EmptyReference(),
                          Cell(1280), Cell(1000), Dict{Symbol,Any}())
     iomap = print_document(proj, nothing, doc, ctx)
 

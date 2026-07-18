@@ -26,7 +26,7 @@ proj = make_layout_projection_example()
     @test op isa OpenPopupOperation
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
-    @test op.anchor isa EmptyReferencePath   # anchored to the wrapper itself (root)
+    @test op.anchor isa EmptyReference   # anchored to the wrapper itself (root)
     @test op.dx == 12                        # local click coords are the offset
     @test op.dy == 7
     @test op.content === menu                # the popup content is the context menu

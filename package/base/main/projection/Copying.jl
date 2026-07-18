@@ -14,7 +14,7 @@ module CopyingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, is_element_reference_step, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ListNode
@@ -178,7 +178,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before dispatching on the head's
     # navigation step (index vs. field); the child mapper re-canonicalizes.
     reference = reference
-    reference isa ConcreteReferencePath || return reference
+    reference isa ConcreteReference || return reference
     h = head(reference)
     rest = tail(reference)
     if h isa RangeReferenceStep && iomap.field_names === nothing
@@ -191,7 +191,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
             mapped === nothing && return nothing
             # Copying preserves order, so the index step passes through unchanged
             # (mirrors the ListNode branch below).
-            return ConcreteReferencePath(h, mapped)
+            return ConcreteReference(h, mapped)
         elseif iomap.children === nothing && iomap.recursion !== nothing
             # ListNode path: walk to the indexed node and project on demand
             is_element_reference_step(h) || return reference
@@ -200,7 +200,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
             child_iomap === nothing && return nothing
             mapped = fn(child_iomap.projection, child_iomap, rest)
             mapped === nothing && return nothing
-            return ConcreteReferencePath(h, mapped)
+            return ConcreteReference(h, mapped)
         end
     elseif h isa FieldReferenceStep && iomap.field_names isa Vector
         name = h.name
@@ -209,7 +209,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
         child_im = iomap.children[idx]
         mapped = fn(child_im.projection, child_im, rest)
         mapped === nothing && return nothing
-        return ConcreteReferencePath(FieldReferenceStep(name), mapped)
+        return ConcreteReference(FieldReferenceStep(name), mapped)
     end
     return reference
 end

@@ -26,7 +26,7 @@ proj = make_layout_projection_example()
     @test op.id === :widget_popup
     @test op.auto_dismiss === true
     # Anchored to the select itself (its document path; empty as the root).
-    @test op.anchor isa EmptyReferencePath
+    @test op.anchor isa EmptyReference
     # Opens below the box: zero horizontal offset, positive vertical offset.
     @test op.dx == 0
     @test op.dy > 0

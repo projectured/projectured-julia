@@ -109,7 +109,7 @@ Calls `print_document(child, self, input, ctx)` — that is, it passes
 *itself* as the `recursion` argument. (The 4th argument is a
 `PrinterContext` that *carries* the document-root-relative reference path
 plus layout extent and properties; it was historically a bare
-`ReferencePath`, since promoted to the context struct.) This lets node-shaped
+`Reference`, since promoted to the context struct.) This lets node-shaped
 inner projections recurse with `print_child(recursion, child, child_ctx)`
 without hard-coding the inner pipeline. Every multi-shape domain projection
 (JsonToSyntax, XmlToSyntax, ObjectToSyntax, WidgetToGraphics, …) wraps a

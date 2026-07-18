@@ -255,10 +255,10 @@ end
 Annotate a Document struct whose fields are transparent cells. The programmer
 writes real value types.
 
-Every document gets a **`selection::Reference = nothing`** field, appended as its
+Every document gets a **`selection::Union{Nothing, Reference} = nothing`** field, appended as its
 last field by the macro — the programmer never writes it, and declaring it by hand
-is an **error**. `Reference` is a `ReferencePath` (what is selected inside this
-node) or `nothing` (nothing selected). Julia has no field inheritance, so the field
+is an **error**. The field type is `Union{Nothing, Reference}`: a `Reference`
+(what is selected inside this node) or `nothing` (nothing selected). Julia has no field inheritance, so the field
 must exist on every struct; making it the macro's job is what keeps it from being
 repeated on all of them. It is appended last and always defaulted, so it falls
 inside Rule Y's trailing run and a document's own fields keep the positional arity
@@ -324,21 +324,21 @@ macro document(args...)
     supertype = plan.supertype === nothing ? :Document : plan.supertype
 
     # ── Inject the selection field ────────────────────────────────────────────
-    # Every document carries a selection — a `Reference` (a `ReferencePath`, or
-    # `nothing` for no selection) naming what is selected *inside* that node.
-    # Julia has no field inheritance, so the field has to be materialized on
-    # every struct; the macro writes it so the programmer never repeats it.
+    # Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
+    # `Reference` (what is selected *inside* that node) or `nothing` for no
+    # selection. Julia has no field inheritance, so the field has to be materialized
+    # on every struct; the macro writes it so the programmer never repeats it.
     #
-    # `Reference` is emitted as a **bare symbol**, not a spliced type object: it is
-    # defined in the reference layer, *above* this one, so this module cannot name
-    # the type. The expansion is `esc`'d, so the symbol resolves in the caller's
-    # module — where it is always in scope, since a module that declares documents
-    # necessarily uses the reference layer.
+    # The type is emitted as the `Union{…}` expression, not a spliced type object:
+    # `Reference` is defined in the reference layer, *above* this one, so this
+    # module cannot name it directly. The expansion is `esc`'d, so `Reference`
+    # resolves in the caller's module — where it is always in scope, since a module
+    # that declares documents necessarily uses the reference layer.
     #
     # Declaring it by hand is normally unnecessary — the macro injects it. But a
     # **value-document** declares `selection` explicitly to control its *value type*,
     # which is the isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and
-    # non-selectable (a leaf value), while the injected `Reference` form is selectable.
+    # non-selectable (a leaf value), while the injected `Union{Nothing, Reference}` form is selectable.
     # An explicit field must be declared **last** and defaults to `nothing` (added here
     # if omitted, so it does not count as a programmer default and leaves Rule Y / the
     # keyword ctors gated exactly as the injected field would).
@@ -347,7 +347,7 @@ macro document(args...)
             error("@document $(plan.name): an explicit `selection` field must be declared last.")
         haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
     else
-        add_cell_struct_field!(plan, :selection, :Reference, :nothing)
+        add_cell_struct_field!(plan, :selection, :(Union{Nothing, Reference}), :nothing)
     end
 
     plan = CellStructPlan(plan.structdef, plan.name, supertype, plan.field_names,

@@ -34,7 +34,7 @@ module XmlToSyntaxModule
 import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReferencePath, PositionReferenceStep
+import ..ReferenceModule: ConcreteReference, PositionReferenceStep
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
@@ -142,7 +142,7 @@ function read_intent(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSel
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxConcatenation, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # Render that flat structural caret back out: a `proj(p, …)` selection is this

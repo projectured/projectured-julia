@@ -46,16 +46,16 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
         # editor_projection_view,
     ])
 
-    descriptor = WorkbenchDescriptor(EmptyReferencePath())
+    descriptor = WorkbenchDescriptor(EmptyReference())
 
     # Example doc: explicit FakeLlm so the embedded assistant works offline.
     assistant = WorkbenchAssistant(; llm = FakeLlm())
     # Place a zero-width cursor inside the input so the first KeyPress lands
     # there even before the user clicks. Once the input renders, the existing
     # mouse-click chain keeps focus in sync.
-    assistant.input.selection = ConcreteReferencePath(
+    assistant.input.selection = ConcreteReference(
         FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+        ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
 
     info_page = WorkbenchPage([
         WorkbenchConsole(TextBlock(

@@ -2,7 +2,7 @@
     PrinterContextModule
 
 The downward-flowing per-invocation context threaded through
-`print_document`. Replaces the bare `ReferencePath` 4th argument with a
+`print_document`. Replaces the bare `Reference` 4th argument with a
 lightweight, extensible struct that carries the reference path **plus**
 optional fields projections can use to pass information through the tree.
 
@@ -29,7 +29,7 @@ export PrinterContext, make_child_context, with_available_size, with_clock,
 
 Downward-flowing per-invocation context for `print_document`.
 
-- `reference` — `ReferencePath` describing where the current input sits
+- `reference` — `Reference` describing where the current input sits
   relative to the document root. Tree depth is `length(reference)` — derive
   it on demand rather than caching a redundant field.
 - `available_width` / `available_height` — the parent-allocated space, as
@@ -45,14 +45,14 @@ Downward-flowing per-invocation context for `print_document`.
   out for free.
 """
 struct PrinterContext
-    reference::ReferencePath
+    reference::Reference
     available_width::Union{Nothing, Cell}
     available_height::Union{Nothing, Cell}
     properties::Dict{Symbol, Any}
     clock::Clock
 end
 
-PrinterContext(reference::ReferencePath,
+PrinterContext(reference::Reference,
                available_width::Union{Nothing, Cell},
                available_height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}) =
@@ -60,10 +60,10 @@ PrinterContext(reference::ReferencePath,
                    get_wall_clock())
 
 PrinterContext() =
-    PrinterContext(EmptyReferencePath(), nothing, nothing, Dict{Symbol,Any}(),
+    PrinterContext(EmptyReference(), nothing, nothing, Dict{Symbol,Any}(),
                    get_wall_clock())
 
-PrinterContext(ref::ReferencePath) =
+PrinterContext(ref::Reference) =
     PrinterContext(ref, nothing, nothing, Dict{Symbol,Any}(), get_wall_clock())
 
 """
@@ -100,26 +100,26 @@ new node — and the terminal — records its type, then concatenated onto the
 already-typed parent reference. This preserves the strict-typing invariant
 across the print recursion (the reference-types-always-present plan), replacing
 the old `@reference ^(ctx.reference).field` splice whose appended terminal was
-left untyped. `current_doc` is any document (not a `ReferenceStep`/`ReferencePath`,
+left untyped. `current_doc` is any document (not a `ReferenceStep`/`Reference`,
 which select the other methods).
 """
 function make_child_context(ctx::PrinterContext, current_doc::Document,
                             first::ReferenceStep, rest::ReferenceStep...)
-    relative = annotate_reference_types(current_doc, ReferencePath(first, rest...))
+    relative = annotate_reference_types(current_doc, Reference(first, rest...))
     PrinterContext(
         concat_references(ctx.reference, relative),
         ctx.available_width, ctx.available_height, ctx.properties, ctx.clock)
 end
 
 """
-    make_child_context(ctx, ref::ReferencePath) -> PrinterContext
+    make_child_context(ctx, ref::Reference) -> PrinterContext
 
 Build a child context whose `reference` is the given path directly (rather
 than extending `ctx.reference`). Inherits available size, clock, and
 properties. Useful when the caller already constructed the full child path
 with `@reference`.
 """
-function make_child_context(ctx::PrinterContext, ref::ReferencePath)
+function make_child_context(ctx::PrinterContext, ref::Reference)
     PrinterContext(
         ref,
         ctx.available_width,

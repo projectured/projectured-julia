@@ -23,7 +23,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           ReferenceStep, RangeReferenceStep, FieldReferenceStep,
                           TypeReferenceStep,
                           is_element_reference_step, is_position_reference_step,
@@ -133,7 +133,7 @@ end
 function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::ProjectionReferenceStep)
     push!(spans, _tok("<", p.font, color_solarized_gray))
     push!(spans, _tok(_projection_name(step.projection), p.font, color_solarized_yellow))
-    if !(step.output_path isa EmptyReferencePath)
+    if !(step.output_path isa EmptyReference)
         push!(spans, _tok(": ", p.font, color_solarized_gray))
         _emit_path_short!(spans, p, step.output_path)
     end
@@ -152,24 +152,24 @@ function _emit_type_short!(spans::Vector{TextDocument}, p::ReferenceToText, T)
     push!(spans, _tok(_short_type(T), p.font, color_solarized_orange))
 end
 
-function _emit_path_short!(spans::Vector{TextDocument}, p::ReferenceToText, path::ConcreteReferencePath)
+function _emit_path_short!(spans::Vector{TextDocument}, p::ReferenceToText, path::ConcreteReference)
     path.type === nothing || _emit_type_short!(spans, p, path.type)
     _emit_step_short!(spans, p, head(path))
     t = tail(path)
-    if t isa EmptyReferencePath
+    if t isa EmptyReference
         t.type === nothing || _emit_type_short!(spans, p, t.type)
     else
         _emit_path_short!(spans, p, t)
     end
 end
 
-_emit_path_short!(::Vector{TextDocument}, ::ReferenceToText, ::EmptyReferencePath) = nothing
+_emit_path_short!(::Vector{TextDocument}, ::ReferenceToText, ::EmptyReference) = nothing
 
 function _short_text(p::ReferenceToText, ref)
     spans = TextDocument[]
     if ref === nothing
         push!(spans, _tok("(no selection)", p.font, color_solarized_gray))
-    elseif ref isa EmptyReferencePath
+    elseif ref isa EmptyReference
         # Whole-element selection: show its folded type if known, else ∅.
         ref.type === nothing ? push!(spans, _tok("∅", p.font, color_solarized_gray)) :
                                _emit_type_short!(spans, p, ref.type)
@@ -182,10 +182,10 @@ end
 print_document(p::ReferenceToText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _short_text(p, nothing))
 
-print_document(p::ReferenceToText, recursion, ref::EmptyReferencePath, ctx) =
+print_document(p::ReferenceToText, recursion, ref::EmptyReference, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
-print_document(p::ReferenceToText, recursion, ref::ConcreteReferencePath, ctx) =
+print_document(p::ReferenceToText, recursion, ref::ConcreteReference, ctx) =
     SimpleIoMap(p, ref, _short_text(p, ref))
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ end
 map_reference_forward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing
 
-function _parent_type_name(document, prefix::ReferencePath)
+function _parent_type_name(document, prefix::Reference)
     document === nothing && return "?"
     try
         _short_type(typeof(evaluate_reference(document, prefix)))
@@ -225,7 +225,7 @@ function _parent_type_name(document, prefix::ReferencePath)
 end
 
 function _emit_type_tail!(line::Vector{TextDocument}, p::ReferenceToHumanReadableText,
-                          document, prefix::ReferencePath, parent_type)
+                          document, prefix::Reference, parent_type)
     name = parent_type !== nothing ? _short_type(parent_type) :
                                      _parent_type_name(document, prefix)
     push!(line, _tok(" of ", p.font, color_solarized_gray))
@@ -300,19 +300,19 @@ end
 # still read correctly. `prefix` is the path up to but not including the step.
 function _walk_long!(lines::Vector{Vector{TextDocument}},
                      p::ReferenceToHumanReadableText,
-                     path::ConcreteReferencePath,
-                     document, prefix::ReferencePath, parent_type)
+                     path::ConcreteReference,
+                     document, prefix::Reference, parent_type)
     step = head(path)
     new_prefix = extend_reference(prefix, step)
     t = tail(path)
     if step isa TypeReferenceStep
         # Checkpoint: emit no line; carry its type to the next nav step.
-        t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix, step.type)
+        t isa EmptyReference || _walk_long!(lines, p, t, document, new_prefix, step.type)
         return
     end
     if step isa ProjectionReferenceStep
-        if !(step.output_path isa EmptyReferencePath)
-            _walk_long!(lines, p, step.output_path, nothing, EmptyReferencePath(), nothing)
+        if !(step.output_path isa EmptyReference)
+            _walk_long!(lines, p, step.output_path, nothing, EmptyReference(), nothing)
         end
         line = _phrase_for_projection(p, step)
     else
@@ -320,16 +320,16 @@ function _walk_long!(lines::Vector{Vector{TextDocument}},
     end
     _emit_type_tail!(line, p, document, prefix, parent_type)
     push!(lines, line)
-    t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix, nothing)
+    t isa EmptyReference || _walk_long!(lines, p, t, document, new_prefix, nothing)
 end
 
 _walk_long!(::Vector{Vector{TextDocument}}, ::ReferenceToHumanReadableText,
-            ::EmptyReferencePath, _, ::ReferencePath, _) = nothing
+            ::EmptyReference, _, ::Reference, _) = nothing
 
 function _long_text(p::ReferenceToHumanReadableText, ref)
     if ref === nothing
         return TextBlock(_tok("no selection", p.font, color_solarized_gray))
-    elseif ref isa EmptyReferencePath
+    elseif ref isa EmptyReference
         type_name = p.document === nothing ? "document" : _short_type(typeof(p.document))
         type_color = p.document === nothing ? color_solarized_gray : color_solarized_orange
         return TextBlock(
@@ -338,7 +338,7 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
         )
     end
     lines = Vector{Vector{TextDocument}}()
-    _walk_long!(lines, p, ref, p.document, EmptyReferencePath(), nothing)
+    _walk_long!(lines, p, ref, p.document, EmptyReference(), nothing)
     reverse!(lines)
     spans = TextDocument[]
     for (i, line) in enumerate(lines)
@@ -356,10 +356,10 @@ end
 print_document(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =
     SimpleIoMap(p, nothing, _long_text(p, nothing))
 
-print_document(p::ReferenceToHumanReadableText, recursion, ref::EmptyReferencePath, ctx) =
+print_document(p::ReferenceToHumanReadableText, recursion, ref::EmptyReference, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
-print_document(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReferencePath, ctx) =
+print_document(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReference, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
 
 end # module

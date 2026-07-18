@@ -24,7 +24,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep
 import ..PrinterContextModule: make_child_context
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 

@@ -21,7 +21,7 @@
 
 Bundle an existing `Example` with a timed `timeline` (see file header for the
 entry format). `initial_selection` seeds the caret (needed for keyboard typein);
-it is either a `ReferencePath` or a `doc -> path` thunk evaluated against the
+it is either a `Reference` or a `doc -> path` thunk evaluated against the
 fresh document. `width`/`height`/`fps` are the presentation defaults for both
 recording and live playback.
 """
@@ -247,7 +247,7 @@ const json_build_live = LiveExample("json_build", json_build_example,
         _jb_up(3), [_jb_comma()],                                    # escape nested object (bool last) → root sibling
         _jb_key("placeholder"), [_jb_tab()],                         # leave value as the insertion
     );
-    initial_selection = Projectured.EmptyReferencePath(),
+    initial_selection = Projectured.EmptyReference(),
     width = 760, height = 1000)
 
 const live_examples = LiveExample[

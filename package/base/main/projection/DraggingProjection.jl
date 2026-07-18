@@ -34,7 +34,7 @@ import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector, get_cell_at
-import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
+import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           RangeReferenceStep, FieldReferenceStep, is_element_reference_step, evaluate_reference,
                           head, tail
 import ..DraggingDocumentModule: DraggingState
@@ -60,7 +60,7 @@ mutable struct _DragState
     phase::Symbol
     x0::Int
     y0::Int
-    source::Union{ReferencePath, Nothing}
+    source::Union{Reference, Nothing}
 end
 
 _DragState() = _DragState(:idle, 0, 0, nothing)
@@ -220,7 +220,7 @@ end
 
 # Build a MoveRangeOperation from the source/destination references, or nothing
 # when either cannot be resolved to a (collection, element index).
-function _make_move(content, source::Union{ReferencePath,Nothing}, target::Union{ReferencePath,Nothing})
+function _make_move(content, source::Union{Reference,Nothing}, target::Union{Reference,Nothing})
     (source === nothing || target === nothing) && return nothing
     src = _locate_collection_index(content, source)
     dst = _locate_collection_index(content, target)
@@ -237,10 +237,10 @@ _selection_path(content) =
 # the path at its last element `RangeReferenceStep`; the prefix resolves (via
 # `evaluate_reference`) to the owning collection. Returns nothing when the prefix
 # does not land on a CellVector.
-function _locate_collection_index(content, path::ReferencePath)
+function _locate_collection_index(content, path::Reference)
     steps = Any[]
     cur = path
-    while cur isa ConcreteReferencePath
+    while cur isa ConcreteReference
         push!(steps, head(cur))
         cur = tail(cur)
     end
@@ -254,9 +254,9 @@ function _locate_collection_index(content, path::ReferencePath)
         end
     end
     last_elem == 0 && return nothing
-    prefix = EmptyReferencePath()
+    prefix = EmptyReference()
     for i in (last_elem - 1):-1:1
-        prefix = ConcreteReferencePath(steps[i], prefix)
+        prefix = ConcreteReference(steps[i], prefix)
     end
     coll = try
         evaluate_reference(content, prefix)
@@ -272,7 +272,7 @@ end
 function map_reference_forward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before reading the `content` step.
     reference = reference
-    if reference isa ConcreteReferencePath
+    if reference isa ConcreteReference
         h = head(reference)
         if h isa FieldReferenceStep && h.name == "content"
             return map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, tail(reference))
@@ -285,7 +285,7 @@ end
 function map_reference_backward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
     inner = map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
     inner === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), inner)
+    ConcreteReference(FieldReferenceStep("content"), inner)
 end
 
 end # module

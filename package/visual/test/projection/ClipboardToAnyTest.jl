@@ -1,7 +1,7 @@
 function test_clipboard_to_any()
 
 # A reference path built from raw steps.
-cpath(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
+cpath(steps...) = foldr((s, acc) -> ConcreteReference(s, acc), steps; init=EmptyReference())
 
 # A `replace_document(path, doc)` fold is a CompoundOperation whose first member is
 # the ReplaceReferencedValueOperation that writes `doc` at `path`. These read that target
@@ -61,12 +61,12 @@ end
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
-    back = map_reference_backward(p, iomap, EmptyReferencePath())
-    @test back isa ConcreteReferencePath
+    back = map_reference_backward(p, iomap, EmptyReference())
+    @test back isa ConcreteReference
     @test back.head.name == "content"
 
     fwd = map_reference_forward(p, iomap, cpath(FieldReferenceStep("content")))
-    @test fwd isa EmptyReferencePath
+    @test fwd isa EmptyReference
 end
 
 @testset "slice reader gestures" begin
@@ -283,7 +283,7 @@ end
             content = TextBlock(TextString("hello world"))
             content.selection = trange
             s = ClipboardSlice(content, stored)
-            s.selection = ConcreteReferencePath(FieldReferenceStep("content"), trange)
+            s.selection = ConcreteReference(FieldReferenceStep("content"), trange)
             s
         end
         p = ClipboardSliceToAnyProjection(text=true)
@@ -335,7 +335,7 @@ end
         content.selection = cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
                                   FieldReferenceStep("content"), RangeReferenceStep(3, 3))
         sc = ClipboardSlice(content)
-        sc.selection = ConcreteReferencePath(FieldReferenceStep("content"),
+        sc.selection = ConcreteReference(FieldReferenceStep("content"),
             cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
                   FieldReferenceStep("content"), RangeReferenceStep(3, 3)))
         iom = print_document(p, IdentityProjection(), sc, PrinterContext())

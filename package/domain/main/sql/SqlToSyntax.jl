@@ -38,7 +38,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation,
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReferencePath
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -219,7 +219,7 @@ function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, o
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -310,7 +310,7 @@ function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::Rep
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -392,7 +392,7 @@ function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::R
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -500,7 +500,7 @@ function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op:
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -566,7 +566,7 @@ function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -667,7 +667,7 @@ function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::Repla
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -741,7 +741,7 @@ function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::Rep
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -808,7 +808,7 @@ function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMa
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -882,7 +882,7 @@ function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::Re
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -925,7 +925,7 @@ function read_intent(p::_SqlDisplayLeaf, iomap::RuleIoMap, op::ReplaceSelectionO
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxLeaf, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # A `proj(p, …)` selection is this projection's own introduced position — pass it through
@@ -1015,7 +1015,7 @@ function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::Rep
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1105,7 +1105,7 @@ function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1173,7 +1173,7 @@ function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSel
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1286,7 +1286,7 @@ function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # ── SqlInsertStatementToSyntaxNode ────────────────────────────────────────────
@@ -1432,7 +1432,7 @@ function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1519,7 +1519,7 @@ function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, o
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1660,7 +1660,7 @@ function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1730,7 +1730,7 @@ function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, o
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1847,7 +1847,7 @@ function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMa
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1905,7 +1905,7 @@ function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoM
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1980,7 +1980,7 @@ function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing

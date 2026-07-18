@@ -53,8 +53,8 @@ import ..ColorModule: color_default, color_solarized_gray, color_solarized_green
                       color_solarized_red, color_completion_hint, color_slate_600
 import ..DomainModule: resolve_insertion, make_insertion_document
 import ..DocumentInsertionToSyntaxModule: name_completion
-import ..ReferenceModule: Reference, ConcreteReferencePath, FieldReferenceStep,
-                          RangeReferenceStep, EmptyReferencePath
+import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
+                          RangeReferenceStep, EmptyReference
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern, KeyPressPattern, matches_event_pattern
@@ -87,17 +87,17 @@ _is_editable(::Nothing) = false
 _value(c) = something(c.value, "")
 
 # Build a `value{k}` zero-width cursor selection path.
-_valpath(k::Int) = ConcreteReferencePath(FieldReferenceStep("value"),
-                       ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
+_valpath(k::Int) = ConcreteReference(FieldReferenceStep("value"),
+                       ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
 
 # Read the cursor offset out of a content's selection, defaulting to end-of-value.
 function _cursor(c)
     # Selections are canonical at rest: skip the TypeReferenceStep checkpoints before
     # reading the `value[range]` cursor structure.
     sel = getfield(c, :selection)[]
-    if sel isa ConcreteReferencePath && sel.head isa FieldReferenceStep && sel.head.name == "value"
+    if sel isa ConcreteReference && sel.head isa FieldReferenceStep && sel.head.name == "value"
         t = sel.tail
-        if t isa ConcreteReferencePath && t.head isa RangeReferenceStep
+        if t isa ConcreteReference && t.head isa RangeReferenceStep
             return t.head.stop
         end
     end
@@ -406,10 +406,10 @@ const _PLACEHOLDER = "type here…"
 # `TextBlock`, in the `.elements[span].content[k:k]` shape `TextToGraphics` reads
 # to draw its genuine thin-line caret.
 _caret_selection(span::Int, k::Int) =
-    ConcreteReferencePath(FieldReferenceStep("elements"),
-        ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-            ConcreteReferencePath(FieldReferenceStep("content"),
-                ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))))
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(span - 1, span),
+            ConcreteReference(FieldReferenceStep("content"),
+                ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))
 
 # Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
 # `span_len` is the rendered length of that span so the cursor stays in range.

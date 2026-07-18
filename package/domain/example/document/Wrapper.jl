@@ -37,7 +37,7 @@ function make_workbench_document(document; title="untitled", filename=title)
     ])
     info_page = WorkbenchPage([
         WorkbenchConsole(),
-        WorkbenchDescriptor(EmptyReferencePath()),
+        WorkbenchDescriptor(EmptyReference()),
         WorkbenchOperator(),
         WorkbenchSearcher(),
         WorkbenchEvaluator(),

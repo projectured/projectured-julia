@@ -66,8 +66,8 @@ import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReferencePath, is_element_reference_step
+import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, EmptyReference, is_element_reference_step
 import ..PointReferenceModule: PointReferenceStep
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -894,7 +894,7 @@ end
 # WidgetScrollPane makes for its wrapped document.
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 function read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
@@ -977,7 +977,7 @@ end
 # bound parameter cell. A bare click that does not reach here leaves the value
 # unchanged.
 _checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
-    ConcreteReferencePath(FieldReferenceStep("content"), EmptyReferencePath()), !(w.content === true))
+    ConcreteReference(FieldReferenceStep("content"), EmptyReference()), !(w.content === true))
 
 function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     w = iomap.input
@@ -1064,7 +1064,7 @@ end
 # Parent containers add their placement on the way up. A non-empty reference has
 # no image (the leaf has no addressable interior here). See `map_reference_forward`.
 _self_point(reference) =
-    (reference === nothing || reference isa EmptyReferencePath) ?
+    (reference === nothing || reference isa EmptyReference) ?
         PointReferenceStep(0, 0) : nothing
 
 map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
@@ -1192,7 +1192,7 @@ struct WidgetContextMenuToGraphicsCanvasIoMap <: IoMap
     input::WidgetContextMenu
     output::GraphicsCanvas
     child_iomap::Any
-    anchor::ReferencePath
+    anchor::Reference
 end
 
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
@@ -1218,7 +1218,7 @@ map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = n
 
 # Child ops re-root by prepending `.child`.
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
-    reference === nothing ? nothing : ConcreteReferencePath(FieldReferenceStep("child"), reference)
+    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("child"), reference)
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
 
 read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -1375,7 +1375,7 @@ end
 map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 # Content ops (e.g. an editable WidgetText field) re-root by prepending `.content`.
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, reference) =
-    reference === nothing ? nothing : ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 
 read_intent(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -1413,7 +1413,7 @@ struct WidgetMenuItemToGraphicsCanvasIoMap <: IoMap
     input::WidgetMenuItem
     output::GraphicsCanvas
     child_iomaps::Cell
-    anchor::ReferencePath
+    anchor::Reference
     control_width::Int
     control_height::Int
 end
@@ -1688,10 +1688,10 @@ end
 function _selected_composite_slot(w::WidgetComposite, n::Int)
     sel = getfield(w, :selection)[]
     sel = sel
-    sel isa ConcreteReferencePath || return 0
+    sel isa ConcreteReference || return 0
     (sel.head isa FieldReferenceStep && sel.head.name == "elements") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
+    (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
 end
@@ -1739,8 +1739,8 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
     j == 0 && return nothing                      # no next sibling — I decline; parent advances.
     sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
     sub === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(FieldReferenceStep("elements"),
-        ConcreteReferencePath(RangeReferenceStep(j - 1, j), sub)))
+    ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
 end
 
 # ── WidgetShell ─────────────────────────────────────────────────────────────
@@ -1839,7 +1839,7 @@ _shell_field(w, name) =
     name == "tooltip"  ? w.tooltip  : nothing
 
 function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
-    reference isa ConcreteReferencePath || return nothing
+    reference isa ConcreteReference || return nothing
     head = reference.head
     head isa FieldReferenceStep || return nothing
     target = _shell_field(iomap.input, head.name)
@@ -1861,7 +1861,7 @@ map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = nothing
 # shell's input domain.
 function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 # Collect the shared `Action`s that carry a keyboard shortcut, reachable from a
@@ -2402,8 +2402,8 @@ function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
     sub === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(FieldReferenceStep("elements"),
-        ConcreteReferencePath(RangeReferenceStep(j - 1, j), sub)))
+    ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
 end
 
 # The split slot the node's forward-projected selection points at. The
@@ -2413,10 +2413,10 @@ end
 function _selected_split_slot(w::WidgetSplitPane, n::Int)
     sel = getfield(w, :selection)[]
     sel = sel
-    sel isa ConcreteReferencePath || return 0
+    sel isa ConcreteReference || return 0
     (sel.head isa FieldReferenceStep && sel.head.name == "elements") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
+    (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
 end
@@ -2755,11 +2755,11 @@ end
 # selection lands inside a tab) as well as the bare `[i]` shorthand a tab-strip
 # click writes.
 function _tab_index_from_selection(sel, n::Int)
-    sel isa ConcreteReferencePath || return 0
+    sel isa ConcreteReference || return 0
     h = sel.head
     if h isa FieldReferenceStep && h.name == "selector_element_pairs"
         t = sel.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
+        (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
         i = t.head.start + 1
     elseif h isa RangeReferenceStep
         i = h.start + 1
@@ -2874,7 +2874,7 @@ end
 # scroll pane's own input domain.
 function map_reference_backward(::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 # A scroll-wheel turn advances `scroll_position` by a delta. Expressed as a write
@@ -2996,7 +2996,7 @@ end
 # transform pane's own input domain.
 function map_reference_backward(::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 # Zoom about a viewport-space point: scale by `factor` keeping `(ax, ay)` fixed,
@@ -3496,13 +3496,13 @@ end
 function _switch_toggle(w::WidgetSwitch)
     new_checked = !(w.checked === true)
     toggle = ReplaceReferencedValueOperation(w,
-        ConcreteReferencePath(FieldReferenceStep("checked"), EmptyReferencePath()), new_checked)
+        ConcreteReference(FieldReferenceStep("checked"), EmptyReference()), new_checked)
     w.duration <= 0 && return toggle
     now  = get_clock_time(get_wall_clock())
     from = _switch_fraction(w, now)
     CompoundOperation(Any[
-        ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReferenceStep("anim_from"), EmptyReferencePath()), from),
-        ReplaceReferencedValueOperation(w, ConcreteReferencePath(FieldReferenceStep("anim_t0"),   EmptyReferencePath()), now),
+        ReplaceReferencedValueOperation(w, ConcreteReference(FieldReferenceStep("anim_from"), EmptyReference()), from),
+        ReplaceReferencedValueOperation(w, ConcreteReference(FieldReferenceStep("anim_t0"),   EmptyReference()), now),
         toggle,
     ])
 end
@@ -3966,7 +3966,7 @@ struct WidgetSelectToGraphicsCanvasIoMap <: IoMap
     projection::Any
     input::WidgetSelect
     output::GraphicsCanvas
-    anchor::ReferencePath
+    anchor::Reference
     control_width::Int
     control_height::Int
 end
@@ -4481,20 +4481,20 @@ function _wt_field_element_terminal(sel)
     # Selections are canonical (carry TypeReferenceStep checkpoints); skip them
     # before each structural step so the shape match is modulo checkpoints.
     sel = sel
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     h = sel.head
     h isa FieldReferenceStep || return nothing
     t = sel.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     r = t.head
     (r isa RangeReferenceStep && is_element_reference_step(r)) || return nothing
-    t.tail isa EmptyReferencePath || return nothing
+    t.tail isa EmptyReference || return nothing
     (h.name, r.start + 1)
 end
 
 # (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | nothing
 function _wt_selection_shape(sel, geom::WTGeometry)
-    sel isa EmptyReferencePath && return (:table, 0, 0)
+    sel isa EmptyReference && return (:table, 0, 0)
     fe = _wt_field_element_terminal(sel)
     if fe !== nothing
         field, idx = fe
@@ -4522,14 +4522,14 @@ end
 # that begins with the two element steps under `rows`, else nothing. The tail lets a
 # caller distinguish a whole cell (`tail` is `∅`) from an in-cell content cursor.
 function _wt_cell_split(sel)
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     (sel.head isa FieldReferenceStep && sel.head.name == "rows") || return nothing
     t = sel.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     r = t.head.start + 1
     t2 = t.tail
-    t2 isa ConcreteReferencePath || return nothing
+    t2 isa ConcreteReference || return nothing
     (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return nothing
     c = t2.head.start + 1
     (r, c, t2.tail)
@@ -4537,7 +4537,7 @@ end
 
 # `rows[r][c]∅` (whole cell, terminating) → (r, c), else nothing.
 _wt_cell_terminal(sel) =
-    (s = _wt_cell_split(sel); s === nothing || !(s[3] isa EmptyReferencePath) ? nothing : (s[1], s[2]))
+    (s = _wt_cell_split(sel); s === nothing || !(s[3] isa EmptyReference) ? nothing : (s[1], s[2]))
 
 # `rows[r][c]…` (whole cell OR an in-cell content cursor beneath it) → (r, c), else
 # nothing — unlike `_wt_cell_terminal` it does not require the path to terminate at the
@@ -4698,8 +4698,8 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
     target === nothing && return nothing
     gidx, tail = target
     # Delegate the tail through the grid's forward map, addressed as children[gidx].
-    grid_ref = ConcreteReferencePath(FieldReferenceStep("children"),
-                ConcreteReferencePath(RangeReferenceStep(gidx - 1, gidx), tail))
+    grid_ref = ConcreteReference(FieldReferenceStep("children"),
+                ConcreteReference(RangeReferenceStep(gidx - 1, gidx), tail))
     map_reference_forward(gim.projection, gim, grid_ref)
 end
 
@@ -4716,11 +4716,11 @@ map_reference_backward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothin
 
 # Decode a table-domain reference into (grid_index, tail) or nothing.
 function _wt_ref_to_grid_index(reference, geom::WTGeometry)
-    reference isa ConcreteReferencePath || return nothing
+    reference isa ConcreteReference || return nothing
     h = reference.head
     h isa FieldReferenceStep || return nothing
     t = reference.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     e = t.head
     (e isa RangeReferenceStep && is_element_reference_step(e)) || return nothing
     idx1 = e.start + 1
@@ -4737,7 +4737,7 @@ function _wt_ref_to_grid_index(reference, geom::WTGeometry)
     elseif h.name == "rows"
         # rows[r][c].<tail>
         t2 = t.tail
-        t2 isa ConcreteReferencePath || return nothing
+        t2 isa ConcreteReference || return nothing
         e2 = t2.head
         (e2 isa RangeReferenceStep && is_element_reference_step(e2)) || return nothing
         c = e2.start + 1
@@ -4752,10 +4752,10 @@ end
 
 # Decode a grid-domain reference (`children[gidx].<tail>`) into the table domain.
 function _wt_grid_ref_to_table(reference, geom::WTGeometry)
-    reference isa ConcreteReferencePath || return nothing
+    reference isa ConcreteReference || return nothing
     (reference.head isa FieldReferenceStep && reference.head.name == "children") || return nothing
     t = reference.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     gidx = t.head.start + 1
     tail = t.tail
@@ -4768,18 +4768,18 @@ function _wt_grid_ref_to_table(reference, geom::WTGeometry)
         return nothing
     elseif header_row
         c = gc - geom.col_offset
-        return ConcreteReferencePath(FieldReferenceStep("column_headers"),
-                ConcreteReferencePath(RangeReferenceStep(c - 1, c), tail))
+        return ConcreteReference(FieldReferenceStep("column_headers"),
+                ConcreteReference(RangeReferenceStep(c - 1, c), tail))
     elseif header_col
         r = gr - geom.row_offset
-        return ConcreteReferencePath(FieldReferenceStep("row_headers"),
-                ConcreteReferencePath(RangeReferenceStep(r - 1, r), tail))
+        return ConcreteReference(FieldReferenceStep("row_headers"),
+                ConcreteReference(RangeReferenceStep(r - 1, r), tail))
     else
         r = gr - geom.row_offset
         c = gc - geom.col_offset
-        return ConcreteReferencePath(FieldReferenceStep("rows"),
-                ConcreteReferencePath(RangeReferenceStep(r - 1, r),
-                ConcreteReferencePath(RangeReferenceStep(c - 1, c), tail)))
+        return ConcreteReference(FieldReferenceStep("rows"),
+                ConcreteReference(RangeReferenceStep(r - 1, r),
+                ConcreteReference(RangeReferenceStep(c - 1, c), tail)))
     end
 end
 
@@ -4824,24 +4824,24 @@ function _wt_mouse_select(iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress
     hit = _wt_hit_test(geom, g.x, g.y)
     kind = hit[1]
     if kind === :corner
-        return ReplaceSelectionOperation(EmptyReferencePath())
+        return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
         r = hit[2]
         return ReplaceSelectionOperation(
-            ConcreteReferencePath(FieldReferenceStep("rows"),
-                ConcreteReferencePath(RangeReferenceStep(r - 1, r), EmptyReferencePath())))
+            ConcreteReference(FieldReferenceStep("rows"),
+                ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference())))
     elseif kind === :col
         c = hit[2]
         return ReplaceSelectionOperation(
-            ConcreteReferencePath(FieldReferenceStep("column_headers"),
-                ConcreteReferencePath(RangeReferenceStep(c - 1, c), EmptyReferencePath())))
+            ConcreteReference(FieldReferenceStep("column_headers"),
+                ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
     elseif kind === :cell
         r, c = hit[2], hit[3]
         if g.modifiers.alt
             return ReplaceSelectionOperation(
-                ConcreteReferencePath(FieldReferenceStep("rows"),
-                    ConcreteReferencePath(RangeReferenceStep(r - 1, r),
-                    ConcreteReferencePath(RangeReferenceStep(c - 1, c), EmptyReferencePath()))))
+                ConcreteReference(FieldReferenceStep("rows"),
+                    ConcreteReference(RangeReferenceStep(r - 1, r),
+                    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))))
         else
             return _wt_route_cell_click(iomap, geom, r, c, g)
         end
@@ -4932,8 +4932,8 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     op = read_intent(cim.projection, cim, local_evt)
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
-        ConcreteReferencePath(FieldReferenceStep("children"),
-            ConcreteReferencePath(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
+        ConcreteReference(FieldReferenceStep("children"),
+            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
     table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
 end
 
@@ -4944,7 +4944,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
     sel = iomap.input.selection
 
     if evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt
-        return ReplaceSelectionOperation(EmptyReferencePath())
+        return ReplaceSelectionOperation(EmptyReference())
     end
 
     shape = _wt_selection_shape(sel, geom)
@@ -5019,13 +5019,13 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
     return nothing
 end
 
-_wt_row_ref(r::Int) = ConcreteReferencePath(FieldReferenceStep("rows"),
-    ConcreteReferencePath(RangeReferenceStep(r - 1, r), EmptyReferencePath()))
-_wt_col_ref(c::Int) = ConcreteReferencePath(FieldReferenceStep("column_headers"),
-    ConcreteReferencePath(RangeReferenceStep(c - 1, c), EmptyReferencePath()))
-_wt_cell_ref(r::Int, c::Int) = ConcreteReferencePath(FieldReferenceStep("rows"),
-    ConcreteReferencePath(RangeReferenceStep(r - 1, r),
-    ConcreteReferencePath(RangeReferenceStep(c - 1, c), EmptyReferencePath())))
+_wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
+    ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
+_wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("column_headers"),
+    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+_wt_cell_ref(r::Int, c::Int) = ConcreteReference(FieldReferenceStep("rows"),
+    ConcreteReference(RangeReferenceStep(r - 1, r),
+    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
 
 # Place a character cursor at the start of a cell's content.
 function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry, r::Int, c::Int)
@@ -5042,8 +5042,8 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true)))
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
-        ConcreteReferencePath(FieldReferenceStep("children"),
-            ConcreteReferencePath(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
+        ConcreteReference(FieldReferenceStep("children"),
+            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
     table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
 end
 
@@ -5145,26 +5145,26 @@ end
 # the selection band, the click reader, and the FileSystemToWidget mappers.
 
 function _wtree_path_ref(path::Vector{Int}, k::Int=1)
-    isempty(path) && return EmptyReferencePath()
+    isempty(path) && return EmptyReference()
     field = k == 1 ? "roots" : "children"
     idx = path[k]
-    tail = k == length(path) ? EmptyReferencePath() : _wtree_path_ref(path, k + 1)
-    ConcreteReferencePath(FieldReferenceStep(field),
-        ConcreteReferencePath(RangeReferenceStep(idx - 1, idx), tail))
+    tail = k == length(path) ? EmptyReference() : _wtree_path_ref(path, k + 1)
+    ConcreteReference(FieldReferenceStep(field),
+        ConcreteReference(RangeReferenceStep(idx - 1, idx), tail))
 end
 
 function _wtree_ref_path(reference)
     cur = reference
     path = Int[]
     first = true
-    while cur isa ConcreteReferencePath
+    while cur isa ConcreteReference
         h = cur.head
         (h isa FieldReferenceStep && h.name == (first ? "roots" : "children")) || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
         push!(path, t.head.start + 1)
         cur = t.tail
-        cur isa EmptyReferencePath && return path
+        cur isa EmptyReference && return path
         first = false
     end
     isempty(path) ? nothing : path
@@ -5658,7 +5658,7 @@ end
 
 function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReferencePath(FieldReferenceStep("content"), reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)

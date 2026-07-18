@@ -1,9 +1,9 @@
 # Fragment of `ReferenceModule` — the reference **contract**: the two abstract
-# types every reference value is built from (`ReferenceStep`, `ReferencePath`),
-# the `Reference` union a document's selection field holds, and the open generics
+# types every reference value is built from (`ReferenceStep` and `Reference`, the
+# path a document's selection field points to — or `nothing`), and the open generics
 # that higher packages add methods to. The concrete kernel step types live in
 # `ReferenceStep.jl`, the path structure in `ReferencePath.jl`, and the DSLs that
-# consume the `dsl_*` seams in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
+# consume the reference-step seams in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
 #
 # A step type defined in a higher package (`PointReferenceStep`, `ProjectionReferenceStep`,
 # `TextSpanReferenceStep`) subtypes `ReferenceStep` and registers itself by
@@ -19,21 +19,17 @@ descend one level into a document structure.
 abstract type ReferenceStep end
 
 """
-    ReferencePath
+    Reference
 
 Abstract base type for a path into a document. Implemented as an
 immutable linked list so that extending a path (going deeper) reuses
 the existing tail — no copying required.
 """
-abstract type ReferencePath end
+abstract type Reference end
 
-"""
-    Reference
-
-Union type for document selection fields: either `nothing` (no selection)
-or a `ReferencePath` describing the selected location.
-"""
-const Reference = Union{Nothing, ReferencePath}
+# A document's `selection` field holds `Union{Nothing, Reference}` — a
+# `Reference` (what is selected inside the node) or `nothing` (no selection).
+# There is no alias for that union; each `selection` field spells it out.
 
 # ── Step navigation seam ──────────────────────────────────────────────────
 # Each step type registers its own behaviour by adding methods on

@@ -34,7 +34,7 @@ the tree is evaluatable.
 """
 @cell_struct struct ProjectionReferenceStep <: ReferenceStep
     projection::Any
-    output_path::ReferencePath
+    output_path::Reference
 end
 
 ReferenceModule.get_reference_step_kind(::ProjectionReferenceStep) = :structural
@@ -55,13 +55,13 @@ form additionally asks whether it was `projection` that introduced it, which is 
 projection recognizes its *own* output positions while mapping references.
 """
 is_introduced_reference(reference) =
-    reference isa ConcreteReferencePath && reference.head isa ProjectionReferenceStep
+    reference isa ConcreteReference && reference.head isa ProjectionReferenceStep
 
 is_introduced_reference(reference, projection) =
     is_introduced_reference(reference) && reference.head.projection === projection
 
 """
-    named_node_reference(reference) -> ReferencePath
+    named_node_reference(reference) -> Reference
 
 The reference of the document node this caret **names**.
 
@@ -72,7 +72,7 @@ unchanged. Structural gestures ask this before acting, because the introduced
 reference itself does not resolve against the input document.
 """
 named_node_reference(reference) =
-    is_introduced_reference(reference) ? EmptyReferencePath() : reference
+    is_introduced_reference(reference) ? EmptyReference() : reference
 
 # A projection step descends to the location the projection introduced —
 # reified as the output path within that projection's output.

@@ -3,16 +3,16 @@ function test_text_highlighting()
 _font = font_ubuntu_monospace_regular_20
 
 # `elements[span].content{char}` cursor path (span 1-based, char 0-based).
-_ref(span, char) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(char, char), EmptyReferencePath()))))
+_ref(span, char) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(span - 1, span),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(char, char), EmptyReference()))))
 
 # `elements[span].content[start:stop]` range path.
-_range(span, start, stop) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(span - 1, span),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))))
+_range(span, start, stop) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(span - 1, span),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))))
 
 _contents(text) = [e.content for e in text.elements if e isa TextString]
 

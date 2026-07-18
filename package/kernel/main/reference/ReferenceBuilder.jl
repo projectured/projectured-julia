@@ -1,5 +1,5 @@
 # Fragment of `ReferenceModule` — the `@reference` / `@reference_step` construction DSL: the
-# compact surface syntax for building `ReferencePath`s / `ReferenceStep`s.
+# compact surface syntax for building `Reference`s / `ReferenceStep`s.
 #
 # This fragment is a **lowering**, not a parser. The surface grammar is parsed once by
 # `ReferenceSyntax.jl` into the shared `RefStep` AST; everything here turns that AST into
@@ -57,7 +57,7 @@ build_reference_step(::Val{n}, args...) where {n} =
     error("no `build_reference_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference step")
 
 # The construction reading of a subpath argument: `^(expr)` splices an already-computed
-# `ReferencePath` directly; anything else is an ordinary path. (The matcher reads a bare
+# `Reference` directly; anything else is an ordinary path. (The matcher reads a bare
 # symbol here as a whole-path *binder* instead — the one place the two DSLs genuinely
 # disagree about the same syntax, which is why the shared grammar keeps the argument raw.)
 function _build_subpath(ex)
@@ -68,11 +68,11 @@ function _build_subpath(ex)
     return parse_reference_path(ex)
 end
 
-# Wrap a value so it can stand in as a ReferencePath: pass paths through,
+# Wrap a value so it can stand in as a Reference: pass paths through,
 # wrap steps into a one-element path.
-_splice(p::ReferenceModule.ReferencePath) = p
+_splice(p::ReferenceModule.Reference) = p
 _splice(s::ReferenceModule.ReferenceStep) =
-    ReferenceModule.ConcreteReferencePath(s, ReferenceModule.EmptyReferencePath())
+    ReferenceModule.ConcreteReference(s, ReferenceModule.EmptyReference())
 
 # Concatenate two paths via the canonical, type-preserving `concat_references`
 # (ReferenceModule), so an already-folded spliced sub-path keeps its node types
@@ -91,17 +91,17 @@ _maybe_fold(expr, steps) =
 function _gen_build_path(steps::Vector{RefStep})
     # No steps → empty path.
     if isempty(steps)
-        return :(ReferenceModule.EmptyReferencePath())
+        return :(ReferenceModule.EmptyReference())
     end
 
     # Fast path: no splices at all.
     if !any(s -> s isa RefSplice, steps)
         stepexprs = [_gen_build_step(s) for s in steps]
-        return _maybe_fold(:(ReferenceModule.ReferencePath($(stepexprs...))), steps)
+        return _maybe_fold(:(ReferenceModule.Reference($(stepexprs...))), steps)
     end
 
     # Slice the chain at every splice and emit a `_concat` chain of literal
-    # `ReferencePath(...)` segments interleaved with `_splice(...)` of the
+    # `Reference(...)` segments interleaved with `_splice(...)` of the
     # spliced runtime values. Fold afterwards so `::T` type steps in the literal
     # segments become node types, while already-folded spliced sub-paths are kept.
     return _maybe_fold(_gen_concat_chain(steps), steps)
@@ -109,20 +109,20 @@ end
 
 function _gen_concat_chain(steps::Vector{RefStep})
     if isempty(steps)
-        return :(ReferenceModule.EmptyReferencePath())
+        return :(ReferenceModule.EmptyReference())
     end
     if steps[1] isa RefSplice
         head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
-        # _concat needs an EmptyReferencePath base case to short-circuit when
+        # _concat needs an EmptyReference base case to short-circuit when
         # there's nothing after the splice.
         return :(ReferenceModule._concat($head, $tail))
     end
-    # Gather a run of non-splice steps into a single literal ReferencePath.
+    # Gather a run of non-splice steps into a single literal Reference.
     i = findfirst(s -> s isa RefSplice, steps)
     cutoff = i === nothing ? length(steps) + 1 : i
     prefix = steps[1:cutoff-1]
-    prefix_expr = :(ReferenceModule.ReferencePath($([_gen_build_step(s) for s in prefix]...)))
+    prefix_expr = :(ReferenceModule.Reference($([_gen_build_step(s) for s in prefix]...)))
     if cutoff > length(steps)
         return prefix_expr
     end
@@ -134,7 +134,7 @@ end
     @reference(path)
     @reference(document, path)
 
-Build a `ReferencePath` from the construction DSL. `@reference(path)` parses a
+Build a `Reference` from the construction DSL. `@reference(path)` parses a
 rootless chain of steps, left = outermost:
 
 - `a.b`               — `FieldReferenceStep` steps (`.a` then `.b`)
@@ -144,7 +144,7 @@ rootless chain of steps, left = outermost:
 - `.name(args...)`    — an extension step registered by a higher package (its
                         owning package documents each one)
 - `x::T`              — a node type checkpoint after `x` (folded onto the node)
-- `^(expr)`           — splice a runtime `ReferencePath`/`ReferenceStep` into the literal
+- `^(expr)`           — splice a runtime `Reference`/`ReferenceStep` into the literal
 
 Inside `[]`, `{}`, `field(...)`, and extension calls the arguments are ordinary
 Julia expressions evaluated at runtime; bare symbols in *path* position are

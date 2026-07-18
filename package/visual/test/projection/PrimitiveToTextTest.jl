@@ -1,13 +1,13 @@
 
 _value_range(start::Int, stop::Int) =
-    ConcreteReferencePath(FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))
+    ConcreteReference(FieldReferenceStep("value"),
+        ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
 
 _elem_content_pos(span_idx::Int, char_idx::Int) =
-    ConcreteReferencePath(FieldReferenceStep("elements"),
-        ConcreteReferencePath(ElementReferenceStep(span_idx),
-            ConcreteReferencePath(FieldReferenceStep("content"),
-                ConcreteReferencePath(PositionReferenceStep(char_idx), EmptyReferencePath()))))
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(ElementReferenceStep(span_idx),
+            ConcreteReference(FieldReferenceStep("content"),
+                ConcreteReference(PositionReferenceStep(char_idx), EmptyReference()))))
 
 function test_primitive_to_text()
 @testset "PrimitiveToText" begin
@@ -80,7 +80,7 @@ end
     p = PrimitiveStringToTextBlock()
     out = print_document(p, nothing, s, nothing).output
     sel = out.selection
-    @test sel isa ConcreteReferencePath
+    @test sel isa ConcreteReference
     @test sel.head isa FieldReferenceStep && sel.head.name == "elements"
     elt = sel.tail.head
     @test elt isa RangeReferenceStep
@@ -99,7 +99,7 @@ end
     p = PrimitiveStringToTextBlock()
     iomap = print_document(p, nothing, s, nothing)
     out = map_reference_forward(p, iomap, _value_range(2, 2))
-    @test out isa ConcreteReferencePath
+    @test out isa ConcreteReference
     @test out.head isa FieldReferenceStep && out.head.name == "elements"
 end
 
@@ -108,7 +108,7 @@ end
     p = PrimitiveStringToTextBlock()
     iomap = print_document(p, nothing, s, nothing)
     inp = map_reference_backward(p, iomap, _elem_content_pos(1, 2))
-    @test inp isa ConcreteReferencePath
+    @test inp isa ConcreteReference
     @test inp.head isa FieldReferenceStep && inp.head.name == "value"
     @test inp.tail.head isa RangeReferenceStep
     @test inp.tail.head.start == 2 && inp.tail.head.stop == 2

@@ -28,7 +28,7 @@ function test_reference_eval()
 
     @testset "evaluate_reference walks fields" begin
         # empty path resolves to the root document
-        @test evaluate_reference(root, EmptyReferencePath()) === root
+        @test evaluate_reference(root, EmptyReference()) === root
         # simple field navigation
         @test evaluate_reference(root, strip_reference_types(@reference ::EA.left::EB)) === root.left
         @test evaluate_reference(root, strip_reference_types(@reference ::EA.right::EB.value::EC)) == 20

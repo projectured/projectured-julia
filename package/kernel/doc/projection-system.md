@@ -102,7 +102,7 @@ The two extra arguments are essential:
   enables [ReferenceDispatchingProjection](higher-order-projections.md) to
   switch behaviour based on document-root-relative location. The top-level call
   passes a fresh `PrinterContext()` (whose reference is
-  `EmptyReferencePath()`).
+  `EmptyReference()`).
 
 A two-argument convenience overload `print_document(p, input)` is defined in
 [projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl) and supplies
@@ -311,7 +311,7 @@ No selection threading is needed — the lift is purely prepending the input ste
 
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
-These translate a `ReferencePath` from input-domain coordinates to
+These translate a `Reference` from input-domain coordinates to
 output-domain coordinates and vice versa. Returning `nothing` means "this
 reference has no image" — e.g. structural delimiters introduced by the
 projection cannot map back to the input.
@@ -530,7 +530,7 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
                 i > length(iomaps) && return nothing
                 child_sel = iomaps[i].output.selection
                 child_sel === nothing && return nothing
-                ConcreteReferencePath(ElementReferenceStep(Cell(i)), child_sel)
+                ConcreteReference(ElementReferenceStep(Cell(i)), child_sel)
             end
             _ => nothing
         end
@@ -550,7 +550,7 @@ function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, referen
             child_iomap = iomaps[i]
             child_ref = map_reference_forward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReferencePath(ElementReferenceStep(Cell(i)), child_ref)
+            ConcreteReference(ElementReferenceStep(Cell(i)), child_ref)
         end
     end
 end
@@ -563,8 +563,8 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
             child_iomap = iomaps[i]
             child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReferencePath(FieldReferenceStep(Cell("children")),
-                ConcreteReferencePath(ElementReferenceStep(i), child_ref))
+            ConcreteReference(FieldReferenceStep(Cell("children")),
+                ConcreteReference(ElementReferenceStep(i), child_ref))
         end
     end
 end

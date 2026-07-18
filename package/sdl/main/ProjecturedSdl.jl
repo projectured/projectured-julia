@@ -50,7 +50,7 @@ import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOpe
 import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell, is_cell_up_to_date
-import ProjecturedDomain.ReferenceModule: EmptyReferencePath
+import ProjecturedDomain.ReferenceModule: EmptyReference
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
@@ -2028,7 +2028,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     TTF_Init()
 
     print_canvas = (aw, ah) -> begin
-        ctx = PrinterContext(EmptyReferencePath(), aw, ah, Dict{Symbol,Any}())
+        ctx = PrinterContext(EmptyReference(), aw, ah, Dict{Symbol,Any}())
         iomap = print_document(projection, nothing, document, ctx)
         canvas = iomap.output
         canvas isa GraphicsCanvas ||

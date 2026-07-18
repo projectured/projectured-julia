@@ -20,8 +20,8 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, PositionReferenceStep, ReferencePath, Position
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, PositionReferenceStep, Reference, Position
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -152,18 +152,18 @@ end
 function _string_value_range(s::PrimitiveString)
     sel = getfield(s, :selection)[]
     sel = sel
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     head = sel.head
     (head isa FieldReferenceStep && head.name == "value") || return nothing
     inner = sel.tail
-    inner isa ConcreteReferencePath || return nothing
+    inner isa ConcreteReference || return nothing
     inner.head isa RangeReferenceStep || return nothing
     inner.head
 end
 
 _string_value_path(range::RangeReferenceStep) =
-    ConcreteReferencePath(PrimitiveString, FieldReferenceStep("value"),
-        ConcreteReferencePath(String, range, EmptyReferencePath(String)))
+    ConcreteReference(PrimitiveString, FieldReferenceStep("value"),
+        ConcreteReference(String, range, EmptyReference(String)))
 
 # String editing is a *document-level* concern (it produces a
 # `ReplaceStringRangeOperation` in the `PrimitiveString`'s own `value[range]`

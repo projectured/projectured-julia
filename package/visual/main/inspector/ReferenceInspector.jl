@@ -1,7 +1,7 @@
 """
     ReferenceInspectorDocumentModule
 
-`ReferenceInspector` — pairs a `reference` (`ReferencePath` or `nothing`) with
+`ReferenceInspector` — pairs a `reference` (`Reference` or `nothing`) with
 the `target` document it points into. `ReferenceInspectorToText` renders both
 forms (compact + human narrative).
 """
@@ -13,11 +13,11 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
 """
-A display document pairing a `reference` (`ReferencePath` or `nothing`) with
+A display document pairing a `reference` (`Reference` or `nothing`) with
 the `target` document it points into.
 """
 @document struct ReferenceInspector
-    reference::Reference = nothing
+    reference::Union{Nothing, Reference} = nothing
     target::Any = nothing
 end
 

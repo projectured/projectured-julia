@@ -1,17 +1,17 @@
 
 function _value_range_ref(start::Int, stop::Int)
-    ConcreteReferencePath(FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))
+    ConcreteReference(FieldReferenceStep("value"),
+        ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
 end
 
 function _cursor_at(s)
     # Selections are canonical (carry TypeReferenceStep checkpoints); strip them to
     # match the plain `.value{k}` navigation skeleton this helper asserts on.
     sel = strip_reference_types(getfield(s, :selection)[])
-    @assert sel isa ConcreteReferencePath
+    @assert sel isa ConcreteReference
     @assert sel.head isa FieldReferenceStep && sel.head.name == "value"
     inner = sel.tail
-    @assert inner isa ConcreteReferencePath && inner.head isa RangeReferenceStep
+    @assert inner isa ConcreteReference && inner.head isa RangeReferenceStep
     inner.head
 end
 
@@ -114,9 +114,9 @@ end
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
     pref = op.reference
-    @test pref isa ConcreteReferencePath
+    @test pref isa ConcreteReference
     @test pref.head isa FieldReferenceStep && pref.head.name == "value"
-    @test pref.tail isa ConcreteReferencePath
+    @test pref.tail isa ConcreteReference
     @test pref.tail.head isa RangeReferenceStep
     @test pref.tail.head.start == 0 && pref.tail.head.stop == 0
 end

@@ -70,9 +70,9 @@ function make_assistant_mvp_setup(; reply::AbstractString = "Yes, sir!")
     a = WorkbenchAssistant(; llm = FakeLlm(reply))
     # Pre-seed selection so PrimitiveStringToSyntaxLeaf has a cursor to
     # work with on the first KeyPress.
-    a.input.selection = ConcreteReferencePath(
+    a.input.selection = ConcreteReference(
         FieldReferenceStep("value"),
-        ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
+        ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
     a
 end
 

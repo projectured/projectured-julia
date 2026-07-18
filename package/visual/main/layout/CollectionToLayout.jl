@@ -26,8 +26,8 @@ import ..LayoutModule: VerticalLayout
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReferencePath, is_element_reference_step
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReference, is_element_reference_step
 
 export CellVectorToVerticalLayout
 
@@ -55,26 +55,26 @@ end
 # [i] + rest  →  children[i] + rest
 function map_reference_forward(::CellVectorToVerticalLayout, iomap, reference)
     reference === nothing && return nothing
-    reference isa EmptyReferencePath && return EmptyReferencePath()
-    reference isa ConcreteReferencePath || return nothing
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
     h = reference.head
     (h isa RangeReferenceStep && is_element_reference_step(h)) || return nothing
-    ConcreteReferencePath(FieldReferenceStep("children"),
-        ConcreteReferencePath(h, reference.tail))
+    ConcreteReference(FieldReferenceStep("children"),
+        ConcreteReference(h, reference.tail))
 end
 
 # children[i] + rest  →  [i] + rest
 function map_reference_backward(::CellVectorToVerticalLayout, iomap, reference)
     reference === nothing && return nothing
-    reference isa EmptyReferencePath && return EmptyReferencePath()
-    reference isa ConcreteReferencePath || return nothing
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
     h = reference.head
     (h isa FieldReferenceStep && h.name == "children") || return nothing
     t = reference.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     h2 = t.head
     (h2 isa RangeReferenceStep && is_element_reference_step(h2)) || return nothing
-    ConcreteReferencePath(h2, t.tail)
+    ConcreteReference(h2, t.tail)
 end
 
 end # module

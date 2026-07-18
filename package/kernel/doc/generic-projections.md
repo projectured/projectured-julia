@@ -18,7 +18,7 @@ though it changes the output domain.
 | `CopyingProjection` | Deep recursive copy where every child is re-projected via the `recursion` argument |
 | `ReversingProjection` | Reverses the elements of a collection |
 | `SortingProjection` | Sorts a collection by a configurable `by`/`lt`/`rev` |
-| `FocusingProjection` | Navigates into a sub-document via a `ReferencePath` |
+| `FocusingProjection` | Navigates into a sub-document via a `Reference` |
 | `FilteringProjection` | Restricts a collection to the elements matching a predicate |
 | `SearchingProjection` | Walks the input and collects every object with a field matching a `Regex`, as a flat `CellVector` |
 | `ObjectToWidget` | Reflection-driven form: emits a labelled control row per editable `Cell` field of the object |
@@ -99,7 +99,7 @@ references translate correctly.
 ## FocusingProjection
 
 ```julia
-FocusingProjection(; part_type = Any, part = EmptyReferencePath())
+FocusingProjection(; part_type = Any, part = EmptyReference())
 ```
 
 Projects the sub-document reached by following `part` from the input root.

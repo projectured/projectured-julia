@@ -30,11 +30,11 @@ function test_json_placeholder_navigation()
         set_selection!(doc, seed.path); io = print_document(proj, doc)
         s = read_intent(proj, io, _JPN_CS)                             # → structural
         @test s isa ReplaceSelectionOperation
-        @test strip_reference_types(s.path) isa EmptyReferencePath     # ∅ (whole root)
+        @test strip_reference_types(s.path) isa EmptyReference     # ∅ (whole root)
         set_selection!(doc, s.path); io = print_document(proj, doc)
         t = read_intent(proj, io, _JPN_CS)                             # → text
         @test t isa ReplaceSelectionOperation
-        @test !(strip_reference_types(t.path) isa EmptyReferencePath)  # a cursor again
+        @test !(strip_reference_types(t.path) isa EmptyReference)  # a cursor again
     end
 
     @testset "Ctrl+Space toggles a lone leaf value (inherited from the syntax layer)" begin
@@ -51,11 +51,11 @@ function test_json_placeholder_navigation()
             set_selection!(doc, seed.path); io = print_document(proj, doc)
             s = read_intent(proj, io, _JPN_CS)                             # → structural
             @test s isa ReplaceSelectionOperation
-            @test strip_reference_types(s.path) isa EmptyReferencePath     # ∅ (whole leaf)
+            @test strip_reference_types(s.path) isa EmptyReference     # ∅ (whole leaf)
             set_selection!(doc, s.path); io = print_document(proj, doc)
             t = read_intent(proj, io, _JPN_CS)                             # → text again
             @test t isa ReplaceSelectionOperation
-            @test !(strip_reference_types(t.path) isa EmptyReferencePath)  # a cursor again
+            @test !(strip_reference_types(t.path) isa EmptyReference)  # a cursor again
         end
     end
 
@@ -111,7 +111,7 @@ function test_json_placeholder_navigation()
                 s = read_intent(proj, io, _JPN_CTRL_END)   # a cursor on the label
                 set_selection!(doc, s.path)
             else
-                set_selection!(doc, EmptyReferencePath())
+                set_selection!(doc, EmptyReference())
             end
             io = print_document(proj, doc)
             op = read_intent(proj, io, KeyPress('{', "{", ModifierKeys()))
@@ -124,8 +124,8 @@ function test_json_placeholder_navigation()
         # normal state. Enter must still commit and Escape must still abort; a caret in
         # the text must not swallow either (it did, via TextToGraphics returning the raw
         # key into the operation slot).
-        vpath = ConcreteReferencePath(FieldReferenceStep("value"),
-                    ConcreteReferencePath(RangeReferenceStep(6, 6), EmptyReferencePath()))
+        vpath = ConcreteReference(FieldReferenceStep("value"),
+                    ConcreteReference(RangeReferenceStep(6, 6), EmptyReference()))
         ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
         io = print_document(proj, ins)
         @test read_intent(proj, io, KeyDown(:return, ModifierKeys())) isa CompoundOperation

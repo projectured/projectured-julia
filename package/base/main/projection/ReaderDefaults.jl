@@ -18,7 +18,7 @@ import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
 import ProjecturedKernel.ProjectionReferenceModule: ProjectionReferenceStep
-import ProjecturedKernel.ReferenceModule: ConcreteReferencePath
+import ProjecturedKernel.ReferenceModule: ConcreteReference
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
@@ -28,7 +28,7 @@ import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperati
 # the raw key then falls through to the structural gesture. Head-only
 # `is_introduced_reference` is not enough: a scalar nested in a container maps to
 # `.elements[i] → ProjectionReferenceStep(.open)`, with the introduced step below the head.
-_targets_introduced_output(p::ConcreteReferencePath) =
+_targets_introduced_output(p::ConcreteReference) =
     p.head isa ProjectionReferenceStep || _targets_introduced_output(p.tail)
 _targets_introduced_output(::Any) = false
 

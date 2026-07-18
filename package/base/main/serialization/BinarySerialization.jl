@@ -11,7 +11,7 @@ state*, not data. That single rule prunes the reactive graph at every cell
 boundary, so serializing a live document stays within the document's own data and
 never traverses `dependents` out into the projection output graph (computed cells
 and their closures). It also means documents, `CellVector`s, and the selection
-`ReferencePath` (whose steps are themselves `Cell`-backed) are all handled
+`Reference` (whose steps are themselves `Cell`-backed) are all handled
 uniformly — so the saved **selection is restored** on load.
 
 Targets *structural* documents. A document that holds a live external resource

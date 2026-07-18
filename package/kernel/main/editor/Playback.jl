@@ -23,11 +23,11 @@ using ..DeviceModule
 export play_live!
 
 # Walk a reference path into a tuple of steps (outermost first), for rerooting.
-_path_to_steps(::EmptyReferencePath) = ()
-function _path_to_steps(path::ConcreteReferencePath)
+_path_to_steps(::EmptyReference) = ()
+function _path_to_steps(path::ConcreteReference)
     steps = Any[]
     cur = path
-    while cur isa ConcreteReferencePath
+    while cur isa ConcreteReference
         push!(steps, cur.head)
         cur = cur.tail
     end
@@ -67,7 +67,7 @@ end
 
 """
     play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5,
-               op_prefix::ReferencePath=EmptyReferencePath())
+               op_prefix::Reference=EmptyReference())
 
 Run the read-eval-print loop while firing a predefined `timeline` on a
 wall-clock schedule, so the user watches the scripted session unfold in a real
@@ -91,7 +91,7 @@ content (e.g. `windows[1].content` when the example is wrapped in a window).
 Event entries are unaffected — the reader already roots them.
 """
 function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::Real=0.5,
-                    op_prefix::ReferencePath=EmptyReferencePath())
+                    op_prefix::Reference=EmptyReference())
     n = length(timeline)
     prefix_steps = _path_to_steps(op_prefix)
     # fire_at[i]: seconds from start at which entry i is applied.
@@ -136,7 +136,7 @@ produce a `ScreenDocument` so the backend opens a real window; `window_id` is th
 """
 function play_live!(backend::Backend, projection, document, timeline;
                     window_id::Symbol, initial_hold::Real=0.5,
-                    op_prefix::ReferencePath=EmptyReferencePath())
+                    op_prefix::Reference=EmptyReference())
     initialize_backend!(backend)
     try
         devices = Device[Display(), Keyboard(), Mouse()]

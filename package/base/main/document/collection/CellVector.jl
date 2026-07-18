@@ -221,7 +221,7 @@ end
 function copy_document(::Type{K}, cv::CellVector) where {K<:AbstractCell}
     vals = Any[copy_document(K, x) for x in cv]
     K === ReactiveCell ? CellVector(vals) :
-        CellVector(K{Vector}(vals), K{Reference}(nothing))
+        CellVector(K{Vector}(vals), K{Union{Nothing, Reference}}(nothing))
 end
 
 # The CellVector method for `child_reference_steps`:

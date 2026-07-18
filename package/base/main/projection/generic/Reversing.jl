@@ -9,7 +9,7 @@ module ReversingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..CellModule: Cell
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
@@ -48,7 +48,7 @@ function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, ref
             # The rebuilt element step descends from the reversed output
             # collection; type its node against it. `mapped_tail` already
             # carries the child's own types.
-            ConcreteReferencePath(get_reference_node_type(iomap.output),
+            ConcreteReference(get_reference_node_type(iomap.output),
                                   ElementReferenceStep(n + 1 - i), mapped_tail)
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
@@ -64,7 +64,7 @@ function map_reference_backward(p::ReversingProjection, iomap::ChildrenIoMap, re
             mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             # Backward: the rebuilt step descends from the input collection.
-            ConcreteReferencePath(get_reference_node_type(iomap.input),
+            ConcreteReference(get_reference_node_type(iomap.input),
                                   ElementReferenceStep(n + 1 - i), mapped_tail)
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)

@@ -6,7 +6,7 @@ function test_projection_configuring()
 
 _font = font_ubuntu_monospace_regular_20
 _mkchange(g, o) = IntentModule.Intent(g, o)
-_content_ref() = ConcreteReferencePath(FieldReferenceStep("content"), EmptyReferencePath())
+_content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 _input() = TextBlock(TextString("alpha dolor", _font, color_default))
 
 @testset "ProjectionConfiguringProjection stacks control above document" begin

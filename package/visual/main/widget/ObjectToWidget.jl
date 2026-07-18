@@ -52,7 +52,7 @@ import ..TextModule: TextBlock, TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..StyleTextModule: StyleText
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           extend_reference, evaluate_reference
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
@@ -66,7 +66,7 @@ export ObjectToWidget, ObjectToWidgetIoMap
     ObjectToWidgetIoMap(projection, input, output, controls)
 
 `input` is the projected (root) object; `controls` is a `Vector` of
-`(control_widget, path::ReferencePath)` pairs — the map the reader uses to
+`(control_widget, path::Reference)` pairs — the map the reader uses to
 redirect a control's edit back onto the object's field cell. `path` is the full
 reference from the root object to the bound field (a single `FieldReferenceStep` for a
 top-level field, a deeper path for a nested one).
@@ -75,7 +75,7 @@ struct ObjectToWidgetIoMap <: IoMap
     projection::Any
     input::Any
     output::Any
-    controls::Vector{Tuple{Any,ReferencePath}}
+    controls::Vector{Tuple{Any,Reference}}
 end
 
 # ── Projection ────────────────────────────────────────────────────────────
@@ -111,11 +111,11 @@ const _MAX_DEPTH = 16
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::ObjectToWidget, recursion, obj, ctx)
-    controls = Tuple{Any,ReferencePath}[]
+    controls = Tuple{Any,Reference}[]
     # The root struct renders as a bare composite (no card), so a flat object is
     # byte-identical to the historical output and ProjectionConfiguring still gets
     # a WidgetComposite whose `visible` it can toggle.
-    grid = _struct_grid(p, obj, EmptyReferencePath(), controls, 0)
+    grid = _struct_grid(p, obj, EmptyReference(), controls, 0)
     output = WidgetComposite(Point2D(0, 0), Any[grid])
     ObjectToWidgetIoMap(p, obj, output, controls)
 end
@@ -127,8 +127,8 @@ print_document(p::ObjectToWidget, obj) = print_document(p, nothing, obj, nothing
 
 # Field selection for a struct: explicit whitelist (root only), or every
 # renderable field. `:selection` is the document's own cursor slot, never shown.
-function _displayable_fields(p::ObjectToWidget, obj, basepath::ReferencePath)
-    if p.fields !== nothing && basepath isa EmptyReferencePath
+function _displayable_fields(p::ObjectToWidget, obj, basepath::Reference)
+    if p.fields !== nothing && basepath isa EmptyReference
         return p.fields
     end
     Symbol[nm for nm in fieldnames(typeof(obj)) if _is_displayable_field(obj, nm)]
@@ -159,7 +159,7 @@ _has_cell_fields(v) = any(f -> getfield(v, f) isa Cell, fieldnames(typeof(v)))
 # A 2-column grid (label | value) of `obj`'s displayable fields. `basepath` is the
 # reference from the root object to `obj`; each field extends it by one step.
 # `depth` is the current nesting level (0 at the root), used to bound recursion.
-function _struct_grid(p::ObjectToWidget, obj, basepath::ReferencePath, controls, depth::Int)
+function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, depth::Int)
     children = Any[]
     for nm in _displayable_fields(p, obj, basepath)
         f = getfield(obj, nm)
@@ -176,7 +176,7 @@ end
 # Project one value into a widget. `cell` is the backing `Cell` (or `nothing` when
 # the value is not individually cell-addressable, e.g. a vector element); a leaf is
 # registered as an editable control only when it has a backing cell.
-function _print_value(p::ObjectToWidget, value, cell, path::ReferencePath, controls, depth::Int)
+function _print_value(p::ObjectToWidget, value, cell, path::Reference, controls, depth::Int)
     kind = _value_kind(value)
     if kind === :bool
         control = WidgetCheckbox(Point2D(0, 0), value)
@@ -200,7 +200,7 @@ function _print_value(p::ObjectToWidget, value, cell, path::ReferencePath, contr
 end
 
 # A nested struct: its own 2-column grid inside a composite, in a collapsible card.
-function _print_struct_card(p::ObjectToWidget, obj, path::ReferencePath, controls, depth::Int)
+function _print_struct_card(p::ObjectToWidget, obj, path::Reference, controls, depth::Int)
     grid = _struct_grid(p, obj, path, controls, depth)
     body = WidgetComposite(Point2D(0, 0), Any[grid])
     _collapsible_card(p, _type_title(obj), body)
@@ -209,7 +209,7 @@ end
 # A vector / tuple: its elements stacked vertically, in a collapsible card. Vector
 # elements are not individually cell-addressable, so they render read-only (no
 # controls registered) — element editing belongs to the later navigation stage.
-function _print_vector(p::ObjectToWidget, vec, path::ReferencePath, controls, depth::Int)
+function _print_vector(p::ObjectToWidget, vec, path::Reference, controls, depth::Int)
     items = Any[]
     for (i, element) in enumerate(vec)
         elpath = extend_reference(path, ElementReferenceStep(i))   # 1-based
@@ -258,10 +258,10 @@ end
 _as_string(v) = v isa AbstractString ? String(v) : (v === nothing ? "" : string(v))
 
 # `elements[1].content{n}` — a zero-width caret at char offset n.
-_end_cursor(n::Int) = ConcreteReferencePath(FieldReferenceStep("elements"),
-    ConcreteReferencePath(RangeReferenceStep(0, 1),
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(n, n), EmptyReferencePath()))))
+_end_cursor(n::Int) = ConcreteReference(FieldReferenceStep("elements"),
+    ConcreteReference(RangeReferenceStep(0, 1),
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(n, n), EmptyReference()))))
 
 # ── read_intent ───────────────────────────────────────────────────────
 # Two control-edit shapes are converted to the input domain (a
@@ -290,14 +290,14 @@ function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceS
     parsed = _parse_control_edit(op.reference)
     parsed === nothing && return op
     row, cstart, cstop = parsed
-    fields = _displayable_fields(p, iomap.input, EmptyReferencePath())
+    fields = _displayable_fields(p, iomap.input, EmptyReference())
     (1 <= row <= length(fields)) || return op
     nm = fields[row]
     f = getfield(iomap.input, nm)
     # Only a top-level, cell-backed string/number field is caret-editable here. If
     # the parsed row is a nested card / read-only column, leave the op untouched.
     (f isa Cell && _value_kind(f[]) in (:string, :real)) || return op
-    path = ConcreteReferencePath(FieldReferenceStep(String(nm)), EmptyReferencePath())
+    path = ConcreteReference(FieldReferenceStep(String(nm)), EmptyReference())
     current = _as_string(f[])
     newval = _coerce(f[], _apply_range(current, cstart, cstop, op.replacement))
     ReplaceReferencedValueOperation(iomap.input, path, newval)
@@ -326,7 +326,7 @@ function _parse_control_edit(ref)
     term = nothing
     after_children = false
     cur = ref
-    while cur isa ConcreteReferencePath
+    while cur isa ConcreteReference
         h = cur.head
         if h isa FieldReferenceStep && h.name == "children"
             after_children = true

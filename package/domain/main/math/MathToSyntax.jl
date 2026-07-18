@@ -24,7 +24,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, ReferencePath, EmptyReferencePath, extend_reference
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
 import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
@@ -73,10 +73,10 @@ end
 
 function read_intent(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep && h.name == "value" || return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(FieldReferenceStep("name"), path.tail))
+    return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("name"), path.tail))
 end
 
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
@@ -138,21 +138,21 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
 
     sel = Cell(() -> begin
         path = m.selection
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         h = path.head
         if h isa FieldReferenceStep
             if h.name == "left"
                 li = left_iomap[]
                 child_sel = li.output.selection
                 child_sel === nothing && return nothing
-                return ConcreteReferencePath(FieldReferenceStep("children"),
-                           ConcreteReferencePath(ElementReferenceStep(1), child_sel))
+                return ConcreteReference(FieldReferenceStep("children"),
+                           ConcreteReference(ElementReferenceStep(1), child_sel))
             elseif h.name == "right"
                 ri = right_iomap[]
                 child_sel = ri.output.selection
                 child_sel === nothing && return nothing
-                return ConcreteReferencePath(FieldReferenceStep("children"),
-                           ConcreteReferencePath(ElementReferenceStep(3), child_sel))
+                return ConcreteReference(FieldReferenceStep("children"),
+                           ConcreteReference(ElementReferenceStep(3), child_sel))
             end
         elseif h isa ProjectionReferenceStep
             return path
@@ -172,7 +172,7 @@ function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, o
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
@@ -212,14 +212,14 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
 
     sel = Cell(() -> begin
         path = m.selection
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         h = path.head
         if h isa FieldReferenceStep && h.name == "content"
             ci = content_iomap[]
             child_sel = ci.output.selection
             child_sel === nothing && return nothing
-            return ConcreteReferencePath(FieldReferenceStep("children"),
-                       ConcreteReferencePath(ElementReferenceStep(1), child_sel))
+            return ConcreteReference(FieldReferenceStep("children"),
+                       ConcreteReference(ElementReferenceStep(1), child_sel))
         elseif h isa ProjectionReferenceStep
             return path
         end
@@ -239,7 +239,7 @@ function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op:
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
@@ -300,21 +300,21 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
 
     sel = Cell(() -> begin
         path = m.selection
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         h = path.head
         if h isa FieldReferenceStep
             if h.name == "target"
                 ti = target_iomap[]
                 child_sel = ti.output.selection
                 child_sel === nothing && return nothing
-                return ConcreteReferencePath(FieldReferenceStep("children"),
-                           ConcreteReferencePath(ElementReferenceStep(1), child_sel))
+                return ConcreteReference(FieldReferenceStep("children"),
+                           ConcreteReference(ElementReferenceStep(1), child_sel))
             elseif h.name == "value"
                 vi = value_iomap[]
                 child_sel = vi.output.selection
                 child_sel === nothing && return nothing
-                return ConcreteReferencePath(FieldReferenceStep("children"),
-                           ConcreteReferencePath(ElementReferenceStep(3), child_sel))
+                return ConcreteReference(FieldReferenceStep("children"),
+                           ConcreteReference(ElementReferenceStep(3), child_sel))
             end
         elseif h isa ProjectionReferenceStep
             return path
@@ -334,7 +334,7 @@ function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::Re
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
 end
 
 # ── MathToSyntax (composite) ──────────────────────────────────────────────────

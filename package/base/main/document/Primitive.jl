@@ -13,7 +13,7 @@ import ..DocumentModule: @document
 import ..SelectionModule: clear_selection!, set_selection!
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           ReferenceStep, FieldReferenceStep, RangeReferenceStep, evaluate_reference,
                           strip_reference_types, get_reference_steps
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
@@ -78,7 +78,7 @@ end
     ReplaceRangeOperation <: Operation
 
 Category supertype for the "replace a referenced character range with a string"
-operations. Every subtype carries exactly two fields — `reference::ReferencePath`
+operations. Every subtype carries exactly two fields — `reference::Reference`
 (rooted at the editor's document, terminating in the step that names the range)
 and `replacement::String`. This shared shape lets the generic transport methods
 (`reroot_operation`, the projection-stage backward-map / passthrough readers) be
@@ -98,7 +98,7 @@ abstract type ReplaceRangeOperation <: Operation end
     ReplaceNumberRangeOperation(reference, replacement)
 
 Replace characters in the string representation of a `PrimitiveNumber`'s value.
-`reference` is a `ReferencePath` rooted at the editor's document whose terminal
+`reference` is a `Reference` rooted at the editor's document whose terminal
 step is a `RangeReferenceStep(s, e)` (0-based boundaries) and whose penultimate
 step is `FieldReferenceStep("value")`. The path up to those two steps locates the
 target `PrimitiveNumber`. After evaluation the target's `selection` is updated
@@ -107,7 +107,7 @@ to a zero-width cursor at `s + length(replacement)`.
 An empty result sets the value to `nothing`.
 """
 struct ReplaceNumberRangeOperation <: Operation
-    reference::ReferencePath
+    reference::Reference
     replacement::String
 end
 
@@ -115,7 +115,7 @@ end
     ReplaceStringRangeOperation(reference, replacement)
 
 Replace characters in a `PrimitiveString`'s value. `reference` is a
-`ReferencePath` rooted at the editor's document whose terminal step is a
+`Reference` rooted at the editor's document whose terminal step is a
 `RangeReferenceStep(s, e)` (0-based boundaries) and whose penultimate step is
 `FieldReferenceStep("value")`. The path up to those two steps locates the target
 `PrimitiveString`. After evaluation the target's `selection` is updated to a
@@ -125,7 +125,7 @@ Inter-string boundary behaviour: when the cursor sits exactly on the boundary
 between two adjacent `PrimitiveString` spans, the behaviour is undefined.
 """
 struct ReplaceStringRangeOperation <: ReplaceRangeOperation
-    reference::ReferencePath
+    reference::Reference
     replacement::String
 end
 
@@ -136,7 +136,7 @@ end
 # terminal step is the RangeReferenceStep. The field name is data, not a
 # precondition — `splice_value!` interprets the field's current value by its
 # representation (string / number / span / span-sequence).
-function _split_replace_reference(path::ReferencePath)
+function _split_replace_reference(path::Reference)
     # Operate on the plain navigation path: drop selection-style type checkpoints
     # so the `.<field>[range]` suffix split sees only real steps.
     steps = get_reference_steps(strip_reference_types(path))
@@ -150,19 +150,19 @@ function _split_replace_reference(path::ReferencePath)
     range_step = steps[end]
     field_step isa FieldReferenceStep || return nothing
     range_step isa RangeReferenceStep || return nothing
-    (ReferencePath(steps[1:end-2]...), field_step.name::AbstractString, range_step)
+    (Reference(steps[1:end-2]...), field_step.name::AbstractString, range_step)
 end
 
 # Replace the terminal RangeReferenceStep of `path` with a zero-width
 # RangeReferenceStep at `start + length(replacement)`, leaving the rest intact.
-function _replace_terminal_with_cursor(path::ReferencePath, replacement::AbstractString)
+function _replace_terminal_with_cursor(path::Reference, replacement::AbstractString)
     # Plain navigation path only; the rebuilt path is re-canonicalized when it is
     # handed to `set_selection!`.
     steps = get_reference_steps(strip_reference_types(path))
     range_step = steps[end]::RangeReferenceStep
     new_pos = range_step.start + length(replacement)
     steps[end] = RangeReferenceStep(new_pos, new_pos)
-    ReferencePath(steps...)
+    Reference(steps...)
 end
 
 # A number edit always has number semantics regardless of the field's current

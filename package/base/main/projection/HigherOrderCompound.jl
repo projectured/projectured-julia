@@ -5,7 +5,7 @@ import ..ReferenceDispatchingProjectionModule: ReferenceDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IdentityProjectionModule: IdentityProjection
 import ..NestingProjectionModule: NestingProjection
-import ..ReferenceModule: ReferencePath
+import ..ReferenceModule: Reference
 import ..ReferenceCaseModule: var"@reference_case", prefix
 
 export ApplyAtProjection
@@ -21,7 +21,7 @@ target is copied; siblings and children below are preserved.
 
     ApplyAtProjection(@reference(entries), SortingProjection(by = x -> x.key))
 """
-function ApplyAtProjection(reference::ReferencePath, projection)
+function ApplyAtProjection(reference::Reference, projection)
     RecursiveProjection(ReferenceDispatchingProjection(ref -> @reference_case ref begin
         prefix(^(reference)) => CopyingProjection()
         ^(reference)         => NestingProjection(

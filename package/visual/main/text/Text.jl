@@ -37,7 +37,7 @@ import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
 import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..TextColumnReferenceModule: TextColumnReferenceStep
 import ..TextRangeReferenceModule: TextRangeReferenceStep, is_text_caret
@@ -51,7 +51,7 @@ export set_cell_function!, text_flat_length, text_flat_offsets, text_selection_f
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
 # `TextDocument` (the exported abstract root every concrete text type subtypes;
-# `@document` injects the `selection::Reference` field the `Document` contract
+# `@document` injects the `selection::Union{Nothing, Reference}` field the `Document` contract
 # requires), `TextNothing` (the empty-text placeholder), `TextInsertion` (the
 # typed-name buffer completing over the Text candidates), the Insert-key gesture
 # turning one into the other, and the traits wiring them together.
@@ -440,7 +440,7 @@ end
 # `nothing` (no caret, or a whole-element `∅` / `TextSpanReferenceStep`).
 function _text_flat_selection(text::TextBlock)
     sel = strip_reference_types(text.selection)
-    if sel isa ConcreteReferencePath && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReferencePath
+    if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return (sel.head.start, sel.head.stop)
     end
     # A structural `.elements[i].content{a:b}` caret — e.g. the one a value edit's
@@ -459,9 +459,9 @@ end
 # The selection reference for a flat caret / range, rooted at the TextBlock.
 # Emitted plain; `set_selection!` canonicalises (adds the folded checkpoints).
 _flat_caret_ref(pos::Int) =
-    ConcreteReferencePath(TextRangeReferenceStep(pos, pos), EmptyReferencePath())
+    ConcreteReference(TextRangeReferenceStep(pos, pos), EmptyReference())
 _flat_range_ref(start::Int, stop::Int) =
-    ConcreteReferencePath(TextRangeReferenceStep(start, stop), EmptyReferencePath())
+    ConcreteReference(TextRangeReferenceStep(start, stop), EmptyReference())
 
 """
     text_caret_flat(block, ref) -> Int | nothing
@@ -480,7 +480,7 @@ without it, a structural caret maps to nothing and the cursor disappears after a
 """
 function text_caret_flat(block::TextBlock, ref)
     sel = strip_reference_types(ref)
-    if sel isa ConcreteReferencePath && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReferencePath
+    if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return sel.head.start == sel.head.stop ? sel.head.start::Int : nothing
     end
     rng = _parse_selection_range(sel)
@@ -642,28 +642,28 @@ _text_selection_range(text::TextBlock) = _parse_selection_range(strip_reference_
 # reuses it so a decorator can resolve either caret form from a raw reference, not just
 # from a block's own `.selection`.
 function _parse_selection_range(sel)
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     h1 = sel.head
     (h1 isa FieldReferenceStep && h1.name == "elements") || return nothing
     t1 = sel.tail
-    t1 isa ConcreteReferencePath || return nothing
+    t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
     path = Int[h2.start + 1]
     rest = t1.tail
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     # One optional hop into a TextLine: `.elements[j]` again before `.content`.
     if rest.head isa FieldReferenceStep && rest.head.name == "elements"
         inner = rest.tail
-        inner isa ConcreteReferencePath || return nothing
+        inner isa ConcreteReference || return nothing
         inner.head isa RangeReferenceStep || return nothing
         push!(path, inner.head.start + 1)
         rest = inner.tail
-        rest isa ConcreteReferencePath || return nothing
+        rest isa ConcreteReference || return nothing
     end
     (rest.head isa FieldReferenceStep && rest.head.name == "content") || return nothing
     t3 = rest.tail
-    t3 isa ConcreteReferencePath || return nothing
+    t3 isa ConcreteReference || return nothing
     h4 = t3.head
     h4 isa RangeReferenceStep || return nothing
     (path, h4.start::Int, h4.stop::Int)
@@ -671,16 +671,16 @@ end
 
 _text_replace_path(path::SpanPath, char_start::Int, char_stop::Int) =
     _elements_prefix(path,
-        ConcreteReferencePath(FieldReferenceStep("content"),
-            ConcreteReferencePath(RangeReferenceStep(char_start, char_stop), EmptyReferencePath())))
+        ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(RangeReferenceStep(char_start, char_stop), EmptyReference())))
 
 # `.elements[i]` (— `.elements[j]`) in front of `tail`, one `elements` hop per
 # index in `path`.
 function _elements_prefix(path::SpanPath, tail)
     ref = tail
     for i in reverse(path)
-        ref = ConcreteReferencePath(FieldReferenceStep("elements"),
-                  ConcreteReferencePath(RangeReferenceStep(i - 1, i), ref))
+        ref = ConcreteReference(FieldReferenceStep("elements"),
+                  ConcreteReference(RangeReferenceStep(i - 1, i), ref))
     end
     ref
 end
@@ -729,8 +729,8 @@ end
 # so char motion declines and the syntax layer tree-navigates / block-edits them.
 function _is_structural_selection(sel)
     sel = sel
-    sel isa EmptyReferencePath ||
-        (sel isa ConcreteReferencePath &&
+    sel isa EmptyReference ||
+        (sel isa ConcreteReference &&
          (sel.head isa TextSpanReferenceStep || sel.head isa TextColumnReferenceStep))
 end
 
@@ -802,12 +802,12 @@ function text_selection_flat(text::TextBlock)
     # Selections are canonical at rest (carry TypeReferenceStep checkpoints); the
     # range parser peels them, but the rectangular shape is read raw.
     sel = text.selection
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     h = sel.head
-    if h isa TextRangeReferenceStep && sel.tail isa EmptyReferencePath
+    if h isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return (h.start, h.stop, h.start == h.stop)
     end
-    if h isa TextSpanReferenceStep && sel.tail isa EmptyReferencePath
+    if h isa TextSpanReferenceStep && sel.tail isa EmptyReference
         return (h.start, h.stop, h.start == h.stop)
     end
     rng = _text_selection_range(text)
@@ -904,7 +904,7 @@ rooted at the editor's document and terminates in a `TextRangeReferenceStep(s, e
 selection becomes a zero-width caret at `s + length(replacement)`.
 """
 struct ReplaceTextRangeOperation <: ReplaceRangeOperation
-    reference::ReferencePath
+    reference::Reference
     replacement::String
 end
 
@@ -916,7 +916,7 @@ function _split_text_range_reference(path)
     isempty(steps) && return nothing
     term = steps[end]
     term isa TextRangeReferenceStep || return nothing
-    (ReferencePath(steps[1:end-1]...), term.start, term.stop)
+    (Reference(steps[1:end-1]...), term.start, term.stop)
 end
 
 # Resolve a flat offset (canonical break/indentation-aware space) to the
@@ -955,7 +955,7 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     span.content = splice_string(span.content::AbstractString, a[2], b[2], op.replacement)
     newpos = start + length(op.replacement)
     steps = get_reference_steps(strip_reference_types(op.reference))
-    newref = ReferencePath(steps[1:end-1]..., TextRangeReferenceStep(newpos, newpos))
+    newref = Reference(steps[1:end-1]..., TextRangeReferenceStep(newpos, newpos))
     clear_selection!(document)
     set_selection!(document, newref)
 end
@@ -1019,7 +1019,7 @@ end
 
 function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
     r = strip_reference_types(op.reference)
-    (r isa ConcreteReferencePath && r.head isa TextRangeReferenceStep && r.tail isa EmptyReferencePath) || return nothing
+    (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) || return nothing
     s, e = r.head.start, r.head.stop
     if s == e
         # Zero-width (an insertion): keep the plain resolution — a caret on a delimiter|value

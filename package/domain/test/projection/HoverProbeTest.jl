@@ -39,7 +39,7 @@ function test_reference_inspector_text()
     @testset "ReferenceInspectorToText" begin
         ex = json_example
         doc = ex.document
-        ref = ReferencePath(FieldReferenceStep("entries"), ElementReferenceStep(1))
+        ref = Reference(FieldReferenceStep("entries"), ElementReferenceStep(1))
 
         out = _inspector_text(ref, doc)
         @test out isa TextBlock

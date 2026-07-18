@@ -9,8 +9,8 @@
 # member is the ReplaceReferencedValueOperation that writes `doc`.
 _written_doc(op) = op.operations[1].value
 
-_ins_vpath(n) = ConcreteReferencePath(FieldReferenceStep("value"),
-                    ConcreteReferencePath(RangeReferenceStep(n, n), EmptyReferencePath()))
+_ins_vpath(n) = ConcreteReference(FieldReferenceStep("value"),
+                    ConcreteReference(RangeReferenceStep(n, n), EmptyReference()))
 
 # A document type defined by nobody but this test file: the reflection must
 # pick it up with zero registration (a zero-arg constructor is enough).

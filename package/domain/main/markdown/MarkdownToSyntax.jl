@@ -48,8 +48,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          EmptyReferencePath
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
+                          EmptyReference
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -314,7 +314,7 @@ end
 
 function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     if h isa FieldReferenceStep && h.name == "value"
         return ReplaceSelectionOperation(@reference ::MarkdownText.content::String.^(path.tail))
@@ -390,7 +390,7 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
                (:MarkdownLinkToStyledNode,     :MarkdownLink))
     @eval function map_reference_backward(p::$T, iomap::ChildrenIoMap, reference)
         @reference_case reference begin
-            ∅ => EmptyReferencePath($D)
+            ∅ => EmptyReference($D)
             ::SyntaxNode.children{s:e}.rest... => begin
                 child_i = s + 1
                 iomaps = iomap.child_iomaps[]

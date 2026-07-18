@@ -52,7 +52,7 @@ import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, extend_reference
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference
 import ..CollectionModule: CellVector
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -147,7 +147,7 @@ _title_widget(doc::WorkbenchDocument) = title(doc)
 # selection onto the structural split panes it builds.
 function _strip_field(path, name::AbstractString)
     path = path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     (path.head isa FieldReferenceStep && path.head.name == name) || return nothing
     path.tail
 end
@@ -157,7 +157,7 @@ end
 function _strip_split_child(path, slot::Int)
     rest = _strip_field(path, "elements")
     rest = rest
-    rest isa ConcreteReferencePath || return nothing
+    rest isa ConcreteReference || return nothing
     rest.head isa RangeReferenceStep || return nothing
     (rest.head.start + 1) == slot || return nothing
     _strip_field(rest.tail, "child")
@@ -272,20 +272,20 @@ end
 
 # The tab-identifying prefix of a page selection: `elements[i]` — the field step
 # and the index step — with any deeper cursor suffix dropped. Type checkpoints fold
-# into the nodes, so `elements` and `[i]` are two distinct `ConcreteReferencePath`
+# into the nodes, so `elements` and `[i]` are two distinct `ConcreteReference`
 # nodes; keep both and re-terminate after the index, carrying the index node's
-# result type onto the new `EmptyReferencePath` terminal. Returns `sel` unchanged
+# result type onto the new `EmptyReference` terminal. Returns `sel` unchanged
 # when it is not the `elements[i]…` shape (e.g. a whole-page `∅` selection), which
 # forwards to no tab and the printer falls back to tab 1.
 function _tab_index_prefix(sel)
-    sel isa ConcreteReferencePath || return sel
+    sel isa ConcreteReference || return sel
     tail = sel.tail
-    if tail isa ConcreteReferencePath && tail.head isa RangeReferenceStep
-        return ConcreteReferencePath(sel.type, sel.head,
-                   ConcreteReferencePath(tail.type, tail.head,
-                       EmptyReferencePath(tail.tail.type)))
+    if tail isa ConcreteReference && tail.head isa RangeReferenceStep
+        return ConcreteReference(sel.type, sel.head,
+                   ConcreteReference(tail.type, tail.head,
+                       EmptyReference(tail.tail.type)))
     end
-    ConcreteReferencePath(sel.type, sel.head, EmptyReferencePath())
+    ConcreteReference(sel.type, sel.head, EmptyReference())
 end
 
 function print_document(::WorkbenchNavigatorToWidgetScrollPane,
@@ -410,26 +410,26 @@ _panel_forward(_, _, _)                       = nothing
 # WorkbenchWorkbench → WidgetShell(WidgetSplitPane(nav | center(edit|info) | ctrl)).
 # Mirror the structural steps stripped by `map_reference_backward` above:
 # the horizontal split's `elements[1|2|3].child`, and the center column's
-# nested `elements[1|2].child`. `something(_, EmptyReferencePath())` keeps a
+# nested `elements[1|2].child`. `something(_, EmptyReference())` keeps a
 # selection that points only at a page (no deeper suffix) routable.
 function map_reference_forward(::WorkbenchWorkbenchToWidgetShell,
                                 iomap::WorkbenchWorkbenchToWidgetShellIoMap,
                                 reference)
     @reference_case reference begin
         ::WorkbenchWorkbench.navigation_page.rest... => begin
-            inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
+            inner = something(_page_forward(iomap.navigation_page_iomap, rest), EmptyReference(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         ::WorkbenchWorkbench.editing_page.rest... => begin
-            inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
+            inner = something(_page_forward(iomap.editing_page_iomap, rest), EmptyReference(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child.^(inner)
         end
         ::WorkbenchWorkbench.information_page.rest... => begin
-            inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
+            inner = something(_page_forward(iomap.information_page_iomap, rest), EmptyReference(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child.^(inner)
         end
         ::WorkbenchWorkbench.control_page.rest... => begin
-            inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReferencePath(WidgetTabbedPane))
+            inner = something(_page_forward(iomap.control_page_iomap, rest), EmptyReference(WidgetTabbedPane))
             @reference ::WidgetShell.content::WidgetSplitPane.elements::CellVector[3]::LayoutConstraint.child.^(inner)
         end
     end
@@ -442,7 +442,7 @@ function map_reference_forward(::WorkbenchPageToWidgetTabbedPane,
     @reference_case reference begin
         ::WorkbenchPage.elements[i].rest... => begin
             (1 <= i <= length(iomap.element_iomaps)) || return nothing
-            inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReferencePath(WidgetDocument))
+            inner = something(_panel_forward(iomap.element_iomaps[i], rest), EmptyReference(WidgetDocument))
             @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(inner)
         end
     end
@@ -664,7 +664,7 @@ function read_intent(p::WorkbenchWorkbenchToWidgetShell,
             result = read_intent(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
             result isa ReplaceSelectionOperation || continue
             return ReplaceSelectionOperation(
-                ConcreteReferencePath(FieldReferenceStep(field_name), result.path))
+                ConcreteReference(FieldReferenceStep(field_name), result.path))
         end
         return nothing
     end
@@ -738,7 +738,7 @@ end
 # checkpoints fold into the nodes, so `elements` and `[i]` are two nodes).
 function _selected_panel(iomap::WorkbenchWorkbenchToWidgetShellIoMap)
     sel = getfield(iomap.input, :selection)[]
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     sel.head isa FieldReferenceStep || return nothing
     page_iomap = sel.head.name == "navigation_page"  ? iomap.navigation_page_iomap  :
                  sel.head.name == "editing_page"     ? iomap.editing_page_iomap      :
@@ -746,10 +746,10 @@ function _selected_panel(iomap::WorkbenchWorkbenchToWidgetShellIoMap)
                  sel.head.name == "control_page"     ? iomap.control_page_iomap      : nothing
     page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || return nothing
     rest = sel.tail
-    (rest isa ConcreteReferencePath && rest.head isa FieldReferenceStep &&
+    (rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
         rest.head.name == "elements") || return nothing
     rest = rest.tail
-    (rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep) || return nothing
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
     idx = rest.head.start + 1
     (1 <= idx <= length(page_iomap.element_iomaps)) || return nothing
     (sel.head.name, idx, page_iomap.element_iomaps[idx])

@@ -39,7 +39,7 @@ contract**; concrete documents belong to the packages built on top of it.
 
 1. **A `selection` field.** `@document` appends a `selection::Reference = nothing`
    field (always last, always defaulted); declaring one by hand is an error. It
-   names what is selected *inside* this node — a `ReferencePath`, or `nothing`.
+   names what is selected *inside* this node — a `Reference`, or `nothing`.
    `Reference` is emitted as a **bare symbol**, resolved in the domain's own
    scope, so the document layer takes no upward dependency on the reference layer
    (Layer 8) that defines the type. The generics that *read and write* the
@@ -104,9 +104,9 @@ object the caller supplies (`locate_field` / `locate_element` / `initial` /
 `policy`). Its two callers differ only there: `search_documents`
 ([DocumentSearch.jl](../main/document/DocumentSearch.jl)) uses the defaults, so a
 node's location is the node itself, while `search_references` (one layer up)
-supplies functions that build a `ReferencePath`. Passing the location functions in
+supplies functions that build a `Reference`. Passing the location functions in
 — rather than dispatching them off a subtype — is what keeps the walk *below* the
-reference layer while still serving it: the walk knows nothing of `ReferencePath`,
+reference layer while still serving it: the walk knows nothing of `Reference`,
 the caller supplies it.
 
 ## The protocol helpers

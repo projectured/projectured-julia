@@ -59,8 +59,8 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument, SyntaxDelimitatio
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReferencePath, Position, get_reference_node_type
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, EmptyReference, Position, get_reference_node_type
 import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -151,7 +151,7 @@ function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
         # Whole insertion → whole delimitation, typed against the output (as the
         # generic `Projection` fallback does) so a parent that splices it — e.g.
         # `YamlSequence`'s `.content.^(inner)` — keeps a fully-typed reference.
-        ∅        => EmptyReferencePath(get_reference_node_type(iomap.output))
+        ∅        => EmptyReference(get_reference_node_type(iomap.output))
         value{k} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
@@ -167,7 +167,7 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
     # `value{len}` so the insertion buffer is always navigable (type there to fill it),
     # mirroring SyntaxLeafToText's value/close-seam redirect one layer down.
     n = length(something(iomap.input.value, ""))
-    whole = EmptyReferencePath(get_reference_node_type(iomap.input))   # typed whole insertion
+    whole = EmptyReference(get_reference_node_type(iomap.input))   # typed whole insertion
     @reference_case reference begin
         ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
@@ -175,8 +175,8 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
-            ConcreteReferencePath(DocumentInsertion, FieldReferenceStep("value"),
-                ConcreteReferencePath(String, RangeReferenceStep(n, n), EmptyReferencePath(Position))) :
+            ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),
+                ConcreteReference(String, RangeReferenceStep(n, n), EmptyReference(Position))) :
             nothing)
     end
 end
@@ -200,9 +200,9 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     leaf = SyntaxLeaf(typed; close=hint, selection=getfield(ins, :selection))
     node_selection = Cell(() -> begin
         path = getfield(ins, :selection)[]
-        path isa ConcreteReferencePath || return nothing
+        path isa ConcreteReference || return nothing
         is_introduced_reference(path) && return path
-        ConcreteReferencePath(FieldReferenceStep("content"), path)
+        ConcreteReference(FieldReferenceStep("content"), path)
     end)
     SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
         opening_delimiter=TextString(p.prefix, p.label),
@@ -215,18 +215,18 @@ end
 function _value_range(ins)
     sel = getfield(ins, :selection)[]
     sel = sel
-    sel isa ConcreteReferencePath || return nothing
+    sel isa ConcreteReference || return nothing
     h = sel.head
     (h isa FieldReferenceStep && h.name == "value") || return nothing
     t = sel.tail
-    t isa ConcreteReferencePath || return nothing
+    t isa ConcreteReference || return nothing
     t.head isa RangeReferenceStep || return nothing
     t.head
 end
 
 _value_path(range::RangeReferenceStep) =
-    ConcreteReferencePath(FieldReferenceStep("value"),
-        ConcreteReferencePath(range, EmptyReferencePath()))
+    ConcreteReference(FieldReferenceStep("value"),
+        ConcreteReference(range, EmptyReference()))
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
@@ -237,10 +237,10 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     mapped = map_reference_backward(p, iomap, op.path)
     mapped !== nothing && return ReplaceSelectionOperation(mapped)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
+    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a
@@ -273,7 +273,7 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
         GestureBinding(KeyDownPattern(:escape, nothing, nothing),
-            (doc, event) -> replace_document(EmptyReferencePath(),
+            (doc, event) -> replace_document(EmptyReference(),
                                              nothing_document(typeof(ins))()),
             (doc, sel) -> true, "Cancel insertion", "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
@@ -304,7 +304,7 @@ end
 # the callback refuses (unknown/incomplete value).
 function _insertion_commit(p::InsertionToSyntaxLeaf, ins)
     doc = p.commit(something(ins.value, ""))
-    doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc)
+    doc === nothing ? nothing : replace_document(EmptyReference(), doc)
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret
@@ -632,10 +632,10 @@ end
 # falls through to the generic `read_gesture` fallback → `@gestures JuliaInsertion`.
 function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     path = op.path
-    path isa ConcreteReferencePath || return nothing
+    path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
+    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the
@@ -643,7 +643,7 @@ end
 # cursor lands on the committed value's own selection (a scaffold's first hole).
 _julia_ins_commit(ins) =
     (doc = _julia_commit(something(ins.value, ""));
-     doc === nothing ? nothing : replace_document(EmptyReferencePath(), doc))
+     doc === nothing ? nothing : replace_document(EmptyReference(), doc))
 
 # The Tab navigation predicate + in-hole cursor: land on the next `JuliaInsertion`,
 # cursor at its buffer offset 0 so it is ready to type.
@@ -663,10 +663,10 @@ function _julia_ins_tab(ins)
     isempty(strip(value)) &&
         return SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)
     scaffold = julia_scaffold(value)
-    scaffold === nothing || return replace_document(EmptyReferencePath(), scaffold)
+    scaffold === nothing || return replace_document(EmptyReference(), scaffold)
     parsed = try juliaparse(value) catch; nothing end
     parsed === nothing && return nothing
-    commit = replace_document(EmptyReferencePath(), parsed)
+    commit = replace_document(EmptyReference(), parsed)
     CompoundOperation(Any[commit.operations...,
                           SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)])
 end

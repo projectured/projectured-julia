@@ -3,8 +3,8 @@
 
 **Paths into documents**. A reference is a linked list
 of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, …),
-forming a `ReferencePath` (an `EmptyReferencePath` or a
-`ConcreteReferencePath`) that addresses one location inside a document tree.
+forming a `Reference` (an `EmptyReference` or a
+`ConcreteReference`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
 navigation and DSL behaviours through this module's extension seams. The
 path-producing reflection search (`search_references`) also lives here: it walks
@@ -20,9 +20,9 @@ imported together and separating them just multiplied import headers.
 The module lives in eight fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
-  `ReferencePath` abstract types, the `Reference` union a selection field holds,
-  and the open generics higher packages add methods to (`get_reference_step_kind`,
-  `evaluate_reference_step`, and the `dsl_*` DSL seams).
+  `Reference` abstract types (a document's `selection` field holds a `Reference`
+  or `nothing`), and the open generics higher packages add methods to
+  (`get_reference_step_kind`, `evaluate_reference_step`, and the reference-step DSL seams).
 - [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
   (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, the `Position` a cursor
   evaluates to), each step type packaged with its own `show`, `==`, and seam
@@ -65,10 +65,10 @@ using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
 
-export Reference, ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
+export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
-       RangeReferenceStep, ReferencePath,
-       EmptyReferencePath, ConcreteReferencePath, extend_reference, concat_references, get_reference_steps,
+       RangeReferenceStep, Reference,
+       EmptyReference, ConcreteReference, extend_reference, concat_references, get_reference_steps,
        evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference_step,
        is_position_reference_step, is_reference_equal, is_reference_prefix,
        ReferenceTypeMismatch,
@@ -86,7 +86,7 @@ export Reference, ReferenceStep, ElementReferenceStep, PositionReferenceStep, Ty
        @reference, @reference_step
 
 # The contract first — the abstract types it declares are named in the struct
-# field annotations below (`head::ReferenceStep`, `tail::ReferencePath`), which
+# field annotations below (`head::ReferenceStep`, `tail::Reference`), which
 # are evaluated at definition time. Then the types, the value protocol on them,
 # and finally the DSL fragments that consume the seams.
 include("ReferenceInterface.jl")

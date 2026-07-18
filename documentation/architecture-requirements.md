@@ -504,9 +504,9 @@ reference↔container crossing rather than assuming one base throughout.
 ### AR-REFERENCE-DSL
 
 **Build and match reference paths with the DSL, not by hand.** Construct paths
-with `@reference` (or `ReferencePath(steps...)` / `@reference_step` for programmatic
+with `@reference` (or `Reference(steps...)` / `@reference_step` for programmatic
 use), and pattern-match them with `@reference_case` in mappers and readers. Do
-not cons `ConcreteReferencePath` cells by hand. `evaluate_reference(document,
+not cons `ConcreteReference` cells by hand. `evaluate_reference(document,
 path)` is the canonical `(document, reference) → node` walk.
 
 ### AR-EVERY-DOCUMENT-HAS-SELECTION
@@ -532,7 +532,7 @@ selection can be left behind, producing multiple visible cursors. Use
 ### AR-EMPTY-PATH-IS-SELECTION
 
 **The empty path is a first-class whole-element selection, not an absence.**
-`EmptyReferencePath()` (written `@reference()`, matched by `∅`) means "the
+`EmptyReference()` (written `@reference()`, matched by `∅`) means "the
 whole element here is selected" and maps across any projection by identity;
 `nothing` means "no selection." Keep the two distinct, and let whole-element
 selections round-trip for free.

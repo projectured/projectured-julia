@@ -115,7 +115,7 @@ function test_gesture_binding()
 
     @testset "read_bound_gesture fires the matching, applicable binding" begin
         leaf = GestureProbeLeaf()
-        leaf.selection = EmptyReferencePath()
+        leaf.selection = EmptyReference()
         @test read_bound_gesture(leaf, KeyPress('n')) == MarkOperation(:neg)
         @test read_bound_gesture(leaf, KeyPress('7')) == MarkOperation(Symbol('7'))
         @test read_bound_gesture(leaf, KeyDown(:period, ModifierKeys(ctrl=true))) == MarkOperation(:toggle)
@@ -127,13 +127,13 @@ function test_gesture_binding()
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
         @test read_bound_gesture(leaf, KeyPress('n')) === nothing
         @test isempty(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf)))
-        leaf.selection = EmptyReferencePath()
+        leaf.selection = EmptyReference()
         @test length(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf))) == 4
     end
 
     @testset "read_gesture interpreter routes through the reified table" begin
         arr = GestureProbeArray()
-        arr.selection = EmptyReferencePath()
+        arr.selection = EmptyReference()
         @test read_gesture(arr, KeyPress(',')) == MarkOperation(:append)   # own
         @test read_gesture(arr, KeyPress('p')) == MarkOperation(:pos)      # inherited
     end
@@ -154,8 +154,8 @@ function test_gesture_binding()
         @test beta[1] === probe_clipboard[1]
 
         # Both unrelated types fire the shared gestures; each keeps its own.
-        a = ProbeAlpha(); a.selection = EmptyReferencePath()
-        b = ProbeBeta();  b.selection = EmptyReferencePath()
+        a = ProbeAlpha(); a.selection = EmptyReference()
+        b = ProbeBeta();  b.selection = EmptyReference()
         @test read_gesture(a, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
         @test read_gesture(b, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
         @test read_gesture(a, KeyPress('a')) == MarkOperation(:alpha)
