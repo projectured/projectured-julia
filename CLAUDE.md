@@ -45,8 +45,8 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `event/EventPattern.jl`
 - **Layer 4 — device** (`device/`)
   - 🔒 `device/DeviceLayer.jl`
-  - ⬜ `device/DeviceModule.jl`
-  - ⬜ `device/Device.jl`
+  - 🔒 `device/DeviceModule.jl`
+  - 🔒 `device/Device.jl`
   - ⬜ `device/Keyboard.jl`
   - ⬜ `device/Mouse.jl`
   - ⬜ `device/Screen.jl`

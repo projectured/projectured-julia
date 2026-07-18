@@ -1,6 +1,4 @@
-# Fragment of `DeviceModule` — the device **contract**: the `Device` supertype
-# every device subtypes. The concrete devices an editor is given live in the
-# sibling `Keyboard.jl` / `Mouse.jl` / `Screen.jl` fragments.
+# Fragment of `DeviceModule` — the `Device` supertype every device subtypes.
 
 """
     Device
