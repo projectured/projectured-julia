@@ -18,7 +18,7 @@ that depend on this one; the kernel carries only their dependency-free seams.
 """
 module ProjecturedKernel
 
-# The package is sixteen architectural layers, one folder each, included
+# The package is seventeen architectural layers, one folder each, included
 # bottom-to-top below. Each layer folder keeps its own ordered include list in
 # a `<Name>Layer.jl` *fragment* (a 0-module file sharing this module's
 # namespace), so this file reads as the layer diagram and each layer file as
@@ -40,10 +40,11 @@ include("reference/ReferenceLayer.jl")   # layer 8  — reference machinery
 include("selection/SelectionLayer.jl")   # layer 9  — document current-focus state
 include("operation/OperationLayer.jl")   # layer 10 — reified edits
 include("binding/BindingLayer.jl")       # layer 11 — gesture → operation bindings
-include("projection/ProjectionLayer.jl") # layer 12 — projection interface & algebra
-include("tool/ToolLayer.jl")             # layer 13 — the editor's capability surface
-include("llm/LlmLayer.jl")               # layer 14 — the LLM provider abstraction
-include("agent/AgentLayer.jl")           # layer 15 — the AI control surface
-include("editor/EditorLayer.jl")         # layer 16 — the read-eval-print loop
+include("iomap/IoMapLayer.jl")           # layer 12 — projection input↔output records
+include("projection/ProjectionLayer.jl") # layer 13 — projection interface & algebra
+include("tool/ToolLayer.jl")             # layer 14 — the editor's capability surface
+include("llm/LlmLayer.jl")               # layer 15 — the LLM provider abstraction
+include("agent/AgentLayer.jl")           # layer 16 — the AI control surface
+include("editor/EditorLayer.jl")         # layer 17 — the read-eval-print loop
 
 end # module ProjecturedKernel

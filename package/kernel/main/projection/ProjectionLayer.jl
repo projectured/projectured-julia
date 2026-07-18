@@ -1,23 +1,21 @@
 # ── Projection layer — interface & infrastructure ──────────────────────────
 # The concrete projection algebra (the generic + higher-order combinators) is
 # domain-independent framework and lives in `package/base`; this layer keeps
-# only the interface, the IO maps, the gesture-binding machinery, the
-# `@projection` macro defaults, and the projection-template engine.
+# only the interface, the gesture-binding machinery, the `@projection` macro
+# defaults, and the projection-template engine. The IO maps it builds on are the
+# layer below (`iomap/`).
 # The ordered include list of the projection layer; a fragment of ProjecturedKernel.
-# The interface stubs lead the layer: ProjectionApi and IoMapApi declare the
-# abstract types and open generics (the four projection functions, IoMap) that
-# everything below implements; Intent is the reader-side protocol data type;
-# IoMapModule holds the shared concrete IO maps. Nothing below this layer
-# imports any of them — `package/base` extends the generics through the fully
-# loaded kernel, so they need no earlier position in the include list.
+# The interface stubs lead the layer: ProjectionApi declares the abstract types
+# and open generics (the four projection functions) that everything below
+# implements; Intent is the reader-side protocol data type. Nothing below this
+# layer imports any of them — `package/base` extends the generics through the
+# fully loaded kernel, so they need no earlier position in the include list.
 # ProjectionReferenceStep — a reference step whose payload is a projection.
 # Small, self-contained; needs only DocumentModule and ReferenceModule, so
 # loads first in the layer.
 include("ProjectionReferenceStep.jl")
 include("ProjectionApi.jl")
-include("IoMapApi.jl")
 include("Intent.jl")
-include("IoMap.jl")
 # PrinterContext (Cell + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections.
 include("PrinterContext.jl")

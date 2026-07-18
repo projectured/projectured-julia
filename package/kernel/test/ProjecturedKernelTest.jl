@@ -97,10 +97,9 @@ function test_kernel_layering()
                    name = "kernel",
                    layers = ["cell", "clock", "event", "device", "gesture", "backend",
                              "document", "reference", "selection", "operation",
-                             "binding", "projection", "tool", "llm", "agent", "editor"],
+                             "binding", "iomap", "projection", "tool", "llm", "agent", "editor"],
                    check_private_imports = true,
-                   # A layer's contract file, and its owning module. The projection
-                   # layer declares two contracts, so it has two.
+                   # A layer's contract file, and its owning module.
                    interface_files = Dict(
                        "cell/CellInterface.jl"       => :CellModule,
                        "event/EventInterface.jl"     => :EventModule,
@@ -111,7 +110,7 @@ function test_kernel_layering()
                        "backend/BackendInterface.jl" => :BackendModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionApi.jl" => :ProjectionApiModule,
-                       "projection/IoMapApi.jl"      => :IoMapApiModule),
+                       "iomap/IoMapApi.jl"           => :IoMapApiModule),
                    # AR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx`
                    # + qualified extension (`Xxx.f(…) = …`). Opt-in, and it grows
                    # as the sweep proceeds; when it covers every file the
