@@ -1,0 +1,226 @@
+# Identity-stable, fully-reactive projections and IoMaps
+
+## Goal — the invariant
+
+Establish and enforce, across every projection in the project:
+
+> **A projection's `print_document` returns an IoMap whose *identity is stable* for
+> the life of that projection instance. Every varying output — the output
+> document, the output `selection`, and every child IoMap — is wired as a
+> *computed cell* deriving from the projection's input/parameter cells, and child
+> collections *reconcile by identity* (reuse surviving children, rebuild only the
+> ones whose value genuinely changed). A projection never rebuilds or replaces
+> the IoMap it returned in response to a change; the reactive graph propagates
+> changes through the cells it already wired.**
+
+Corollary: an operation that changes what a projection shows writes a cell the
+projection derived from — it does **not** null `editor.iomap`.
+`invalidate_projection!` stays reserved for genuine whole-root rebinds.
+
+This is the union + strengthening of four existing rules —
+AR-REACTIVE-OUTPUT-SELECTION, AR-SHARED-CHILDREN-IOMAP, AR-NO-WRITE-IN-THUNK,
+AR-MUTATE-OR-NULL-IOMAP — promoted from "a compound projection should" to "every
+projection must," and given a citable name.
+
+## Why
+
+- **The concrete bug.** `FocusingProjection.print_document`
+  ([Focusing.jl:43-45](../../package/base/main/projection/generic/Focusing.jl#L43-L45))
+  computes `output = p.part_evaluator(input)` **eagerly** into a plain
+  `SimpleIoMap`, and `part` is a plain field
+  ([Focusing.jl:80-83](../../package/base/main/projection/generic/Focusing.jl#L80-L83)).
+  A focus change (`ReplaceFocusPartOperation`) writes plain fields → no cell
+  invalidates → the printed structure has no reactive edge to the change → stale
+  output. It already wires `output.selection` correctly with `set_cell_function!`
+  — it just never did the same for `output` itself or `part`.
+- **The cost elsewhere.** Because projections may *replace* their output identity
+  on a change, `ChainingProjection` compensates with bespoke per-stage re-print
+  cells (`step_iomaps::Vector{Cell}`) and a synthesized `:output`
+  getproperty/propertynames. Under the invariant, each stage's IoMap derivation
+  absorbs the re-print and Chaining collapses to wiring stage cells together.
+
+## What already exists (this shrinks the real scope)
+
+- The **template engine** (`ProjectionTemplate` / `RuleIoMap`, used by every
+  `XToSyntax`) **already conforms**: `_node_print` builds one `RuleIoMap`, keeps
+  its identity, wires `output`/`selection`/`children` as computed cells, and
+  reconciles children.
+- **Reconciliation helpers already exist** (private in ProjectionTemplate):
+  `_reconciling_child_iomaps` (keyed by `(objectid, index)`),
+  `_reconciling_child_iomap` (single child by objectid), `_project_output_cell`.
+  These are the reusable core — they need a shared home, not reinvention.
+- `@projection` / `@iomap` exist (`@cell_struct` + a supertype default).
+  `@projection` is used ~25 places; `@iomap` by **zero** IoMaps.
+
+⟹ "throughout the project" = **the hand-written projections that don't go through
+the template engine**: the base generic + higher-order projections, and the
+visual/domain projections that hand-build IoMaps. The template majority is done.
+
+## The mechanism (and an honest note on the macros)
+
+Three things, in order of importance:
+
+1. **Derivations, not eager values.** Every varying IoMap field is a computed
+   cell (`Cell(() -> … input cells …)`) or a `set_cell_function!` field on a
+   persistent output object. *This is the load-bearing change.*
+2. **Reconciliation.** Child collections use the shared reconciling cell so
+   identity survives value changes and only genuinely-moved children rebuild.
+3. **Stable IoMap identity.** Build the IoMap once; never replace it on change.
+
+`@projection`/`@iomap` (transparent cell *fields*) are the *vehicle* for
+writable-reactive parameters/fields — but not the fix by themselves: a cell field
+holding an eager value still doesn't derive (the template's `RuleIoMap` is
+identity-stable and reactive *without* `@iomap`, via an explicit
+`child_iomaps::Cell`). So adopt `@projection` for projections with reactive
+params and `@iomap` for record-shaped IoMaps, but treat the derivation +
+reconciliation wiring as the real work, per projection.
+
+## Phases
+
+**Phase 0 — Foundations.**
+- [ ] Write the invariant as a new AR rule in `architecture-requirements.md`;
+      cross-link the four rules it subsumes.
+- [ ] Promote the reconciliation helpers to a shared, exported projection-layer
+      support module (they call `print_child`/`make_child_context`, so they live
+      in the projection layer). Keep ProjectionTemplate using them.
+- [ ] **Build the reactive test harness** — the critical enabler. Given a
+      pipeline: print it, capture output + IoMap `objectid`, drive a *structural*
+      change (focus swap / type-to-replace / element splice), re-pull, and assert
+      (a) output updated correctly, (b) IoMap identity unchanged, (c)
+      `editor.iomap` NOT nulled. Today's printer/reader tests check only a single
+      print — this gap is the top risk, so it is fixed first.
+
+**Phase 1 — Exemplar: `FocusingProjection`.**
+- [ ] `@projection FocusingProjection`; wire `output` as a computed cell deriving
+      from `part` + `input`, keep IoMap identity stable; `ReplaceFocusPartOperation`
+      writes the `part` cell and relies on no re-print.
+- [ ] Reactive test: focus in/out → output tracks, IoMap identity preserved, no
+      iomap drop. Validates the whole pattern on the simplest real case.
+
+**Phase 2 — base generic / degenerate** (Identity, Constant, Reversing, Copying,
+Sorting, Filtering, Searching, Dragging): convert struct + wire output/children +
+reconcile + reactive tests. One reviewable change.
+
+**Phase 3 — base higher-order** (Switching, Nesting, ReferenceDispatching,
+WindowInputUnwrapping; NOT Chaining yet): the object-swapping dispatchers — the
+ones that replace output identity today. Make each expose a *stable* output whose
+child updates through a reconciling cell. Reactive tests drive the dispatch key.
+
+**Phase 4 — visual projections** (~30 IoMaps: text/, widget/, syntax/, layout/,
+screen/, …). Largest group; sub-batch by folder. Many already hold Cell fields;
+the work is closing eager-output/identity gaps + reconciliation.
+
+**Phase 5 — domain projections** (versioning, workbench, graph, formula, …).
+Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
+
+**Phase 6 — simplify `ChainingProjection`.**
+- [ ] Replace `step_iomaps::Vector{Cell}` + per-stage re-print cells with a plain
+      list of stage IoMaps whose input/output cells are shared across the
+      boundary; drop the synthesized `:output` getproperty/propertynames.
+- [ ] Reactive test: a structural swap mid-chain propagates end-to-end with no
+      bespoke chain cell and no iomap drop.
+
+**Phase 7 — editor tightening (conservative, last).**
+- [ ] Audit operations that null `editor.iomap`; where the reactive path now
+      covers them (proven by a reactive test), stop nulling. Leave genuine
+      whole-root rebinds alone. The payoff (fewer full re-prints), done cautiously.
+
+## Verification (every phase)
+- Targeted printer/reader tests for converted projections stay green.
+- The new **reactive test** per converted projection (change → propagation +
+  identity).
+- Layering guards green; full-stack json/domain sweep after each group;
+  `test_all` only at the end.
+- **Performance**: spot-check per-frame counters (reads/computes/invalidations/
+  writes) on a heavy example (workbench) after Phases 4-6 — the refactor adds
+  cells; watch for recompute blow-ups (AR-PROFILE-WITH-COUNTERS). Keep top-level
+  derivations reading only *structural* cells (values flow through inner cells),
+  as the template does.
+
+## Risks & mitigations
+- **Reconciliation correctness** (stale/duplicate/mis-keyed children) → reuse the
+  proven `_reconciling_child_iomaps`; the Phase-0 harness is the guard.
+- **Test gap** → harness first; no projection converted without a reactive test.
+- **Performance** (cells per node) → counters; structural-only top-level reads.
+- **AR-NO-NESTED-CELL** (Cell-valued outputs, e.g. Chaining's) → box with
+  `Cell(f; as_value=true)` or keep explicit non-transparent Cell fields; never
+  `@iomap` a field whose value is itself a Cell.
+- **Blast radius** (~50 IoMaps, ~40 projections, 4 packages) → land phase-by-phase,
+  each green; the template majority already conforms.
+- **Editor semantics** → Phase 7 only, never remove a whole-root drop.
+
+## Open decisions (settle in Phase 0)
+- Home + names for the promoted reconciliation helpers.
+- **Whether to adopt `@iomap` at all.** The survey shows all 19 reactive IoMaps
+  already work with *explicit* `Cell` fields (`child_iomaps::Cell`, `segs::Cell`,
+  accessed via `[]`), and `@iomap`'s transparent access would fight that pattern;
+  `@iomap` is 0/52 and buys little. Lean: **keep explicit `Cell` fields for reactive
+  IoMaps; `@iomap` only for pure-record IoMaps if desired** — the invariant needs
+  neither macro, only the derivation+reconciliation wiring. (This narrows the user's
+  original "change iomaps to `@iomap`" once the wiring is what actually matters.)
+- `get_iomap_output` currently returns the *slot* (a `Cell` for an `@iomap`
+  struct, a value for a plain one). Define a uniform contract (lean: always
+  return the value; add a `_cell` accessor if a consumer needs the cell) before
+  the sweep, since it changes behaviour for every converted IoMap.
+- Scope cutoff: convert every hand-written projection (uniform enforceable
+  invariant) vs. only demonstrably-broken ones. (Lean: every one — but any phase
+  can be a stopping point with value banked.)
+- **Sealing interaction**: this refactor edits the iomap layer (`IoMapDefaults`
+  for `@iomap` adoption / accessor semantics), which was just audited seal-ready.
+  Hold the iomap-layer seal until after Phase 0/1 settle those files, then
+  re-audit + seal.
+
+## Scope, sharpened by the survey
+
+The gap is **not** a blanket "eager vs reactive." Most output *containers* are built
+once (stable identity already) with reactive innards wired by `set_cell_function!`
+(156 uses). The real defects are three narrower kinds:
+
+1. **Config-change edges missing** — a projection parameter has no reactive edge
+   to its output (Focusing's `part`; any `mutable struct` projection field mutated
+   by an operation). Fix: `@projection` + derive output/children from the param cells.
+2. **Write-once children** — child IoMaps boxed in a plain `Cell([...])` that never
+   reacts to a structural input change (the widget-graphics composites in
+   `WidgetToGraphics.jl`; grid layout). Fix: computed `Cell(() -> …)` + reconcile.
+3. **Child-identity loss** — `Cell(() -> [rebuild all children])` reacts, but
+   rebuilds every child each recompute (no reconciliation), so child IoMap identity
+   is lost. Fix: route through the shared reconciler.
+
+Only the 73 `@projection_template` domain projections and the template's own nodes
+avoid all three today (they use `_reconciling_child_iomaps`).
+
+## Inventory (from survey)
+
+**Projections — 261 total** (179 `@projection`, 82 plain `<: Projection`):
+- **kernel** 0 (machinery only).
+- **base** 17, *all plain* — the hand-written generic + higher-order projections in
+  `base/main/projection/`: Identity, Constant, Reversing, **Focusing** (mutable),
+  Filtering, Sorting, Searching, Copying, Dragging, Recursive, Nesting, **Chaining**,
+  Switching, ReferenceDispatching, PredicateDispatching, TypeDispatching,
+  WindowInputUnwrapping. **These are Phases 2-3 + 6.**
+- **visual** 95 (60 `@projection`, 35 plain). The 60 macro-form cluster in
+  `widget/WidgetToGraphics.jl` (~44 — the write-once-children composites, gap #2).
+- **domain** 149 (119 `@projection`, 30 plain). The 119 are almost all `*ToSyntax`
+  leaf/node projections driven by `@projection_template` (73 uses) → already conform.
+  The 30 plain are the real targets: `workbench/WorkbenchToWidget.jl` (10),
+  `conversation/*` (7), `dbcatalog/DbCatalogToSql.jl` (5), `graph/*` (2), + singles.
+
+**IoMaps — 52 total, all plain `struct <: IoMap`, none use `@iomap`.** 19 carry
+`::Cell`/`::Vector{Cell}` fields (already partly reactive, via explicit Cell fields —
+not `@iomap`); 33 all-plain. Only 2 override `getproperty`: `ChainingProjectionIoMap`
+(`base/…/Chaining.jl:35`, synthesized `.output`) and `VersioningToAnyProjectionIoMap`
+(`domain/…/VersioningToAny.jl:96`, derived `.output`).
+
+**Reconciliation:**
+- Shared-but-private: `_reconciling_child_iomaps` (keyed `(objectid, index)`) and
+  `_reconciling_child_iomap` (single child by objectid) in
+  `ProjectionTemplate.jl:447/479` → **promote these in Phase 0.**
+- Ad-hoc reimplementations to consider unifying: `SyntaxToText.jl:536` (`IdDict`
+  child cache), `SyntaxToText.jl` `_DecoCache`, `TextToGraphics.jl:295/534`
+  (per-row overlay cache), `HoverProbe.jl` (single-slot reuse).
+- **Existing contract test**: `package/projectured/test/editor/PrinterLocalityTest.jl`
+  (lines ~405-450) already asserts "keyed reconciliation reuses each prior child" and
+  warns on structural loss → **the seed of the Phase-0 reactive harness.**
+
+**Macros:** `@projection` (`Projection.jl:229`), `@iomap` (`IoMapDefaults.jl:72`,
+unused), `@projection_template` (`ProjectionTemplate.jl:1435`, 73 domain uses).
