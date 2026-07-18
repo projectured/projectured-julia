@@ -7,11 +7,12 @@ navigating into the input using a configurable reference path.
 module FocusingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, evaluate_reference, extend_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
-import ..CellModule: set_cell_function!
+import ..CellModule: Cell
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
@@ -31,30 +32,19 @@ type is a subtype of `part_type` may be targeted.
     iomap = print_document(fp, nothing, [[1, 2], [3, 4]], nothing)
     iomap.output  # [1, 2]
 """
-mutable struct FocusingProjection <: Projection
-    part_type::Any
-    part::Reference
-    part_evaluator::Function
+@projection struct FocusingProjection
+    part_type::Any = Any
+    part::Reference = EmptyReference()
 end
 
-FocusingProjection(; part_type=Any, part::Reference=EmptyReference()) =
-    FocusingProjection(part_type, part, document -> evaluate_reference(document, part))
-
 function print_document(p::FocusingProjection, recursion, input, ctx)
-    output = p.part_evaluator(input)
-    iomap = SimpleIoMap(p, input, output)
-    # Forward-project the input selection onto the output sub-document so that
-    # downstream projections can render a cursor after set_selection! on the
-    # input. Lazy: re-derived whenever input.selection changes. Mirrors the
-    # SearchingProjection pattern.
-    if hasproperty(output, :selection)
-        set_cell_function!(getfield(output, :selection), () -> begin
-            sel = hasfield(typeof(input), :selection) ? input.selection : nothing
-            sel === nothing && return nothing
-            map_reference_forward(p, iomap, sel)
-        end)
-    end
-    iomap
+    # Stable iomap; `output` is a computed cell, so a `part` change (or a change to
+    # the input under `part`) re-derives the focused sub-document reactively without
+    # replacing the iomap (AR-STABLE-IOMAP-IDENTITY) — which is what lets Focusing
+    # sit in a chain and have downstream stages wire to this iomap. The cursor rides
+    # the `map_reference_forward` composition, so the sub-document's own selection is
+    # left untouched.
+    SimpleIoMap(p, input, Cell(() -> evaluate_reference(input, p.part)))
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)
@@ -68,9 +58,9 @@ end
 """
     ReplaceFocusPartOperation(projection, part)
 
-Operation that replaces the focus `part` of a `FocusingProjection`.
-When evaluated, updates both `projection.part` and `projection.part_evaluator`
-so that subsequent `print_document` calls navigate to the new `part`.
+Operation that replaces the focus `part` of a `FocusingProjection`. Writes the
+projection's `part` cell, so its reactive `output` re-derives to the new focus and
+the change propagates through the existing iomap without re-printing.
 """
 struct ReplaceFocusPartOperation <: Operation
     projection::FocusingProjection
@@ -79,7 +69,6 @@ end
 
 function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part = op.part
-    op.projection.part_evaluator = document -> evaluate_reference(document, op.part)
 end
 
 function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSelectionOperation)

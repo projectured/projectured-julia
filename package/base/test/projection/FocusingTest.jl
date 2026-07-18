@@ -35,4 +35,19 @@ function test_focusing()
         @test read_intent(fp, iomap, KeyDown(:comma, ModifierKeys())) === nothing
     end
 end
+
+# The reactive-output invariant (AR-STABLE-IOMAP-IDENTITY): a focus change
+# re-derives `output` through the SAME iomap object — not a re-print — which is
+# what lets Focusing sit inside a chain. Before the reactive conversion the eager
+# `output` froze at its first value and this drifted stale silently.
+@testset "FocusingProjection reactive output" begin
+    input = [[1, 2], [3, 4]]
+    fp = FocusingProjection(part=Reference(ElementReferenceStep(1)))
+    iomap = print_document(fp, nothing, input, nothing)
+    id = objectid(iomap)
+    @test iomap.output === input[1]                       # focused on the first element
+    fp.part = Reference(ElementReferenceStep(2))           # ReplaceFocusPartOperation's effect
+    @test iomap.output === input[2]                       # re-derived reactively, no re-print
+    @test objectid(iomap) === id                          # same iomap object throughout
+end
 end
