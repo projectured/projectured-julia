@@ -28,7 +28,7 @@ copy_shadow_element(K, x) = x isa Document ? copy_document(K, x) : x
 function sync_document!(shadow::Document, source::Document)
     is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
-    K = get_document_cell_kind(shadow)
+    K = get_cell_struct_kind(shadow)
     is_element_collection(source) ? _sync_elements!(shadow, source, K) :
                                     _sync_fields!(shadow, source, K)
     shadow

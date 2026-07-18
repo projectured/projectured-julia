@@ -16,7 +16,6 @@ its own definition:
 |---|---|
 | [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `copy_document` / `sync_document!` / `search_documents`) |
 | [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` trait answers and the depth-limited debug `show` |
-| [`DocumentKind.jl`](DocumentKind.jl) | the cell-kind vocabulary the value protocol is written against |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
@@ -29,14 +28,13 @@ module DocumentModule
 using ..CellModule
 using ..CellStructModule
 
-export Document, copy_document, copy_cell_as, sync_document!,
+export Document, copy_document, sync_document!,
        is_element_collection, is_walk_opaque, search_documents,
        @document, @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export DocumentWalk, walk_document, string_predicate
 
 include("DocumentInterface.jl")  # the contract; every fragment below extends it
 include("DocumentDefaults.jl")
-include("DocumentKind.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")
 include("DocumentMacro.jl")

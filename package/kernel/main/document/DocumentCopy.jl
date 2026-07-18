@@ -56,6 +56,21 @@ function copy_document(K::Type{<:AbstractCell}, c::AbstractCell)
     K{Tv}(v)
 end
 
+# The declared field value types of a `@document` type (emitted by the macro); the
+# fallback covers hand-written documents, whose kind-converting copy then falls back
+# to each source cell's own value type.
+_declared_value_types(::Type) = nothing
+
+# The value type for a rebuilt kinded field cell: `Any` for the reactive kind
+# (parity with the untyped `Cell`); otherwise the declared type when `v` conforms,
+# else `v`'s own concrete type.
+function _kinded_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
+    K === ReactiveCell && return Any
+    Ts === nothing && return typeof(v)
+    Td = Ts[i]
+    v isa Td ? Td : typeof(v)
+end
+
 function copy_document(K::Type{<:AbstractCell}, doc::Document)
     T = typeof(doc)
     base = Base.typename(T).wrapper

@@ -12,7 +12,8 @@ This file is the aggregator; each kind is documented at its own definition, and
 module CellModule
 
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
-       set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell
+       set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell,
+       copy_cell_as, get_cell_struct_kind
 
 include("CellInterface.jl")
 include("ReactiveCell.jl")

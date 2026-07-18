@@ -15,8 +15,6 @@ DocumentModule.jl   (DocumentModule)  — the aggregator: imports Cell, exports 
     │                          (is_element_collection / is_walk_opaque / copy_document /
     │                          sync_document! / search_documents), declaration-only
     ├─ DocumentDefaults.jl   — default behaviours: is_element_collection / is_walk_opaque = false + debug show
-    ├─ DocumentKind.jl       — the cell-kind vocabulary the value protocol is written against
-    │                          (get_document_cell_kind, copy_cell_as)
     ├─ DocumentCopy.jl       — copy_document: deep copy, kind-preserving or kind-converting
     ├─ DocumentSync.jl       — sync_document!: the double-buffer shadow sync
     ├─ DocumentMacro.jl      — @document: the document codegen (injects the selection field)
@@ -89,10 +87,10 @@ uniformly:
   **positional collection** (`is_element_collection`) syncs its elements by index
   through the vector protocol.
 
-Both lean on [DocumentKind.jl](../main/document/DocumentKind.jl), which reads a
-document's cell kind off its fields (`get_document_cell_kind`) and clones a slot
-without deciding its kind (`copy_cell_as`) — a document's kind lives in its field
-cells, not in its type name.
+Both lean on cell-layer primitives — `get_cell_struct_kind` (the cell kind a
+value's fields are built from) and `copy_cell_as` (clone a cell in its own kind),
+in [CellDefaults.jl](../main/cell/CellDefaults.jl) — since a document's kind lives
+in its field cells, not in its type name.
 
 ## The reflection walk
 

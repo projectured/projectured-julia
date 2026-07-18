@@ -20,12 +20,12 @@ include order — the source files state their dependencies, never their index.
 - **Layer 1 — cell** (`cell/`)
   - 🔒 `cell/CellLayer.jl`
   - 🔒 `cell/PerformanceCounter.jl`
-  - 🔒 `cell/CellModule.jl`
+  - ⬜ `cell/CellModule.jl`
   - 🔒 `cell/CellInterface.jl`
   - 🔒 `cell/ReactiveCell.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`
-  - 🔒 `cell/CellDefaults.jl`
+  - ⬜ `cell/CellDefaults.jl`
   - 🔒 `cell/CellStructModule.jl`
   - 🔒 `cell/CellStructPlan.jl`
   - 🔒 `cell/CellStruct.jl`
@@ -63,7 +63,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentModule.jl`
   - ⬜ `document/DocumentInterface.jl`
   - ⬜ `document/DocumentDefaults.jl`
-  - ⬜ `document/DocumentKind.jl`
   - ⬜ `document/DocumentCopy.jl`
   - ⬜ `document/DocumentSync.jl`
   - ⬜ `document/DocumentMacro.jl`
