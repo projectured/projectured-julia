@@ -33,7 +33,7 @@ export Document, copy_document, sync_document!,
        @document, @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export DocumentWalk, walk_document, string_predicate
 
-include("DocumentInterface.jl")  # the contract; every fragment below extends it
+include("DocumentInterface.jl")
 include("DocumentDefaults.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")

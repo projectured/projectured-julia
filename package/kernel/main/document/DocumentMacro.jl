@@ -7,11 +7,11 @@
 # constructors filling a trailing run of defaults — is not document-specific and
 # lives with the other constructor builders in the cell layer.
 
-# The reactive default a bare `Foo(…)` wraps a raw value in: the historic untyped `Cell`.
+# The reactive default a bare `Foo(…)` wraps a raw value in: the untyped `Cell`.
 const _REACTIVE_ANY = ReactiveCell{Any}
 
 # The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
-# keeps the historic untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
+# keeps the untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
 # the typed cell so it inlines — the same typed cells the `IFoo`/`MFoo` aliases build.
 _default_cell_type(kind, vt) =
     kind === :immutable ? Expr(:curly, ImmutableCell, vt) :
@@ -48,7 +48,7 @@ end
     _emit_autowrap_ctor(plan, arg_names) -> Expr
 
 The auto-wrapping inner constructor — the **only** inner constructor. Raw values
-wrap in `ReactiveCell{Any}` (the historic untyped `Cell`), so the bare name keeps
+wrap in `ReactiveCell{Any}` (the untyped `Cell`), so the bare name keeps
 the untyped-cell semantics; cells of any kind pass through as-is, which is how the
 kind constructors and `copy_document` build every other kind.
 
@@ -66,7 +66,7 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     # leading macro kind) for any field that does not name its own kind — the injected
     # `selection` field is such a field, so it follows `default` too. With no leading
     # kind (`default = :reactive`) and nothing annotated these are all `ReactiveCell{Any}`
-    # and every path below reduces to the historic codegen.
+    # and every path below reduces to the plain untyped-cell codegen.
     kinds     = cell_struct_field_kinds(plan; default = default)
     vts       = cell_struct_value_types(plan)
     def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
@@ -277,9 +277,9 @@ From the declared fields the macro generates the **kind-parameterized stem**:
    read/write through the cells uniformly for every kind.
 
 2. **Auto-wrapping constructor** (bare name) — `Foo(args…)` accepts raw values
-   or cells; a raw value is wrapped in `ReactiveCell{Any}` (exactly the historic
-   `Cell`), so the bare name builds the **reactive kind** with unchanged
-   semantics. Passing cells (of any kind, even mixed) stores them as-is.
+   or cells; a raw value is wrapped in `ReactiveCell{Any}` (exactly the untyped
+   `Cell`), so the bare name builds the **reactive kind** with the plain
+   untyped-cell semantics. Passing cells (of any kind, even mixed) stores them as-is.
 
 3. **Kind aliases** — `RFoo` (all fields `ReactiveCell{Any}`, what the bare ctor
    builds), `IFoo` (`ImmutableCell{declared-type}`), `MFoo`
