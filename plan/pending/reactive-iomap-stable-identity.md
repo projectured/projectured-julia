@@ -67,19 +67,24 @@ Three things, in order of importance:
    identity survives value changes and only genuinely-moved children rebuild.
 3. **Stable IoMap identity.** Build the IoMap once; never replace it on change.
 
-`@projection`/`@iomap` (transparent cell *fields*) are the *vehicle* for
-writable-reactive parameters/fields — but not the fix by themselves: a cell field
-holding an eager value still doesn't derive (the template's `RuleIoMap` is
-identity-stable and reactive *without* `@iomap`, via an explicit
-`child_iomaps::Cell`). So adopt `@projection` for projections with reactive
-params and `@iomap` for record-shaped IoMaps, but treat the derivation +
-reconciliation wiring as the real work, per projection.
+`@projection`/`@iomap` (transparent cell *fields*) are the *vehicle* — but not the
+fix by themselves: a cell field holding an eager value still doesn't derive (the
+template's `RuleIoMap` is identity-stable and reactive *without* `@iomap`). Per the
+locked decisions we adopt `@iomap` on every IoMap and `@projection` on every
+projection for uniformity; the derivation + reconciliation wiring remains the
+load-bearing work, done per projection.
 
 ## Phases
 
 **Phase 0 — Foundations.**
 - [ ] Write the invariant as a new AR rule in `architecture-requirements.md`;
       cross-link the four rules it subsumes.
+- [ ] **Accessor contract change** (decision 2): make `get_iomap_output` /
+      `_input` / `_projection` return the value uniformly (off raw `getfield`) in
+      `IoMapDefaults.jl`; establish the `@iomap` conversion recipe (the
+      `.field[]` → `.field` / `getfield` access audit) on `SimpleIoMap` /
+      `ChildrenIoMap` / `ContentIoMap` first, as the reference for the sweep. Hold
+      the iomap-layer seal.
 - [ ] Promote the reconciliation helpers to a shared, exported projection-layer
       support module (they call `print_child`/`make_child_context`, so they live
       in the projection layer). Keep ProjectionTemplate using them.
@@ -143,32 +148,39 @@ Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
 - **Test gap** → harness first; no projection converted without a reactive test.
 - **Performance** (cells per node) → counters; structural-only top-level reads.
 - **AR-NO-NESTED-CELL** (Cell-valued outputs, e.g. Chaining's) → box with
-  `Cell(f; as_value=true)` or keep explicit non-transparent Cell fields; never
-  `@iomap` a field whose value is itself a Cell.
+  `Cell(f; as_value=true)`; never `@iomap`-auto-wrap a field whose logical value is
+  itself a Cell.
+- **`@iomap` access-site audit** (decision 1): converting a reactive IoMap flips
+  `iomap.field` from the Cell to its value, so every `iomap.<cell>[]` read must be
+  rewritten. Blast radius is the ~19 reactive IoMaps and their reader/mapper call
+  sites (`iomap.child_iomaps[]`, `iomap.segs[]`, …). Do it per-IoMap with tests, not
+  wholesale; grep each IoMap's `.field[]` uses before converting.
 - **Blast radius** (~50 IoMaps, ~40 projections, 4 packages) → land phase-by-phase,
   each green; the template majority already conforms.
 - **Editor semantics** → Phase 7 only, never remove a whole-root drop.
 
-## Open decisions (settle in Phase 0)
-- Home + names for the promoted reconciliation helpers.
-- **Whether to adopt `@iomap` at all.** The survey shows all 19 reactive IoMaps
-  already work with *explicit* `Cell` fields (`child_iomaps::Cell`, `segs::Cell`,
-  accessed via `[]`), and `@iomap`'s transparent access would fight that pattern;
-  `@iomap` is 0/52 and buys little. Lean: **keep explicit `Cell` fields for reactive
-  IoMaps; `@iomap` only for pure-record IoMaps if desired** — the invariant needs
-  neither macro, only the derivation+reconciliation wiring. (This narrows the user's
-  original "change iomaps to `@iomap`" once the wiring is what actually matters.)
-- `get_iomap_output` currently returns the *slot* (a `Cell` for an `@iomap`
-  struct, a value for a plain one). Define a uniform contract (lean: always
-  return the value; add a `_cell` accessor if a consumer needs the cell) before
-  the sweep, since it changes behaviour for every converted IoMap.
-- Scope cutoff: convert every hand-written projection (uniform enforceable
-  invariant) vs. only demonstrably-broken ones. (Lean: every one — but any phase
-  can be a stopping point with value banked.)
-- **Sealing interaction**: this refactor edits the iomap layer (`IoMapDefaults`
-  for `@iomap` adoption / accessor semantics), which was just audited seal-ready.
-  Hold the iomap-layer seal until after Phase 0/1 settle those files, then
-  re-audit + seal.
+## Decisions (locked)
+
+1. **Adopt `@iomap` for every IoMap** (uniformity) — all 52 structs, plus
+   `@projection` on every projection (finishing 179 → all). Caveat now *in scope*,
+   not a reason to skip: for the 19 reactive IoMaps, `@iomap`'s transparent access
+   flips `iomap.field` from *the Cell* to *its value*, so every `iomap.child_iomaps[]`
+   / `iomap.<cell>[]` site is audited and rewritten to `iomap.field` (value) or
+   `getfield(iomap, :field)` (raw cell, where a consumer genuinely shares/subscribes).
+   Done per-IoMap alongside its projection's conversion — never a blanket sweep that
+   breaks access sites en masse.
+2. **Accessors return the value, uniformly.** `get_iomap_output` / `_input` /
+   `_projection` change off raw `getfield` so a consumer never sees a bare `Cell`;
+   the deliberately-Cell-valued outputs (Chaining) are handled explicitly.
+3. **Convert every hand-written projection** — the full uniform invariant, enforced
+   by the new AR rule. (Template-driven domain projections already conform; the real
+   surface is the ~82 plain + ~44 widget composites.) Any phase remains a safe
+   stopping point.
+4. **Hold the iomap-layer seal** until Phases 0-1 settle `IoMapDefaults.jl`
+   (`@iomap` adoption + accessor change), then re-audit + seal. (It was audit-clean
+   and ready; the seal waits, it is not abandoned.)
+
+Remaining sub-decision (Phase 0): home + names for the promoted reconciliation helpers.
 
 ## Scope, sharpened by the survey
 
