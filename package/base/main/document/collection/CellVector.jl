@@ -72,8 +72,8 @@ Base.size(cv::CellVector)              = (length(cv),)
 # The pure structural queries delegate straight to the backing vector.
 # (`getindex`/`iterate`/the mutators are NOT forwarded — they un/rewrap Cells and
 # reassign `.elements` for reactivity, below.)
-@forward CellVector elements [Base.length, Base.isempty, Base.firstindex,
-                              Base.lastindex, Base.eachindex]
+@forward_protocol [Base.length, Base.isempty, Base.firstindex,
+                   Base.lastindex, Base.eachindex] on CellVector to elements
 function Base.iterate(cv::RCV, s...)
     r = iterate(_elems(cv), s...)
     r === nothing && return nothing
@@ -217,37 +217,6 @@ function copy_document(::Type{K}, cv::CellVector) where {K<:AbstractCell}
     vals = Any[copy_document(K, x) for x in cv]
     K === ReactiveCell ? CellVector(vals) :
         CellVector(K{Vector}(vals), K{Reference}(nothing))
-end
-
-# `CellVector`-specific case of `DocumentModule.sync_document!`: reconcile the
-# writable `shadow`'s elements against `source` positionally. A slot whose source
-# element is the same document type is synced *in place* (its own inner cells,
-# minimally); a changed-type or changed-value slot is rewritten; a longer source
-# appends (fires the structure cell once), a shorter one trims from the end.
-#
-# Positional matching is minimal for the dominant simulation edits — in-place
-# value change, enqueue (append), dequeue-from-end. A front-shift re-syncs the
-# shifted tail; keying by source-element identity (an `IdDict` persisted across
-# syncs) would make that minimal too, and is the natural refinement if profiling a
-# front-heavy queue demands it.
-function sync_document!(shadow::CellVector, source::CellVector)
-    K = get_document_cell_kind(shadow)
-    ns, nc = length(source), length(shadow)
-    for i in 1:min(ns, nc)
-        s, c = source[i], shadow[i]
-        if s isa Document && c isa Document && is_same_document_type(c, s)
-            sync_document!(c, s)                      # recurse into the slot's document
-        else
-            isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))   # value/type change ⇒ rewrite slot
-        end
-    end
-    for i in (nc + 1):ns
-        push!(shadow, copy_shadow_element(K, source[i]))     # enqueue
-    end
-    for _ in 1:(nc - ns)
-        pop!(shadow)                                  # trim surplus
-    end
-    shadow
 end
 
 # The CellVector method for `child_reference_steps`:

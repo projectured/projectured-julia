@@ -15,7 +15,7 @@ function _cp_flat(t::TextBlock)
 end
 
 # The inline/block children of a container Markdown node (root, paragraph, …),
-# which forward the vector protocol over their children (@forward_vector).
+# which forward the vector protocol over their children (@forward_vector_protocol).
 _md_kids(d) = [d[i] for i in 1:length(d)]
 
 function test_parse_markdown_blocks()

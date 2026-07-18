@@ -18,9 +18,9 @@ model name is the backend's identity, not a parameter of "have a conversation".
 abstract type Llm end
 
 # A backend is configuration, not addressable document content (it may hold an API
-# key or a large scripted payload) — opaque to reflection walkers, so
+# key or a large scripted payload) — opaque to the reflection walk, so
 # `search_references` / `search_documents` never descend into it.
-is_opaque(::Llm) = true
+is_walk_opaque(::Llm) = true
 
 """
     stream_turn(llm::Llm, request::LlmRequest; on_event)

@@ -7,109 +7,138 @@ selection, operation, projection) see the repo-level
 [documentation/concepts.md](../../../documentation/concepts.md).
 
 The layer lives in [main/document/](../main/document/), inside one aggregator
-module (`DocumentModule`) split across three fragments that share its namespace:
+module (`DocumentModule`) split across fragments that share its namespace:
 
 ```
-DocumentModule.jl        (DocumentModule)              — the aggregator
-        │ imports Cell (from CellModule) and exports every public name
-        ├─ Interface.jl   — the contract: Document abstract type + selection
-        │                   generics (get/clear/set/with) + read_gesture seam
-        ├─ Document.jl    — the shared machinery: generic Base.show, the
-        │                   Cell-struct codegen (_cell_* helpers reused by
-        │                   @iomap), the @document macro, and the value protocol
-        │                   (copy_document, cell_kind, rekind, snapshot,
-        │                   hydrate, sync_document!)
-        └─ Forward.jl     — the @forward* family (@forward, @forward_vector,
-                            @forward_map): expose a nested field's protocol on a
-                            wrapper document via generated delegating methods
+DocumentModule.jl   (DocumentModule)  — the aggregator: imports Cell, exports every public name
+    ├─ DocumentInterface.jl  — the contract: the Document supertype + the open generics
+    │                          (is_element_collection / is_walk_opaque / copy_document /
+    │                          sync_document! / search_documents), declaration-only
+    ├─ DocumentDefaults.jl   — the trait defaults (is_element_collection / is_walk_opaque = false)
+    ├─ DocumentKind.jl       — the cell-kind vocabulary the value protocol is written against
+    │                          (get_document_cell_kind, copy_cell_as)
+    ├─ DocumentCopy.jl       — copy_document: deep copy, kind-preserving or kind-converting
+    ├─ DocumentSync.jl       — sync_document!: the double-buffer shadow sync
+    ├─ DocumentMacro.jl      — @document: the document codegen (injects the selection field)
+    ├─ DocumentWalk.jl       — walk_document: the one reflection walk + the DocumentWalk seam
+    ├─ DocumentSearch.jl     — search_documents: the value-collecting strategy over that walk
+    ├─ DocumentShow.jl       — the depth-limited debug show
+    └─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
+                               @adapt_map_protocol: give a wrapper another type's protocol
 ```
 
-The interface and machinery are only ever imported together, so they share
-one `DocumentModule` namespace instead of being separate modules — a
-separation would just multiply import headers. They still live in separate
-files for readability, but as **fragments** (0-module files sharing the
-aggregator's namespace), not separate modules; there is no API boundary
-between them.
+`DocumentInterface.jl` is the layer's contract file: an abstract type plus
+bodiless generic *declarations* only, machine-checked by the layering guard
+(AR-INTERFACE-DECLARES-ONLY). Every other file is a **fragment** — a module-less
+file sharing the aggregator's namespace — so the whole layer is one module with no
+internal API boundaries; splitting the machinery into separate modules would only
+multiply import headers.
 
-Concrete engine documents do not live in this layer: `Collection` and
-`Primitive` live in `base`, `ScreenDocument` in `visual`. The **document
-layer is the contract**; concrete documents belong to the packages built on
-top of it.
+Concrete engine documents do not live in this layer: `Collection` and `Primitive`
+live in `base`, `ScreenDocument` in `visual`. The **document layer is the
+contract**; concrete documents belong to the packages built on top of it.
 
-## The two contracts every concrete document must satisfy
+## What every `@document` node carries
 
-1. **Selection field.** Every document carries a `selection::Reference` field
-   (the field name is fixed) — the `@document` macro injects it automatically,
-   appended as the struct's last field, so the programmer never declares it
-   (declaring one by hand is an error). The macro stores it in a `Cell`;
-   `document.selection` reads through it via the generated `getproperty`, so
-   `get_selection(doc)` returns a `ReferencePath` (or `nothing`), not the Cell.
-   The default `get_selection(::Document) = doc.selection` supplied here works
-   for any document built through `@document`; documents with a differently
-   stored selection override it.
-2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in
-   a reference path is resolved by `getfield(document, :foo)` — so struct
-   field names are public API. Renaming a field silently breaks every stored
-   reference. Choose field names deliberately.
+1. **A `selection` field.** `@document` appends a `selection::Reference = nothing`
+   field (always last, always defaulted); declaring one by hand is an error. It
+   names what is selected *inside* this node — a `ReferencePath`, or `nothing`.
+   `Reference` is emitted as a **bare symbol**, resolved in the domain's own
+   scope, so the document layer takes no upward dependency on the reference layer
+   (Layer 8) that defines the type. The generics that *read and write* the
+   selection — `get_selection` / `clear_selection!` / `set_selection!` /
+   `with_selection` — are the **selection layer's** (Layer 9), not this one's; see
+   [selection.md](selection.md).
+2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in a
+   reference path is resolved by `getfield(document, :foo)` — so struct field
+   names are public API. Renaming a field silently breaks every stored reference.
+   Choose field names deliberately.
 
-## The selection generics
+## The contract surface
 
-The four functions declared in `Interface.jl` — `get_selection`,
-`clear_selection!`, `set_selection!`, `with_selection` — form the selection
-contract. `clear_selection!` and `set_selection!` are open generics with the
-generic default supplied by `OperationModule`; concrete documents rarely
-override them. `with_selection` is the
-one-expression build-and-select form (used by examples, fixtures, clipboard
-payloads, and the gesture→replace builders). `get_selection` reads through
-the conventional `selection` field.
+`DocumentInterface.jl` declares the open generics a concrete document — or a
+domain — fills in:
 
-`@with_selection` is the macro form, for when the selected path has to be *typed
-against the document being built* — the `@reference` DSL types a path at runtime,
-against the value, so the document has to be bound before the path can be built:
+- **`is_element_collection`** — `true` when children are addressed by position
+  (`[i]`) rather than by named field; steers the reflection walk. Defaults to
+  `false` (in `DocumentDefaults.jl`); a 1-D positional collection opts in.
+- **`is_walk_opaque`** — `true` when a document is a walk leaf (its internals are
+  implementation detail, not addressable content). Defaults to `false`.
+- **`copy_document`** — deep copy (below).
+- **`sync_document!`** — the shadow sync (below); the kernel handles both record
+  and positional-collection shapes.
+- **`search_documents`** — the reflection walk's value-collecting entry point
+  (below).
 
-```julia
-@with_selection JsonBool(false)             # select the built node whole
-@with_selection JsonString("") value{0}     # caret at the path, typed by construction
-```
+## The value protocol
 
-This is what every `@insertion` factory uses; without it each one
-needs a `let d = …; with_selection(d, @reference(d, …)) end`.
+Two operations every document reuses, both generic over structure — struct
+fields (`fieldnames`), `Vector` elements, and per-slot cells are all traversed
+uniformly:
 
-`read_gesture(document, gesture) -> Union{Operation, Nothing}` is the
-projection-independent half of a domain's reader: it maps a backend-agnostic
-gesture to an operation expressed against `document`'s own reference
-vocabulary. The catch-all implementation on `::Document` lives in the binding
-layer's `GestureBindingModule`, via `read_bound_gesture` — it walks the
-reified `@gestures` table, so a domain authored with `@gestures` needs no
-hand-written `read_gesture`.
+- **`copy_document`** ([DocumentCopy.jl](../main/document/DocumentCopy.jl)) —
+  deep-copies a subtree, allocating fresh `Cell`s so the copy shares no reactive
+  state with the source. `copy_document(doc)` preserves each cell's kind;
+  `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
+  immutable).
+- **`sync_document!`** ([DocumentSync.jl](../main/document/DocumentSync.jl)) — the
+  double-buffer shadow sync: mutate a `MutableCell`-kind document freely (no
+  per-edit reactive overhead), then at a pause point diff-copy it into a
+  `ReactiveCell`-kind shadow, writing a shadow cell only when its value changed so
+  the reactive graph sees a minimal invalidation set. One walk handles both
+  shapes: a **record** (children are named fields) syncs field-by-field, and a
+  **positional collection** (`is_element_collection`) syncs its elements by index
+  through the vector protocol.
 
-## The shared machinery
+Both lean on [DocumentKind.jl](../main/document/DocumentKind.jl), which reads a
+document's cell kind off its fields (`get_document_cell_kind`) and clones a slot
+without deciding its kind (`copy_cell_as`) — a document's kind lives in its field
+cells, not in its type name.
 
-`Document.jl` collects the machinery every concrete document reuses:
+## The reflection walk
 
-- **Base.show for `Document`** — a depth-limited debug rendering keyed off
-  the `:document_depth` IOContext, so nested documents do not explode. Field
-  reads go through `getproperty` (unwrapping Cells); the `selection` field is
-  omitted as noise.
-- **`@document` macro** — the entry point. It generates the kind-parameterized
-  stem (the parametric cell-typed struct, its fast-path auto-wrapping
-  constructor, the `R`/`I`/`M` kind aliases and ctors) and layers the Rule Y /
-  Rule C constructors on top; its keyword-constructor support comes from the
-  cell layer's exported Cell-struct codegen builders (`cell_struct_kw_params`,
-  `cell_struct_kwctor` — see the `@cell_struct` section in [cell.md](cell.md), the
-  same codegen `@iomap` and `@projection` delegate to wholesale).
-- **`@forward` / `@forward_vector` / `@forward_map`** (in `Forward.jl`) —
-  helpers that automatically forward `getproperty` from a wrapper document onto
-  a nested field, for compound documents that delegate.
-- **Value protocol** — `copy_document`, `cell_kind`, `rekind`, `snapshot`,
-  `hydrate`, `sync_document!`: rekind/snapshot switch a whole tree between
-  cell kinds (reactive ↔ mutable ↔ immutable) for the reactive-shadow pattern.
+There is exactly one traversal of an object graph
+([DocumentWalk.jl](../main/document/DocumentWalk.jl)): `walk_document` descends
+positional collections, dicts, arrays, and structs uniformly, stops at scalar
+leaves / `is_walk_opaque` nodes / `maxdepth`, and folds a scalar match up to its
+enclosing `Document`. What it deliberately leaves open is how to *name* the node
+it stands on — those are the location functions of a `DocumentWalk`, a parameter
+object the caller supplies (`locate_field` / `locate_element` / `initial` /
+`policy`). Its two callers differ only there: `search_documents`
+([DocumentSearch.jl](../main/document/DocumentSearch.jl)) uses the defaults, so a
+node's location is the node itself, while `search_references` (one layer up)
+supplies functions that build a `ReferencePath`. Passing the location functions in
+— rather than dispatching them off a subtype — is what keeps the walk *below* the
+reference layer while still serving it: the walk knows nothing of `ReferencePath`,
+the caller supplies it.
+
+## The protocol helpers
+
+[ForwardProtocol.jl](../main/document/ForwardProtocol.jl) gives a wrapper document
+another type's method protocol without a hand-written method per function:
+
+- **`@forward_protocol [fns] on T to field`** — forward the listed functions to a
+  backing field.
+- **`@forward_vector_protocol on T to field`** — forward the whole vector protocol;
+  the named-set shorthand for `@forward_protocol`.
+- **`@adapt_map_protocol on T to field with EntryCtor(key, value)`** — *adapt* a
+  sequence of entry records into an ordered map. Not delegation: the backing field
+  is integer-indexed, so the keyed methods translate between a key and its matching
+  entry.
+
+## Debug rendering
+
+[DocumentShow.jl](../main/document/DocumentShow.jl) gives `Document` a
+depth-limited `Base.show` (bounded by the `:document_depth` IOContext key, with the
+`selection` field skipped as noise). A debug aid only — nothing in the editor
+pipeline reads it; a domain that wants a *presentable* rendering writes a
+projection, not a `show` method.
 
 ## Testing pressure
 
 Kernel tests for this layer use ONLY a test-local `@document struct ToyNode`,
 never `Collection` or `Primitive`. That constraint — you cannot reach for the
 engine documents as fixtures — is what keeps the interface sufficient. If the
-contract cannot be exercised without the concrete documents, it is not
-actually a contract. See
+contract cannot be exercised without the concrete documents, it is not actually a
+contract. See
 [test/document/DocumentContractTest.jl](../test/document/DocumentContractTest.jl).

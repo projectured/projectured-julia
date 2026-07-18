@@ -1,11 +1,11 @@
 """
     DocumentModule
 
-The **document contract**: the `Document` abstract
-type, the `@document`/`@forward*` codegen macros, and the shared value
-protocol every concrete document reuses (`copy_document`, `sync_document!`).
+The **document contract**: the `Document` abstract type, the `@document`
+codegen, the protocol forward/adapt macros, and the shared value protocol every
+concrete document reuses (`copy_document`, `sync_document!`).
 It also carries the reflection walk over a document tree (`search_documents`,
-with the `is_element_collection` / `is_opaque` traits that steer it) — the
+with the `is_element_collection` / `is_walk_opaque` traits that steer it) — the
 value-collecting search that needs no reference machinery. The kernel defines
 only this contract; it carries no concrete documents.
 
@@ -14,39 +14,29 @@ its own definition:
 
 | Fragment | Contract |
 |---|---|
-| [`Document.jl`](Document.jl) | the `Document` supertype |
-| [`DocumentTrait.jl`](DocumentTrait.jl) | `is_element_collection` / `is_opaque` — the traits that steer a walk |
+| [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `copy_document` / `sync_document!` / `search_documents`) |
+| [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default answers for the `is_element_collection` / `is_walk_opaque` traits |
 | [`DocumentKind.jl`](DocumentKind.jl) | the cell-kind vocabulary the value protocol is written against |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
-| [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, and the seam that names a node |
-| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting strategy over that walk |
+| [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, parameterized by how it names a node (`DocumentWalk`) |
+| [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting walk |
 | [`DocumentShow.jl`](DocumentShow.jl) | the depth-limited debug `show` |
-| [`Forward.jl`](Forward.jl) | `@forward*` — delegating-method helpers |
+| [`ForwardProtocol.jl`](ForwardProtocol.jl) | `@forward_protocol` / `@forward_vector_protocol` / `@adapt_map_protocol` — give a wrapper another type's protocol |
 """
 module DocumentModule
 
 using ..CellModule
 using ..CellStructModule
 
-export Document, copy_document, sync_document!, is_element_collection,
-       is_opaque, search_documents,
-       @document, @forward, @forward_vector, @forward_map
-# The shadow-sync seam: what a document of a different *shape* writes its own
-# `sync_document!` method against (a positional collection matches slots by
-# index, so it cannot reuse the record walk). Exported because it is a contract,
-# not an internal — the module boundary is the API boundary.
-export is_same_document_type, get_document_cell_kind, copy_shadow_element, copy_cell_as
-# The walk seam: a strategy decides what a visited node's *location* is, which is
-# how a caller that names locations with types declared above this layer (a
-# `ReferencePath`) reuses the one traversal instead of copying it.
-export DocumentWalk, ValueWalk, walk_document, initial_location, visit_policy,
-       child_field_location, child_element_location, text_query
+export Document, copy_document, copy_cell_as, sync_document!,
+       is_element_collection, is_walk_opaque, search_documents,
+       @document, @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
+export DocumentWalk, walk_document, text_predicate
 
-# Document.jl first — every fragment below refers to the `Document` supertype.
-include("Document.jl")
-include("DocumentTrait.jl")
+include("DocumentInterface.jl")  # the contract; every fragment below extends it
+include("DocumentDefaults.jl")
 include("DocumentKind.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")
@@ -54,6 +44,6 @@ include("DocumentMacro.jl")
 include("DocumentWalk.jl")
 include("DocumentSearch.jl")
 include("DocumentShow.jl")
-include("Forward.jl")
+include("ForwardProtocol.jl")
 
 end # module

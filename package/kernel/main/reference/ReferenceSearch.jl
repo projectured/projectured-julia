@@ -1,34 +1,23 @@
-# Fragment of `ReferenceModule` — the **path-producing** strategy over
+# Fragment of `ReferenceModule` — the **path-producing** walk over
 # `walk_document`: locations are `ReferencePath`s.
 #
 # The walk itself lives in the document layer, one layer down, and knows nothing
-# of references. It cannot: a `ReferencePath` is declared *here*. What it exposes
-# instead is a seam — "the location of this child, reached by this field / at this
-# index" — and this file is the method that answers it in reference terms. The
-# value-collecting strategy (`search_documents`) answers the same seam by handing
-# back the child object.
+# of references. It cannot: a `ReferencePath` is declared *here*. It takes the
+# location functions as parameters instead — this file supplies ones that build
+# reference paths, while the value-collecting `search_documents` supplies the
+# defaults that hand back the child object.
 
-"""
-    PathWalk <: DocumentWalk
-
-The [`DocumentWalk`](@ref) whose locations are `ReferencePath`s: descending by a
-field appends a `FieldReference`, descending by an index appends an
-`ElementReference`, and the root is the empty path.
-
-Its cycle rule is `:once_per_path` — the opposite of `ValueWalk`'s. A node
-reachable by two paths sits in two different *places*, and a place is what a
-selection names, so both must be reported; only a path that loops back through one
-of its own ancestors is dropped, which is what keeps a cyclic graph finite.
-"""
-struct PathWalk <: DocumentWalk end
-
-initial_location(::PathWalk, root) = EmptyReferencePath()
-visit_policy(::PathWalk) = :once_per_path
-
-child_field_location(::PathWalk, location, name, child) =
-    append_reference(location, FieldReference(string(name)))
-child_element_location(::PathWalk, location, index, child) =
-    append_reference(location, ElementReference(index))
+# The path-valued walk: descending by a field appends a `FieldReference`, by an
+# index an `ElementReference`, and the root is the empty path. Its cycle rule is
+# `:once_per_path` — a node reachable by two paths sits in two different *places*,
+# and a place is what a selection names, so both must be reported; only a path that
+# loops back through one of its own ancestors is dropped, keeping a cyclic graph
+# finite.
+const _PATH_WALK = DocumentWalk(
+    locate_field   = (location, name, child) -> append_reference(location, FieldReference(string(name))),
+    locate_element = (location, index, child) -> append_reference(location, ElementReference(index)),
+    initial        = root -> EmptyReferencePath(),
+    policy         = :once_per_path)
 
 """
     search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{ReferencePath}
@@ -63,8 +52,9 @@ to a matching node is returned** — a shared object reachable several ways is a
 different *location*, hence a different selection, each time (document-scoped
 folding still reports each enclosing-document location once). This is the one place
 this search differs from [`search_documents`](@ref), which reports each matching
-*node* once; the difference is `visit_policy`, and it is the reason the two are
-strategies rather than one function. Only paths that loop back through an object
+*node* once; the difference is the cycle policy (`:once_per_path` here vs
+`:once_per_object` there), the one walk parameter the two set differently. Only
+paths that loop back through an object
 already on the current path are dropped, which keeps cyclic graphs (e.g. a
 doubly-linked list's `prev`/`next`) finite. `maxdepth` separately bounds recursion
 depth for structures that are never the *same* object, e.g. an infinite lazy list
@@ -77,7 +67,7 @@ covers it (those paths are for inspection only, not selectable).
 """
 function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
-    paths = walk_document(PathWalk(), root, predicate; kwargs...)
+    paths = walk_document(_PATH_WALK, root, predicate; kwargs...)
     # Leave search results in canonical form: annotate each plain navigation path
     # with `TypeReference(typeof(node))` checkpoints against `obj`, so the
     # references are self-describing and carry replay-validation checkpoints
@@ -86,4 +76,4 @@ function search_references(obj, predicate; kwargs...)
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_references(obj, text_query(query); kwargs...)
+    search_references(obj, text_predicate(query); kwargs...)

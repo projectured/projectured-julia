@@ -104,7 +104,7 @@ function test_kernel_layering()
                    interface_files = Dict(
                        "cell/CellInterface.jl"       => :CellModule,
                        "event/EventInterface.jl"     => :EventModule,
-                       "document/Document.jl"        => :DocumentModule,
+                       "document/DocumentInterface.jl" => :DocumentModule,
                        "reference/Interface.jl"      => :ReferenceModule,
                        "selection/Interface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,

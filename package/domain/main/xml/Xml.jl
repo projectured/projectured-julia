@@ -72,7 +72,7 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
     XmlElement(tag, CellVector(attrs), CellVector(children))
 
 # attributes as a name-keyed map
-@forward_map XmlElement attrs name value XmlAttribute
+@adapt_map_protocol on XmlElement to attrs with XmlAttribute(name, value)
 
 # Text-replace edits need no per-type method: every type-in target — `XmlText.content`,
 # `XmlAttribute.name`/`value`, `XmlElement.tag` — is a plain string (editing `tag`

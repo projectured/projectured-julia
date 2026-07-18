@@ -40,15 +40,16 @@ The string/regex form matches the rendered text of leaf values (e.g. a `JsonStri
 that `JsonString`. A scalar match with no enclosing document is dropped. Pass `raw=true` to
 opt out: `search_documents(doc, "Alice"; raw=true)` returns `["Alice"]` (the bare string).
 
-### One walk, two strategies
+### One walk, two searches
 
 `search_documents` and `search_references` are not two implementations. They are the same
-traversal — `walk_document` in the document layer — under two strategies that differ in
-exactly one thing: **what a visited node's *location* is.** `ValueWalk` says the location is
-the node itself; `PathWalk` (which lives in the reference layer, because the document layer
-cannot name a `ReferencePath`) says it is the path to the node. Everything else — how to
-descend a collection, a dict, a struct; where to stop; how to fold a scalar match up to its
-enclosing document — is written once.
+traversal — `walk_document` in the document layer — run under two `DocumentWalk`s that differ
+in exactly one thing: **what a visited node's *location* is.** `search_documents` uses the
+default, so the location is the node itself; `search_references` (which lives in the reference
+layer, because the document layer cannot name a `ReferencePath`) passes in location functions
+that build the path to the node. Everything else — how to descend a collection, a dict, a
+struct; where to stop; how to fold a scalar match up to its enclosing document — is written
+once, and those location functions are its only parameters.
 
 That difference has one consequence worth knowing, and it is not a quirk:
 
@@ -57,8 +58,9 @@ That difference has one consequence worth knowing, and it is not a quirk:
 
 It is *one object* but *two places*, and a place is what a selection names — so both places
 must be reported if you intend to put a cursor in one of them. Conversely, reporting the same
-object twice would tell you nothing new. This is the `visit_policy` of each strategy
-(`:once_per_object` vs `:once_per_path`), and it is why the two cannot be collapsed into one.
+object twice would tell you nothing new. This is the `policy` each search sets on its
+`DocumentWalk` (`:once_per_object` vs `:once_per_path`), and it is why the two cannot be
+collapsed into one.
 
 Struct and collection nodes have no textual form, so they never match a string/regex query.
 Reach for a predicate when you need to match by type or shape, or to match a leaf

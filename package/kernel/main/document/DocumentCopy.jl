@@ -9,18 +9,8 @@
 # The walk is generic over structure — struct fields (`fieldnames`), Vector
 # elements, and per-slot cells inside a Vector are all traversed uniformly.
 
-"""
-    copy_document(value)                     -> value
-    copy_document(v::AbstractVector)         -> Vector
-    copy_document(c::AbstractCell)           -> AbstractCell
-    copy_document(doc::Document)             -> Document
-
-Deep-copy `value`, allocating fresh `Cell`s and fresh containers so the result
-shares no mutable state with the source. Cell kinds are preserved: each field
-cell in a `@document` node is cloned as the same kind, and per-slot cells
-inside a Vector are cloned as the same kind. Plain immutable leaves (strings,
-numbers, symbols) pass through unchanged.
-"""
+# Leaf: pass through unchanged. Contract documented at `copy_document` in
+# `DocumentInterface.jl`; the two arities are sketched in the file header above.
 copy_document(value) = value
 
 # Vector: struct-with-integer-fields. Recurse per element; a `Vector{Cell}`'s
@@ -48,23 +38,13 @@ function copy_document(doc::Document)
     base(args...)
 end
 
-"""
-    copy_document(K, value)                  -> value
-    copy_document(K, v::AbstractVector)      -> Vector
-    copy_document(K, c::AbstractCell)        -> K{…}
-    copy_document(K, doc::Document)          -> Document
-
-The kind-converting variant. Every cell in the copy is rebuilt as kind `K`
-(`ReactiveCell` / `MutableCell` / `ImmutableCell`). Cell value types: the
-reactive target uses `Any` (parity with the historic untyped `Cell`); the
-mutable/immutable targets use each field's **declared** type when the value
-conforms — so a fully-conforming node inhabits the `MFoo`/`IFoo` alias — and
-fall back to the value's own type otherwise. The fallback is load-bearing:
-the reactive kind stores every field as `Any`, so a nominally typed field
-may actually hold `nothing`; a typed cell like `ImmutableCell{SomeType}(nothing)`
-would be unconstructable, so that field lands on `ImmutableCell{Nothing}`
-instead (still type-stable, just off the alias).
-"""
+# The kind-converting variant: every cell rebuilt as kind `K`. Cell value types:
+# the reactive target uses `Any`; the mutable/immutable targets use each field's
+# declared type when the value conforms, else the value's own type. That fallback
+# is load-bearing — the reactive kind stores every field as `Any`, so a nominally
+# typed field may actually hold `nothing`, and `ImmutableCell{SomeType}(nothing)`
+# would be unconstructable; it lands on `ImmutableCell{Nothing}` instead (still
+# type-stable, just off the alias). Contract at `copy_document` in `DocumentInterface.jl`.
 copy_document(::Type{<:AbstractCell}, value) = value
 
 copy_document(K::Type{<:AbstractCell}, v::AbstractVector) =

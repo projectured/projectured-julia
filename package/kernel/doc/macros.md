@@ -3,7 +3,7 @@
 Three macros — `@document`, `@projection`, and `@iomap` — generate the
 boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
-[document/Document.jl](../../../package/kernel/main/document/Document.jl),
+[document/DocumentMacro.jl](../../../package/kernel/main/document/DocumentMacro.jl),
 [projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl), and
 [projection/IoMap.jl](../../../package/kernel/main/projection/IoMap.jl) respectively.
 

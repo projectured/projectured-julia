@@ -1,16 +1,15 @@
 """
-`DocumentModule`'s `walk_document` — the one reflection walk, and the two
-strategies over it: `ValueWalk` (locations are the matched objects,
-`search_documents`) and `PathWalk` (locations are `ReferencePath`s,
-`search_references`).
+`DocumentModule`'s `walk_document` — the one reflection walk, and the two searches
+over it: `search_documents` (locations are the matched objects) and
+`search_references` (locations are `ReferencePath`s).
 
-The point of this suite is the one thing the two strategies **deliberately
-disagree** about: `visit_policy`. A shared node is *one object* but *two places*,
-so a value walk must report it once and a path walk must report both paths. The
-walk is a single traversal serving both, so nothing but a test keeps that
-distinction from being flattened by a later "simplification" — which is exactly
-what would happen if someone gave both strategies the same visit policy and saw
-every other test stay green.
+The point of this suite is the one thing the two **deliberately disagree** about:
+the cycle policy. A shared node is *one object* but *two places*, so the value
+search must report it once and the path search must report both paths. The walk is
+a single traversal serving both — it takes the location functions and the policy as
+parameters — so nothing but a test keeps that distinction from being flattened by a
+later "simplification" that gave both the same policy and saw every other test stay
+green.
 
 Lives in `base` (not `kernel`) because expressing a shared subtree needs a
 collection document, and `CellVector` is base's.
@@ -30,19 +29,19 @@ doc    = CellVector([shared, shared])
     docs = search_documents(doc, is_alice)
     refs = search_references(doc, is_alice)
 
-    # ValueWalk — :once_per_object. The same object reached twice is the same
-    # location, so the second visit has nothing to add.
+    # search_documents — :once_per_object. The same object reached twice is the
+    # same location, so the second visit has nothing to add.
     @test length(docs) == 1
     @test docs[1] === shared
 
-    # PathWalk — :once_per_path. Two distinct paths are two distinct selections.
+    # search_references — :once_per_path. Two distinct paths are two distinct selections.
     @test length(refs) == 2
     @test refs[1] != refs[2]
     @test all(r -> evaluate_reference(doc, r) === shared, refs)
 end
 
 # ── Cycles terminate under both policies ──────────────────────────────────
-# ValueWalk's global visited set stops on the revisit; PathWalk drops only paths
+# search_documents's global visited set stops on the revisit; search_references drops only paths
 # that loop back through one of their own ancestors. Neither may hang.
 @testset "cyclic graph terminates" begin
     a = ListNode(PrimitiveString("x"))

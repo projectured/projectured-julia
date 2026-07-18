@@ -1,2 +1,2 @@
-# ── Document layer — a fragment of ProjecturedKernel ───────────────────────
+# ── Document layer — the document contract ────────────────────────────────
 include("DocumentModule.jl")

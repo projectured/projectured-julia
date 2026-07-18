@@ -1,0 +1,137 @@
+# Fragment of `DocumentModule` — the protocol forward/adapt family: helpers that
+# give a wrapper document another type's method protocol, either by delegating to
+# a backing field (`@forward_protocol`, `@forward_vector_protocol`) or by
+# synthesizing it over a differently-shaped field (`@adapt_map_protocol`). Fields
+# are read through `getproperty`, so a `@document` Cell field is seen as its
+# unwrapped value.
+
+# `on` / `to` / `with` are the DSL's literal keywords; asserted here so a malformed
+# call fails at expansion with a pointed message instead of a cryptic MethodError.
+_check_kw(got, want::Symbol, mac) =
+    got === want || error("$mac: expected `$want`, got `$got`")
+
+# Build one delegating method per function: `f(x::T, args...) =
+# f(getproperty(x, :field), args...)`. Shared by the two forwarding macros.
+function _forward_defs(T, field, fns)
+    fieldsym = QuoteNode(field)
+    defs = map(fns) do f
+        :($(esc(f))(x::$(esc(T)), args...; kw...) =
+              $(esc(f))(Base.getproperty(x, $fieldsym), args...; kw...))
+    end
+    Expr(:block, defs...)
+end
+
+"""
+    @forward_protocol [f₁, f₂, …] on T to field
+
+Give `T` the listed functions by forwarding each to the value of its `field`. For
+example
+
+    @forward_protocol [Base.length, Base.getindex] on Wrapper to items
+
+emits
+
+    Base.length(x::Wrapper, args...; kw...)   = Base.length(x.items, args...; kw...)
+    Base.getindex(x::Wrapper, args...; kw...)  = Base.getindex(x.items, args...; kw...)
+
+so a wrapper exposes its field's protocol without one hand-written method per
+function. `on` / `to` are literal keywords.
+"""
+macro forward_protocol(fns, on_kw, T, to_kw, field)
+    _check_kw(on_kw, :on, "@forward_protocol")
+    _check_kw(to_kw, :to, "@forward_protocol")
+    (fns isa Expr && fns.head === :vect) ||
+        error("@forward_protocol: first argument must be a vector literal of functions, e.g. [Base.length, Base.size]")
+    _forward_defs(T, field, fns.args)
+end
+
+# The canonical vector protocol given by `@forward_vector_protocol`.
+const _VECTOR_PROTOCOL = [:(Base.size), :(Base.length), :(Base.isempty),
+    :(Base.firstindex), :(Base.lastindex), :(Base.eachindex),
+    :(Base.getindex), :(Base.setindex!), :(Base.iterate),
+    :(Base.push!), :(Base.pop!), :(Base.insert!), :(Base.deleteat!)]
+
+"""
+    @forward_vector_protocol on T to field
+
+Give `T` the whole vector protocol
+(`size`/`length`/`isempty`/`firstindex`/`lastindex`/`eachindex`/`getindex`/
+`setindex!`/`iterate`/`push!`/`pop!`/`insert!`/`deleteat!`) by forwarding it to
+`field`. The named-set shorthand for `@forward_protocol`, for a wrapper whose
+backing `field` already implements the protocol.
+"""
+macro forward_vector_protocol(on_kw, T, to_kw, field)
+    _check_kw(on_kw, :on, "@forward_vector_protocol")
+    _check_kw(to_kw, :to, "@forward_vector_protocol")
+    _forward_defs(T, field, _VECTOR_PROTOCOL)
+end
+
+"""
+    @adapt_map_protocol on T to field with EntryCtor(keyfield, valfield)
+
+Give `T` the ordered-map protocol over `field` — an integer-indexed sequence of
+entry documents. Generates `getindex`/`setindex!`/`haskey`/`keys`/`values`/`get`/
+`delete!` and a pair-`iterate`, all by linear scan over `field`. The `with` clause
+names the adapter: `EntryCtor(keyfield, valfield)` is the entry type, its key/value
+fields (read via `getproperty`), and how a fresh entry is built on insert
+(`EntryCtor(key, val)`).
+
+Unlike `@forward_vector_protocol` this is not delegation: the backing sequence is
+integer-indexed and iterates *values*, so the keyed methods translate between a key
+and its matching entry. `setindex!` replaces the first matching entry (whole entry)
+else appends; `delete!` removes every match. `on` / `to` / `with` are literal
+keywords.
+"""
+macro adapt_map_protocol(on_kw, T, to_kw, field, with_kw, entry)
+    _check_kw(on_kw, :on, "@adapt_map_protocol")
+    _check_kw(to_kw, :to, "@adapt_map_protocol")
+    _check_kw(with_kw, :with, "@adapt_map_protocol")
+    (entry isa Expr && entry.head === :call && length(entry.args) == 3) ||
+        error("@adapt_map_protocol: `with` clause must be a constructor call `EntryCtor(keyfield, valfield)`")
+    ctor, keyfield, valfield = entry.args[1], entry.args[2], entry.args[3]
+    f, k, v = QuoteNode(field), QuoteNode(keyfield), QuoteNode(valfield)
+    Te, ctore = esc(T), esc(ctor)
+    quote
+        Base.haskey(j::$Te, key::AbstractString) =
+            any(e -> Base.getproperty(e, $k) == key, Base.getproperty(j, $f))
+        Base.keys(j::$Te)   = [Base.getproperty(e, $k) for e in Base.getproperty(j, $f)]
+        Base.values(j::$Te) = [Base.getproperty(e, $v) for e in Base.getproperty(j, $f)]
+
+        function Base.getindex(j::$Te, key::AbstractString)
+            for e in Base.getproperty(j, $f)
+                Base.getproperty(e, $k) == key && return Base.getproperty(e, $v)
+            end
+            throw(KeyError(key))
+        end
+
+        function Base.setindex!(j::$Te, val, key::AbstractString)
+            cv = Base.getproperty(j, $f)
+            for i in eachindex(cv)
+                if Base.getproperty(cv[i], $k) == key
+                    cv[i] = $ctore(key, val)
+                    return val
+                end
+            end
+            push!(cv, $ctore(key, val))
+            return val
+        end
+
+        function Base.delete!(j::$Te, key::AbstractString)
+            cv = Base.getproperty(j, $f)
+            for i in length(cv):-1:1
+                Base.getproperty(cv[i], $k) == key && deleteat!(cv, i)
+            end
+            return j
+        end
+
+        Base.get(j::$Te, key::AbstractString, default) =
+            haskey(j, key) ? j[key] : default
+
+        function Base.iterate(j::$Te, state=1)
+            cv = Base.getproperty(j, $f)
+            state > length(cv) && return nothing
+            e = cv[state]
+            ((Base.getproperty(e, $k), Base.getproperty(e, $v)), state + 1)
+        end
+    end
+end

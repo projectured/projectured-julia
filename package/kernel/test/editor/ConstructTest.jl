@@ -36,7 +36,7 @@
 # internal `is_walk_leaf` (which is not exported): a scalar Julia value or an
 # opaque document.
 _content_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                   x isa Symbol || x isa Char || is_opaque(x)
+                   x isa Symbol || x isa Char || is_walk_opaque(x)
 
 # Strict leaf equality. Numbers of different concrete types are NOT equal — a
 # reconstruction that yields `42.0` where the target holds `42` is a real

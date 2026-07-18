@@ -182,7 +182,7 @@ undefined name:
 
 | Concept | Home in the kernel | What it defines |
 |---|---|---|
-| `Document` | layer 7 — `document/Interface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen and value protocol live alongside in `document/Document.jl`. |
+| `Document` | layer 7 — `document/DocumentInterface.jl` | the abstract supertype and the guarantee that every document carries a `selection` field (injected automatically by `@document`). The `@document` codegen lives in `document/DocumentMacro.jl`, the value protocol in `document/DocumentCopy.jl` / `document/DocumentSync.jl`. |
 | `Reference` | layer 8 — `reference/Interface.jl` | the `ReferenceStep` / `ReferencePath` abstract types and the step seam. The concrete steps live in `reference/ReferenceStep.jl`, the path structure in `reference/ReferencePath.jl`, the value protocol in `reference/ReferenceEvaluation.jl`, and the `@reference` DSL in `reference/ReferenceBuilder.jl`. |
 | Selection generics | layer 9 — `selection/Selection.jl` | `get_selection` / `clear_selection!` / `set_selection!` / `with_selection` / `replace_selection!` — the open generics that read and canonicalize a document's `selection` field, together with their implementations. The operation layer (layer 10) calls down into this layer. |
 | `Operation` | layer 10 — `operation/OperationModule.jl` | the abstract supertype, `evaluate_operation`, the concrete edit types (`ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, `CompoundOperation`, …), and the `reroot_operation` seam. |

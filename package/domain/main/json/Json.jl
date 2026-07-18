@@ -63,7 +63,7 @@ A JSON array `[…]`. `collapsed` hides its elements behind a marker in the proj
     collapsed::Bool = false
 end
 
-@forward_vector JsonArray elements
+@forward_vector_protocol on JsonArray to elements
 
 """
 One `"key": value` member of a JSON object.
@@ -83,7 +83,7 @@ A JSON object `{…}` — an ordered sequence of `JsonObjectEntry` members.
     collapsed::Bool = false
 end    
 
-@forward_map JsonObject entries key value JsonObjectEntry
+@adapt_map_protocol on JsonObject to entries with JsonObjectEntry(key, value)
 
 JsonObject(pairs::Pair{<:AbstractString}...) =
     JsonObject([JsonObjectEntry(String(k), v) for (k, v) in pairs])

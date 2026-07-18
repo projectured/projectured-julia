@@ -23,8 +23,8 @@ slot's dependents, not the entire collection.
 module CollectionModule
 
 import ..CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell
-import ..DocumentModule: Document, copy_document, sync_document!, copy_cell_as,
-       is_same_document_type, copy_shadow_element, get_document_cell_kind, is_element_collection, @document, @forward
+import ..DocumentModule: Document, copy_document, copy_cell_as,
+       is_element_collection, @document, @forward_protocol
 import ..ReferenceModule: Reference, RangeReference
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, children_container_type

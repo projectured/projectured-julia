@@ -331,7 +331,7 @@ above it in this list:
  5 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
  6 document    the Document supertype, @document, the is_element_collection /
-               is_opaque traits, search_documents, Clock
+               is_walk_opaque traits, search_documents, Clock
  7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case DSLs
  8 selection   get_selection / set_selection! / clear_selection! / with_selection

@@ -1,85 +1,63 @@
 # Fragment of `DocumentModule` — the reflection walk over an arbitrary object
-# graph, and the seam that lets a caller decide what a visited node's *location*
-# is.
+# graph, parameterized by how a visited node's *location* is named.
 #
 # There is exactly one traversal. It knows how to descend four shapes — a
 # positional collection (`is_element_collection`), a dict, an array, and a struct
-# read by `fieldnames` — how to stop (scalar leaves, `is_opaque`, `maxdepth`), how
-# to fold a scalar match up to its enclosing `Document`, and how to keep from
-# looping. What it deliberately does *not* know is how to *name* the node it is
-# standing on: that is the one thing its two callers disagree about, and it is
-# what `DocumentWalk` abstracts.
-#
-# A caller that wants the matching *objects* names a node by the object itself. A
-# caller that wants the *paths* to them names it by a `ReferencePath` — but
-# reference paths live a layer above this one, so the walk cannot build them. The
-# seam is what keeps the walk below the reference layer while still serving it
-# (AR-FRAMEWORKS-SINK: the lower layer declares the open generic, the higher layer
-# adds the method, and dispatch is the registration).
+# read by `fieldnames` — how to stop (scalar leaves, `is_walk_opaque`, `maxdepth`),
+# how to fold a scalar match up to its enclosing `Document`, and how to keep from
+# looping. What it deliberately leaves open is how to *name* the node it is standing
+# on: a caller that wants the matching *objects* names a node by the object itself,
+# a caller that wants the *paths* names it by a location it builds up as it descends.
+# Those location functions are the `DocumentWalk`'s parameters — supplied by the
+# caller, not dispatched off a subtype — which is what lets the walk sit below the
+# reference layer (whose `ReferencePath` a caller passes back in as a location) while
+# knowing nothing of it.
 
 """
-    DocumentWalk
+    DocumentWalk(; locate_field, locate_element, initial, policy)
 
-The strategy of a [`walk_document`](@ref): what a visited node's **location** is,
-and how often a node may be visited.
+The parameters a [`walk_document`](@ref) runs under: how a visited node's
+**location** is named, and how often a node may be visited. A location is whatever
+these functions return — the object itself (the defaults, a value-collecting walk)
+or a path built up as the walk descends.
 
-Implement it by subtyping and adding [`child_field_location`](@ref) and
-[`child_element_location`](@ref) — the two ways the walk descends. Override
-[`initial_location`](@ref) if the root's location is not the root object itself,
-and [`visit_policy`](@ref) to choose the cycle rule.
+  - `locate_field(location, name, child) -> location` — the location of `child`
+    reached from `location` by struct field / dict key `name`.
+  - `locate_element(location, index, child) -> location` — the location of `child`
+    reached at 1-based `index` of a positional collection or array.
+  - `initial(root) -> location` — the root's location (default: `root` itself).
+  - `policy::Symbol` — the cycle rule (default `:once_per_object`):
+
+      • `:once_per_object` — one visited set for the whole walk, so a node reachable
+        by several paths is walked **once**; shared subtrees are not re-walked and
+        cyclic graphs terminate.
+      • `:once_per_path` — the visited set holds only the current path's ancestors,
+        so **every distinct path** to a node is walked; a path that loops back
+        through one of its own ancestors is dropped, keeping a cyclic graph finite.
+
+    The two are not interchangeable: a location that *is* the object gains nothing
+    from a second visit (same location), while a *path* location does — the same
+    node reached two ways is two different places to put a cursor.
+
+`DocumentWalk()` is the value-collecting walk (locations are the objects);
+[`search_documents`](@ref) runs it.
 """
-abstract type DocumentWalk end
-
-"""
-    initial_location(walk, root) -> location
-
-The location of the walk's root. Defaults to `root` itself — correct for a walk
-whose locations *are* the objects; a path-valued walk overrides it with its empty
-path.
-"""
-initial_location(::DocumentWalk, root) = root
-
-"""
-    child_field_location(walk, location, name, child) -> location
-
-The location of `child`, reached from `location` by the field (or dict key)
-`name`. `name` is a `Symbol` for a struct field and the raw key for a dict entry.
-"""
-function child_field_location end
-
-"""
-    child_element_location(walk, location, index, child) -> location
-
-The location of `child`, reached from `location` at 1-based `index` — an element
-of a positional collection or an array.
-"""
-function child_element_location end
-
-"""
-    visit_policy(walk) -> Symbol
-
-How often the walk may visit one node.
-
-  • `:once_per_object` (the default) — a single visited set for the whole walk, so
-    a node reachable by several paths is walked **once**. Shared subtrees are not
-    re-walked; cyclic graphs terminate.
-
-  • `:once_per_path` — the visited set holds only the *current path's ancestors*,
-    so **every distinct path** to a node is walked. A path that loops back through
-    one of its own ancestors is dropped, which is what keeps a cyclic graph (a
-    doubly-linked list's `prev`/`next`) finite.
-
-The two are not interchangeable. A location that is the object itself has nothing
-to gain from walking a shared node twice — the second visit reports the same
-location. A location that is a *path* does: the same node reached two ways is two
-different places to put a cursor, so both must be reported.
-"""
-visit_policy(::DocumentWalk) = :once_per_object
+struct DocumentWalk
+    locate_field::Function
+    locate_element::Function
+    initial::Function
+    policy::Symbol
+end
+DocumentWalk(; locate_field = (location, name, child) -> child,
+               locate_element = (location, index, child) -> child,
+               initial = root -> root,
+               policy = :once_per_object) =
+    DocumentWalk(locate_field, locate_element, initial, policy)
 
 # A node is a walk leaf — nothing to descend into — when it is a scalar Julia
-# value or an opaque document (see `is_opaque`).
+# value or an opaque document (see `is_walk_opaque`).
 is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                  x isa Symbol || x isa Char || is_opaque(x)
+                  x isa Symbol || x isa Char || is_walk_opaque(x)
 
 # The textual form of a leaf, for a String/Regex query. Struct and collection
 # nodes have none, so they never match one.
@@ -90,14 +68,14 @@ _walk_text(x::Char)           = string(x)
 _walk_text(::Any)             = nothing
 
 """
-    text_query(q::Union{AbstractString,Regex}) -> predicate
+    text_predicate(q::Union{AbstractString,Regex}) -> predicate
 
 Turn a `String` (substring) or `Regex` into a walk predicate matching any *leaf*
 node whose textual form contains / matches it. Struct and collection nodes have
 no textual form and so never match — pass a predicate to match on type or shape.
 """
-text_query(q::AbstractString) = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
-text_query(q::Regex)          = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
+text_predicate(q::AbstractString) = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
+text_predicate(q::Regex)          = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
 
 """
     walk_document(walk::DocumentWalk, obj, predicate;
@@ -114,10 +92,10 @@ dropped. Pass `raw=true` to report the location of the **exact matched node**
 instead, scalars included.
 
 Each location is reported at most once. How often a *node* is visited is
-[`visit_policy`](@ref)'s business. `include_selection` includes `selection`
-fields in the walk. `maxdepth` bounds recursion for structures that are never the
-*same* object — an infinite lazy list whose nodes are generated fresh on demand —
-which the visited set alone cannot stop.
+`walk.policy`'s business. `include_selection` includes `selection` fields in the
+walk. `maxdepth` bounds recursion for structures that are never the *same* object
+— an infinite lazy list whose nodes are generated fresh on demand — which the
+visited set alone cannot stop.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
 """
@@ -126,7 +104,7 @@ function walk_document(walk::DocumentWalk, obj, predicate;
     results = Any[]
     root = unwrap_cell(obj)
     _walk_document!(walk, results, IdDict{Any,Bool}(), root, predicate,
-                    initial_location(walk, root), nothing, IdDict{Any,Bool}(),
+                    walk.initial(root), nothing, IdDict{Any,Bool}(),
                     include_selection, maxdepth, raw)
     results
 end
@@ -139,7 +117,7 @@ end
 # repeats of an identical immutable — which is what makes it report each *object*
 # once rather than each occurrence.
 function _enter_node(walk::DocumentWalk, obj, seen)
-    if visit_policy(walk) === :once_per_path
+    if walk.policy === :once_per_path
         if ismutable(obj)
             haskey(seen, obj) && return nothing
             seen = copy(seen)
@@ -179,7 +157,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     if is_element_collection(obj)
         for i in 1:length(obj)
             child = unwrap_cell(obj[i])
-            descend(child, child_element_location(walk, location, i, child))
+            descend(child, walk.locate_element(location, i, child))
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
@@ -187,13 +165,13 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
         # slots. The key is the field name, which is how a dict entry is addressed.
         for (k, v) in obj
             child = unwrap_cell(v)
-            descend(child, child_field_location(walk, location, k, child))
+            descend(child, walk.locate_field(location, k, child))
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
             child = unwrap_cell(obj[i])
-            descend(child, child_element_location(walk, location, i, child))
+            descend(child, walk.locate_element(location, i, child))
         end
     else
         fnames = try fieldnames(typeof(obj)) catch; () end
@@ -201,7 +179,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             (fn == :ref || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
             child = unwrap_cell(getfield(obj, fn))
-            descend(child, child_field_location(walk, location, fn, child))
+            descend(child, walk.locate_field(location, fn, child))
         end
     end
 end

@@ -8,7 +8,7 @@ module MarkdownModule
 
 import ..CellModule: Cell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
-import ..DocumentModule: @document, @forward_vector
+import ..DocumentModule: @document, @forward_vector_protocol
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 export MarkdownDocument, set_cell_function!
@@ -58,7 +58,7 @@ Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.
     content::CellVector = CellVector()
 end
 
-@forward_vector MarkdownEmphasis content
+@forward_vector_protocol on MarkdownEmphasis to content
 
 """
 Strong (bold) inline content (`**…**`), a sequence of inline nodes.
@@ -67,7 +67,7 @@ Strong (bold) inline content (`**…**`), a sequence of inline nodes.
     content::CellVector = CellVector()
 end
 
-@forward_vector MarkdownStrong content
+@forward_vector_protocol on MarkdownStrong to content
 
 """
 An inline link (`[content](url)`). `content` is the inline text shown, `url` the
@@ -78,7 +78,7 @@ target.
     url::String
 end
 
-@forward_vector MarkdownLink content
+@forward_vector_protocol on MarkdownLink to content
 
 """
 An inline image (`![alt](url)`). `alt` is the alternative text, `url` the source.
@@ -99,7 +99,7 @@ nodes.
     content::CellVector = CellVector()
 end
 
-@forward_vector MarkdownHeading content
+@forward_vector_protocol on MarkdownHeading to content
 
 """
 A prose paragraph — a sequence of inline nodes.
@@ -108,7 +108,7 @@ A prose paragraph — a sequence of inline nodes.
     content::CellVector = CellVector()
 end
 
-@forward_vector MarkdownParagraph content
+@forward_vector_protocol on MarkdownParagraph to content
 
 """
 A fenced code block (```` ``` ````). `language` is the info string (may be `""`)
@@ -136,7 +136,7 @@ behind a marker in the projection.
     collapsed::Bool = false
 end
 
-@forward_vector MarkdownQuote elements
+@forward_vector_protocol on MarkdownQuote to elements
 
 """
 One item of a `MarkdownList`. `elements` holds its child blocks (a list item may
@@ -148,7 +148,7 @@ projection.
     collapsed::Bool = false
 end
 
-@forward_vector MarkdownListItem elements
+@forward_vector_protocol on MarkdownListItem to elements
 
 """
 A list. `ordered` selects between a numbered (`1.`) and a bulleted (`-`) list;
@@ -162,7 +162,7 @@ wrapping constructor: `MarkdownList(true, [MarkdownListItem(…), …])`.
     collapsed::Bool = false
 end
 
-@forward_vector MarkdownList items
+@forward_vector_protocol on MarkdownList to items
 
 # ── Root ──────────────────────────────────────────────────────────────────────
 
@@ -175,7 +175,7 @@ hides the body behind a marker in the projection.
     collapsed::Bool = false
 end
 
-@forward_vector MarkdownRoot elements
+@forward_vector_protocol on MarkdownRoot to elements
 
 # Text-replace edits need no per-type method: the type-in target fields —
 # `MarkdownText.content`, `MarkdownCode.content`, `MarkdownHeading.level` (a

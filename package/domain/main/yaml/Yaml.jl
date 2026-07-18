@@ -59,7 +59,7 @@ elements behind a marker in the projection.
     collapsed::Bool = false
 end
 
-@forward_vector YamlSequence elements
+@forward_vector_protocol on YamlSequence to elements
 
 """
 One `key: value` member of a YAML mapping.
@@ -79,7 +79,7 @@ A YAML mapping (a `key: value` block or `{…}` flow map) — an ordered sequenc
     collapsed::Bool = false
 end
 
-@forward_map YamlMapping entries key value YamlMappingEntry
+@adapt_map_protocol on YamlMapping to entries with YamlMappingEntry(key, value)
 
 YamlMapping(pairs::Pair{<:AbstractString}...) =
     YamlMapping([YamlMappingEntry(String(k), v) for (k, v) in pairs])

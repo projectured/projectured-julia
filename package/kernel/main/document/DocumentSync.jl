@@ -5,44 +5,39 @@
 # point diff-copy it into a ReactiveCell-kind shadow, writing a shadow cell
 # only when its value changed so the reactive graph sees a minimal set of
 # invalidations. Both trees are the same document type (generated from one
-# `@document` declaration), which is what lets the sync be one generic walk.
+# `@document` declaration), which is what lets the sync be one walk.
 #
-# `sync_document!` is an open generic: the walk here handles a record (a document
-# whose children are named fields), and a document with a different *shape* adds
-# its own method — a positional collection matches its slots by index, not by
-# field name, and so cannot reuse this one. `is_same_document_type`,
-# `get_document_cell_kind`, and `copy_shadow_element` are the seam such a method
-# is written against, and are exported for that reason: they are this module's
-# contract to any document that syncs, not internals.
+# One `sync_document!` handles both shapes: a **record** (children are named
+# fields) syncs field-by-field, and a **positional collection**
+# (`is_element_collection`) syncs its elements by index through the vector
+# protocol. `is_same_document_type` / `copy_shadow_element` are private helpers of
+# that walk.
 
-"""
-    is_same_document_type(a, b) -> Bool
-
-`true` when `a` and `b` are the same document type **ignoring cell kind** — a
-reactive `RFoo` and an immutable `IFoo` answer `true`, since both are `Foo`. The
-shape test a sync makes before recursing into a slot: same type ⇒ sync in place,
-different type ⇒ rebuild the slot.
-"""
+# `true` when `a` and `b` are the same document type IGNORING cell kind — a
+# reactive `RFoo` and an immutable `IFoo` answer `true`, since both are `Foo`. The
+# shape test the sync makes before recursing into a slot: same type ⇒ sync in
+# place, different type ⇒ rebuild it.
 is_same_document_type(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
 
-"""
-    sync_document!(shadow, source) -> shadow
+# A source element rebuilt for a shadow of cell kind `K`: a document is copied in
+# that kind, a plain value passes through. Written into a shadow slot whose source
+# element changed type and so cannot be synced in place.
+copy_shadow_element(K, x) = x isa Document ? copy_document(K, x) : x
 
-Update the writable `shadow` document to match `source`, writing a shadow
-cell **only when its value changed** — so the downstream graph sees a
-*minimal* invalidation set, not a wholesale rebuild. `shadow` may be any
-writable kind (`ReactiveCell` or `MutableCell`); `source` may be any kind.
-Recurses structurally: a child document is synced in place when it is the
-same type, else replaced by a fresh copy in the shadow's kind; a leaf field
-is written only on `!isequal`.
-
-The result is a consistent view of `source` after each sync; between syncs
-the source is unobserved and pays nothing for observation.
-"""
+# Contract documented at the `sync_document!` declaration in `DocumentInterface.jl`.
 function sync_document!(shadow::Document, source::Document)
     is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
     K = get_document_cell_kind(shadow)
+    is_element_collection(source) ? _sync_elements!(shadow, source, K) :
+                                    _sync_fields!(shadow, source, K)
+    shadow
+end
+
+# Record sync: match children by field name. A child document is synced in place
+# when it is the same type, else replaced by a fresh copy in the shadow's kind; a
+# leaf field is written only on `!isequal`, so the graph sees a minimal set.
+function _sync_fields!(shadow, source, K)
     for nm in fieldnames(typeof(source))
         sv  = getproperty(source, nm)
         cur = getproperty(shadow, nm)
@@ -56,15 +51,30 @@ function sync_document!(shadow::Document, source::Document)
             isequal(cur, sv) || setproperty!(shadow, nm, sv)   # leaf: write iff changed
         end
     end
-    shadow
 end
 
-"""
-    copy_shadow_element(K, x) -> value
-
-A source element rebuilt for a shadow of cell kind `K`: a document is copied in
-that kind, a plain value passes through. What a sync writes into a shadow slot
-whose source element changed type — the slot cannot be synced in place, so it is
-rebuilt on the shadow's side of the double buffer.
-"""
-copy_shadow_element(K, x) = x isa Document ? copy_document(K, x) : x
+# Positional sync: match a positional collection's slots by index through the
+# vector protocol (`length`/`getindex`/`setindex!`/`push!`/`pop!`). A same-type
+# slot is synced in place (its own inner cells, minimally); a changed-type or
+# changed-value slot is rewritten; a longer source appends, a shorter one trims
+# from the end. This is minimal for the dominant edits — in-place value change,
+# append, pop-from-end; a front-shift re-syncs the shifted tail, and keying by
+# source-element identity (an `IdDict` persisted across syncs) is the natural
+# refinement if a front-heavy queue ever demands it.
+function _sync_elements!(shadow, source, K)
+    ns, nc = length(source), length(shadow)
+    for i in 1:min(ns, nc)
+        s, c = source[i], shadow[i]
+        if s isa Document && c isa Document && is_same_document_type(c, s)
+            sync_document!(c, s)
+        else
+            isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))
+        end
+    end
+    for i in (nc + 1):ns
+        push!(shadow, copy_shadow_element(K, source[i]))
+    end
+    for _ in 1:(nc - ns)
+        pop!(shadow)
+    end
+end

@@ -37,7 +37,7 @@ using ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedVisual.TextToStringModule: TextToString
 using ProjecturedVisual.SyntaxModule: SyntaxLeaf
 using ProjecturedBase.DomainModule: nothing_document, domain_insertion, insertion_root
-using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_opaque
+using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque
 using ProjecturedKernel.CellModule: unwrap_cell
 using ProjecturedKernel.ReferenceModule: append_reference, FieldReference, ElementReference,
                                          try_evaluate_reference, PositionReference,
@@ -142,7 +142,7 @@ end
 # `construct_node!`); a node with several scalars is a record (an XML attribute's name+value).
 function _node_slots(node, node_path)
     slots = Any[]
-    (node isa Document && !is_opaque(node)) || return slots
+    (node isa Document && !is_walk_opaque(node)) || return slots
     for fname in fieldnames(typeof(node))
         (fname === :selection || fname === :ref || fname === :collapsed) && continue
         fv = unwrap_cell(getfield(node, fname))
@@ -165,7 +165,7 @@ end
 # `Document` child or collection field — structurally, even when the collection is
 # momentarily empty; otherwise it is a leaf, typed as its authoring surface.
 _has_child_field(node) =
-    (node isa Document && !is_opaque(node)) && any(fieldnames(typeof(node))) do fname
+    (node isa Document && !is_walk_opaque(node)) && any(fieldnames(typeof(node))) do fname
         (fname === :selection || fname === :ref || fname === :collapsed) && return false
         fv = unwrap_cell(getfield(node, fname))
         fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector || fv isa Document

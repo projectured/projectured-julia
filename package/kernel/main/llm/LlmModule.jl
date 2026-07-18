@@ -28,7 +28,7 @@ in a `main` package (AR-NO-TEST-DOUBLES-IN-MAIN).
 """
 module LlmModule
 
-import ..DocumentModule: is_opaque
+import ..DocumentModule: is_walk_opaque
 import ..ToolModule: Tool
 
 export Llm, stream_turn, tool_schema,

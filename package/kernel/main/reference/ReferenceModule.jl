@@ -64,12 +64,6 @@ module ReferenceModule
 using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
-# The `walk_document` seam generics are *extended* here (by `PathWalk`), not merely
-# called, so they must be imported by name: a `using`-visible binding that is then
-# assigned a method silently becomes a **new function in this module**, and the walk
-# — which calls the document layer's original — would never see the methods.
-import ..DocumentModule: initial_location, visit_policy,
-                         child_field_location, child_element_location
 
 export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
        FieldReference, Position,
