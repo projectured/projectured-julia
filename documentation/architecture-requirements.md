@@ -87,6 +87,7 @@ requirement; the rule is its own lead sentence.
 | [AR-GEOMETRY-FREE-IN-DOCUMENT](#ar-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [AR-DELEGATE-AND-LIFT](#ar-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [AR-SHARED-CHILDREN-IOMAP](#ar-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
+| [AR-STABLE-IOMAP-IDENTITY](#ar-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
 | [AR-CROSS-DOMAIN-LATE](#ar-cross-domain-late) | Cross domains as late as possible in the mappers |
 | [AR-HIGHER-ORDER-IS-DOMAIN-FREE](#ar-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
 | [AR-USE-PROJECTION-MACRO](#ar-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
@@ -456,6 +457,33 @@ the selection reactively (`Cell(() -> map_reference_forward(p, iomap,
 node.selection))` with the deferred-iomap trick), and use `ChildrenIoMap` so
 the reader and both mappers can locate the correct child IoMap when translating
 backward.
+
+### AR-STABLE-IOMAP-IDENTITY
+
+**A projection's IoMap keeps its identity; its varying parts are computed cells,
+and its children reconcile by identity.** `print_document` returns one IoMap per
+projection instance and never rebuilds or replaces it in response to a change.
+Every part that can vary — the output document, its `selection`, and every child
+IoMap — is a *computed cell* deriving from the projection's input and parameter
+cells, not a value captured eagerly at print time; and a collection of children
+goes through the shared reconciler (keyed by child identity) so a surviving
+child's IoMap is reused and only a genuinely-changed child is rebuilt. A change
+therefore propagates through the cells the projection already wired — never by
+allocating a new IoMap, and never by nulling `editor.iomap`. This is the
+generalization, from "a compound projection should" to "every projection must,"
+of three rules it subsumes: AR-REACTIVE-OUTPUT-SELECTION (wire the output
+selection as a cell), AR-SHARED-CHILDREN-IOMAP (child IoMaps in one shared
+reactive cell), and AR-NO-WRITE-IN-THUNK (reuse a persistent output object whose
+fields are `set_cell_function!` cells, rather than rebuilding it). The failure it
+forbids is the eager capture: `output = f(input)` stored in a plain field has no
+reactive edge, so a later change to what `f` read — a parameter the projection
+navigates by, an upstream object it re-exposes — leaves a stale render and a
+mis-mapped cursor with **no error** at all. Correspondingly, an
+`evaluate_operation` that changes what a projection shows writes the cell the
+projection derived from (AR-MUTATE-OR-NULL-IOMAP), reserving
+`invalidate_projection!` for genuine whole-root rebinds. The template engine
+(`ProjectionTemplate`) is the reference implementation; its `_reconciling_child_iomaps`
+is the shared reconciler every projection uses.
 
 ### AR-CROSS-DOMAIN-LATE
 
