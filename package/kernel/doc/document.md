@@ -14,15 +14,14 @@ DocumentModule.jl   (DocumentModule)  — the aggregator: imports Cell, exports 
     ├─ DocumentInterface.jl  — the contract: the Document supertype + the open generics
     │                          (is_element_collection / is_walk_opaque / copy_document /
     │                          sync_document! / search_documents), declaration-only
-    ├─ DocumentDefaults.jl   — the trait defaults (is_element_collection / is_walk_opaque = false)
+    ├─ DocumentDefaults.jl   — default behaviours: is_element_collection / is_walk_opaque = false + debug show
     ├─ DocumentKind.jl       — the cell-kind vocabulary the value protocol is written against
     │                          (get_document_cell_kind, copy_cell_as)
     ├─ DocumentCopy.jl       — copy_document: deep copy, kind-preserving or kind-converting
     ├─ DocumentSync.jl       — sync_document!: the double-buffer shadow sync
     ├─ DocumentMacro.jl      — @document: the document codegen (injects the selection field)
-    ├─ DocumentWalk.jl       — walk_document: the one reflection walk + the DocumentWalk seam
-    ├─ DocumentSearch.jl     — search_documents: the value-collecting strategy over that walk
-    ├─ DocumentShow.jl       — the depth-limited debug show
+    ├─ DocumentWalk.jl       — walk_document: the one reflection walk, parameterized by DocumentWalk
+    ├─ DocumentSearch.jl     — search_documents: the value-collecting walk
     └─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
                                @adapt_map_protocol: give a wrapper another type's protocol
 ```
@@ -128,7 +127,7 @@ another type's method protocol without a hand-written method per function:
 
 ## Debug rendering
 
-[DocumentShow.jl](../main/document/DocumentShow.jl) gives `Document` a
+[DocumentDefaults.jl](../main/document/DocumentDefaults.jl) gives `Document` a
 depth-limited `Base.show` (bounded by the `:document_depth` IOContext key, with the
 `selection` field skipped as noise). A debug aid only — nothing in the editor
 pipeline reads it; a domain that wants a *presentable* rendering writes a

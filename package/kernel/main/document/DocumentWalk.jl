@@ -59,23 +59,23 @@ DocumentWalk(; locate_field = (location, name, child) -> child,
 is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                   x isa Symbol || x isa Char || is_walk_opaque(x)
 
-# The textual form of a leaf, for a String/Regex query. Struct and collection
+# The string form of a leaf, for a String/Regex query. Struct and collection
 # nodes have none, so they never match one.
-_walk_text(x::AbstractString) = x
-_walk_text(x::Symbol)         = string(x)
-_walk_text(x::Number)         = string(x)
-_walk_text(x::Char)           = string(x)
-_walk_text(::Any)             = nothing
+_walk_string(x::AbstractString) = x
+_walk_string(x::Symbol)         = string(x)
+_walk_string(x::Number)         = string(x)
+_walk_string(x::Char)           = string(x)
+_walk_string(::Any)             = nothing
 
 """
-    text_predicate(q::Union{AbstractString,Regex}) -> predicate
+    string_predicate(q::Union{AbstractString,Regex}) -> predicate
 
 Turn a `String` (substring) or `Regex` into a walk predicate matching any *leaf*
-node whose textual form contains / matches it. Struct and collection nodes have
-no textual form and so never match — pass a predicate to match on type or shape.
+node whose string form contains / matches it. Struct and collection nodes have
+no string form and so never match — pass a predicate to match on type or shape.
 """
-text_predicate(q::AbstractString) = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
-text_predicate(q::Regex)          = x -> (t = _walk_text(x); t !== nothing && occursin(q, t))
+string_predicate(q::AbstractString) = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
+string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
 
 """
     walk_document(walk::DocumentWalk, obj, predicate;

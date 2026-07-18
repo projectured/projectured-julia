@@ -24,7 +24,7 @@ Both search functions take a `query` that is *either*:
 - a **predicate** `node -> Bool` — full control; match on type, field values, or
   structure (`v -> v isa JsonString && v.value == "Alice"`); or
 - a **`String`** (substring) or **`Regex`** — a shorthand that matches any *leaf*
-  node (string / symbol / number / char) by its textual form.
+  node (string / symbol / number / char) by its string form.
 
 ```julia
 search_references(editor.document, "Alice")           # JsonString whose value contains "Alice"
@@ -62,7 +62,7 @@ object twice would tell you nothing new. This is the `policy` each search sets o
 `DocumentWalk` (`:once_per_object` vs `:once_per_path`), and it is why the two cannot be
 collapsed into one.
 
-Struct and collection nodes have no textual form, so they never match a string/regex query.
+Struct and collection nodes have no string form, so they never match a string/regex query.
 Reach for a predicate when you need to match by type or shape, or to match a leaf
 *exactly* (`v -> v == "Alice"`) rather than as a substring. A predicate that matches a
 `Document` directly is returned as-is (no folding needed).

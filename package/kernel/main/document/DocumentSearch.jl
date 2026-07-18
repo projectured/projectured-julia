@@ -11,4 +11,4 @@ search_documents(obj, predicate; kwargs...) =
     walk_document(DocumentWalk(), obj, predicate; kwargs...)
 
 search_documents(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_documents(obj, text_predicate(query); kwargs...)
+    search_documents(obj, string_predicate(query); kwargs...)

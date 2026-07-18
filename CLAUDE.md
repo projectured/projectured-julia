@@ -69,7 +69,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentMacro.jl`
   - ⬜ `document/DocumentWalk.jl`
   - ⬜ `document/DocumentSearch.jl`
-  - ⬜ `document/DocumentShow.jl`
   - ⬜ `document/ForwardProtocol.jl`
 - **Layer 8 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`

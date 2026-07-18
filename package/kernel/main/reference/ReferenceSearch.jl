@@ -24,7 +24,7 @@ const _PATH_WALK = DocumentWalk(
     search_references(obj, query::Union{AbstractString,Regex}; …)                      -> Vector{ReferencePath}
 
 Walk any object and return a `ReferencePath` to every match. Pass a predicate, or
-a `String` (substring) / `Regex` that matches leaf nodes by their textual form,
+a `String` (substring) / `Regex` that matches leaf nodes by their string form,
 e.g. `search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
 Cells are unwrapped transparently (no path step); struct fields contribute a
 `FieldReference`, and array / `CellVector` elements an `ElementReference`.
@@ -76,4 +76,4 @@ function search_references(obj, predicate; kwargs...)
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_references(obj, text_predicate(query); kwargs...)
+    search_references(obj, string_predicate(query); kwargs...)

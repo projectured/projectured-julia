@@ -68,7 +68,7 @@ end
     @test length(docs) == length(refs) == 1
     @test evaluate_reference(nested, refs[1]) === docs[1]
 
-    # A String/Regex query matches leaves by textual form, through both.
+    # A String/Regex query matches leaves by string form, through both.
     @test length(search_documents(nested, "Alice"))  == 1
     @test length(search_references(nested, r"Al.ce")) == 1
 

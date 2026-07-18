@@ -73,7 +73,7 @@ function sync_document! end
 
 Walk any object and return the matching nodes, **each at most once** even when a
 node is shared. A `String` (substring) or `Regex` matches leaf nodes by their
-textual form. By default the result is **document-scoped**: a scalar match folds
+string form. By default the result is **document-scoped**: a scalar match folds
 up to the nearest enclosing `Document`; pass `raw=true` to return the exact
 matched value.
 """
