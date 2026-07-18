@@ -24,7 +24,7 @@ module GestureHelpDecoratorProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern

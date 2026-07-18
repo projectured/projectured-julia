@@ -39,7 +39,7 @@ import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyDown, KeyPress
 import ..EventModule: MousePress
 import ..EventPatternModule: var"@event_case"
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 export TextToGraphics, TextToGraphicsIoMap
 
 """

@@ -36,7 +36,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep,
                           RangeReferenceStep, FieldReferenceStep,
                           Reference, EmptyReference

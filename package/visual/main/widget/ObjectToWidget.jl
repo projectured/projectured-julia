@@ -42,7 +42,7 @@ module ObjectToWidgetModule
 
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..CellModule: Cell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,

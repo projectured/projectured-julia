@@ -12,7 +12,7 @@ module ReferenceDispatchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
 
 """

@@ -28,7 +28,7 @@ import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
 import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"

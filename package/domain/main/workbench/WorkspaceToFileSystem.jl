@@ -22,7 +22,7 @@ import ..OperationApiModule: Operation
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep
 import ..PrinterContextModule: make_child_context

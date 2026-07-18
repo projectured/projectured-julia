@@ -56,7 +56,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings

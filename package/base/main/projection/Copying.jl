@@ -18,7 +18,7 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
                           ElementReferenceStep, is_element_reference_step, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ListNode
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 
 export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
 

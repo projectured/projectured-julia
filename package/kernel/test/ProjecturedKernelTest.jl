@@ -110,7 +110,7 @@ function test_kernel_layering()
                        "backend/BackendInterface.jl" => :BackendModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionApi.jl" => :ProjectionApiModule,
-                       "iomap/IoMapApi.jl"           => :IoMapApiModule),
+                       "iomap/IoMapInterface.jl"     => :IoMapModule),
                    # AR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx`
                    # + qualified extension (`Xxx.f(…) = …`). Opt-in, and it grows
                    # as the sweep proceeds; when it covers every file the

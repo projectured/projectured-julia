@@ -59,7 +59,7 @@ import ..FontModule: StyleFont,
 import ..StyleTextModule: StyleText, DStyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation

@@ -8,7 +8,7 @@ module SortingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type

@@ -31,7 +31,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
 import ..IntentModule: Intent
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation

@@ -18,7 +18,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"

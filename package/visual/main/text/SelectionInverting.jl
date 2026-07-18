@@ -30,7 +30,7 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, DStyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"

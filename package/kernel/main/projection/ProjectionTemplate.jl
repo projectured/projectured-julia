@@ -34,7 +34,7 @@ using ..CellModule
 # `children_container_type()` returns the concrete type for TypeReferenceStep
 # markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
 using ..ChildrenContainerModule
-using ..IoMapApiModule
+using ..IoMapModule
 # This also binds the module itself, so `@projection_template` can emit a
 # module-qualified `ProjectionApiModule.print_document` method-definition name
 # (see the macro).

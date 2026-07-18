@@ -20,7 +20,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_solarized_gray
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
                           PositionReferenceStep, Reference,
                           EmptyReference, extend_reference, is_element_reference_step

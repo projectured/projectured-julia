@@ -72,7 +72,6 @@ const BackendApiModule = ProjecturedKernel.BackendModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IntentModule = ProjecturedKernel.IntentModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedBase.CollectionModule

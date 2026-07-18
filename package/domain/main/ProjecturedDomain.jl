@@ -52,7 +52,6 @@ const EventPatternModule = ProjecturedKernel.EventPatternModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
-const IoMapApiModule = ProjecturedKernel.IoMapApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const PlaybackModule = ProjecturedKernel.PlaybackModule
 const LlmModule = ProjecturedKernel.LlmModule

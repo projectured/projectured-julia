@@ -14,7 +14,7 @@ import ..IntentModule: Intent
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..CellModule: Cell, AbstractCell, unwrap_cell
 export ChainingProjection, ChainingProjectionIoMap
 

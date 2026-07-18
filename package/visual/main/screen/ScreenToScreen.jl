@@ -31,7 +31,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
 import ..PointReferenceStepModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 

@@ -29,7 +29,7 @@ import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstrai
 import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layout_graph
 import ..GraphicsModule: GraphicsCanvas
 import ..IoMapModule: ChildrenIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"

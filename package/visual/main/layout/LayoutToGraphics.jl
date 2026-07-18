@@ -30,7 +30,7 @@ import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_
 import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation

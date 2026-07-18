@@ -29,7 +29,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation

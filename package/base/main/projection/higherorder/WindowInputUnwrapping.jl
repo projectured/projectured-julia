@@ -23,7 +23,7 @@ module WindowInputUnwrappingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..EventModule: WindowInput
 export WindowInputUnwrappingProjection, WindowInputUnwrappingProjectionIoMap
 

@@ -44,7 +44,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
 import ..CellModule: Cell, set_cell_function!
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..OperationApiModule: Operation

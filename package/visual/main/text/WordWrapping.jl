@@ -20,7 +20,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraph
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep

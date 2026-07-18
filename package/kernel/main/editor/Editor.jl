@@ -11,7 +11,7 @@ module EditorModule
 
 using ..ProjectionApiModule
 using ..IntentModule
-using ..IoMapApiModule
+using ..IoMapModule
 using ..DeviceModule
 using ..BackendModule
 using ..EventModule

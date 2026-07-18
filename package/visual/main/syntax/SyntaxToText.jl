@@ -34,7 +34,7 @@ import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: read_gesture

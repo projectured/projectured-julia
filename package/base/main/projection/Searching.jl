@@ -13,7 +13,7 @@ document tree and gathers matches from anywhere inside it.
 module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document

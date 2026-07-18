@@ -23,7 +23,7 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_yellow
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapApiModule: IoMap
+import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"
