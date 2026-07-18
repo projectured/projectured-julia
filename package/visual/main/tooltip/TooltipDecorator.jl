@@ -22,7 +22,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..IntentModule: Intent
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReference, head, tail
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, FieldReferenceStep, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
@@ -138,16 +138,16 @@ read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMa
 # The decorator's output is the child's output (the TooltipSource's
 # `content` / `style` / `id` fields contribute nothing visible), so
 # output-side references look exactly like the child's. Input-side
-# references go through the TooltipSource and need a `FieldReference("child")`
+# references go through the TooltipSource and need a `FieldReferenceStep("child")`
 # step to reach the wrapped node.
 
 function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
-    # Strip a leading FieldReference("child") if present, then delegate.
-    # Skip canonical TypeReference checkpoints before reading the `child` step.
+    # Strip a leading FieldReferenceStep("child") if present, then delegate.
+    # Skip canonical TypeReferenceStep checkpoints before reading the `child` step.
     reference = reference
     if reference isa ConcreteReferencePath
         h = head(reference)
-        if h isa FieldReference && h.name == "child"
+        if h isa FieldReferenceStep && h.name == "child"
             return map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, tail(reference))
         end
         # References into TooltipSource's other fields (content, style, id)
@@ -160,7 +160,7 @@ end
 function map_reference_backward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
     inner = map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
     inner === nothing && return nothing
-    ConcreteReferencePath(FieldReference("child"), inner)
+    ConcreteReferencePath(FieldReferenceStep("child"), inner)
 end
 
 end # module

@@ -264,16 +264,16 @@ function test_dbcatalog_reference_mapping(; show_detail=false)
             back_ref_r = map_reference_backward(p_rdbms, iomap_r, out_ref_r)
             @test back_ref_r !== nothing
 
-            # ── Column leaf backward wraps in ProjectionReference ──
+            # ── Column leaf backward wraps in ProjectionReferenceStep ──
             p_col = DbCatalogColumnToSyntaxLeaf()
             iomap_c = print_document(p_col, col)
 
             col_back = map_reference_backward(p_col, iomap_c, @reference value{0})
             @test col_back !== nothing
             @test col_back isa ConcreteReferencePath
-            @test col_back.head isa ProjectionReference
+            @test col_back.head isa ProjectionReferenceStep
 
-            # Column leaf forward unwraps ProjectionReference
+            # Column leaf forward unwraps ProjectionReferenceStep
             col_fwd = map_reference_forward(p_col, iomap_c, col_back)
             @test col_fwd !== nothing
 
@@ -302,8 +302,8 @@ function test_dbcatalog_selection_wiring(; show_detail=false)
 
             # Set selection on the input document to point at column 1
             col_ref = @reference columns[1]
-            # Use ProjectionReference wrapping since column content is projection-introduced
-            col_inner = ConcreteReferencePath(Cell(ProjectionReference(
+            # Use ProjectionReferenceStep wrapping since column content is projection-introduced
+            col_inner = ConcreteReferencePath(Cell(ProjectionReferenceStep(
                 DbCatalogColumnToSyntaxLeaf(), @reference value{0})))
             full_input_sel = @reference columns[1].^(col_inner)
             replace_selection!(table, full_input_sel)

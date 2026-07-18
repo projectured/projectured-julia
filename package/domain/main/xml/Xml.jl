@@ -119,7 +119,7 @@ _xml_insert_node(e) = append_insertion_operation(e, :children, XmlInsertion)
 _xml_in_attr_context(sel) =
     sel isa EmptyReferencePath ||
     is_introduced_reference(sel) ||
-    (sel isa ConcreteReferencePath && sel.head isa FieldReference &&
+    (sel isa ConcreteReferencePath && sel.head isa FieldReferenceStep &&
      (sel.head.name == "tag" || sel.head.name == "attrs"))
 
 _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?

@@ -53,7 +53,7 @@ import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference,
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapApiModule: IoMap
@@ -111,8 +111,8 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
         selected === nothing && return nothing
         idx, version = selected
         value_iomap = print_child(recursion, version.value,
-                          make_child_context(ctx, FieldReference("versions"),
-                                        ElementReference(idx), FieldReference("value")))
+                          make_child_context(ctx, FieldReferenceStep("versions"),
+                                        ElementReferenceStep(idx), FieldReferenceStep("value")))
         (idx, value_iomap)
     end)
     output_cell = Cell(() -> begin
@@ -136,15 +136,15 @@ function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToA
     idx = iomap.index
     # Require the path to descend through versions[idx].value, stripping all three.
     h = head(reference)
-    (h isa FieldReference && h.name == "versions") || return nothing
+    (h isa FieldReferenceStep && h.name == "versions") || return nothing
     rest = tail(reference)
     rest isa ConcreteReferencePath || return nothing
     e = head(rest)
-    (e isa RangeReference && e.start + 1 == idx) || return nothing
+    (e isa RangeReferenceStep && e.start + 1 == idx) || return nothing
     rest2 = tail(rest)
     rest2 isa ConcreteReferencePath || return nothing
     f = head(rest2)
-    (f isa FieldReference && f.name == "value") || return nothing
+    (f isa FieldReferenceStep && f.name == "value") || return nothing
     map_reference_forward(child.projection, child, tail(rest2))
 end
 
@@ -154,9 +154,9 @@ function map_reference_backward(::VersioningToAnyProjection, iomap::VersioningTo
     idx = iomap.index
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
-    ConcreteReferencePath(FieldReference("versions"),
-        ConcreteReferencePath(ElementReference(idx),
-            ConcreteReferencePath(FieldReference("value"), mapped)))
+    ConcreteReferencePath(FieldReferenceStep("versions"),
+        ConcreteReferencePath(ElementReferenceStep(idx),
+            ConcreteReferencePath(FieldReferenceStep("value"), mapped)))
 end
 
 # ── Operations ────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ end
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
-    ConcreteReferencePath(FieldReference(name), EmptyReferencePath())
+    ConcreteReferencePath(FieldReferenceStep(name), EmptyReferencePath())
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
 # push it to the front of `versions` (index 0, newest-first). A standard sequence
@@ -231,7 +231,7 @@ function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
     vim === nothing && return Intent(change.gesture, nothing)
     inner = read_intent(vim.projection, recursion, change, vim)
     Intent(change.gesture, _prefix_op(inner.operation,
-        (FieldReference("versions"), ElementReference(iomap.index), FieldReference("value"))))
+        (FieldReferenceStep("versions"), ElementReferenceStep(iomap.index), FieldReferenceStep("value"))))
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

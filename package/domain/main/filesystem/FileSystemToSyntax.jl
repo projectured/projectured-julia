@@ -29,8 +29,8 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, append_reference
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, append_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -86,7 +86,7 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
         ::SyntaxLeaf.value{k} => reference
     end
     caret === nothing && return reference
-    ConcreteReferencePath(ProjectionReference(p, caret))
+    ConcreteReferencePath(ProjectionReferenceStep(p, caret))
 end
 
 function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -121,7 +121,7 @@ end
 
 function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(d.elements)])
 
     name_leaf = SyntaxLeaf(

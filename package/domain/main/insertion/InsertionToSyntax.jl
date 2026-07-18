@@ -59,9 +59,9 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument, SyntaxDelimitatio
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          ElementReference, EmptyReferencePath, Position, reference_node_type
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, EmptyReferencePath, Position, reference_node_type
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, var"@gestures"
@@ -175,8 +175,8 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
             ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
-            ConcreteReferencePath(DocumentInsertion, FieldReference("value"),
-                ConcreteReferencePath(String, RangeReference(n, n), EmptyReferencePath(Position))) :
+            ConcreteReferencePath(DocumentInsertion, FieldReferenceStep("value"),
+                ConcreteReferencePath(String, RangeReferenceStep(n, n), EmptyReferencePath(Position))) :
             nothing)
     end
 end
@@ -202,7 +202,7 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
         path = getfield(ins, :selection)[]
         path isa ConcreteReferencePath || return nothing
         is_introduced_reference(path) && return path
-        ConcreteReferencePath(FieldReference("content"), path)
+        ConcreteReferencePath(FieldReferenceStep("content"), path)
     end)
     SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
         opening_delimiter=TextString(p.prefix, p.label),
@@ -217,15 +217,15 @@ function _value_range(ins)
     sel = sel
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
-    (h isa FieldReference && h.name == "value") || return nothing
+    (h isa FieldReferenceStep && h.name == "value") || return nothing
     t = sel.tail
     t isa ConcreteReferencePath || return nothing
-    t.head isa RangeReference || return nothing
+    t.head isa RangeReferenceStep || return nothing
     t.head
 end
 
-_value_path(range::RangeReference) =
-    ConcreteReferencePath(FieldReference("value"),
+_value_path(range::RangeReferenceStep) =
+    ConcreteReferencePath(FieldReferenceStep("value"),
         ConcreteReferencePath(range, EmptyReferencePath()))
 
 # ── Reader ───────────────────────────────────────────────────────────────────
@@ -239,8 +239,8 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
+    h isa FieldReferenceStep || return nothing
+    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a
@@ -314,7 +314,7 @@ function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
     extension = p.completion(ins).extension
     isempty(extension) && return nothing
     n = length(something(ins.value, ""))
-    ReplaceStringRangeOperation(_value_path(RangeReference(n, n)), extension)
+    ReplaceStringRangeOperation(_value_path(RangeReferenceStep(n, n)), extension)
 end
 
 # Backspace/Delete range computation; nothing at the value boundary.
@@ -325,9 +325,9 @@ function _insertion_delete(ins, dir::Symbol)
     new_range = if range.start != range.stop
         range
     elseif dir === :backspace
-        range.start > 0 ? RangeReference(range.start - 1, range.start) : nothing
+        range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
     else  # :delete
-        range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
+        range.stop < n ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
     end
     new_range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(new_range), "")
 end
@@ -528,7 +528,7 @@ InsertionNothingToSyntaxLeaf() =
 # the raw path. A cursor on the label is carried on the placeholder as a
 # projection-introduced caret (`proj(p, value{k})`, from the generic backward
 # below); forward-mapping unwraps it to the leaf's own `value{k}`, so the label is
-# char-navigable via `ProjectionReference` steps (like every literal leaf). Copying
+# char-navigable via `ProjectionReferenceStep` steps (like every literal leaf). Copying
 # the raw path instead left the leaf holding a `proj(p, …)` cursor that
 # `SyntaxLeafToText` cannot place, so navigation stalled at the label. The forward
 # ref-break (fill `iomap_cell` after) mirrors the compound printers.
@@ -634,8 +634,8 @@ function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
+    h isa FieldReferenceStep || return nothing
+    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the

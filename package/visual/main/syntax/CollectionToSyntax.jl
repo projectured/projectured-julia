@@ -21,10 +21,10 @@ import ..ColorModule: StyleColor, color_solarized_gray
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference,
-                          PositionReference, ReferencePath,
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
+                          PositionReferenceStep, ReferencePath,
                           EmptyReferencePath, append_reference, is_element_reference
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
@@ -44,16 +44,16 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
         # A projection-introduced position (structural delimiter) was encoded as
         # proj(p, {flat}) by the reader.  Keep it wrapped so that
         # SyntaxCompoundToText._syntax_to_flat can extract the flat position via its
-        # `h isa ProjectionReference` branch — same pattern as JsonToSyntax's
+        # `h isa ProjectionReferenceStep` branch — same pattern as JsonToSyntax's
         # `_node_forward` which also returns the wrapped reference unchanged.
         if is_introduced_reference(core, p)
             return reference
         end
         # Structural child path: [j].rest → .children[j-1].rest (SyntaxNode domain).
-        # ElementReference(j) is RangeReference(j-1, j); start+1 recovers the
+        # ElementReferenceStep(j) is RangeReferenceStep(j-1, j); start+1 recovers the
         # 1-based child index.
         h = core.head
-        if h isa RangeReference && is_element_reference(h)
+        if h isa RangeReferenceStep && is_element_reference(h)
             j = h.start + 1  # 1-based child index
             1 <= j <= length(iomap.input) || return nothing
             child_iomaps_vec = iomap.child_iomaps[]
@@ -61,8 +61,8 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
             child = child_iomaps_vec[j]
             inner = map_reference_forward(child.projection, child, core.tail)
             inner === nothing && return nothing
-            return ConcreteReferencePath(FieldReference("children"),
-                       ConcreteReferencePath(RangeReference(j - 1, j - 1), inner))
+            return ConcreteReferencePath(FieldReferenceStep("children"),
+                       ConcreteReferencePath(RangeReferenceStep(j - 1, j - 1), inner))
         end
     end
     nothing
@@ -74,7 +74,7 @@ end
 
 function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, x,
-                                   make_child_context(ctx, ElementReference(i)))
+                                   make_child_context(ctx, ElementReferenceStep(i)))
                                for (i, x) in enumerate(cv)])
     # Wire the output SyntaxNode's selection cell to forward-project the input
     # CellVector's selection.  The iomap_cell trick (same as DbCatalogToSyntax)
@@ -101,19 +101,19 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
 end
 
 # Maps a SyntaxNode path (children[i].rest) back to the CellVector domain.
-# Returns ConcreteReferencePath(ElementReference(child_i), rest) or nothing.
+# Returns ConcreteReferencePath(ElementReferenceStep(child_i), rest) or nothing.
 function _translate_collection_path(cv::CellVector, path::ReferencePath)
     path = path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference && h.name == "children" || return nothing
+    h isa FieldReferenceStep && h.name == "children" || return nothing
     rest0 = path.tail
     rest0 isa ConcreteReferencePath || return nothing
     h2 = rest0.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     child_i = h2.start + 1
     1 <= child_i <= length(cv) || return nothing
-    ConcreteReferencePath(ElementReference(child_i), rest0.tail)
+    ConcreteReferencePath(ElementReferenceStep(child_i), rest0.tail)
 end
 
 function read_intent(p::CollectionCellVectorToSyntax,
@@ -124,7 +124,7 @@ function read_intent(p::CollectionCellVectorToSyntax,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+        ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
 end
 
 # ── CollectionListNodeToSyntax ───────────────────────────────────────────────
@@ -151,7 +151,7 @@ function print_document(p::CollectionListNodeToSyntax, recursion, ln::ListNode, 
 end
 
 function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
-    child_ctx = make_child_context(ctx, ElementReference(index))
+    child_ctx = make_child_context(ctx, ElementReferenceStep(index))
     child_iomap = print_child(recursion, input_node.value, child_ctx)
     out_node = ListNode(child_iomap.output)
 

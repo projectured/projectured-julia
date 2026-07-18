@@ -189,29 +189,29 @@ function _split_terminal_step(path::ConcreteReferencePath)
     (ReferencePath(steps[1:end-1]...), steps[end])
 end
 
-# Write `value` into the slot `step` selects on `parent`. A FieldReference names a
+# Write `value` into the slot `step` selects on `parent`. A FieldReferenceStep names a
 # `Cell`-backed field (e.g. `JsonObjectEntry.value`, or a widget's `visible`); a
-# RangeReference selects an element of a sequence container (`CellVector`) and
+# RangeReferenceStep selects an element of a sequence container (`CellVector`) and
 # overwrites it. Shared by `ReplaceReferencedValueOperation` (single-slot writes of either a
 # document or a scalar) — terminal-kind dispatch is what unifies the two.
-function _write_slot!(parent, step::FieldReference, value)
+function _write_slot!(parent, step::FieldReferenceStep, value)
     f = getfield(parent, Symbol(step.name))
     f isa AbstractCell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
     f[] = value
 end
 
-function _write_slot!(parent, step::RangeReference, value)
+function _write_slot!(parent, step::RangeReferenceStep, value)
     parent[step.start + 1] = value
 end
 
-# A terminal `RangeReference` whose value is a *vector* of items is a SPLICE:
+# A terminal `RangeReferenceStep` whose value is a *vector* of items is a SPLICE:
 # replace the half-open element range `[start, stop)` of the sequence container
 # with `items` (each wrapped in a `Cell`). Zero-width range ⇒ pure insert; empty
 # items ⇒ pure delete; both ⇒ element replacement. This is the folded form of the
 # former `CollectionInsertOperation` / `CollectionDeleteOperation` (see
 # `insert_elements` / `delete_elements`); a single (non-vector) value still hits the
 # element-overwrite method above (the `replace_document` array-element case).
-function _write_slot!(parent, step::RangeReference, items::AbstractVector)
+function _write_slot!(parent, step::RangeReferenceStep, items::AbstractVector)
     for _ in 1:(step.stop - step.start)
         deleteat!(parent, step.start + 1)
     end
@@ -255,7 +255,7 @@ end
 # collides with the field-by-field constructor above.
 ReplaceReferencedValueOperation(document, field::AbstractString, value) =
     ReplaceReferencedValueOperation(document,
-        ConcreteReferencePath(FieldReference(field), EmptyReferencePath()), value)
+        ConcreteReferencePath(FieldReferenceStep(field), EmptyReferencePath()), value)
 
 function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
@@ -311,7 +311,7 @@ end
 
 Insert each of `items` into the sequence container at `path` (a `CellVector` such
 as a JSON array's `.elements`), at the 0-based `index`. Expressed as a splice — a
-`ReplaceReferencedValueOperation` whose terminal step is a **zero-width** `RangeReference(index, index)`
+`ReplaceReferencedValueOperation` whose terminal step is a **zero-width** `RangeReferenceStep(index, index)`
 and whose value is the item vector. When `selection` is non-`nothing`, a trailing
 `ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop the cursor
 into the new element (re-rooting prepends the same steps to both members).
@@ -320,7 +320,7 @@ into the new element (re-rooting prepends the same steps to both members).
 for an identity-rooted splice against a document that is not in the tree.
 """
 function insert_elements(path::ReferencePath, index::Integer, items, selection=nothing; root=nothing)
-    write = ReplaceReferencedValueOperation(root, append_reference(path, RangeReference(index, index)),
+    write = ReplaceReferencedValueOperation(root, append_reference(path, RangeReferenceStep(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
@@ -331,11 +331,11 @@ end
 
 Remove `count` (default 1) elements from the sequence container at `path`, starting
 at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation` whose
-terminal step is `RangeReference(index, index+count)` and whose value is the empty
+terminal step is `RangeReferenceStep(index, index+count)` and whose value is the empty
 vector (replace the range with nothing). The inverse of `insert_elements`.
 """
 delete_elements(path::ReferencePath, index::Integer, count::Integer=1; root=nothing) =
-    ReplaceReferencedValueOperation(root, append_reference(path, RangeReference(index, index + count)), Any[])
+    ReplaceReferencedValueOperation(root, append_reference(path, RangeReferenceStep(index, index + count)), Any[])
 
 # ─────────────────────────────────────────────────────────────────────────
 # SelectNextInsertionOperation — move the cursor to the next "hole"
@@ -388,14 +388,14 @@ end
 # `child_reference_steps(node)` — open traversal seam. Returns an
 # iterable of `(step, child)` pairs naming each direct child of `node`
 # reachable by a single reference step. The default walks `fieldnames`
-# (FieldReference per field, skipping `selection`); base's Collection.jl
-# adds the `CellVector` method that yields RangeReference(i-1, i) per
+# (FieldReferenceStep per field, skipping `selection`); base's Collection.jl
+# adds the `CellVector` method that yields RangeReferenceStep(i-1, i) per
 # element. New container documents override this to name their children.
 """
     child_reference_steps(node) -> iterable of (step, child) pairs
 
 Open traversal seam. The default enumerates struct fields as
-`FieldReference` steps, skipping `selection` and any field whose (unwrapped)
+`FieldReferenceStep` steps, skipping `selection` and any field whose (unwrapped)
 value is not a `Document`. Override for container documents whose children
 are addressed by index (`CellVector`), by position, etc.
 """
@@ -407,7 +407,7 @@ function child_reference_steps(node)
         nm === :selection && continue
         val = unwrap_cell(getfield(node, nm))
         val isa Document || continue
-        push!(pairs, (FieldReference(string(nm)), val))
+        push!(pairs, (FieldReferenceStep(string(nm)), val))
     end
     pairs
 end

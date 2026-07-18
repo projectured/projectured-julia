@@ -70,9 +70,9 @@ end
 
 **Terminal-step dispatch** on `reference`'s last step decides what "write" means:
 
-- `FieldReference` → set a `Cell`-backed field (`widget.visible`, `entry.value`, …).
-- `RangeReference` + a single value → overwrite that one element.
-- `RangeReference` + a *vector* → **splice**: replace the half-open element range
+- `FieldReferenceStep` → set a `Cell`-backed field (`widget.visible`, `entry.value`, …).
+- `RangeReferenceStep` + a single value → overwrite that one element.
+- `RangeReferenceStep` + a *vector* → **splice**: replace the half-open element range
   `[start, stop)` with the items (zero-width range = insert, empty vector = delete).
 - empty `reference` (only meaningful when `document === nothing`) → **whole-root
   swap**: rebind `editor.document` and drop the cached iomap.
@@ -309,7 +309,7 @@ function _preorder_documents!(node, ...)
     ...
     if node isa CellVector
         for i in 1:length(node)
-            _preorder_documents!(node[i], append_reference(path, RangeReference(i-1, i)), ...)
+            _preorder_documents!(node[i], append_reference(path, RangeReferenceStep(i-1, i)), ...)
         end
         return
     end
@@ -323,10 +323,10 @@ hard-referencing a concrete document type. The open generic form dissolves it:
 ```julia
 function child_reference_steps end                # declaration in Operations.jl
 
-child_reference_steps(node) = [(FieldReference(...), val), ...]   # default (fieldnames)
+child_reference_steps(node) = [(FieldReferenceStep(...), val), ...]   # default (fieldnames)
 
 # in base's Collection.jl:
-child_reference_steps(node::CellVector) = [(RangeReference(i-1, i), node[i]), ...]
+child_reference_steps(node::CellVector) = [(RangeReferenceStep(i-1, i), node[i]), ...]
 ```
 
 A new container document type adds a `child_reference_steps` method beside its

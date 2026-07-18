@@ -268,11 +268,11 @@ its docstring), so getting it right gives the forward cursor mapping for free.
 - **The output domain may be coordinates, not only structure.** "Output
   reference" means *whatever reference addresses this projection's output
   domain*. At the bottom of a render chain that is a **coordinate** domain, where
-  a positioned element's image is a `PointReference` (its location), not a
-  structural path. So a forward map legitimately returns a `PointReference` once
+  a positioned element's image is a `PointReferenceStep` (its location), not a
+  structural path. So a forward map legitimately returns a `PointReferenceStep` once
   the chain reaches that coordinate domain. A container that places a child at a
   pixel offset then contributes **only its own offset**: if the child's image is a
-  `PointReference` (a coordinate), add this container's offset to it; if it is a
+  `PointReferenceStep` (a coordinate), add this container's offset to it; if it is a
   structural path, prepend / pass the structural steps unchanged. Distinguish by
   the *result*, never by the child's type — **coordinates accumulate, paths stay
   paths**. This is what lets the one mapper serve both selection wiring (paths)
@@ -287,7 +287,7 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   just by mapping its own one step. An element nests in any container and vice
   versa precisely because each step is self-contained — peel your step, delegate
   the tail, add only your own contribution.
-- If the input reference begins with `ProjectionReference(projection, output_path)`,
+- If the input reference begins with `ProjectionReferenceStep(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
   forward mapping is where it gets unwrapped.
@@ -318,15 +318,15 @@ crossing into the output domain **as late as possible**: keep input-domain
 steps for as long as the path still has a pre-image, then wrap *only the
 genuinely output-only tail* in this projection's own step —
 
-    matched_input_prefix + ProjectionReference(projection, unmatched_output_suffix)
+    matched_input_prefix + ProjectionReferenceStep(projection, unmatched_output_suffix)
 
 The resulting path reads like a sentence: the input steps say where in the
-document you are, and the `ProjectionReference(projection, …)` step marks the
+document you are, and the `ProjectionReferenceStep(projection, …)` step marks the
 exact point where you cross into something that exists only in `projection`'s
 output. Because `map_reference_forward` strips that same step, the path
 round-trips cleanly. (When a projection's introduced positions are not separately
 addressable — the brackets/commas of a node, say — it is fine to collapse the
-whole group to a single flattened character offset, `ProjectionReference(p,
+whole group to a single flattened character offset, `ProjectionReferenceStep(p,
 {flat})`, which the projection's own flat-offset reader inverts; this is the usual
 choice for the delimiters a node owns. Use the fine-grained form above when the
 individual positions matter.)
@@ -335,7 +335,7 @@ individual positions matter.)
 
 The mirror of `map_reference_forward`'s "the output domain may be coordinates":
 at the bottom of a render chain the *output* reference handed to this mapper can
-be a `PointReference` (a click point) rather than a structural step. A container
+be a `PointReferenceStep` (a click point) rather than a structural step. A container
 inverts its own placement — subtract the offset it positioned the child at, then
 delegate the translated point to the child's own `map_reference_backward` — never
 dispatching on the child's type. Coordinates and structural paths travel the same

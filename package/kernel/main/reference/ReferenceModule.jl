@@ -2,7 +2,7 @@
     ReferenceModule
 
 **Paths into documents**. A reference is a linked list
-of typed steps (`RangeReference`, `FieldReference`, `TypeReference`, …),
+of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, …),
 forming a `ReferencePath` (an `EmptyReferencePath` or a
 `ConcreteReferencePath`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
@@ -24,7 +24,7 @@ The module lives in eight fragments that share this namespace:
   and the open generics higher packages add methods to (`step_kind`,
   `evaluate_step`, and the `dsl_*` DSL seams).
 - [`ReferenceStep.jl`](ReferenceStep.jl) — the kernel's step vocabulary
-  (`RangeReference`, `FieldReference`, `TypeReference`, the `Position` a cursor
+  (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, the `Position` a cursor
   evaluates to), each step type packaged with its own `show`, `==`, and seam
   methods.
 - [`ReferencePath.jl`](ReferencePath.jl) — the path structure and its
@@ -65,9 +65,9 @@ using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
 
-export Reference, ReferenceStep, ElementReference, PositionReference, TypeReference,
-       FieldReference, Position,
-       RangeReference, ReferencePath,
+export Reference, ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
+       FieldReferenceStep, Position,
+       RangeReferenceStep, ReferencePath,
        EmptyReferencePath, ConcreteReferencePath, append_reference, concat_references, reference_steps,
        evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference,
        is_position_reference, is_reference_equal, is_prefix_of,

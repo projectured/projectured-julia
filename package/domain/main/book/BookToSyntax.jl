@@ -40,9 +40,9 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference,
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
                          ReferencePath, EmptyReferencePath, append_reference
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..OperationModule: ReplaceSelectionOperation
@@ -118,10 +118,10 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         path = b.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
-        if h isa ProjectionReference
+        if h isa ProjectionReferenceStep
             return path
         end
-        h isa FieldReference || return nothing
+        h isa FieldReferenceStep || return nothing
         name = h.name
         if name == "title"
             ts = title_sel[]
@@ -135,7 +135,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
             h2 = rest.head
-            h2 isa RangeReference || return nothing
+            h2 isa RangeReferenceStep || return nothing
             child_i = h2.start + 1
             offset = b.author !== nothing ? 2 : 1
             iomaps = element_iomaps[]
@@ -184,8 +184,8 @@ function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
-        ::BookBook.title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReference ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
-        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReference) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
+        ::BookBook.title.rest...     => rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
+        ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps[]
@@ -235,7 +235,7 @@ function read_intent(p::BookBookToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
 end
 
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
@@ -301,10 +301,10 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         path = b.selection
         path isa ConcreteReferencePath || return nothing
         h = path.head
-        if h isa ProjectionReference
+        if h isa ProjectionReferenceStep
             return path
         end
-        h isa FieldReference || return nothing
+        h isa FieldReferenceStep || return nothing
         name = h.name
         if name == "title" || name == "numbering"
             ts = title_sel[]
@@ -314,7 +314,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
             rest = path.tail
             rest isa ConcreteReferencePath || return nothing
             h2 = rest.head
-            h2 isa RangeReference || return nothing
+            h2 isa RangeReferenceStep || return nothing
             child_i = h2.start + 1
             iomaps  = element_iomaps[]
             child_i > length(iomaps) && return nothing
@@ -414,7 +414,7 @@ function read_intent(p::BookChapterToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
 end
 
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
@@ -545,7 +545,7 @@ function read_intent(p::BookListToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+    return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
 end
 
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit
@@ -620,7 +620,7 @@ end
 
 # The newline `sep` between caption and figure is a projection-introduced position
 # with no input pre-image. The generic template `ReplaceSelectionOperation`
-# fallback would wrap such an unmapped caret in a `ProjectionReference`, which
+# fallback would wrap such an unmapped caret in a `ProjectionReferenceStep`, which
 # `strip_reference_types` cannot collapse — growing the path without bound on every
 # navigation round-trip (the reason XmlElementToSyntaxNode adds a flat-offset
 # reader). Match the previous behaviour instead: an unmapped caret yields nothing

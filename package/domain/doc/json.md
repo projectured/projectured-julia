@@ -33,7 +33,7 @@ arr.elements[1] = JsonString("b") # or: arr[1] = JsonString("b")
 
 ## Reference Paths
 
-Reference paths point into specific locations within a JSON document tree. See @reference for the full type definitions. Each path is a linked list of `FieldReference`, `ElementReference` (1-based for element access), and `PositionReference` (0-based for cursor positions) steps that mirror the struct field layout.
+Reference paths point into specific locations within a JSON document tree. See @reference for the full type definitions. Each path is a linked list of `FieldReferenceStep`, `ElementReferenceStep` (1-based for element access), and `PositionReferenceStep` (0-based for cursor positions) steps that mirror the struct field layout.
 
 ### Primitives — cursor position (0-based)
 

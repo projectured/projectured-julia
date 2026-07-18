@@ -14,7 +14,7 @@
 end
 
 # `CellVector` is the canonical 1-D positional collection: its children are
-# addressed by `ElementReference` (`[i]`). Opt into the document-layer trait so
+# addressed by `ElementReferenceStep` (`[i]`). Opt into the document-layer trait so
 # reflection walkers emit `[i]` element paths instead of descending into
 # `.elements`. See `is_element_collection` (DocumentModule) for the contract.
 is_element_collection(::CellVector) = true
@@ -225,7 +225,7 @@ function copy_document(::Type{K}, cv::CellVector) where {K<:AbstractCell}
 end
 
 # The CellVector method for `child_reference_steps`:
-# elements are addressed by `RangeReference(i-1, i)`, so the pre-order
+# elements are addressed by `RangeReferenceStep(i-1, i)`, so the pre-order
 # document walk driving `SelectNextInsertionOperation` picks them up. The
 # default fieldnames-walk (in `operation/Operations.jl`) still applies to
 # non-CellVector documents.
@@ -233,7 +233,7 @@ end
 function child_reference_steps(node::CellVector)
     pairs = Tuple{Any, Any}[]
     for i in 1:length(node)
-        push!(pairs, (RangeReference(i - 1, i), node[i]))
+        push!(pairs, (RangeReferenceStep(i - 1, i), node[i]))
     end
     pairs
 end

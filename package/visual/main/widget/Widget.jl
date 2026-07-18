@@ -17,8 +17,8 @@ import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText, DStyleText
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference,
-                          EmptyReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReferenceStep,
+                          EmptyReferencePath, FieldReferenceStep, RangeReferenceStep
 import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_size, inset_width, inset_height,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -1730,7 +1730,7 @@ end
 Apply a widget operation.
 """
 function evaluate_operation(editor, op::SelectTabOperation)
-    op.widget.selection = ConcreteReferencePath(ElementReference(op.tab_index), EmptyReferencePath())
+    op.widget.selection = ConcreteReferencePath(ElementReferenceStep(op.tab_index), EmptyReferencePath())
 end
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
@@ -1803,7 +1803,7 @@ end
 # leaf in a subtree as a relative whole-element (∅) path, mirroring the generic
 # field/element descent the selection machinery uses so the produced path matches
 # the projection readers' re-rooting (`elements[i]` / `children[i]`, with
-# `RangeReference(i-1, i)` for the i-th element). They live in this document-layer
+# `RangeReferenceStep(i-1, i)` for the i-th element). They live in this document-layer
 # module so both `WidgetToGraphics` and the earlier-included `LayoutToGraphics`
 # can share them for Tab traversal. See plan/pending/widget-focus-traversal.md.
 
@@ -1827,7 +1827,7 @@ function _child_document_refs(node)
     refs = Tuple{Tuple,Any}[]
     if node isa CellVector
         for i in 1:length(node)
-            push!(refs, ((RangeReference(i - 1, i),), node[i]))
+            push!(refs, ((RangeReferenceStep(i - 1, i),), node[i]))
         end
         return refs
     end
@@ -1840,10 +1840,10 @@ function _child_document_refs(node)
         v === nothing && continue
         if v isa CellVector
             for i in 1:length(v)
-                push!(refs, ((FieldReference(string(fname)), RangeReference(i - 1, i)), v[i]))
+                push!(refs, ((FieldReferenceStep(string(fname)), RangeReferenceStep(i - 1, i)), v[i]))
             end
         elseif v isa Document
-            push!(refs, ((FieldReference(string(fname)),), v))
+            push!(refs, ((FieldReferenceStep(string(fname)),), v))
         end
     end
     refs

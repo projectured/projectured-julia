@@ -54,7 +54,7 @@ import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..TextModule: TextBlock, TextString, text_selection_substring, text_insert_op
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference,
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, try_evaluate_reference, head, tail,
                           strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
@@ -134,11 +134,11 @@ end
 
 function print_document(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
     content_iomap = print_child(recursion, input.content,
-                        make_child_context(ctx, FieldReference("content")))
+                        make_child_context(ctx, FieldReferenceStep("content")))
     slice_val = input.slice
     slice_iomap = slice_val isa Document ?
         print_child(recursion, slice_val,
-            make_child_context(ctx, FieldReference("slice"))) : nothing
+            make_child_context(ctx, FieldReferenceStep("slice"))) : nothing
     # Reactive output: a derived cell over the display flag (the projection stays
     # domain-generic — it still exposes the active child directly). The reactive
     # ChainingProjection re-pulls this through its own per-stage cells, so
@@ -151,10 +151,10 @@ end
 
 function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
     content_iomap = print_child(recursion, input.content,
-                        make_child_context(ctx, FieldReference("content")))
+                        make_child_context(ctx, FieldReferenceStep("content")))
     elements = input.elements
     element_iomaps = [print_child(recursion, elements[i],
-                          make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                          make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                       for i in 1:length(elements)]
     # Reactive output (see the slice printer): a derived cell over the display flag,
     # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
@@ -180,7 +180,7 @@ function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::Clipboard
     reference isa ConcreteReferencePath || return reference
     name, child = _slice_active(iomap)
     h = head(reference)
-    (h isa FieldReference && h.name == name) || return nothing
+    (h isa FieldReferenceStep && h.name == name) || return nothing
     map_reference_forward(child.projection, child, tail(reference))
 end
 
@@ -188,18 +188,18 @@ function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::Clipboar
     name, child = _slice_active(iomap)
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
-    ConcreteReferencePath(FieldReference(name), mapped)
+    ConcreteReferencePath(FieldReferenceStep(name), mapped)
 end
 
 function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
     reference isa ConcreteReferencePath || return reference
     if iomap.projection.display_collection[]
         h = head(reference)
-        (h isa FieldReference && h.name == "elements") || return nothing
+        (h isa FieldReferenceStep && h.name == "elements") || return nothing
         rest = tail(reference)
         rest isa ConcreteReferencePath || return nothing
         e = head(rest)
-        e isa RangeReference || return nothing
+        e isa RangeReferenceStep || return nothing
         i = e.stop
         ims = iomap.element_iomaps
         (i < 1 || i > length(ims)) && return nothing
@@ -209,7 +209,7 @@ function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::Clip
         ConcreteReferencePath(e, mapped)
     else
         h = head(reference)
-        (h isa FieldReference && h.name == "content") || return nothing
+        (h isa FieldReferenceStep && h.name == "content") || return nothing
         child = iomap.content_iomap
         map_reference_forward(child.projection, child, tail(reference))
     end
@@ -219,19 +219,19 @@ function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::Cli
     if iomap.projection.display_collection[]
         reference isa ConcreteReferencePath || return reference
         e = head(reference)
-        e isa RangeReference || return nothing
+        e isa RangeReferenceStep || return nothing
         i = e.stop
         ims = iomap.element_iomaps
         (i < 1 || i > length(ims)) && return nothing
         child = ims[i]
         mapped = map_reference_backward(child.projection, child, tail(reference))
         mapped === nothing && return nothing
-        ConcreteReferencePath(FieldReference("elements"), ConcreteReferencePath(e, mapped))
+        ConcreteReferencePath(FieldReferenceStep("elements"), ConcreteReferencePath(e, mapped))
     else
         child = iomap.content_iomap
         mapped = map_reference_backward(child.projection, child, reference)
         mapped === nothing && return nothing
-        ConcreteReferencePath(FieldReference("content"), mapped)
+        ConcreteReferencePath(FieldReferenceStep("content"), mapped)
     end
 end
 
@@ -288,7 +288,7 @@ evaluate_operation(editor, op::WriteOsClipboardOperation) = (os_clipboard_write(
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =
-    ConcreteReferencePath(FieldReference(name), EmptyReferencePath())
+    ConcreteReferencePath(FieldReferenceStep(name), EmptyReferencePath())
 
 # Append an OS-clipboard mirror write to `ops` when the projection can serialize
 # `obj` to text (a `to_text` converter is set and yields a String). No-op otherwise.
@@ -345,7 +345,7 @@ function _text_clipboard_cut(p, input)
     del === nothing && return nothing
     CompoundOperation(Any[
         replace_document(_field_path("slice"), TextString(sub)),
-        _prefix_op(del, (FieldReference("content"),)),
+        _prefix_op(del, (FieldReferenceStep("content"),)),
         WriteOsClipboardOperation(sub),
     ])
 end
@@ -358,7 +358,7 @@ function _text_clipboard_paste(p, input)
     str === nothing && return nothing
     op = text_insert_op(content, str)
     op === nothing && return nothing
-    _prefix_op(op, (FieldReference("content"),))
+    _prefix_op(op, (FieldReferenceStep("content"),))
 end
 
 # The selected sub-document and its path, or (nothing, nothing) when there is no
@@ -487,11 +487,11 @@ function _elements_index(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    (h isa FieldReference && h.name == "elements") || return nothing
+    (h isa FieldReferenceStep && h.name == "elements") || return nothing
     rest = path.tail
     rest isa ConcreteReferencePath || return nothing
     e = rest.head
-    e isa RangeReference || return nothing
+    e isa RangeReferenceStep || return nothing
     e.start
 end
 
@@ -533,7 +533,7 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
+    Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
 end
 
 # Gather this projection's own gestures plus the content child's, mirroring the
@@ -567,7 +567,7 @@ function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::I
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, _prefix_op(inner.operation, (FieldReference("content"),)))
+    Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
 end
 
 function collect_gesture_bindings(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)

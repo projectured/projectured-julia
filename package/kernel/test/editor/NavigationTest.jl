@@ -62,7 +62,7 @@ function explore_selections(document, projection;
 
     while !isempty(queue)
         path = popfirst!(queue)
-        # Navigation selections are canonical (carry TypeReference checkpoints);
+        # Navigation selections are canonical (carry TypeReferenceStep checkpoints);
         # dedup and the completeness comparison are modulo checkpoints, so record
         # the stripped navigation skeleton (matching the ground-truth enumerators).
         path_str = string(strip_reference_types(path))

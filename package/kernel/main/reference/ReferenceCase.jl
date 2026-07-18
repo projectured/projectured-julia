@@ -53,15 +53,15 @@ end
 abstract type PatStep end
 
 struct PatStepField <: PatStep
-    namepat::PatValue   # matches FieldReference.name[] :: String
+    namepat::PatValue   # matches FieldReferenceStep.name[] :: String
 end
 
 struct PatStepIndex <: PatStep
-    idxpat::PatValue    # matches a single-element RangeReference; 1-based index = start + 1
+    idxpat::PatValue    # matches a single-element RangeReferenceStep; 1-based index = start + 1
 end
 
 struct PatStepPosition <: PatStep
-    idxpat::PatValue    # matches a zero-width RangeReference (a cursor position); 0-based = start
+    idxpat::PatValue    # matches a zero-width RangeReferenceStep (a cursor position); 0-based = start
 end
 
 struct PatStepRange <: PatStep
@@ -281,7 +281,7 @@ function _gen_step_match(hex, tex, step::PatStepField, rest_success, bound::Set{
     inner, bound2 = _gen_value_match(nameexpr, step.namepat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.FieldReference
+        if $hex isa ReferenceModule.FieldReferenceStep
             $inner
         else
             _nomatch
@@ -295,7 +295,7 @@ function _gen_step_match(hex, tex, step::PatStepIndex, rest_success, bound::Set{
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReference && ReferenceModule.is_element_reference($hex)
+        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_element_reference($hex)
             $inner
         else
             _nomatch
@@ -309,7 +309,7 @@ function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::S
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReference && ReferenceModule.is_position_reference($hex)
+        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_position_reference($hex)
             $inner
         else
             _nomatch
@@ -326,7 +326,7 @@ function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{
     inner1, bound1 = _gen_value_match(startexpr, step.startpat, inner2, bound2)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReference
+        if $hex isa ReferenceModule.RangeReferenceStep
             $inner1
         else
             _nomatch
@@ -371,7 +371,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # pattern keeps matching whatever path reaches it (folded with any node type,
     # a plain skeleton, or a skip-bound recursion tail). Matching the rest stays on
     # the SAME path for a folded node (the type is a field, consuming no step) and
-    # advances past an unfolded `TypeReference` *step* if one is present. (An
+    # advances past an unfolded `TypeReferenceStep` *step* if one is present. (An
     # enforcing `<: T` gate here wrongly rejects re-rooted child selections whose
     # folded node type differs from the documented one.)
     if steps[1] isa PatStepType
@@ -380,7 +380,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReference
+                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
                     $rest_on_tail
                 else
                     $rest_on_same
@@ -454,14 +454,14 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
 
     # A leading `::T` is a non-navigating, optional, *tolerant* type assertion
     # (same as in `_gen_path_match`): it never fails a match, advancing past an
-    # unfolded `TypeReference` *step* if present, else matching on the same path.
+    # unfolded `TypeReferenceStep` *step* if present, else matching on the same path.
     if steps[1] isa PatStepType
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
         rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReference
+                if $sp isa ReferenceModule.ConcreteReferencePath && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
                     $rest_on_tail
                 else
                     $rest_on_same

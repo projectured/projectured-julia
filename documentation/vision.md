@@ -31,7 +31,7 @@ problems by construction:
 
 - The cursor never leaves a valid position in the model. You literally cannot
   type a syntax error.
-- Rename is a single `FieldReference` update; the projection re-renders all
+- Rename is a single `FieldReferenceStep` update; the projection re-renders all
   occurrences automatically.
 - Multiple projections of the same model give multiple views — switch
   projections without touching the underlying data.

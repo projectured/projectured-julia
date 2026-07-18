@@ -7,15 +7,15 @@
 # reference paths, while the value-collecting `search_documents` supplies the
 # defaults that hand back the child object.
 
-# The path-valued walk: descending by a field appends a `FieldReference`, by an
-# index an `ElementReference`, and the root is the empty path. Its cycle rule is
+# The path-valued walk: descending by a field appends a `FieldReferenceStep`, by an
+# index an `ElementReferenceStep`, and the root is the empty path. Its cycle rule is
 # `:once_per_path` — a node reachable by two paths sits in two different *places*,
 # and a place is what a selection names, so both must be reported; only a path that
 # loops back through one of its own ancestors is dropped, keeping a cyclic graph
 # finite.
 const _PATH_WALK = DocumentWalk(
-    locate_field   = (location, name, child) -> append_reference(location, FieldReference(string(name))),
-    locate_element = (location, index, child) -> append_reference(location, ElementReference(index)),
+    locate_field   = (location, name, child) -> append_reference(location, FieldReferenceStep(string(name))),
+    locate_element = (location, index, child) -> append_reference(location, ElementReferenceStep(index)),
     initial        = root -> EmptyReferencePath(),
     policy         = :once_per_path)
 
@@ -27,7 +27,7 @@ Walk any object and return a `ReferencePath` to every match. Pass a predicate, o
 a `String` (substring) / `Regex` that matches leaf nodes by their string form,
 e.g. `search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
 Cells are unwrapped transparently (no path step); struct fields contribute a
-`FieldReference`, and array / `CellVector` elements an `ElementReference`.
+`FieldReferenceStep`, and array / `CellVector` elements an `ElementReferenceStep`.
 
 By default the paths are **document-scoped**: a match on a raw scalar folds to
 the path of its nearest enclosing `Document`, so every returned path addresses a
@@ -36,7 +36,7 @@ instead (scalar leaves included) — the path-valued counterpart to
 `search_documents(...; raw=true)`.
 
 The returned paths are **canonical at rest**: each navigation step is preceded by
-a `TypeReference(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
+a `TypeReferenceStep(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
 so results are self-describing and carry replay-validation checkpoints.
 `evaluate_reference` honours the checkpoints; pass a result through
 `strip_reference_types` first if a consumer needs the plain navigation-only path.
@@ -69,7 +69,7 @@ function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
     paths = walk_document(_PATH_WALK, root, predicate; kwargs...)
     # Leave search results in canonical form: annotate each plain navigation path
-    # with `TypeReference(typeof(node))` checkpoints against `obj`, so the
+    # with `TypeReferenceStep(typeof(node))` checkpoints against `obj`, so the
     # references are self-describing and carry replay-validation checkpoints
     # (see annotate_reference_types).
     ReferencePath[annotate_reference_types(root, p) for p in paths]

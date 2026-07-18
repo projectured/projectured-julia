@@ -71,7 +71,7 @@ is the direct analogue of `ClipboardSliceToAnyProjection`:
   value into a new front `ObjectVersion` via a standard `insert_elements` splice on
   `versions`; `Ctrl+Delete` deletes the active version via `delete_elements`). Using
   the standard sequence-splice helpers — which build a `ReplaceReferencedValueOperation` with
-  a terminal `RangeReference`, rather than bespoke version ops — is what lets every
+  a terminal `RangeReferenceStep`, rather than bespoke version ops — is what lets every
   ancestor projection re-root them when the `VersionedObject` is nested. `SetVersionCriterionOperation` switches the
   active criterion (it drops `editor.iomap`, like the clipboard display toggle).
   Every other gesture is delegated into the value child's reader and the returned

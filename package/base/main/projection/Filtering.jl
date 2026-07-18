@@ -10,7 +10,7 @@ import ..ProjectionApiModule: print_document, map_reference_forward, map_referen
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, append_reference, reference_node_type
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, append_reference, reference_node_type
 import ..ReferenceModule: var"@reference_case"
 export FilteringProjection, FilteringProjectionIoMap
 
@@ -65,7 +65,7 @@ function map_reference_forward(p::FilteringProjection, iomap::FilteringProjectio
         [i].rest... => begin
             j = findfirst(==(i), iomap.kept_indices)
             j === nothing && return nothing
-            ConcreteReferencePath(reference_node_type(iomap.output), ElementReference(j), rest)
+            ConcreteReferencePath(reference_node_type(iomap.output), ElementReferenceStep(j), rest)
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -75,7 +75,7 @@ function map_reference_backward(p::FilteringProjection, iomap::FilteringProjecti
     @reference_case reference begin
         [j].rest... => begin
             (j < 1 || j > length(iomap.kept_indices)) && return nothing
-            ConcreteReferencePath(reference_node_type(iomap.input), ElementReference(iomap.kept_indices[j]), rest)
+            ConcreteReferencePath(reference_node_type(iomap.input), ElementReferenceStep(iomap.kept_indices[j]), rest)
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end

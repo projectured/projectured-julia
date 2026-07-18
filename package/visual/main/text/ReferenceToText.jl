@@ -24,12 +24,12 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: Reference, ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          ReferenceStep, RangeReference, FieldReference,
-                          TypeReference,
+                          ReferenceStep, RangeReferenceStep, FieldReferenceStep,
+                          TypeReferenceStep,
                           is_element_reference, is_position_reference,
                           head, tail, evaluate_reference, append_reference
-import ..PointReferenceModule: PointReference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..PointReferenceModule: PointReferenceStep
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_default,
@@ -94,12 +94,12 @@ map_reference_forward(::ReferenceToText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceToText, ::SimpleIoMap, _) = nothing
 
 # Append the colored token spans for a single step to `spans`.
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::FieldReference)
+function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::FieldReferenceStep)
     push!(spans, _tok(".", p.font, color_solarized_gray))
     push!(spans, _tok(step.name, p.font, color_solarized_cyan))
 end
 
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::RangeReference)
+function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::RangeReferenceStep)
     if is_element_reference(step)
         push!(spans, _tok("[", p.font, color_solarized_gray))
         push!(spans, _tok(string(step.start + 1), p.font, color_solarized_magenta))
@@ -117,12 +117,12 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
     end
 end
 
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::TypeReference)
+function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::TypeReferenceStep)
     push!(spans, _tok("::", p.font, color_solarized_gray))
     push!(spans, _tok(_short_type(step.type), p.font, color_solarized_orange))
 end
 
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::PointReference)
+function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::PointReferenceStep)
     push!(spans, _tok("@(", p.font, color_solarized_gray))
     push!(spans, _tok(string(step.x), p.font, color_solarized_magenta))
     push!(spans, _tok(",", p.font, color_solarized_gray))
@@ -130,7 +130,7 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
     push!(spans, _tok(")", p.font, color_solarized_gray))
 end
 
-function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::ProjectionReference)
+function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step::ProjectionReferenceStep)
     push!(spans, _tok("<", p.font, color_solarized_gray))
     push!(spans, _tok(_projection_name(step.projection), p.font, color_solarized_yellow))
     if !(step.output_path isa EmptyReferencePath)
@@ -146,7 +146,7 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
 end
 
 # Emit the folded `::Type` checkpoint a node carries (the type the step descends
-# from), the same shape the old interleaved `TypeReference` step rendered.
+# from), the same shape the old interleaved `TypeReferenceStep` step rendered.
 function _emit_type_short!(spans::Vector{TextDocument}, p::ReferenceToText, T)
     push!(spans, _tok("::", p.font, color_solarized_gray))
     push!(spans, _tok(_short_type(T), p.font, color_solarized_orange))
@@ -237,14 +237,14 @@ end
 # Build the leading "the <description>" spans for a single navigation step.
 # The type tail (" of a <Type>") is appended by `_walk_long!`, which knows the
 # parent type. Returns `Vector{TextDocument}`.
-function _phrase_for(p::ReferenceToHumanReadableText, step::FieldReference)
+function _phrase_for(p::ReferenceToHumanReadableText, step::FieldReferenceStep)
     line = TextDocument[]
     push!(line, _tok("the ", p.font, color_solarized_gray))
     push!(line, _tok(step.name, p.font, color_solarized_cyan))
     line
 end
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference)
+function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReferenceStep)
     line = TextDocument[]
     push!(line, _tok("the ", p.font, color_solarized_gray))
     if is_element_reference(step)
@@ -263,7 +263,7 @@ function _phrase_for(p::ReferenceToHumanReadableText, step::RangeReference)
 end
 
 
-function _phrase_for(p::ReferenceToHumanReadableText, step::PointReference)
+function _phrase_for(p::ReferenceToHumanReadableText, step::PointReferenceStep)
     line = TextDocument[]
     push!(line, _tok("the pixel at (", p.font, color_solarized_gray))
     push!(line, _tok(string(step.x), p.font, color_solarized_magenta))
@@ -273,7 +273,7 @@ function _phrase_for(p::ReferenceToHumanReadableText, step::PointReference)
     line
 end
 
-function _phrase_for_projection(p::ReferenceToHumanReadableText, step::ProjectionReference)
+function _phrase_for_projection(p::ReferenceToHumanReadableText, step::ProjectionReferenceStep)
     line = TextDocument[]
     push!(line, _tok("inside the ", p.font, color_solarized_gray))
     push!(line, _tok(_projection_name(step.projection), p.font, color_solarized_yellow))
@@ -293,7 +293,7 @@ end
 # projection's output at nested levels — for nested levels we pass
 # `nothing` since the projection's output is not addressable here, which
 # yields "?" tails inside nested projection paths).
-# `TypeReference` checkpoints are not lines: each one supplies the parent type
+# `TypeReferenceStep` checkpoints are not lines: each one supplies the parent type
 # of the navigation step that follows it (a canonical reference carries one
 # before every step). When no checkpoint precedes a step, the parent type falls
 # back to `evaluate_reference(document, prefix)`, so plain (un-annotated) refs
@@ -305,12 +305,12 @@ function _walk_long!(lines::Vector{Vector{TextDocument}},
     step = head(path)
     new_prefix = append_reference(prefix, step)
     t = tail(path)
-    if step isa TypeReference
+    if step isa TypeReferenceStep
         # Checkpoint: emit no line; carry its type to the next nav step.
         t isa EmptyReferencePath || _walk_long!(lines, p, t, document, new_prefix, step.type)
         return
     end
-    if step isa ProjectionReference
+    if step isa ProjectionReferenceStep
         if !(step.output_path isa EmptyReferencePath)
             _walk_long!(lines, p, step.output_path, nothing, EmptyReferencePath(), nothing)
         end

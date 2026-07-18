@@ -15,7 +15,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
 import ..CellModule: Cell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, append_reference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, append_reference
 import ..PrinterContextModule: make_child_context
 export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
 
@@ -76,7 +76,7 @@ end
 # `text_flat_offsets`, the same rule).
 function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(line.elements)])
     output = Cell(() -> begin
         buf = IOBuffer()
@@ -110,7 +110,7 @@ end
 # combines their output cells into a single reactive Cell{String}.
 function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(text.elements)])
     output = Cell(() -> begin
         buf = IOBuffer()

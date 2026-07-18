@@ -11,7 +11,7 @@ import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, append_reference, reference_node_type
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, append_reference, reference_node_type
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
@@ -50,7 +50,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (CellVector getindex already unwraps the Cell)
     children = [print_child(recursion, input[i],
-                    make_child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReferenceStep(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     out_cells = Cell[Cell(children[perm[j]].output) for j in 1:n]
@@ -66,7 +66,7 @@ function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ct
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element (unwrapping Cell like CopyingProjection does)
     children = [print_child(recursion, c[],
-                    make_child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReferenceStep(i)))
                 for (i, c) in enumerate(input)]
     # Build output by arranging projected Cells in sorted order (no double-wrapping)
     output = [children[perm[j]].output for j in 1:n]
@@ -80,7 +80,7 @@ function print_document(p::SortingProjection, recursion, input, ctx)
     perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
     # Recursively project each element
     children = [print_child(recursion, input[i],
-                    make_child_context(ctx, ElementReference(i)))
+                    make_child_context(ctx, ElementReferenceStep(i)))
                 for i in 1:n]
     # Build output by arranging projected elements in sorted order
     output = [children[perm[j]].output for j in 1:n]
@@ -98,7 +98,7 @@ function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoM
             elem_iomap = iomap.element_iomaps[][j]
             mapped_tail = map_reference_forward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
-            ConcreteReferencePath(reference_node_type(iomap.output), ElementReference(j), mapped_tail)
+            ConcreteReferencePath(reference_node_type(iomap.output), ElementReferenceStep(j), mapped_tail)
         end
         _ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
@@ -113,7 +113,7 @@ function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIo
             mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             i = iomap.index_map[j]
-            ConcreteReferencePath(reference_node_type(iomap.input), ElementReference(i), mapped_tail)
+            ConcreteReferencePath(reference_node_type(iomap.input), ElementReferenceStep(i), mapped_tail)
         end
         _ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end

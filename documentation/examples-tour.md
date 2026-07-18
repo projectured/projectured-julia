@@ -49,8 +49,8 @@ delimiters (`{`, `}`, `"`, `,`).
 **Concepts illustrated:**
 - Domain-to-domain projection (`JsonToSyntax`)
 - Bidirectional pipeline: printer forward, reader backward
-- `ProjectionReference` — cursor positions on the `"` delimiters have no
-  JSON counterpart; they are represented as `ProjectionReference(proj, .open + {k})`
+- `ProjectionReferenceStep` — cursor positions on the `"` delimiters have no
+  JSON counterpart; they are represented as `ProjectionReferenceStep(proj, .open + {k})`
 - The IO map: each projection step records enough to invert itself
 
 ---

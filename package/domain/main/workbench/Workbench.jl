@@ -16,7 +16,7 @@ import ..TextModule: TextBlock
 import ..PrimitiveModule: PrimitiveString
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..LlmModule: Llm
-import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReference, RangeReference, EmptyReferencePath, FieldReference, is_element_reference
+import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, ElementReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, is_element_reference
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: insert_elements, delete_elements
@@ -336,7 +336,7 @@ set_cell_function!(e::WorkbenchEditor, f::Function) = (set_cell_function!(getfie
 # package/kernel/doc/finding-and-selecting.md and package/kernel/doc/operation.md.
 
 # The `.elements` field path, shared by the open/close builders below.
-const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReference("elements"), EmptyReferencePath())
+const _WORKBENCH_ELEMENTS = ConcreteReferencePath(FieldReferenceStep("elements"), EmptyReferencePath())
 
 """
     WorkbenchOpenDocumentOperation(page, entry) -> operation

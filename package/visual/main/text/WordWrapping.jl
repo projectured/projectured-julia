@@ -17,13 +17,13 @@ module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat, ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceModule: TextRangeReference
+import ..TextRangeReferenceModule: TextRangeReferenceStep
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position
-import ..TextSpanReferenceModule: TextSpanReference
+import ..ReferenceModule: ConcreteReferencePath, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, ReferencePath, strip_reference_types, Position
+import ..TextSpanReferenceModule: TextSpanReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
@@ -237,24 +237,24 @@ end
 # boundary between two consecutive sub-spans of the same input span (the
 # cursor sitting between a wrap), prefer the start of the next visual line —
 # matches the boundary-duplicate convention in TextToGraphics.
-# The flat caret offset of a `TextRangeReference` selection (or `nothing`), and the
-# flat caret path for an offset. `∅` / `TextSpanReference` shapes are handled
+# The flat caret offset of a `TextRangeReferenceStep` selection (or `nothing`), and the
+# flat caret path for an offset. `∅` / `TextSpanReferenceStep` shapes are handled
 # by `_is_structural_ref` before these are reached.
 function _text_range_caret(ref)
     r = strip_reference_types(ref)
-    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+    r isa ConcreteReferencePath && r.head isa TextRangeReferenceStep &&
         r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
     r.head.start::Int
 end
-_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath())
+_flat_caret(f::Int) = ConcreteReferencePath(TextRangeReferenceStep(f, f), EmptyReferencePath())
 
 # input flat caret → output flat caret, over the seg table. Takes the blocks
 # explicitly so `print_document` can compute the output selection before the
-# `IoMap` exists (structural ∅ / `TextSpanReference` pass through: the flat
+# `IoMap` exists (structural ∅ / `TextSpanReferenceStep` pass through: the flat
 # character space is wrap-invariant since soft `TextNewline`s are not counted).
 function _forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
-    # Accept either caret representation: the flat `TextRangeReference{k}` or the
+    # Accept either caret representation: the flat `TextRangeReferenceStep{k}` or the
     # structural `.elements[i].content{k}` a lowered edit leaves on the input block.
     # A flat-only read here drops the cursor the moment an edit lands (the caret
     # disappears after the first typed character).
@@ -317,12 +317,12 @@ end
 function _is_line_nested_content_range(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return false
-    (path.head isa FieldReference && path.head.name == "elements") || return false
+    (path.head isa FieldReferenceStep && path.head.name == "elements") || return false
     t1 = path.tail
-    (t1 isa ConcreteReferencePath && t1.head isa RangeReference) || return false
+    (t1 isa ConcreteReferencePath && t1.head isa RangeReferenceStep) || return false
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return false
-    t2.head isa FieldReference && t2.head.name == "elements"   # a second `elements` hop ⇒ line-nested
+    t2.head isa FieldReferenceStep && t2.head.name == "elements"   # a second `elements` hop ⇒ line-nested
 end
 
 function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStringRangeOperation)
@@ -336,10 +336,10 @@ function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStrin
         seg.out_index == out_span || continue
         new_start = seg.in_char_start + char_start
         new_stop  = seg.in_char_start + char_stop
-        new_ref = ConcreteReferencePath(FieldReference("elements"),
-                      ConcreteReferencePath(RangeReference(seg.in_span - 1, seg.in_span),
-                          ConcreteReferencePath(FieldReference("content"),
-                              ConcreteReferencePath(RangeReference(new_start, new_stop),
+        new_ref = ConcreteReferencePath(FieldReferenceStep("elements"),
+                      ConcreteReferencePath(RangeReferenceStep(seg.in_span - 1, seg.in_span),
+                          ConcreteReferencePath(FieldReferenceStep("content"),
+                              ConcreteReferencePath(RangeReferenceStep(new_start, new_stop),
                                                     EmptyReferencePath()))))
         return ReplaceStringRangeOperation(new_ref, op.replacement)
     end
@@ -354,7 +354,7 @@ end
 # exactly as `TextToGraphics._gesture_op` does at the top and a `SyntaxToText` stage
 # would do below (`_lower_text_range` against the same block SyntaxToText owns as its
 # output). In a pure-text pipeline there is no syntax stage beneath to lower it, so
-# without this the caret at a wrap boundary keeps a flat `TextRangeReference` and the
+# without this the caret at a wrap boundary keeps a flat `TextRangeReferenceStep` and the
 # edit surfaces as a raw `ReplaceTextRangeOperation`.
 function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown})
     op = read_gesture(iomap.input, evt)
@@ -369,14 +369,14 @@ read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 # A whole-element selection at this layer is either `∅` (the whole text) or a
-# `TextSpanReference(s,e)…∅` box over a flat character range — the same
+# `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
 # two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
 # flat character space, which wrapping leaves unchanged, so they map identically
 # in either direction.
 function _is_structural_ref(ref)
     ref = ref
     ref isa EmptyReferencePath ||
-        (ref isa ConcreteReferencePath && ref.head isa TextSpanReference)
+        (ref isa ConcreteReferencePath && ref.head isa TextSpanReferenceStep)
 end
 
 _text_elem_path(span_idx::Int, char_idx::Int) =
@@ -386,43 +386,43 @@ function _parse_text_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
-    h1 isa FieldReference && h1.name == "elements" || return nothing
+    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
     t1 isa ConcreteReferencePath || return nothing
     h2 = t1.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return nothing
     h3 = t2.head
-    h3 isa FieldReference && h3.name == "content" || return nothing
+    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
     t3 isa ConcreteReferencePath || return nothing
     h4 = t3.head
-    h4 isa RangeReference || return nothing
+    h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int)
 end
 
 # Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
-# char_stop)` of the terminal `RangeReference` instead of only its start.
+# char_stop)` of the terminal `RangeReferenceStep` instead of only its start.
 function _parse_text_elem_range(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
-    h1 isa FieldReference && h1.name == "elements" || return nothing
+    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
     t1 isa ConcreteReferencePath || return nothing
     h2 = t1.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return nothing
     h3 = t2.head
-    h3 isa FieldReference && h3.name == "content" || return nothing
+    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
     t3 = t2.tail
     t3 isa ConcreteReferencePath || return nothing
     h4 = t3.head
-    h4 isa RangeReference || return nothing
+    h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int, h4.stop::Int)
 end
 

@@ -39,9 +39,9 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, ReferencePath,
-                           ElementReference, PositionReference, RangeReference,
-                           FieldReference, append_reference
-import ..ProjectionReferenceModule: ProjectionReference
+                           ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
+                           FieldReferenceStep, append_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
@@ -73,14 +73,14 @@ function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    h isa ProjectionReference || return nothing
+    h isa ProjectionReferenceStep || return nothing
     return h.output_path
 end
 
 function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference === nothing && return nothing
-    ConcreteReferencePath(Cell(ProjectionReference(p, reference)), Cell(EmptyReferencePath()))
+    ConcreteReferencePath(Cell(ProjectionReferenceStep(p, reference)), Cell(EmptyReferencePath()))
 end
 
 function read_intent(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
@@ -105,13 +105,13 @@ function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::St
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    h isa ProjectionReference && h.projection === p && return reference
-    # Match: field_name{s:e}.rest (FieldReference + RangeReference + tail)
-    h isa FieldReference && h.name == field_name || return nothing
+    h isa ProjectionReferenceStep && h.projection === p && return reference
+    # Match: field_name{s:e}.rest (FieldReferenceStep + RangeReferenceStep + tail)
+    h isa FieldReferenceStep && h.name == field_name || return nothing
     rest = reference.tail
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     child_i = h2.start + 1
     child_rest = rest.tail
     iomaps = iomap.child_iomaps[]
@@ -140,9 +140,9 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
                     inner = map_reference_backward(child.projection, child, rest2)
                     inner === nothing && return nothing
                     ConcreteReferencePath(
-                        Cell(FieldReference(field_name)),
+                        Cell(FieldReferenceStep(field_name)),
                         Cell(ConcreteReferencePath(
-                            Cell(ElementReference(child_i)),
+                            Cell(ElementReferenceStep(child_i)),
                             Cell(inner))))
                 end
                 _ => nothing
@@ -154,7 +154,7 @@ end
 
 """
 Reader for `ReplaceSelectionOperation`: try backward mapping, fall back to
-`ProjectionReference(p, {flat})` for structural positions (entity names,
+`ProjectionReferenceStep(p, {flat})` for structural positions (entity names,
 keyword labels, whitespace).
 """
 function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
@@ -163,8 +163,8 @@ function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOp
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        ConcreteReferencePath(Cell(ProjectionReference(p,
-            ConcreteReferencePath(Cell(PositionReference(flat)), Cell(EmptyReferencePath())))),
+        ConcreteReferencePath(Cell(ProjectionReferenceStep(p,
+            ConcreteReferencePath(Cell(PositionReferenceStep(flat)), Cell(EmptyReferencePath())))),
             Cell(EmptyReferencePath())))
 end
 
@@ -217,7 +217,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_style::StyleText,
                               keyword::String, label, children)
     child_iomaps = Cell(() -> begin
-        [print_child(recursion, elem, make_child_context(ctx, ElementReference(i)))
+        [print_child(recursion, elem, make_child_context(ctx, ElementReferenceStep(i)))
          for (i, elem) in enumerate(children)]
     end)
 

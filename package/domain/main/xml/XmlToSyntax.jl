@@ -34,8 +34,8 @@ module XmlToSyntaxModule
 import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReferencePath, PositionReference
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ReferenceModule: ConcreteReferencePath, PositionReferenceStep
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
@@ -128,7 +128,7 @@ end
 # the delimiters (`<`, `>`, `</`, `"`, `=`) and the closing tag (which re-renders
 # `.tag` as a display-only child). A text caret there maps back to *nothing* through
 # the wiring. The template's domain-neutral fallback wraps the whole (output-domain)
-# path in a `ProjectionReference`; but `strip_reference_types` (which the navigation
+# path in a `ProjectionReferenceStep`; but `strip_reference_types` (which the navigation
 # BFS dedups on) does not collapse that, so each round-trip through such a caret grows
 # the path without bound and the caret walk never terminates.
 #
@@ -142,7 +142,7 @@ function read_intent(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSel
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxConcatenation, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, ConcreteReferencePath(PositionReference(flat)))))
+    ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, ConcreteReferencePath(PositionReferenceStep(flat)))))
 end
 
 # Render that flat structural caret back out: a `proj(p, …)` selection is this

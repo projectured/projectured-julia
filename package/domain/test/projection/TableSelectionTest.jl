@@ -20,13 +20,13 @@
 _table_measure() = (text, font) -> (length(text) * 10, 20)
 
 # Reference builders in the WidgetTable vocabulary.
-_wt_row(r)     = ConcreteReferencePath(FieldReference("rows"),
-                    ConcreteReferencePath(ElementReference(r), EmptyReferencePath()))
-_wt_col(c)     = ConcreteReferencePath(FieldReference("column_headers"),
-                    ConcreteReferencePath(ElementReference(c), EmptyReferencePath()))
-_wt_cell(r, c) = ConcreteReferencePath(FieldReference("rows"),
-                    ConcreteReferencePath(ElementReference(r),
-                        ConcreteReferencePath(ElementReference(c), EmptyReferencePath())))
+_wt_row(r)     = ConcreteReferencePath(FieldReferenceStep("rows"),
+                    ConcreteReferencePath(ElementReferenceStep(r), EmptyReferencePath()))
+_wt_col(c)     = ConcreteReferencePath(FieldReferenceStep("column_headers"),
+                    ConcreteReferencePath(ElementReferenceStep(c), EmptyReferencePath()))
+_wt_cell(r, c) = ConcreteReferencePath(FieldReferenceStep("rows"),
+                    ConcreteReferencePath(ElementReferenceStep(r),
+                        ConcreteReferencePath(ElementReferenceStep(c), EmptyReferencePath())))
 
 # The translucent selection band(s) the renderer prepends (alpha 0x40),
 # materialised to value tuples *immediately*. The band is a single persistent
@@ -111,10 +111,10 @@ end
     # a whole-element shape: the band collapses to 0×0 (draws nothing), so no visible
     # band. (rows[2][2] is a MathBinaryOperation with no `.value` — an unselectable
     # path — so use the primitive cell the click test below also lands on.)
-    inner = ConcreteReferencePath(FieldReference("rows"),
-                ConcreteReferencePath(ElementReference(1),
-                    ConcreteReferencePath(ElementReference(1),
-                        ConcreteReferencePath(FieldReference("value"), EmptyReferencePath()))))
+    inner = ConcreteReferencePath(FieldReferenceStep("rows"),
+                ConcreteReferencePath(ElementReferenceStep(1),
+                    ConcreteReferencePath(ElementReferenceStep(1),
+                        ConcreteReferencePath(FieldReferenceStep("value"), EmptyReferencePath()))))
     @test isempty(_table_highlights(_print_with(doc, proj, inner)))
 
     # A plain left click routes into the clicked cell's content, landing on a

@@ -46,7 +46,7 @@ contract**; concrete documents belong to the packages built on top of it.
    selection — `get_selection` / `clear_selection!` / `set_selection!` /
    `with_selection` — are the **selection layer's** (Layer 9), not this one's; see
    [selection.md](selection.md).
-2. **Field names ARE the reference vocabulary.** A `FieldReference("foo")` in a
+2. **Field names ARE the reference vocabulary.** A `FieldReferenceStep("foo")` in a
    reference path is resolved by `getfield(document, :foo)` — so struct field
    names are public API. Renaming a field silently breaks every stored reference.
    Choose field names deliberately.

@@ -96,7 +96,7 @@ function map_reference_forward(::TypeDispatchingProjection, iomap, reference)
     # projection's IoMap directly, so iomap.projection is the inner projection.
     # Delegate to it so that reference mapping works end-to-end (e.g. the Julia
     # leaf projections fall through to the generic default which unwraps
-    # ProjectionReference wrappers).
+    # ProjectionReferenceStep wrappers).
     map_reference_forward(iomap.projection, iomap, reference)
 end
 

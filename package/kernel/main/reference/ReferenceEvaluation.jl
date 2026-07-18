@@ -46,7 +46,7 @@ end
 
 A path is not a guarantee. It can name a node that no longer exists (the document
 changed under a stale selection), or one that never existed in `document` at all (a
-projection-introduced position, whose head is a `ProjectionReference` with no input
+projection-introduced position, whose head is a `ProjectionReferenceStep` with no input
 pre-image). A caller that is *asking whether* the path resolves — a gesture
 precondition deciding whether it has a target — wants an answer, not an exception.
 """
@@ -69,7 +69,7 @@ try_evaluate_reference(document, ::Nothing, default = nothing) = default
 
 Walk `path` against `document` and return the **longest prefix that still
 navigates cleanly**. Traversal stops — and the path is truncated — at the first
-step that fails: a [`TypeReference`](@ref) checkpoint whose recorded type no
+step that fails: a [`TypeReferenceStep`](@ref) checkpoint whose recorded type no
 longer matches the node reached, or a structural step that cannot be followed
 (missing field, out-of-range index, …). The returned prefix is exactly the part
 that `evaluate_reference` can still resolve; the discarded suffix is the part
@@ -110,7 +110,7 @@ end
     is_valid_reference(document, path::ReferencePath) -> Bool
 
 Document-aware validity: `true` iff every step of `path` — in particular every
-[`TypeReference`](@ref) checkpoint — resolves against `document`. Equivalent to
+[`TypeReferenceStep`](@ref) checkpoint — resolves against `document`. Equivalent to
 `get_valid_reference_prefix(document, path) == path`.
 """
 is_valid_reference(document, path::ReferencePath) =
@@ -145,7 +145,7 @@ Return `path` with each node's `type` field **filled in** against `document`: a
 `ConcreteReferencePath` records `typeof(node)` of the document it stands on, and
 the terminal `EmptyReferencePath` records the type of the node the path lands on.
 This is the *folded* canonical form — the type lives on each node, not as a
-separate interleaved `TypeReference` step. The result can be persisted and later
+separate interleaved `TypeReferenceStep` step. The result can be persisted and later
 re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 [`is_valid_reference`](@ref) to detect structural changes. Inverse of
 [`strip_reference_types`](@ref).
@@ -181,7 +181,7 @@ end
     strip_reference_types(path::ReferencePath) -> ReferencePath
 
 Return `path` reduced to its plain navigation skeleton: every node's recorded
-`type` is blanked to `nothing` and any leftover (transitional) `TypeReference`
+`type` is blanked to `nothing` and any leftover (transitional) `TypeReferenceStep`
 *step* is dropped. Inverse of [`annotate_reference_types`](@ref) — used at
 boundaries that re-annotate a path against a fresh document.
 """
@@ -190,7 +190,7 @@ strip_reference_types(::EmptyReferencePath) = EmptyReferencePath()
 function strip_reference_types(path::ConcreteReferencePath)
     step = path.head
     rest = strip_reference_types(path.tail)
-    step isa TypeReference ? rest : ConcreteReferencePath(nothing, step, rest)
+    step isa TypeReferenceStep ? rest : ConcreteReferencePath(nothing, step, rest)
 end
 
 # Permissive fallback: callers may apply this to a non-path (e.g. `nothing` when
@@ -201,8 +201,8 @@ strip_reference_types(other) = other
 """
     fold_reference_types(path::ReferencePath) -> ReferencePath
 
-Convert a flat path that may carry interleaved `TypeReference` *steps* into the
-folded form where the type lives on each node. A `TypeReference(T)` step sets the
+Convert a flat path that may carry interleaved `TypeReferenceStep` *steps* into the
+folded form where the type lives on each node. A `TypeReferenceStep(T)` step sets the
 `type` of the node built from the **following** navigation step (or the terminal
 node, if it is the last step). Nodes that already carry a folded `type` keep it
 (so concatenating an already-folded sub-path is preserved). Used by the
@@ -214,7 +214,7 @@ _fold_reference_types(p::EmptyReferencePath, pending) =
     EmptyReferencePath(pending === nothing ? p.type : pending)
 
 function _fold_reference_types(p::ConcreteReferencePath, pending)
-    if p.head isa TypeReference
+    if p.head isa TypeReferenceStep
         # A checkpoint step types the *next* navigation node — carry it forward.
         return _fold_reference_types(p.tail, p.head.type)
     end

@@ -1,6 +1,6 @@
 # Anchor resolution: `anchor_point` reuses `map_reference_forward` to resolve a
 # document reference to the anchor widget's absolute graphics position. The forward
-# image of a positioned widget is a `PointReference`; each container shifts only a
+# image of a positioned widget is a `PointReferenceStep`; each container shifts only a
 # coordinate result by where it placed the child (paths stay paths). Self-contained
 # per projection, so widgets nest in any container and vice versa. Ground truth is
 # walked directly from the output canvas tree.
@@ -29,9 +29,9 @@ end
 
 # children[i] (1-based i) as a document reference.
 cref(steps...) = foldr((s, acc) -> ConcreteReferencePath(s, acc), steps; init=EmptyReferencePath())
-child(i) = (FieldReference("children"), RangeReference(i - 1, i))
-elem(i)  = (FieldReference("elements"), RangeReference(i - 1, i))
-field(name) = (FieldReference(name),)
+child(i) = (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
+elem(i)  = (FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))
+field(name) = (FieldReferenceStep(name),)
 
 @testset "buttons in a VerticalLayout" begin
     doc = VerticalLayout(Any[mkbtn(120, 40, "A"), mkbtn(160, 50, "B"), mkbtn(100, 30, "C")];

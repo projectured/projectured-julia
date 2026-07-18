@@ -25,7 +25,7 @@ module CollectionModule
 import ..CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell, copy_cell_as
 import ..DocumentModule: Document, copy_document,
        is_element_collection, is_collection_field_type, @document, @forward_protocol
-import ..ReferenceModule: Reference, RangeReference
+import ..ReferenceModule: Reference, RangeReferenceStep
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, children_container_type
 export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,

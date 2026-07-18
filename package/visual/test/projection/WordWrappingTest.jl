@@ -38,7 +38,7 @@ out = iomap.output
 segs = iomap.segs[]
 
 # Every output sub-span offset maps backward then forward to itself, in the flat
-# break-aware coordinate (a flat `TextRangeReference` caret, not the structural path).
+# break-aware coordinate (a flat `TextRangeReferenceStep` caret, not the structural path).
 for seg in segs
     for k in 0:seg.length
         out_ref = TextModule._flat_caret_ref(text_elem_to_flat(out, seg.out_index, k))

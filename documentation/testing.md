@@ -20,7 +20,7 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
   type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
 - [package/domain/test](../package/domain/test/ProjecturedDomainTest.jl) —
   json/xml/sql documents and parsers, the `*ToSyntax` projections, graph, the
-  domain-fixture-driven Console/Pdf/table/TypeReference suites, and the
+  domain-fixture-driven Console/Pdf/table/TypeReferenceStep suites, and the
   domain-coupled projection/editor tests (GestureMap/GestureHelp, DbCatalog→Sql,
   HoverProbe/ReferenceInspector, Dragging, Serialization, Mcp, Conversation,
   JuliaTypein, Workbench, …). Aggregator: `test_domain()`.
@@ -343,7 +343,7 @@ walkers rather than introducing an interface method:
   image for each. A deeply nested reference can only have an image if the mapper
   delegated all the way down; a flattening mapper drops what it never recursed into.
 - **Round-trip** — `map_reference_backward(map_reference_forward(ref))` returns the
-  original (modulo the documented `ProjectionReference`/flat-offset collapse for
+  original (modulo the documented `ProjectionReferenceStep`/flat-offset collapse for
   projection-introduced positions). Round-tripping at every level is the signature
   of lockstep recursion.
 - **Printer lockstep** — reuse `_walk!` to reach every iomap; for any iomap carrying

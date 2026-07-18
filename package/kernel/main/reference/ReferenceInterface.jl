@@ -5,8 +5,8 @@
 # `ReferenceStep.jl`, the path structure in `ReferencePath.jl`, and the DSLs that
 # consume the `dsl_*` seams in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
 #
-# A step type defined in a higher package (`PointReference`, `ProjectionReference`,
-# `TextSpanReference`) subtypes `ReferenceStep` and registers itself by
+# A step type defined in a higher package (`PointReferenceStep`, `ProjectionReferenceStep`,
+# `TextSpanReferenceStep`) subtypes `ReferenceStep` and registers itself by
 # adding methods to the generics declared here — at its own definition site, with
 # no edit to this layer.
 
@@ -61,10 +61,10 @@ function step_kind end
 
 Navigate through `step`. For a `:structural` step, return the descended
 value (throws on descent failure). Some step types descend to a document
-child (`FieldReference`, `RangeReference`); others descend to a synthetic
-value that stands in for the reference target (`PointReference` returns a
-coordinate pair, `ProjectionReference` returns the projection's output
-path, `TextSpanReference` returns the character range). For a
+child (`FieldReferenceStep`, `RangeReferenceStep`); others descend to a synthetic
+value that stands in for the reference target (`PointReferenceStep` returns a
+coordinate pair, `ProjectionReferenceStep` returns the projection's output
+path, `TextSpanReferenceStep` returns the character range). For a
 `:checkpoint` step, return `document` unchanged after asserting the
 invariant (throws on mismatch).
 """

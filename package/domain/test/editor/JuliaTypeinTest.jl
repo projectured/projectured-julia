@@ -23,8 +23,8 @@ const _JT_M      = DocumentInsertionToSyntaxModule
 const _jt_reroot = OperationModule.reroot_operation
 
 # `value{0}` — an empty hole's own char cursor.
-_jt_v0() = ConcreteReferencePath(FieldReference("value"),
-             ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+_jt_v0() = ConcreteReferencePath(FieldReferenceStep("value"),
+             ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
 _jt_hole(node) = node isa JuliaInsertion
 
 # A minimal mutable editor (a whole-root swap rebinds `.document`).

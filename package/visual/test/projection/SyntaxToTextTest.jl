@@ -52,7 +52,7 @@ let
 _S2T = SyntaxToTextModule
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
 
 _check_roundtrip = function (label, node, p)
     iomap = print_document(RecursiveProjection(SyntaxToText()), node)
@@ -141,16 +141,16 @@ iomap_e = print_document(pipe_on, empty_node)
 @test _S2T._subtree_len(node, p_on, 0) == _S2T._subtree_len(node, p_off, 0) + 1
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
 
 iomap_pon = print_document(pipe_on, node)
 
 sel0 = _pos_to_selection(iomap_pon, 0)
-@test sel0.head isa ProjectionReference
+@test sel0.head isa ProjectionReferenceStep
 
 # Position 1 (just past the one-char marker) is the open delimiter.
 sel1 = _pos_to_selection(iomap_pon, 1)
-@test sel1.head isa FieldReference && sel1.head.name == "open"
+@test sel1.head isa FieldReferenceStep && sel1.head.name == "open"
 
 flat_len = _S2T._subtree_len(node, p_on, 0)
 for k in 0:flat_len
@@ -185,7 +185,7 @@ collapsed = join(s.content for s in print_document(pipe, node).output.elements)
 
 # Flat-position round-trip holds while collapsed.
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
-    ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+    ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
 
 iomap_c = print_document(pipe, node)   # node.collapsed = true above
 flat_len = _S2T._subtree_len(node, p, 0)
@@ -194,7 +194,7 @@ for k in 0:flat_len
     @test _S2T._syntax_to_flat(node, sel, p, 0) == k
 end
 # The ellipsis (position after the open delimiter) has no source coordinate.
-@test _pos_to_selection(iomap_c, 1).head isa ProjectionReference
+@test _pos_to_selection(iomap_c, 1).head isa ProjectionReferenceStep
 # `.children[i]…` input references have no image while collapsed.
 @test _S2T._syntax_to_flat(node, (@reference(node, children[1].value{0})), p, 0) == -1
 
@@ -375,7 +375,7 @@ end
     @test join(s.content for s in iomap.output.elements) == "(x,ab)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end
@@ -467,7 +467,7 @@ end
 
     fwd = map_reference_forward(iomap.projection, iomap,
               @reference(s, separator{0}))
-    # The forward image is a flat TextRangeReference; resolve it back to the span
+    # The forward image is a flat TextRangeReferenceStep; resolve it back to the span
     # it lands on to assert it is the first separator (element 2).
     flat = _S2T._text_side_flat(fwd)
     span_idx, _ = _S2T._flat_to_span_char(iomap.output.elements, flat)
@@ -477,7 +477,7 @@ end
     # `.separator{k}` — the same treatment SyntaxNode's `sep` already gets.
     back = map_reference_backward(iomap.projection, iomap, _S2T._text_elem_path(2, 1))
     @test back !== nothing
-    @test strip_reference_types(back).head isa ProjectionReference
+    @test strip_reference_types(back).head isa ProjectionReferenceStep
 end
 
 @testset "nested in a node: every caret round-trips" begin
@@ -488,7 +488,7 @@ end
     @test join(x.content for x in iomap.output.elements) == "(x,a|b)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end
@@ -582,7 +582,7 @@ end
     @test join(c.content for c in iomap.output.elements) == "[x,(ab)]"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
-                  ConcreteReferencePath(RangeReference(k, k), EmptyReferencePath()))
+                  ConcreteReferencePath(RangeReferenceStep(k, k), EmptyReferencePath()))
         @test _S2T._syntax_to_flat(node, sel, p, 0) == k
     end
 end

@@ -6,7 +6,7 @@ function test_projection_configuring()
 
 _font = font_ubuntu_monospace_regular_20
 _mkchange(g, o) = IntentModule.Intent(g, o)
-_content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
+_content_ref() = ConcreteReferencePath(FieldReferenceStep("content"), EmptyReferencePath())
 _input() = TextBlock(TextString("alpha dolor", _font, color_default))
 
 @testset "ProjectionConfiguringProjection stacks control above document" begin
@@ -39,7 +39,7 @@ end # @testset
 
     @test out.operation isa ReplaceReferencedValueOperation
     @test out.operation.document === th
-    @test out.operation.reference.head == FieldReference("pattern")
+    @test out.operation.reference.head == FieldReferenceStep("pattern")
 
     evaluate_operation(nothing, out.operation)
     @test th.pattern[] == "alpha"
@@ -134,7 +134,7 @@ end # @testset
     op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", ModifierKeys()), nothing), iomap).operation
     @test_broken op isa ReplaceReferencedValueOperation
     op isa ReplaceReferencedValueOperation || return
-    @test op.reference.head == FieldReference("pattern")
+    @test op.reference.head == FieldReferenceStep("pattern")
     evaluate_operation(_PcEditor(doc), op)
     @test inner.pattern[] == "dolorX"
 

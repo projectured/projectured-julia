@@ -18,7 +18,7 @@ import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          FieldReference, ElementReference, append_reference, head, tail,
+                          FieldReferenceStep, ElementReferenceStep, append_reference, head, tail,
                           strip_reference_types
 import ..ReferenceModule: var"@reference_case"
 export SearchingProjection, SearchingProjectionIoMap
@@ -109,7 +109,7 @@ function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
         # A bare collection is not itself an object with fields; only its
         # element objects can match. Address elements directly on the vector.
         for i in 1:length(node)
-            _walk(p, node[i], append_reference(path, ElementReference(i)), matches, seen)
+            _walk(p, node[i], append_reference(path, ElementReferenceStep(i)), matches, seen)
         end
         return
     end
@@ -123,7 +123,7 @@ function _walk(p::SearchingProjection, node, path::ReferencePath, matches, seen)
         raw = getfield(node, nm)
         val = unwrap_cell(raw)
         val isa Document || continue
-        _walk(p, val, append_reference(path, FieldReference(string(nm))), matches, seen)
+        _walk(p, val, append_reference(path, FieldReferenceStep(string(nm))), matches, seen)
     end
     return
 end
@@ -158,7 +158,7 @@ function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectio
             best_rest = rest
         end
     end
-    best_j != 0 && return ConcreteReferencePath(ElementReference(best_j), best_rest)
+    best_j != 0 && return ConcreteReferencePath(ElementReferenceStep(best_j), best_rest)
     # Fallback: a projection-introduced position (e.g. a structural delimiter
     # clicked by the user) has been wrapped in proj(SearchingProjection, inner)
     # by map_reference_backward's wildcard branch. Strip the wrapper so the

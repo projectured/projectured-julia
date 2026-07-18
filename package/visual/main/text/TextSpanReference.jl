@@ -1,7 +1,7 @@
 """
     TextSpanReferenceModule
 
-The `TextSpanReference` step type — a reference step representing a
+The `TextSpanReferenceStep` step type — a reference step representing a
 flat character-range box in the text domain (`start` / `stop` are 0-based
 character offsets into the concatenated text of a `TextBlock`). Used by the
 syntax-to-text stage to communicate a nested child's whole-element
@@ -20,10 +20,10 @@ using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextSpanReference
+export TextSpanReferenceStep
 
 """
-    TextSpanReference(start, stop)
+    TextSpanReferenceStep(start, stop)
 
 A reference step representing an axis-aligned bounding-box highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
@@ -32,20 +32,20 @@ concatenated text of a `TextBlock`. Evaluates to the offset pair
 box's value is its character range independent of what characters happen
 to sit in the current text.
 """
-@cell_struct struct TextSpanReference <: ReferenceStep
+@cell_struct struct TextSpanReferenceStep <: ReferenceStep
     start::Int
     stop::Int
 end
 
-ReferenceModule.step_kind(::TextSpanReference) = :structural
+ReferenceModule.step_kind(::TextSpanReferenceStep) = :structural
 
 # A rectangular text range's descended value is the range itself.
-ReferenceModule.evaluate_step(step::TextSpanReference, document) = (step.start, step.stop)
+ReferenceModule.evaluate_step(step::TextSpanReferenceStep, document) = (step.start, step.stop)
 
-Base.:(==)(a::TextSpanReference, b::TextSpanReference) =
+Base.:(==)(a::TextSpanReferenceStep, b::TextSpanReferenceStep) =
     a.start == b.start && a.stop == b.stop
 
-function Base.show(io::IO, s::TextSpanReference)
+function Base.show(io::IO, s::TextSpanReferenceStep)
     print(io, "▢(", s.start, ":", s.stop, ")")
 end
 

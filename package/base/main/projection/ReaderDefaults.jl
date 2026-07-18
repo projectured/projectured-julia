@@ -17,19 +17,19 @@ import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
-import ProjecturedKernel.ProjectionReferenceModule: ProjectionReference
+import ProjecturedKernel.ProjectionReferenceModule: ProjectionReferenceStep
 import ProjecturedKernel.ReferenceModule: ConcreteReferencePath
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
 # Does the (input-domain) reference pass through any projection-introduced output?
-# A `ProjectionReference` step *anywhere* means that part of the path has no document
+# A `ProjectionReferenceStep` step *anywhere* means that part of the path has no document
 # pre-image, so an edit targeting it cannot be applied and the op-reader defers it —
 # the raw key then falls through to the structural gesture. Head-only
 # `is_introduced_reference` is not enough: a scalar nested in a container maps to
-# `.elements[i] → ProjectionReference(.open)`, with the introduced step below the head.
+# `.elements[i] → ProjectionReferenceStep(.open)`, with the introduced step below the head.
 _targets_introduced_output(p::ConcreteReferencePath) =
-    p.head isa ProjectionReference || _targets_introduced_output(p.tail)
+    p.head isa ProjectionReferenceStep || _targets_introduced_output(p.tail)
 _targets_introduced_output(::Any) = false
 
 function read_intent(projection::Projection, iomap, operation::ReplaceStringRangeOperation)

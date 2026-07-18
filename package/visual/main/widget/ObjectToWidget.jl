@@ -53,7 +53,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference,
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           append_reference, evaluate_reference
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
@@ -68,7 +68,7 @@ export ObjectToWidget, ObjectToWidgetIoMap
 `input` is the projected (root) object; `controls` is a `Vector` of
 `(control_widget, path::ReferencePath)` pairs — the map the reader uses to
 redirect a control's edit back onto the object's field cell. `path` is the full
-reference from the root object to the bound field (a single `FieldReference` for a
+reference from the root object to the bound field (a single `FieldReferenceStep` for a
 top-level field, a deeper path for a nested one).
 """
 struct ObjectToWidgetIoMap <: IoMap
@@ -164,7 +164,7 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::ReferencePath, controls,
     for nm in _displayable_fields(p, obj, basepath)
         f = getfield(obj, nm)
         value = f isa Cell ? f[] : f
-        path = append_reference(basepath, FieldReference(String(nm)))
+        path = append_reference(basepath, FieldReferenceStep(String(nm)))
         push!(children, WidgetLabel(Point2D(0, 0), String(nm)))
         push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
     end
@@ -212,7 +212,7 @@ end
 function _print_vector(p::ObjectToWidget, vec, path::ReferencePath, controls, depth::Int)
     items = Any[]
     for (i, element) in enumerate(vec)
-        elpath = append_reference(path, ElementReference(i))   # 1-based
+        elpath = append_reference(path, ElementReferenceStep(i))   # 1-based
         push!(items, _print_value(p, element, nothing, elpath, controls, depth))
     end
     body = VerticalLayout(items; horizontal_align=:left, gap=_ROW_GAP)
@@ -258,10 +258,10 @@ end
 _as_string(v) = v isa AbstractString ? String(v) : (v === nothing ? "" : string(v))
 
 # `elements[1].content{n}` — a zero-width caret at char offset n.
-_end_cursor(n::Int) = ConcreteReferencePath(FieldReference("elements"),
-    ConcreteReferencePath(RangeReference(0, 1),
-        ConcreteReferencePath(FieldReference("content"),
-            ConcreteReferencePath(RangeReference(n, n), EmptyReferencePath()))))
+_end_cursor(n::Int) = ConcreteReferencePath(FieldReferenceStep("elements"),
+    ConcreteReferencePath(RangeReferenceStep(0, 1),
+        ConcreteReferencePath(FieldReferenceStep("content"),
+            ConcreteReferencePath(RangeReferenceStep(n, n), EmptyReferencePath()))))
 
 # ── read_intent ───────────────────────────────────────────────────────
 # Two control-edit shapes are converted to the input domain (a
@@ -297,7 +297,7 @@ function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceS
     # Only a top-level, cell-backed string/number field is caret-editable here. If
     # the parsed row is a nested card / read-only column, leave the op untouched.
     (f isa Cell && _value_kind(f[]) in (:string, :real)) || return op
-    path = ConcreteReferencePath(FieldReference(String(nm)), EmptyReferencePath())
+    path = ConcreteReferencePath(FieldReferenceStep(String(nm)), EmptyReferencePath())
     current = _as_string(f[])
     newval = _coerce(f[], _apply_range(current, cstart, cstop, op.replacement))
     ReplaceReferencedValueOperation(iomap.input, path, newval)
@@ -319,7 +319,7 @@ read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
 # child index follows the *first* `children` field. (A reference passed already
 # rooted at the grid, with no composite `elements` prefix, also works.) The grid
 # holds `[label, control]` per row, so the control for 1-based row r is child
-# `2r-1` (0-based) → `row = (flat + 1) ÷ 2`. The terminal RangeReference is the
+# `2r-1` (0-based) → `row = (flat + 1) ÷ 2`. The terminal RangeReferenceStep is the
 # character range.
 function _parse_control_edit(ref)
     flat = nothing
@@ -328,9 +328,9 @@ function _parse_control_edit(ref)
     cur = ref
     while cur isa ConcreteReferencePath
         h = cur.head
-        if h isa FieldReference && h.name == "children"
+        if h isa FieldReferenceStep && h.name == "children"
             after_children = true
-        elseif h isa RangeReference
+        elseif h isa RangeReferenceStep
             after_children && flat === nothing && (flat = h.start)
             term = h
         end

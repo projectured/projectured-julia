@@ -24,7 +24,7 @@ import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirecto
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..GestureBindingModule: GestureBinding
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath,
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath,
                           is_element_reference
 export FileSystemToWidgetTree, FileSystemToWidget
 
@@ -109,9 +109,9 @@ function _fs_ref_indices(reference)
     while !(cur isa EmptyReferencePath)
         cur isa ConcreteReferencePath || return nothing
         h = cur.head
-        (h isa FieldReference && h.name == "elements") || return nothing
+        (h isa FieldReferenceStep && h.name == "elements") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end
@@ -122,8 +122,8 @@ end
 _fs_ref_from_indices(idxs::Vector{Int}) = isempty(idxs) ? EmptyReferencePath() : _fs_build(idxs, 1)
 function _fs_build(idxs::Vector{Int}, k::Int)
     tail = k == length(idxs) ? EmptyReferencePath() : _fs_build(idxs, k + 1)
-    ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(RangeReference(idxs[k] - 1, idxs[k]), tail))
+    ConcreteReferencePath(FieldReferenceStep("elements"),
+        ConcreteReferencePath(RangeReferenceStep(idxs[k] - 1, idxs[k]), tail))
 end
 
 # Build `roots[1].children[a].children[b]…` from element indices.
@@ -134,8 +134,8 @@ end
 function _tree_build(path::Vector{Int}, k::Int)
     field = k == 1 ? "roots" : "children"
     tail = k == length(path) ? EmptyReferencePath() : _tree_build(path, k + 1)
-    ConcreteReferencePath(FieldReference(field),
-        ConcreteReferencePath(RangeReference(path[k] - 1, path[k]), tail))
+    ConcreteReferencePath(FieldReferenceStep(field),
+        ConcreteReferencePath(RangeReferenceStep(path[k] - 1, path[k]), tail))
 end
 
 # Decode `roots[1].children[a].children[b]…` into the element indices [a, b, …]
@@ -143,17 +143,17 @@ end
 function _tree_ref_indices(reference)
     cur = reference
     cur isa ConcreteReferencePath || return nothing
-    (cur.head isa FieldReference && cur.head.name == "roots") || return nothing
+    (cur.head isa FieldReferenceStep && cur.head.name == "roots") || return nothing
     t = cur.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
     (t.head.start + 1 == 1) || return nothing      # only one root node
     cur = t.tail
     idxs = Int[]
     while !(cur isa EmptyReferencePath)
         cur isa ConcreteReferencePath || return nothing
-        (cur.head isa FieldReference && cur.head.name == "children") || return nothing
+        (cur.head isa FieldReferenceStep && cur.head.name == "children") || return nothing
         t = cur.tail
-        (t isa ConcreteReferencePath && t.head isa RangeReference && is_element_reference(t.head)) || return nothing
+        (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && is_element_reference(t.head)) || return nothing
         push!(idxs, t.head.start + 1)
         cur = t.tail
     end

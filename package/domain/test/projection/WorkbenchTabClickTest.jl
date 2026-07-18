@@ -26,9 +26,9 @@ function _active_tab_index(tabbed)
     sel = getfield(tabbed, :selection)[]
     sel isa ConcreteReferencePath || return 0
     h = sel.head
-    (h isa FieldReference && h.name == "selector_element_pairs") || return 0
+    (h isa FieldReferenceStep && h.name == "selector_element_pairs") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
     t.head.start + 1
 end
 

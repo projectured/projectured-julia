@@ -22,7 +22,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
             _ED.print!(editor)
             # Snapshot the selection as a stripped string so later replace_selection!
             # mutations (which reuse cells in-place) do not change already-recorded
-            # entries.  strip_reference_types removes TypeReference checkpoints so
+            # entries.  strip_reference_types removes TypeReferenceStep checkpoints so
             # the string matches the plain navigation skeleton the tests assert on.
             push!(sels, string(strip_reference_types(getfield(doc, :selection)[])))
         end

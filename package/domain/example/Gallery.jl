@@ -300,7 +300,7 @@ end
 # `ScreenToScreen` owns the screen spine: it recurses each window's `content`
 # (and nothing above it) back through this dispatch, with the content's
 # reference being `windows[i].content` (the i-th window is an
-# `ElementReference`), which is how the target paths are built.
+# `ElementReferenceStep`), which is how the target paths are built.
 function _multi_window_projection(projections::Vector; measure=truetype_measure_text)
     n = length(projections)
     targets = Vector{Any}(undef, n)

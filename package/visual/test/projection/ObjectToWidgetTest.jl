@@ -3,7 +3,7 @@ function test_object_to_widget()
 # A renderable string field + a renderable bool field + an opaque (skipped) field.
 _proj() = TextHighlighting("dolor"; case_insensitive=false, color=color_red)
 
-_content_ref() = ConcreteReferencePath(FieldReference("content"), EmptyReferencePath())
+_content_ref() = ConcreteReferencePath(FieldReferenceStep("content"), EmptyReferencePath())
 
 @testset "ObjectToWidget reflects renderable Cell fields into controls" begin
 
@@ -38,17 +38,17 @@ end # @testset
     # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
     # control is grid child 2 (row 1) → 0-based children[1], then into the
     # WidgetText's TextBlock: children[1].content.elements[1].content[5:5].
-    ref = ConcreteReferencePath(FieldReference("children"),
-            ConcreteReferencePath(RangeReference(1, 2),
-              ConcreteReferencePath(FieldReference("content"),
-                ConcreteReferencePath(FieldReference("elements"),
-                  ConcreteReferencePath(RangeReference(0, 1),
-                    ConcreteReferencePath(FieldReference("content"),
-                      ConcreteReferencePath(RangeReference(5, 5), EmptyReferencePath())))))))
+    ref = ConcreteReferencePath(FieldReferenceStep("children"),
+            ConcreteReferencePath(RangeReferenceStep(1, 2),
+              ConcreteReferencePath(FieldReferenceStep("content"),
+                ConcreteReferencePath(FieldReferenceStep("elements"),
+                  ConcreteReferencePath(RangeReferenceStep(0, 1),
+                    ConcreteReferencePath(FieldReferenceStep("content"),
+                      ConcreteReferencePath(RangeReferenceStep(5, 5), EmptyReferencePath())))))))
     op = read_intent(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
-    @test op.reference.head == FieldReference("pattern")
+    @test op.reference.head == FieldReferenceStep("pattern")
     @test op.value == "dolorX"
 
 end # @testset
@@ -64,7 +64,7 @@ end # @testset
                          ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === proj
-    @test op.reference.head == FieldReference("case_insensitive")
+    @test op.reference.head == FieldReferenceStep("case_insensitive")
     @test op.value == true
 
 end # @testset
@@ -105,7 +105,7 @@ end # @testset
 
     @test op isa ReplaceReferencedValueOperation
     @test op.document === cb
-    @test op.reference.head == FieldReference("content")
+    @test op.reference.head == FieldReferenceStep("content")
     @test op.value === true            # toggled from false
 
 end # @testset
@@ -171,15 +171,15 @@ end # @testset
 
     # The deep checkbox is `window.visible`; its control path is window → visible.
     vis = first((c, pth) for (c, pth) in iomap.controls
-                if c isa WidgetCheckbox && pth.head == FieldReference("window"))
+                if c isa WidgetCheckbox && pth.head == FieldReferenceStep("window"))
     vis_ctrl, vis_path = vis
 
     op = read_intent(ObjectToWidget(), iomap,
                          ReplaceReferencedValueOperation(vis_ctrl, _content_ref(), false))
     @test op isa ReplaceReferencedValueOperation
     @test op.document === app
-    @test op.reference.head == FieldReference("window")
-    @test op.reference.tail.head == FieldReference("visible")
+    @test op.reference.head == FieldReferenceStep("window")
+    @test op.reference.tail.head == FieldReferenceStep("visible")
     @test op.value == false
 
     # And it writes through to the nested cell.

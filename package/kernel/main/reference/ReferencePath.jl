@@ -22,7 +22,7 @@ between items lands on no child node). A whole-element (`∅`) selection of a ty
 node carries that node's type here.
 
 The type is a field of the terminal node, not a separate trailing
-`TypeReference` checkpoint step.
+`TypeReferenceStep` checkpoint step.
 """
 @cell_struct struct EmptyReferencePath <: ReferencePath
     type::Any = nothing
@@ -32,22 +32,22 @@ end
     ConcreteReferencePath([type], head, tail)
 
 A non-empty path node. `head` is **always a navigation step** (never a
-`TypeReference`); `tail` is the remaining `ReferencePath`. `type` records the
+`TypeReferenceStep`); `tail` is the remaining `ReferencePath`. `type` records the
 Julia type of the node you are standing on *at this node* — i.e. the type the
 `head` step descends *from*. It is `nothing` when the type is unknown (a plain
 `@reference` skeleton, or a generic two-arg construction); `annotate_reference_types`
 fills it in against a document.
 
 The node type is stored *on the node* rather than in a separate interleaved
-`TypeReference` checkpoint step before `head`. A step's *end* type is its `tail`
-node's `type`, so a `FieldReference` needs no second checkpoint — the boundary
+`TypeReferenceStep` checkpoint step before `head`. A step's *end* type is its `tail`
+node's `type`, so a `FieldReferenceStep` needs no second checkpoint — the boundary
 type is stored once, on the downstream node, and serves both as this step's
 result and the next step's source.
 
 # Example
 
-    path = ConcreteReferencePath(FieldReference("address"),
-               ConcreteReferencePath(FieldReference("city"),
+    path = ConcreteReferencePath(FieldReferenceStep("address"),
+               ConcreteReferencePath(FieldReferenceStep("city"),
                    EmptyReferencePath()))
 """
 @cell_struct struct ConcreteReferencePath <: ReferencePath

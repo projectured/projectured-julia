@@ -1,7 +1,7 @@
 """
     TextRangeReferenceModule
 
-The `TextRangeReference` step type — a reference step representing a flat
+The `TextRangeReferenceStep` step type — a reference step representing a flat
 character range / caret in the text domain (`start` / `stop` are 0-based
 character offsets into the concatenated text of a `TextBlock`). This is the
 canonical, structure-independent representation of the text cursor and linear
@@ -11,7 +11,7 @@ single representation regardless of how the block splits its text into
 spans/lines — the boundary-duplicate ambiguity a span-anchored path suffers from
 does not arise.
 
-Sibling to `TextSpanReference`: both carry a flat `(start, stop)` pair,
+Sibling to `TextSpanReferenceStep`: both carry a flat `(start, stop)` pair,
 but they route to opposite behaviours — a rectangular reference is a whole-element
 box highlight (structural mode, declines character motion), a range reference is
 the character cursor itself. They are therefore distinct types.
@@ -27,10 +27,10 @@ using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextRangeReference, is_text_caret
+export TextRangeReferenceStep, is_text_caret
 
 """
-    TextRangeReference(start, stop)
+    TextRangeReferenceStep(start, stop)
 
 A reference step representing a flat character range in the text domain. `start`
 and `stop` are 0-based character offsets into the concatenated text of a
@@ -39,25 +39,25 @@ selection. Evaluates to `Position(start)` for a caret and `(start, stop)` for a
 range — every reference in the tree is evaluatable, and the range's value is its
 character range independent of what characters happen to sit in the current text.
 """
-@cell_struct struct TextRangeReference <: ReferenceStep
+@cell_struct struct TextRangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
 end
 
 "True when this range is a zero-width caret (`start == stop`)."
-is_text_caret(s::TextRangeReference) = s.start == s.stop
+is_text_caret(s::TextRangeReferenceStep) = s.start == s.stop
 
-ReferenceModule.step_kind(::TextRangeReference) = :structural
+ReferenceModule.step_kind(::TextRangeReferenceStep) = :structural
 
 # A caret evaluates to a `Position` (a flat caret between characters); a non-empty
 # range's descended value is the offset pair itself.
-ReferenceModule.evaluate_step(step::TextRangeReference, document) =
+ReferenceModule.evaluate_step(step::TextRangeReferenceStep, document) =
     step.start == step.stop ? Position(step.start) : (step.start, step.stop)
 
-Base.:(==)(a::TextRangeReference, b::TextRangeReference) =
+Base.:(==)(a::TextRangeReferenceStep, b::TextRangeReferenceStep) =
     a.start == b.start && a.stop == b.stop
 
-function Base.show(io::IO, s::TextRangeReference)
+function Base.show(io::IO, s::TextRangeReferenceStep)
     s.start == s.stop ? print(io, "⌶{", s.start, "}") :
                         print(io, "⌶{", s.start, ":", s.stop, "}")
 end

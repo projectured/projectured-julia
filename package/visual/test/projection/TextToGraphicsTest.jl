@@ -210,8 +210,8 @@ iomap = print_document(p, st)
 # rect is element 1, so the image (2nd text segment) is element index 2 (0-based);
 # rx<32 is its left half, rx>=32 its right half.
 click(rx) = ReplaceSelectionOperation(
-    ConcreteReferencePath(RangeReference(2, 3),
-        ConcreteReferencePath(PointReference(rx, 0), EmptyReferencePath())))
+    ConcreteReferencePath(RangeReferenceStep(2, 3),
+        ConcreteReferencePath(PointReferenceStep(rx, 0), EmptyReferencePath())))
 left  = read_intent(p, iomap, click(10))
 right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
@@ -319,7 +319,7 @@ canvas = print_document(p, mkblock()).output
 # offset; `_flat_base` names it from the structural (line, span) coordinate.
 fb(path, k)  = TextModule._flat_base(mkblock(), path) + k
 cflat(op)    = (r = strip_reference_types(op isa ReplaceSelectionOperation ? op.path : op);
-                (r.head::TextRangeReference).start)
+                (r.head::TextRangeReferenceStep).start)
 coord(op)    = TextModule._flat_to_span(mkblock(), cflat(op))   # (span_path, char)
 caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
 @test caret(with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
@@ -347,9 +347,9 @@ trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = font_ubunt
 
 end # @testset "TextToGraphics lays out TextLine blocks"
 
-@testset "TextColumnReference reserves the column-box geometry (variant 2)" begin
+@testset "TextColumnReferenceStep reserves the column-box geometry (variant 2)" begin
 
-# Variant 2 (`TextColumnReference`) is reserved but has no producer yet; assert its
+# Variant 2 (`TextColumnReferenceStep`) is reserved but has no producer yet; assert its
 # geometry function directly on a hand-built two-row coord map (monospace, 10px/glyph).
 _font = font_ubuntu_monospace_regular_20
 measure = (t, f) -> (length(t) * 10, 18)
@@ -370,18 +370,18 @@ rects = TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 1
 # Coinciding columns (zero width) or an unresolvable endpoint yield no box.
 @test TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 2, 9, p) == []
 
-# A `TextColumnReference` selection is structural — not a character cursor, so char
+# A `TextColumnReferenceStep` selection is structural — not a character cursor, so char
 # motion / flat edits decline (block editing is future work).
-sel = ConcreteReferencePath(TextColumnReference(1, 11), EmptyReferencePath())
+sel = ConcreteReferencePath(TextColumnReferenceStep(1, 11), EmptyReferencePath())
 @test TextModule._is_structural_selection(sel)
 @test TextModule._text_flat_selection(
           with_selection(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
 
-end # @testset "TextColumnReference column-box geometry"
+end # @testset "TextColumnReferenceStep column-box geometry"
 
-@testset "TextSpanReference draws content-hugging per-row rects (variant 3)" begin
+@testset "TextSpanReferenceStep draws content-hugging per-row rects (variant 3)" begin
 
-# A structural (whole-node) selection maps to a single contiguous TextSpanReference
+# A structural (whole-node) selection maps to a single contiguous TextSpanReferenceStep
 # flat range that crosses the interior lines' indent/newline chrome. It must be drawn
 # as one rect per row hugging that row's *content* — not a bounding box. Model the
 # JSON `address` shape (monospace, 10px/glyph): a first line at indent 0, an interior
@@ -422,6 +422,6 @@ rects = TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 0,
 # interior indent (flat 4..8) — blank, so no highlight.
 @test TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 4, 8, p) == []
 
-end # @testset "TextSpanReference content-hugging per-row rects"
+end # @testset "TextSpanReferenceStep content-hugging per-row rects"
 
 end # test_text_to_graphics

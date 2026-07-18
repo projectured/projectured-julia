@@ -9,7 +9,7 @@
 #
 # collect_position_selections(document) -> Vector{ReferencePath}
 #   Every position selection: for each navigable String leaf of length n, the
-#   cursors {0}…{n} (PositionReference). Numeric leaves are skipped (phase 1).
+#   cursors {0}…{n} (PositionReferenceStep). Numeric leaves are skipped (phase 1).
 #
 # collect_tree_selections(document; is_node) -> Vector{ReferencePath}
 #   Every whole-element (∅) selection: the path terminating at each node for
@@ -26,8 +26,8 @@
 #
 # Both share `_walk_document`, which descends using ONLY the two moves the
 # canonical selection machinery uses (set_selection! / evaluate_reference):
-#   * FieldReference  → getfield, unwrapping a Cell
-#   * ElementReference → document[i] (CellVector indexing)
+#   * FieldReferenceStep  → getfield, unwrapping a Cell
+#   * ElementReferenceStep → document[i] (CellVector indexing)
 # so the generated path strings are identical to what read_intent returns.
 # (A generic reflection walker is deliberately NOT reused here: it would descend
 # into a CellVector's internal `elements` field and so yield non-canonical
@@ -61,7 +61,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
         # Sequence container: descend by element, matching `.f[i]`.
         for i in 1:length(node)
             child = node[i]                       # CellVector getindex unwraps the Cell
-            _walk_document(child, append_reference(path, ElementReference(i)),
+            _walk_document(child, append_reference(path, ElementReferenceStep(i)),
                            on_node, on_text, seen)
         end
         return
@@ -76,7 +76,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
         v  = fv isa Cell ? fv[] : fv
         v === nothing && continue
         v isa Union{Number, Bool, Symbol, ReferencePath} && continue
-        field_path = append_reference(path, FieldReference(string(fname)))
+        field_path = append_reference(path, FieldReferenceStep(string(fname)))
         n = _text_leaf_length(v)
         if n !== nothing
             on_text(field_path, n)               # caret sits directly on this field
@@ -94,7 +94,7 @@ end
     collect_position_selections(document) -> Vector{ReferencePath}
 
 Every navigable position selection in `document`: for each String leaf of
-length `n`, the cursors `{0}…{n}` (PositionReference) — in the text domain
+length `n`, the cursors `{0}…{n}` (PositionReferenceStep) — in the text domain
 these are the carets. Numeric leaves are skipped (phase 1).
 """
 function collect_position_selections(document)
@@ -102,7 +102,7 @@ function collect_position_selections(document)
     on_node = (_n, _p) -> nothing
     on_text = (field_path, charcount) -> begin
         for k in 0:charcount
-            push!(results, append_reference(field_path, PositionReference(k)))
+            push!(results, append_reference(field_path, PositionReferenceStep(k)))
         end
     end
     _walk_document(document, EmptyReferencePath(), on_node, on_text, Set{UInt64}())

@@ -140,11 +140,11 @@ include("style/StyleText.jl")
 # types.
 include("screen/ScreenDocument.jl")
 include("screen/WindowManaging.jl")
-# PointReference is the graphics-domain reference step (pixel coordinates
+# PointReferenceStep is the graphics-domain reference step (pixel coordinates
 # relative to an element); it registers its own `.point(x, y)` DSL entries
 # with the kernel's reference DSL. Loaded here — before ScreenToScreen — so
-# that ScreenToScreen can `import ..PointReferenceModule: PointReference`.
-# (PointReference depends only on DocumentModule + ReferenceModule, both
+# that ScreenToScreen can `import ..PointReferenceModule: PointReferenceStep`.
+# (PointReferenceStep depends only on DocumentModule + ReferenceModule, both
 # kernel constants already in scope; no graphics types are needed.)
 include("graphics/PointReference.jl")
 # ScreenToScreen: an identity projection over the window tree; imports only
@@ -173,7 +173,7 @@ include("layout/CollectionToLayout.jl")
 # TextHighlighting, SelectionInverting) are Text→Text transforms;
 # PrimitiveToText and ReferenceToText are the base→text and reference→text
 # bridges.
-# TextSpanReference / TextColumnReference / TextRangeReference — the three
+# TextSpanReferenceStep / TextColumnReferenceStep / TextRangeReferenceStep — the three
 # text-domain selection reference steps over the same flat character range:
 # a bounding box, a column box (reserved / deferred), and the character
 # cursor/selection stream, respectively. Included first in the text slice so

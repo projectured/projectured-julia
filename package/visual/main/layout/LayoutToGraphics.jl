@@ -35,8 +35,8 @@ import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
-import ..PointReferenceModule: PointReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep
+import ..PointReferenceModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this
@@ -210,9 +210,9 @@ function _selected_layout_slot(doc, n::Int)
     sel = getfield(doc, :selection)[]
     sel = sel
     sel isa ConcreteReferencePath || return 0
-    (sel.head isa FieldReference && sel.head.name == "children") || return 0
+    (sel.head isa FieldReferenceStep && sel.head.name == "children") || return 0
     t = sel.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReference) || return 0
+    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
 end
@@ -238,14 +238,14 @@ function _layout_tab(w, entries::Vector, evt)
     deleg = _forward_layout_event_slot(entries, evt, i)
     if deleg !== nothing
         op, slot = deleg
-        return reroot_operation(op, (FieldReference("children"), RangeReference(slot - 1, slot)))
+        return reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(slot - 1, slot)))
     end
     j = _next_focusable_in(w.children, i, reverse)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
     sub === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(FieldReference("children"),
-        ConcreteReferencePath(RangeReference(j - 1, j), sub)))
+    ReplaceSelectionOperation(ConcreteReferencePath(FieldReferenceStep("children"),
+        ConcreteReferencePath(RangeReferenceStep(j - 1, j), sub)))
 end
 
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
@@ -272,7 +272,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    reroot_operation(op, (FieldReference("children"), RangeReference(i - 1, i)))
+    reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
 end
 
 """
@@ -362,7 +362,7 @@ function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::Conten
     reference = reference
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    h isa FieldReference && h.name == "child" || return nothing
+    h isa FieldReferenceStep && h.name == "child" || return nothing
     map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
 end
 
@@ -379,15 +379,15 @@ end
 _off(v) = Int(v isa Cell ? v[] : v)
 
 # Shift a child's forwarded image by where THIS container placed the child —
-# but only when the image is a coordinate (`PointReference`). A structural path
+# but only when the image is a coordinate (`PointReferenceStep`). A structural path
 # image passes through unchanged. (coordinates accumulate, paths stay paths — see
 # `map_reference_forward`'s docstring.) The child canvas sits at the entry offset
 # `(off_x, off_y)` the container wrapped it at PLUS the child canvas's own origin.
 function _shift_child_image(child, off_x, off_y, cim)
-    child isa PointReference || return child
+    child isa PointReferenceStep || return child
     out = cim.output
     out isa GraphicsCanvas || return child
-    PointReference(_off(off_x) + Int(out.x[]) + Int(child.x[]),
+    PointReferenceStep(_off(off_x) + Int(out.x[]) + Int(child.x[]),
                    _off(off_y) + Int(out.y[]) + Int(child.y[]))
 end
 
@@ -398,11 +398,11 @@ end
 function _forward_descend(entries::Vector, field::String, reference)
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    (h isa FieldReference && h.name == field) || return nothing
+    (h isa FieldReferenceStep && h.name == field) || return nothing
     rest = reference.tail
     rest isa ConcreteReferencePath || return nothing
     h2 = rest.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     idx = h2.start + 1
     1 <= idx <= length(entries) || return nothing
     (off_x, off_y, cim) = entries[idx]
@@ -1159,7 +1159,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    reroot_operation(op, (FieldReference("children"), RangeReference(i - 1, i)))
+    reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
 end
 
 function print_document(p::StackLayoutToGraphicsCanvas,

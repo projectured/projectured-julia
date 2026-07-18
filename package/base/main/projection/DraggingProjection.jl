@@ -35,7 +35,7 @@ import ..IoMapApiModule: IoMap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: ReferencePath, EmptyReferencePath, ConcreteReferencePath,
-                          RangeReference, FieldReference, is_element_reference, evaluate_reference,
+                          RangeReferenceStep, FieldReferenceStep, is_element_reference, evaluate_reference,
                           head, tail
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
@@ -196,7 +196,7 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
         # ToggleCollapseOperation pass through `reroot_operation` unchanged.
         inner = read_intent(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
         inner_op = inner isa Intent ? inner.operation : inner
-        return Intent(change.gesture, reroot_operation(inner_op, (FieldReference("content"),)))
+        return Intent(change.gesture, reroot_operation(inner_op, (FieldReferenceStep("content"),)))
     end
 end
 
@@ -234,7 +234,7 @@ _selection_path(content) =
     hasproperty(content, :selection) ? getfield(content, :selection)[] : nothing
 
 # Resolve a reference path to (owning CellVector, 1-based element index). Splits
-# the path at its last element `RangeReference`; the prefix resolves (via
+# the path at its last element `RangeReferenceStep`; the prefix resolves (via
 # `evaluate_reference`) to the owning collection. Returns nothing when the prefix
 # does not land on a CellVector.
 function _locate_collection_index(content, path::ReferencePath)
@@ -244,11 +244,11 @@ function _locate_collection_index(content, path::ReferencePath)
         push!(steps, head(cur))
         cur = tail(cur)
     end
-    # Find the last element RangeReference.
+    # Find the last element RangeReferenceStep.
     last_elem = 0
     for i in length(steps):-1:1
         s = steps[i]
-        if s isa RangeReference && is_element_reference(s)
+        if s isa RangeReferenceStep && is_element_reference(s)
             last_elem = i
             break
         end
@@ -264,17 +264,17 @@ function _locate_collection_index(content, path::ReferencePath)
         return nothing
     end
     coll isa CellVector || return nothing
-    (coll, (steps[last_elem]::RangeReference).start + 1)
+    (coll, (steps[last_elem]::RangeReferenceStep).start + 1)
 end
 
 # ── Reference mapping (transparent, via the "content" field) ───────────────
 
 function map_reference_forward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
-    # Skip canonical TypeReference checkpoints before reading the `content` step.
+    # Skip canonical TypeReferenceStep checkpoints before reading the `content` step.
     reference = reference
     if reference isa ConcreteReferencePath
         h = head(reference)
-        if h isa FieldReference && h.name == "content"
+        if h isa FieldReferenceStep && h.name == "content"
             return map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, tail(reference))
         end
         return nothing
@@ -285,7 +285,7 @@ end
 function map_reference_backward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
     inner = map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
     inner === nothing && return nothing
-    ConcreteReferencePath(FieldReference("content"), inner)
+    ConcreteReferencePath(FieldReferenceStep("content"), inner)
 end
 
 end # module

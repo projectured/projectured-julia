@@ -349,7 +349,7 @@ there is no separate in-window overlay layer. The flow:
    value **and** closes the popup in one `CompoundOperation`.
 
 **Anchor resolution across windows.** A widget's forward image is a
-`PointReference` (its top-left in the output canvas frame), not a structural
+`PointReferenceStep` (its top-left in the output canvas frame), not a structural
 path. Containers shift that point by where they placed the child (a layout by the
 child's offset, `WidgetShell` by its band offset, and `ScreenToScreen` by the
 window's screen origin), while structural paths pass through unchanged —

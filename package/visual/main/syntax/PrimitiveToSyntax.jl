@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference, Position
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReferenceStep, RangeReferenceStep, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
@@ -52,7 +52,7 @@ function read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::Replac
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
+    h isa FieldReferenceStep && h.name == "value" || return nothing
     return op
 end
 
@@ -82,7 +82,7 @@ function read_intent(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference && h.name == "value" || return nothing
+    h isa FieldReferenceStep && h.name == "value" || return nothing
     return op
 end
 
@@ -117,11 +117,11 @@ function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::Rep
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference || return nothing
+    h isa FieldReferenceStep || return nothing
     if h.name == "value"
         return op
     else
-        return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReference(p, path)))
+        return ReplaceSelectionOperation(ConcreteReferencePath(ProjectionReferenceStep(p, path)))
     end
 end
 
@@ -134,7 +134,7 @@ end
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..PrinterContextModule: make_child_context
 
 """

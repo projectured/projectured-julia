@@ -23,14 +23,14 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
                      SpanPath, _flat_cursor_coord, _flat_base, _flat_caret_ref, _is_structural_selection,
                      ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceModule: TextRangeReference
+import ..TextRangeReferenceModule: TextRangeReferenceStep
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, head, tail
-import ..TextSpanReferenceModule: TextSpanReference
-import ..PointReferenceModule: PointReference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, head, tail
+import ..TextSpanReferenceModule: TextSpanReferenceStep
+import ..PointReferenceModule: PointReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
@@ -606,7 +606,7 @@ end
 # layout the lines run, group by group.
 #
 # `span_flat_offsets` maps a span's `SpanPath` to the flat character offset it
-# starts at: the space a `TextSpanReference` box is expressed in. A
+# starts at: the space a `TextSpanReferenceStep` box is expressed in. A
 # `TextLine` contributes its implicit break and its indentation to that space (the
 # rule of `text_flat_offsets`), because the projection that emits the line counts
 # both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
@@ -973,20 +973,20 @@ function _char_position_at_x(sc::SegCoord, target_x::Int, measure::Function)
 end
 
 # Translate a downstream ReplaceSelectionOperation whose path encodes a mouse click
-# (ElementReference(segment_i) → PointReference(rx, ry)) back into a flat
+# (ElementReferenceStep(segment_i) → PointReferenceStep(rx, ry)) back into a flat
 # character-position selection on the Text domain.
 #
 # The path is produced by GraphicsCanvasToGraphicsImage.read_intent:
-#   ElementReference(i)   — 1-based index of the graphics element that was hit
-#   PointReference(rx,…) — pixel offset within that element
+#   ElementReferenceStep(i)   — 1-based index of the graphics element that was hit
+#   PointReferenceStep(rx,…) — pixel offset within that element
 #
 # We look up the matching SegCoord in char_to_coord, convert the pixel
 # x-offset to a character position using _char_position_at_x, and return
-# a fresh ReplaceSelectionOperation on the flat PositionReference domain.
+# a fresh ReplaceSelectionOperation on the flat PositionReferenceStep domain.
 function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     path isa ConcreteReferencePath || return nothing
     h1 = head(path)
-    h1 isa RangeReference || return nothing
+    h1 isa RangeReferenceStep || return nothing
     i  = h1.start + 1
     rest = tail(path)
 
@@ -999,7 +999,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
 
     rest isa ConcreteReferencePath || return nothing
     h2 = head(rest)
-    h2 isa PointReference || return nothing
+    h2 isa PointReferenceStep || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
     return _flat_hit_op(iomap.input, seg.span_path, char_pos)
@@ -1066,11 +1066,11 @@ Extract the flat character range for a box selection from the TextBlock's
 selection. Recognized shapes:
 - `EmptyReferencePath` (∅) → highlight the full extent `(0, N)` where N is
   the total character count across all segments.
-- `ConcreteReferencePath(TextSpanReference(s, e), ∅)` → `(s, e)`.
+- `ConcreteReferencePath(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegCoord})
-    # The selection is canonical at rest: skip its non-navigating TypeReference
+    # The selection is canonical at rest: skip its non-navigating TypeReferenceStep
     # checkpoints before reading the box structure underneath.
     sel = sel
     if sel isa EmptyReferencePath
@@ -1081,12 +1081,12 @@ function _highlight_char_range(sel, coord_map::Vector{SegCoord})
     sel isa ConcreteReferencePath || return nothing
     h = sel.head
     sel.tail isa EmptyReferencePath || return nothing
-    if h isa TextRangeReference
+    if h isa TextRangeReferenceStep
         # A non-empty text selection highlights its flat range; a caret has none
         # (it is drawn as the cursor rect instead).
         return h.start == h.stop ? nothing : (h.start, h.stop)
     end
-    h isa TextSpanReference || return nothing
+    h isa TextSpanReferenceStep || return nothing
     return (h.start, h.stop)
 end
 
@@ -1110,7 +1110,7 @@ end
 """
     _compute_span_rows(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> Vector of (x, y, w, h)
 
-The **content-hugging per-row** geometry of a `TextSpanReference` / `∅` box selection:
+The **content-hugging per-row** geometry of a `TextSpanReferenceStep` / `∅` box selection:
 one rect per visual row the range `[hl_start, hl_stop)` touches, each hugging that
 row's highlighted *content* rather than filling a bounding box. Per row, only the
 in-range segment pieces carrying a non-whitespace character anchor the rect, which
@@ -1164,14 +1164,14 @@ end
 """
     _compute_column_geo(coord_map, span_flat_offsets, hl_start, hl_stop, p) -> Vector of (x, y, w, h)
 
-The **column-box** geometry of variant 2 (`TextColumnReference`): a true rectangle
+The **column-box** geometry of variant 2 (`TextColumnReferenceStep`): a true rectangle
 `[col(hl_start) … col(hl_stop)]` painted on every row the selection spans,
 independent of the glyph content on each row — the Sublime / VS Code "column
 select". Returns one `(x, y, w, h)` rect per row, or an empty vector when either
 endpoint's column cannot be resolved or the two columns coincide.
 
 Reserved for a future column-select gesture; no producer emits a
-`TextColumnReference` yet, so this is exercised by a direct unit test rather than
+`TextColumnReferenceStep` yet, so this is exercised by a direct unit test rather than
 the live overlay. `_layout_overlay` today paints the single `_compute_span_geo`
 bounding rect; generalising it to a per-row rect vector (the same render path a
 multi-line stream highlight needs) is the remaining wiring.

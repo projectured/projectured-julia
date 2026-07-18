@@ -184,7 +184,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 | Module | Types |
 |---|---|
-| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReference`, `FieldReference`, `TypeReference` (`ReferenceStep.jl`). `ElementReference`/`PositionReference` are convenience constructors producing a `RangeReference`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReference` (kernel `projection/`), `PointReference` (visual `graphics/`), `TextRangeReference`/`TextColumnReference`/`TextSpanReference` (visual `text/`) |
+| kernel `reference/` | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath` (`ReferencePath.jl`); the kernel step structs `RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep` (`ReferenceStep.jl`). `ElementReferenceStep`/`PositionReferenceStep` are convenience constructors producing a `RangeReferenceStep`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReferenceStep` (kernel `projection/`), `PointReferenceStep` (visual `graphics/`), `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep` (visual `text/`) |
 | `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
 | `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
 | `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
@@ -339,7 +339,7 @@ above it in this list:
 10 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
 11 projection  the four interface functions, Intent, the IO maps, @projection,
-               ProjectionTemplate, ProjectionReference
+               ProjectionTemplate, ProjectionReferenceStep
 12 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
 13 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
@@ -368,7 +368,7 @@ order:
 ```
  1 style     Color, Font, TrueType, Geometry, Image, strokes and text styles
  2 screen    ScreenDocument, WindowManaging
- 3 graphics  Graphics, GraphicsCaching, PointReference
+ 3 graphics  Graphics, GraphicsCaching, PointReferenceStep
  4 layout    Layout, the constraint solver, CollectionToLayout
  5 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
              highlighting, TextRange/Column/SpanReference, ReferenceToText

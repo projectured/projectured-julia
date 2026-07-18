@@ -37,10 +37,10 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference,
-                          RangeReference, FieldReference,
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep,
+                          RangeReferenceStep, FieldReferenceStep,
                           ReferencePath, EmptyReferencePath
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..CollectionModule: CellVector
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"

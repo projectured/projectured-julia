@@ -12,14 +12,14 @@ module TextLineNumberingModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
-import ..TextRangeReferenceModule: TextRangeReference
+import ..TextRangeReferenceModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: ConcreteReferencePath, RangeReference, FieldReference, EmptyReferencePath, strip_reference_types
+import ..ReferenceModule: ConcreteReferencePath, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, strip_reference_types
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -93,10 +93,10 @@ function _line_numbering_span(original::TextString, content::AbstractString)
                Cell(nothing))
 end
 
-# The flat caret offset of a `TextRangeReference` selection, or `nothing`.
+# The flat caret offset of a `TextRangeReferenceStep` selection, or `nothing`.
 function _text_range_caret(ref)
     r = strip_reference_types(ref)
-    r isa ConcreteReferencePath && r.head isa TextRangeReference &&
+    r isa ConcreteReferencePath && r.head isa TextRangeReferenceStep &&
         r.tail isa EmptyReferencePath && r.head.start == r.head.stop || return nothing
     r.head.start::Int
 end
@@ -121,7 +121,7 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
     end
     f = text_elem_to_flat(iomap.input, in_span, char_offset + out_char)
     f === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReferencePath(TextRangeReference(f, f), EmptyReferencePath()))
+    ReplaceSelectionOperation(ConcreteReferencePath(TextRangeReferenceStep(f, f), EmptyReferencePath()))
 end
 
 read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
@@ -159,20 +159,20 @@ function _parse_text_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return (nothing, nothing)
     h1 = path.head
-    (h1 isa FieldReference && h1.name == "elements") || return (nothing, nothing)
+    (h1 isa FieldReferenceStep && h1.name == "elements") || return (nothing, nothing)
     t1 = path.tail
     t1 isa ConcreteReferencePath || return (nothing, nothing)
     h2 = t1.head
-    h2 isa RangeReference || return (nothing, nothing)
+    h2 isa RangeReferenceStep || return (nothing, nothing)
     span_idx = h2.start::Int + 1
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return (nothing, nothing)
     h3 = t2.head
-    (h3 isa FieldReference && h3.name == "content") || return (nothing, nothing)
+    (h3 isa FieldReferenceStep && h3.name == "content") || return (nothing, nothing)
     t3 = t2.tail
     t3 isa ConcreteReferencePath || return (nothing, nothing)
     h4 = t3.head
-    h4 isa RangeReference || return (nothing, nothing)
+    h4 isa RangeReferenceStep || return (nothing, nothing)
     (span_idx, h4.start::Int)
 end
 

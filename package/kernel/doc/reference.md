@@ -28,8 +28,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        union, and the open generics higher packages
         │                        add methods to (step_kind, evaluate_step, and
         │                        the dsl_* DSL seams)
-        ├─ ReferenceStep.jl    — the kernel step types (RangeReference,
-        │                        FieldReference, TypeReference) and the Position
+        ├─ ReferenceStep.jl    — the kernel step types (RangeReferenceStep,
+        │                        FieldReferenceStep, TypeReferenceStep) and the Position
         │                        a cursor evaluates to, each packaged with its
         │                        own show, ==, and seam methods
         ├─ ReferencePath.jl    — the path structure and its document-free
@@ -104,32 +104,32 @@ Each step descends one level into a document tree. The full vocabulary:
 
 | Step | Selects | Notes |
 | --- | --- | --- |
-| `FieldReference("foo")` | the field named `foo` | resolved by `getfield(doc, :foo)`, unwrapping a `Cell` if needed — struct field names are public API |
-| `ElementReference(i)` | the *i*-th element of a sequence | constructor alias for `RangeReference(i-1, i)`; 1-based (Julia convention) |
-| `PositionReference(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReference(k, k)`; a zero-width cursor, 0-based |
-| `RangeReference(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
-| `ProjectionReference(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
-| `PointReference(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
-| `TextRangeReference(s, e)` / `TextColumnReference` / `TextSpanReference` | a text selection — stream cursor / column box / bounding box | visual `text/`; text-domain endpoints, same `(start, stop)` payload, the type selects the geometry |
+| `FieldReferenceStep("foo")` | the field named `foo` | resolved by `getfield(doc, :foo)`, unwrapping a `Cell` if needed — struct field names are public API |
+| `ElementReferenceStep(i)` | the *i*-th element of a sequence | constructor alias for `RangeReferenceStep(i-1, i)`; 1-based (Julia convention) |
+| `PositionReferenceStep(k)` | cursor at boundary *k* of a sequence | constructor alias for `RangeReferenceStep(k, k)`; a zero-width cursor, 0-based |
+| `RangeReferenceStep(s, e)` | the range `s..e` | the underlying type; `Element`/`Position` are constructor aliases |
+| `ProjectionReferenceStep(p, sub)` | a projection-introduced element | kernel `projection/`; see [the opaque-payload pattern](#the-opaque-payload-pattern) below |
+| `PointReferenceStep(x, y)` | a pixel coordinate | visual `graphics/`; for graphics/geometry endpoints and hit-testing |
+| `TextRangeReferenceStep(s, e)` / `TextColumnReferenceStep` / `TextSpanReferenceStep` | a text selection — stream cursor / column box / bounding box | visual `text/`; text-domain endpoints, same `(start, stop)` payload, the type selects the geometry |
 
 The first four are the kernel's own steps (`ReferenceStep.jl`). The last three are
 owned by the packages that need them: each subtypes `ReferenceStep` and registers
 its navigation and DSL behaviour through the seams in `ReferenceInterface.jl`, at its own
 definition site, with no edit to the reference layer.
 
-`TypeReference(T)` also exists but is **not** a navigation step in stored
+`TypeReferenceStep(T)` also exists but is **not** a navigation step in stored
 paths — it survives only as an internal build-time token that is immediately
 folded into per-node `type` fields (see
 [Type checkpoints](#type-checkpoints-and-replay-validity)). A path node's `head`
 is therefore always one of the navigation steps above.
 
-All dynamic step fields (`ElementReference(index::Cell)`,
-`FieldReference(name::Cell)`, `PointReference(x::Cell, y::Cell)`, …) are held in
+All dynamic step fields (`ElementReferenceStep(index::Cell)`,
+`FieldReferenceStep(name::Cell)`, `PointReferenceStep(x::Cell, y::Cell)`, …) are held in
 reactive `Cell`s, so the same path object can be re-pointed in place.
 
 ### The boundary axis
 
-`ElementReference` and `PositionReference` are two readings of the *same* axis.
+`ElementReferenceStep` and `PositionReferenceStep` are two readings of the *same* axis.
 Any sequence — array elements, object entries, child nodes, string characters —
 has `n` items and `n+1` boundaries between them:
 
@@ -142,24 +142,24 @@ has `n` items and `n+1` boundaries between them:
 - `{i}` is the boundary at offset `i` — a zero-width cursor.
 - `[i]` is the item between boundaries `i-1` and `i` — the i-th element (1-based).
 
-Both are encoded as the same underlying `RangeReference(start, stop)`: `[i]` is
-`RangeReference(i-1, i)` (one-wide), `{i}` is `RangeReference(i, i)`
-(zero-wide). A multi-item selection `{i:j}` is `RangeReference(i, j)`.
+Both are encoded as the same underlying `RangeReferenceStep(start, stop)`: `[i]` is
+`RangeReferenceStep(i-1, i)` (one-wide), `{i}` is `RangeReferenceStep(i, i)`
+(zero-wide). A multi-item selection `{i:j}` is `RangeReferenceStep(i, j)`.
 
 The same convention applies regardless of what the items are. In an array, `[1]`
 is the first element and `{0}` is the cursor before it. In a string, `[1]` is
 the first character and `{0}` is the cursor before it. In an object, `[1]` is
 the first entry and `{0}` is the cursor before it.
 
-### ProjectionReference
+### ProjectionReferenceStep
 
 Points to elements introduced by a projection (delimiters, brackets,
 separators) that have no counterpart in the underlying document.
 
 ```julia
-ProjectionReference(projection,
-    ConcreteReferencePath(FieldReference("open"),
-        ConcreteReferencePath(PositionReference(0))))
+ProjectionReferenceStep(projection,
+    ConcreteReferencePath(FieldReferenceStep("open"),
+        ConcreteReferencePath(PositionReferenceStep(0))))
 ```
 
 ## Reference paths and their structs
@@ -190,7 +190,7 @@ can move a caret by writing those cells in place rather than rebuilding the chai
 capable way to construct a reference:
 
 ```julia
-@reference items[1].name        # ElementReference(1) then FieldReference("name")
+@reference items[1].name        # ElementReferenceStep(1) then FieldReferenceStep("name")
 @reference()                    # the empty path (the whole element / root)
 ```
 
@@ -198,7 +198,7 @@ For programmatic construction from a list of steps, `ReferencePath(steps...)`
 threads them into a path:
 
 ```julia
-ReferencePath(ElementReference(1), FieldReference("name"))
+ReferencePath(ElementReferenceStep(1), FieldReferenceStep("name"))
 ```
 
 You rarely construct the cons cells by hand; prefer `@reference` or
@@ -220,8 +220,8 @@ through every projection for free.
 
 `evaluate_reference(document, path)` is the inverse of building a path: it walks
 `path` from `document` and returns the node (or value) it points at — unwrapping
-cells, descending fields by `FieldReference` and elements by
-`ElementReference` / `PositionReference`. It is the
+cells, descending fields by `FieldReferenceStep` and elements by
+`ElementReferenceStep` / `PositionReferenceStep`. It is the
 `(document, reference) → node` function.
 
 ```julia
@@ -237,8 +237,8 @@ the document tree to locate a node.
 `is_valid_reference` checks that an object is a valid reference step or path:
 
 ```julia
-is_valid_reference(PositionReference(5))    # true
-is_valid_reference(FieldReference("name"))  # true
+is_valid_reference(PositionReferenceStep(5))    # true
+is_valid_reference(FieldReferenceStep("name"))  # true
 is_valid_reference("not a reference")       # false
 is_valid_reference(EmptyReferencePath())    # true
 ```
@@ -261,10 +261,10 @@ every path node**: each `ConcreteReferencePath` carries a `type` field recording
 the Julia type of the node it stands on (the type its `head` step descends
 *from*), and the terminal `EmptyReferencePath` records the type of the node the
 path lands on. A node's `head` is therefore **always a navigation step** — there
-is no separate interleaved `TypeReference` *step* and nothing to "skip". The
+is no separate interleaved `TypeReferenceStep` *step* and nothing to "skip". The
 match rule is `node isa T`.
 
-A `FieldReference` does not need two checkpoints (a start and an end): a step's
+A `FieldReferenceStep` does not need two checkpoints (a start and an end): a step's
 *start* type is its own node's `type`, its *end* type is its `tail` node's
 `type`. The boundary type is stored once, on the downstream node, serving both
 roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal).
@@ -287,7 +287,7 @@ Checkpoints are created programmatically, not by hand:
 - `strip_reference_types(path)` blanks the node types again, recovering the
   plain navigation skeleton. The two are inverses on an unchanged document.
 - `fold_reference_types(path)` converts a path that still carries transitional
-  `TypeReference` *steps* (e.g. the ones `@reference ::T` builds, or those the
+  `TypeReferenceStep` *steps* (e.g. the ones `@reference ::T` builds, or those the
   generic `ProjectionTemplate` helpers prepend) into the folded node-type form.
   It is applied at construction so no stored or consumed path ever holds a
   checkpoint step.
@@ -317,7 +317,7 @@ annotated = annotate_reference_types(document, path)   # or just read a selectio
 live     = get_valid_reference_prefix(document, annotated)  # truncate at first mismatch
 ```
 
-> **Implementation note.** `TypeReference(T)` survives only as an internal
+> **Implementation note.** `TypeReferenceStep(T)` survives only as an internal
 > *build-time token*: the `@reference ::T` DSL and the `ProjectionTemplate`
 > helpers emit it, and `fold_reference_types` immediately folds it into node
 > `type` fields. It never appears as a step in a stored or consumed path.
@@ -337,7 +337,7 @@ reference. `map_reference_backward` takes an output reference and returns an
 input reference. These are the only two functions that translate between the two
 roles, and each projection defines its own rules for how the translation works.
 
-A `ProjectionReference(P, output_path)` *step* embeds an output reference inside
+A `ProjectionReferenceStep(P, output_path)` *step* embeds an output reference inside
 an input reference: it says "from this position, jump through projection `P`,
 then continue with `output_path` in `P`'s output." This lets an input reference
 point at structural elements (delimiters, separators, decorations) that only
@@ -354,44 +354,44 @@ The `@reference` macro turns compact source into the nested
 ```julia
 # Field references
 @reference address.city
-# → FieldReference("address") then FieldReference("city")
+# → FieldReferenceStep("address") then FieldReferenceStep("city")
 
 # Element references (1-based)
-@reference items[i]                 # → ElementReference(i)
+@reference items[i]                 # → ElementReferenceStep(i)
 
 # Position references (0-based)
-@reference items{i}                 # → PositionReference(i)
+@reference items{i}                 # → PositionReferenceStep(i)
 
 # Range references — explicit multi-element selection
-@reference items{s:e}               # → RangeReference(s, e)
+@reference items{s:e}               # → RangeReferenceStep(s, e)
 # Prefer this form over the older two-arg `items[s, e]`.
 
 # Dynamic field names
-@reference config.field(fname)      # → FieldReference(fname)
+@reference config.field(fname)      # → FieldReferenceStep(fname)
 
 # Point references (2D coordinates)
-@reference cursor.point(x, y)       # → PointReference(x, y)
+@reference cursor.point(x, y)       # → PointReferenceStep(x, y)
 
 # Projection references
 @reference rendered.proj(projection, {0})
-# → ProjectionReference(projection, the one-step path PositionReference(0))
+# → ProjectionReferenceStep(projection, the one-step path PositionReferenceStep(0))
 
 # Complex paths
-@reference items[1].name            # → ElementReference(1) then FieldReference("name")
+@reference items[1].name            # → ElementReferenceStep(1) then FieldReferenceStep("name")
 
 # Path-tail splice
 @reference value.^(tail)
 # Concatenates the spliced ReferencePath (or single ReferenceStep) onto the
 # prefix; useful for rebuilding paths like
-#   ConcreteReferencePath(FieldReference("value"), tail)
+#   ConcreteReferencePath(FieldReferenceStep("value"), tail)
 # in projection mappers.
 
 # Splice at the front
 @reference ^(base).inner            # → _concat(base, @reference inner)
 
 # Splice with a single step
-let s = FieldReference("foo")
-    @reference value.^(s)           # → FieldReference("value") then FieldReference("foo")
+let s = FieldReferenceStep("foo")
+    @reference value.^(s)           # → FieldReferenceStep("value") then FieldReferenceStep("foo")
 end
 ```
 
@@ -407,12 +407,12 @@ The `@step` macro builds a single `ReferenceStep`, useful for passing to
 `append_reference` or any API that takes raw steps instead of full paths.
 
 ```julia
-@step value              # FieldReference("value")
-@step xs[i]              # ElementReference(i)
-@step xs{k}              # PositionReference(k)
-@step xs{s:e}            # RangeReference(s, e)
-@step c.point(x, y)      # PointReference(x, y)
-@step config.field(name) # FieldReference(name)
+@step value              # FieldReferenceStep("value")
+@step xs[i]              # ElementReferenceStep(i)
+@step xs{k}              # PositionReferenceStep(k)
+@step xs{s:e}            # RangeReferenceStep(s, e)
+@step c.point(x, y)      # PointReferenceStep(x, y)
+@step config.field(name) # FieldReferenceStep(name)
 ```
 
 The leading identifier (`xs`, `c`, `config`) is a placeholder — only the
@@ -428,7 +428,7 @@ for the result expression:
 ```julia
 @reference_case reference begin
     value{k}            => @reference value{k}   # cursor position (0-based)
-    items{s:e}          => ("range", s, e)       # matches any RangeReference, binds boundaries
+    items{s:e}          => ("range", s, e)       # matches any RangeReferenceStep, binds boundaries
     items[i]            => ("item at", i)         # element access (1-based)
     items[1]            => "first item"           # literal element
     when(items[i], i>0) => ("later item", i)      # guarded pattern
@@ -444,8 +444,8 @@ Pattern syntax:
 - `"name"` or `0` — literal, matches a specific value
 - `i::Int` — typed binder, captures with a type check
 - `path...` — matches prefix and binds the remaining tail
-- `{s:e}` — range pattern, matches any `RangeReference` (positions are
-  `RangeReference(k, k)`, so `{s:e}` will also match a position; list more
+- `{s:e}` — range pattern, matches any `RangeReferenceStep` (positions are
+  `RangeReferenceStep(k, k)`, so `{s:e}` will also match a position; list more
   specific `{k}` patterns first if both are interesting)
 
 The `when(pattern, cond)` helper adds a guard; `prefix(pattern)` matches a
@@ -472,16 +472,16 @@ side — a change to one DSL's syntax is a change to its twin's grammar.
 ## Mapping between document structs and reference steps
 
 Reference paths mirror the struct field layout of documents. Every `.` in a
-printed path corresponds to a `FieldReference`; every `[i]` corresponds to an
-`ElementReference`; every `{i}` corresponds to a `PositionReference`. The core
+printed path corresponds to a `FieldReferenceStep`; every `[i]` corresponds to an
+`ElementReferenceStep`; every `{i}` corresponds to a `PositionReferenceStep`. The core
 rules used by `set_selection!`, `clear_selection!`, and `evaluate_reference`
 are:
 
 | Reference step | Navigation action |
 |---|---|
-| `FieldReference("f")` | `getfield(document, :f)` — unwrap Cell if needed |
-| `ElementReference(i)` | `document[i]` — the i-th item (1-based); element in a collection or character in a string |
-| `PositionReference(i)` | cursor at boundary `i` (0-based); between elements in a collection or between characters in a string |
+| `FieldReferenceStep("f")` | `getfield(document, :f)` — unwrap Cell if needed |
+| `ElementReferenceStep(i)` | `document[i]` — the i-th item (1-based); element in a collection or character in a string |
+| `PositionReferenceStep(i)` | cursor at boundary `i` (0-based); between elements in a collection or between characters in a string |
 
 ### CellVector (used by arrays, objects, and other containers)
 
@@ -490,60 +490,60 @@ are:
 
 | Step | Target |
 |---|---|
-| `ElementReference(i)` | `elements[i]` — the i-th element (1-based) |
-| `PositionReference(i)` | cursor between elements (0-based); useful as an insertion point |
+| `ElementReferenceStep(i)` | `elements[i]` — the i-th element (1-based) |
+| `PositionReferenceStep(i)` | cursor between elements (0-based); useful as an insertion point |
 
 ### JSON domain
 
 | Document type | Field | Reference step | Reaches |
 |---|---|---|---|
-| **JsonObject** | `entries` | `FieldReference("entries")` | the CellVector of entries |
-| **JsonArray** | `elements` | `FieldReference("elements")` | the CellVector of elements |
-| **JsonObjectEntry** | `value` | `FieldReference("value")` | the value document (Cell) |
-| **JsonObjectEntry** | `key` | `FieldReference("key")` | the key string |
-| **JsonString** | `value` | `FieldReference("value")` | the String cell |
-| **JsonNumber** | `value` | `FieldReference("value")` | the Number cell |
-| **JsonBool** | `value` | `FieldReference("value")` | the Bool cell |
-| *any CellVector or String* | `[i]` | `ElementReference(i)` | the i-th item (1-based) — element or character |
-| *any CellVector or String* | `{k}` | `PositionReference(k)` | cursor at boundary `k` (0-based) — between elements or characters |
+| **JsonObject** | `entries` | `FieldReferenceStep("entries")` | the CellVector of entries |
+| **JsonArray** | `elements` | `FieldReferenceStep("elements")` | the CellVector of elements |
+| **JsonObjectEntry** | `value` | `FieldReferenceStep("value")` | the value document (Cell) |
+| **JsonObjectEntry** | `key` | `FieldReferenceStep("key")` | the key string |
+| **JsonString** | `value` | `FieldReferenceStep("value")` | the String cell |
+| **JsonNumber** | `value` | `FieldReferenceStep("value")` | the Number cell |
+| **JsonBool** | `value` | `FieldReferenceStep("value")` | the Bool cell |
+| *any CellVector or String* | `[i]` | `ElementReferenceStep(i)` | the i-th item (1-based) — element or character |
+| *any CellVector or String* | `{k}` | `PositionReferenceStep(k)` | cursor at boundary `k` (0-based) — between elements or characters |
 
 **Full path example** — character 3 of `"Alice"` in `{"name": "Alice"}`:
 
 ```
 @reference entries[1].value.value{3}
-           ───────     FieldReference("entries")
-                  ───  ElementReference(1)       → JsonObjectEntry
-                       ─────                         FieldReference("value")  → JsonString
-                             ─────                   FieldReference("value")  → String cell
-                                  ───                PositionReference(3)     → char offset
+           ───────     FieldReferenceStep("entries")
+                  ───  ElementReferenceStep(1)       → JsonObjectEntry
+                       ─────                         FieldReferenceStep("value")  → JsonString
+                             ─────                   FieldReferenceStep("value")  → String cell
+                                  ───                PositionReferenceStep(3)     → char offset
 ```
 
 ### XML domain
 
 | Document type | Field | Reference step | Reaches |
 |---|---|---|---|
-| **XmlElement** | `attrs` | `FieldReference("attrs")` | CellVector of XmlAttribute |
-| **XmlElement** | `cell` | `FieldReference("cell")` | CellVector of child nodes |
-| **XmlText** | `cell` | `FieldReference("cell")` | the String cell |
-| **XmlAttribute** | `cell` | `FieldReference("cell")` | the attribute value cell |
-| *any CellVector or String* | `[i]` | `ElementReference(i)` | the i-th item (1-based) — element or character |
-| *any CellVector or String* | `{k}` | `PositionReference(k)` | cursor at boundary `k` (0-based) — between elements or characters |
+| **XmlElement** | `attrs` | `FieldReferenceStep("attrs")` | CellVector of XmlAttribute |
+| **XmlElement** | `cell` | `FieldReferenceStep("cell")` | CellVector of child nodes |
+| **XmlText** | `cell` | `FieldReferenceStep("cell")` | the String cell |
+| **XmlAttribute** | `cell` | `FieldReferenceStep("cell")` | the attribute value cell |
+| *any CellVector or String* | `[i]` | `ElementReferenceStep(i)` | the i-th item (1-based) — element or character |
+| *any CellVector or String* | `{k}` | `PositionReferenceStep(k)` | cursor at boundary `k` (0-based) — between elements or characters |
 
 ### Book domain
 
 | Document type | Field | Reference step | Reaches |
 |---|---|---|---|
-| **BookBook** | `elements` | `FieldReference("elements")` | CellVector of chapters |
-| **BookChapter** | `elements` | `FieldReference("elements")` | CellVector of children |
-| **BookList** | `elements` | `FieldReference("elements")` | CellVector of items |
-| **BookParagraph** | `content` | `FieldReference("content")` | the text content |
-| **BookPicture** | `content` | `FieldReference("content")` | the image content |
+| **BookBook** | `elements` | `FieldReferenceStep("elements")` | CellVector of chapters |
+| **BookChapter** | `elements` | `FieldReferenceStep("elements")` | CellVector of children |
+| **BookList** | `elements` | `FieldReferenceStep("elements")` | CellVector of items |
+| **BookParagraph** | `content` | `FieldReferenceStep("content")` | the text content |
+| **BookPicture** | `content` | `FieldReferenceStep("content")` | the image content |
 
 ### FileSystem domain
 
 | Document type | Field | Reference step | Reaches |
 |---|---|---|---|
-| **FileSystemDirectory** | `elements` | `FieldReference("elements")` | CellVector of children |
+| **FileSystemDirectory** | `elements` | `FieldReferenceStep("elements")` | CellVector of children |
 
 ### Selection-path forms by domain
 
@@ -558,10 +558,10 @@ shapes those fields produce as a selection (`[i]` is the i-th item, 1-based;
 | `SyntaxLeaf` | `.open + {k}` / `.close + {k}` | cursor in the opening / closing delimiter |
 | `SyntaxNode` | `[i] + <child path>` | into child `i` |
 | `SyntaxNode` | `.open + {k}` / `.close + {k}` | cursor in delimiter span |
-| `SyntaxNode` | `ProjectionReference(p, {k})` | projection-introduced whitespace |
+| `SyntaxNode` | `ProjectionReferenceStep(p, {k})` | projection-introduced whitespace |
 | `JsonString` | `.value + {k}` | cursor in the string value |
-| `JsonString` | `ProjectionReference(p, .open + {k})` | cursor on `"` opening quote |
-| `JsonString` | `ProjectionReference(p, .close + {k})` | cursor on `"` closing quote |
+| `JsonString` | `ProjectionReferenceStep(p, .open + {k})` | cursor on `"` opening quote |
+| `JsonString` | `ProjectionReferenceStep(p, .close + {k})` | cursor on `"` closing quote |
 | `JsonArray` | `[i] + <element path>` | into element `i` |
 | `JsonObject` | `[i] + .value + <value path>` | into the value of entry `i` |
 | `JsonObject` | `[i] + .key + {k}` | cursor in the key string of entry `i` |
@@ -570,16 +570,16 @@ shapes those fields produce as a selection (`[i]` is the i-th item, 1-based;
 
 The pattern is consistent across all domains:
 
-1. **Struct fields** → `FieldReference("field_name")` — descend into a named
+1. **Struct fields** → `FieldReferenceStep("field_name")` — descend into a named
    field; if the field is a `Cell`, it is automatically unwrapped.
-2. **i-th item** → `ElementReference(i)` — descend into the i-th item of a
+2. **i-th item** → `ElementReferenceStep(i)` — descend into the i-th item of a
    sequence (1-based); same step whether the sequence holds elements (CellVector,
    JsonArray, …) or characters (String).
-3. **Boundary between items** → `PositionReference(k)` — cursor at the k-th
+3. **Boundary between items** → `PositionReferenceStep(k)` — cursor at the k-th
    boundary of a sequence (0-based); same step whether between elements
    (insertion point) or between characters (text cursor).
 
-A reference path is always a chain of these step types (plus `ProjectionReference`
+A reference path is always a chain of these step types (plus `ProjectionReferenceStep`
 for projection-introduced elements like delimiters and brackets).
 
 ## Finding references: `search_references`
@@ -615,7 +615,7 @@ folded up to their enclosing `Document`; pass `raw=true` to return the exact mat
 
 ## The opaque-payload pattern
 
-`ProjectionReference` stores its projection as an **untyped `Any` payload** — the
+`ProjectionReferenceStep` stores its projection as an **untyped `Any` payload** — the
 reference layer defines only the step's shape and never imports `Projection`.
 Only higher layers (the projection layer) construct and interpret the payload.
 So the only edge between projection and reference is `projection → reference`

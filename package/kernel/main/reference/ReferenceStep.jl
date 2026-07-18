@@ -1,5 +1,5 @@
 # Fragment of `ReferenceModule` — the kernel's **step vocabulary**: the concrete
-# `ReferenceStep` subtypes (`RangeReference`, `FieldReference`, `TypeReference`),
+# `ReferenceStep` subtypes (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`),
 # the `Position` value a cursor step evaluates to, the `ReferenceTypeMismatch` a
 # failed checkpoint throws, and the cell-transparent navigation helpers the steps
 # descend with.
@@ -21,10 +21,10 @@
 # stop adding type checkpoints there). `CellVector` already unwraps on
 # `getindex`, so this is a no-op for it.
 
-# ── RangeReference ────────────────────────────────────────────────────────
+# ── RangeReferenceStep ────────────────────────────────────────────────────────
 
 """
-    RangeReference(start, stop)
+    RangeReferenceStep(start, stop)
 
 Unified sequence step.  Encodes:
 - **Cursor position** (start == stop): a position between elements (0-based).
@@ -34,40 +34,40 @@ Unified sequence step.  Encodes:
 All positions are 0-based boundaries.  For a collection with n elements,
 valid boundaries are 0 to n.
 """
-@cell_struct struct RangeReference <: ReferenceStep
+@cell_struct struct RangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
 end
 
-# `RangeReference(start, stop)` needs no explicit Int constructor: the
+# `RangeReferenceStep(start, stop)` needs no explicit Int constructor: the
 # `@cell_struct` inner constructor auto-wraps raw values into `Cell`s (and passes
-# `Cell`s through). Same for `FieldReference`/`PointReference` below.
+# `Cell`s through). Same for `FieldReferenceStep`/`PointReferenceStep` below.
 
 # ── Convenience step constructors ───────────────────────────────────────
 
 """
-    ElementReference(index)
+    ElementReferenceStep(index)
 
-Construct a `RangeReference` representing the `index`-th element (1-based).
-Equivalent to `RangeReference(index - 1, index)`.
+Construct a `RangeReferenceStep` representing the `index`-th element (1-based).
+Equivalent to `RangeReferenceStep(index - 1, index)`.
 """
-ElementReference(index::Int) = RangeReference(index - 1, index)
+ElementReferenceStep(index::Int) = RangeReferenceStep(index - 1, index)
 
 """
-    PositionReference(index)
+    PositionReferenceStep(index)
 
-Construct a `RangeReference` representing a cursor position (0-based).
-Equivalent to `RangeReference(index, index)`.
+Construct a `RangeReferenceStep` representing a cursor position (0-based).
+Equivalent to `RangeReferenceStep(index, index)`.
 """
-PositionReference(index::Int) = RangeReference(index, index)
+PositionReferenceStep(index::Int) = RangeReferenceStep(index, index)
 
 # ── Predicates ────────────────────────────────────────────────────────────
 
 "True when `r` encodes a single element (stop == start + 1)."
-is_element_reference(r::RangeReference) = r.stop == r.start + 1
+is_element_reference(r::RangeReferenceStep) = r.stop == r.start + 1
 
 "True when `r` encodes a cursor position (start == stop)."
-is_position_reference(r::RangeReference) = r.start == r.stop
+is_position_reference(r::RangeReferenceStep) = r.start == r.stop
 
 """
     Position(index)
@@ -87,7 +87,7 @@ end
 Base.:(==)(a::Position, b::Position) = a.index == b.index
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
-function Base.show(io::IO, s::RangeReference)
+function Base.show(io::IO, s::RangeReferenceStep)
     if is_element_reference(s)
         print(io, "[", s.start + 1, "]")
     elseif is_position_reference(s)
@@ -97,29 +97,29 @@ function Base.show(io::IO, s::RangeReference)
     end
 end
 
-Base.:(==)(a::RangeReference, b::RangeReference) = a.start == b.start && a.stop == b.stop
+Base.:(==)(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
 
-step_kind(::RangeReference) = :structural
+step_kind(::RangeReferenceStep) = :structural
 
 # A zero-width cursor evaluates to a `Position` (a caret between elements); a
 # single element / range descends into the item at start+1 (cell-transparent).
-function evaluate_step(step::RangeReference, document)
+function evaluate_step(step::RangeReferenceStep, document)
     is_position_reference(step) && return Position(step.start)
     unwrap_cell(document[step.start + 1])
 end
 
-# ── FieldReference ────────────────────────────────────────────────────────
+# ── FieldReferenceStep ────────────────────────────────────────────────────────
 
 """
-    FieldReference(name)
+    FieldReferenceStep(name)
 
 References a named field of an object/record.
 """
-@cell_struct struct FieldReference <: ReferenceStep
+@cell_struct struct FieldReferenceStep <: ReferenceStep
     name::String
 end
 
-# A `FieldReference` addresses a struct field by name — OR, when the document is
+# A `FieldReferenceStep` addresses a struct field by name — OR, when the document is
 # an `AbstractDict`, a dict entry by key. A reference into a dict records the
 # entry this way (the reference grammar has no dedicated key step), so navigation
 # must follow it back. Dict keys may be stored as `String` or `Symbol`; the
@@ -133,27 +133,27 @@ function _get_field(document::AbstractDict, name)
 end
 _get_field(document, name) = unwrap_cell(getfield(document, Symbol(name)))
 
-function Base.show(io::IO, s::FieldReference)
+function Base.show(io::IO, s::FieldReferenceStep)
     print(io, ".", s.name)
 end
 
-Base.:(==)(a::FieldReference, b::FieldReference) = a.name == b.name
+Base.:(==)(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
 
-step_kind(::FieldReference) = :structural
+step_kind(::FieldReferenceStep) = :structural
 
-evaluate_step(step::FieldReference, document) =
+evaluate_step(step::FieldReferenceStep, document) =
     _get_field(document, step.name)
 
-# ── TypeReference ─────────────────────────────────────────────────────────
+# ── TypeReferenceStep ─────────────────────────────────────────────────────────
 
 """
-    TypeReference(type)
+    TypeReferenceStep(type)
 
 A **non-navigating type checkpoint**: asserts that the node reached so far is a
 `type`. Evaluation does not descend — it stays on the current node and continues
 with the rest of the path. The point of the checkpoint is *validity*: when a
 stored path is replayed against a document whose structure has changed, a
-`TypeReference` whose recorded `type` no longer matches the actual node marks the
+`TypeReferenceStep` whose recorded `type` no longer matches the actual node marks the
 **remaining path as invalid** (see [`evaluate_reference`](@ref),
 [`get_valid_reference_prefix`](@ref), [`annotate_reference_types`](@ref)).
 
@@ -161,14 +161,14 @@ The match rule is `node isa type`. Checkpoints are normally created from
 `typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
 the assertion holds exactly; recording an abstract supertype is also tolerated.
 """
-@cell_struct struct TypeReference <: ReferenceStep
+@cell_struct struct TypeReferenceStep <: ReferenceStep
     type::Any
 end
 
 """
     ReferenceTypeMismatch(expected, actual)
 
-Thrown by [`evaluate_reference`](@ref) when a [`TypeReference`](@ref) checkpoint
+Thrown by [`evaluate_reference`](@ref) when a [`TypeReferenceStep`](@ref) checkpoint
 does not hold: the node reached is an `actual` but the checkpoint expected an
 `expected`. Callers that replay possibly-stale references catch this specifically
 to distinguish a structural mismatch from a genuine bug.
@@ -182,15 +182,15 @@ Base.showerror(io::IO, e::ReferenceTypeMismatch) =
     print(io, "ReferenceTypeMismatch: expected node of type ", e.expected,
           ", got ", e.actual)
 
-function Base.show(io::IO, s::TypeReference)
+function Base.show(io::IO, s::TypeReferenceStep)
     print(io, "::", s.type)
 end
 
-Base.:(==)(a::TypeReference, b::TypeReference) = a.type === b.type
+Base.:(==)(a::TypeReferenceStep, b::TypeReferenceStep) = a.type === b.type
 
-step_kind(::TypeReference) = :checkpoint
+step_kind(::TypeReferenceStep) = :checkpoint
 
-function evaluate_step(step::TypeReference, document)
+function evaluate_step(step::TypeReferenceStep, document)
     document isa step.type ||
         throw(ReferenceTypeMismatch(step.type, typeof(document)))
     document

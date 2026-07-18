@@ -165,8 +165,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..ChainingProjectionModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference,
-                           PositionReference, ReferencePath, EmptyReferencePath
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep,
+                           PositionReferenceStep, ReferencePath, EmptyReferencePath
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
@@ -260,8 +260,8 @@ function print_document(p::BookmarkListToSyntaxNode,
     # child knows it sits at `entries[i]` relative to this node.
     child_iomaps = Cell(() ->
         [print_child(recursion, getfield(list, :entries)[][i][],
-                                    make_child_context(ctx, FieldReference("entries"),
-                                                  ElementReference(i)))
+                                    make_child_context(ctx, FieldReferenceStep("entries"),
+                                                  ElementReferenceStep(i)))
          for i in 1:length(list.entries)])
 
     children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))

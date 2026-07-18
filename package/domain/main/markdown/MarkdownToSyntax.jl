@@ -48,9 +48,9 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, ElementReference,
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           EmptyReferencePath
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -316,7 +316,7 @@ function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelect
     path = op.path
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    if h isa FieldReference && h.name == "value"
+    if h isa FieldReferenceStep && h.name == "value"
         return ReplaceSelectionOperation(@reference ::MarkdownText.content::String.^(path.tail))
     else
         return ReplaceSelectionOperation(@reference(iomap.input, proj(p, ^(path))))
@@ -347,7 +347,7 @@ function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     style = _mode_style(_mode(p), ambient, doc)
     child_iomaps = Cell(() -> [
         print_child(recursion, child,
-            with_property(make_child_context(ctx, FieldReference("content"), ElementReference(i)), :md_style, style))
+            with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
         for (i, child) in enumerate(doc.content)])
     items = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
@@ -502,7 +502,7 @@ _md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
 
 function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownList, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, item,
-                                   make_child_context(ctx, FieldReference("items"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
                                for (i, item) in enumerate(lst.items)])
     items = CellVector(() -> begin
         ord = lst.ordered

@@ -1,10 +1,10 @@
 """
     TextColumnReferenceModule
 
-The `TextColumnReference` step type — a reference step representing a
+The `TextColumnReferenceStep` step type — a reference step representing a
 flat character-range **column box** in the text domain (`start` / `stop` are
 0-based character offsets into the concatenated text of a `TextBlock`). It is
-the sibling of `TextRangeReference` (stream) and `TextSpanReference` (bounding
+the sibling of `TextRangeReferenceStep` (stream) and `TextSpanReferenceStep` (bounding
 box): same `(start, stop)` data, different render geometry and cursor behaviour.
 
 A column box is the "rectangular selection" of Sublime / VS Code column-select
@@ -28,10 +28,10 @@ using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextColumnReference
+export TextColumnReferenceStep
 
 """
-    TextColumnReference(start, stop)
+    TextColumnReferenceStep(start, stop)
 
 A reference step representing a column-box (rectangular block) highlight in the
 text domain. `start` and `stop` are flat 0-based character offsets into the
@@ -40,20 +40,20 @@ concatenated text of a `TextBlock`. Evaluates to the offset pair
 value is its character range independent of what characters happen to sit in the
 current text.
 """
-@cell_struct struct TextColumnReference <: ReferenceStep
+@cell_struct struct TextColumnReferenceStep <: ReferenceStep
     start::Int
     stop::Int
 end
 
-ReferenceModule.step_kind(::TextColumnReference) = :structural
+ReferenceModule.step_kind(::TextColumnReferenceStep) = :structural
 
 # A column text range's descended value is the range itself.
-ReferenceModule.evaluate_step(step::TextColumnReference, document) = (step.start, step.stop)
+ReferenceModule.evaluate_step(step::TextColumnReferenceStep, document) = (step.start, step.stop)
 
-Base.:(==)(a::TextColumnReference, b::TextColumnReference) =
+Base.:(==)(a::TextColumnReferenceStep, b::TextColumnReferenceStep) =
     a.start == b.start && a.stop == b.stop
 
-function Base.show(io::IO, s::TextColumnReference)
+function Base.show(io::IO, s::TextColumnReferenceStep)
     print(io, "▥(", s.start, ":", s.stop, ")")
 end
 

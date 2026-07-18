@@ -1,7 +1,7 @@
 """
     ProjectionReferenceModule
 
-The `ProjectionReference` step type — a reference step that points at an
+The `ProjectionReferenceStep` step type — a reference step that points at an
 element introduced by a projection (a delimiter, a bracket, an
 indentation, or any output-only fragment that has no direct counterpart in
 the input document). Carries the `projection` that introduced the element
@@ -21,10 +21,10 @@ using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export ProjectionReference, is_introduced_reference, named_node_reference
+export ProjectionReferenceStep, is_introduced_reference, named_node_reference
 
 """
-    ProjectionReference(projection, output_path)
+    ProjectionReferenceStep(projection, output_path)
 
 A reference step that points to an element introduced by a projection.
 `output_path` describes where within the projection's output the reference
@@ -32,12 +32,12 @@ points. Evaluates to `output_path` — the projection-introduced element is
 identified by that path in the projection's own output; every reference in
 the tree is evaluatable.
 """
-@cell_struct struct ProjectionReference <: ReferenceStep
+@cell_struct struct ProjectionReferenceStep <: ReferenceStep
     projection::Any
     output_path::ReferencePath
 end
 
-ReferenceModule.step_kind(::ProjectionReference) = :structural
+ReferenceModule.step_kind(::ProjectionReferenceStep) = :structural
 
 """
     is_introduced_reference(reference) -> Bool
@@ -45,7 +45,7 @@ ReferenceModule.step_kind(::ProjectionReference) = :structural
 
 Does `reference` point at a **projection-introduced** element — a delimiter, a
 bracket, an indentation, a placeholder — rather than at anything in the input
-document? Such a reference is headed by a `ProjectionReference` and has no input
+document? Such a reference is headed by a `ProjectionReferenceStep` and has no input
 pre-image, so `evaluate_reference` against the input throws (see
 [`try_evaluate_reference`](@ref)).
 
@@ -55,7 +55,7 @@ form additionally asks whether it was `projection` that introduced it, which is 
 projection recognizes its *own* output positions while mapping references.
 """
 is_introduced_reference(reference) =
-    reference isa ConcreteReferencePath && reference.head isa ProjectionReference
+    reference isa ConcreteReferencePath && reference.head isa ProjectionReferenceStep
 
 is_introduced_reference(reference, projection) =
     is_introduced_reference(reference) && reference.head.projection === projection
@@ -76,9 +76,9 @@ named_node_reference(reference) =
 
 # A projection step descends to the location the projection introduced —
 # reified as the output path within that projection's output.
-ReferenceModule.evaluate_step(step::ProjectionReference, document) = step.output_path
+ReferenceModule.evaluate_step(step::ProjectionReferenceStep, document) = step.output_path
 
-Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
+Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
     a.projection === b.projection && a.output_path == b.output_path
 
 # ── DSL registrations ──────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ Base.:(==)(a::ProjectionReference, b::ProjectionReference) =
 ReferenceModule.dsl_step_subpath_args(::Val{:proj}) = (2,)
 
 ReferenceModule.dsl_build_step(::Val{:proj}, projex, outpathex) =
-    :($(GlobalRef(ProjectionReferenceModule, :ProjectionReference))($projex, $outpathex))
+    :($(GlobalRef(ProjectionReferenceModule, :ProjectionReferenceStep))($projex, $outpathex))
 
 function ReferenceModule.dsl_match_step(::Val{:proj}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
@@ -99,7 +99,7 @@ function ReferenceModule.dsl_match_step(::Val{:proj}, hex, argpats, rest_success
     after_out, bound2 = gen_path_match(outpathexpr, outpath, rest_success, bound)
     after_proj, bound1 = gen_value_match(projexpr, projpat, after_out, bound2)
     ex = quote
-        if $hex isa $(GlobalRef(ProjectionReferenceModule, :ProjectionReference))
+        if $hex isa $(GlobalRef(ProjectionReferenceModule, :ProjectionReferenceStep))
             $after_proj
         else
             _nomatch

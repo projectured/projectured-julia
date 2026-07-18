@@ -30,7 +30,7 @@ import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layou
 import ..GraphicsModule: GraphicsCanvas
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapApiModule: IoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
                           EmptyReferencePath
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"

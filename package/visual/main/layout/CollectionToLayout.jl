@@ -26,7 +26,7 @@ import ..LayoutModule: VerticalLayout
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
                           EmptyReferencePath, is_element_reference
 
 export CellVectorToVerticalLayout
@@ -58,8 +58,8 @@ function map_reference_forward(::CellVectorToVerticalLayout, iomap, reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    (h isa RangeReference && is_element_reference(h)) || return nothing
-    ConcreteReferencePath(FieldReference("children"),
+    (h isa RangeReferenceStep && is_element_reference(h)) || return nothing
+    ConcreteReferencePath(FieldReferenceStep("children"),
         ConcreteReferencePath(h, reference.tail))
 end
 
@@ -69,11 +69,11 @@ function map_reference_backward(::CellVectorToVerticalLayout, iomap, reference)
     reference isa EmptyReferencePath && return EmptyReferencePath()
     reference isa ConcreteReferencePath || return nothing
     h = reference.head
-    (h isa FieldReference && h.name == "children") || return nothing
+    (h isa FieldReferenceStep && h.name == "children") || return nothing
     t = reference.tail
     t isa ConcreteReferencePath || return nothing
     h2 = t.head
-    (h2 isa RangeReference && is_element_reference(h2)) || return nothing
+    (h2 isa RangeReferenceStep && is_element_reference(h2)) || return nothing
     ConcreteReferencePath(h2, t.tail)
 end
 

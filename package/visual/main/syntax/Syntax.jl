@@ -33,9 +33,9 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ReferencePath,
+                          FieldReferenceStep, RangeReferenceStep, ReferencePath,
                           reference_node_type
-import ..ProjectionReferenceModule: ProjectionReference, is_introduced_reference
+import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -132,11 +132,11 @@ that genuinely needs the child — see `_child_step`, which runs in a reader onc
 keystroke — must already have it in hand.
 """
 syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReference("children"),
-        ConcreteReferencePath(CellVector, RangeReference(i - 1, i), inner))
+    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep("children"),
+        ConcreteReferencePath(CellVector, RangeReferenceStep(i - 1, i), inner))
 
 syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReference("content"), inner)
+    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep("content"), inner)
 
 """
     peel_child_step(path) -> (i, tail) | nothing
@@ -148,11 +148,11 @@ Structural, because the matchers that need it (`_is_tree_selection`,
 function peel_child_step(path)
     path isa ConcreteReferencePath || return nothing
     h = path.head
-    h isa FieldReference || return nothing
+    h isa FieldReferenceStep || return nothing
     if h.name == "children"                      # a sequence: .children[i]
         t = path.tail
         t isa ConcreteReferencePath || return nothing
-        t.head isa RangeReference || return nothing
+        t.head isa RangeReferenceStep || return nothing
         return (t.head.start + 1, t.tail)
     elseif h.name == "content"                   # a wrapper: .content
         return (1, path.tail)
@@ -164,7 +164,7 @@ end
 # where a path must be reassembled without the documents in hand.
 function _rebuild_child_step(node::ConcreteReferencePath, tail)
     h = node.head
-    (h isa FieldReference && h.name == "content") &&
+    (h isa FieldReferenceStep && h.name == "content") &&
         return ConcreteReferencePath(node.type, h, tail)
     idx = node.tail::ConcreteReferencePath       # .children[i]
     ConcreteReferencePath(node.type, h, ConcreteReferencePath(idx.type, idx.head, tail))
@@ -696,7 +696,7 @@ set_cell_function!(n::SyntaxSequence, f::Function) = (set_cell_function!(getfiel
 end
 
 # A whole-element selection of a projection-introduced sub-node (e.g. Julia's
-# `function name(params)` header) is carried as `ProjectionReference(_, .children[i]…)`
+# `function name(params)` header) is carried as `ProjectionReferenceStep(_, .children[i]…)`
 # so it round-trips through the projection above. For tree navigation it *is* a
 # `.children[i]…` selection: unwrap to the inner output path and navigate that. The
 # result re-wraps downstream — the projection's own backward mapper / reader
@@ -844,8 +844,8 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
         cur = syntax_children(cur)[1]
     end
     cur isa SyntaxLeaf || return nothing
-    path = ConcreteReferencePath(FieldReference("value"),
-               ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+    path = ConcreteReferencePath(FieldReferenceStep("value"),
+               ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
     for k in length(indices):-1:1
         path = syntax_child_path(docs[k], indices[k], path)
     end
@@ -855,8 +855,8 @@ end
 # A leaf IS its own first leaf: structural→text lands the cursor at the start of its
 # value. This lets the leaf gesture table below share the compound's Ctrl+Space arm.
 _descend_to_text_cursor(::SyntaxLeaf, _sel) =
-    ConcreteReferencePath(FieldReference("value"),
-        ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+    ConcreteReferencePath(FieldReferenceStep("value"),
+        ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
 
 # The leaf half of the Syntax reader. A `SyntaxLeaf` is not a `SyntaxCompound`, so the
 # table above does not reach it — yet a leaf has the same two selection modes: the whole

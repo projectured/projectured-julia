@@ -31,8 +31,8 @@ import InteractiveUtils: subtypes
 import ..EventPatternModule
 import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document"
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference,
-                          EmptyReferencePath, ElementReference, PositionReference,
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReferencePath, ElementReferenceStep, PositionReferenceStep,
                           append_reference, concat_references, annotate_reference_types,
                           reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
@@ -330,8 +330,8 @@ end
 # ── Insert-key gesture (shared by @domain and DocumentNothing) ────────────────
 
 # The char cursor at offset 0 of an insertion's `value` buffer.
-const _INSERTION_CURSOR = ConcreteReferencePath(FieldReference("value"),
-    ConcreteReferencePath(RangeReference(0, 0), EmptyReferencePath()))
+const _INSERTION_CURSOR = ConcreteReferencePath(FieldReferenceStep("value"),
+    ConcreteReferencePath(RangeReferenceStep(0, 0), EmptyReferencePath()))
 
 """
     insert_document_operation(I::Type) -> Operation
@@ -378,9 +378,9 @@ function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T
     # be annotated that way — it is not in the document yet — so its terminal type
     # checkpoint comes from the insertion itself.
     field_path = annotate_reference_types(document,
-        ConcreteReferencePath(FieldReference(String(field)), EmptyReferencePath()))
+        ConcreteReferencePath(FieldReferenceStep(String(field)), EmptyReferencePath()))
     element_path = concat_references(field_path,
-        ConcreteReferencePath(ElementReference(n + 1),
+        ConcreteReferencePath(ElementReferenceStep(n + 1),
                               EmptyReferencePath(reference_node_type(inserted))))
     inner = get_selection(inserted)
     cursor = inner === nothing ? element_path : concat_references(element_path, inner)
@@ -407,12 +407,12 @@ function move_to_field(document, selection, from::Symbol, to::Symbol)
     prefix = _prefix_before_field(selection, String(from))
     prefix === nothing && return nothing
     target = annotate_reference_types(document,
-        concat_references(prefix, ConcreteReferencePath(FieldReference(String(to)),
+        concat_references(prefix, ConcreteReferencePath(FieldReferenceStep(String(to)),
                                                         EmptyReferencePath())))
     value = try_evaluate_reference(document, target)
     value === nothing && return nothing
     cursor = value isa Document ? target :
-        annotate_reference_types(document, append_reference(target, PositionReference(0)))
+        annotate_reference_types(document, append_reference(target, PositionReferenceStep(0)))
     ReplaceSelectionOperation(cursor)
 end
 
@@ -423,7 +423,7 @@ _prefix_before_field(::Nothing, field) = nothing
 _prefix_before_field(path::EmptyReferencePath, field) = nothing
 function _prefix_before_field(path::ConcreteReferencePath, field)
     h = path.head
-    h isa FieldReference && h.name == field && return EmptyReferencePath(path.type)
+    h isa FieldReferenceStep && h.name == field && return EmptyReferencePath(path.type)
     rest = _prefix_before_field(path.tail, field)
     rest === nothing && return nothing
     ConcreteReferencePath(path.type, h, rest)

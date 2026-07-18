@@ -346,16 +346,16 @@ Two principles keep these methods correct across the whole pipeline:
   genuinely output-only tail* in this projection's own step:
 
   ```
-  matched_input_prefix + ProjectionReference(projection, unmatched_output_suffix)
+  matched_input_prefix + ProjectionReferenceStep(projection, unmatched_output_suffix)
   ```
 
   The path then reads like a sentence — input steps say where in the document
-  you are, and `ProjectionReference(projection, …)` marks the exact point where
+  you are, and `ProjectionReferenceStep(projection, …)` marks the exact point where
   you cross into something that exists only in `projection`'s output. Because
   `map_reference_forward` strips that same step, the path round-trips cleanly.
   (When a projection's introduced positions are not separately addressable — the
   brackets and commas of a node, say — it is fine to collapse the whole group to a
-  single flattened character offset `ProjectionReference(p, {flat})`, which
+  single flattened character offset `ProjectionReferenceStep(p, {flat})`, which
   `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this for the
   delimiters they own. Use the fine-grained form when individual positions matter.)
 
@@ -514,7 +514,7 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     child_iomaps = Cell(() -> [
         print_child(recursion,
                                    getfield(node, :children)[][i][],
-                                   make_child_context(ctx, ElementReference(i)))
+                                   make_child_context(ctx, ElementReferenceStep(i)))
         for i in 1:length(node.children)
     ])
 
@@ -530,7 +530,7 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
                 i > length(iomaps) && return nothing
                 child_sel = iomaps[i].output.selection
                 child_sel === nothing && return nothing
-                ConcreteReferencePath(ElementReference(Cell(i)), child_sel)
+                ConcreteReferencePath(ElementReferenceStep(Cell(i)), child_sel)
             end
             _ => nothing
         end
@@ -550,7 +550,7 @@ function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, referen
             child_iomap = iomaps[i]
             child_ref = map_reference_forward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReferencePath(ElementReference(Cell(i)), child_ref)
+            ConcreteReferencePath(ElementReferenceStep(Cell(i)), child_ref)
         end
     end
 end
@@ -563,8 +563,8 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
             child_iomap = iomaps[i]
             child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReferencePath(FieldReference(Cell("children")),
-                ConcreteReferencePath(ElementReference(i), child_ref))
+            ConcreteReferencePath(FieldReferenceStep(Cell("children")),
+                ConcreteReferencePath(ElementReferenceStep(i), child_ref))
         end
     end
 end
@@ -656,7 +656,7 @@ delegate to:
   XML element's tag and attributes — is mapped by an explicit structural rewrite
   the projection writes itself.
 - **Structural positions with no input pre-image** collapse to a flat offset
-  (`ProjectionReference(p, {flat})`, inverted by `_syntax_to_flat`).
+  (`ProjectionReferenceStep(p, {flat})`, inverted by `_syntax_to_flat`).
 
 When the child the printer recursed into went through a `CopyingProjection` (as
 `JsonObjectToSyntaxNode`'s entries do), reach its stored child IO map with
@@ -718,7 +718,7 @@ each:
   `WindowInput` to the matching window by `window_id`, hands the inner event
   to that window's content reader, and prepends the `windows[i].content` steps
   to the operation that comes back. The window-content reference is
-  `windows[i].content` (the i-th window is an `ElementReference`).
+  `windows[i].content` (the i-th window is an `ElementReferenceStep`).
 - **`WindowManagingProjection`** wraps `ScreenToScreen` (`inner = ScreenToScreen()`)
   and owns window-management *operations* — it intercepts
   `OpenWindowOperation` / `CloseWindowOperation` / resize bubbling up and applies

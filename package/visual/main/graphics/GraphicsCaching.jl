@@ -24,8 +24,8 @@ import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
 import ..IdentityProjectionModule: IdentityProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference
-import ..PointReferenceModule: PointReference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
+import ..PointReferenceModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: MousePress
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
@@ -138,8 +138,8 @@ function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
         elem isa GraphicsRect || continue
         _rect_hit(elem, evt.x, evt.y) || continue
         ox, oy = Int(elem.x), Int(elem.y)
-        path = ConcreteReferencePath(ElementReference(i),
-                   ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+        path = ConcreteReferencePath(ElementReferenceStep(i),
+                   ConcreteReferencePath(PointReferenceStep(evt.x - ox, evt.y - oy)))
         return ReplaceSelectionOperation(path)
     end
 
@@ -158,8 +158,8 @@ function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
     best_i === nothing && return nothing
     elem = elems[best_i]
     ox, oy = Int(elem.x), Int(elem.y)
-    path = ConcreteReferencePath(ElementReference(best_i),
-               ConcreteReferencePath(PointReference(evt.x - ox, evt.y - oy)))
+    path = ConcreteReferencePath(ElementReferenceStep(best_i),
+               ConcreteReferencePath(PointReferenceStep(evt.x - ox, evt.y - oy)))
     return ReplaceSelectionOperation(path)
 end
 

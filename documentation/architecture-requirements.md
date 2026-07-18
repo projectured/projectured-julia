@@ -411,7 +411,7 @@ pair gives you cursor navigation across the whole pipeline for free.
 **`print_document` uses `map_reference_forward`; `read_intent` uses
 `map_reference_backward`, and the two mappers are mutual inverses.** Keep the
 two mappers as the one place a path's crossing is defined, and keep them
-inverse (modulo the documented `ProjectionReference`/flat-offset collapse). If
+inverse (modulo the documented `ProjectionReferenceStep`/flat-offset collapse). If
 the two directions ever disagree — with each other or with how the printer
 wired the output selection — the cursor mis-maps.
 
@@ -463,7 +463,7 @@ backward.
 points at something the projection introduced (a delimiter, bracket, separator,
 indentation) it has no input pre-image: keep input-domain steps for as long as
 the path still has a pre-image, then wrap *only the genuinely output-only tail*
-in `ProjectionReference(projection, …)` (or collapse a
+in `ProjectionReferenceStep(projection, …)` (or collapse a
 non-separately-addressable group to a single flat offset). Because
 `map_reference_forward` strips that same step, the path round-trips.
 
@@ -493,11 +493,11 @@ be a plain struct, but must then spell out `<: Projection` itself.
 ### AR-ONE-BASED-INDEXING
 
 **All indexing is 1-based; distinguish elements from boundaries.** Elements are
-`[i]` (1-based, `ElementReference`), cursor boundaries are `{k}` (0-based,
-`PositionReference`); both are readings of the same `RangeReference(start,
+`[i]` (1-based, `ElementReferenceStep`), cursor boundaries are `{k}` (0-based,
+`PositionReferenceStep`); both are readings of the same `RangeReferenceStep(start,
 stop)` axis and apply to any sequence, whether the items are elements or
 characters. Keep this convention everywhere. Mind the two coordinate systems in
-play: a `RangeReference` stores its boundaries **0-based**, while Julia
+play: a `RangeReferenceStep` stores its boundaries **0-based**, while Julia
 containers are **1-based** — convert explicitly (`start + 1`) at every
 reference↔container crossing rather than assuming one base throughout.
 
@@ -546,7 +546,7 @@ per-node `type` checkpoint (folded in by `set_selection!`,
 cross-edit reference through `get_valid_reference_prefix` /
 `evaluate_reference` (which throw/truncate on mismatch) rather than assuming a
 stored path still fits. Do not build checkpoint *steps* by hand — the
-`TypeReference` token exists only as a build-time artifact that
+`TypeReferenceStep` token exists only as a build-time artifact that
 `fold_reference_types` immediately folds away.
 
 ### AR-REACTIVE-OUTPUT-SELECTION
@@ -837,7 +837,7 @@ extended`). So the compiler — not a convention — tells a new function apart
 from an extension of another layer's contract, and AR-FRAMEWORKS-SINK's
 *"multiple dispatch is the registration"* becomes visible at every site instead
 of being inferable only from an import header. The codebase already worked this
-way at the `Base` boundary (`function Base.show(io::IO, s::PointReference)`);
+way at the `Base` boundary (`function Base.show(io::IO, s::PointReferenceStep)`);
 there is not one `import Base:` anywhere. Julia is moving the same way: on 1.12
 an unqualified constructor extension already warns that the behaviour is
 deprecated.

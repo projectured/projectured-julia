@@ -25,14 +25,14 @@ struct RN end
 function test_rerooting()
 @testset "Rerooting" begin
 
-    steps = (FieldReference("outer"), FieldReference("inner"))
+    steps = (FieldReferenceStep("outer"), FieldReferenceStep("inner"))
 
     @testset "reroot_reference prepends outermost-first" begin
         ref = strip_reference_types(@reference ::RL.leaf::RN)
         r = reroot_reference(ref, steps)
-        @test r == ConcreteReferencePath(FieldReference("outer"),
-                     ConcreteReferencePath(FieldReference("inner"),
-                         ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
+        @test r == ConcreteReferencePath(FieldReferenceStep("outer"),
+                     ConcreteReferencePath(FieldReferenceStep("inner"),
+                         ConcreteReferencePath(FieldReferenceStep("leaf"), EmptyReferencePath())))
     end
 
     @testset "base methods on kernel operation types" begin
@@ -43,9 +43,9 @@ function test_rerooting()
         # ReplaceSelectionOperation reroots the path field.
         r = reroot_operation(ReplaceSelectionOperation(strip_reference_types(@reference ::RL.leaf::RN)), steps)
         @test r isa ReplaceSelectionOperation
-        @test r.path == ConcreteReferencePath(FieldReference("outer"),
-                            ConcreteReferencePath(FieldReference("inner"),
-                                ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
+        @test r.path == ConcreteReferencePath(FieldReferenceStep("outer"),
+                            ConcreteReferencePath(FieldReferenceStep("inner"),
+                                ConcreteReferencePath(FieldReferenceStep("leaf"), EmptyReferencePath())))
 
         # CompoundOperation maps the reroot over its constituents.
         cop = CompoundOperation(Any[ReplaceSelectionOperation(strip_reference_types(@reference ::RL.leaf::RN)),
@@ -60,9 +60,9 @@ function test_rerooting()
         # ToyPathOp is declared at file scope; the method registration above.
         r = reroot_operation(ToyPathOp(strip_reference_types(@reference ::RL.leaf::RN)), steps)
         @test r isa ToyPathOp
-        @test r.reference == ConcreteReferencePath(FieldReference("outer"),
-                                ConcreteReferencePath(FieldReference("inner"),
-                                    ConcreteReferencePath(FieldReference("leaf"), EmptyReferencePath())))
+        @test r.reference == ConcreteReferencePath(FieldReferenceStep("outer"),
+                                ConcreteReferencePath(FieldReferenceStep("inner"),
+                                    ConcreteReferencePath(FieldReferenceStep("leaf"), EmptyReferencePath())))
     end
 
 end

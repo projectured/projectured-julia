@@ -62,7 +62,7 @@ To set the selection to a specific location, use `set_selection!` with a
 reference path:
 
 ```julia
-path = ReferencePath(FieldReference("name"), PositionReference(5))
+path = ReferencePath(FieldReferenceStep("name"), PositionReferenceStep(5))
 set_selection!(document, path)
 ```
 
@@ -71,11 +71,11 @@ The generic implementation in `ReferenceEvaluation.jl` walks the path step by st
 1. If `path` is `EmptyReferencePath`, stop.
 2. Read the head step `h = path.head[]`.
 3. Navigate to the child document:
-   - `FieldReference(name)` → `getfield(document, Symbol(name))`, unwrapping a
+   - `FieldReferenceStep(name)` → `getfield(document, Symbol(name))`, unwrapping a
      `Cell` transparently.
-   - `ElementReference(k)` → `document[k]` (1-based).
-   - `PositionReference(k)` → cursor position, does not navigate into a child.
-   - `ProjectionReference` → stop; does not navigate into a child.
+   - `ElementReferenceStep(k)` → `document[k]` (1-based).
+   - `PositionReferenceStep(k)` → cursor position, does not navigate into a child.
+   - `ProjectionReferenceStep` → stop; does not navigate into a child.
 4. Write `path.tail[]` into the child's `selection` cell.
 5. Recurse: `set_selection!(child, path.tail[])`.
 
@@ -189,7 +189,7 @@ A leaf printer illustrates the reactive wiring:
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     sel = Cell(() -> begin
         c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
-        c < 0 ? nothing : ConcreteReferencePath(PositionReference(c))
+        c < 0 ? nothing : ConcreteReferencePath(PositionReferenceStep(c))
     end)
     SimpleIoMap(p, leaf, Text(Cell(...spans...), sel))
 end
@@ -203,8 +203,8 @@ offset:
 | `.open + {k}` | `k` |
 | `.value + {k}` | `open_len + k` |
 | `.close + {k}` | `open_len + value_len + k` |
-| `ProjectionReference(p, .open + {k})` | `k` |
-| `ProjectionReference(p, .close + {k})` | `open_len + value_len + k` |
+| `ProjectionReferenceStep(p, .open + {k})` | `k` |
+| `ProjectionReferenceStep(p, .close + {k})` | `open_len + value_len + k` |
 
 The output document's `selection` cell reads from the input document's
 `selection` cell as a computed dependency.
@@ -258,11 +258,11 @@ spell out the path translation each one's mapper performs.)
 - Calls `_pos_to_selection` which walks the tree accounting for all structural
   characters to locate the owning child and its local offset.
 - Returns `[child_i] + <recursive child path>`. Positions on structural
-  characters become `ProjectionReference(p, {flat_pos})`.
+  characters become `ProjectionReferenceStep(p, {flat_pos})`.
 
 **`JsonStringToSyntaxLeaf`** (innermost reader):
 - `.value + {k}` → passes through as `{k}`.
-- `.open + {k}` / `.close + {k}` → wraps in `ProjectionReference` (the delimiter
+- `.open + {k}` / `.close + {k}` → wraps in `ProjectionReferenceStep` (the delimiter
   has no counterpart in the JSON domain).
 
 The final operation is applied by the editor:
@@ -296,7 +296,7 @@ the input suffix directly:
 
 ```julia
 child_iomaps = Cell(() -> [print_child(recursion, child,
-                                       make_child_context(ctx, ElementReference(i)))
+                                       make_child_context(ctx, ElementReferenceStep(i)))
                            for (i, child) in enumerate(elements)])
 ```
 
@@ -314,7 +314,7 @@ sel = Cell(() -> begin
     (i + 1 > length(iomaps)) && return nothing
     child_sel = iomaps[i + 1].output.selection[]
     child_sel === nothing && return nothing
-    ConcreteReferencePath(ElementReference(i), child_sel)
+    ConcreteReferencePath(ElementReferenceStep(i), child_sel)
 end)
 ```
 
@@ -364,10 +364,10 @@ shared. Changes propagate automatically through the reactive cell system:
 # When editor.document.selection[] is updated, all projections see the change
 ```
 
-## ProjectionReference in selection
+## ProjectionReferenceStep in selection
 
 When the cursor is on a projection-introduced element (like a quote delimiter),
-the selection path includes a `ProjectionReference` step. This lets the editor
+the selection path includes a `ProjectionReferenceStep` step. This lets the editor
 represent positions that do not exist in the underlying document. See
 [input and output references](reference.md#input-and-output-references) for how
 that step embeds an output-domain path inside an input-domain reference.

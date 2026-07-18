@@ -51,7 +51,7 @@ import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
 import ..YamlParserModule: yamlparse
 import ..MarkdownParserModule: markdownparse
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference, EmptyReferencePath
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,

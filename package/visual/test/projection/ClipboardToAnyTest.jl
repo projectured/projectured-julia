@@ -26,7 +26,7 @@ ctrl_shift = ModifierKeys(ctrl=true, shift=true)
     # `clear_selection!` explicitly to reset).
     coll = ClipboardCollection(PrimitiveString("root"),
                                [PrimitiveString("a"), PrimitiveString("b")])
-    coll.selection = cpath(FieldReference("content"))
+    coll.selection = cpath(FieldReferenceStep("content"))
     cc = copy_document(coll)
     @test length(cc.elements) == 2
     @test cc.elements[1].value == "a"
@@ -65,14 +65,14 @@ end
     @test back isa ConcreteReferencePath
     @test back.head.name == "content"
 
-    fwd = map_reference_forward(p, iomap, cpath(FieldReference("content")))
+    fwd = map_reference_forward(p, iomap, cpath(FieldReferenceStep("content")))
     @test fwd isa EmptyReferencePath
 end
 
 @testset "slice reader gestures" begin
     content = PrimitiveString("hello")
     slice = ClipboardSlice(content)
-    slice.selection = cpath(FieldReference("content"))
+    slice.selection = cpath(FieldReferenceStep("content"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
@@ -92,7 +92,7 @@ end
     @test _rd_val(op.operations[1]).value == "hello"
     @test _rd_val(op.operations[1]) !== content                 # deep copy
     @test op.operations[2] isa ReplaceSelectionOperation
-    @test op.operations[2].path == cpath(FieldReference("content"))
+    @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Note — stores the live object, then restores the original selection.
     op = read_intent(p, iomap, KeyDown(:n, ctrl))
@@ -100,7 +100,7 @@ end
     @test op.operations[1] isa CompoundOperation
     @test _rd_val(op.operations[1]) === content
     @test op.operations[2] isa ReplaceSelectionOperation
-    @test op.operations[2].path == cpath(FieldReference("content"))
+    @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Cut — compound of (store live) + (blank source).
     op = read_intent(p, iomap, KeyDown(:x, ctrl))
@@ -118,7 +118,7 @@ end
     content = PrimitiveString("hello")
     stored  = PrimitiveString("stored")
     slice = ClipboardSlice(content, stored)
-    slice.selection = cpath(FieldReference("content"))
+    slice.selection = cpath(FieldReferenceStep("content"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
@@ -130,7 +130,7 @@ end
     @test _rd_ref(op.operations[1]).head.name == "content"
     @test _rd_val(op.operations[1]) === stored
     @test op.operations[2] isa ReplaceSelectionOperation
-    @test op.operations[2].path == cpath(FieldReference("content"))
+    @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Paste copy — a fresh deep copy each time.
     op = read_intent(p, iomap, KeyDown(:v, ctrl_shift))
@@ -144,7 +144,7 @@ end
     # reader (matching Lisp's merge-commands). With no replace produced here, the
     # clipboard does not emit a paste compound.
     empty_slice = ClipboardSlice(PrimitiveString("x"))
-    empty_slice.selection = cpath(FieldReference("content"))
+    empty_slice.selection = cpath(FieldReferenceStep("content"))
     pe = ClipboardSliceToAnyProjection()
     iomap_e = print_document(pe, IdentityProjection(), empty_slice, PrinterContext())
     @test !(read_intent(pe, iomap_e, KeyDown(:v, ctrl)) isa CompoundOperation)
@@ -185,24 +185,24 @@ end
     @test op.projection === p
 
     # Add — inserts the selected object at the front of `elements`.
-    coll.selection = cpath(FieldReference("content"))
+    coll.selection = cpath(FieldReferenceStep("content"))
     op = read_intent(p, iomap, KeyDown(:equals, ctrl))
     @test op isa ReplaceReferencedValueOperation                     # insert_elements splice
     @test op.reference.head.name == "elements"
-    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     @test op.value[1] === content
 
-    # Remove — deletes the selected element (0-based index → RangeReference start).
-    coll.selection = cpath(FieldReference("elements"), ElementReference(2))
+    # Remove — deletes the selected element (0-based index → RangeReferenceStep start).
+    coll.selection = cpath(FieldReferenceStep("elements"), ElementReferenceStep(2))
     op = read_intent(p, iomap, KeyDown(:minus, ctrl))
     @test op isa ReplaceReferencedValueOperation                     # delete_elements splice
     @test op.reference.head.name == "elements"
-    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 1
+    @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 1
     @test isempty(op.value)
 
     # Remove with a non-element selection does not delete: it falls through to
     # the content reader rather than emitting a splice.
-    coll.selection = cpath(FieldReference("content"))
+    coll.selection = cpath(FieldReferenceStep("content"))
     @test !(read_intent(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValueOperation)
 end
 
@@ -219,7 +219,7 @@ end
         # trailing WriteOsClipboardOperation; evaluating it performs the write.
         content = PrimitiveString("hello")
         slice = ClipboardSlice(content)
-        slice.selection = cpath(FieldReference("content"))
+        slice.selection = cpath(FieldReferenceStep("content"))
         p = ClipboardSliceToAnyProjection(to_text=to_text, from_text=from_text)
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
@@ -241,7 +241,7 @@ end
         # converting its text via from_text.
         buf[] = "from-os"
         empty = ClipboardSlice(PrimitiveString("x"))
-        empty.selection = cpath(FieldReference("content"))
+        empty.selection = cpath(FieldReferenceStep("content"))
         iomap_e = print_document(p, IdentityProjection(), empty, PrinterContext())
         op = read_intent(p, iomap_e, KeyDown(:v, ctrl))
         @test op isa CompoundOperation
@@ -277,13 +277,13 @@ end
     set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
     try
         # "world" = chars 6..11 (0-based boundaries) in span 1 of "hello world".
-        trange = cpath(FieldReference("elements"), RangeReference(0, 1),
-                       FieldReference("content"), RangeReference(6, 11))
+        trange = cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                       FieldReferenceStep("content"), RangeReferenceStep(6, 11))
         mkslice(; stored=nothing) = begin
             content = TextBlock(TextString("hello world"))
             content.selection = trange
             s = ClipboardSlice(content, stored)
-            s.selection = ConcreteReferencePath(FieldReference("content"), trange)
+            s.selection = ConcreteReferencePath(FieldReferenceStep("content"), trange)
             s
         end
         p = ClipboardSliceToAnyProjection(text=true)
@@ -332,12 +332,12 @@ end
 
         # An empty caret (no range) declines copy.
         content = TextBlock(TextString("hello world"))
-        content.selection = cpath(FieldReference("elements"), RangeReference(0, 1),
-                                  FieldReference("content"), RangeReference(3, 3))
+        content.selection = cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                                  FieldReferenceStep("content"), RangeReferenceStep(3, 3))
         sc = ClipboardSlice(content)
-        sc.selection = ConcreteReferencePath(FieldReference("content"),
-            cpath(FieldReference("elements"), RangeReference(0, 1),
-                  FieldReference("content"), RangeReference(3, 3)))
+        sc.selection = ConcreteReferencePath(FieldReferenceStep("content"),
+            cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                  FieldReferenceStep("content"), RangeReferenceStep(3, 3)))
         iom = print_document(p, IdentityProjection(), sc, PrinterContext())
         # Declines (no range): no copy compound is produced — it falls through to the
         # content child, which echoes the event rather than a clipboard operation.

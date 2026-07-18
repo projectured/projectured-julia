@@ -400,7 +400,7 @@ exports.
 `import ..Mod: sym` is not the only way to reach into another module —
 `Mod.sym` in the body reaches just as far, and bypasses the export list
 *entirely*. AR-QUALIFIED-EXTENSION makes qualification the normal way to extend
-another module's generic (`ReferenceModule.step_kind(s::PointReference) = …`),
+another module's generic (`ReferenceModule.step_kind(s::PointReferenceStep) = …`),
 so without this check the migration would quietly open a hole exactly where
 AR-MODULE-BOUNDARY-IS-API matters most: "the module boundary *is* the API
 boundary" would hold for import headers and be unenforced everywhere else.

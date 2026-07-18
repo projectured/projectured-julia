@@ -1,13 +1,13 @@
 
 _value_range(start::Int, stop::Int) =
-    ConcreteReferencePath(FieldReference("value"),
-        ConcreteReferencePath(RangeReference(start, stop), EmptyReferencePath()))
+    ConcreteReferencePath(FieldReferenceStep("value"),
+        ConcreteReferencePath(RangeReferenceStep(start, stop), EmptyReferencePath()))
 
 _elem_content_pos(span_idx::Int, char_idx::Int) =
-    ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(ElementReference(span_idx),
-            ConcreteReferencePath(FieldReference("content"),
-                ConcreteReferencePath(PositionReference(char_idx), EmptyReferencePath()))))
+    ConcreteReferencePath(FieldReferenceStep("elements"),
+        ConcreteReferencePath(ElementReferenceStep(span_idx),
+            ConcreteReferencePath(FieldReferenceStep("content"),
+                ConcreteReferencePath(PositionReferenceStep(char_idx), EmptyReferencePath()))))
 
 function test_primitive_to_text()
 @testset "PrimitiveToText" begin
@@ -81,14 +81,14 @@ end
     out = print_document(p, nothing, s, nothing).output
     sel = out.selection
     @test sel isa ConcreteReferencePath
-    @test sel.head isa FieldReference && sel.head.name == "elements"
+    @test sel.head isa FieldReferenceStep && sel.head.name == "elements"
     elt = sel.tail.head
-    @test elt isa RangeReference
+    @test elt isa RangeReferenceStep
     @test elt.start == 0 && elt.stop == 1
     content_step = sel.tail.tail.head
-    @test content_step isa FieldReference && content_step.name == "content"
+    @test content_step isa FieldReferenceStep && content_step.name == "content"
     pos = sel.tail.tail.tail.head
-    @test pos isa RangeReference
+    @test pos isa RangeReferenceStep
     @test pos.start == 2 && pos.stop == 2
 end
 
@@ -100,7 +100,7 @@ end
     iomap = print_document(p, nothing, s, nothing)
     out = map_reference_forward(p, iomap, _value_range(2, 2))
     @test out isa ConcreteReferencePath
-    @test out.head isa FieldReference && out.head.name == "elements"
+    @test out.head isa FieldReferenceStep && out.head.name == "elements"
 end
 
 @testset "map_reference_backward .elements[1].content[k]" begin
@@ -109,8 +109,8 @@ end
     iomap = print_document(p, nothing, s, nothing)
     inp = map_reference_backward(p, iomap, _elem_content_pos(1, 2))
     @test inp isa ConcreteReferencePath
-    @test inp.head isa FieldReference && inp.head.name == "value"
-    @test inp.tail.head isa RangeReference
+    @test inp.head isa FieldReferenceStep && inp.head.name == "value"
+    @test inp.tail.head isa RangeReferenceStep
     @test inp.tail.head.start == 2 && inp.tail.head.stop == 2
 end
 
@@ -124,8 +124,8 @@ end
     op = read_intent(p, iomap, KeyPress('x'))
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
-    @test op.reference.head isa FieldReference && op.reference.head.name == "value"
-    @test op.reference.tail.head isa RangeReference
+    @test op.reference.head isa FieldReferenceStep && op.reference.head.name == "value"
+    @test op.reference.tail.head isa RangeReferenceStep
     @test op.reference.tail.head.start == 0 && op.reference.tail.head.stop == 0
 end
 

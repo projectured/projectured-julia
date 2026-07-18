@@ -9,7 +9,7 @@ plan/pending/test-package-split.md). It hosts:
 - the `*ToSyntax` projection tests (json/xml/sql/formula/filesystem) and the
   graph projection tests;
 - domain-fixture-driven suites that exercise lower-layer machinery: the
-  Console/Pdf backend tests, table selection, TypeReference checkpoints, and
+  Console/Pdf backend tests, table selection, TypeReferenceStep checkpoints, and
   the atomic per-stage fixtures;
 - the projection-aware JSON selection enumerator
   (`collect_json_tree_selections`) and the JSON content-click checks.

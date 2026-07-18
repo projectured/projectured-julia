@@ -15,24 +15,24 @@
 # ------------------------------------------------------------
 
 _gen_build_step(step::RefField) =
-    :(ReferenceModule.FieldReference(String($(QuoteNode(step.name)))))
+    :(ReferenceModule.FieldReferenceStep(String($(QuoteNode(step.name)))))
 
 _gen_build_step(step::RefFieldExpr) =
-    :(ReferenceModule.FieldReference(String($(esc(step.expr)))))
+    :(ReferenceModule.FieldReferenceStep(String($(esc(step.expr)))))
 
 _gen_build_step(step::RefIndex) =
-    :(ReferenceModule.ElementReference(Int($(esc(step.expr)))))
+    :(ReferenceModule.ElementReferenceStep(Int($(esc(step.expr)))))
 
 _gen_build_step(step::RefPosition) =
-    :(ReferenceModule.PositionReference(Int($(esc(step.expr)))))
+    :(ReferenceModule.PositionReferenceStep(Int($(esc(step.expr)))))
 
 _gen_build_step(step::RefRange) =
-    :(ReferenceModule.RangeReference(Int($(esc(step.startexpr))), Int($(esc(step.stopexpr)))))
+    :(ReferenceModule.RangeReferenceStep(Int($(esc(step.startexpr))), Int($(esc(step.stopexpr)))))
 
 _gen_build_step(step::RefSplice) = esc(step.expr)
 
 _gen_build_step(step::RefType) =
-    :(ReferenceModule.TypeReference($(esc(step.expr))))
+    :(ReferenceModule.TypeReferenceStep($(esc(step.expr))))
 
 # `name...` binds a path's remaining tail — a *matching* concept. There is nothing to
 # construct from it, so the shared grammar's tail-bind node is rejected here rather than
@@ -80,7 +80,7 @@ _splice(s::ReferenceModule.ReferenceStep) =
 # is kept because the generated code below emits `ReferenceModule._concat`.
 const _concat = ReferenceModule.concat_references
 
-# Wrap a built (possibly TypeReference-bearing) path expression in the runtime
+# Wrap a built (possibly TypeReferenceStep-bearing) path expression in the runtime
 # fold pass only when the literal carries a `::T` type step — a plain navigation
 # skeleton needs no folding (its node types stay `nothing`, filled in later when
 # the skeleton is annotated against a document), so the common case allocates
@@ -137,9 +137,9 @@ end
 Build a `ReferencePath` from the construction DSL. `@reference(path)` parses a
 rootless chain of steps, left = outermost:
 
-- `a.b`               — `FieldReference` steps (`.a` then `.b`)
-- `xs[i]`             — 1-based `ElementReference` (a single-element range)
-- `xs{k}` / `xs{s:e}` — 0-based `PositionReference` (cursor) / `RangeReference`
+- `a.b`               — `FieldReferenceStep` steps (`.a` then `.b`)
+- `xs[i]`             — 1-based `ElementReferenceStep` (a single-element range)
+- `xs{k}` / `xs{s:e}` — 0-based `PositionReferenceStep` (cursor) / `RangeReferenceStep`
 - `.field(e)`         — a field whose name is the runtime value of `e`
 - `.name(args...)`    — an extension step registered by a higher package (its
                         owning package documents each one)

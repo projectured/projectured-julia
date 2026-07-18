@@ -64,7 +64,7 @@ _selection_matches(document, canonical) =
 
 _drop_terminal_cursor(path::EmptyReferencePath) = path
 function _drop_terminal_cursor(path::ConcreteReferencePath)
-    if path.tail isa EmptyReferencePath && path.head isa RangeReference &&
+    if path.tail isa EmptyReferencePath && path.head isa RangeReferenceStep &&
        path.head.start == path.head.stop
         # Terminal caret: stop at the node it sits on, keeping that node's type.
         return EmptyReferencePath(path.type)
@@ -146,7 +146,7 @@ end
 #
 #   * `set_selection!` stores `child.selection === parent.selection.tail` (the
 #     same path objects), and `ConcreteReferencePath`'s head/tail — and a
-#     `RangeReference`'s start/stop — are themselves `Cell`s. A caret move
+#     `RangeReferenceStep`'s start/stop — are themselves `Cell`s. A caret move
 #     within a leaf therefore differs from the stored selection only in the
 #     terminal cursor step's start/stop: we mutate those two cells in place and
 #     rewrite **no** `selection` cell on the path. Unchanged routing ancestors
@@ -207,7 +207,7 @@ end
 # `clear_selection!`, `_set_selection_walk!`, and `_sync_selection!`.
 function _selection_child(document, path::ConcreteReferencePath)
     h = path.head
-    child = if h isa FieldReference
+    child = if h isa FieldReferenceStep
         sym = Symbol(h.name)
         # The path may not match this node (a stale or cross-domain selection):
         # stop walking gracefully rather than throwing FieldError. In the folded
@@ -215,7 +215,7 @@ function _selection_child(document, path::ConcreteReferencePath)
         # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
         unwrap_cell(getfield(document, sym))
-    elseif h isa RangeReference
+    elseif h isa RangeReferenceStep
         document isa AbstractString && return nothing
         idx = h.start + 1
         (!applicable(length, document) || idx < 1 || idx > length(document)) && return nothing
@@ -227,11 +227,11 @@ function _selection_child(document, path::ConcreteReferencePath)
 end
 
 # Mutate a terminal cursor step `old` in place to match `new`, returning `true`
-# on success. Only `RangeReference` (a character cursor/range) is updated this
+# on success. Only `RangeReferenceStep` (a character cursor/range) is updated this
 # way — its start/stop are `Cell`s shared across every path level, so one write
 # moves the caret everywhere it is observed. Any other step type returns
 # `false`, leaving the caller to rewrite the selection cell wholesale.
-function _mutate_terminal_step!(old::RangeReference, new::RangeReference)
+function _mutate_terminal_step!(old::RangeReferenceStep, new::RangeReferenceStep)
     getfield(old, :start)[] === new.start || (getfield(old, :start)[] = new.start)
     getfield(old, :stop)[]  === new.stop  || (getfield(old, :stop)[]  = new.stop)
     true

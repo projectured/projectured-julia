@@ -21,7 +21,7 @@ every domain reuses:
 
 - **Collection** — `CellVector` (reactive sequence container), `CellMatrix`,
   `CellTable`, `ListNode`. Provides the seam method
-  `child_reference_steps(::CellVector) = [(RangeReference(i-1, i), node[i]) …]`
+  `child_reference_steps(::CellVector) = [(RangeReferenceStep(i-1, i), node[i]) …]`
   registered on the kernel's `OperationModule`, so the pre-order document
   walk driving `SelectNextInsertionOperation` picks up `CellVector` elements
   without the kernel referencing the concrete type.
@@ -94,8 +94,8 @@ dependencies invalidate.
 
 The selection mechanism treats a `CellVector` as a sequence:
 
-- `ElementReference(i)` (or `[i]` in the `@reference` DSL) → slot `i` (1-based).
-- `PositionReference(i)` (or `{i}`) → cursor *between* slots (0-based).
+- `ElementReferenceStep(i)` (or `[i]` in the `@reference` DSL) → slot `i` (1-based).
+- `PositionReferenceStep(i)` (or `{i}`) → cursor *between* slots (0-based).
 
 ## ListNode
 

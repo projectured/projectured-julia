@@ -97,7 +97,7 @@ end
     @test iomap_nm.output isa DocumentNothing
 
     # Reference maps decline on the empty case.
-    @test map_reference_forward(p, iomap, cpath(FieldReference("versions"))) === nothing
+    @test map_reference_forward(p, iomap, cpath(FieldReferenceStep("versions"))) === nothing
     @test map_reference_backward(p, iomap, EmptyReferencePath()) === nothing
 end
 
@@ -111,19 +111,19 @@ end
     back = map_reference_backward(p, iomap, EmptyReferencePath())
     @test back isa ConcreteReferencePath
     @test back.head.name == "versions"
-    @test back.tail.head isa RangeReference
-    @test back.tail.head.start == 0          # ElementReference(1) → start 0
+    @test back.tail.head isa RangeReferenceStep
+    @test back.tail.head.start == 0          # ElementReferenceStep(1) → start 0
     @test back.tail.tail.head.name == "value"
 
     # Forward: strip versions[1].value and return the (identity) tail.
     fwd = map_reference_forward(p, iomap,
-        cpath(FieldReference("versions"), ElementReference(1), FieldReference("value")))
+        cpath(FieldReferenceStep("versions"), ElementReferenceStep(1), FieldReferenceStep("value")))
     @test fwd isa EmptyReferencePath
 
     # Forward declines a path that does not descend through the selected version.
     @test map_reference_forward(p, iomap,
-        cpath(FieldReference("versions"), ElementReference(2), FieldReference("value"))) === nothing
-    @test map_reference_forward(p, iomap, cpath(FieldReference("criterion"))) === nothing
+        cpath(FieldReferenceStep("versions"), ElementReferenceStep(2), FieldReferenceStep("value"))) === nothing
+    @test map_reference_forward(p, iomap, cpath(FieldReferenceStep("criterion"))) === nothing
 end
 
 @testset "reader re-roots delegated value operations" begin
@@ -139,7 +139,7 @@ end
     @test out.operation isa ReplaceSelectionOperation
     rerooted = out.operation.path
     @test rerooted.head.name == "versions"
-    @test rerooted.tail.head isa RangeReference
+    @test rerooted.tail.head isa RangeReferenceStep
     @test rerooted.tail.head.start == 0
     @test rerooted.tail.tail.head.name == "value"
 
@@ -158,11 +158,11 @@ end
 
     # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
     # sequence splice (insert_elements) — a ReplaceReferencedValueOperation whose terminal is
-    # a zero-width RangeReference(0,0) into `versions` and whose value is the items.
+    # a zero-width RangeReferenceStep(0,0) into `versions` and whose value is the items.
     op = read_intent(p, iomap, KeyDown(:s, ctrl_shift))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
-    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     snapshot = op.value[1]
     @test snapshot isa ObjectVersion
     @test snapshot.value isa PrimitiveString
@@ -170,11 +170,11 @@ end
     @test snapshot.value !== vo.versions[1].value       # deep copy
 
     # Ctrl+Delete deletes the active version via a splice (delete_elements): a
-    # ReplaceReferencedValueOperation with terminal RangeReference(0,1) and an empty value.
+    # ReplaceReferencedValueOperation with terminal RangeReferenceStep(0,1) and an empty value.
     op = read_intent(p, iomap, KeyDown(:delete, ctrl))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
-    @test op.reference.tail.head isa RangeReference && op.reference.tail.head.start == 0
+    @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     @test isempty(op.value)
 end
 

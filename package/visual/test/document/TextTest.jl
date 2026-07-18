@@ -77,12 +77,12 @@ block = mkblock()
 
 # The caret is a flat offset in the break/indentation-aware stream. `fb(path, k)`
 # is the flat offset of char `k` in the span at the structural `path` — the shape
-# the old `content{c}` cursor named; the selection is now a flat `TextRangeReference`.
+# the old `content{c}` cursor named; the selection is now a flat `TextRangeReferenceStep`.
 fb(path, k) = TextModule._flat_base(mkblock(), path) + k
 caret(f)    = with_selection(mkblock(), TextModule._flat_caret_ref(f))
 # flat offset carried by a caret op / ref
 cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.path : x);
-               (r.head::TextRangeReference).start)
+               (r.head::TextRangeReferenceStep).start)
 
 # The caret at the start of the indented line sits after the indent, not before.
 @test fb(Int[2, 1], 0) == 14

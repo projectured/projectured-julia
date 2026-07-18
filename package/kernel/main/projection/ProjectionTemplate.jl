@@ -31,7 +31,7 @@ using ..CellModule
 # ProjectionTemplate does not name CellVector directly.
 # `make_children_container(...)` builds the container (base's
 # Collection.jl registers Vector/Function methods on CellVector);
-# `children_container_type()` returns the concrete type for TypeReference
+# `children_container_type()` returns the concrete type for TypeReferenceStep
 # markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
 using ..ChildrenContainerModule
 using ..IoMapApiModule
@@ -90,7 +90,7 @@ _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 _project_child_cell(recursion, doc, ctx, prj::Project) =
     _reconciling_child_iomap(() -> getproperty(doc, prj.input),
         v -> begin
-            cctx = make_child_context(ctx, FieldReference(String(prj.input)))
+            cctx = make_child_context(ctx, FieldReferenceStep(String(prj.input)))
             ov = _override(prj.override, v)
             ov === nothing ? print_child(recursion, v, cctx) :
                              ProjectionApiModule.print_document(ov, recursion, v, cctx)
@@ -198,7 +198,7 @@ end
 
 # A whole-element selection typed `::T`: the folded terminal carrying T.
 _typed(T) = EmptyReferencePath(T)
-# Build a path from `steps...` (which may include unfolded `TypeReference`
+# Build a path from `steps...` (which may include unfolded `TypeReferenceStep`
 # checkpoint steps), then fold those checkpoints into node types so the result is
 # the canonical folded form `@reference`/`@reference_case` produce.
 _path(steps...) = begin
@@ -209,7 +209,7 @@ _path(steps...) = begin
     fold_reference_types(p)
 end
 # prepend `steps...` in front of an existing (already-folded) path tail, then fold
-# any prepended `TypeReference` checkpoint steps into node types.
+# any prepended `TypeReferenceStep` checkpoint steps into node types.
 _prepend(tail::ReferencePath, steps...) = begin
     p = tail
     for i in length(steps):-1:1
@@ -368,8 +368,8 @@ function _key_leaf_sel(doc, in_field::Symbol)
         sel = doc.selection
         is_introduced_reference(sel) && return sel
         core = sel
-        if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == fname
-            return ConcreteReferencePath(FieldReference("value"), core.tail)
+        if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == fname
+            return ConcreteReferencePath(FieldReferenceStep("value"), core.tail)
         end
         return nothing
     end)
@@ -505,12 +505,12 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
         # homogeneous: each element projected by its own projection
         _reconciling_child_iomaps(elements_fn, (i, x) ->
             print_child(recursion, x,
-                make_child_context(ctx, FieldReference(String(input_field)), ElementReference(i))))
+                make_child_context(ctx, FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))
     else
         # templated: build a fixed-children node per element via the element builder
         _reconciling_child_iomaps(elements_fn, (i, x) ->
             _fixed_print(p, recursion, x,
-                make_child_context(ctx, FieldReference(String(input_field)), ElementReference(i)),
+                make_child_context(ctx, FieldReferenceStep(String(input_field)), ElementReferenceStep(i)),
                 coll.element(x)))
     end
     iomap_cell = Cell(nothing)
@@ -685,7 +685,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
     coll_iomaps = Cell(() -> [
         print_child(recursion, x,
-            make_child_context(ctx, FieldReference(String(coll_field)), ElementReference(i)))
+            make_child_context(ctx, FieldReferenceStep(String(coll_field)), ElementReferenceStep(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
     children = make_children_container(() -> vcat(
         [s isa Cell ? s[].output : s for s in prefix_sources],
@@ -764,7 +764,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
             coll = getproperty(doc, field)
             isempty(coll) && continue
             entries = [print_child(recursion, x,
-                           make_child_context(ctx, FieldReference(String(field)), ElementReference(i)))
+                           make_child_context(ctx, FieldReferenceStep(String(field)), ElementReferenceStep(i)))
                        for (i, x) in enumerate(coll)]
             push!(res, (field=field, mk=mk, entries=entries))
         end
@@ -787,7 +787,7 @@ end
 
 # Ensure a generic (template) mapper emits a fully-typed sub-path so a parent's
 # `^(inner)` splice stays typed (the reference-types-always-present invariant).
-# The template machinery builds paths from raw steps / `ProjectionReference`
+# The template machinery builds paths from raw steps / `ProjectionReferenceStep`
 # wraps whose terminals it cannot always spell inline; annotating the finished
 # path against the mapper's own document (the one it navigates) fills every node
 # type at the source, so consumers need no boundary re-annotation.
@@ -836,11 +836,11 @@ function _atomic_forward(p, w, reference)
         return nothing
     end
     core isa EmptyReferencePath && return _typed(w.outtype)                 # whole ⇒ ::Out
-    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.bound_field)
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == String(w.bound_field)
         rest = core.tail
-        if rest isa ConcreteReferencePath && rest.head isa RangeReference
-            return _prepend(rest, TypeReference(w.outtype),
-                            FieldReference(String(w.value_field)), TypeReference(w.value_checkpoint))
+        if rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep
+            return _prepend(rest, TypeReferenceStep(w.outtype),
+                            FieldReferenceStep(String(w.value_field)), TypeReferenceStep(w.value_checkpoint))
         end
     end
     return nothing
@@ -852,22 +852,22 @@ function _atomic_backward(p, w, reference)
         # opaque ⇒ mirror the default mapper exactly (typed empty so the
         # strict-typing invariant holds on the whole-node case)
         reference isa EmptyReferencePath && return _typed(w.intype)
-        return _path(ProjectionReference(p, reference))
+        return _path(ProjectionReferenceStep(p, reference))
     end
     core = reference
     core isa EmptyReferencePath && return _typed(w.intype)                  # whole ⇒ ::In
-    if core isa ConcreteReferencePath && core.head isa FieldReference
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep
         fname = Symbol(core.head.name)
         if fname == w.value_field
             rest = core.tail
-            if rest isa ConcreteReferencePath && rest.head isa RangeReference
-                return _prepend(rest, TypeReference(w.intype),
-                                FieldReference(String(w.bound_field)), TypeReference(w.bound_type))
+            if rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep
+                return _prepend(rest, TypeReferenceStep(w.intype),
+                                FieldReferenceStep(String(w.bound_field)), TypeReferenceStep(w.bound_type))
             end
             return nothing
         end
         # any other output field is projection-introduced ⇒ wrap in our own step
-        return _path(TypeReference(w.intype), ProjectionReference(p, reference))
+        return _path(TypeReferenceStep(w.intype), ProjectionReferenceStep(p, reference))
     end
     return nothing
 end
@@ -886,17 +886,17 @@ function _node_forward(p, w, iomap, reference)
     if is_introduced_reference(core, p)
         return reference                                                   # keep wrapped
     end
-    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.coll_input_field)
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == String(w.coll_input_field)
         after = core.tail
-        if after isa ConcreteReferencePath && after.head isa RangeReference
+        if after isa ConcreteReferencePath && after.head isa RangeReferenceStep
             child_i = after.head.start + 1
             ims = iomap.child_iomaps[]
             1 <= child_i <= length(ims) || return nothing
             child = ims[child_i]
             inner = map_reference_forward(child.projection, child, after.tail)
             inner === nothing && return nothing
-            return _prepend(inner, TypeReference(w.outtype), FieldReference(String(w.children_field)),
-                            TypeReference(children_container_type()), ElementReference(child_i))
+            return _prepend(inner, TypeReferenceStep(w.outtype), FieldReferenceStep(String(w.children_field)),
+                            TypeReferenceStep(children_container_type()), ElementReferenceStep(child_i))
         end
     end
     return nothing
@@ -906,9 +906,9 @@ function _node_backward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.intype)                  # whole ⇒ ::In
-    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(w.children_field)
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == String(w.children_field)
         after = core.tail
-        if after isa ConcreteReferencePath && after.head isa RangeReference
+        if after isa ConcreteReferencePath && after.head isa RangeReferenceStep
             child_i = after.head.start + 1
             ims = iomap.child_iomaps[]
             1 <= child_i <= length(ims) || return nothing
@@ -918,7 +918,7 @@ function _node_backward(p, w, iomap, reference)
             # JSON boundary: emit a clean, checkpoint-free input path (matches the
             # canonical walk and what clicks produce), so navigation reaches every
             # caret. The child's tail is stripped of its checkpoints before splicing.
-            return _prepend(_strip_checkpoints(inner), FieldReference(String(w.coll_input_field)), ElementReference(child_i))
+            return _prepend(_strip_checkpoints(inner), FieldReferenceStep(String(w.coll_input_field)), ElementReferenceStep(child_i))
         end
     end
     return nothing
@@ -939,26 +939,26 @@ function _slots_forward(slots, project_child, children_field, outtype, reference
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(outtype)                   # whole ⇒ ::Out
-    if core isa ConcreteReferencePath && core.head isa FieldReference
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep
         fname = Symbol(core.head.name)
         for (k, slot) in enumerate(slots)
             if slot isa KeySlot && slot.in_field === fname
                 inner = core.tail
                 inner isa EmptyReferencePath &&
-                    return _path(FieldReference(String(children_field)), ElementReference(k))
-                return _prepend(inner, FieldReference(String(children_field)),
-                                ElementReference(k), FieldReference("value"))
+                    return _path(FieldReferenceStep(String(children_field)), ElementReferenceStep(k))
+                return _prepend(inner, FieldReferenceStep(String(children_field)),
+                                ElementReferenceStep(k), FieldReferenceStep("value"))
             elseif slot isa ProjectSlot && slot.in_field === fname
                 child = project_child(fname)
                 inner = map_reference_forward(child.projection, child, core.tail)
                 inner === nothing && return nothing
-                return _prepend(inner, FieldReference(String(children_field)), ElementReference(k))
+                return _prepend(inner, FieldReferenceStep(String(children_field)), ElementReferenceStep(k))
             elseif slot isa SubNodeSlot
                 # The sub-node's mapper owns the same parent input; delegate the whole
                 # reference and, on a hit, prepend this sub-node's `.children[k]` hop.
                 inner = map_reference_forward(slot.iomap.projection, slot.iomap, reference)
                 inner === nothing && continue
-                return _prepend(inner, FieldReference(String(children_field)), ElementReference(k))
+                return _prepend(inner, FieldReferenceStep(String(children_field)), ElementReferenceStep(k))
             end
         end
     end
@@ -969,37 +969,37 @@ function _slots_backward(slots, project_child, children_field, intype, reference
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(intype)                    # whole ⇒ ::In
-    if core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == String(children_field)
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == String(children_field)
         after = core.tail
-        if after isa ConcreteReferencePath && after.head isa RangeReference
+        if after isa ConcreteReferencePath && after.head isa RangeReferenceStep
             k = after.head.start + 1
             1 <= k <= length(slots) || return nothing
             slot = slots[k]
             leaf_path = after.tail
             if slot isa KeySlot
                 leaf_path isa EmptyReferencePath &&
-                    return _path(FieldReference(String(slot.in_field)))     # whole key leaf ⇒ .key
+                    return _path(FieldReferenceStep(String(slot.in_field)))     # whole key leaf ⇒ .key
                 lp = leaf_path
-                if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
-                    return _prepend(lp.tail, FieldReference(String(slot.in_field)))   # .value char ⇒ .key char
+                if lp isa ConcreteReferencePath && lp.head isa FieldReferenceStep && lp.head.name == "value"
+                    return _prepend(lp.tail, FieldReferenceStep(String(slot.in_field)))   # .value char ⇒ .key char
                 end
                 return nothing
             elseif slot isa ProjectSlot
                 child = project_child(slot.in_field)
                 inner = map_reference_backward(child.projection, child, leaf_path)
                 inner === nothing && return nothing
-                return _prepend(inner, FieldReference(String(slot.in_field)))
+                return _prepend(inner, FieldReferenceStep(String(slot.in_field)))
             elseif slot isa SubNodeSlot
                 # A *whole-element* selection of an introduced grouping sub-node (e.g.
                 # the Julia `function name(params)` header) has no input pre-image;
                 # delegating maps ∅ back to the whole parent (∅), colliding with the
                 # root and stalling tree navigation. Represent it as an opaque
-                # structural position — a ProjectionReference into this node's output —
+                # structural position — a ProjectionReferenceStep into this node's output —
                 # so it round-trips distinctly (forward via `is_introduced_reference`;
                 # `SyntaxToText._syntax_to_flat` renders it transparently). A *deeper*
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReferencePath &&
-                    return _path(ProjectionReference(slot.iomap.projection, reference))
+                    return _path(ProjectionReferenceStep(slot.iomap.projection, reference))
                 return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
@@ -1009,7 +1009,7 @@ function _slots_backward(slots, project_child, children_field, intype, reference
     return nothing
 end
 
-# A `ProjectionReference(^(p), …)` head is this projection's own introduced output
+# A `ProjectionReferenceStep(^(p), …)` head is this projection's own introduced output
 # (a delimiter / structural position with no input pre-image) — keep it wrapped
 # forward, mirroring `_node_forward` / `_mixed_forward` / `_inline_forward`. Without
 # this the cursor on an introduced token of a fixed/conditional node fails to
@@ -1043,33 +1043,33 @@ function _mixed_forward(p, w, iomap, reference)
     if is_introduced_reference(core, p)
         return reference
     end
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     for (k, slot) in enumerate(w.prefix_slots)
         if slot isa KeySlot && slot.in_field === fname
             inner = core.tail
             inner isa EmptyReferencePath &&
-                return _path(FieldReference(String(w.children_field)), ElementReference(k))
-            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k), FieldReference("value"))
+                return _path(FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k))
+            return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k), FieldReferenceStep("value"))
         elseif slot isa ProjectSlot && slot.in_field === fname
             child = iomap.child_iomaps.prefix[fname][]
             inner = map_reference_forward(child.projection, child, core.tail)
             inner === nothing && return nothing
-            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(k))
+            return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k))
         end
     end
     if fname === w.coll_field
         after = core.tail
-        if after isa ConcreteReferencePath && after.head isa RangeReference
+        if after isa ConcreteReferencePath && after.head isa RangeReferenceStep
             i = after.head.start + 1
             ims = iomap.child_iomaps.coll[]
             1 <= i <= length(ims) || return nothing
             child_i = length(w.prefix_slots) + i
             after.tail isa EmptyReferencePath &&
-                return _path(FieldReference(String(w.children_field)), ElementReference(child_i))
+                return _path(FieldReferenceStep(String(w.children_field)), ElementReferenceStep(child_i))
             inner = map_reference_forward(ims[i].projection, ims[i], after.tail)
             inner === nothing && return nothing
-            return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(child_i))
+            return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(child_i))
         end
     end
     return nothing
@@ -1079,10 +1079,10 @@ function _mixed_backward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
-    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep &&
      core.head.name == String(w.children_field)) || return nothing
     after = core.tail
-    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
     k = after.head.start + 1
     leaf_path = after.tail
     n_prefix = length(w.prefix_slots)
@@ -1090,17 +1090,17 @@ function _mixed_backward(p, w, iomap, reference)
         slot = w.prefix_slots[k]
         if slot isa KeySlot
             leaf_path isa EmptyReferencePath &&
-                return _path(FieldReference(String(slot.in_field)))
+                return _path(FieldReferenceStep(String(slot.in_field)))
             lp = leaf_path
-            if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
-                return _prepend(lp.tail, FieldReference(String(slot.in_field)))
+            if lp isa ConcreteReferencePath && lp.head isa FieldReferenceStep && lp.head.name == "value"
+                return _prepend(lp.tail, FieldReferenceStep(String(slot.in_field)))
             end
             return nothing
         elseif slot isa ProjectSlot
             child = iomap.child_iomaps.prefix[slot.in_field][]
             inner = map_reference_backward(child.projection, child, leaf_path)
             inner === nothing && return nothing
-            return _prepend(inner, FieldReference(String(slot.in_field)))
+            return _prepend(inner, FieldReferenceStep(String(slot.in_field)))
         else
             return nothing
         end
@@ -1109,10 +1109,10 @@ function _mixed_backward(p, w, iomap, reference)
         ims = iomap.child_iomaps.coll[]
         1 <= i <= length(ims) || return nothing
         leaf_path isa EmptyReferencePath &&
-            return _path(FieldReference(String(w.coll_field)), ElementReference(i))
+            return _path(FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i))
         inner = map_reference_backward(ims[i].projection, ims[i], leaf_path)
         inner === nothing && return nothing
-        return _prepend(_strip_checkpoints(inner), FieldReference(String(w.coll_field)), ElementReference(i))
+        return _prepend(_strip_checkpoints(inner), FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i))
     end
 end
 
@@ -1130,11 +1130,11 @@ function _inline_forward(p, w, reference)
     if is_introduced_reference(core, p)
         return reference
     end
-    if core isa ConcreteReferencePath && core.head isa FieldReference && Symbol(core.head.name) === w.bound_field
+    if core isa ConcreteReferencePath && core.head isa FieldReferenceStep && Symbol(core.head.name) === w.bound_field
         inner = core.tail
         inner isa EmptyReferencePath &&
-            return _path(FieldReference(String(w.children_field)), ElementReference(w.bound_index))
-        return _prepend(inner, FieldReference(String(w.children_field)), ElementReference(w.bound_index), FieldReference("value"))
+            return _path(FieldReferenceStep(String(w.children_field)), ElementReferenceStep(w.bound_index))
+        return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(w.bound_index), FieldReferenceStep("value"))
     end
     return nothing
 end
@@ -1143,17 +1143,17 @@ function _inline_backward(p, w, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
-    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep &&
      core.head.name == String(w.children_field)) || return nothing
     after = core.tail
-    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
     after.head.start + 1 == w.bound_index || return nothing       # decorative ⇒ flat fallback
     leaf_path = after.tail
     leaf_path isa EmptyReferencePath &&
-        return _path(FieldReference(String(w.bound_field)))
+        return _path(FieldReferenceStep(String(w.bound_field)))
     lp = leaf_path
-    if lp isa ConcreteReferencePath && lp.head isa FieldReference && lp.head.name == "value"
-        return _prepend(lp.tail, FieldReference(String(w.bound_field)))
+    if lp isa ConcreteReferencePath && lp.head isa FieldReferenceStep && lp.head.name == "value"
+        return _prepend(lp.tail, FieldReferenceStep(String(w.bound_field)))
     end
     return nothing
 end
@@ -1173,23 +1173,23 @@ function _sections_forward(p, w, iomap, reference)
     if is_introduced_reference(core, p)
         return reference
     end
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     field = Symbol(core.head.name)
     sec_i = findfirst(s -> s.field === field, secs)
     sec_i === nothing && return nothing
     cf = String(w.children_field)
     rest = core.tail
-    rest isa EmptyReferencePath && return _path(FieldReference(cf), ElementReference(sec_i))
-    (rest isa ConcreteReferencePath && rest.head isa RangeReference) || return nothing
+    rest isa EmptyReferencePath && return _path(FieldReferenceStep(cf), ElementReferenceStep(sec_i))
+    (rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep) || return nothing
     entry_i = rest.head.start + 1
     entries = secs[sec_i].entries
     1 <= entry_i <= length(entries) || return nothing
     entry_rest = rest.tail
     entry_rest isa EmptyReferencePath &&
-        return _path(FieldReference(cf), ElementReference(sec_i), FieldReference(cf), ElementReference(entry_i))
+        return _path(FieldReferenceStep(cf), ElementReferenceStep(sec_i), FieldReferenceStep(cf), ElementReferenceStep(entry_i))
     inner = map_reference_forward(entries[entry_i].projection, entries[entry_i], entry_rest)
     inner === nothing && return nothing
-    return _prepend(inner, FieldReference(cf), ElementReference(sec_i), FieldReference(cf), ElementReference(entry_i))
+    return _prepend(inner, FieldReferenceStep(cf), ElementReferenceStep(sec_i), FieldReferenceStep(cf), ElementReferenceStep(entry_i))
 end
 
 function _sections_backward(p, w, iomap, reference)
@@ -1198,26 +1198,26 @@ function _sections_backward(p, w, iomap, reference)
     cf = String(w.children_field)
     core = reference
     core isa EmptyReferencePath && return _typed(w.intype)
-    (core isa ConcreteReferencePath && core.head isa FieldReference && core.head.name == cf) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep && core.head.name == cf) || return nothing
     after = core.tail
-    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
     sec_i = after.head.start + 1
     1 <= sec_i <= length(secs) || return nothing
     sec = secs[sec_i]
     rest = after.tail
-    rest isa EmptyReferencePath && return _path(FieldReference(String(sec.field)))
+    rest isa EmptyReferencePath && return _path(FieldReferenceStep(String(sec.field)))
     rest2 = rest
-    (rest2 isa ConcreteReferencePath && rest2.head isa FieldReference && rest2.head.name == cf) || return nothing
+    (rest2 isa ConcreteReferencePath && rest2.head isa FieldReferenceStep && rest2.head.name == cf) || return nothing
     after2 = rest2.tail
-    (after2 isa ConcreteReferencePath && after2.head isa RangeReference) || return nothing
+    (after2 isa ConcreteReferencePath && after2.head isa RangeReferenceStep) || return nothing
     entry_i = after2.head.start + 1
     1 <= entry_i <= length(sec.entries) || return nothing
     inner_path = after2.tail
     inner_path isa EmptyReferencePath &&
-        return _path(FieldReference(String(sec.field)), ElementReference(entry_i))
+        return _path(FieldReferenceStep(String(sec.field)), ElementReferenceStep(entry_i))
     translated = map_reference_backward(sec.entries[entry_i].projection, sec.entries[entry_i], inner_path)
     translated === nothing && return nothing
-    return _prepend(_strip_checkpoints(translated), FieldReference(String(sec.field)), ElementReference(entry_i))
+    return _prepend(_strip_checkpoints(translated), FieldReferenceStep(String(sec.field)), ElementReferenceStep(entry_i))
 end
 
 # ── readers ───────────────────────────────────────────────────────────────────
@@ -1248,23 +1248,23 @@ _focused_child(::Any, iomap, sel) = nothing
 
 function _focused_child(w::NodeWiring, iomap, sel)
     core = sel
-    (core isa ConcreteReferencePath && core.head isa FieldReference &&
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep &&
      core.head.name == String(w.coll_input_field)) || return nothing
     after = core.tail
-    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
     i = after.head.start + 1
     ims = iomap.child_iomaps[]
     1 <= i <= length(ims) || return nothing
-    (ims[i], (FieldReference(String(w.coll_input_field)), ElementReference(i)))
+    (ims[i], (FieldReferenceStep(String(w.coll_input_field)), ElementReferenceStep(i)))
 end
 
 function _focused_child(w::FixedNodeWiring, iomap, sel)
     core = sel
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     for slot in w.slots
         if slot isa ProjectSlot && slot.in_field === fname
-            return (iomap.child_iomaps[fname][], (FieldReference(String(fname)),))
+            return (iomap.child_iomaps[fname][], (FieldReferenceStep(String(fname)),))
         elseif slot isa SubNodeSlot
             # Recurse: the sub-node shares the parent input, so the steps it reports
             # are already parent-relative.
@@ -1278,11 +1278,11 @@ end
 function _focused_child(w::ConditionalNodeWiring, iomap, sel)
     st = iomap.child_iomaps[]
     core = sel
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     for slot in st[1]
         if slot isa ProjectSlot && slot.in_field === fname
-            return (st[2][fname][], (FieldReference(String(fname)),))
+            return (st[2][fname][], (FieldReferenceStep(String(fname)),))
         elseif slot isa SubNodeSlot
             fc = _focused_child(slot.iomap.wiring, slot.iomap, sel)
             fc === nothing || return fc
@@ -1293,34 +1293,34 @@ end
 
 function _focused_child(w::MixedNodeWiring, iomap, sel)
     core = sel
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     for slot in w.prefix_slots
         slot isa ProjectSlot && slot.in_field === fname &&
-            return (iomap.child_iomaps.prefix[fname][], (FieldReference(String(fname)),))
+            return (iomap.child_iomaps.prefix[fname][], (FieldReferenceStep(String(fname)),))
     end
     if fname === w.coll_field
         after = core.tail
-        (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+        (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
         i = after.head.start + 1
         ims = iomap.child_iomaps.coll[]
         1 <= i <= length(ims) || return nothing
-        return (ims[i], (FieldReference(String(w.coll_field)), ElementReference(i)))
+        return (ims[i], (FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i)))
     end
     nothing
 end
 
 function _focused_child(w::SectionsWiring, iomap, sel)
     core = sel
-    (core isa ConcreteReferencePath && core.head isa FieldReference) || return nothing
+    (core isa ConcreteReferencePath && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     after = core.tail
-    (after isa ConcreteReferencePath && after.head isa RangeReference) || return nothing
+    (after isa ConcreteReferencePath && after.head isa RangeReferenceStep) || return nothing
     i = after.head.start + 1
     for s in iomap.child_iomaps[]
         if s.field === fname
             1 <= i <= length(s.entries) || return nothing
-            return (s.entries[i], (FieldReference(String(fname)), ElementReference(i)))
+            return (s.entries[i], (FieldReferenceStep(String(fname)), ElementReferenceStep(i)))
         end
     end
     nothing
@@ -1419,7 +1419,7 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperat
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
-    return ReplaceSelectionOperation(_path(ProjectionReference(p, op.path)))
+    return ReplaceSelectionOperation(_path(ProjectionReferenceStep(p, op.path)))
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────

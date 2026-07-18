@@ -51,7 +51,7 @@ function reader_broken(name)
     # plan/pending/simplest-syntax-document.md
     name == "xml" && return (ev, msg) -> occursin("SyntaxConcatenation", msg)
     # @broken: a caret on a projection-introduced token yields an under-typed
-    # ProjectionReference path the graph/workbench selection maps cannot wrap.
+    # ProjectionReferenceStep path the graph/workbench selection maps cannot wrap.
     name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
     nothing
 end
@@ -79,7 +79,7 @@ function repl_broken(name)
     name in ("conversation", "conversation_widget", "filesystem", "navigator",
              "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatch", msg)
     # @broken: caret on a projection-introduced token → under-typed
-    # ProjectionReference path the graph/workbench maps cannot wrap.
+    # ProjectionReferenceStep path the graph/workbench maps cannot wrap.
     name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
     # @broken: sql_update selection cell throws when re-projecting after a
     # backspace/whole-cell edit (a stale iomap `.output` and a missing
@@ -121,7 +121,7 @@ end
 # working the marker flips to an Unexpected Pass and must be removed.
 function posnav_seed_broken(name)
     # @broken: seed reader throws — xml `::SyntaxNode` type-asserts a
-    # SyntaxConcatenation; graph builds an under-typed ProjectionReference path.
+    # SyntaxConcatenation; graph builds an under-typed ProjectionReferenceStep path.
     name == "xml"   && return ("SyntaxConcatenation",)
     name == "graph" && return ("under-typed @reference",)
     # @broken: seed produces no selection — Ctrl+Home returns nothing (these
@@ -219,9 +219,9 @@ function tree_broken(name)
     name in ("focusing", "formula", "julia", "markdown", "markdown_rendered") &&
         return ("FieldError(Nothing, :output)",)
     # @broken: xml tree selections route through an XmlElementToSyntaxNode
-    # ProjectionReference the reader cannot resolve, and the block container's
+    # ProjectionReferenceStep the reader cannot resolve, and the block container's
     # `::SyntaxNode` type-assert trips on the SyntaxConcatenation.
-    name == "xml" && return ("ProjectionReference", "SyntaxConcatenation")
+    name == "xml" && return ("ProjectionReferenceStep", "SyntaxConcatenation")
     nothing
 end
 
@@ -401,7 +401,7 @@ const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 const NAV_WALK_THROWS = Dict(
     # When the caret lands on a projection-introduced token (e.g. a JsonObject
     # vertex's `{` delimiter), the vertex content reader returns a
-    # ProjectionReference-headed path that is under-typed, so the graph selection
+    # ProjectionReferenceStep-headed path that is under-typed, so the graph selection
     # map cannot wrap it — the seed throws before any walk starts.
     "graph"             => (:walk_right, :walk_left),
     # SelectionMismatch in set_selection! on a CollectionToSyntax leaf: an
@@ -447,7 +447,7 @@ function test_text_nav_invariants_all()
                               "collection", "reversing", "filtering",
                               "sorting",
                               # pre-existing: the rightward walk revisits a
-                              # projection-introduced (`ProjectionReference`)
+                              # projection-introduced (`ProjectionReferenceStep`)
                               # caret, so it is not a chain — an unmarkable
                               # `result.cycle === nothing` failure, not a walk
                               # error. Tracked with the introduced-token-caret work.

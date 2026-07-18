@@ -27,8 +27,8 @@
 #   2. Reference reachability + round-trip.  For every content caret enumerated
 #      from the document, `map_reference_forward` must yield an image (the
 #      mapper descended all the way to the leaf), and `map_reference_backward`
-#      of that image must return the original (modulo TypeReference checkpoints
-#      and the documented ProjectionReference/flat-offset collapse) — the
+#      of that image must return the original (modulo TypeReferenceStep checkpoints
+#      and the documented ProjectionReferenceStep/flat-offset collapse) — the
 #      signature of lockstep recursion across the whole pipeline.
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -155,7 +155,7 @@ end
 
 For every caret in `collect_position_selections(document)`, map it forward through
 the top projection and assert it has an image (reachability), then map that
-image back and assert it equals the original (round-trip, modulo TypeReference
+image back and assert it equals the original (round-trip, modulo TypeReferenceStep
 checkpoints). Errors are returned as strings for REPL use.
 """
 function walk_reference_roundtrip(document, projection)
@@ -235,7 +235,7 @@ function test_recursion_contract(label, document, projection)
         # Reference reachability + round-trip is exposed as the `walk_reference_roundtrip`
         # / `walk_recursion_contract` REPL walkers rather than asserted here: it maps
         # through the full graphics pipeline and its tolerance to the documented
-        # ProjectionReference / flat-offset collapse needs calibrating on a running
+        # ProjectionReferenceStep / flat-offset collapse needs calibrating on a running
         # editor before it becomes a hard assertion (see the plan's Verification).
     end
 end

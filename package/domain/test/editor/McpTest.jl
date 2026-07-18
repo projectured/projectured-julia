@@ -320,7 +320,7 @@ function test_search_object()
         @test sort([evaluate_reference(doc, r) for r in search_references(doc, r"^\d+$"; raw=true)]) == [10, 20]
 
         # Returned references are canonical at rest: every navigation step is
-        # preceded by a TypeReference checkpoint (as search_references produces),
+        # preceded by a TypeReferenceStep checkpoint (as search_references produces),
         # and stripping them recovers a usable plain path.
         ar = search_references(doc, "Alice")[1]
         steps = ConcreteReferencePath[]
@@ -331,7 +331,7 @@ function test_search_object()
             end
         end
         @test any(s -> s.type !== nothing, steps)   # folded: nodes carry types
-        @test ar.head isa FieldReference             # head is always a nav step now
+        @test ar.head isa FieldReferenceStep             # head is always a nav step now
         @test ar.type !== nothing                    # first node records the document type
         @test evaluate_reference(doc, strip_reference_types(ar)) isa JsonString
     end
@@ -457,8 +457,8 @@ function test_workbench_editor_reference()
         a = WorkbenchAssistant(; llm = FakeLlm("ok"))
         a.input.value = "editor !== nothing"
         a.input.selection = ConcreteReferencePath(
-            FieldReference("value"),
-            ConcreteReferencePath(RangeReference(0, length(a.input.value)),
+            FieldReferenceStep("value"),
+            ConcreteReferencePath(RangeReferenceStep(0, length(a.input.value)),
                                   EmptyReferencePath()))
 
         stand_in = (document = a, tools = tools)
@@ -471,8 +471,8 @@ function test_workbench_editor_reference()
 
         a.input.value = "editor.document isa WorkbenchAssistant"
         a.input.selection = ConcreteReferencePath(
-            FieldReference("value"),
-            ConcreteReferencePath(RangeReference(0, length(a.input.value)),
+            FieldReferenceStep("value"),
+            ConcreteReferencePath(RangeReferenceStep(0, length(a.input.value)),
                                   EmptyReferencePath()))
         evaluate_operation(stand_in, SubmitJuliaOperation(a))
         exec2 = a.conversation.turns[2].parts[1].content
@@ -493,7 +493,7 @@ function test_function_availability()
         @test occursin("5", result)
         
         # Test that append_reference is available by calling it
-        result = execute_julia_code(tools, editor, "append_reference(EmptyReferencePath(), PositionReference(1))")
+        result = execute_julia_code(tools, editor, "append_reference(EmptyReferencePath(), PositionReferenceStep(1))")
         @test isa(result, String)
         # Should not error
         
@@ -502,18 +502,18 @@ function test_function_availability()
         @test isa(result, String)
         # Should not error
         
-        # Test that PositionReference is available by constructing it
-        result = execute_julia_code(tools, editor, "PositionReference(1)")
+        # Test that PositionReferenceStep is available by constructing it
+        result = execute_julia_code(tools, editor, "PositionReferenceStep(1)")
         @test isa(result, String)
         # Should not error
         
-        # Test that ElementReference is available by constructing it
-        result = execute_julia_code(tools, editor, "ElementReference(1)")
+        # Test that ElementReferenceStep is available by constructing it
+        result = execute_julia_code(tools, editor, "ElementReferenceStep(1)")
         @test isa(result, String)
         # Should not error
         
-        # Test that FieldReference is available by constructing it
-        result = execute_julia_code(tools, editor, "FieldReference(\"test\")")
+        # Test that FieldReferenceStep is available by constructing it
+        result = execute_julia_code(tools, editor, "FieldReferenceStep(\"test\")")
         @test isa(result, String)
         # Should not error
         

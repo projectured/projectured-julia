@@ -52,7 +52,7 @@ import ..OperationRerootingModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReference, PositionReference, RangeReference, EmptyReferencePath, FieldReference, append_reference
+import ..ReferenceModule: ReferencePath, ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReferencePath, FieldReferenceStep, append_reference
 import ..CollectionModule: CellVector
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -142,13 +142,13 @@ _recurse(recursion, doc, ctx) =
 
 _title_widget(doc::WorkbenchDocument) = title(doc)
 
-# Strip a leading `FieldReference(name)` step from a forward-projected path;
+# Strip a leading `FieldReferenceStep(name)` step from a forward-projected path;
 # `nothing` if it doesn't match. Used to re-root the shell's full widget-domain
 # selection onto the structural split panes it builds.
 function _strip_field(path, name::AbstractString)
     path = path
     path isa ConcreteReferencePath || return nothing
-    (path.head isa FieldReference && path.head.name == name) || return nothing
+    (path.head isa FieldReferenceStep && path.head.name == name) || return nothing
     path.tail
 end
 
@@ -158,7 +158,7 @@ function _strip_split_child(path, slot::Int)
     rest = _strip_field(path, "elements")
     rest = rest
     rest isa ConcreteReferencePath || return nothing
-    rest.head isa RangeReference || return nothing
+    rest.head isa RangeReferenceStep || return nothing
     (rest.head.start + 1) == slot || return nothing
     _strip_field(rest.tail, "child")
 end
@@ -280,7 +280,7 @@ end
 function _tab_index_prefix(sel)
     sel isa ConcreteReferencePath || return sel
     tail = sel.tail
-    if tail isa ConcreteReferencePath && tail.head isa RangeReference
+    if tail isa ConcreteReferencePath && tail.head isa RangeReferenceStep
         return ConcreteReferencePath(sel.type, sel.head,
                    ConcreteReferencePath(tail.type, tail.head,
                        EmptyReferencePath(tail.tail.type)))
@@ -388,7 +388,7 @@ end
 # child the selection points to (see `_selected_split_slot` /
 # `_route_active_tab` in WidgetToGraphics). These are the precise inverses
 # of the structural steps the backward mappings strip; recall that the DSL
-# `[i]` is `RangeReference(i-1, i)`, the same shape the backward side
+# `[i]` is `RangeReferenceStep(i-1, i)`, the same shape the backward side
 # matches with `{i-1:i}`.
 
 # Forward an already-stripped tail through a page / panel iomap, dispatching
@@ -664,7 +664,7 @@ function read_intent(p::WorkbenchWorkbenchToWidgetShell,
             result = read_intent(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
             result isa ReplaceSelectionOperation || continue
             return ReplaceSelectionOperation(
-                ConcreteReferencePath(FieldReference(field_name), result.path))
+                ConcreteReferencePath(FieldReferenceStep(field_name), result.path))
         end
         return nothing
     end
@@ -739,17 +739,17 @@ end
 function _selected_panel(iomap::WorkbenchWorkbenchToWidgetShellIoMap)
     sel = getfield(iomap.input, :selection)[]
     sel isa ConcreteReferencePath || return nothing
-    sel.head isa FieldReference || return nothing
+    sel.head isa FieldReferenceStep || return nothing
     page_iomap = sel.head.name == "navigation_page"  ? iomap.navigation_page_iomap  :
                  sel.head.name == "editing_page"     ? iomap.editing_page_iomap      :
                  sel.head.name == "information_page" ? iomap.information_page_iomap  :
                  sel.head.name == "control_page"     ? iomap.control_page_iomap      : nothing
     page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || return nothing
     rest = sel.tail
-    (rest isa ConcreteReferencePath && rest.head isa FieldReference &&
+    (rest isa ConcreteReferencePath && rest.head isa FieldReferenceStep &&
         rest.head.name == "elements") || return nothing
     rest = rest.tail
-    (rest isa ConcreteReferencePath && rest.head isa RangeReference) || return nothing
+    (rest isa ConcreteReferencePath && rest.head isa RangeReferenceStep) || return nothing
     idx = rest.head.start + 1
     (1 <= idx <= length(page_iomap.element_iomaps)) || return nothing
     (sel.head.name, idx, page_iomap.element_iomaps[idx])
@@ -762,9 +762,9 @@ end
 function _panel_raw_key(field_name, elem_idx, elem_iomap, op)
     result = read_intent(WorkbenchToWidget(), elem_iomap, op)
     result isa Operation || return nothing
-    _prefix_operation(result, (FieldReference(field_name),
-                               FieldReference("elements"),
-                               RangeReference(elem_idx - 1, elem_idx)))
+    _prefix_operation(result, (FieldReferenceStep(field_name),
+                               FieldReferenceStep("elements"),
+                               RangeReferenceStep(elem_idx - 1, elem_idx)))
 end
 
 # Prepend `prefix_steps` to the path inside `op`, if the op carries a path.

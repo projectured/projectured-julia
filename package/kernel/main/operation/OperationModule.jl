@@ -13,9 +13,9 @@ the two open seams the container projections and higher documents extend:
 
 - `child_reference_steps(node)` (in `Operations.jl`): the open
   traversal seam driving `SelectNextInsertionOperation`'s pre-order
-  document walk. The default enumerates `fieldnames` as `FieldReference`
+  document walk. The default enumerates `fieldnames` as `FieldReferenceStep`
   steps; base's `Collection.jl` adds the `CellVector` method that yields
-  `RangeReference(i-1, i)` per element. A new container document adds a
+  `RangeReferenceStep(i-1, i)` per element. A new container document adds a
   method.
 
 - `reroot_operation(op, steps)` (in `Rerooting.jl`): the open

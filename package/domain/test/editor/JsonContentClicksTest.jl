@@ -10,8 +10,8 @@
 
 # A click on a character that comes from a JSON document's content (a
 # JsonString/JsonNumber/JsonBool value, or a JsonObjectEntry key) must
-# produce a path made entirely of FieldReference / RangeReference steps —
-# no ProjectionReference, since the click did not land on a
+# produce a path made entirely of FieldReferenceStep / RangeReferenceStep steps —
+# no ProjectionReferenceStep, since the click did not land on a
 # projection-introduced character (delimiter, separator, whitespace).
 #
 # Clicks on JsonNull / JsonInsertion are deliberately *not* asserted because
@@ -22,7 +22,7 @@
 
 For each rendered segment whose content matches a known JSON content
 string (a JsonString/JsonNumber/JsonBool value or an object key), fire a
-click and assert the resulting path contains no `ProjectionReference`.
+click and assert the resulting path contains no `ProjectionReferenceStep`.
 """
 function test_json_content_clicks_clean(label, document, projection)
     @testset "$label" begin
@@ -46,7 +46,7 @@ function test_json_content_clicks_clean(label, document, projection)
             op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
             op isa ReplaceSelectionOperation || continue
             if _path_contains_projection_ref(op.path)
-                push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReference: $(op.path)")
+                push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReferenceStep: $(op.path)")
             end
         end
         for e in errors

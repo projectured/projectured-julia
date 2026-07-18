@@ -21,7 +21,7 @@ abstract type Document end
     is_element_collection(document) -> Bool
 
 `true` when a document's children are addressed **by position** (an
-`ElementReference`, i.e. `[i]`) rather than by named field — a 1-D positional
+`ElementReferenceStep`, i.e. `[i]`) rather than by named field — a 1-D positional
 sequence, not a record. A reflection walk keys off this to emit `[i]` element
 paths for a collection instead of descending into its internal storage fields,
 so it never has to name a concrete collection type. Defaults to `false`

@@ -122,7 +122,7 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # The projection-introduced element has no input pre-image; build the
     # `proj`-wrapped path and annotate it against the input document (the 2-arg
     # `@reference(doc, …)` form) so its node carries the input type (a
-    # `ProjectionReference` evaluates to its `output_path`, so the terminal records
+    # `ProjectionReferenceStep` evaluates to its `output_path`, so the terminal records
     # that path's own type) — keeping the strict-typing invariant.
     @reference(iomap.input, proj(projection, ^(reference)))
 end
@@ -139,7 +139,7 @@ projections such as `SortingProjection`/`ReversingProjection`/`CopyingProjection
 without a bespoke reader). A `document === nothing` (`editor.document`-rooted)
 `ReplaceReferencedValueOperation` has its `reference` re-targeted — this now covers the
 former document-replace and sequence-insert/delete operations, which are
-`ReplaceReferencedValueOperation`s with a terminal `RangeReference`; a self-contained one
+`ReplaceReferencedValueOperation`s with a terminal `RangeReferenceStep`; a self-contained one
 (carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
 forwarded unchanged; all other operation types return `nothing`.
 """

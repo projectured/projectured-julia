@@ -27,7 +27,7 @@ type is a subtype of `part_type` may be targeted.
 
 # Example
 
-    fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReference(1)))
+    fp = FocusingProjection(part_type=Vector, part=ReferencePath(PositionReferenceStep(1)))
     iomap = print_document(fp, nothing, [[1, 2], [3, 4]], nothing)
     iomap.output  # [1, 2]
 """

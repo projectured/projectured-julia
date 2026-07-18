@@ -46,8 +46,8 @@ end
     # Nested: the array holds `.elements[2]` (non-empty), the child holds ∅, and
     # everything else is untouched — the tree-position invariant.
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
-    nested = ConcreteReferencePath(FieldReference("elements"),
-                 ConcreteReferencePath(ElementReference(2), whole))
+    nested = ConcreteReferencePath(FieldReferenceStep("elements"),
+                 ConcreteReferencePath(ElementReferenceStep(2), whole))
     set_selection!(arr, nested)
     @test selof(arr) isa ConcreteReferencePath          # ancestor: non-empty path
     @test !isempty(selof(arr))
@@ -104,29 +104,29 @@ end
     @test strip_reference_types(op_json.path) isa EmptyReferencePath
 end
 
-@testset "nested whole-child emits TextSpanReference at Text level" begin
+@testset "nested whole-child emits TextSpanReferenceStep at Text level" begin
     arr = JsonArray([JsonNumber(1), JsonNumber(2)])
     # Select the 2nd element as a whole: .elements[2] (terminating ∅).
-    nested = ConcreteReferencePath(FieldReference("elements"),
-                 ConcreteReferencePath(ElementReference(2), whole))
+    nested = ConcreteReferencePath(FieldReferenceStep("elements"),
+                 ConcreteReferencePath(ElementReferenceStep(2), whole))
     set_selection!(arr, nested)
 
     # Forward: reaches the SyntaxNode as `.children[2]` (a complete path ending
     # at the child — i.e. the child wholly selected).
     node_io = print_document(j2s, arr)
-    expected_child = ConcreteReferencePath(FieldReference("children"),
-                         ConcreteReferencePath(ElementReference(2), EmptyReferencePath()))
+    expected_child = ConcreteReferencePath(FieldReferenceStep("children"),
+                         ConcreteReferencePath(ElementReferenceStep(2), EmptyReferencePath()))
     @test is_reference_equal(strip_reference_types(node_io.output.selection), expected_child)
 
-    # The text layer now emits a TextSpanReference carrying the child's
+    # The text layer now emits a TextSpanReferenceStep carrying the child's
     # flat character range for the highlight box.
     text_io = print_document(s2t, node_io.output)
     text_sel = text_io.output.selection
     @test text_sel isa ConcreteReferencePath
-    @test text_sel.head isa TextSpanReference
+    @test text_sel.head isa TextSpanReferenceStep
     @test text_sel.tail isa EmptyReferencePath
     # The range must be non-empty and cover the child's extent.
-    tr = text_sel.head::TextSpanReference
+    tr = text_sel.head::TextSpanReferenceStep
     @test tr.start >= 0
     @test tr.stop > tr.start
 

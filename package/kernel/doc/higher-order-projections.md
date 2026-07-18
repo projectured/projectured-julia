@@ -195,7 +195,7 @@ hit-tests `MousePress`.
 **The move.** A completed drag emits a `MoveRangeOperation` (see
 [operations.md](operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
-`RangeReference`; the prefix resolves to the owning collection) and stores the
+`RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
 `CellVector`s **directly** in the operation — like the split-pane operations
 carry the `WidgetSplitPane` itself, which sidesteps re-rooting the reference up
 through the projections above. `evaluate_operation` then lifts the raw `Cell`s

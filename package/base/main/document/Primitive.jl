@@ -14,7 +14,7 @@ import ..SelectionModule: clear_selection!, set_selection!
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: splice_string, splice_value!, splice_number
 import ..ReferenceModule: Reference, ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          ReferenceStep, FieldReference, RangeReference, evaluate_reference,
+                          ReferenceStep, FieldReferenceStep, RangeReferenceStep, evaluate_reference,
                           strip_reference_types, reference_steps
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 
@@ -85,8 +85,8 @@ and `replacement::String`. This shared shape lets the generic transport methods
 written once against `ReplaceRangeOperation`; the concrete subtypes differ only in
 what their terminal step means and how the range is resolved and applied:
 
-- `ReplaceStringRangeOperation` — a `RangeReference` over one string field's chars.
-- `ReplaceTextRangeOperation` (text slice) — a `TextRangeReference` flat range over
+- `ReplaceStringRangeOperation` — a `RangeReferenceStep` over one string field's chars.
+- `ReplaceTextRangeOperation` (text slice) — a `TextRangeReferenceStep` flat range over
   a whole `TextBlock`, possibly crossing spans/lines.
 
 `ReplaceNumberRangeOperation` deliberately stays outside this hierarchy for now (it
@@ -99,8 +99,8 @@ abstract type ReplaceRangeOperation <: Operation end
 
 Replace characters in the string representation of a `PrimitiveNumber`'s value.
 `reference` is a `ReferencePath` rooted at the editor's document whose terminal
-step is a `RangeReference(s, e)` (0-based boundaries) and whose penultimate
-step is `FieldReference("value")`. The path up to those two steps locates the
+step is a `RangeReferenceStep(s, e)` (0-based boundaries) and whose penultimate
+step is `FieldReferenceStep("value")`. The path up to those two steps locates the
 target `PrimitiveNumber`. After evaluation the target's `selection` is updated
 to a zero-width cursor at `s + length(replacement)`.
 
@@ -116,8 +116,8 @@ end
 
 Replace characters in a `PrimitiveString`'s value. `reference` is a
 `ReferencePath` rooted at the editor's document whose terminal step is a
-`RangeReference(s, e)` (0-based boundaries) and whose penultimate step is
-`FieldReference("value")`. The path up to those two steps locates the target
+`RangeReferenceStep(s, e)` (0-based boundaries) and whose penultimate step is
+`FieldReferenceStep("value")`. The path up to those two steps locates the target
 `PrimitiveString`. After evaluation the target's `selection` is updated to a
 zero-width cursor at `s + length(replacement)`.
 
@@ -133,7 +133,7 @@ end
 
 # Split `op.reference` into (target_path, field_name, range_step). The
 # penultimate step is the field-name carrying the text/number value; the
-# terminal step is the RangeReference. The field name is data, not a
+# terminal step is the RangeReferenceStep. The field name is data, not a
 # precondition — `splice_value!` interprets the field's current value by its
 # representation (string / number / span / span-sequence).
 function _split_replace_reference(path::ReferencePath)
@@ -142,26 +142,26 @@ function _split_replace_reference(path::ReferencePath)
     steps = reference_steps(strip_reference_types(path))
     # An un-splittable reference has no editable `.<field>[range]` slot — e.g. an
     # edit aimed at a projection-introduced span (a placeholder/insertion rendered
-    # as `…[i].proj(p, .value[k])`, whose terminal is a `ProjectionReference` with
+    # as `…[i].proj(p, .value[k])`, whose terminal is a `ProjectionReferenceStep` with
     # no input pre-image). Return `nothing` so the caller no-ops instead of
     # crashing the editor.
     length(steps) >= 2 || return nothing
     field_step = steps[end - 1]
     range_step = steps[end]
-    field_step isa FieldReference || return nothing
-    range_step isa RangeReference || return nothing
+    field_step isa FieldReferenceStep || return nothing
+    range_step isa RangeReferenceStep || return nothing
     (ReferencePath(steps[1:end-2]...), field_step.name::AbstractString, range_step)
 end
 
-# Replace the terminal RangeReference of `path` with a zero-width
-# RangeReference at `start + length(replacement)`, leaving the rest intact.
+# Replace the terminal RangeReferenceStep of `path` with a zero-width
+# RangeReferenceStep at `start + length(replacement)`, leaving the rest intact.
 function _replace_terminal_with_cursor(path::ReferencePath, replacement::AbstractString)
     # Plain navigation path only; the rebuilt path is re-canonicalized when it is
     # handed to `set_selection!`.
     steps = reference_steps(strip_reference_types(path))
-    range_step = steps[end]::RangeReference
+    range_step = steps[end]::RangeReferenceStep
     new_pos = range_step.start + length(replacement)
-    steps[end] = RangeReference(new_pos, new_pos)
+    steps[end] = RangeReferenceStep(new_pos, new_pos)
     ReferencePath(steps...)
 end
 

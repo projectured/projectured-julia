@@ -15,7 +15,7 @@ browsing tools below. Do not guess names — search for them.
 | Macros | `@document`, `@projection`, `@iomap` | `macros` |
 | Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
-| Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReference`, `RangeReference` (`ElementReference`/`PositionReference`), `ProjectionReference`, `TypeReference`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
+| Reference | `ReferencePath`, `EmptyReferencePath`, `ConcreteReferencePath`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`; `evaluate_reference` | `editor/reference` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `operations` |

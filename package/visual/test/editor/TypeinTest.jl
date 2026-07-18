@@ -51,13 +51,13 @@ using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf
 #
 # `_collect_string_refs` returns one *cursor target* for every editable String
 # reachable in the input/document domain.  The walk descends every field via
-# FieldReference, indexes CellVector / Vector elements via RangeReference, and
+# FieldReferenceStep, indexes CellVector / Vector elements via RangeReferenceStep, and
 # skips `selection` fields (they hold reference paths, not document content).
 # An objectid set guards against cycles.
 #
 # A cursor target is `(cursor, kind)`:
 #   * `cursor` is the ReferencePath the **cursor convention** anchors at —
-#     appending a PositionReference turns it into a cursor selection.
+#     appending a PositionReferenceStep turns it into a cursor selection.
 #   * `kind` says where the editable characters live relative to `cursor`,
 #     so the test can read the string before/after the edit:
 #       :plain      — `cursor` resolves to the String itself.
@@ -97,13 +97,13 @@ function _walk_strings!(node, path, visited, refs)
     if node isa CellVector
         for i in 1:length(node)
             child = node[i]
-            _walk_strings!(child, append_reference(path, RangeReference(i - 1, i)), visited, refs)
+            _walk_strings!(child, append_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
         end
         return
     end
     if node isa AbstractVector
         for (i, child) in enumerate(node)
-            _walk_strings!(child, append_reference(path, RangeReference(i - 1, i)), visited, refs)
+            _walk_strings!(child, append_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
         end
         return
     end
@@ -130,7 +130,7 @@ function _walk_strings!(node, path, visited, refs)
         (node isa TextGraphics && fname === :content) && continue
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
-        field_path = append_reference(path, FieldReference(string(fname)))
+        field_path = append_reference(path, FieldReferenceStep(string(fname)))
         if val isa TextString
             # Document-domain TextString: cursor anchors at the field, the
             # characters are its `.content`. Do not descend further.
@@ -272,7 +272,7 @@ function _selection_caret_ok(document, target, pos::Int)
         return (false, "reading document selection threw: $e")
     end
     sel === nothing && return (false, "selection is nothing, expected caret at $pos")
-    expected = append_reference(target.cursor, PositionReference(pos))
+    expected = append_reference(target.cursor, PositionReferenceStep(pos))
     ok = try
         is_reference_equal(strip_reference_types(sel), strip_reference_types(expected))
     catch e
@@ -310,7 +310,7 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
     old isa AbstractString ||
         return _typein_failed("reference did not resolve to a string: $(old === nothing ? "nothing" : typeof(old))")
     event, expected_str, expected_pos, op_expected = _edit_spec(kind, old, k, ch)
-    sel = append_reference(target.cursor, PositionReference(k))
+    sel = append_reference(target.cursor, PositionReferenceStep(k))
 
     # 1. Point the selection into this string.
     clear_selection!(document)
@@ -390,7 +390,7 @@ function _restore!(document, target, pristine::AbstractString)
     current isa AbstractString || return false
     current == pristine && return true
     op = ReplaceStringRangeOperation(
-        append_reference(target.cursor, RangeReference(0, length(current))), pristine)
+        append_reference(target.cursor, RangeReferenceStep(0, length(current))), pristine)
     evaluate_operation((document=document,), op)
     _read_target_string(document, target) == pristine
 end

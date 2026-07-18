@@ -20,8 +20,8 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
 import ..StyleTextModule: StyleText, DStyleText
 import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReference, RangeReference,
-                          ElementReference, PositionReference, ReferencePath, Position
+import ..ReferenceModule: ConcreteReferencePath, EmptyReferencePath, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, PositionReferenceStep, ReferencePath, Position
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -148,21 +148,21 @@ function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::Repl
     ReplaceSelectionOperation(input_path)
 end
 
-# Extract a `.value[range]` selection on a PrimitiveString as a RangeReference.
+# Extract a `.value[range]` selection on a PrimitiveString as a RangeReferenceStep.
 function _string_value_range(s::PrimitiveString)
     sel = getfield(s, :selection)[]
     sel = sel
     sel isa ConcreteReferencePath || return nothing
     head = sel.head
-    (head isa FieldReference && head.name == "value") || return nothing
+    (head isa FieldReferenceStep && head.name == "value") || return nothing
     inner = sel.tail
     inner isa ConcreteReferencePath || return nothing
-    inner.head isa RangeReference || return nothing
+    inner.head isa RangeReferenceStep || return nothing
     inner.head
 end
 
-_string_value_path(range::RangeReference) =
-    ConcreteReferencePath(PrimitiveString, FieldReference("value"),
+_string_value_path(range::RangeReferenceStep) =
+    ConcreteReferencePath(PrimitiveString, FieldReferenceStep("value"),
         ConcreteReferencePath(String, range, EmptyReferencePath(String)))
 
 # String editing is a *document-level* concern (it produces a
@@ -192,9 +192,9 @@ function _string_delete(s::PrimitiveString, dir::Symbol)
     new_range = if range.start != range.stop
         range
     elseif dir === :backspace
-        range.start > 0 ? RangeReference(range.start - 1, range.start) : nothing
+        range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
     else  # :delete
-        range.stop < n ? RangeReference(range.stop, range.stop + 1) : nothing
+        range.stop < n ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
     end
     new_range === nothing && return nothing
     ReplaceStringRangeOperation(_string_value_path(new_range), "")

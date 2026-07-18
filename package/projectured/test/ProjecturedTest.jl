@@ -85,8 +85,8 @@ using ProjecturedSdlTest
 using ProjecturedTulipTest
 using ProjecturedVideoTest
 using ProjecturedOdbcTest
-using Projectured: ElementReference, RangeReference, PositionReference, FieldReference, PointReference,
-                   TextSpanReference,
+using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
+                   TextSpanReferenceStep,
                    ConcreteReferencePath, EmptyReferencePath, ReferencePath,
                    map_reference_forward, map_reference_backward,
                    color_red, color_blue, color_green, color_white, color_default,

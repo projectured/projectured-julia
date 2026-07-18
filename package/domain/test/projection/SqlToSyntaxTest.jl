@@ -83,9 +83,9 @@ function test_sql_insert_update_selection()
         iomap = print_document(proj, insert_doc)
         p = iomap.projection
         for path in (
-                ReferencePath(FieldReference("table")),
-                ReferencePath(FieldReference("columns"), ElementReference(2)),
-                ReferencePath(FieldReference("values"), ElementReference(1)))
+                ReferencePath(FieldReferenceStep("table")),
+                ReferencePath(FieldReferenceStep("columns"), ElementReferenceStep(2)),
+                ReferencePath(FieldReferenceStep("values"), ElementReferenceStep(1)))
             fwd = map_reference_forward(p, iomap, path)
             @test fwd !== nothing
             @test strip_reference_types(map_reference_backward(p, iomap, fwd)) == path
@@ -100,13 +100,13 @@ function test_sql_insert_update_selection()
         uiomap = print_document(proj, update_doc)
         up = uiomap.projection
         for path in (
-                ReferencePath(FieldReference("table")),
-                ReferencePath(FieldReference("assignments"), ElementReference(1),
-                              FieldReference("column_name")),
-                ReferencePath(FieldReference("assignments"), ElementReference(1),
-                              FieldReference("value")),
-                ReferencePath(FieldReference("where_clause"), FieldReference("condition"),
-                              FieldReference("expression"), FieldReference("left")))
+                ReferencePath(FieldReferenceStep("table")),
+                ReferencePath(FieldReferenceStep("assignments"), ElementReferenceStep(1),
+                              FieldReferenceStep("column_name")),
+                ReferencePath(FieldReferenceStep("assignments"), ElementReferenceStep(1),
+                              FieldReferenceStep("value")),
+                ReferencePath(FieldReferenceStep("where_clause"), FieldReferenceStep("condition"),
+                              FieldReferenceStep("expression"), FieldReferenceStep("left")))
             fwd = map_reference_forward(up, uiomap, path)
             @test fwd !== nothing
             @test strip_reference_types(map_reference_backward(up, uiomap, fwd)) == path
@@ -186,11 +186,11 @@ function test_sql_ddl_selection()
         iomap = print_document(proj, create_table)
         p = iomap.projection
         for path in (
-                ReferencePath(FieldReference("table_name")),
-                ReferencePath(FieldReference("columns"), ElementReference(1),
-                              FieldReference("column_name")),
-                ReferencePath(FieldReference("columns"), ElementReference(2),
-                              FieldReference("column_name")))
+                ReferencePath(FieldReferenceStep("table_name")),
+                ReferencePath(FieldReferenceStep("columns"), ElementReferenceStep(1),
+                              FieldReferenceStep("column_name")),
+                ReferencePath(FieldReferenceStep("columns"), ElementReferenceStep(2),
+                              FieldReferenceStep("column_name")))
             fwd = map_reference_forward(p, iomap, path)
             @test fwd !== nothing
             @test strip_reference_types(map_reference_backward(p, iomap, fwd)) == path

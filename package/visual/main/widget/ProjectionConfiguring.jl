@@ -36,7 +36,7 @@ import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReferencePath, FieldReference, RangeReference
+import ..ReferenceModule: ConcreteReferencePath, FieldReferenceStep, RangeReferenceStep
 import ..EventModule: KeyDown, has_ctrl_modifier_key
 
 export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
@@ -137,13 +137,13 @@ read_intent(p::ProjectionConfiguringProjection,
 # reference rooted at our output split pane, returning the remainder (rooted at
 # the control bar) or `nothing` when the reference is not in the control slot.
 function _strip_control_slot(ref)
-    # Skip canonical TypeReference checkpoints at each level before reading the
+    # Skip canonical TypeReferenceStep checkpoints at each level before reading the
     # `elements[1]` control-slot structure.
     ref = ref
     ref isa ConcreteReferencePath || return nothing
-    (ref.head isa FieldReference && ref.head.name == "elements") || return nothing
+    (ref.head isa FieldReferenceStep && ref.head.name == "elements") || return nothing
     t = ref.tail
-    (t isa ConcreteReferencePath && t.head isa RangeReference && t.head.start == 0) || return nothing
+    (t isa ConcreteReferencePath && t.head isa RangeReferenceStep && t.head.start == 0) || return nothing
     t.tail
 end
 

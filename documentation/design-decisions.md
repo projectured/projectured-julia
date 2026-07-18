@@ -126,15 +126,15 @@ objects) each child document manages its own `selection` cell and
 `set_selection!` sets them individually. See
 [Selection projection under recursion](../package/kernel/doc/selection.md#selection-projection-under-recursion).
 
-## 8. `ProjectionReference` for projection-introduced elements
+## 8. `ProjectionReferenceStep` for projection-introduced elements
 
 When the cursor moves onto a character introduced by a projection (e.g. the
 `"` delimiters of a JSON string), there is no corresponding index in the JSON
 document to point to. Rather than clamping or skipping these positions, the
-reference path contains a `ProjectionReference` step:
+reference path contains a `ProjectionReferenceStep` step:
 
 ```julia
-struct ProjectionReference <: ReferenceStep
+struct ProjectionReferenceStep <: ReferenceStep
     projection::Any             # which projection introduced this element
     output_path::ReferencePath  # where within that projection's output
 end
@@ -142,12 +142,12 @@ end
 
 This allows the editor to represent a cursor on the opening `"` as:
 ```
-ProjectionReference(json_string_proj, FieldReference("open") + PositionReference(0))
+ProjectionReferenceStep(json_string_proj, FieldReferenceStep("open") + PositionReferenceStep(0))
 ```
 
-The reader knows how to translate this back: a `ProjectionReference` to the
+The reader knows how to translate this back: a `ProjectionReferenceStep` to the
 `open` field means the cursor is on the delimiter, not in the value, so no
-JSON-domain path can represent it — the `ProjectionReference` is kept as-is
+JSON-domain path can represent it — the `ProjectionReferenceStep` is kept as-is
 and stored in the `JsonString.selection`.
 
 ## 9. `KeyPress` abstraction
@@ -186,5 +186,5 @@ frame pays to recompute the whole subtree that reads it. See
 | Struct magic | Computed slots via metaclass | `@document` macro + `Cell` wrapping |
 | Projections | CLOS generic functions | Lightweight structs + `print_document` dispatch |
 | Selection cells | Shared by reference | Shared by reference (same approach) |
-| `ProjectionReference` | Different mechanism | `ProjectionReference` step in path |
+| `ProjectionReferenceStep` | Different mechanism | `ProjectionReferenceStep` step in path |
 | Scope | Dozens of domains | Complete end-to-end path + expanding |

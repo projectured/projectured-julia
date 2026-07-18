@@ -37,8 +37,8 @@ import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..PrimitiveModule: ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 import ..IoMapModule: ChildrenIoMap
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, FieldReference, RangeReference, EmptyReferencePath
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep, EmptyReferencePath
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
@@ -175,7 +175,7 @@ end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
     child_iomaps = Cell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReference("elements"), ElementReference(i)))
+                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(seq.elements)])
 
     items = CellVector(() -> SyntaxDocument[
@@ -252,7 +252,7 @@ function _block_seq_focused_child(iomap, sel)
             i = s + 1
             ims = iomap.child_iomaps[]
             1 <= i <= length(ims) || return nothing
-            (ims[i], (FieldReference("elements"), ElementReference(i)))
+            (ims[i], (FieldReferenceStep("elements"), ElementReferenceStep(i)))
         end
     end
 end

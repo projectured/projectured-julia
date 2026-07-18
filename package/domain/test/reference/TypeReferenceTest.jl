@@ -1,5 +1,5 @@
 function test_type_reference()
-@testset "TypeReference checkpoints" begin
+@testset "TypeReferenceStep checkpoints" begin
 
 # ── non-navigating evaluation ────────────────────────────────────────────
 
@@ -7,7 +7,7 @@ js  = JsonString("x")
 num = JsonNumber(1)
 
 # A bare checkpoint that holds returns the *same* node (no descent).
-hold = ConcreteReferencePath(TypeReference(JsonString), EmptyReferencePath())
+hold = ConcreteReferencePath(TypeReferenceStep(JsonString), EmptyReferencePath())
 @test evaluate_reference(js, hold) === js
 
 # A checkpoint that fails throws ReferenceTypeMismatch.
@@ -15,13 +15,13 @@ hold = ConcreteReferencePath(TypeReference(JsonString), EmptyReferencePath())
 
 # A checkpoint mid-path stays on the current node, then navigation continues.
 arr = JsonArray([js, num])
-mid = ConcreteReferencePath(TypeReference(JsonArray),
-          ConcreteReferencePath(ElementReference(1), EmptyReferencePath()))
+mid = ConcreteReferencePath(TypeReferenceStep(JsonArray),
+          ConcreteReferencePath(ElementReferenceStep(1), EmptyReferencePath()))
 @test evaluate_reference(arr, mid) === arr[1]
 
 # ── annotate / strip round-trip ──────────────────────────────────────────
 
-plain     = ConcreteReferencePath(ElementReference(1), EmptyReferencePath())
+plain     = ConcreteReferencePath(ElementReferenceStep(1), EmptyReferencePath())
 annotated = annotate_reference_types(arr, plain)
 
 # Annotation inserts checkpoints but resolves to the same node …
@@ -47,12 +47,12 @@ prefix = get_valid_reference_prefix(changed, annotated)
 # ── structural (non-type) truncation ─────────────────────────────────────
 
 # An out-of-range index is unfollowable: the whole path is dropped.
-oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
+oob = ConcreteReferencePath(ElementReferenceStep(5), EmptyReferencePath())
 @test get_valid_reference_prefix(arr, oob) == EmptyReferencePath()
 
 # ── every constructed step / path is Reference-shaped by type ─────────────
 
-@test TypeReference(JsonString) isa ReferenceStep
+@test TypeReferenceStep(JsonString) isa ReferenceStep
 @test annotated isa ReferencePath
 
 # ── Folded form: head is always a navigation step (no checkpoints to skip) ─
@@ -60,7 +60,7 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 # A folded path exposes its navigation step directly as `head` — there are no
 # interleaved checkpoint steps, so `skip_type_checkpoints` is gone.
 @test annotated isa ConcreteReferencePath
-@test annotated.head == ElementReference(1)
+@test annotated.head == ElementReferenceStep(1)
 @test annotated.type === JsonArray            # the type is a node field, not a step
 
 # Stripping the annotated form to its plain skeleton yields the plain form —
@@ -73,9 +73,9 @@ oob = ConcreteReferencePath(ElementReference(5), EmptyReferencePath())
 # stripped form — the checkpoints are skipped during descent.
 obj = JsonObject("a" => JsonString("x"), "b" => JsonString("y"))
 # Path to the value string of the first entry: .entries[1].value
-plain_sel = ConcreteReferencePath(FieldReference("entries"),
-                ConcreteReferencePath(ElementReference(1),
-                    ConcreteReferencePath(FieldReference("value"),
+plain_sel = ConcreteReferencePath(FieldReferenceStep("entries"),
+                ConcreteReferencePath(ElementReferenceStep(1),
+                    ConcreteReferencePath(FieldReferenceStep("value"),
                         EmptyReferencePath())))
 annot_sel = annotate_reference_types(obj, plain_sel)
 
@@ -124,16 +124,16 @@ end
 # "empty something" is a Position, not a Char). This node records the container
 # type (String) and keeps its position step as `head`.
 pos_ann = annotate_reference_types("hello",
-              ConcreteReferencePath(PositionReference(3), EmptyReferencePath()))
+              ConcreteReferencePath(PositionReferenceStep(3), EmptyReferencePath()))
 @test pos_ann.type === String && is_position_reference(pos_ann.head)
 @test pos_ann.tail isa EmptyReferencePath && pos_ann.tail.type === Position
 @test strip_reference_types(pos_ann) ==
-      ConcreteReferencePath(PositionReference(3), EmptyReferencePath())
+      ConcreteReferencePath(PositionReferenceStep(3), EmptyReferencePath())
 
 # Contrast: an element step (width 1) descends, so the terminal records the
 # destination node's type.
 elt_ann = annotate_reference_types(arr,
-              ConcreteReferencePath(ElementReference(1), EmptyReferencePath()))
+              ConcreteReferencePath(ElementReferenceStep(1), EmptyReferencePath()))
 @test elt_ann.tail isa EmptyReferencePath && elt_ann.tail.type === JsonString
 
 # ── Phase 2: producers return canonical (self-describing) references ───────

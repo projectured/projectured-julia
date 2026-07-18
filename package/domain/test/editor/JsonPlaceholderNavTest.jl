@@ -92,7 +92,7 @@ function test_json_placeholder_navigation()
         @test ".entries[1].value" in explore_tree_selections(doc, pr).visited
     end
 
-    @testset "JsonNothing label is char-navigable via ProjectionReference steps" begin
+    @testset "JsonNothing label is char-navigable via ProjectionReferenceStep steps" begin
         # A bare `empty json` placeholder: the cursor steps through its display label
         # (each position a projection-introduced caret), like every literal leaf.
         reached = explore_position_selections(JsonNothing(), make_json_projection_example()).visited
@@ -124,8 +124,8 @@ function test_json_placeholder_navigation()
         # normal state. Enter must still commit and Escape must still abort; a caret in
         # the text must not swallow either (it did, via TextToGraphics returning the raw
         # key into the operation slot).
-        vpath = ConcreteReferencePath(FieldReference("value"),
-                    ConcreteReferencePath(RangeReference(6, 6), EmptyReferencePath()))
+        vpath = ConcreteReferencePath(FieldReferenceStep("value"),
+                    ConcreteReferencePath(RangeReferenceStep(6, 6), EmptyReferencePath()))
         ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
         io = print_document(proj, ins)
         @test read_intent(proj, io, KeyDown(:return, ModifierKeys())) isa CompoundOperation

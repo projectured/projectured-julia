@@ -191,7 +191,7 @@ isempty(refs) || replace_selection!(editor.document, first(refs))
 
 To select just the character range rather than the whole value, extend the found
 path with the cursor/range step the domain uses (for a JSON string value, a
-`RangeReference` over the text — see the [reference guide](reference.md) and the
+`RangeReferenceStep` over the text — see the [reference guide](reference.md) and the
 JSON section of the [selection guide](selection.md#json-domain)).
 
 ## Scoping a search to one domain

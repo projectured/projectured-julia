@@ -10,7 +10,7 @@ two-section `TextBlock`:
    narrative (delegated to `ReferenceToHumanReadableText`).
 
 Before rendering, the reference is annotated against the inspector's `target`
-document with `TypeReference` checkpoints (`annotate_reference_types`). Both
+document with `TypeReferenceStep` checkpoints (`annotate_reference_types`). Both
 sections render from that canonical reference, so the compact form shows the
 `::Type` steps and the human-readable form names each step's parent type from
 the embedded checkpoints.
@@ -74,7 +74,7 @@ function print_document(p::ReferenceInspectorToText, recursion, input::Reference
     out = TextBlock(() -> begin
         ref    = input.reference        # tracked: ReferencePath or nothing
         target = input.target
-        # Annotate with TypeReference checkpoints so both forms show types.
+        # Annotate with TypeReferenceStep checkpoints so both forms show types.
         canonical = (ref isa ConcreteReferencePath && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
         long_proj = ReferenceToHumanReadableText(document = target, font = p.font)

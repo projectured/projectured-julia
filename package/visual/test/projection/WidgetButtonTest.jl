@@ -308,8 +308,8 @@ end
     ])
     fp = first_focusable_path(comp)
     @test fp isa ConcreteReferencePath
-    @test fp.head isa FieldReference && fp.head.name == "elements"
-    @test fp.tail.head isa RangeReference && fp.tail.head.start == 0      # slot 1 (enabled button)
+    @test fp.head isa FieldReferenceStep && fp.head.name == "elements"
+    @test fp.tail.head isa RangeReferenceStep && fp.tail.head.start == 0      # slot 1 (enabled button)
     @test fp.tail.tail isa EmptyReferencePath
     lp = last_focusable_path(comp)
     @test lp.tail.head.start == 2                                         # slot 3 (checkbox); disabled slot 2 skipped
@@ -321,7 +321,7 @@ end
     ])
     np = first_focusable_path(nested)
     @test np.head.name == "elements" && np.tail.head.start == 1          # outer slot 2
-    @test np.tail.tail.head isa FieldReference && np.tail.tail.head.name == "elements"
+    @test np.tail.tail.head isa FieldReferenceStep && np.tail.tail.head.name == "elements"
     @test np.tail.tail.tail.head.start == 0                               # inner slot 1
 end
 
@@ -344,8 +344,8 @@ end
 # the selection to the next focusable child (skipping disabled ones); bootstrap
 # focuses the first; the last child declines (no wrap yet). Shift-Tab reverses.
 @testset "composite Tab advances the selection across focusable children" begin
-    _mk(i) = ConcreteReferencePath(FieldReference("elements"),
-                ConcreteReferencePath(RangeReference(i - 1, i), EmptyReferencePath()))
+    _mk(i) = ConcreteReferencePath(FieldReferenceStep("elements"),
+                ConcreteReferencePath(RangeReferenceStep(i - 1, i), EmptyReferencePath()))
     _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
     _slot(op) = op.path.tail.head.start + 1          # 1-based selected slot from the op
     proj = _proj()
@@ -385,8 +385,8 @@ end
 # children sit under `children[i]` (vs the composite's `elements[i]`), so this
 # exercises the layout-specific path shape and the cross-module focus helpers.
 @testset "layout Tab advances the selection across focusable children" begin
-    _mk(i) = ConcreteReferencePath(FieldReference("children"),
-                ConcreteReferencePath(RangeReference(i - 1, i), EmptyReferencePath()))
+    _mk(i) = ConcreteReferencePath(FieldReferenceStep("children"),
+                ConcreteReferencePath(RangeReferenceStep(i - 1, i), EmptyReferencePath()))
     _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
     _slot(op) = op.path.tail.head.start + 1
     # A renderer that dispatches both layout nodes and widget nodes (as the widget
@@ -400,7 +400,7 @@ end
 
     lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")]; gap=8)
     op = _read(lay, tab)                              # bootstrap → first focusable
-    @test op isa ReplaceSelectionOperation && op.path.head isa FieldReference
+    @test op isa ReplaceSelectionOperation && op.path.head isa FieldReferenceStep
     @test op.path.head.name == "children" && _slot(op) == 1
     getfield(lay, :selection)[] = _mk(1)
     @test _slot(_read(lay, tab)) == 2                # slot 1 → 2

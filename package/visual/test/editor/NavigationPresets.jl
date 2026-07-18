@@ -9,7 +9,7 @@
 # (e.g. vector collections) adds its own preset in its own tier the same way,
 # pairing a gesture set with a ground-truth enumerator.
 #
-# * position navigation — positions between elements (PositionReference; in the
+# * position navigation — positions between elements (PositionReferenceStep; in the
 #   text domain these are the carets): explore_position_selections,
 #   test_position_navigation.
 # * tree navigation — whole-element (∅) selections on structural nodes:

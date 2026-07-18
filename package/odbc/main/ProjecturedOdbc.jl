@@ -513,7 +513,7 @@ end
 # by querying the instance, so a selection has no structural counterpart in the
 # DatabaseInstance itself. Backward wraps the catalog-domain reference as
 # proj(p, …) so it can live on inst.selection; forward unwraps it. Mirrors the
-# generic Projection default but strips the leading TypeReference checkpoint that
+# generic Projection default but strips the leading TypeReferenceStep checkpoint that
 # set_selection! annotates onto the (now canonical) instance selection.
 function map_reference_forward(p::DatabaseInstanceToDbCatalog, iomap, reference)
     reference === nothing && return nothing

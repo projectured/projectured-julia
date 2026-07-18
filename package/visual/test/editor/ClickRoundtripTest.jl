@@ -80,14 +80,14 @@ function _seg_x_at(sc::SegCoord, k::Int, measure)
     sc.x + measure(prefix, sc.font)[1]
 end
 
-# True if any step in `path` is a ProjectionReference. Such paths are valid
+# True if any step in `path` is a ProjectionReferenceStep. Such paths are valid
 # (they encode clicks on projection-introduced characters like delimiters or
 # whitespace), but a click that lands *inside* a content segment should NOT
-# end up wrapped in a ProjectionReference — that signals a missing
+# end up wrapped in a ProjectionReferenceStep — that signals a missing
 # domain-level translation step somewhere in the chain.
 function _path_contains_projection_ref(path)
     while path isa ConcreteReferencePath
-        head(path) isa ProjectionReference && return true
+        head(path) isa ProjectionReferenceStep && return true
         path = tail(path)
     end
     false

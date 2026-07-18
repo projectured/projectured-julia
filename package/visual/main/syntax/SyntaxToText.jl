@@ -27,10 +27,10 @@ import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocum
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReferencePath, ElementReference, PositionReference, RangeReference, FieldReference, EmptyReferencePath, ReferencePath, strip_reference_types, Position, reference_node_type
-import ..TextSpanReferenceModule: TextSpanReference
-import ..TextRangeReferenceModule: TextRangeReference
-import ..ProjectionReferenceModule: ProjectionReference
+import ..ReferenceModule: ConcreteReferencePath, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReferencePath, ReferencePath, strip_reference_types, Position, reference_node_type
+import ..TextSpanReferenceModule: TextSpanReferenceStep
+import ..TextRangeReferenceModule: TextRangeReferenceStep
+import ..ProjectionReferenceModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@step"
 import ..IoMapModule: SimpleIoMap
@@ -188,8 +188,8 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringR
     # A char range over the span's TextString lands on no document node (a text
     # selection, like a cursor) — spell the node types so the reference is fully typed:
     # `::SyntaxLeaf.<field>::TextString[s:e]::Position`.
-    new_ref = ConcreteReferencePath(SyntaxLeaf, FieldReference(String(field)),
-                  ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
+    new_ref = ConcreteReferencePath(SyntaxLeaf, FieldReferenceStep(String(field)),
+                  ConcreteReferencePath(TextString, RangeReferenceStep(char_start, char_stop),
                       EmptyReferencePath(Position)))
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
@@ -307,7 +307,7 @@ end
 # re-walks the input subtree by type. `_syntax_to_flat` survives only as the shared
 # flat metric for the `*ToSyntax` flat-offset readers (see its section below).
 
-_rr_start(x) = x isa RangeReference ? x.start::Int : nothing
+_rr_start(x) = x isa RangeReferenceStep ? x.start::Int : nothing
 
 # An own-span (open/close/sep) forward result. Convert (element index, char) to a
 # flat offset over this node's own output and re-anchor via `_flat_to_text_elem_path`
@@ -386,17 +386,17 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     elements = iomap.output.elements
     node = iomap.input
     h = reference.head
-    if h isa ProjectionReference
+    if h isa ProjectionReferenceStep
         # A projection-introduced position. A bare flat `{k}` is this node's own
         # offset; any other inner path is transparent — keep navigating this node.
         inner = h.output_path
         inner isa ConcreteReferencePath || return nothing
-        if inner.head isa RangeReference && inner.tail isa EmptyReferencePath
+        if inner.head isa RangeReferenceStep && inner.tail isa EmptyReferencePath
             return _flat_to_text_elem_path(elements, inner.head.start::Int)
         end
         return map_reference_forward(p, iomap, inner)
     end
-    h isa FieldReference || return nothing
+    h isa FieldReferenceStep || return nothing
     # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
     step = peel_child_step(reference)
     if step !== nothing
@@ -411,7 +411,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
             s = _text_elem_path_to_flat(elements, rng.start, 0)
             s < 0 && return nothing
             e = s + sum(_span_len(elements[j]) for j in rng; init = 0)
-            return ConcreteReferencePath(TextSpanReference(s, e), EmptyReferencePath())
+            return ConcreteReferencePath(TextSpanReferenceStep(s, e), EmptyReferencePath())
         end
         # Cursor → delegate to the child's own mapper, then re-anchor at parent flat.
         child = cims[child_i]
@@ -440,8 +440,8 @@ end
 # Build a child-local output sub-reference to hand to a child's backward mapper:
 # a whole element (`char === nothing`) or a `.content{char}` cursor.
 _child_tree_path(idx::Int) =
-    ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(RangeReference(idx - 1, idx), EmptyReferencePath()))
+    ConcreteReferencePath(FieldReferenceStep("elements"),
+        ConcreteReferencePath(RangeReferenceStep(idx - 1, idx), EmptyReferencePath()))
 
 # The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
 # for a wrapper. The compound answers; this file does not care which it is.
@@ -449,8 +449,8 @@ _prepend_child(doc::SyntaxCompound, i::Int, inner) = syntax_child_path(doc, i, i
 
 # A cursor in one of this compound's own delimiter spans: `.<field>{c}`.
 _own_span_path(doc::SyntaxCompound, field::Symbol, c::Int) =
-    ConcreteReferencePath(reference_node_type(doc), FieldReference(String(field)),
-        ConcreteReferencePath(TextString, RangeReference(c, c), EmptyReferencePath(Position)))
+    ConcreteReferencePath(reference_node_type(doc), FieldReferenceStep(String(field)),
+        ConcreteReferencePath(TextString, RangeReferenceStep(c, c), EmptyReferencePath(Position)))
 
 function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
@@ -459,7 +459,7 @@ function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundTo
     # Whole-element (tree) selection `.elements[j]∅`.
     tree_j = _parse_tree_elem_path(reference)
     tree_j !== nothing && return _backward_zone(p, iomap, tree_j, nothing)
-    # Flat text caret (`TextRangeReference{f}`, bare `{f}`, or the internal
+    # Flat text caret (`TextRangeReferenceStep{f}`, bare `{f}`, or the internal
     # structural `.elements[j].content{c}`) → the element `(span, char)` it lands
     # on, then classify by zone.
     flat = _text_side_flat(reference, elements)
@@ -511,8 +511,8 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     field = _own_field(iomap, j)
     field !== nothing && return _own_span_path(node, field, c)
     flat = _text_elem_path_to_flat(elements, j, c)
-    return ConcreteReferencePath(reference_node_type(node), ProjectionReference(p,
-               ConcreteReferencePath(Position, PositionReference(flat), EmptyReferencePath(Position))),
+    return ConcreteReferencePath(reference_node_type(node), ProjectionReferenceStep(p,
+               ConcreteReferencePath(Position, PositionReferenceStep(flat), EmptyReferencePath(Position))),
                EmptyReferencePath(Position))
 end
 
@@ -761,7 +761,7 @@ end
 # children's composed selections (Settled decision 5). Precedence, structural
 # wins: (1) node.selection ∅ → whole-node highlight; (2)/(3) forward-map
 # node.selection through this projection's own mapper — a path ending in ∅ under
-# `.children[i]…` becomes a `TextSpanReference`, a cursor path an element
+# `.children[i]…` becomes a `TextSpanReferenceStep`, a cursor path an element
 # path; (4) otherwise the first child whose composed selection is a plain cursor
 # element path, shifted by its splice base — a child returning ∅ or a TextRect is
 # skipped, not promoted; (5) none.
@@ -972,8 +972,8 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
         separator = syntax_separator(iomap.input)
         if separator !== nothing
             new_ref = ConcreteReferencePath(reference_node_type(iomap.input),
-                          FieldReference(String(separator.first)),
-                          ConcreteReferencePath(TextString, RangeReference(char_start, char_stop),
+                          FieldReferenceStep(String(separator.first)),
+                          ConcreteReferencePath(TextString, RangeReferenceStep(char_start, char_stop),
                               EmptyReferencePath(Position)))
             return ReplaceStringRangeOperation(new_ref, op.replacement)
         end
@@ -993,10 +993,10 @@ end
 
 # `.elements[idx].content{s:e}` — the single-span replace-range reference shape.
 _text_elem_range(idx::Int, s::Int, e::Int) =
-    ConcreteReferencePath(FieldReference("elements"),
-        ConcreteReferencePath(RangeReference(idx - 1, idx),
-            ConcreteReferencePath(FieldReference("content"),
-                ConcreteReferencePath(RangeReference(s, e), EmptyReferencePath()))))
+    ConcreteReferencePath(FieldReferenceStep("elements"),
+        ConcreteReferencePath(RangeReferenceStep(idx - 1, idx),
+            ConcreteReferencePath(FieldReferenceStep("content"),
+                ConcreteReferencePath(RangeReferenceStep(s, e), EmptyReferencePath()))))
 
 # True iff `path` ends in `.<field>[range]` — the shape a
 # ReplaceStringRangeOperation reference must have for `_split_replace_reference`.
@@ -1008,7 +1008,7 @@ function _ends_in_field_range(path)
         penult = cur.head
         cur = cur.tail
     end
-    penult isa FieldReference && cur.head isa RangeReference
+    penult isa FieldReferenceStep && cur.head isa RangeReferenceStep
 end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
@@ -1212,18 +1212,18 @@ end
 # converts it to a flat character offset within open ++ value ++ close.
 # Returns -1 if the selection does not point to a cursor position inside this leaf.
 function _leaf_cursor(leaf::SyntaxLeaf)
-    # Selections are canonical (carry TypeReference checkpoints); strip them so
+    # Selections are canonical (carry TypeReferenceStep checkpoints); strip them so
     # the raw .open/.value/.close{k} structural match below sees the plain
-    # skeleton (otherwise sel.head is a TypeReference and no cursor is found).
+    # skeleton (otherwise sel.head is a TypeReferenceStep and no cursor is found).
     sel = strip_reference_types(leaf.selection)
     sel isa EmptyReferencePath && return -1
     sel isa ConcreteReferencePath || return -1
     h = sel.head
-    if h isa FieldReference
+    if h isa FieldReferenceStep
         rest = sel.tail
         rest isa ConcreteReferencePath || return -1
         inner = rest.head
-        inner isa RangeReference || return -1
+        inner isa RangeReferenceStep || return -1
         k = inner.start::Int
         fname = h.name
         if fname == "value"
@@ -1235,16 +1235,16 @@ function _leaf_cursor(leaf::SyntaxLeaf)
             leaf.close === nothing && return -1  # no closing delimiter: no cursor there
             return _delimiter_len(leaf.open) + _span_len(leaf.value) + k
         end
-    elseif h isa ProjectionReference
+    elseif h isa ProjectionReferenceStep
         inner = h.output_path
         inner isa ConcreteReferencePath || return -1
         field = inner.head
-        field isa FieldReference || return -1
+        field isa FieldReferenceStep || return -1
         fname = field.name
         rest = inner.tail
         rest isa ConcreteReferencePath || return -1
         idx = rest.head
-        idx isa RangeReference || return -1
+        idx isa RangeReferenceStep || return -1
         k = idx.start::Int
         if fname == "open"
             leaf.open === nothing && return -1
@@ -1278,11 +1278,11 @@ function _syntax_to_flat(leaf::SyntaxLeaf, path::ReferencePath, ::SyntaxCompound
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return -1
     h = path.head
-    h isa FieldReference || return -1
+    h isa FieldReferenceStep || return -1
     fname = h.name
     rest = path.tail
     rest isa ConcreteReferencePath || return -1
-    k = begin idx = rest.head; idx isa RangeReference ? idx.start::Int : return -1 end
+    k = begin idx = rest.head; idx isa RangeReferenceStep ? idx.start::Int : return -1 end
     fname == "open"  && return k
     fname == "value" && return _delimiter_len(leaf.open) + k
     fname == "close" && return _delimiter_len(leaf.open) + _span_len(leaf.value) + k
@@ -1295,13 +1295,13 @@ _own_len(pair::Pair) = _span_len(pair.second)
 
 # Maps a compound-domain path to the flat character offset within the rendered
 # compound. Handles its own delimiters and separator (by whatever field names the
-# compound gives them), a ProjectionReference (flat pass-through), and `.children[i]`
+# compound gives them), a ProjectionReferenceStep (flat pass-through), and `.children[i]`
 # descent, accumulating the opening/separator/indent offsets ahead of the child.
 function _syntax_to_flat(node::SyntaxCompound, path::ReferencePath, p::SyntaxCompoundToText, depth::Int)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return -1
     h = path.head
-    if h isa FieldReference
+    if h isa FieldReferenceStep
         fname = h.name
         rest = path.tail
         rest isa ConcreteReferencePath || return -1
@@ -1355,14 +1355,14 @@ function _syntax_to_flat(node::SyntaxCompound, path::ReferencePath, p::SyntaxCom
         end
         return -1
     end
-    if h isa ProjectionReference
-        # A ProjectionReference is a position some projection introduced. It is
+    if h isa ProjectionReferenceStep
+        # A ProjectionReferenceStep is a position some projection introduced. It is
         # transparent here: strip the wrapper and keep navigating the inner path
         # within this same node. The one terminal case — a bare flat {k} — is this
         # node's own offset (what SyntaxToText's backward mapper emits as `proj(p, {k})`).
         inner = h.output_path
         inner isa ConcreteReferencePath || return -1
-        inner.head isa RangeReference && inner.tail isa EmptyReferencePath &&
+        inner.head isa RangeReferenceStep && inner.tail isa EmptyReferencePath &&
             return inner.head.start::Int
         return _syntax_to_flat(node, inner, p, depth)
     end
@@ -1423,7 +1423,7 @@ function _resolve_collapsible(node::SyntaxCompound, path)
     # way down is stepped over, not selected.
     best = syntax_collapsible(node) ? node : nothing
     cur = node
-    # Selections are canonical (carry TypeReference checkpoints); strip them so
+    # Selections are canonical (carry TypeReferenceStep checkpoints); strip them so
     # the plain structural skeleton (.children[i]...) is what we walk below.
     p = strip_reference_types(path)
     while true
@@ -1448,7 +1448,7 @@ end
 function _click_flat_pos(iomap::SyntaxCompoundToTextIoMap, path)
     if path isa ConcreteReferencePath
         h = path.head
-        if h isa RangeReference && path.tail isa EmptyReferencePath
+        if h isa RangeReferenceStep && path.tail isa EmptyReferencePath
             return h.start::Int
         end
     end
@@ -1466,11 +1466,11 @@ function _parse_tree_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
-    h1 isa FieldReference && h1.name == "elements" || return nothing
+    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
     t1 = path.tail
     t1 isa ConcreteReferencePath || return nothing
     h2 = t1.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     t1.tail isa EmptyReferencePath || return nothing
     return h2.start + 1
 end
@@ -1479,48 +1479,48 @@ function _parse_text_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return (nothing, nothing)
     h1 = path.head
-    h1 isa FieldReference && h1.name == "elements" || return (nothing, nothing)
+    h1 isa FieldReferenceStep && h1.name == "elements" || return (nothing, nothing)
     t1 = path.tail
     t1 isa ConcreteReferencePath || return (nothing, nothing)
     h2 = t1.head
-    h2 isa RangeReference || return (nothing, nothing)
+    h2 isa RangeReferenceStep || return (nothing, nothing)
     span_idx = h2.start + 1
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return (nothing, nothing)
     h3 = t2.head
-    h3 isa FieldReference && h3.name == "content" || return (nothing, nothing)
+    h3 isa FieldReferenceStep && h3.name == "content" || return (nothing, nothing)
     t3 = t2.tail
     t3 isa ConcreteReferencePath || return (nothing, nothing)
     h4 = t3.head
-    h4 isa RangeReference || return (nothing, nothing)
+    h4 isa RangeReferenceStep || return (nothing, nothing)
     return (span_idx, h4.start::Int)
 end
 
 # Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
-# char_stop)` of the terminal `RangeReference`. Returns `nothing` on mismatch.
+# char_stop)` of the terminal `RangeReferenceStep`. Returns `nothing` on mismatch.
 function _parse_text_elem_range(path)
     path = strip_reference_types(path)
     path isa ConcreteReferencePath || return nothing
     h1 = path.head
-    (h1 isa FieldReference && h1.name == "elements") || return nothing
+    (h1 isa FieldReferenceStep && h1.name == "elements") || return nothing
     t1 = path.tail
     t1 isa ConcreteReferencePath || return nothing
     h2 = t1.head
-    h2 isa RangeReference || return nothing
+    h2 isa RangeReferenceStep || return nothing
     span_idx = h2.start + 1
     t2 = t1.tail
     t2 isa ConcreteReferencePath || return nothing
     h3 = t2.head
-    (h3 isa FieldReference && h3.name == "content") || return nothing
+    (h3 isa FieldReferenceStep && h3.name == "content") || return nothing
     t3 = t2.tail
     t3 isa ConcreteReferencePath || return nothing
     h4 = t3.head
-    h4 isa RangeReference || return nothing
+    h4 isa RangeReferenceStep || return nothing
     return (span_idx, h4.start::Int, h4.stop::Int)
 end
 
 # The text-side caret path for a flat offset. Since the text domain now addresses
-# the cursor by flat offset directly (`TextRangeReference`), this just wraps the
+# the cursor by flat offset directly (`TextRangeReferenceStep`), this just wraps the
 # offset — the `spans` argument is retained for call-site compatibility. (At a
 # SyntaxToText output there are no breaks/indentation, so this flat offset equals
 # the text layer's break-aware flat offset.)
@@ -1528,17 +1528,17 @@ _flat_to_text_elem_path(spans, flat_pos::Int) = _flat_text_path(flat_pos)
 
 # The canonical flat caret path, rooted at the output TextBlock.
 _flat_text_path(flat::Int) =
-    ConcreteReferencePath(TextRangeReference(flat, flat), EmptyReferencePath())
+    ConcreteReferencePath(TextRangeReferenceStep(flat, flat), EmptyReferencePath())
 
 # The flat offset of a text-side caret path (or `nothing` when it is not a caret).
-# Accepts the flat `TextRangeReference{f}` form, a bare block cursor `{f}`, and —
+# Accepts the flat `TextRangeReferenceStep{f}` form, a bare block cursor `{f}`, and —
 # when `spans` is supplied — the internal structural `.elements[i].content{c}`
 # form still used for child sub-references inside the compound mappers.
 function _text_side_flat(path)
     p = strip_reference_types(path)
     p isa ConcreteReferencePath || return nothing
     h = p.head
-    (h isa TextRangeReference || h isa RangeReference) && p.tail isa EmptyReferencePath || return nothing
+    (h isa TextRangeReferenceStep || h isa RangeReferenceStep) && p.tail isa EmptyReferencePath || return nothing
     h.start::Int
 end
 function _text_side_flat(path, spans)

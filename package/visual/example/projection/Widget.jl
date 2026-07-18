@@ -48,13 +48,13 @@ end
 function _is_window_content(ref)
     ref isa ConcreteReferencePath || return false
     h = ref.head
-    (h isa FieldReference && h.name == "windows") || return false
+    (h isa FieldReferenceStep && h.name == "windows") || return false
     r1 = ref.tail
     r1 isa ConcreteReferencePath || return false
-    r1.head isa RangeReference || return false
+    r1.head isa RangeReferenceStep || return false
     r2 = r1.tail
     r2 isa ConcreteReferencePath || return false
-    (r2.head isa FieldReference && r2.head.name == "content") || return false
+    (r2.head isa FieldReferenceStep && r2.head.name == "content") || return false
     r2.tail isa EmptyReferencePath
 end
 

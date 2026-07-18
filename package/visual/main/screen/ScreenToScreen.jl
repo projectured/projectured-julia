@@ -28,8 +28,8 @@ import ..ScreenDocumentModule: ScreenDocument, WindowDocument
 import ..EventModule: WindowInput
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ReferencePath, ConcreteReferencePath, EmptyReferencePath,
-                          FieldReference, RangeReference, ElementReference, head, tail
-import ..PointReferenceModule: PointReference
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
+import ..PointReferenceModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
 import ..IoMapApiModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
@@ -61,7 +61,7 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
     iomap_cell = Cell(nothing)
     window_iomaps = Cell(() -> [
         print_document(p, recursion, input.windows[i],
-                         make_child_context(ctx, FieldReference("windows"), ElementReference(i)))
+                         make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i)))
         for i in 1:length(input.windows)
     ])
     out_windows = Cell(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
@@ -79,7 +79,7 @@ end
 function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
-    content_ctx = with_available_size(make_child_context(ctx, FieldReference("content"));
+    content_ctx = with_available_size(make_child_context(ctx, FieldReferenceStep("content"));
                                       width=getfield(input, :width),
                                       height=getfield(input, :height))
     content_iomap = print_child(recursion, input.content, content_ctx)
@@ -107,43 +107,43 @@ end
 _wval(v) = Int(v isa Cell ? v[] : v)
 
 # Screen level: peel `windows` + `[i]`, delegate the tail to window `i`'s iomap.
-# A coordinate image (`PointReference`) from the window — already in screen space
+# A coordinate image (`PointReferenceStep`) from the window — already in screen space
 # (the window shifted it by its origin) — passes straight up; a structural path is
 # re-rooted at `windows[i]` (coordinates accumulate, paths stay paths).
 function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     reference isa ConcreteReferencePath || return reference
     h = head(reference)
-    (h isa FieldReference && h.name == "windows") || return reference
+    (h isa FieldReferenceStep && h.name == "windows") || return reference
     rest1 = tail(reference)
     rest1 isa ConcreteReferencePath || return reference
     elem = head(rest1)
-    elem isa RangeReference || return reference
-    i = elem.stop                       # ElementReference(i) == RangeReference(i-1, i)
+    elem isa RangeReferenceStep || return reference
+    i = elem.stop                       # ElementReferenceStep(i) == RangeReferenceStep(i-1, i)
     ims = iomap.window_iomaps[]
     (i < 1 || i > length(ims)) && return nothing
     wim = ims[i]
     mapped = fn(wim.projection, wim, tail(rest1))
     mapped === nothing && return nothing
-    mapped isa PointReference && return mapped
-    ConcreteReferencePath(FieldReference("windows"), ConcreteReferencePath(elem, mapped))
+    mapped isa PointReferenceStep && return mapped
+    ConcreteReferencePath(FieldReferenceStep("windows"), ConcreteReferencePath(elem, mapped))
 end
 
 # Window level: peel `content`, delegate the tail to the content iomap. A
-# coordinate image (`PointReference`, the forward image of a positioned widget in
+# coordinate image (`PointReferenceStep`, the forward image of a positioned widget in
 # the content's frame) is shifted by this window's screen origin so the popup
 # resolver lands in screen space; a structural path is re-rooted at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReferencePath || return reference
     h = head(reference)
-    (h isa FieldReference && h.name == "content") || return reference  # metadata: identity
+    (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
     cim = iomap.content_iomap
     mapped = fn(cim.projection, cim, tail(reference))
     mapped === nothing && return nothing
-    if mapped isa PointReference
-        return PointReference(_wval(getfield(iomap.input, :x)) + Int(mapped.x[]),
+    if mapped isa PointReferenceStep
+        return PointReferenceStep(_wval(getfield(iomap.input, :x)) + Int(mapped.x[]),
                               _wval(getfield(iomap.input, :y)) + Int(mapped.y[]))
     end
-    ConcreteReferencePath(FieldReference("content"), mapped)
+    ConcreteReferencePath(FieldReferenceStep("content"), mapped)
 end
 
 map_reference_forward(::ScreenToScreen, iomap::ScreenToScreenIoMap, reference) =
@@ -169,7 +169,7 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
             win_in isa WindowDocument || continue
             win_in.id === window_input.window_id || continue
             inner = read_intent(wim.projection, recursion, change, wim)
-            op = _prefix_op(inner.operation, (FieldReference("windows"), ElementReference(i)))
+            op = _prefix_op(inner.operation, (FieldReferenceStep("windows"), ElementReferenceStep(i)))
             return Intent(change.gesture, op)
         end
         return Intent(change.gesture, nothing)
@@ -185,7 +185,7 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
     if window_input isa WindowInput
         cim = iomap.content_iomap
         inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
-        op = _prefix_op(inner.operation, (FieldReference("content"),))
+        op = _prefix_op(inner.operation, (FieldReferenceStep("content"),))
         return Intent(change.gesture, op)
     end
     payload = change.operation === nothing ? change.gesture : change.operation

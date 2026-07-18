@@ -25,8 +25,8 @@ end
 
 # `content` + flat text caret at offset n — a cursor at char n inside the widget's
 # single-span text (flat offset == char index for one span).
-_cursor(n) = ConcreteReferencePath(FieldReference("content"),
-    ConcreteReferencePath(TextRangeReference(n, n), EmptyReferencePath()))
+_cursor(n) = ConcreteReferencePath(FieldReferenceStep("content"),
+    ConcreteReferencePath(TextRangeReferenceStep(n, n), EmptyReferencePath()))
 
 @testset "WidgetText recurses Document content and renders to graphics" begin
     doc = _doc()
@@ -42,7 +42,7 @@ end
     op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
     @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
-    @test op.reference.head == FieldReference("content")
+    @test op.reference.head == FieldReferenceStep("content")
 
     evaluate_operation(_WidgetTextMockEditor(doc), op)
     @test doc.content.elements[1].content == "ediXt me"
@@ -65,14 +65,14 @@ end
 
     bs = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys()))
     @test bs isa ReplaceStringRangeOperation
-    @test bs.reference.head == FieldReference("content")
+    @test bs.reference.head == FieldReferenceStep("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].content == "edi me"
 
     iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
     arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys()))
     @test arrow isa ReplaceSelectionOperation
-    @test arrow.path.head == FieldReference("content")
+    @test arrow.path.head == FieldReferenceStep("content")
 end
 
 end # test_widget_text_editing
