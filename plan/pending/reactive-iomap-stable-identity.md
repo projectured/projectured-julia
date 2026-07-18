@@ -133,6 +133,34 @@ Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
       covers them (proven by a reactive test), stop nulling. Leave genuine
       whole-root rebinds alone. The payoff (fewer full re-prints), done cautiously.
 
+## Implementation notes (discovered during Phase 0-1)
+
+- **The reactive harness already exists.** `printer_locality_report(doc, proj,
+  mutate!)` (`package/projectured/test/editor/PrinterLocalityTest.jl`) prints once,
+  holds the iomap + output, runs an arbitrary `mutate!`, re-forces the *held*
+  output, and diffs object identity — so it already tests "the change propagates
+  through the held iomap without a re-print" (the invariant). Dimensions A
+  (selection), B (value-edit → `lost==0`), C (structural insert → reconciliation)
+  build on it. Phase 1 adds a thin helper for **content-correctness** (the held
+  `iomap.output` reflects the driven change) + **iomap-identity**, since the
+  locality dimensions measure minimality, not propagation of a *config* change.
+
+- **`SimpleIoMap → @iomap` ripples to the `.output[]` convention.** Some
+  projections store a `Cell` in `output` (`TextToString: SimpleIoMap(p, ts, Cell(()
+  -> …))`) and ~17 sites deref `iomap.output[]` (TextToString, ObjectToSyntax, sql/
+  text pipeline & test sites, ClipboardToAnyTest). Under `@iomap`, `iomap.output`
+  auto-unwraps to the *value*, so `.output[]` → `.output` at every site whose
+  terminal iomap is converted. Chaining needs no change — its synthesized `.output`
+  forwards `step_iomaps[end][].output`, which becomes the value once the last stage
+  is `@iomap`. Convert per-iomap and run the full stack to catch the ripple; not the
+  clean isolated step first assumed.
+
+- **Focusing conversion specifics.** `@projection` and **drop the redundant
+  `part_evaluator::Function`** (a Function field becomes a computed thunk under
+  `@cell_struct` — AR-NO-NESTED-CELL); compute `evaluate_reference(input, p.part)`
+  directly, and wire `output = Cell(() -> evaluate_reference(input, p.part))` so a
+  `part`-cell write re-derives it. Depends on `SimpleIoMap` being `@iomap` first.
+
 ## Verification (every phase)
 - Targeted printer/reader tests for converted projections stay green.
 - The new **reactive test** per converted projection (change → propagation +
