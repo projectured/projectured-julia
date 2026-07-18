@@ -25,7 +25,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
 import ..IdentityProjectionModule: IdentityProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
-import ..PointReferenceModule: PointReferenceStep
+import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: MousePress
 export GraphicsCanvasToGraphicsImage, GraphicsCaching

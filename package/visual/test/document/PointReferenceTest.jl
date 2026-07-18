@@ -1,5 +1,5 @@
 """
-Tests for `PointReferenceModule` — struct equality, the `@reference_step c.point(x, y)`
+Tests for `PointReferenceStepModule` — struct equality, the `@reference_step c.point(x, y)`
 DSL build registration, and the `@reference_case c.point(x, y)` pattern-match
 registration.
 """
@@ -21,7 +21,7 @@ pr = PointReferenceStep(3, 7)
 
 # ── @reference_step DSL build registration ─────────────────────────────────────────
 
-# The `c.point(x, y)` notation is registered by PointReferenceModule's
+# The `c.point(x, y)` notation is registered by PointReferenceStepModule's
 # `build_reference_step(::Val{:point}, …)` seam — exercised here to confirm the
 # registration survived the move out of the kernel.
 @test (@reference_step c.point(2, 3)) == PointReferenceStep(2, 3)

@@ -61,10 +61,10 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ReferenceApiModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const SelectionApiModule = ProjecturedKernel.SelectionModule
-const ProjectionReferenceModule = ProjecturedKernel.ProjectionReferenceModule
-const ProjectionReferenceApiModule = ProjecturedKernel.ProjectionReferenceModule
-# PointReferenceModule is defined locally by this package's graphics slice
-# (`include("graphics/PointReference.jl")` below).
+const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
+const ProjectionReferenceStepApiModule = ProjecturedKernel.ProjectionReferenceStepModule
+# PointReferenceStepModule is defined locally by this package's graphics slice
+# (`include("graphics/PointReferenceStep.jl")` below).
 const OperationModule = ProjecturedKernel.OperationModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const BackendModule = ProjecturedKernel.BackendModule
@@ -143,10 +143,10 @@ include("screen/WindowManaging.jl")
 # PointReferenceStep is the graphics-domain reference step (pixel coordinates
 # relative to an element); it registers its own `.point(x, y)` DSL entries
 # with the kernel's reference DSL. Loaded here — before ScreenToScreen — so
-# that ScreenToScreen can `import ..PointReferenceModule: PointReferenceStep`.
+# that ScreenToScreen can `import ..PointReferenceStepModule: PointReferenceStep`.
 # (PointReferenceStep depends only on DocumentModule + ReferenceModule, both
 # kernel constants already in scope; no graphics types are needed.)
-include("graphics/PointReference.jl")
+include("graphics/PointReferenceStep.jl")
 # ScreenToScreen: an identity projection over the window tree; imports only
 # visual (screen) + kernel/base.
 include("screen/ScreenToScreen.jl")
@@ -178,9 +178,9 @@ include("layout/CollectionToLayout.jl")
 # a bounding box, a column box (reserved / deferred), and the character
 # cursor/selection stream, respectively. Included first in the text slice so
 # every text file below can import them via `..Text<Variant>ReferenceModule`.
-include("text/TextSpanReference.jl")
-include("text/TextColumnReference.jl")
-include("text/TextRangeReference.jl")
+include("text/TextSpanReferenceStep.jl")
+include("text/TextColumnReferenceStep.jl")
+include("text/TextRangeReferenceStep.jl")
 include("text/Text.jl")
 include("text/TextToGraphics.jl")
 include("text/TextToString.jl")

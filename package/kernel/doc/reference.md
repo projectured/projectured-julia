@@ -622,7 +622,7 @@ So the only edge between projection and reference is `projection → reference`
 (for `PrinterContext`, reference mapping, and similar), and it points down. This
 is the same pattern `Intent` uses (the reader's backward-flowing type), and it
 is the kernel's answer to "you'd think this needs a cycle" cases: mention the
-higher type opaquely, never call into it. `projection/ProjectionReference.jl`
+higher type opaquely, never call into it. `projection/ProjectionReferenceStep.jl`
 documents this at the type declaration.
 
 ## Testing

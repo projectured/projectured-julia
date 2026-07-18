@@ -1,5 +1,5 @@
 """
-    TextSpanReferenceModule
+    TextSpanReferenceStepModule
 
 The `TextSpanReferenceStep` step type — a reference step representing a
 flat character-range box in the text domain (`start` / `stop` are 0-based
@@ -14,7 +14,7 @@ type — it identifies a range but does not descend into a child. No DSL
 entry (`.rect` / equivalent) is exposed today; when one is added it goes
 here alongside the type.
 """
-module TextSpanReferenceModule
+module TextSpanReferenceStepModule
 
 using ..CellModule
 using ..CellStructModule

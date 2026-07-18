@@ -9,7 +9,7 @@ module YamlModule
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceModule
+using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

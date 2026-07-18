@@ -61,7 +61,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, EmptyReference, Position, get_reference_node_type
-import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, var"@gestures"

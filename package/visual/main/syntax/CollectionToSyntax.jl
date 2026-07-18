@@ -24,7 +24,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
                           PositionReferenceStep, Reference,
                           EmptyReference, extend_reference, is_element_reference_step
-import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax

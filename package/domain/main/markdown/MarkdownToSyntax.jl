@@ -50,7 +50,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           EmptyReference
-import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation

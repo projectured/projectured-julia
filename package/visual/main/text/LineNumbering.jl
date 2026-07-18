@@ -12,7 +12,7 @@ module TextLineNumberingModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
-import ..TextRangeReferenceModule: TextRangeReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell

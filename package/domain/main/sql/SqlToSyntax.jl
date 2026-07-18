@@ -39,7 +39,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
-import ..ProjectionReferenceModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation

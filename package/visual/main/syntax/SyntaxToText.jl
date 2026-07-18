@@ -28,9 +28,9 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_mo
 import ..ColorModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
-import ..TextSpanReferenceModule: TextSpanReferenceStep
-import ..TextRangeReferenceModule: TextRangeReferenceStep
-import ..ProjectionReferenceModule: ProjectionReferenceStep
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap

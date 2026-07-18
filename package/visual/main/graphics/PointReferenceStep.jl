@@ -1,5 +1,5 @@
 """
-    PointReferenceModule
+    PointReferenceStepModule
 
 The `PointReferenceStep` step type — a reference step that identifies a point
 within an element by pixel coordinates relative to that element's origin.
@@ -11,7 +11,7 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 `@reference` / `@reference_case` DSLs via the reference layer's
 `build_reference_step` / `match_reference_step` seams.
 """
-module PointReferenceModule
+module PointReferenceStepModule
 
 using ..CellModule
 using ..CellStructModule
@@ -48,7 +48,7 @@ end
 # ── DSL registrations ──────────────────────────────────────────────────────
 
 ReferenceModule.build_reference_step(::Val{:point}, xex, yex) =
-    :($(GlobalRef(PointReferenceModule, :PointReferenceStep))(Int($xex), Int($yex)))
+    :($(GlobalRef(PointReferenceStepModule, :PointReferenceStep))(Int($xex), Int($yex)))
 
 function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
@@ -58,7 +58,7 @@ function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_
     inner2, bound2 = gen_value_match(yexpr, ypat, rest_success, bound)
     inner1, bound1 = gen_value_match(xexpr, xpat, inner2, bound2)
     ex = quote
-        if $hex isa $(GlobalRef(PointReferenceModule, :PointReferenceStep))
+        if $hex isa $(GlobalRef(PointReferenceStepModule, :PointReferenceStep))
             $inner1
         else
             _nomatch

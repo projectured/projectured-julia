@@ -141,10 +141,10 @@ function test_visual_layering()
                    # as the sweep proceeds; when it covers every file the
                    # parameter goes.
                    qualified_files = Set([
-                       "graphics/PointReference.jl",        # the reference-step seam
-                       "text/TextSpanReference.jl",
-                       "text/TextColumnReference.jl",
-                       "text/TextRangeReference.jl",
+                       "graphics/PointReferenceStep.jl",        # the reference-step seam
+                       "text/TextSpanReferenceStep.jl",
+                       "text/TextColumnReferenceStep.jl",
+                       "text/TextRangeReferenceStep.jl",
                        "backend/Console.jl"]))              # the backend seam
 end
 

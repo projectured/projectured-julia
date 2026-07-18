@@ -38,7 +38,7 @@ import ..ProjectionTemplateModule: var"@projection_template", bound, project, co
 import ..PrimitiveModule: ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep, EmptyReference
-import ..ProjectionReferenceModule: ProjectionReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context

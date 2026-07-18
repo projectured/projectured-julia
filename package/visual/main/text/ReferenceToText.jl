@@ -28,8 +28,8 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           TypeReferenceStep,
                           is_element_reference_step, is_position_reference_step,
                           head, tail, evaluate_reference, extend_reference
-import ..PointReferenceModule: PointReferenceStep
-import ..ProjectionReferenceModule: ProjectionReferenceStep
+import ..PointReferenceStepModule: PointReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
 import ..ColorModule: StyleColor, color_default,

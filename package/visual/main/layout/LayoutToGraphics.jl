@@ -36,7 +36,7 @@ import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
-import ..PointReferenceModule: PointReferenceStep
+import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
 # Focus-path helpers live in the document-layer WidgetModule, included before this

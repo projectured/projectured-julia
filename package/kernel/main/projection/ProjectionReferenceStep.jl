@@ -1,5 +1,5 @@
 """
-    ProjectionReferenceModule
+    ProjectionReferenceStepModule
 
 The `ProjectionReferenceStep` step type — a reference step that points at an
 element introduced by a projection (a delimiter, a bracket, an
@@ -15,7 +15,7 @@ in structural navigation — and registers its own `.proj(projection, sub)`
 entries with the `@reference` / `@reference_case` DSLs via the reference
 layer's `build_reference_step` / `match_reference_step` / `get_reference_step_subpath_args` seams.
 """
-module ProjectionReferenceModule
+module ProjectionReferenceStepModule
 
 using ..CellModule
 using ..CellStructModule
@@ -89,7 +89,7 @@ Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
 ReferenceModule.get_reference_step_subpath_args(::Val{:proj}) = (2,)
 
 ReferenceModule.build_reference_step(::Val{:proj}, projex, outpathex) =
-    :($(GlobalRef(ProjectionReferenceModule, :ProjectionReferenceStep))($projex, $outpathex))
+    :($(GlobalRef(ProjectionReferenceStepModule, :ProjectionReferenceStep))($projex, $outpathex))
 
 function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
@@ -99,7 +99,7 @@ function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_s
     after_out, bound2 = gen_path_match(outpathexpr, outpath, rest_success, bound)
     after_proj, bound1 = gen_value_match(projexpr, projpat, after_out, bound2)
     ex = quote
-        if $hex isa $(GlobalRef(ProjectionReferenceModule, :ProjectionReferenceStep))
+        if $hex isa $(GlobalRef(ProjectionReferenceStepModule, :ProjectionReferenceStep))
             $after_proj
         else
             _nomatch

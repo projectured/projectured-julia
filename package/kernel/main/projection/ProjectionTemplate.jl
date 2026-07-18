@@ -43,7 +43,7 @@ using ..IntentModule
 # `import`, not `using`: this module adds RuleIoMap methods to the three seams.
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent
 using ..ReferenceModule
-using ..ProjectionReferenceModule
+using ..ProjectionReferenceStepModule
 using ..PrinterContextModule
 using ..OperationModule
 # The `RuleIoMap` readers keyed on `RecursiveProjection` (the transparent

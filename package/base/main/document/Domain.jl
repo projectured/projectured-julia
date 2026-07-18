@@ -36,7 +36,7 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
                           extend_reference, concat_references, annotate_reference_types,
                           get_reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
-import ..ProjectionReferenceModule: named_node_reference
+import ..ProjectionReferenceStepModule: named_node_reference
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
 import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
 import ..EventPatternModule: KeyDownPattern

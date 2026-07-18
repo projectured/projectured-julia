@@ -13,7 +13,7 @@
 # ProjectionReferenceStep — a reference step whose payload is a projection.
 # Small, self-contained; needs only DocumentModule and ReferenceModule, so
 # loads first in the layer.
-include("ProjectionReference.jl")
+include("ProjectionReferenceStep.jl")
 include("ProjectionApi.jl")
 include("IoMapApi.jl")
 include("Intent.jl")

@@ -40,7 +40,7 @@ import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep,
                           RangeReferenceStep, FieldReferenceStep,
                           Reference, EmptyReference
-import ..ProjectionReferenceModule: ProjectionReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..CollectionModule: CellVector
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"

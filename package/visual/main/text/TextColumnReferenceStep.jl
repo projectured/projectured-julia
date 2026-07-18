@@ -1,5 +1,5 @@
 """
-    TextColumnReferenceModule
+    TextColumnReferenceStepModule
 
 The `TextColumnReferenceStep` step type — a reference step representing a
 flat character-range **column box** in the text domain (`start` / `stop` are
@@ -22,7 +22,7 @@ corrupting it.
 Lives with the text slice because the concept is text-domain vocabulary; the
 kernel reference layer never names it.
 """
-module TextColumnReferenceModule
+module TextColumnReferenceStepModule
 
 using ..CellModule
 using ..CellStructModule

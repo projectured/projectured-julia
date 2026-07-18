@@ -26,13 +26,13 @@ module SelectionInvertingModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat, text_caret_flat
-import ..TextRangeReferenceModule: TextRangeReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, DStyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
-import ..TextSpanReferenceModule: TextSpanReferenceStep
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation

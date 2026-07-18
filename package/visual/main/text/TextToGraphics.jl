@@ -23,14 +23,14 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
                      SpanPath, _flat_cursor_coord, _flat_base, _flat_caret_ref, _is_structural_selection,
                      ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceModule: TextRangeReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
 import ..ImageModule: ImageDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
-import ..TextSpanReferenceModule: TextSpanReferenceStep
-import ..PointReferenceModule: PointReferenceStep
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
+import ..PointReferenceStepModule: PointReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation

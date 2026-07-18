@@ -1,5 +1,5 @@
 """
-    TextRangeReferenceModule
+    TextRangeReferenceStepModule
 
 The `TextRangeReferenceStep` step type — a reference step representing a flat
 character range / caret in the text domain (`start` / `stop` are 0-based
@@ -21,7 +21,7 @@ kernel reference layer never names it. Evaluates to a `Position` for a caret (so
 caret path terminates `::Position`, as the old span-anchored form did) and to the
 offset pair `(start, stop)` for a non-empty range.
 """
-module TextRangeReferenceModule
+module TextRangeReferenceStepModule
 
 using ..CellModule
 using ..CellStructModule

@@ -38,9 +38,9 @@ import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gr
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
-import ..TextSpanReferenceModule: TextSpanReferenceStep
-import ..TextColumnReferenceModule: TextColumnReferenceStep
-import ..TextRangeReferenceModule: TextRangeReferenceStep, is_text_caret
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
+import ..TextColumnReferenceStepModule: TextColumnReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep, is_text_caret
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!, evaluate_operation, reroot_operation, reroot_reference
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"

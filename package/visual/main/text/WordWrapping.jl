@@ -17,13 +17,13 @@ module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat, ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceModule: TextRangeReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..IoMapApiModule: IoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position
-import ..TextSpanReferenceModule: TextSpanReferenceStep
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
