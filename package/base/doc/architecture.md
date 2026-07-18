@@ -72,7 +72,7 @@ Primitive pass; Json, Xml, etc. don't — they are per-slice domain content.
 
 `ScreenDocument.jl` does not live here — the couple `ScreenDocument ↔
 WindowManagingProjection` belongs in `visual/screen/` per the architecture
-rules (window things are visual; only the Screen device and display-size
+rules (window things are visual; only the Display device and display-size
 seam stay in the kernel).
 
 ### projection — the domain-independent projection algebra

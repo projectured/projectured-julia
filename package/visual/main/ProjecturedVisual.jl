@@ -134,7 +134,7 @@ include("style/StyleText.jl")
 # ScreenDocument holds a list of WindowDocument (windows + their events/ops).
 # WindowManagingProjection wraps a projection that consumes ScreenDocument
 # input, applying open/close/resize/defocus operations lifted from below.
-# Window things are visual per the architecture rules (only the Screen device
+# Window things are visual per the architecture rules (only the Display device
 # and display-size seam stay in the kernel, as the interface the editor writes
 # to). The couple travels together: WindowManaging references ScreenDocument's
 # types.

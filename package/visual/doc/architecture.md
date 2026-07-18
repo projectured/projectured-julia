@@ -11,8 +11,8 @@ Sits between base and domain in the dependency chain
 (`kernel ← base ← visual ← domain`). Its membership test: *"is this
 about presenting/arranging/drawing?"* — anything screen-, window-,
 graphics-, layout-, text-, widget-, or syntax-related lives here. The one
-deliberate exception: the Screen *device* and the display-size seam stay in
-the kernel (`device/Screen.jl` + `backend/BackendInterface.jl`) because
+deliberate exception: the Display *device* and the display-size seam stay in
+the kernel (`device/Display.jl` + `backend/BackendInterface.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
 ## The 11 slices and their include order

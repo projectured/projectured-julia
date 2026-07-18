@@ -78,7 +78,7 @@ function get_display_size end
     configure_devices!(backend, devices)
 
 Fill in the physical properties of each device in `devices` from what `backend`
-can discover about the real hardware — e.g. a `Screen`'s resolution and HiDPI
+can discover about the real hardware — e.g. a `Display`'s resolution and HiDPI
 scale. A backend that discovers nothing leaves the devices at their defaults.
 """
 function configure_devices! end

@@ -7,18 +7,18 @@ for output. Its fragments:
 - [`Device.jl`](Device.jl) — the `Device` supertype every device subtypes.
 - [`Keyboard.jl`](Keyboard.jl) — the `Keyboard` device.
 - [`Mouse.jl`](Mouse.jl) — the `Mouse` device.
-- [`Screen.jl`](Screen.jl) — the `Screen` device.
+- [`Display.jl`](Display.jl) — the `Display` device.
 
 A device carries no per-device state; it names an endpoint and nothing more.
 """
 module DeviceModule
 
-export Device, Keyboard, Mouse, Screen
+export Device, Keyboard, Mouse, Display
 
 # Device.jl first — the concrete devices below subtype the `Device` it declares.
 include("Device.jl")
 include("Keyboard.jl")
 include("Mouse.jl")
-include("Screen.jl")
+include("Display.jl")
 
 end # module

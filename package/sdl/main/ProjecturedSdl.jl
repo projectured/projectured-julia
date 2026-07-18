@@ -2336,7 +2336,7 @@ geometry / title / style updated as needed, then repainted with the
 matching `WindowDocument.content` canvas.
 
 The reconciler ignores `devices` other than via the presence of at
-least one `Screen` entry — `Screen` itself carries no per-window
+least one `Display` entry — `Display` itself carries no per-window
 state and exists only to indicate that the editor wants to render
 onto a display.
 """
@@ -2528,7 +2528,7 @@ BackendModule.decode_image(filename::AbstractString) = sdl_decode_image(filename
 BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
     sdl_display_size(; display=display)
 
-# Populate the Screen devices with the real display geometry and HiDPI scale
+# Populate the Display devices with the real display geometry and HiDPI scale
 # discovered at start-up (called after `initialize_backend!`, so the scale is
 # already detected). Mouse/Keyboard are left at their defaults — SDL2 cannot
 # reliably report button count or keyboard layout.
@@ -2536,7 +2536,7 @@ function BackendModule.configure_devices!(::SdlBackend, devices)
     width, height = sdl_display_size()
     scale = _DISPLAY_SCALE[]
     for device in devices
-        device isa Screen || continue
+        device isa Display || continue
         device.width  = width
         device.height = height
         device.scale  = scale

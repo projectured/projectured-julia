@@ -49,9 +49,9 @@ function test_headless_backend()
     end
 
     @testset "device markers carry physical-property defaults" begin
-        s = Screen()
+        s = Display()
         @test (s.width, s.height, s.scale) == (1280, 800, 1.0)
-        @test Screen(width=1920, height=1080, scale=2.0).scale === 2.0
+        @test Display(width=1920, height=1080, scale=2.0).scale === 2.0
         m = Mouse()
         @test (m.button_count, m.has_scroll_wheel) == (3, true)
         @test Mouse(button_count=5, has_scroll_wheel=false).button_count == 5
@@ -67,7 +67,7 @@ function test_headless_backend()
 
     @testset "configure_devices! is a no-op for a backend that discovers nothing" begin
         b = HeadlessBackend()
-        s = Screen()
+        s = Display()
         @test configure_devices!(b, Device[s, Mouse(), Keyboard()]) === nothing
         @test (s.width, s.height, s.scale) == (1280, 800, 1.0)   # unchanged
     end

@@ -30,7 +30,7 @@ guards, docs, and tests:
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
 Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
 Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
-Layer 4  — device/     Device abstract + the Keyboard/Mouse/Screen devices (physical properties)
+Layer 4  — device/     Device abstract + the Keyboard/Mouse/Display devices (physical properties)
 Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
 Layer 6  — backend/    Backend + the device I/O, display-size, and device-config seams + HeadlessBackend
 Layer 7  — document/   the Document contract + @document
@@ -149,7 +149,7 @@ Each layer lives in its own folder under [main/](../main/):
 | --- | --- |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounter` (see [cell.md](cell.md)) |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventPatternModule` (`EventPattern`, `@event_case`) |
-| `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Screen` device types (with physical properties) |
+| `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams, HeadlessBackend |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) and the editor clock (`Clock.jl`) |

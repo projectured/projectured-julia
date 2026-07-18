@@ -139,7 +139,7 @@ function play_live!(backend::Backend, projection, document, timeline;
                     op_prefix::ReferencePath=EmptyReferencePath())
     initialize_backend!(backend)
     try
-        devices = Device[Screen(), Keyboard(), Mouse()]
+        devices = Device[Display(), Keyboard(), Mouse()]
         editor = Editor(backend, document, projection, devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
                    op_prefix=op_prefix)

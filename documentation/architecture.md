@@ -292,7 +292,7 @@ composes with any higher-order projection.
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
-| `device/Screen.jl` | `Screen` device |
+| `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
@@ -326,7 +326,7 @@ above it in this list:
  2 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
- 3 device      Device abstract + Keyboard / Mouse / Screen devices (physical properties)
+ 3 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
  4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
  5 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output) and HeadlessBackend

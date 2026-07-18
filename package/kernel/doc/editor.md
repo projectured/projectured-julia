@@ -106,13 +106,13 @@ editor in a browser instead of a native window (see the
 `ConsoleBackend()` for the terminal. Nothing else changes.
 
 This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default
-`Screen()`, `Keyboard()`, `Mouse()`), populates their physical properties from the
+`Display()`, `Keyboard()`, `Mouse()`), populates their physical properties from the
 backend with `configure_devices!`, constructs the `Editor`, and runs the loop. Native windows are not pre-allocated — the backend opens them on demand
 the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
 expected to end in one). `quit_backend!(backend)` cleanup is in a `finally` block. Pass
 `mcp=true` to start an MCP server alongside the loop. A backend that drives a
 different channel passes its own `devices` (the `ConsoleBackend` uses
-`devices = Device[Keyboard()]` — no `Screen`/`Mouse`).
+`devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
 ## Scripted live playback
 
@@ -164,7 +164,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 ## Devices and backends
 
-- `Device` is an abstract type. Concrete subtypes are `Screen`, `Keyboard`,
+- `Device` is an abstract type. Concrete subtypes are `Display`, `Keyboard`,
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. There are two
   implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
@@ -266,7 +266,7 @@ that subscribed to `get_reactive_editor_time()`.
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
   `Intent`, `IoMap`.
-- `..DeviceModule` — `Device`, `Screen`.
+- `..DeviceModule` — `Device`, `Display`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
   `read_from_devices`, `write_to_devices`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type

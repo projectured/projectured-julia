@@ -21,7 +21,7 @@ browsing tools below. Do not guess names — search for them.
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `operations` |
 | Editor & loop | `Editor`, `run_editor!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
 | Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `document/workbench`, `editor` |
-| Backends / devices | `Backend`/`SdlBackend`, `Device`/`Screen`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `devices-and-backends` |
+| Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `devices-and-backends` |
 
 ## How to browse
 

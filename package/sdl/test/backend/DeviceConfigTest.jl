@@ -8,14 +8,14 @@ function test_device_config()
     @test w isa Integer && h isa Integer
     @test w > 0 && h > 0
 
-    # configure_devices! populates a Screen from the display query + HiDPI scale,
+    # configure_devices! populates a Display from the display query + HiDPI scale,
     # and leaves Mouse/Keyboard at their defaults (SDL2 cannot discover those).
-    screen   = Screen()
+    display  = Display()
     mouse    = Mouse()
     keyboard = Keyboard()
-    @test configure_devices!(backend, Device[screen, mouse, keyboard]) === nothing
-    @test (screen.width, screen.height) == (w, h)
-    @test screen.scale isa Float64 && screen.scale > 0
+    @test configure_devices!(backend, Device[display, mouse, keyboard]) === nothing
+    @test (display.width, display.height) == (w, h)
+    @test display.scale isa Float64 && display.scale > 0
     @test (mouse.button_count, mouse.has_scroll_wheel) == (3, true)   # unchanged
     @test keyboard.layout === :qwerty                                 # unchanged
 

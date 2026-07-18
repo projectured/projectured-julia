@@ -269,17 +269,17 @@ for offscreen).
 Native windows are not pre-allocated here — the backend opens them
 on demand the first time `write_to_devices` sees a `ScreenDocument`
 output. `Editor.devices` only carries the hardware kinds the editor
-needs: `Screen`, `Keyboard`, `Mouse`.
+needs: `Display`, `Keyboard`, `Mouse`.
 
 Pass `mcp=true` to start an MCP server alongside the loop.
 
-`devices` defaults to the full SDL hardware set (`Screen`, `Keyboard`,
+`devices` defaults to the full SDL hardware set (`Display`, `Keyboard`,
 `Mouse`); backends that drive a different channel — e.g. the `ConsoleBackend`,
 which has no native window or pointer — pass their own set (e.g.
 `Device[Keyboard()]`).
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
-              devices::Vector{Device}=Device[Screen(), Keyboard(), Mouse()])
+              devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()])
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)

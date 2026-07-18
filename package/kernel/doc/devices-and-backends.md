@@ -257,7 +257,7 @@ itself never sees the backend type.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
 3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
-   document)` bootstrap in `editor/Editor.jl` (`Device[Screen(), Keyboard(), Mouse()]`).
+   document)` bootstrap in `editor/Editor.jl` (`Device[Display(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs in
    `package/kernel/main/event/` so projection readers can match on them.
 
@@ -354,7 +354,7 @@ other package docs defer here rather than repeat it.)
 
 ## The device layer (layer 4)
 
-Layer 4 of the kernel — **the input/output devices**: `Screen`, `Keyboard`,
+Layer 4 of the kernel — **the input/output devices**: `Display`, `Keyboard`,
 and `Mouse` under an abstract `Device`. Each carries its physical properties —
 a screen's resolution and HiDPI scale, a mouse's button count and scroll wheel,
 a keyboard's layout — but interprets nothing, so this layer names no document,
@@ -367,7 +367,7 @@ DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragm
         ├─ Device.jl    — the Device abstract supertype
         ├─ Keyboard.jl  — the Keyboard device
         ├─ Mouse.jl     — the Mouse device
-        └─ Screen.jl    — the Screen device
+        └─ Display.jl   — the Display device
 ```
 
 The devices carry their physical properties but no behaviour. The batch I/O

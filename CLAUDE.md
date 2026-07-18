@@ -47,9 +47,9 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `device/DeviceLayer.jl`
   - 🔒 `device/DeviceModule.jl`
   - 🔒 `device/Device.jl`
-  - ⬜ `device/Keyboard.jl`
-  - ⬜ `device/Mouse.jl`
-  - ⬜ `device/Screen.jl`
+  - 🔒 `device/Keyboard.jl`
+  - 🔒 `device/Mouse.jl`
+  - 🔒 `device/Display.jl`
 - **Layer 5 — gesture** (`gesture/`)
   - ⬜ `gesture/GestureLayer.jl`
   - ⬜ `gesture/GestureRecognizer.jl`

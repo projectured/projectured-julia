@@ -260,7 +260,7 @@ function warm_file_editor(domain::Symbol; workbench::Bool = false)
         # here — `evaluate_operation` dispatches on the operation, not the backend —
         # so the window-free console backend is enough.
         editor = Editor(ConsoleBackend(), screen, composed,
-                        Device[Screen(), Keyboard(), Mouse()])
+                        Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, screen)
         _force_reactive!(editor.iomap)
         for event in _WARMUP_EVENTS

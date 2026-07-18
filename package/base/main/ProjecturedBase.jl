@@ -88,7 +88,7 @@ include("document/Domain.jl")
 include("document/Dragging.jl")
 # ScreenDocument lives in package/visual (screen slice) — it travels
 # together with WindowManagingProjection, and both belong in visual per
-# the architecture rules (window things are visual, only the Screen
+# the architecture rules (window things are visual, only the Display
 # device stays in the kernel).
 
 # ── Layer 2 — projection (domain-independent projection algebra + generics) ──

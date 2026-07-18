@@ -72,7 +72,7 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   Syntax) with their projections, and the dependency-free backends (Console, Pdf).
   Membership test: "is this about presenting/arranging/drawing?" Anything
   screen-, window-, or graphics-related lives here — with one deliberate exception:
-  the Screen *device* and display-size seam stay in the kernel, because they are the
+  the Display *device* and display-size seam stay in the kernel, because they are the
   interface the editor writes to, not the graphics themselves.
 - **domain** — pure feature slices (json, sql, graph, …: each a document + parser +
   projections + tests) plus the application slices (workbench, conversation) in the

@@ -642,7 +642,7 @@ unchanged across them.** A backend provides `initialize_backend!`,
 `quit_backend!`, `measure_text`, and the per-frame device I/O
 `read_from_devices`/`write_to_devices` — all declared in `BackendInterface.jl`
 and dispatched on the concrete backend; the device layer supplies only the
-`Device`/`Keyboard`/`Mouse`/`Screen` device types those two take as a list.
+`Device`/`Keyboard`/`Mouse`/`Display` device types those two take as a list.
 Swapping `SdlBackend()` for
 `WebBackend()` or `ConsoleBackend()` must change nothing in the editor loop,
 pipeline, or domains. Convert platform events to the backend-agnostic device
