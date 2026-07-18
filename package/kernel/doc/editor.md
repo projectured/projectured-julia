@@ -289,6 +289,6 @@ reuse the four sub-steps) and `OperationModule` (to preview
 ### Testing
 
 The per-layer editor test folder, [test/editor/](../test/editor/), drives
-the loop against the dependency-free `HeadlessBackend` from the backend
-layer — one place the loop can be exercised without any real backend
+the loop against the dependency-free `HeadlessBackend` from
+`ProjecturedKernelExample` — one place the loop can be exercised without any real backend
 package, and the biggest current kernel-local test gap.

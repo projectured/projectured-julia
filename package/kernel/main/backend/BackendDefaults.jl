@@ -1,6 +1,6 @@
-# Fragment of `BackendModule` — the behaviour the backend contract supplies
-# itself, for the generics a backend may leave unanswered. The contract is
-# declared in `BackendInterface.jl`; the concrete backends live in opt-in packages.
+# Fragment of `BackendModule` — the fallback behaviours the backend contract
+# supplies itself, for the generics a backend may leave unanswered. The contract
+# is declared in `BackendInterface.jl`; the concrete backends live in opt-in packages.
 
 # The capabilities a backend may decline, each with a legal fallback rather than
 # a missing implementation: a pointer position defaults to `(-1, -1)` (no pointer

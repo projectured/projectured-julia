@@ -117,8 +117,7 @@ function test_kernel_layering()
                    # as the sweep proceeds; when it covers every file the
                    # parameter goes.
                    qualified_files = Set([
-                       "projection/ProjectionReference.jl",   # the reference-step seam
-                       "backend/HeadlessBackend.jl"]))        # the backend seam
+                       "projection/ProjectionReference.jl"]))   # the reference-step seam
 end
 
 """

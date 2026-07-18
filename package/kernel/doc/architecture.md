@@ -17,8 +17,9 @@ abstraction, the editor read-eval-print loop, and the agent control surface.
 algebra (higher-order combinators + generic projections) lives in the
 `ProjecturedBase` package. **No concrete documents** either — Collection and
 Primitive live in `ProjecturedBase`, and ScreenDocument in `ProjecturedVisual`.
-The kernel now has **zero concrete-document imports**. **No backends** either (except the dependency-free
-in-memory `HeadlessBackend` used by editor tests). **No runtime dependencies** —
+The kernel now has **zero concrete-document imports**. **No backends** either —
+the dependency-free in-memory `HeadlessBackend` test double lives in
+`ProjecturedKernelExample`, not here. **No runtime dependencies** —
 `using ProjecturedKernel` precompiles and loads on its own.
 
 ## Layered structure
@@ -32,7 +33,7 @@ Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_rea
 Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
 Layer 4  — device/     Device abstract + the Keyboard/Mouse/Display devices (physical properties)
 Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
-Layer 6  — backend/    Backend + the device I/O, display-size, and device-config seams + HeadlessBackend
+Layer 6  — backend/    Backend + the device I/O, display-size, and device-config seams
 Layer 7  — document/   the Document contract + @document
 Layer 8  — reference/  reference paths + @reference / @reference_case DSLs
 Layer 9  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
@@ -151,7 +152,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventPatternModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
-| `backend/` | `Backend`, the device I/O + display-size + device-config seams, HeadlessBackend |
+| `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`Interface.jl` + `Document.jl` + `Forward.jl`) and the editor clock (`Clock.jl`) |
 | `reference/` | the step/path contract (`Interface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@step` / `@reference_case` DSLs |
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |

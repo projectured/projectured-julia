@@ -14,17 +14,18 @@ There are no kernel-tier example *documents*: a runnable example pairs a documen
 with a projection to a presentable output domain, which needs at least the visual
 package — the concrete examples start in `ProjecturedVisualExample`. What does
 live here are the **kernel-seam test doubles**: the in-process `FakeLlm` and the
-scripted `ScriptedLlm` backends (with their `make_scripted_*` builders) that
-implement the kernel's `LlmModule.Llm` seam. They are fakes, so by architectural
-requirement they live in an example package, never in `main` — no fake is
-reachable from a production build.
+scripted `ScriptedLlm` backends (with their `make_scripted_*` builders) for the
+kernel's `LlmModule.Llm` seam, and the in-memory `HeadlessBackend` for the
+`BackendModule.Backend` seam. They are doubles, so by architectural requirement
+they live in an example package, never in `main` — none is reachable from a
+production build.
 """
 module ProjecturedKernelExample
 
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
-using ProjecturedKernel.BackendModule: write_image, record_video
+using ProjecturedKernel.BackendModule
 import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
@@ -32,12 +33,14 @@ import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     LlmTurnEnd
 
 include("Harness.jl")
-include("LlmFake.jl")     # FakeLlm — canned-reply test double (no network)
-include("LlmScripted.jl") # ScriptedLlm + scripted-round builders
+include("LlmFake.jl")         # FakeLlm — canned-reply test double (no network)
+include("LlmScripted.jl")     # ScriptedLlm + scripted-round builders
+include("BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
 
 export Example, AtomicDocument
 export write_example_image, record_example_video, make_typein_gestures
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
+export HeadlessBackend, rendered_output, push_event!
 
 end # module ProjecturedKernelExample

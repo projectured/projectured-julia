@@ -329,7 +329,7 @@ above it in this list:
  3 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
  4 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
  5 backend     the Backend seam (lifecycle, text, device I/O, display size, device
-               config, image/video output) and HeadlessBackend
+               config, image/video output)
  6 document    the Document supertype, @document, the is_element_collection /
                is_opaque traits, search_documents, Clock
  7 reference   ReferenceStep / ReferencePath and the step seam, evaluate_reference,

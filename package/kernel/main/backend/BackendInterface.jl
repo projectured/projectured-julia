@@ -105,8 +105,7 @@ function record_video end
     render_canvas(canvas) -> image
 
 Rasterize a graphics-canvas document to an image document. Implemented by a
-rendering backend package; forward-declared here so callers (e.g. a
-graphics-caching projection) need not name it.
+rendering backend package; forward-declared here so callers need not name it.
 """
 function render_canvas end
 

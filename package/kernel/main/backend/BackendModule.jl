@@ -1,9 +1,9 @@
 """
     BackendModule
 
-Abstract backend interface — an independent sibling of the device
-layer. A `Backend` encapsulates everything needed to initialise, shut down,
-read input from, and write output to a particular display/input system.
+The backend contract. A `Backend` encapsulates everything needed to initialise,
+shut down, read input from, and write output to a particular display/input
+system.
 Concrete subtypes and the methods of the generic functions declared here
 live in **opt-in backend packages** that depend on this kernel; this module
 carries only the abstract type and the forward-declared generics, so generic
@@ -16,8 +16,9 @@ fragments that share this namespace:
 
 - [`BackendInterface.jl`](BackendInterface.jl) — the contract: the abstract
   `Backend` type and the open generics a backend package answers.
-- [`BackendDefaults.jl`](BackendDefaults.jl) — the one behaviour the contract
-  supplies itself: what a backend that cannot report a pointer position says.
+- [`BackendDefaults.jl`](BackendDefaults.jl) — the fallback behaviours the
+  contract supplies itself, for the capabilities a backend may decline (pointer
+  position, display size, device configuration).
 """
 module BackendModule
 
@@ -26,6 +27,6 @@ export Backend, initialize_backend!, quit_backend!, measure_text,
        write_image, record_video, render_canvas, decode_image, get_pointer_position
 
 include("BackendInterface.jl")  # the backend contract (declaration-only)
-include("BackendDefaults.jl")   # the one behaviour the contract supplies itself
+include("BackendDefaults.jl")   # the fallback behaviours the contract supplies itself
 
 end # module

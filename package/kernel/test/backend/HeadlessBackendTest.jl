@@ -1,5 +1,5 @@
 """
-`HeadlessBackendModule` — the dependency-free in-memory backend. Exercises
+`HeadlessBackend` — the dependency-free in-memory backend test double. Exercises
 construction, the lifecycle no-ops, the write/read/measure I/O paths, the
 device physical-property defaults, and the `get_display_size` /
 `configure_devices!` fallbacks.
@@ -7,7 +7,7 @@ device physical-property defaults, and the `get_display_size` /
 
 using Test
 using ProjecturedKernel.BackendModule
-using ProjecturedKernel.HeadlessBackendModule
+using ProjecturedKernelExample
 using ProjecturedKernel.DeviceModule
 
 function test_headless_backend()

@@ -54,11 +54,10 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `gesture/GestureLayer.jl`
   - 🔒 `gesture/GestureRecognizer.jl`
 - **Layer 6 — backend** (`backend/`)
-  - ⬜ `backend/BackendLayer.jl`
-  - ⬜ `backend/BackendModule.jl`
-  - ⬜ `backend/BackendInterface.jl`
-  - ⬜ `backend/BackendDefaults.jl`
-  - ⬜ `backend/HeadlessBackend.jl`
+  - 🔒 `backend/BackendLayer.jl`
+  - 🔒 `backend/BackendModule.jl`
+  - 🔒 `backend/BackendInterface.jl`
+  - 🔒 `backend/BackendDefaults.jl`
 - **Layer 7 — document** (`document/`)
   - ⬜ `document/DocumentLayer.jl`
   - ⬜ `document/DocumentModule.jl`

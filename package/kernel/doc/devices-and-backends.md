@@ -405,8 +405,9 @@ combination of events — it carries no intent. Its only import is
 ## The backend layer (layer 6)
 
 Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
-`Backend` type, the backend generics, and the dependency-free `HeadlessBackend`
-that CI and documentation examples run against.
+`Backend` type and the backend generics; the concrete backends live in opt-in
+packages, and the dependency-free `HeadlessBackend` test double lives in
+`ProjecturedKernelExample` (AR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
@@ -414,7 +415,6 @@ The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
 BackendInterface.jl (BackendModule)         — Backend abstract + batch generics
 BackendDefaults.jl  (BackendModule)         — the fallback behaviours the contract supplies itself
-HeadlessBackend.jl  (HeadlessBackendModule) — dependency-free in-memory backend + scripted event source
 ```
 
 ### BackendModule
@@ -445,32 +445,21 @@ such fallback: an unimplemented `measure_text` or `write_image` must raise a
 No document is imported here. The batch I/O generics are duck-typed on the
 `document` argument, so the layer stays document-free.
 
-### HeadlessBackendModule
+### The HeadlessBackend test double
 
-A dependency-free in-memory backend with a scripted event source:
-
-- `HeadlessBackend()` records every `write_to_devices` call into `rendered`
-  (log for later assertion) and pops events from a scripted queue on every
-  `read_from_devices` call.
-- `HeadlessBackend()` is constructed directly — kernel editor tests use the
-  dependency-free backend without pulling in any concrete backend package.
-- `push_event!(backend, event)` enqueues an event for the next
-  `read_from_devices` call.
-- `measure_text` returns a fixed `(8 * length, 16)` metric — sufficient for
-  layout tests that only care about relative sizes.
-
-The backend is deliberately **document-agnostic** — it uses only the
-abstract `Document` type (opaque payload) and the device I/O generics; no
-concrete document is imported. That is the pressure that keeps the backend
-layer clean.
+The dependency-free in-memory `HeadlessBackend` — which logs every
+`write_to_devices` document into `rendered` and pops scripted events on each
+`read_from_devices` (`push_event!` enqueues them; `measure_text` returns a fixed
+`(8 * length, 16)`) — is a **test double** for the `Backend` seam. By
+AR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
+no double is reachable from a production build; the kernel editor tests import it
+from there to drive the loop without any real backend.
 
 ### Downward edges
 
-- `..DeviceModule: Device, read_from_devices, write_to_devices` (only
-  HeadlessBackend needs this; the abstract generics don't).
-
-That is the whole import surface. No document, reference, operation,
-projection, agent, or editor.
+`BackendModule` declares bodiless generics and imports nothing — the backend
+layer has no downward edges. No document, reference, operation, projection,
+agent, or editor.
 
 ## Gesture bindings: a separate, higher layer
 

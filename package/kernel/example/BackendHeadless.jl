@@ -1,32 +1,9 @@
-"""
-    HeadlessBackendModule
-
-A dependency-free in-memory backend and scripted event source that the
-kernel editor loop can drive without any real device.
-
-Purpose:
-- CI: the editor loop tests do not need SDL to be installed.
-- Documentation examples: a self-contained "load and step the editor once"
-  snippet.
-- Regression fixtures for the layer-6 seams: `initialize_backend!`,
-  `quit_backend!`, `measure_text`, `read_from_devices`,
-  `write_to_devices`.
-
-`HeadlessBackend` records every rendered document (via `write_to_devices`) into
-a `rendered` vector so tests can assert on the write. `push_event!` pushes a
-new event onto its scripted event queue; `read_from_devices` pops the next
-event or returns `nothing` when the queue drains.
-
-This backend is deliberately document-agnostic — it uses only the abstract
-`Document` type (opaque payload) and the device I/O generics, no concrete
-document is imported. That is the seam pressure that keeps the backend layer
-document-free.
-"""
-module HeadlessBackendModule
-
-using ..BackendModule
-
-export HeadlessBackend, rendered_output, push_event!
+# Fragment of `ProjecturedKernelExample` — the in-memory `HeadlessBackend`: a
+# dependency-free `BackendModule.Backend` that logs rendered documents and sources
+# scripted events. A test double for the backend seam; it lives in the example
+# package (never in `main`) so no double reaches a production build. Useful for
+# offline development, the editor-loop tests (no SDL needed), and the
+# "load and step the editor once" documentation snippet.
 
 """
     HeadlessBackend()
@@ -70,5 +47,3 @@ rendered_output(b::HeadlessBackend) = b.rendered
 Enqueue an event so the next `read_from_devices(b, …)` returns it.
 """
 push_event!(b::HeadlessBackend, event) = (push!(b.events, event); nothing)
-
-end # module
