@@ -440,7 +440,7 @@ slice→slice edges stay acyclic.
 | Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
-| IO Maps | `IoMap.jl` + per-projection | ✅ |
+| IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 8) | ✅ |
 | Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |

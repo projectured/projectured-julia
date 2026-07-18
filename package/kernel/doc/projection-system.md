@@ -80,7 +80,7 @@ School A — a worked before/after example of this contract.
 ### `print_document` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
-`IoMap` (subtype of `IoMap`, see [api/IoMapApi.jl](../../../package/kernel/main/projection/IoMapApi.jl))
+`IoMap` (subtype of `IoMap`, see [iomap/IoMapInterface.jl](../../../package/kernel/main/iomap/IoMapInterface.jl))
 that records the input, the output, and any extra data the reader needs to
 invert the transformation.
 

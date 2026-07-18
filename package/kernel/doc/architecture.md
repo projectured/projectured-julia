@@ -72,7 +72,7 @@ the shape is more interesting than "N depends on N−1":
 `document/DocumentInterface.jl` (the `Document` supertype), `reference/ReferenceInterface.jl` (the
 `ReferenceStep` / `Reference` types and the step seam), `selection/SelectionInterface.jl`,
 `operation/Interface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
-`IoMapApi.jl`, and the projection layer's `ProjectionApi.jl`. These hold abstract types plus open
+`IoMapInterface.jl`, and the projection layer's `ProjectionApi.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
@@ -117,7 +117,7 @@ such seam: they construct by naming the type directly (`SdlBackend()`) or via
 `default_backend`'s reflection. An interface is its functions,
 not just its type, so interface
 files are expected to grow accessor/behaviour operations (e.g. the
-`get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapApiModule`).
+`get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapModule`).
 
 ## Load order and the include-order guard
 
@@ -159,7 +159,8 @@ Each layer lives in its own folder under [main/](../main/):
 | `selection/` | the selection primitives — `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!` |
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
-| `projection/` | the projection interface and infrastructure only — ProjectionApi, IoMapApi, Intent, IoMap, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
+| `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`) and the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`) |
+| `projection/` | the projection interface and infrastructure only — ProjectionApi, Intent, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |

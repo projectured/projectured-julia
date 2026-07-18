@@ -5,7 +5,7 @@ boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
 [document/DocumentMacro.jl](../../../package/kernel/main/document/DocumentMacro.jl),
 [projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl), and
-[projection/IoMap.jl](../../../package/kernel/main/projection/IoMap.jl) respectively.
+[iomap/IoMapDefaults.jl](../../../package/kernel/main/iomap/IoMapDefaults.jl) respectively.
 
 All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
