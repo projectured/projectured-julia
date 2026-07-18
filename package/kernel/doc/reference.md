@@ -27,7 +27,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        Reference abstract types, the Reference
         │                        union, and the open generics higher packages
         │                        add methods to (get_reference_step_kind, evaluate_reference_step, and
-        │                        the dsl_* DSL seams)
+        │                        the reference-step DSL seams)
         ├─ ReferenceStep.jl    — the kernel step types (RangeReferenceStep,
         │                        FieldReferenceStep, TypeReferenceStep) and the Position
         │                        a cursor evaluates to, each packaged with its

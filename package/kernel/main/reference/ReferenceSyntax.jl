@@ -14,7 +14,7 @@
 # lowerer rejects the nodes it cannot use, with a message naming the DSL. This keeps the
 # grammar one thing rather than two nearly-identical things that drift.
 #
-# The step vocabulary this produces lives in `ReferenceStep.jl`; the `dsl_*` seams the
+# The step vocabulary this produces lives in `ReferenceStep.jl`; the reference-step seams the
 # extension steps dispatch through are declared in `ReferenceInterface.jl`.
 
 # ── The shared step AST ───────────────────────────────────────────────────
