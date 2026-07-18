@@ -1,39 +1,28 @@
 """
     OperationModule
 
-**Changing documents**. Operations are the reified
-edits the reader side of the projection pipeline produces and
-`evaluate_operation` applies. This module holds the abstract `Operation`
-supertype and the `evaluate_operation` / `invalidate_projection!` generics
-(from `Interface.jl`), the built-in concrete operations and their
-`evaluate_operation` methods (the selection-changing ones —
-`ReplaceSelectionOperation`, `SelectNextInsertionOperation` — drive the
-selection primitives in the layer below), the `splice_*` text-edit helpers, and
-the two open seams the container projections and higher documents extend:
+**Changing documents**. An `Operation` is a reified edit — produced by a reader
+and applied by `evaluate_operation`. This module holds the abstract `Operation`
+supertype, the `evaluate_operation` / `invalidate_projection!` generics, the
+built-in cross-domain operations and their `evaluate_operation` methods, the
+`splice_*` text-edit helpers, and two open seams higher layers extend:
+`child_reference_steps` (per-container-document child traversal) and
+`reroot_operation` (per-path-bearing-operation reference rerooting). The
+selection-changing operations drive the selection primitives in the layer below,
+which is why the module sits above references and the selection contract.
 
-- `child_reference_steps(node)` (in `Operations.jl`): the open
-  traversal seam driving `SelectNextInsertionOperation`'s pre-order
-  document walk. The default enumerates `fieldnames` as `FieldReferenceStep`
-  steps; base's `Collection.jl` adds the `CellVector` method that yields
-  `RangeReferenceStep(i-1, i)` per element. A new container document adds a
-  method.
+The module lives in three fragments that share this namespace:
 
-- `reroot_operation(op, steps)` (in `Rerooting.jl`): the open
-  reroot generic every path-bearing operation must add a method for.
-  Base methods here for `Nothing`, catch-all,
-  `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation`, and
-  `CompoundOperation`; `document/Primitive.jl` adds
-  `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation` (they
-  leave with Primitive for base).
+- [`Interface.jl`](Interface.jl) — the contract: the `Operation` supertype and
+  the `evaluate_operation` / `invalidate_projection!` generics.
+- [`Operations.jl`](Operations.jl) — the concrete operations, the `splice_*`
+  text-edit helpers, and the `child_reference_steps` traversal seam.
+- [`Rerooting.jl`](Rerooting.jl) — the `reroot_operation` seam and
+  `reroot_reference`.
 
-This module aggregates three fragments — the interface (`Interface.jl`),
-the concrete operations and traversal (`Operations.jl`), and the reroot
-seam (`Rerooting.jl`) — since they are only ever imported together. The
-three files remain as fragments sharing this namespace.
-
-`evaluate_operation` is duck-typed on `editor`: nothing in the layer
-references a concrete editor type, so it loads well before the editor loop
-and still works against any object carrying `editor.document`.
+`evaluate_operation` is duck-typed on `editor`: nothing in the layer names a
+concrete editor type, so it loads well before the editor loop and works against
+any object carrying `editor.document`.
 """
 module OperationModule
 

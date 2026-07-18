@@ -1,13 +1,7 @@
-# Fragment of `OperationModule` — the built-in operations, the selection
-# propagation (clear/set/update), the splice helpers, and the
-# `child_reference_steps` traversal seam (open generic; base's Collection.jl
-# adds the `CellVector` method, others fall through to the default
-# fieldnames-walk). The `Operation` supertype + `evaluate_operation` +
-# `invalidate_projection!` generics come from `Interface.jl`, already in scope.
-#
-# `evaluate_operation` is duck-typed on `editor`, so nothing here references
-# a concrete editor type — the fragment loads early (well before the editor
-# loop) and still works against whatever object carries `editor.document`.
+# Fragment of `OperationModule` — the built-in operations, the `splice_*` text
+# helpers, and the `child_reference_steps` traversal seam. The `Operation`
+# supertype and the `evaluate_operation` / `invalidate_projection!` generics come
+# from `Interface.jl`, already in scope.
 
 """
     DoNothingOperation()
@@ -16,8 +10,8 @@ An operation that does nothing when applied. Its purpose is to *consume* a
 gesture without effecting a change: a reader (or a per-instance gesture binding)
 returns `DoNothingOperation()` to say "this gesture is handled — stop looking",
 distinct from returning `nothing`, which means "declined, keep looking / fall
-through". The canonical way for a per-instance binding to **suppress** a default
-behavior (see `get_instance_gesture_bindings`) is to map the pattern to a `DoNothingOperation()`.
+through". The canonical way to **suppress** a default behavior is to map the
+gesture pattern to a `DoNothingOperation()`.
 """
 struct DoNothingOperation <: Operation end
 
@@ -31,15 +25,12 @@ function evaluate_operation(editor, op::Nothing) end
 # "not an operation" simply means "nothing to apply".
 function evaluate_operation(editor, op) end
 
-# Catch-all: an object that caches no projection has nothing to drop. The one that
-# does (the editor loop) adds the method that actually clears its cache, so an
-# operation can ask without naming a concrete editor type.
+# Catch-all: an object that caches no projection has nothing to drop; one that
+# does overrides this to clear its cache. Lets an operation ask without naming a
+# concrete editor type.
 invalidate_projection!(editor) = nothing
 
 # ── Text-splice helpers ─────────────────────────────────────────────────────
-# The canonical text-replace primitives every domain routes through. They are
-# implementations (a single algorithm / a small representation-dispatched method
-# set), so they live here rather than in the `Interface.jl` contract.
 
 """
     splice_string(old, s, e, replacement) -> String
@@ -86,11 +77,8 @@ covers every domain:
 - `Number`         — splice the textual form and reparse (editing a number's text
                      means "reparse it"; see [`splice_number`](@ref)).
 
-A domain whose field holds a richer text representation (a styled span, or a
-sequence of spans) adds its own method here; those methods live in the module
-that owns those types. A later unification of all replace-part operations around
-a reference will add a sequence/`CellVector` method here for structural element
-edits.
+A domain whose field holds a richer text representation (a styled span, a
+sequence of spans) adds its own method for it.
 """
 function splice_value! end
 
@@ -108,11 +96,11 @@ struct QuitEditorException <: Exception end
 """
     CompoundOperation(operations)
 
-Apply a sequence of operations in order, as a single editor step. The Julia
-counterpart of Lisp's `make-operation/compound`: a reader returns one
-`CompoundOperation` and `evaluate_operation` runs each member operation against
-the same editor in turn — for an intent that is naturally several writes at once
-(e.g. a cut that both saves the selected value and clears the slot it came from).
+Apply a sequence of operations in order, as a single editor step. A reader
+returns one `CompoundOperation` and `evaluate_operation` runs each member
+operation against the same editor in turn — for an intent that is naturally
+several writes at once (e.g. a cut that both saves the selected value and clears
+the slot it came from).
 """
 struct CompoundOperation <: Operation
     operations::Vector{Any}
@@ -165,14 +153,11 @@ end
 """
     ReplaceSelectionOperation(path)
 
-Operation that replaces the current selection with `path`. Produced by the reader
-side of the projection pipeline and applied by `evaluate_operation`.
+Operation that replaces the current selection with `path`.
 
-Click-versus-keyboard disambiguation does **not** ride on this operation. A
-projection that wants a glyph to behave differently on click than under keyboard
-navigation keys that off the originating gesture (`change.gesture isa MousePress`),
-which travels the reader chain in the `Intent`, rather than off a flag on this
-operation.
+Click-versus-keyboard disambiguation does **not** ride on this operation: a
+reader that wants different behaviour on click keys it off the originating
+gesture, not off a flag added here.
 """
 struct ReplaceSelectionOperation <: Operation
     path::Reference
@@ -189,11 +174,10 @@ function _split_terminal_step(path::ConcreteReference)
     (Reference(steps[1:end-1]...), steps[end])
 end
 
-# Write `value` into the slot `step` selects on `parent`. A FieldReferenceStep names a
-# `Cell`-backed field (e.g. `JsonObjectEntry.value`, or a widget's `visible`); a
-# RangeReferenceStep selects an element of a sequence container (`CellVector`) and
-# overwrites it. Shared by `ReplaceReferencedValueOperation` (single-slot writes of either a
-# document or a scalar) — terminal-kind dispatch is what unifies the two.
+# Write `value` into the slot `step` selects on `parent`: a FieldReferenceStep names
+# a `Cell`-backed field; a RangeReferenceStep selects and overwrites an element of a
+# sequence container (`CellVector`). Terminal-kind dispatch is what lets
+# `ReplaceReferencedValueOperation` write either a document or a scalar through one path.
 function _write_slot!(parent, step::FieldReferenceStep, value)
     f = getfield(parent, Symbol(step.name))
     f isa AbstractCell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
@@ -207,10 +191,8 @@ end
 # A terminal `RangeReferenceStep` whose value is a *vector* of items is a SPLICE:
 # replace the half-open element range `[start, stop)` of the sequence container
 # with `items` (each wrapped in a `Cell`). Zero-width range ⇒ pure insert; empty
-# items ⇒ pure delete; both ⇒ element replacement. This is the folded form of the
-# former `CollectionInsertOperation` / `CollectionDeleteOperation` (see
-# `insert_elements` / `delete_elements`); a single (non-vector) value still hits the
-# element-overwrite method above (the `replace_document` array-element case).
+# items ⇒ pure delete; both ⇒ element replacement. A single (non-vector) value
+# instead hits the element-overwrite method above.
 function _write_slot!(parent, step::RangeReferenceStep, items::AbstractVector)
     for _ in 1:(step.stop - step.start)
         deleteat!(parent, step.start + 1)
@@ -223,25 +205,17 @@ end
 """
     ReplaceReferencedValueOperation(document, reference, value)
 
-Set the scalar `value` at `reference` (a `Reference`) resolved against a
-root selected by the `document` field:
+Set the scalar `value` at `reference` (a `Reference`) resolved against a root
+selected by the `document` field:
 
 - **`document !== nothing`** — the root is the carried object, so this works on
   objects that do not live in the document tree (a widget, or a projection's own
-  reactive parameter `Cell`s — the controls produced by `ObjectToWidget` edit
-  these). The operation is *self-contained* and bubbles up the reader chain
-  unchanged.
+  reactive parameter `Cell`s). The operation is *self-contained* and bubbles up
+  the reader chain unchanged.
 - **`document === nothing`** — the root is `editor.document` and `reference` is
   rooted there, so container/generic projections reroot the reference as the
-  operation flows up (see `reroot_operation` in the sibling `Rerooting.jl` and the default
-  `read_intent`). An empty `reference` then means a **whole-root swap** (rebind
-  `editor.document`, drop the cached iomap), mirroring `ReplaceDocumentOperation`'s
-  empty-path branch.
-
-It is `ReplaceDocumentOperation` generalised: an explicit-or-implicit root + a
-reference + a plain value, reusing the same terminal-slot-write split. (Folding
-`ReplaceDocumentOperation` and the Group 2–4 single-slot writes into this is the
-subject of `plan/done/consolidate-operations-replace.md`.)
+  operation flows up (see `reroot_operation`). An empty `reference` then means a
+  **whole-root swap**: rebind `editor.document` and drop the cached iomap.
 """
 struct ReplaceReferencedValueOperation <: Operation
     document::Any
@@ -259,9 +233,9 @@ ReplaceReferencedValueOperation(document, field::AbstractString, value) =
 
 function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
-    # `document === nothing` ⇒ the reference is rooted at `editor.document`
-    # (where the former `ReplaceDocumentOperation` rooted its path); otherwise the
-    # operation carries its own root object (a widget, a projection parameter `Cell`).
+    # `document === nothing` ⇒ the reference is rooted at `editor.document`;
+    # otherwise the operation carries its own root object (a widget, a projection
+    # parameter `Cell`).
     root = op.document === nothing ? editor.document : op.document
     if reference isa EmptyReference
         # Whole-root swap: only meaningful when the root *is* `editor.document`
@@ -288,14 +262,14 @@ end
 Replace the document at `path` (rooted at `editor.document`) with `document`, then
 move the editor selection to `path ⧺ document.selection` so the cursor lands inside
 the freshly-created value. The structural analogue of the primitive replace-range
-edits — every JSON/XML type-to-replace gesture (`[` → array, `{` → object, …) and
-the clipboard cut/paste produce one.
+edits: a type-to-replace or paste gesture that swaps a whole sub-document produces
+one.
 
-This is the folded form of the former `ReplaceDocumentOperation`: a
-`ReplaceReferencedValueOperation(nothing, path, document)` write paired with a trailing
-`ReplaceSelectionOperation`, bundled in a `CompoundOperation` so re-rooting prepends
-the same steps to both as the operation bubbles up. An empty `path` is a whole-root
-swap (the `ReplaceReferencedValueOperation` rebinds `editor.document` and drops the iomap).
+Builds a `ReplaceReferencedValueOperation(nothing, path, document)` write paired
+with a trailing `ReplaceSelectionOperation`, bundled in a `CompoundOperation` so
+re-rooting prepends the same steps to both as the operation bubbles up. An empty
+`path` is a whole-root swap (the `ReplaceReferencedValueOperation` rebinds
+`editor.document` and drops the iomap).
 """
 function replace_document(path::Reference, document)
     inner_sel = getfield(document, :selection)[]
@@ -309,9 +283,9 @@ end
 """
     insert_elements(path, index, items[, selection]; root=nothing) -> operation
 
-Insert each of `items` into the sequence container at `path` (a `CellVector` such
-as a JSON array's `.elements`), at the 0-based `index`. Expressed as a splice — a
-`ReplaceReferencedValueOperation` whose terminal step is a **zero-width** `RangeReferenceStep(index, index)`
+Insert each of `items` into the sequence container at `path` (a `CellVector`), at
+the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation`
+whose terminal step is a **zero-width** `RangeReferenceStep(index, index)`
 and whose value is the item vector. When `selection` is non-`nothing`, a trailing
 `ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop the cursor
 into the new element (re-rooting prepends the same steps to both members).
@@ -337,24 +311,16 @@ vector (replace the range with nothing). The inverse of `insert_elements`.
 delete_elements(path::Reference, index::Integer, count::Integer=1; root=nothing) =
     ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
 
-# ─────────────────────────────────────────────────────────────────────────
-# SelectNextInsertionOperation — move the cursor to the next "hole"
-#
-# An editor-global navigation step: walk `editor.document` in pre-order and move
-# the selection to the first Document satisfying `predicate` (a "hole", e.g. an
-# insertion placeholder) that comes *after* the currently-selected node, placing
-# the cursor at `<hole> ⧺ cursor` (the hole's own char cursor, e.g. `value{0}`).
-# It carries no reference of its own, so it bubbles up the reader chain unchanged
-# (the pass-through arms in the default `read_intent` and the else-branch of
-# `reroot_operation`). A domain gesture supplies the predicate/cursor, so the
-# kernel stays domain-agnostic — e.g. a "jump to next hole" key builds
-# `SelectNextInsertionOperation(d -> d isa SomeInsertion, @reference value{0})`.
 """
     SelectNextInsertionOperation(predicate[, cursor])
 
 Move the selection to the next hole (a Document for which `predicate` holds) after
 the currently-selected node, in document pre-order, and place the cursor at that
-hole's `cursor` suffix (default whole-element). Clamps at the last hole.
+hole's `cursor` suffix (default whole-element). Clamps at the last hole. A domain
+gesture supplies `predicate` and `cursor`, keeping the operation domain-agnostic.
+
+Carries no reference of its own, so it bubbles up the reader chain unchanged and
+needs no `reroot_operation` method.
 """
 struct SelectNextInsertionOperation <: Operation
     predicate::Any        # (node::Document) -> Bool ; true marks a hole to land on
@@ -385,12 +351,6 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     return
 end
 
-# `child_reference_steps(node)` — open traversal seam. Returns an
-# iterable of `(step, child)` pairs naming each direct child of `node`
-# reachable by a single reference step. The default walks `fieldnames`
-# (FieldReferenceStep per field, skipping `selection`); base's Collection.jl
-# adds the `CellVector` method that yields RangeReferenceStep(i-1, i) per
-# element. New container documents override this to name their children.
 """
     child_reference_steps(node) -> iterable of (step, child) pairs
 
