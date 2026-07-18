@@ -2,8 +2,6 @@
 # that read, clear, set, and replace a document's current selection. A document
 # with unconventional selection storage overrides these; the default
 # implementations (and the private path-walking helpers) live in `Selection.jl`.
-#
-# See documentation/concepts.md for the document-editing model these are part of.
 
 """
     get_selection(document) -> reference or nothing

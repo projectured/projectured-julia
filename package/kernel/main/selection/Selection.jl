@@ -1,5 +1,5 @@
 # Fragment of `SelectionModule` — the default implementations of the selection
-# generics declared in `Interface.jl`, plus the private path-walking helpers they
+# generics declared in `SelectionInterface.jl`, plus the private path-walking helpers they
 # share (`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
 # `_mutate_terminal_step!`). All read and write the conventional
 # `document.selection` field and descend the folded reference path.
@@ -12,9 +12,7 @@ function clear_selection!(document)
     path = sel[]
     sel[] = nothing
     path isa ConcreteReference || return
-    # Descend into the child the path's head step routes to (see `_selection_child`,
-    # which returns `nothing` when the head terminates here — a leaf char cursor,
-    # a stale/cross-domain step, or a non-Document field) and clear it too.
+    # Descend into the child this step routes to and clear it too.
     child = _selection_child(document, path)
     child === nothing && return
     clear_selection!(child)
@@ -84,8 +82,7 @@ function _set_selection_walk!(document, path)
         getfield(document, :selection)[] = path
     end
     path isa ConcreteReference || return
-    # Descend into the child this step routes to and write the remaining tail there
-    # (see `_selection_child`: `nothing` means the step terminates at a leaf here).
+    # Descend into the routed child and write the remaining tail there.
     child = _selection_child(document, path)
     child === nothing && return
     _set_selection_walk!(child, path.tail)
@@ -124,12 +121,6 @@ macro with_selection(document, path...)
           end))
 end
 
-# Change `document`'s selection to `path`, replacing any previous selection.
-# `path` is canonicalized and required to match (`_matched_selection` throws
-# `SelectionMismatch` on a stale/cross-domain path, before any cell is written),
-# then written into the shared selection chain **in place** by `_sync_selection!`
-# — see the algorithm note on that helper for why this touches only the cells that
-# actually changed instead of clearing and rebuilding every selection cell.
 function replace_selection!(document, path)
     hasproperty(document, :selection) || return
     _sync_selection!(document, _matched_selection(document, path))

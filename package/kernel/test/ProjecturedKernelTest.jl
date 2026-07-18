@@ -106,7 +106,7 @@ function test_kernel_layering()
                        "event/EventInterface.jl"     => :EventModule,
                        "document/DocumentInterface.jl" => :DocumentModule,
                        "reference/ReferenceInterface.jl" => :ReferenceModule,
-                       "selection/Interface.jl"      => :SelectionModule,
+                       "selection/SelectionInterface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,
                        "backend/BackendInterface.jl" => :BackendModule,
                        "device/Device.jl"            => :DeviceModule,
