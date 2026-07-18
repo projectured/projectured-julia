@@ -221,6 +221,8 @@ All five rename phases landed as five commits; verified with **zero regressions*
    `ConcreteReferencePath`→`ConcreteReference`.
 4. Un-export `when`/`prefix`, delete their dead error-stubs.
 5. Doc-polish (stale `dsl_*` prose) + this plan.
+6. Eponymous step modules/files → `…ReferenceStep{Module,ApiModule,.jl}` (follow-up,
+   commit `a1666532`).
 
 ### Facts discovered during implementation
 - **Union footprint was larger than the plan implied:** `Reference` (union) was
@@ -228,12 +230,15 @@ All five rename phases landed as five commits; verified with **zero regressions*
   Files importing only the union keep `Reference` (it now binds the *path*); the 9
   importing both had the union token dropped. Use-sites (`::Reference`, `K{Reference}`,
   the macro's `:Reference` symbol) became explicit `Union{Nothing, Reference}`.
-- **File/module renames deferred (cosmetic follow-up):** the eponymous step modules
-  (`ProjectionReferenceModule`, `PointReference.jl`, …) and the `ReferencePath.jl`
-  fragment keep their filenames; the `…Reference.jl` `include()` / `qualified_files` /
-  doc-link *strings* that the type-rename corrupted were reverted. `ReferencePath.jl`
-  keeps its name deliberately — it names the fragment's *role* (the path structure) and
-  matches its sibling `Reference<Suffix>.jl` fragments.
+- **Eponymous step modules/files renamed (follow-up commit `a1666532`):** each
+  standalone step type's module + file was named after the old type
+  (`PointReferenceModule` + `graphics/PointReference.jl`, …); renamed to match
+  (`…ReferenceStep{Module,ApiModule,.jl}` for Projection / Point / TextSpan / TextRange /
+  TextColumn) across every using/import site, the package-level const aliases, the
+  `include()` paths, the layering guard's `qualified_files` map, and the CLAUDE.md
+  kernel inventory. The `ReferencePath.jl` fragment KEEPS its name — it names the
+  fragment's *role* (the reference-path structure/algebra) and matches its sibling
+  `Reference<Suffix>.jl` fragments; `Reference.jl` would collide with `ReferenceModule.jl`.
 - **Exclusions held:** `SqlColumnReference` / `FormulaReference` (documents, not steps)
   untouched; `child_reference_steps` (a distinct function) untouched.
 
@@ -248,6 +253,8 @@ All five rename phases landed as five commits; verified with **zero regressions*
 - JSON printer 3516/3516 (= pre-rename baseline), reader 225/225; base suite 97/97.
 - Reference-DSL testsets all green (ReferenceBuilder 30/30, ReferenceEval 7/7,
   Rerooting 10/10, EventCase 26/26, GestureBinding 46/46).
+- Re-verified after the module rename (commit `a1666532`): base 7/7, visual 7/7,
+  domain 6/6, json printer 3516/3516, reader 225/225 — all green.
 - Kernel suite: 455 pass, 3 fail / 2 error — **all 5 pre-existing**, the `DocumentMacro`
   "Rule C" testset: the CellVector collection-sugar trait lives in `base`, which the
   kernel-only test env doesn't load (commit `2e015ea5`, already on `main`). Confirmed by
