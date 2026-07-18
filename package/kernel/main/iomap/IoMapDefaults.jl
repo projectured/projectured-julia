@@ -31,11 +31,11 @@ end
 
 IoMap for projections whose output has recursively projected children;
 `child_iomaps` is a `Cell` holding a vector of child IoMaps. Storing them lets
-`map_reference_forward` / `map_reference_backward` and `read_intent` recurse in
-lockstep with the printer: peel the one step the projection owns, look the child
-up here, and delegate the tail to that child's own mapper — which keeps the
-projection independent of the domains its children belong to. A projection with a
-strict positional contract and no recursion uses `SimpleIoMap`.
+the reference mappers and the reader recurse in lockstep with the printer: peel
+the one step the projection owns, look the child up here, and delegate the tail
+to that child's own mapper — which keeps the projection independent of the
+domains its children belong to. A projection with a strict positional contract
+and no recursion uses `SimpleIoMap`.
 """
 struct ChildrenIoMap <: IoMap
     projection::Any
