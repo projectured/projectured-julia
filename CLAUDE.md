@@ -72,7 +72,7 @@ include order — the source files state their dependencies, never their index.
 - **Layer 8 — reference** (`reference/`)
   - 🔒 `reference/ReferenceLayer.jl`
   - 🔒 `reference/ReferenceModule.jl`
-  - ⬜ `reference/ReferenceInterface.jl`
+  - 🔒 `reference/ReferenceInterface.jl`
   - ⬜ `reference/ReferenceStep.jl`
   - ⬜ `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`

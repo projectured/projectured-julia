@@ -1,14 +1,10 @@
-# Fragment of `ReferenceModule` — the reference **contract**: the two abstract
-# types every reference value is built from (`ReferenceStep` and `Reference`, the
-# path a document's selection field points to — or `nothing`), and the open generics
-# that higher packages add methods to. The concrete kernel step types live in
-# `ReferenceStep.jl`, the path structure in `ReferencePath.jl`, and the DSLs that
-# consume the reference-step seams in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
-#
-# A step type defined in a higher package (`PointReferenceStep`, `ProjectionReferenceStep`,
-# `TextSpanReferenceStep`) subtypes `ReferenceStep` and registers itself by
-# adding methods to the generics declared here — at its own definition site, with
-# no edit to this layer.
+# Fragment of `ReferenceModule` — the reference **contract**: the `ReferenceStep`
+# and `Reference` abstract types every reference value is built from (a `Reference`
+# is what a document's `selection` field points to, or `nothing`), and the open
+# generics higher packages add methods to. Nothing here carries a body — the kernel
+# step types and their seam defaults live in `ReferenceStep.jl`, the path structure
+# and algebra in `ReferencePath.jl`, path evaluation in `ReferenceEvaluation.jl`, and
+# the two DSLs in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
 
 """
     ReferenceStep
@@ -26,18 +22,6 @@ immutable linked list so that extending a path (going deeper) reuses
 the existing tail — no copying required.
 """
 abstract type Reference end
-
-# A document's `selection` field holds `Union{Nothing, Reference}` — a
-# `Reference` (what is selected inside the node) or `nothing` (no selection).
-# There is no alias for that union; each `selection` field spells it out.
-
-# ── Step navigation seam ──────────────────────────────────────────────────
-# Each step type registers its own behaviour by adding methods on
-# `get_reference_step_kind` (classification) and `evaluate_reference_step` (one-level navigation).
-# The three path walkers (`evaluate_reference`,
-# `get_valid_reference_prefix`, `annotate_reference_types`) all dispatch
-# through this seam — a new step type living in a higher package registers
-# its methods at its own definition site and needs no edits here.
 
 """
     get_reference_step_kind(step) -> Symbol
@@ -58,23 +42,11 @@ function get_reference_step_kind end
 Navigate through `step`. For a `:structural` step, return the descended
 value (throws on descent failure). Some step types descend to a document
 child (`FieldReferenceStep`, `RangeReferenceStep`); others descend to a synthetic
-value that stands in for the reference target (`PointReferenceStep` returns a
-coordinate pair, `ProjectionReferenceStep` returns the projection's output
-path, `TextSpanReferenceStep` returns the character range). For a
-`:checkpoint` step, return `document` unchanged after asserting the
-invariant (throws on mismatch).
+value that stands in for the reference target — a coordinate pair, a projection's
+output path, a character range. For a `:checkpoint` step, return `document`
+unchanged after asserting the invariant (throws on mismatch).
 """
 function evaluate_reference_step end
-
-# ── DSL seams ─────────────────────────────────────────────────────────────
-# The `@reference` / `@reference_step` construction DSL and the `@reference_case`
-# pattern-matching DSL both reach a step type through these generics, so
-# neither parser names a step type it does not own. A step type registers a
-# `::Val{:name}` method for its `.name(args...)` surface syntax in the package
-# that defines it; the kernel registers none — its own steps (`.field`, `[i]`,
-# `{k}`, `::T`) are built-in grammar, not seam entries. Each seam's fallback for
-# an unregistered name lives with the DSL that reaches it (`ReferenceSyntax.jl`,
-# `ReferenceBuilder.jl`, `ReferenceCase.jl`).
 
 """
     build_reference_step(::Val{name}, escaped_args...) -> Expr
