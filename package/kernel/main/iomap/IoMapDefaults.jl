@@ -4,13 +4,14 @@
 
 # The field convention every IoMap keeps unless it says otherwise: it stores the
 # `projection` that produced it and the `input`/`output` it maps between under
-# those names. Read with `getfield`, not property access, so the accessor yields
-# the stored slot for a plain struct (`SimpleIoMap`) and an `@iomap` cell-struct
-# alike — property access on the latter would unwrap the Cell. An IoMap that
-# stores a correspondence differently overrides the accessor it changes.
-get_iomap_projection(iomap::IoMap) = getfield(iomap, :projection)
-get_iomap_input(iomap::IoMap) = getfield(iomap, :input)
-get_iomap_output(iomap::IoMap) = getfield(iomap, :output)
+# those names. Read through property access so the accessor yields the *value* for
+# a plain struct (`SimpleIoMap`) and an `@iomap` cell-struct alike — an `@iomap`
+# field unwraps its `Cell`, and a synthesized `.output` (a derived-output IoMap)
+# resolves through its own `getproperty`. An IoMap that stores a correspondence
+# differently overrides the accessor it changes.
+get_iomap_projection(iomap::IoMap) = iomap.projection
+get_iomap_input(iomap::IoMap) = iomap.input
+get_iomap_output(iomap::IoMap) = iomap.output
 
 """
     SimpleIoMap(projection, input, output)
