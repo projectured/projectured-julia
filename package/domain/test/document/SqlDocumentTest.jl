@@ -8,7 +8,7 @@ function _sql_text(doc)
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString()))
-    print_document(pipe, doc).output[]
+    print_document(pipe, doc).output
 end
 
 function test_sql_document_nested_select(; show_detail=false)

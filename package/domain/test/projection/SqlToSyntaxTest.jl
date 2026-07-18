@@ -11,7 +11,7 @@ function test_sql_to_syntax()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        @test print_document(pipe, stmt).output[] == "SELECT \n  *\nFROM \n  persons\n"
+        @test print_document(pipe, stmt).output == "SELECT \n  *\nFROM \n  persons\n"
 
         # Top-level dispatch produces a SyntaxNode
         node = print_document(RecursiveProjection(SqlToSyntax()), stmt).output
@@ -27,7 +27,7 @@ function test_sql_to_syntax()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql_text(doc) = print_document(sql_pipe, doc).output[]
+        sql_text(doc) = print_document(sql_pipe, doc).output
 
         @test sql_text(SqlAllColumns()) == "*"
         @test sql_text(SqlAllColumns(SqlTableAlias("t"))) == "t.*"
@@ -157,7 +157,7 @@ function test_sql_ddl()
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql_text(doc) = print_document(sql_pipe, doc).output[]
+        sql_text(doc) = print_document(sql_pipe, doc).output
 
         # CREATE TABLE: multi-line, schema-qualified, indented column list.
         create_table = SqlCreateTableStatement(

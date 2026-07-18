@@ -13,7 +13,7 @@ _ddl_pipe() = ChainingProjection(
     RecursiveProjection(SqlToSyntax()),
     RecursiveProjection(SyntaxToText()),
     RecursiveProjection(TextToString()))
-_catalog_ddl(node) = print_document(_ddl_pipe(), node).output[]
+_catalog_ddl(node) = print_document(_ddl_pipe(), node).output
 
 # ── Per-type construction ─────────────────────────────────────────────────────
 

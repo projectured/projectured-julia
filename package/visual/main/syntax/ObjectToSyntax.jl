@@ -315,7 +315,7 @@ function print_object(obj; include_selection=false, open_delimiter="{", close_de
         RecursiveProjection(TextToString())
     )
     iomap = print_document(seq, seq, obj, PrinterContext())
-    out = iomap.output[]
+    out = iomap.output
     # The sibling separator (" ") leaves a trailing space before each newline;
     # strip per-line trailing whitespace so the rendering is clean.
     newlines ? join((rstrip(l) for l in split(out, '\n')), '\n') : out

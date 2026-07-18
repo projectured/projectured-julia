@@ -82,7 +82,7 @@ function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
         buf = IOBuffer()
         print(buf, ' '^line.indentation)
         for iomap in child_iomaps[]
-            s = iomap.output[]
+            s = iomap.output
             s isa AbstractString && print(buf, s)
         end
         String(take!(buf))
@@ -118,7 +118,7 @@ function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx
         for (i, iomap) in enumerate(child_iomaps[])
             # The break a TextLine implies, emitted between elements.
             (i > 1 && elements[i] isa TextLine) && print(buf, '\n')
-            s = iomap.output[]
+            s = iomap.output
             s isa AbstractString && print(buf, s)
         end
         String(take!(buf))

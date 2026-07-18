@@ -80,7 +80,7 @@ function document_to_text(document::Document)
         RecursiveProjection(SyntaxToText()),
         RecursiveProjection(TextToString()),
     )
-    String(print_document(pipeline, document).output[])
+    String(print_document(pipeline, document).output)
 end
 
 # ── Import / export ─────────────────────────────────────────────────────────

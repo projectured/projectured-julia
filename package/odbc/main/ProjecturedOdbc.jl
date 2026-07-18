@@ -405,7 +405,7 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
             RecursiveProjection(TextToString()))
-        sql = print_document(pipe, stmt).output[]
+        sql = print_document(pipe, stmt).output
         with_connection(p.pool, p.instance) do adapter
             db_execute_raw(adapter, sql, RawDatabaseResult)
         end
