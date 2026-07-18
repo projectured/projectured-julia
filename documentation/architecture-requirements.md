@@ -482,8 +482,8 @@ mis-mapped cursor with **no error** at all. Correspondingly, an
 `evaluate_operation` that changes what a projection shows writes the cell the
 projection derived from (AR-MUTATE-OR-NULL-IOMAP), reserving
 `invalidate_projection!` for genuine whole-root rebinds. The template engine
-(`ProjectionTemplate`) is the reference implementation; its `_reconciling_child_iomaps`
-is the shared reconciler every projection uses.
+(`ProjectionTemplate`) is the reference implementation; the shared reconciler it
+and every projection use is `reconcile_child_iomaps` (in the iomap layer).
 
 ### AR-CROSS-DOMAIN-LATE
 

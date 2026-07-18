@@ -13,9 +13,11 @@ projection with a strict positional contract returns a `SimpleIoMap`; one that
 needs richer data (child IoMaps, coordinate tables) defines its own `IoMap`
 subtype alongside its projection type.
 
-The module lives in two fragments that share this namespace:
-[`IoMapInterface.jl`](IoMapInterface.jl) declares the contract, and
-[`IoMapDefaults.jl`](IoMapDefaults.jl) provides the implementations.
+The module lives in three fragments that share this namespace:
+[`IoMapInterface.jl`](IoMapInterface.jl) declares the contract,
+[`IoMapDefaults.jl`](IoMapDefaults.jl) provides the implementations, and
+[`IoMapReconcile.jl`](IoMapReconcile.jl) the reactive child-IoMap reconcilers
+(`reconcile_child_iomaps` / `reconcile_child_iomap`).
 """
 module IoMapModule
 
@@ -23,9 +25,11 @@ using ..CellModule
 using ..CellStructModule
 
 export IoMap, get_iomap_projection, get_iomap_input, get_iomap_output,
-       SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap
+       SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap,
+       reconcile_child_iomaps, reconcile_child_iomap
 
 include("IoMapInterface.jl")
 include("IoMapDefaults.jl")
+include("IoMapReconcile.jl")
 
 end # module

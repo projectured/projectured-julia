@@ -85,9 +85,12 @@ load-bearing work, done per projection.
       `.field[]` → `.field` / `getfield` access audit) on `SimpleIoMap` /
       `ChildrenIoMap` / `ContentIoMap` first, as the reference for the sweep. Hold
       the iomap-layer seal.
-- [ ] Promote the reconciliation helpers to a shared, exported projection-layer
-      support module (they call `print_child`/`make_child_context`, so they live
-      in the projection layer). Keep ProjectionTemplate using them.
+- [ ] Promote the reconciliation helpers to the **iomap layer** (correction: they
+      do *not* call `print_child` — the caller's closure does; they need only
+      `Cell` + `objectid`, so the iomap layer is their lowest home and reaches every
+      projection consumer). New fragment `IoMapReconcile.jl` exporting public
+      `reconcile_child_iomaps` / `reconcile_child_iomap`; `ProjectionTemplate` and the
+      hand-written projections call them.
 - [ ] **Build the reactive test harness** — the critical enabler. Given a
       pipeline: print it, capture output + IoMap `objectid`, drive a *structural*
       change (focus swap / type-to-replace / element splice), re-pull, and assert
@@ -169,6 +172,9 @@ Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
    `getfield(iomap, :field)` (raw cell, where a consumer genuinely shares/subscribes).
    Done per-IoMap alongside its projection's conversion — never a blanket sweep that
    breaks access sites en masse.
+   **Confirmed after impl found the cost:** `ChildrenIoMap` alone is ~150
+   `.child_iomaps[]` sites across every package, entangled with `RuleIoMap`; the
+   full sweep is still chosen, sequenced *after* the reactive harness exists.
 2. **Accessors return the value, uniformly.** `get_iomap_output` / `_input` /
    `_projection` change off raw `getfield` so a consumer never sees a bare `Cell`;
    the deliberately-Cell-valued outputs (Chaining) are handled explicitly.

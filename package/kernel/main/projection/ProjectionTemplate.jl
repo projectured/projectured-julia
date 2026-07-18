@@ -88,7 +88,7 @@ _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 # Build the (reconciling) child iomap for a `project(:f)` slot, honouring an `as=`
 # override. Shared by `_fixed_print`/`_mixed_print`.
 _project_child_cell(recursion, doc, ctx, prj::Project) =
-    _reconciling_child_iomap(() -> getproperty(doc, prj.input),
+    reconcile_child_iomap(() -> getproperty(doc, prj.input),
         v -> begin
             cctx = make_child_context(ctx, FieldReferenceStep(String(prj.input)))
             ov = _override(prj.override, v)
@@ -428,68 +428,6 @@ function _atomic_print(p, doc, out)
     iomap
 end
 
-# Reconcile the child-iomap list across recomputes so a structural edit rebuilds
-# only the changed slots, not every sibling (printer locality — dimension C). The
-# children-iomap cell recomputes whenever the input collection's structure changes
-# (an element added / removed / replaced); a from-scratch thunk then re-projects
-# EVERY element, orphaning every sibling's output object (the eager engine has no
-# value short-circuit). This cache reuses the prior child iomap for any element
-# that is the SAME object at the SAME index — so the absolute context that some
-# child projections bake into their iomap (`ctx.reference`, available size) is
-# provably unchanged — and projects only new or moved elements.
-#
-# Keyed by `(objectid(element), index)`: an append keeps every surviving element's
-# index, so all are reused and only the new slot is built; a delete / front-insert
-# that shifts indices re-projects the shifted tail, whose absolute reference
-# genuinely moved (so reuse there would be *wrong*, not merely unminimal). The
-# `enumerate` over the live collection still runs every recompute, so the cell's
-# reactive dependency on the collection's structure and slot cells is unchanged.
-function _reconciling_child_iomaps(elements_fn, make_iomap)
-    cache = Dict{Tuple{UInt64,Int},Any}()
-    Cell(() -> begin
-        elems = elements_fn()
-        result = Vector{Any}(undef, length(elems))
-        live = Set{Tuple{UInt64,Int}}()
-        for (i, x) in enumerate(elems)
-            key = (objectid(x), i)
-            push!(live, key)
-            im = get(cache, key, nothing)
-            if im === nothing
-                im = make_iomap(i, x)
-                cache[key] = im
-            end
-            result[i] = im
-        end
-        for k in collect(keys(cache))
-            k in live || delete!(cache, k)
-        end
-        result
-    end)
-end
-
-# Reconcile a *single* delegated child (a `project(:field)`) by the value's
-# identity. Reading `value_fn()` (a field cell) makes the returned cell react to
-# the field changing; while the value object stays the same (e.g. char-editing a
-# string in place) the built child iomap is reused, but when the field is *swapped*
-# for a new object — crucially a different *type*, as JSON type-to-replace does
-# (`JsonInsertion` → `JsonString`) — `objectid` changes and the child iomap is
-# rebuilt against the new value. The fixed-node analogue of `_reconciling_child_iomaps`;
-# without it a fixed node's `project(:field)` child froze at its first projection and
-# a later type-swap left a stale (and mis-routing) child iomap.
-function _reconciling_child_iomap(value_fn, make_iomap)
-    cached_id = Ref{UInt64}(0)
-    cached_im = Ref{Any}(nothing)
-    Cell(() -> begin
-        v = value_fn()
-        id = objectid(v)
-        if cached_im[] === nothing || cached_id[] != id
-            cached_im[] = make_iomap(v)
-            cached_id[] = id
-        end
-        cached_im[]
-    end)
-end
-
 # Reactive output of a reconciling delegated child: tracks the (possibly rebuilt)
 # child iomap's `output`. A free function so the closure captures *this* cell, not
 # a loop variable reassigned on the next iteration.
@@ -503,12 +441,12 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
     elements_fn = () -> getproperty(doc, input_field)
     child_iomaps = if coll.element === nothing
         # homogeneous: each element projected by its own projection
-        _reconciling_child_iomaps(elements_fn, (i, x) ->
+        reconcile_child_iomaps(elements_fn, (i, x) ->
             print_child(recursion, x,
                 make_child_context(ctx, FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))
     else
         # templated: build a fixed-children node per element via the element builder
-        _reconciling_child_iomaps(elements_fn, (i, x) ->
+        reconcile_child_iomaps(elements_fn, (i, x) ->
             _fixed_print(p, recursion, x,
                 make_child_context(ctx, FieldReferenceStep(String(input_field)), ElementReferenceStep(i)),
                 coll.element(x)))
