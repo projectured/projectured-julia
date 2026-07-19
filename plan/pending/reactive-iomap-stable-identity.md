@@ -156,10 +156,28 @@ Not-yet-reactive base generics remaining after 2b: none in the generic tier. The
 `Recursive` projection and the compound helpers (`GenericCompound`/`HigherOrderCompound`)
 are thin wrappers; audit them when convenient.
 
-**Phase 3 — base higher-order** (Switching, Nesting, ReferenceDispatching,
-WindowInputUnwrapping; NOT Chaining yet): the object-swapping dispatchers — the
-ones that replace output identity today. Make each expose a *stable* output whose
-child updates through a reconciling cell. Reactive tests drive the dispatch key.
+**Phase 3 — base higher-order. Done `4b2562da`.** The base higher-order tier is
+complete (all but Chaining, which is Phase 6). Two kinds turned up:
+
+- **Own wrapper IoMap → converted** (Switching, Nesting, ReferenceDispatching,
+  WindowInputUnwrapping): each built its own IoMap with an eager `output =
+  inner.output` snapshot. `@iomap` the struct + forward `output` through a cell.
+  Only **Switching** has a genuinely runtime-reactive dispatch key (`index::Cell`):
+  it reconciles the inner branch by index (`reconcile_child_iomap`) so writing the
+  index swaps the branch through the same iomap. The other three dispatch on a
+  *fixed/structural* key (nesting position, `ctx.reference`, or none), so the inner
+  is fixed per print — pure transparent-output forwarders. None needed mapper edits
+  (they already read the iomap fields as values). New `test_switching` (reactive
+  branch swap) + `test_window_input_unwrapping` (transparency); Nesting/RDP covered
+  by test_visual (CollectionToSyntax) + test_domain (RecursiveProjection).
+- **No own IoMap → already compliant, no change** (PredicateDispatching,
+  TypeDispatching, Recursive): `print_document` returns the *inner* projection's
+  IoMap **directly** (pure delegation, no wrapper struct, no snapshot, no identity
+  replacement). Compliant by construction — the invariant is about a projection's
+  *own* IoMap, and these have none.
+
+Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
+0 fail; Broken unchanged (1, 5).
 
 **Phase 4 — visual projections** (~30 IoMaps: text/, widget/, syntax/, layout/,
 screen/, …). Largest group; sub-batch by folder. Many already hold Cell fields;
