@@ -179,9 +179,44 @@ complete (all but Chaining, which is Phase 6). Two kinds turned up:
 Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
 0 fail; Broken unchanged (1, 5).
 
-**Phase 4 — visual projections** (~30 IoMaps: text/, widget/, syntax/, layout/,
-screen/, …). Largest group; sub-batch by folder. Many already hold Cell fields;
-the work is closing eager-output/identity gaps + reconciliation.
+**Phase 4 — visual projections** (31 own-IoMap structs). Surveyed and bucketed —
+**most hot paths were already reactive.** Classification:
+
+- **A — already reactive, no change (~9+2):** all of text/ (`TextToGraphics`,
+  `WordWrapping`, `TextFiltering`, `TextFirstLine`, `TextHighlighting`,
+  `SelectionInverting` — the shared `both = Cell(() -> …)` / `CellVector(() -> …)` /
+  `set_cell_function!` idiom), `SyntaxCompoundToTextIoMap` (reconciles children via an
+  IdDict identity cache — the School-A exemplar), `WidgetTable`/`WidgetTree`
+  (reactive `geometry`/`grid_iomap` cells). `ClipboardSlice`/`ClipboardCollection`
+  have reactive `output` cells driven by a `display_*::Cell` param (already wired).
+  These use explicit `::Cell` fields + `iomap.field[]`; they are compliant *without*
+  `@iomap`. **The uniformity-only `@iomap` sweep on these (decision 1) is deferred** —
+  it is pure syntactic churn (flip `iomap.field[]`→`iomap.field` at ~30 deref sites)
+  with zero behavior change; do it as a separate mechanical pass if wanted, not mixed
+  with correctness work.
+- **B — transparent forwarders (eager `child.output`). 4a DONE `fed67fc3`:**
+  `TooltipDecorator`, `HoverProbe`, `WidgetHoverTracking`, `WidgetPopupResolver` →
+  `@iomap` + `Cell(() -> child_iomap.output)`. **`WindowManaging` deferred to Phase 7**
+  (its reader imperatively `push!`/`deleteat!`s `output.windows` — a documented
+  workaround for Copying's *former* eager children; now that 2b made Copying
+  reconcile, remove the workaround holistically in editor tightening).
+- **C — eager output/children, still TODO (~14):**
+  - **4b (contained):** `GridLayoutIoMap` (the one layout still `Cell(entries)` while
+    HL/VL/Stack/Flow/Constraint siblings use reactive `ChildrenIoMap` — copy the
+    sibling pattern); `ScreenToScreenIoMap` (reactive output but Cell-comprehension
+    `window_iomaps` → reconcile); `ScreenWindowIoMap` (content in a const cell →
+    reconcile single); `ClipboardCollectionToAnyProjectionIoMap` (eager comprehension
+    `element_iomaps` → reconcile); `ObjectToWidgetIoMap` + `ProjectionConfiguring`
+    (eager output shell, reactive leaf views — lower urgency, leaves already react).
+  - **4c (the bulk):** the 10 eager `WidgetToGraphics` structs built via `_make_canvas`
+    with **snapshot extent** (`Int(w.h[])` captured) **+ eager CellVector membership**:
+    `WidgetScrollPane`/`WidgetTransformPane`/`WidgetScrollPaneToGraphicsViewport` (panes,
+    reconcile single content), `WidgetText`/`WidgetContextMenu`/`WidgetDialog`/
+    `WidgetMenuItem` (eager content + `Cell(list)` children), `WidgetSelect`/`WidgetSpinBox`/
+    `WidgetList` (leaves). **Template to copy: `WidgetTable`/`WidgetTree`** (already reactive
+    in the same file). Big, intricate (WidgetToGraphics.jl ~5k lines) — its own sub-batch.
+
+Verified after 4a: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
 **Phase 5 — domain projections** (versioning, workbench, graph, formula, …).
 Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
