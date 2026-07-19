@@ -1155,56 +1155,60 @@ end
 
 function print_document(p::StackLayoutToGraphicsCanvas,
                           recursion, doc::StackLayout, ctx)
-    n = length(doc.children)
-    if n == 0
-        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
-    end
-
     halign = getfield(doc, :horizontal_align)
     valign = getfield(doc, :vertical_align)
-
-    child_iomaps = Any[]
-    for i in 1:n
-        cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = with_available_size(cctx; width=nothing, height=nothing)
-        cim = _recurse_child(recursion, doc.children[i], cctx)
-        push!(child_iomaps, cim)
-    end
-
-    # `active` (Stage 6 page container): 0 ⇒ z-stack (all children, the original
-    # behaviour); i ⇒ show only page i (a QStackedWidget). Visible pages drive the
-    # extent, the rendered elements, and event routing — all reactive to `active`.
     active_cell = getfield(doc, :active)
-    _visible(a) = a == 0 ? (1:n) : (1 <= a <= n ? (a:a) : (1:0))
+    _visible(a, n) = a == 0 ? (1:n) : (1 <= a <= n ? (a:a) : (1:0))
 
+    # Rebuild the child iomaps on a structural edit to `doc.children` (a stack's
+    # pages can be added/removed), so a child add/remove reflows. `active` /
+    # child-size changes flow through the cells below without re-entering this.
+    build = Cell(() -> begin
+        n = length(doc.children)
+        cims = Any[]
+        for i in 1:n
+            cctx = with_available_size(
+                make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]));
+                width=nothing, height=nothing)
+            push!(cims, _recurse_child(recursion, doc.children[i], cctx))
+        end
+        (n, cims)
+    end)
+
+    # `active` (Stage 6 page container): 0 ⇒ z-stack (all children); i ⇒ only page i
+    # (a QStackedWidget). Visible pages drive the extent, elements and event routing.
     outer_w = Cell(function ()
+        (n, cims) = build[]
         w = 0
-        for i in _visible(active_cell[])
-            cw = _child_w(child_iomaps[i]); cw > w && (w = cw)
+        for i in _visible(active_cell[], n)
+            cw = _child_w(cims[i]); cw > w && (w = cw)
         end
         w
     end)
-
     outer_h = Cell(function ()
+        (n, cims) = build[]
         h = 0
-        for i in _visible(active_cell[])
-            ch = _child_h(child_iomaps[i]); ch > h && (h = ch)
+        for i in _visible(active_cell[], n)
+            ch = _child_h(cims[i]); ch > h && (h = ch)
         end
         h
     end)
 
-    child_x = Cell[]
-    child_y = Cell[]
-    for i in 1:n
-        push!(child_x, _sl_child_x_cell(i, child_iomaps, outer_w, halign))
-        push!(child_y, _sl_child_y_cell(i, child_iomaps, outer_h, valign))
-    end
+    # Per-child position cells; rebuilt only on a structural change (they capture
+    # `outer_w`/`outer_h` rather than reading them, so `active` does not churn them).
+    positions = Cell(() -> begin
+        (n, cims) = build[]
+        ([_sl_child_x_cell(i, cims, outer_w, halign) for i in 1:n],
+         [_sl_child_y_cell(i, cims, outer_h, valign) for i in 1:n])
+    end)
 
     elements_cv = CellVector(() -> begin
+        (n, cims) = build[]
+        (cx, cy) = positions[]
         out = Any[]
-        for i in _visible(active_cell[])
-            c = child_iomaps[i].output
-            c isa GraphicsCanvas && push!(out, _wrap_child(c, child_x[i], child_y[i]))
+        for i in _visible(active_cell[], n)
+            c = cims[i].output
+            c isa GraphicsCanvas && push!(out, _wrap_child(c, cx[i], cy[i]))
         end
         out
     end)
@@ -1216,9 +1220,11 @@ function print_document(p::StackLayoutToGraphicsCanvas,
                            layout_none, true, Cell(nothing))
 
     entries_cell = Cell(() -> begin
+        (n, cims) = build[]
+        (cx, cy) = positions[]
         out = Tuple{Cell,Cell,Any}[]
-        for i in _visible(active_cell[])
-            push!(out, (child_x[i], child_y[i], child_iomaps[i]))
+        for i in _visible(active_cell[], n)
+            push!(out, (cx[i], cy[i], cims[i]))
         end
         out
     end)

@@ -57,5 +57,20 @@ end
     @test length(collect(oor.output.elements)) == 0
 end
 
+# ── Reactive reflow (AR-STABLE-IOMAP-IDENTITY): a page add/remove reflows the stack
+# through the SAME held iomap — no re-print. A `build` cell reading `doc.children`
+# rebuilds the child iomaps, and the extent / elements / entries re-derive from it. ──
+@testset "StackLayout child add/remove reflows through the held iomap" begin
+    wproj = make_widget_projection_example()
+    stack = StackLayout(Any[WidgetLabel(Point2D(0, 0), "P1"),
+                            WidgetLabel(Point2D(0, 0), "P2")])   # active=0 ⇒ all visible
+    io = print_document(wproj, stack)
+    @test length(collect(io.output.elements)) == 2
+    push!(stack.children, WidgetLabel(Point2D(0, 0), "P3"))
+    @test length(collect(io.output.elements)) == 3    # add reflows reactively, no re-print
+    pop!(stack.children)
+    @test length(collect(io.output.elements)) == 2    # remove reflows back
+end
+
 end # @testset
 end # function
