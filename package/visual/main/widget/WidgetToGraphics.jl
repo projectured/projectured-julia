@@ -863,10 +863,13 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # `TextBlock`) recursed through the Text domain, so all caret navigation and text
 # editing is produced by `TextToGraphics`. The widget only re-roots the resulting
 # operations by prepending `content` (see `map_reference_backward`).
-struct WidgetTextToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads content_iomap/input transparently; the content is
+# reconciled so an editable field grows reactively as text is typed
+# (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WidgetTextToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetText
-    output::GraphicsCanvas
+    input::Any
+    output::Any
     content_iomap::Any
 end
 
@@ -879,31 +882,37 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # outer projection chain (which routes it to TextToGraphics). Navigation and
     # editing operations then originate in the Text domain; this projection just
     # maps them backward. Mirrors WidgetScrollPane's content recursion.
-    radius = _sc(p.corner_radius)
-    content = w.content
-    if content isa Document
-        content_iomap = print_child(recursion, content, ctx)
-        inner = content_iomap.output::GraphicsCanvas
-        iw, ih = Int(inner.w[]), Int(inner.h[])
-        elems = Any[]
-        # Themed input surface: background fill + input outline + rounded corners.
-        _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
-        push!(elems, _make_canvas(cox, coy, Any[inner]))
-        tx, ty = _inset_total(w)
-        _push_focus_ring!(elems, w, iw + tx, ih + ty, p.ring_color, radius)
-        canvas = _make_canvas(_origin(pos)..., iw + tx, ih + ty, elems)
-        return WidgetTextToGraphicsCanvasIoMap(p, w, canvas, content_iomap)
+    if w.content isa Document
+        # Editable: reconcile the recursed content, and derive extent+membership
+        # from the child canvas in a build cell (the field grows as text is typed).
+        content_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+        build = Cell(() -> begin
+            radius = _sc(p.corner_radius)
+            inner = content_iomap[].output::GraphicsCanvas
+            iw, ih = Int(inner.w[]), Int(inner.h[])
+            elems = Any[]
+            # Themed input surface: background fill + input outline + rounded corners.
+            _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
+            push!(elems, _make_canvas(cox, coy, Any[inner]))
+            tx, ty = _inset_total(w)
+            _push_focus_ring!(elems, w, iw + tx, ih + ty, p.ring_color, radius)
+            (width=iw + tx, height=ih + ty, elements=elems)
+        end)
+        return WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
     end
 
     # Non-editable form: a plain value is stringified (input-like).
-    text = string(content)
-    cw, ch = _text_size(p.measure, p.text.font, text)
-    tx, ty = _inset_total(w)
-    elems = Any[]
-    _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
-    _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
-    _push_focus_ring!(elems, w, cw + tx, ch + ty, p.ring_color, radius)
-    SimpleIoMap(p, w, _make_canvas(_origin(pos)..., cw + tx, ch + ty, elems))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(pos)..., () -> begin
+        radius = _sc(p.corner_radius)
+        text = string(w.content)
+        cw, ch = _text_size(p.measure, p.text.font, text)
+        tx, ty = _inset_total(w)
+        elems = Any[]
+        _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
+        _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
+        _push_focus_ring!(elems, w, cw + tx, ch + ty, p.ring_color, radius)
+        (width=cw + tx, height=ch + ty, elements=elems)
+    end))
 end
 
 function map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference)
