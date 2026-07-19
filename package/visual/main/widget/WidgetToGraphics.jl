@@ -706,6 +706,22 @@ function _make_canvas(x::Int, y::Int, w::Int, h::Int, elems::Vector)
                    layout_none, true, Cell(nothing))
 end
 
+# Reactive analogue of `_make_canvas`: `build_fn()` returns
+# `(; width, height, elements)` and is run inside a cell, so a leaf's extent and
+# membership re-derive when the widget's cells change while the canvas keeps its
+# identity (AR-STABLE-IOMAP-IDENTITY). `x`/`y` are the leaf's own fixed origin
+# (the parent positions it). Reads of the widget/style cells inside `build_fn`
+# are what wire the reactivity. Replaces the eager `_make_canvas` at each leaf
+# whose extent/membership depends on reactive widget state.
+function _reactive_canvas(x::Int, y::Int, build_fn)
+    build = Cell(build_fn)
+    GraphicsCanvas(Int32(x), Int32(y),
+                   Cell(() -> Int32(build[].width)),
+                   Cell(() -> Int32(build[].height)),
+                   CellVector(() -> build[].elements),
+                   layout_none, true, Cell(nothing))
+end
+
 _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                  CellVector(), layout_none, true, Cell(nothing))
 
@@ -3240,26 +3256,28 @@ end
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    text = string(w.content)
-    fill, foreground, border = if w.variant === :secondary
-        (p.secondary_fill, p.secondary_foreground, nothing)
-    elseif w.variant === :destructive
-        (p.destructive_fill, p.destructive_foreground, nothing)
-    elseif w.variant === :outline
-        (p.outline_fill, p.outline_foreground, p.outline_border)
-    else
-        (p.default_fill, p.default_foreground, nothing)
-    end
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    text_width, text_height = _text_size(p.measure, p.font, text)
-    badge_width  = text_width + 2padding_x
-    badge_height = text_height + 2padding_y
-    border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
-    elements = Any[]
-    _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
-    push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, foreground))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., badge_width, badge_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        text = string(w.content)
+        fill, foreground, border = if w.variant === :secondary
+            (p.secondary_fill, p.secondary_foreground, nothing)
+        elseif w.variant === :destructive
+            (p.destructive_fill, p.destructive_foreground, nothing)
+        elseif w.variant === :outline
+            (p.outline_fill, p.outline_foreground, p.outline_border)
+        else
+            (p.default_fill, p.default_foreground, nothing)
+        end
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        text_width, text_height = _text_size(p.measure, p.font, text)
+        badge_width  = text_width + 2padding_x
+        badge_height = text_height + 2padding_y
+        border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
+        elements = Any[]
+        _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
+        push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, foreground))
+        (width=badge_width, height=badge_height, elements=elements)
+    end))
 end
 @_printer_only WidgetBadgeToGraphicsCanvas
 
@@ -3272,16 +3290,18 @@ end
 function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    rule_length = _sc(Int(w.length))
-    thickness = max(1, _sc(p.stroke.width))
-    elements = Any[]
-    if w.orientation === :vertical
-        push!(elements, GraphicsLine(0, 0, 0, rule_length, p.stroke.color; width=thickness))
-        SimpleIoMap(p, w, _make_canvas(_origin(position)..., thickness, rule_length, elements))
-    else
-        push!(elements, GraphicsLine(0, 0, rule_length, 0, p.stroke.color; width=thickness))
-        SimpleIoMap(p, w, _make_canvas(_origin(position)..., rule_length, thickness, elements))
-    end
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        rule_length = _sc(Int(w.length))
+        thickness = max(1, _sc(p.stroke.width))
+        elements = Any[]
+        if w.orientation === :vertical
+            push!(elements, GraphicsLine(0, 0, 0, rule_length, p.stroke.color; width=thickness))
+            (width=thickness, height=rule_length, elements=elements)
+        else
+            push!(elements, GraphicsLine(0, 0, rule_length, 0, p.stroke.color; width=thickness))
+            (width=rule_length, height=thickness, elements=elements)
+        end
+    end))
 end
 @_printer_only WidgetSeparatorToGraphicsCanvas
 
