@@ -5730,7 +5730,6 @@ end
 
 function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::WidgetScrollPane, ctx)
     content_iomap = print_child(recursion, w.content, ctx)
-    content_output = content_iomap.output::GraphicsCanvas
 
     pos = w.position
     sz  = w.size
@@ -5742,10 +5741,16 @@ function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::Wid
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
 
+    # Re-read `content_iomap.output` inside cells (not a one-time snapshot into a local):
+    # a reactive content projection recomputes its *whole* output GraphicsCanvas on a
+    # document change, so the viewport must track the current one — mirroring how
+    # ScreenToScreen wraps a window's content as `Cell(() -> content_iomap.output)`.
+    # Capturing `content_iomap.output` once (or its unwrapped `.elements`) freezes the
+    # viewport against a live document.
     inner_canvas = GraphicsCanvas(inner_x, inner_y, Cell(Int32(0)), Cell(Int32(0)),
-                                  content_output.elements,
-                                  content_output.layout,
-                                  content_output.overlapping_elements,
+                                  Cell(() -> content_iomap.output.elements),
+                                  Cell(() -> content_iomap.output.layout),
+                                  Cell(() -> content_iomap.output.overlapping_elements),
                                   Cell(nothing))
     viewport = GraphicsViewport(bx, by, vw, vh, inner_canvas)
     output = GraphicsCanvas([viewport])
