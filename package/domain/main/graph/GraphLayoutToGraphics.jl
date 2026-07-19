@@ -28,7 +28,7 @@ import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
 import ..ColorModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
@@ -73,7 +73,7 @@ end
 
 struct GraphLayoutToGraphicsCanvas <: Projection end
 
-struct GraphLayoutToGraphicsCanvasIoMap <: IoMap
+@iomap struct GraphLayoutToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
@@ -176,7 +176,7 @@ end
 function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, reference)
     @reference_case reference begin
         ::GraphLayout.vertex_layouts[i].vertex.content.rest... => begin
-            entries = iomap.child_iomaps[]
+            entries = iomap.child_iomaps
             (i < 1 || i > length(entries)) && return nothing
             entry = entries[i]
             (entry === nothing || entry[3] === nothing) && return nothing
@@ -205,7 +205,7 @@ end
 
 function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
     layout = iomap.input
-    entries = iomap.child_iomaps[]
+    entries = iomap.child_iomaps
     for i in 1:length(layout.vertex_layouts)
         vl = layout.vertex_layouts[i]
         vl isa VertexLayout || continue
@@ -228,7 +228,7 @@ end
 # Dispatch a coordless event to every node's content reader; the active node (the
 # one whose content carries the cursor) answers. Mirrors TableToGraphics.
 function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
-    entries = iomap.child_iomaps[]
+    entries = iomap.child_iomaps
     for i in 1:length(entries)
         entry = entries[i]
         (entry === nothing || entry[3] === nothing) && continue

@@ -84,7 +84,7 @@ struct WorkbenchEditorToWidgetScrollPane    <: Projection end
 
 # ── IoMap structs ─────────────────────────────────────────────────────────────
 
-struct WorkbenchWorkbenchToWidgetShellIoMap <: IoMap
+@iomap struct WorkbenchWorkbenchToWidgetShellIoMap
     projection::Any
     input::WorkbenchWorkbench
     output::WidgetShell
@@ -104,7 +104,7 @@ end
     element_iomaps::Any          # reconciling cell: one IoMap per page element
 end
 
-struct WorkbenchNavigatorToWidgetScrollPaneIoMap <: IoMap
+@iomap struct WorkbenchNavigatorToWidgetScrollPaneIoMap
     projection::Any
     input::WorkbenchNavigator
     output::WidgetScrollPane

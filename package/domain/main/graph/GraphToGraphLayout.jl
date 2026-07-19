@@ -29,7 +29,7 @@ import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstrai
 import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layout_graph
 import ..GraphicsModule: GraphicsCanvas
 import ..IoMapModule: ChildrenIoMap
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
@@ -41,7 +41,7 @@ export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 # IoMap carrying the per-vertex content iomaps (used only for sizing — the
 # content is *not* re-rooted into the output here; the original vertex rides in
 # `VertexLayout.vertex`). Shaped like ChildrenIoMap for the mappers.
-struct GraphGraphToGraphLayoutIoMap <: IoMap
+@iomap struct GraphGraphToGraphLayoutIoMap
     projection::Any
     input::Any
     output::Any

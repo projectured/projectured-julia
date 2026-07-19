@@ -71,7 +71,7 @@ end
 
 # Centre pixel of the first content character cell, as in ClickRoundtripTest.
 function _first_content_pixel(t2g, measure)
-    coords = t2g.char_to_coord[]
+    coords = t2g.char_to_coord
     isempty(coords) && return nothing
     sc = first(coords)
     k = sc.char_start

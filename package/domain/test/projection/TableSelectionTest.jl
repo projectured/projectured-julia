@@ -120,7 +120,7 @@ end
     # A plain left click routes into the clicked cell's content, landing on a
     # `rows[r][c].…` cursor.
     io = _print_with(doc, proj, nothing)
-    geom = io.geometry[]
+    geom = io.geometry
     gc = 1 + geom.col_offset
     gr = 1 + geom.row_offset
     cx = geom.col_x[gc] + geom.bw + geom.pad + 1

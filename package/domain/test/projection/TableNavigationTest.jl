@@ -223,7 +223,7 @@ end
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
     io = print_document(proj, doc)
-    geom = io.geometry[]
+    geom = io.geometry
 
     # Aim at the centre of the (row 2, column 2) data cell.
     gc = 2 + geom.col_offset
@@ -246,7 +246,7 @@ end
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
     io = print_document(proj, doc)
-    geom = io.geometry[]
+    geom = io.geometry
 
     # Column header strip (grid row 1) over data column 3.
     gc = 3 + geom.col_offset

@@ -33,7 +33,7 @@ function test_json_content_clicks_clean(label, document, projection)
             @test true
             return
         end
-        coords = t2g.char_to_coord[]
+        coords = t2g.char_to_coord
         measure = _pipeline_measure(projection)
         content_strings = _collect_json_content_strings(document)
         errors = String[]
