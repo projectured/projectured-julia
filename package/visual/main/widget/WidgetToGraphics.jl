@@ -2577,17 +2577,21 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         return ChildrenIoMap(p, w, _empty_canvas(), Cell(child_iomaps))
     end
 
-    cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
+    cox, coy = _content_offset(w)    # stable — independent of the tab count
+    # Reactive tab-strip geometry: re-derives when a tab is added / removed, so the
+    # strip and everything sized from it (`sel_h`, `strip_w`, the tab tuples) reflows.
+    geom = Cell(() -> _tab_strip_geometry(p, w))
 
     sel_cell = getfield(w, :selection)
 
-    _active_idx(sel) = begin
-        i = _tab_index_from_selection(sel, length(tabs))
+    _active_idx(sel, ntabs) = begin
+        i = _tab_index_from_selection(sel, ntabs)
         i == 0 ? 1 : i
     end
 
     selector_cv = CellVector(() -> begin
-        active = _active_idx(sel_cell[])
+        (_, _, sel_pad, sel_h, strip_w, tabs) = geom[]
+        active = _active_idx(sel_cell[], length(tabs))
         result = Any[]
         tab_radius = _sc(p.corner_radius)
         # Muted track behind the whole tab row.
@@ -2617,29 +2621,24 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # selector builder loop, so capturing it here would alias that closure's
     # local and clobber the selector viewport width.
     inset_x, inset_y = _inset_total(w)
-    sel_h_const = sel_h
     avail_w_inner = avail_w === nothing ? nothing :
         Cell(() -> max(0, Int(avail_w[]) - inset_x))
     avail_h_inner = avail_h === nothing ? nothing :
-        Cell(() -> max(0, Int(avail_h[]) - sel_h_const - inset_y))
+        Cell(() -> max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
     content_ctx = (avail_w === nothing && avail_h === nothing) ? ctx :
         with_available_size(ctx; width=avail_w_inner, height=avail_h_inner)
-    all_cims = Any[]
-    for pair in pairs
-        content = pair.element
-        if content !== nothing
-            cim = print_child(recursion, content, content_ctx)
-            push!(child_iomaps, (cox, coy + sel_h, cim))
-            push!(all_cims, cim)
-        else
-            push!(all_cims, nothing)
-        end
-    end
+    # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
+    # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
+    all_cims = reconcile_child_iomaps(
+        () -> Any[pair.element for pair in w.selector_element_pairs],
+        (i, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
 
     content_cv = CellVector(() -> begin
-        active = _active_idx(sel_cell[])
+        cims = all_cims[]
+        sel_h = geom[][4]
+        active = _active_idx(sel_cell[], length(cims))
         idx = active == 0 ? 1 : active
-        cim = all_cims[idx]
+        cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
         cim === nothing ? Any[] : Any[_make_canvas(cox, coy + sel_h, Any[cim.output])]
     end)
 
@@ -2649,7 +2648,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # distinctly-named `inset_x` (computed above); otherwise there is no constraint,
     # so the viewport is as wide as the strip and clips nothing.
     sel_view_w = if avail_w === nothing
-        Cell(Int32(strip_w))
+        Cell(() -> Int32(geom[][5]))       # strip_w — reactive on the tab count
     else
         Cell(() -> Int32(max(0, Int(avail_w[]) - inset_x)))
     end
@@ -2657,12 +2656,12 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # canvas left by the clamped `tab_scroll` so overflow tabs scroll into view (a
     # wheel over the strip drives it — see read_intent). Reactive on both the
     # stored offset and the viewport width.
-    scroll_x = Cell(() -> Int32(-cox - _tab_scroll_offset(w, strip_w, Int(sel_view_w[]))))
+    scroll_x = Cell(() -> Int32(-cox - _tab_scroll_offset(w, geom[][5], Int(sel_view_w[]))))
     # The viewport sits at the content origin; its inner canvas is shifted back
     # by that origin (minus any scroll) so the strip elements keep their original
     # coordinates at scroll 0.
     selector_viewport = GraphicsViewport(
-        Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(Int32(sel_h)),
+        Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(() -> Int32(geom[][4])),   # sel_h reactive
         Cell(GraphicsCanvas(scroll_x, Cell(Int32(-coy)), Int32(0), Int32(0),
                             selector_cv, layout_none, true, Cell(nothing))),
         Cell(affine_identity),
@@ -2672,7 +2671,9 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         selector_viewport,
         GraphicsCanvas(content_cv,  layout_none, true),
     ])
-    ChildrenIoMap(p, w, canvas, Cell(child_iomaps))
+    # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
+    child_iomaps = Cell(() -> Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
+    ChildrenIoMap(p, w, canvas, child_iomaps)
 end
 
 function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
