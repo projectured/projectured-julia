@@ -18,7 +18,7 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
                           ElementReferenceStep, is_element_reference_step, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ListNode
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
 
 export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
 
@@ -26,8 +26,12 @@ struct CopyingProjection <: Projection end
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
-struct CopyingProjectionIoMap <: IoMap
-    projection::CopyingProjection
+# For a reactive CellVector input `children` and `output` are computed cells, so
+# the IoMap keeps its identity while a structural edit reconciles children and
+# re-derives output (AR-STABLE-IOMAP-IDENTITY); the mappers read `iomap.children`
+# as the value. The other input shapes pass eager values that @iomap wraps.
+@iomap struct CopyingProjectionIoMap
+    projection::Any
     input::Any
     output::Any
     children::Any        # Vector of child iomaps (CellVector/struct) or nothing (ListNode)
@@ -46,12 +50,12 @@ _unwrap(c::Cell) = c[]
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
-    children = [print_child(recursion, input[i],
-                    make_child_context(ctx, ElementReferenceStep(i)))
-                for i in 1:length(input)]
-    out_cells = Cell[Cell(im.output) for im in children]
-    output = CellVector(out_cells)
-    output.selection = input.selection
+    children = reconcile_child_iomaps(
+        () -> input,
+        (i, x) -> print_child(recursion, x,
+            make_child_context(ctx, ElementReferenceStep(i))))
+    output = CellVector(() -> [im.output for im in children[]])
+    set_cell_function!(getfield(output, :selection), () -> input.selection)
     CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 

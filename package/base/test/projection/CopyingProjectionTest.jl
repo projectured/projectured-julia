@@ -15,6 +15,26 @@ iomap = print_document(CopyingProjection(), inner, cv, PrinterContext())
 
 end # @testset
 
+@testset "CopyingProjection CellVector reactive output" begin
+
+# AR-STABLE-IOMAP-IDENTITY: a structural edit re-derives output and reconciles
+# children through the SAME iomap object — no re-print.
+cv = CellVector(Cell[Cell(PrimitiveNumber(1)), Cell(PrimitiveNumber(2))])
+iomap = print_document(CopyingProjection(), IdentityProjection(), cv, PrinterContext())
+id = objectid(iomap)
+@test length(iomap.output) == 2
+
+# Capture element 1's child iomap, then append: element 1 (same object, same
+# index) must be reused, and output must grow — through the held iomap.
+c1_before = make_copying_element_iomap(iomap, 1)
+push!(cv, PrimitiveNumber(3))
+@test length(iomap.output) == 3
+@test iomap.output[3].value == 3
+@test make_copying_element_iomap(iomap, 1) === c1_before   # reconciliation reuse
+@test objectid(iomap) === id
+
+end # @testset
+
 @testset "CopyingProjection ListNode" begin
 
 # Create a ListNode chain: 10 → 20 → 30
