@@ -15,12 +15,16 @@ module NestingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export NestingProjection, NestingProjectionIoMap
 
-struct NestingProjectionIoMap <: IoMap
+# Transparent: `output` forwards the child iomap's output through a cell, so the
+# IoMap keeps its identity while the nested projection re-derives
+# (AR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.
+@iomap struct NestingProjectionIoMap
     projection::Any
     input::Any
     output::Any
@@ -52,11 +56,11 @@ function print_document(np::NestingProjection, recursion, input, ctx)
     effective = np.recursion !== nothing ? np.recursion : recursion
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
-        iomap = print_document(np.elements[1], inner, input, ctx)
-        NestingProjectionIoMap(np, input, iomap.output, iomap)
+        child = print_document(np.elements[1], inner, input, ctx)
+        NestingProjectionIoMap(np, input, Cell(() -> child.output), child)
     else
-        iomap = print_document(effective, recursion, input, ctx)
-        NestingProjectionIoMap(np, input, iomap.output, iomap)
+        child = print_document(effective, recursion, input, ctx)
+        NestingProjectionIoMap(np, input, Cell(() -> child.output), child)
     end
 end
 

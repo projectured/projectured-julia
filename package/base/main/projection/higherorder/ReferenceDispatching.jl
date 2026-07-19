@@ -12,7 +12,8 @@ module ReferenceDispatchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
 
 """
@@ -65,8 +66,11 @@ function _dispatch_proj(rdp::ReferenceDispatchingProjection, reference)
     return rdp.default
 end
 
-struct ReferenceDispatchingProjectionIoMap <: IoMap
-    projection::ReferenceDispatchingProjection
+# The dispatch key is `ctx.reference` — structural (the path to this position), so
+# fixed per print. `output` forwards the dispatched inner's output through a cell,
+# keeping the IoMap's identity while the inner re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct ReferenceDispatchingProjectionIoMap
+    projection::Any
     input::Any
     output::Any
     reference::Any        # the `reference` arg used at print time
@@ -76,7 +80,7 @@ end
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
     inner = print_document(proj, recursion, input, ctx)
-    ReferenceDispatchingProjectionIoMap(rdp, input, inner.output, ctx.reference, inner)
+    ReferenceDispatchingProjectionIoMap(rdp, input, Cell(() -> inner.output), ctx.reference, inner)
 end
 
 function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Intent, iomap::ReferenceDispatchingProjectionIoMap)

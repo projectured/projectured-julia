@@ -40,6 +40,8 @@ using ProjecturedBase.ReversingProjectionModule: ReversingProjection
 using ProjecturedBase.FilteringProjectionModule: FilteringProjection
 using ProjecturedBase.SearchingProjectionModule: SearchingProjection
 using ProjecturedBase.SortingProjectionModule: SortingProjection
+using ProjecturedBase.SwitchingProjectionModule: SwitchingProjection
+using ProjecturedBase.WindowInputUnwrappingProjectionModule: WindowInputUnwrappingProjection
 using ProjecturedBase.PrimitiveModule: PrimitiveString
 using ProjecturedBase.ProjectionApiModule: map_reference_backward
 using ProjecturedBase.ProjectionApiModule: map_reference_forward
@@ -55,6 +57,7 @@ include("projection/ReversingTest.jl")
 include("projection/FilteringTest.jl")
 include("projection/SearchingTest.jl")
 include("projection/SortingTest.jl")
+include("projection/HigherOrderTest.jl")
 
 """
     test_base_layering()
@@ -87,11 +90,14 @@ function test_base()
         test_filtering()
         test_searching()
         test_sorting()
+        test_switching()
+        test_window_input_unwrapping()
     end
 end
 
 export test_base, test_base_layering
 export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
+export test_switching, test_window_input_unwrapping
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 
 end # module ProjecturedBaseTest

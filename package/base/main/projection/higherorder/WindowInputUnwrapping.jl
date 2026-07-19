@@ -23,11 +23,14 @@ module WindowInputUnwrappingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..EventModule: WindowInput
 export WindowInputUnwrappingProjection, WindowInputUnwrappingProjectionIoMap
 
-struct WindowInputUnwrappingProjectionIoMap <: IoMap
+# Transparent passthrough: `output` forwards the inner output through a cell so the
+# IoMap keeps its identity while `inner` re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WindowInputUnwrappingProjectionIoMap
     projection::Any
     input::Any
     output::Any
@@ -50,7 +53,7 @@ WindowInputUnwrappingProjection(; inner) = WindowInputUnwrappingProjection(inner
 
 function print_document(p::WindowInputUnwrappingProjection, recursion, input, ctx)
     inner = print_document(p.inner, recursion, input, ctx)
-    WindowInputUnwrappingProjectionIoMap(p, input, inner.output, inner)
+    WindowInputUnwrappingProjectionIoMap(p, input, Cell(() -> inner.output), inner)
 end
 
 function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingProjectionIoMap)

@@ -2,22 +2,26 @@
     SwitchingProjectionModule
 
 A higher-order projection that holds a list of projections and delegates
-to the one selected by a reactive index cell. Changing the index cell
-switches which branch is active on the next print_document call.
+to the one selected by a reactive index cell. Writing the index cell
+reactively switches the active branch through the *same* iomap: the inner
+iomap is reconciled by index and the output re-derives, no re-print required.
 """
 module SwitchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..CellModule: Cell
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
 export SwitchingProjection, SwitchingProjectionIoMap
 
-struct SwitchingProjectionIoMap <: IoMap
+# `inner_iomap` is reconciled by the (reactive) index and `output` forwards its
+# output through a cell, so writing `ap.index` swaps the branch through the same
+# iomap (AR-STABLE-IOMAP-IDENTITY); `iomap.index` reads the current index.
+@iomap struct SwitchingProjectionIoMap
     projection::Any
     input::Any
     output::Any
-    index::Int
+    index::Any
     inner_iomap::Any
 end
 
@@ -59,9 +63,13 @@ Apply the projection at the current index, wrapping its IoMap so the reader
 knows which branch was active.
 """
 function print_document(ap::SwitchingProjection, recursion, input, ctx)
-    i = ap.index[]
-    inner_iomap = print_document(ap.projections[i], recursion, input, ctx)
-    return SwitchingProjectionIoMap(ap, input, inner_iomap.output, i, inner_iomap)
+    # Reconcile the active branch by the reactive index: writing `ap.index`
+    # rebuilds `inner` and re-derives `output` through the same iomap; a
+    # same-index input change reuses the cached inner (which reacts on its own).
+    inner = reconcile_child_iomap(() -> ap.index[],
+                i -> print_document(ap.projections[i], recursion, input, ctx))
+    output = Cell(() -> inner[].output)
+    return SwitchingProjectionIoMap(ap, input, output, ap.index, inner)
 end
 
 """
