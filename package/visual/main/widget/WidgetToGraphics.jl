@@ -803,14 +803,16 @@ end
 function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    content = w.content
-    # A label may carry its own font+color (e.g. a chat card's title) that
-    # overrides the theme's default label style.
-    style = w.text_style === nothing ? p.text : w.text_style
-    content_width, content_height = _content_size(p.measure, style.font, content)
-    elements = Any[]
-    _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., content_width, content_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        content = w.content
+        # A label may carry its own font+color (e.g. a chat card's title) that
+        # overrides the theme's default label style.
+        style = w.text_style === nothing ? p.text : w.text_style
+        content_width, content_height = _content_size(p.measure, style.font, content)
+        elements = Any[]
+        _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)
+        (width=content_width, height=content_height, elements=elements)
+    end))
 end
 
 function map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference)
@@ -950,33 +952,35 @@ end
 function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    checked = w.content === true
-    enabled = !(w.enabled === false)
-    box_size = _sc(p.box_size)
-    corner_radius = _sc(p.corner_radius)
-    elements = Any[]
-    # When disabled, the box uses the muted surface and the tick/outline render in
-    # the muted foreground, keeping the checked/unchecked shape but signalling that
-    # the control is inert (its reader also swallows clicks).
-    checked_fill = enabled ? p.checked_color : p.disabled_color
-    check_color  = enabled ? p.check.color   : p.disabled_foreground
-    empty_fill   = enabled ? p.background_color : p.disabled_color
-    outline_color = enabled ? p.outline.color : p.disabled_foreground
-    if checked
-        _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
-        check_width = max(1, _sc(p.check.width))
-        # Crisp two-stroke checkmark instead of a glyph.
-        x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
-        x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
-        x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
-        push!(elements, GraphicsLine(x1, y1, x2, y2, check_color; width=check_width))
-        push!(elements, GraphicsLine(x2, y2, x3, y3, check_color; width=check_width))
-    else
-        _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
-                     border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
-    end
-    _push_focus_ring!(elements, w, box_size, box_size, p.ring_color, corner_radius)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., box_size, box_size, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        checked = w.content === true
+        enabled = !(w.enabled === false)
+        box_size = _sc(p.box_size)
+        corner_radius = _sc(p.corner_radius)
+        elements = Any[]
+        # When disabled, the box uses the muted surface and the tick/outline render in
+        # the muted foreground, keeping the checked/unchecked shape but signalling that
+        # the control is inert (its reader also swallows clicks).
+        checked_fill = enabled ? p.checked_color : p.disabled_color
+        check_color  = enabled ? p.check.color   : p.disabled_foreground
+        empty_fill   = enabled ? p.background_color : p.disabled_color
+        outline_color = enabled ? p.outline.color : p.disabled_foreground
+        if checked
+            _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
+            check_width = max(1, _sc(p.check.width))
+            # Crisp two-stroke checkmark instead of a glyph.
+            x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
+            x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
+            x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
+            push!(elements, GraphicsLine(x1, y1, x2, y2, check_color; width=check_width))
+            push!(elements, GraphicsLine(x2, y2, x3, y3, check_color; width=check_width))
+        else
+            _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
+                         border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
+        end
+        _push_focus_ring!(elements, w, box_size, box_size, p.ring_color, corner_radius)
+        (width=box_size, height=box_size, elements=elements)
+    end))
 end
 
 function map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
@@ -1027,52 +1031,54 @@ _button_icon(w::WidgetButton) = (c = _button_command(w); (c !== nothing && c.ico
 function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    minimum_size = w.size::Point2D
-    label_content = _button_label_content(w)
-    content_width, content_height = _content_size(p.measure, p.label.font, label_content)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    # Optional leading icon (Stage 5): a square the size of the label text, with a
-    # gap before the label. An unknown icon name contributes nothing.
-    icon = _button_icon(w)
-    icon_sz = content_height
-    icon_w  = icon_width(icon, icon_sz)
-    icon_gap = icon_w > 0 ? _sc(6) : 0
-    full_w = icon_w + icon_gap + content_width
-    button_width  = max(Int(minimum_size.x[]), full_w + 2padding_x)
-    button_height = max(Int(minimum_size.y[]), content_height + 2padding_y)
-    corner_radius = _sc(p.corner_radius)
-    # State-driven surface: pressed > hover > resting. The reader keeps the
-    # widget's transient `pressed`/`hovered` cells current; reading them here ties
-    # the rendered fill to that state reactively. A disabled button (or one bound to
-    # a disabled command) ignores that state entirely: flat muted surface, muted
-    # label, no shadow (its reader also never sets pressed/hovered).
-    enabled = _button_enabled(w)
-    pressed = enabled && w.pressed === true
-    hovered = enabled && w.hovered === true
-    fill = !enabled ? p.disabled_color :
-           pressed ? p.active_color : hovered ? p.hover_color : p.background_color
-    label = enabled ? p.label : StyleText(p.label.font, p.disabled_foreground)
-    elements = Any[]
-    # Default button: light surface, subtle border, soft shadow, dark label —
-    # matching the shadcn default button. A faint offset rect approximates the
-    # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
-    # and while disabled (so it reads as inert/flat).
-    if enabled && !pressed
-        push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, StyleColor(0.0, 0.0, 0.0, 0x14 / 255), corner_radius))
-    end
-    _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
-                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
-    # Lay out icon + label as one centered group; the icon tints to the label color
-    # (so it mutes with the button), the label sits to its right.
-    start_x = (button_width - full_w) ÷ 2
-    cy = (button_height - content_height) ÷ 2
-    if icon_w > 0
-        _push_icon!(elements, icon, start_x, (button_height - icon_sz) ÷ 2, icon_sz, label.color)
-    end
-    _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width, content_height)
-    _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., button_width, button_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        minimum_size = w.size::Point2D
+        label_content = _button_label_content(w)
+        content_width, content_height = _content_size(p.measure, p.label.font, label_content)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        # Optional leading icon (Stage 5): a square the size of the label text, with a
+        # gap before the label. An unknown icon name contributes nothing.
+        icon = _button_icon(w)
+        icon_sz = content_height
+        icon_w  = icon_width(icon, icon_sz)
+        icon_gap = icon_w > 0 ? _sc(6) : 0
+        full_w = icon_w + icon_gap + content_width
+        button_width  = max(Int(minimum_size.x[]), full_w + 2padding_x)
+        button_height = max(Int(minimum_size.y[]), content_height + 2padding_y)
+        corner_radius = _sc(p.corner_radius)
+        # State-driven surface: pressed > hover > resting. The reader keeps the
+        # widget's transient `pressed`/`hovered` cells current; reading them here ties
+        # the rendered fill to that state reactively. A disabled button (or one bound to
+        # a disabled command) ignores that state entirely: flat muted surface, muted
+        # label, no shadow (its reader also never sets pressed/hovered).
+        enabled = _button_enabled(w)
+        pressed = enabled && w.pressed === true
+        hovered = enabled && w.hovered === true
+        fill = !enabled ? p.disabled_color :
+               pressed ? p.active_color : hovered ? p.hover_color : p.background_color
+        label = enabled ? p.label : StyleText(p.label.font, p.disabled_foreground)
+        elements = Any[]
+        # Default button: light surface, subtle border, soft shadow, dark label —
+        # matching the shadcn default button. A faint offset rect approximates the
+        # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
+        # and while disabled (so it reads as inert/flat).
+        if enabled && !pressed
+            push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, StyleColor(0.0, 0.0, 0.0, 0x14 / 255), corner_radius))
+        end
+        _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
+                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
+        # Lay out icon + label as one centered group; the icon tints to the label color
+        # (so it mutes with the button), the label sits to its right.
+        start_x = (button_width - full_w) ÷ 2
+        cy = (button_height - content_height) ÷ 2
+        if icon_w > 0
+            _push_icon!(elements, icon, start_x, (button_height - icon_sz) ÷ 2, icon_sz, label.color)
+        end
+        _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width, content_height)
+        _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
+        (width=button_width, height=button_height, elements=elements)
+    end))
 end
 
 # Forward image of a positioned widget: the empty reference (the widget itself)
@@ -3465,44 +3471,46 @@ end
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    on  = w.checked === true
-    enabled = !(w.enabled === false)
-    track_width  = _sc(Int(p.track_size.x[]))
-    track_height = _sc(Int(p.track_size.y[]))
-    elements = Any[]
-    track_color = !enabled ? p.disabled_color : on ? p.on_color : p.off_color
-    push!(elements, GraphicsRect(0, 0, track_width, track_height, track_color, track_height ÷ 2))
-    knob_padding = _sc(p.knob_padding)
-    knob_radius  = (track_height - 2knob_padding) ÷ 2
-    left_x  = knob_padding + knob_radius
-    right_x = track_width - knob_padding - knob_radius
-    knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, p.knob_color;
-                          border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
-    # The knob's x is a computed cell. It reads `checked` (so it tracks the
-    # logical state and snaps when there is no animation) and, while a slide is
-    # in flight, `get_reactive_clock_time(get_wall_clock())` (so it re-evaluates every
-    # frame). Once the slide is over it only *samples* the time
-    # (`get_clock_time(get_wall_clock())`), drops the time subscription, and holds
-    # the final position — settling with no registry. The wall clock is used
-    # on both sides because the reader (below) sees no `PrinterContext` and
-    # so can't reach the enclosing editor's private clock; a follow-up seam
-    # would let a reader receive a per-editor clock too.
-    clock = get_wall_clock()
-    set_cell_function!(getfield(knob, :cx), () -> begin
-        target_x = (w.checked === true) ? right_x : left_x
-        dur = w.duration
-        t0  = w.anim_t0
-        (dur <= 0 || isnan(t0)) && return Int32(target_x)
-        t1 = t0 + dur / 1000
-        now = get_clock_time(clock)                # SAMPLE: decide done, no subscription
-        now >= t1 && return Int32(target_x)       # settled → stops animating
-        from_x = left_x + (right_x - left_x) * w.anim_from
-        t = get_reactive_clock_time(clock)         # SUBSCRIBE while sliding
-        Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
-    end)
-    push!(elements, knob)
-    _push_focus_ring!(elements, w, track_width, track_height, p.ring_color, track_height ÷ 2)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., track_width, track_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        on  = w.checked === true
+        enabled = !(w.enabled === false)
+        track_width  = _sc(Int(p.track_size.x[]))
+        track_height = _sc(Int(p.track_size.y[]))
+        elements = Any[]
+        track_color = !enabled ? p.disabled_color : on ? p.on_color : p.off_color
+        push!(elements, GraphicsRect(0, 0, track_width, track_height, track_color, track_height ÷ 2))
+        knob_padding = _sc(p.knob_padding)
+        knob_radius  = (track_height - 2knob_padding) ÷ 2
+        left_x  = knob_padding + knob_radius
+        right_x = track_width - knob_padding - knob_radius
+        knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, p.knob_color;
+                              border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
+        # The knob's x is a computed cell. It reads `checked` (so it tracks the
+        # logical state and snaps when there is no animation) and, while a slide is
+        # in flight, `get_reactive_clock_time(get_wall_clock())` (so it re-evaluates every
+        # frame). Once the slide is over it only *samples* the time
+        # (`get_clock_time(get_wall_clock())`), drops the time subscription, and holds
+        # the final position — settling with no registry. The wall clock is used
+        # on both sides because the reader (below) sees no `PrinterContext` and
+        # so can't reach the enclosing editor's private clock; a follow-up seam
+        # would let a reader receive a per-editor clock too.
+        clock = get_wall_clock()
+        set_cell_function!(getfield(knob, :cx), () -> begin
+            target_x = (w.checked === true) ? right_x : left_x
+            dur = w.duration
+            t0  = w.anim_t0
+            (dur <= 0 || isnan(t0)) && return Int32(target_x)
+            t1 = t0 + dur / 1000
+            now = get_clock_time(clock)                # SAMPLE: decide done, no subscription
+            now >= t1 && return Int32(target_x)       # settled → stops animating
+            from_x = left_x + (right_x - left_x) * w.anim_from
+            t = get_reactive_clock_time(clock)         # SUBSCRIBE while sliding
+            Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
+        end)
+        push!(elements, knob)
+        _push_focus_ring!(elements, w, track_width, track_height, p.ring_color, track_height ÷ 2)
+        (width=track_width, height=track_height, elements=elements)
+    end))
 end
 
 # A click (or Return/Space on the focused switch) toggles `checked`. When the
@@ -3556,16 +3564,18 @@ end
 function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    value = clamp(Float64(w.value), 0.0, 1.0)
-    bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
-    bar_height = _sc(p.bar_height)
-    elements = Any[]
-    push!(elements, GraphicsRect(0, 0, bar_width, bar_height, p.track_color, bar_height ÷ 2))
-    filled_width = round(Int, value * bar_width)
-    if filled_width > 0
-        push!(elements, GraphicsRect(0, 0, filled_width, bar_height, p.fill_color, bar_height ÷ 2))
-    end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., bar_width, bar_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        value = clamp(Float64(w.value), 0.0, 1.0)
+        bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
+        bar_height = _sc(p.bar_height)
+        elements = Any[]
+        push!(elements, GraphicsRect(0, 0, bar_width, bar_height, p.track_color, bar_height ÷ 2))
+        filled_width = round(Int, value * bar_width)
+        if filled_width > 0
+            push!(elements, GraphicsRect(0, 0, filled_width, bar_height, p.fill_color, bar_height ÷ 2))
+        end
+        (width=bar_width, height=bar_height, elements=elements)
+    end))
 end
 @_printer_only WidgetProgressToGraphicsCanvas
 
@@ -3586,23 +3596,25 @@ end
 function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    enabled = !(w.enabled === false)
-    value = clamp(Float64(w.value), 0.0, 1.0)
-    slider_width  = _resolve_width(ctx, _sc(Int(w.width)))
-    slider_height = _sc(p.height)
-    center_y = slider_height ÷ 2
-    track_thickness = _sc(p.track_thickness)
-    filled_width = round(Int, value * slider_width)
-    elements = Any[]
-    track_c = enabled ? p.track_color : p.disabled_color
-    fill_c  = enabled ? p.fill_color  : p.disabled_color
-    knob_c  = enabled ? p.knob_color  : p.disabled_color
-    push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
-    filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_c, track_thickness ÷ 2))
-    push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_c;
-                                   border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color))
-    _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., slider_width, slider_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        enabled = !(w.enabled === false)
+        value = clamp(Float64(w.value), 0.0, 1.0)
+        slider_width  = _resolve_width(ctx, _sc(Int(w.width)))
+        slider_height = _sc(p.height)
+        center_y = slider_height ÷ 2
+        track_thickness = _sc(p.track_thickness)
+        filled_width = round(Int, value * slider_width)
+        elements = Any[]
+        track_c = enabled ? p.track_color : p.disabled_color
+        fill_c  = enabled ? p.fill_color  : p.disabled_color
+        knob_c  = enabled ? p.knob_color  : p.disabled_color
+        push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
+        filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_c, track_thickness ÷ 2))
+        push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_c;
+                                       border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color))
+        _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
+        (width=slider_width, height=slider_height, elements=elements)
+    end))
 end
 @_printer_only WidgetSliderToGraphicsCanvas
 
@@ -3626,37 +3638,39 @@ end
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    enabled = !(w.enabled === false)
-    selected = Int(w.selected)
-    diameter = _sc(p.button_size)
-    label_gap = _sc(p.label_gap)
-    row_gap = _sc(p.row_gap)
-    sel_ring   = enabled ? p.selected_ring.color   : p.disabled_foreground
-    unsel_ring = enabled ? p.unselected_ring.color : p.disabled_foreground
-    dot_color  = enabled ? p.selected_color        : p.disabled_foreground
-    label_col  = enabled ? p.label_text.color      : p.disabled_foreground
-    elements = Any[]
-    y = 0
-    max_width = 0
-    for (i, opt) in enumerate(w.options)
-        label = string(opt)
-        label_width, label_height = _text_size(p.measure, p.label_text.font, label)
-        row_height = max(diameter, label_height)
-        center_y = y + row_height ÷ 2
-        if i == selected
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
-                                           border_width=max(1, _sc(p.selected_ring.width)), border_color=sel_ring))
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), dot_color))
-        else
-            push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
-                                           border_width=max(1, _sc(p.unselected_ring.width)), border_color=unsel_ring))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        enabled = !(w.enabled === false)
+        selected = Int(w.selected)
+        diameter = _sc(p.button_size)
+        label_gap = _sc(p.label_gap)
+        row_gap = _sc(p.row_gap)
+        sel_ring   = enabled ? p.selected_ring.color   : p.disabled_foreground
+        unsel_ring = enabled ? p.unselected_ring.color : p.disabled_foreground
+        dot_color  = enabled ? p.selected_color        : p.disabled_foreground
+        label_col  = enabled ? p.label_text.color      : p.disabled_foreground
+        elements = Any[]
+        y = 0
+        max_width = 0
+        for (i, opt) in enumerate(w.options)
+            label = string(opt)
+            label_width, label_height = _text_size(p.measure, p.label_text.font, label)
+            row_height = max(diameter, label_height)
+            center_y = y + row_height ÷ 2
+            if i == selected
+                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
+                                               border_width=max(1, _sc(p.selected_ring.width)), border_color=sel_ring))
+                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), dot_color))
+            else
+                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
+                                               border_width=max(1, _sc(p.unselected_ring.width)), border_color=unsel_ring))
+            end
+            _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, label_col)
+            max_width = max(max_width, diameter + label_gap + label_width)
+            y += row_height + row_gap
         end
-        _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, label_col)
-        max_width = max(max_width, diameter + label_gap + label_width)
-        y += row_height + row_gap
-    end
-    _push_focus_ring!(elements, w, max_width, max(0, y - row_gap), p.ring_color, 0)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., max_width, max(0, y - row_gap), elements))
+        _push_focus_ring!(elements, w, max_width, max(0, y - row_gap), p.ring_color, 0)
+        (width=max_width, height=max(0, y - row_gap), elements=elements)
+    end))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
 
@@ -3671,14 +3685,16 @@ end
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    size = _sc(Int(w.size))
-    radius = size ÷ 2
-    initials = string(w.initials)
-    elements = Any[]
-    push!(elements, GraphicsCircle(radius, radius, radius, p.background_color))
-    initials_width, initials_height = _text_size(p.measure, p.initials.font, initials)
-    push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, p.initials.color))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., size, size, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        size = _sc(Int(w.size))
+        radius = size ÷ 2
+        initials = string(w.initials)
+        elements = Any[]
+        push!(elements, GraphicsCircle(radius, radius, radius, p.background_color))
+        initials_width, initials_height = _text_size(p.measure, p.initials.font, initials)
+        push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, p.initials.color))
+        (width=size, height=size, elements=elements)
+    end))
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
 
@@ -3701,31 +3717,33 @@ end
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    destructive = w.variant === :destructive
-    padding = _sc(p.padding)
-    title_color  = destructive ? p.destructive_color : p.default_title_color
-    border_color = destructive ? p.destructive_color : p.default_border_color
-    elements = Any[]
-    max_content_width = 0
-    y = padding
-    title = string(w.title)
-    title_width, title_height = _text_size(p.measure, p.title_font, title)
-    _push_text!(elements, p.title_font, title, padding, y, title_color)
-    max_content_width = max(max_content_width, title_width); y += title_height
-    if w.description !== nothing
-        y += _sc(p.title_gap)
-        description = string(w.description)
-        description_width, description_height = _text_size(p.measure, p.description_text.font, description)
-        _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
-        max_content_width = max(max_content_width, description_width); y += description_height
-    end
-    alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
-    alert_height = y + padding
-    surface = Any[]
-    _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
-                 border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
-    append!(surface, elements)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., alert_width, alert_height, surface))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        destructive = w.variant === :destructive
+        padding = _sc(p.padding)
+        title_color  = destructive ? p.destructive_color : p.default_title_color
+        border_color = destructive ? p.destructive_color : p.default_border_color
+        elements = Any[]
+        max_content_width = 0
+        y = padding
+        title = string(w.title)
+        title_width, title_height = _text_size(p.measure, p.title_font, title)
+        _push_text!(elements, p.title_font, title, padding, y, title_color)
+        max_content_width = max(max_content_width, title_width); y += title_height
+        if w.description !== nothing
+            y += _sc(p.title_gap)
+            description = string(w.description)
+            description_width, description_height = _text_size(p.measure, p.description_text.font, description)
+            _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
+            max_content_width = max(max_content_width, description_width); y += description_height
+        end
+        alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
+        alert_height = y + padding
+        surface = Any[]
+        _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
+                     border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
+        append!(surface, elements)
+        (width=alert_width, height=alert_height, elements=surface)
+    end))
 end
 @_printer_only WidgetAlertToGraphicsCanvas
 
@@ -3739,10 +3757,12 @@ end
 function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    block_width  = _resolve_width(ctx, _sc(Int(w.width)))
-    block_height = _sc(Int(w.height))
-    elements = Any[GraphicsRect(0, 0, block_width, block_height, p.fill_color, _sc(p.corner_radius))]
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., block_width, block_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        block_width  = _resolve_width(ctx, _sc(Int(w.width)))
+        block_height = _sc(Int(w.height))
+        elements = Any[GraphicsRect(0, 0, block_width, block_height, p.fill_color, _sc(p.corner_radius))]
+        (width=block_width, height=block_height, elements=elements)
+    end))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
@@ -3881,25 +3901,27 @@ end
 function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    text = string(w.content)
-    on  = w.pressed === true
-    enabled = !(w.enabled === false)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    text_width, text_height = _text_size(p.measure, p.font, text)
-    control_width  = text_width + 2padding_x
-    control_height = text_height + 2padding_y
-    fill       = !enabled ? p.disabled_fill : on ? p.pressed_fill : p.released_fill
-    foreground = !enabled ? p.disabled_foreground : on ? p.pressed_foreground : p.released_foreground
-    # Disabled and released states both show the outline; pressed drops it.
-    border_color = (on && enabled) ? nothing : p.border.color
-    border_width = (on && enabled) ? 0 : max(1, _sc(p.border.width))
-    elements = Any[]
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
-                 border_w=border_width, radius=_sc(p.corner_radius))
-    push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, foreground))
-    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        text = string(w.content)
+        on  = w.pressed === true
+        enabled = !(w.enabled === false)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        text_width, text_height = _text_size(p.measure, p.font, text)
+        control_width  = text_width + 2padding_x
+        control_height = text_height + 2padding_y
+        fill       = !enabled ? p.disabled_fill : on ? p.pressed_fill : p.released_fill
+        foreground = !enabled ? p.disabled_foreground : on ? p.pressed_foreground : p.released_foreground
+        # Disabled and released states both show the outline; pressed drops it.
+        border_color = (on && enabled) ? nothing : p.border.color
+        border_width = (on && enabled) ? 0 : max(1, _sc(p.border.width))
+        elements = Any[]
+        _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
+                     border_w=border_width, radius=_sc(p.corner_radius))
+        push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, foreground))
+        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
+        (width=control_width, height=control_height, elements=elements)
+    end))
 end
 @_printer_only WidgetToggleToGraphicsCanvas
 
@@ -3924,40 +3946,42 @@ end
 function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    enabled = !(w.enabled === false)
-    selected = Int(w.selected)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    labels = [string(o) for o in w.options]
-    _, text_height = _text_size(p.measure, p.font, "M")
-    segment_widths = [(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
-    control_height = text_height + 2padding_y
-    control_width  = sum(segment_widths; init=0)
-    corner_radius = _sc(p.corner_radius)
-    segment_inset = _sc(p.segment_inset)
-    track_c    = enabled ? p.track_color    : p.disabled_color
-    seg_fill   = enabled ? p.selected_fill  : p.disabled_color
-    sel_fg     = enabled ? p.selected_foreground   : p.disabled_foreground
-    unsel_fg   = enabled ? p.unselected_foreground : p.disabled_foreground
-    elements = Any[]
-    # Outer container (track + border).
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=track_c, border=p.border.color,
-                 border_w=max(1, _sc(p.border.width)), radius=corner_radius)
-    x = 0
-    for i in eachindex(labels)
-        segment_width = segment_widths[i]
-        if i == selected
-            _push_panel!(elements, x + segment_inset, segment_inset,
-                         segment_width - 2segment_inset, control_height - 2segment_inset;
-                         fill=seg_fill, radius=max(0, corner_radius - segment_inset))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        enabled = !(w.enabled === false)
+        selected = Int(w.selected)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        labels = [string(o) for o in w.options]
+        _, text_height = _text_size(p.measure, p.font, "M")
+        segment_widths = [(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
+        control_height = text_height + 2padding_y
+        control_width  = sum(segment_widths; init=0)
+        corner_radius = _sc(p.corner_radius)
+        segment_inset = _sc(p.segment_inset)
+        track_c    = enabled ? p.track_color    : p.disabled_color
+        seg_fill   = enabled ? p.selected_fill  : p.disabled_color
+        sel_fg     = enabled ? p.selected_foreground   : p.disabled_foreground
+        unsel_fg   = enabled ? p.unselected_foreground : p.disabled_foreground
+        elements = Any[]
+        # Outer container (track + border).
+        _push_panel!(elements, 0, 0, control_width, control_height; fill=track_c, border=p.border.color,
+                     border_w=max(1, _sc(p.border.width)), radius=corner_radius)
+        x = 0
+        for i in eachindex(labels)
+            segment_width = segment_widths[i]
+            if i == selected
+                _push_panel!(elements, x + segment_inset, segment_inset,
+                             segment_width - 2segment_inset, control_height - 2segment_inset;
+                             fill=seg_fill, radius=max(0, corner_radius - segment_inset))
+            end
+            text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
+            foreground = i == selected ? sel_fg : unsel_fg
+            push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, foreground))
+            x += segment_width
         end
-        text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
-        foreground = i == selected ? sel_fg : unsel_fg
-        push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, foreground))
-        x += segment_width
-    end
-    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., control_width, control_height, elements))
+        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
+        (width=control_width, height=control_height, elements=elements)
+    end))
 end
 @_printer_only WidgetToggleGroupToGraphicsCanvas
 
@@ -4071,16 +4095,18 @@ end
 function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    label = string(w.label)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    text_width, text_height = _text_size(p.measure, p.text.font, label)
-    row_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + 2padding_x)
-    row_height = text_height + 2padding_y
-    elements = Any[]
-    _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
-    push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, p.text.color))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., row_width, row_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        label = string(w.label)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        text_width, text_height = _text_size(p.measure, p.text.font, label)
+        row_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + 2padding_x)
+        row_height = text_height + 2padding_y
+        elements = Any[]
+        _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
+        push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, p.text.color))
+        (width=row_width, height=row_height, elements=elements)
+    end))
 end
 
 map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _self_point(reference)
@@ -4268,25 +4294,27 @@ end
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    enabled = !(w.enabled === false)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    lines = split(string(w.content), '\n')
-    _, line_height = _text_size(p.measure, p.text.font, "M")
-    row_count = max(Int(w.rows), length(lines))
-    area_height = row_count * line_height + 2padding_y
-    longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
-    area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
-    box_fill   = enabled ? p.background_color : p.disabled_color
-    text_color = enabled ? p.text.color       : p.disabled_foreground
-    elements = Any[]
-    _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
-                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    for (i, line) in enumerate(lines)
-        push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, text_color))
-    end
-    _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., area_width, area_height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        enabled = !(w.enabled === false)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        lines = split(string(w.content), '\n')
+        _, line_height = _text_size(p.measure, p.text.font, "M")
+        row_count = max(Int(w.rows), length(lines))
+        area_height = row_count * line_height + 2padding_y
+        longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
+        area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
+        box_fill   = enabled ? p.background_color : p.disabled_color
+        text_color = enabled ? p.text.color       : p.disabled_foreground
+        elements = Any[]
+        _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
+                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        for (i, line) in enumerate(lines)
+            push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, text_color))
+        end
+        _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
+        (width=area_width, height=area_height, elements=elements)
+    end))
 end
 @_printer_only WidgetTextareaToGraphicsCanvas
 
