@@ -200,23 +200,32 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
   (its reader imperatively `push!`/`deleteat!`s `output.windows` — a documented
   workaround for Copying's *former* eager children; now that 2b made Copying
   reconcile, remove the workaround holistically in editor tightening).
-- **C — eager output/children, still TODO (~14):**
-  - **4b (contained):** `GridLayoutIoMap` (the one layout still `Cell(entries)` while
-    HL/VL/Stack/Flow/Constraint siblings use reactive `ChildrenIoMap` — copy the
-    sibling pattern); `ScreenToScreenIoMap` (reactive output but Cell-comprehension
-    `window_iomaps` → reconcile); `ScreenWindowIoMap` (content in a const cell →
-    reconcile single); `ClipboardCollectionToAnyProjectionIoMap` (eager comprehension
-    `element_iomaps` → reconcile); `ObjectToWidgetIoMap` + `ProjectionConfiguring`
-    (eager output shell, reactive leaf views — lower urgency, leaves already react).
+- **C — eager output/children:**
+  - **4b (reconcile fixes). DONE `221bb397`:** `ClipboardCollectionToAnyProjectionIoMap`
+    (eager `element_iomaps` comprehension → `reconcile_child_iomaps`, deref at 3 read
+    sites; struct stays plain — its output is a deliberately Cell-valued field with
+    `.output[]` consumers) and `ScreenToScreenIoMap` (`window_iomaps` Cell-that-rebuilds-all
+    → `reconcile_child_iomaps`, no deref change) + `ScreenWindowIoMap` (const
+    `Cell(content_iomap.output)` → `Cell(() -> …)`). Output unchanged (pass counts
+    identical); identity now stable.
+  - **4b-layout (regrouped, intricate):** `GridLayoutIoMap` / Flow / Stack are all eager
+    (`CellVector(Cell[Cell(e) for e in wrapped])` + `Cell(entries)`), unlike the reactive
+    H/V/Constraint siblings' `build = Cell(() -> _build(…))` + `CellVector(() -> build[].wrapped)`.
+    **NOT contained:** Grid's IoMap exposes per-column/row geometry cells (`col_x`, `col_w`,
+    `row_h`, `columns`, `row_count`) that `WidgetToGraphics._wt_geometry` reads via
+    `iomap.col_x[c][]` — moving `child_iomaps` into a build cell ripples into that external
+    geometry contract. Interlocks with 4c; do together. (Layouts are currently "saved" by
+    parent-composite reconciliation, so this is a Phase-6 prerequisite, not a live bug yet.)
   - **4c (the bulk):** the 10 eager `WidgetToGraphics` structs built via `_make_canvas`
     with **snapshot extent** (`Int(w.h[])` captured) **+ eager CellVector membership**:
     `WidgetScrollPane`/`WidgetTransformPane`/`WidgetScrollPaneToGraphicsViewport` (panes,
     reconcile single content), `WidgetText`/`WidgetContextMenu`/`WidgetDialog`/
     `WidgetMenuItem` (eager content + `Cell(list)` children), `WidgetSelect`/`WidgetSpinBox`/
     `WidgetList` (leaves). **Template to copy: `WidgetTable`/`WidgetTree`** (already reactive
-    in the same file). Big, intricate (WidgetToGraphics.jl ~5k lines) — its own sub-batch.
+    in the same file). Plus `ObjectToWidgetIoMap` + `ProjectionConfiguring` (eager output
+    shell, reactive leaf views — lower urgency). Big, intricate (WidgetToGraphics.jl ~5k lines).
 
-Verified after 4a: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
+Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
 **Phase 5 — domain projections** (versioning, workbench, graph, formula, …).
 Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
