@@ -729,6 +729,15 @@ end
 # Convenience for leaves that need only the canvas: make the build cell from a thunk.
 _reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Cell(build_fn))
 
+# Auto-extent reactive canvas (w = h = 0, sized by its children) with reactive
+# membership — the container analogue of the 3-arg `_make_canvas(x, y, elems)`.
+# `elems_fn()` returns the (positioned) child element vector, re-derived reactively.
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn)
+    GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0),
+                   CellVector(elems_fn),
+                   layout_none, true, Cell(nothing))
+end
+
 _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                  CellVector(), layout_none, true, Cell(nothing))
 
@@ -1596,30 +1605,39 @@ _menu_item_width(cim) =
 
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    cox, coy = _content_offset(w)
-    horizontal = w.orientation === :horizontal
-    child_iomaps = Any[]
-    elems = Any[]
-    x_cursor = cox
-    y_cursor = coy
-    _, item_h = p.measure("M", p.font)
-    item_gap = horizontal ? 12 : 0
-    for (i, item) in enumerate(w.elements)
-        item isa WidgetDocument || continue
-        # Extend the reference per item so a nested trigger (e.g. a submenu-opener)
-        # captures `…elements[i]` as its anchor, which a content-root resolver can
-        # forward-map back to graphics coordinates (Step 4c).
-        cctx = make_child_context(ctx, FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))
-        cim = print_child(recursion, item, cctx)
-        push!(child_iomaps, (x_cursor, y_cursor, cim))
-        push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
-        if horizontal
-            x_cursor += _menu_item_width(cim) + item_gap
-        else
-            y_cursor += item_h
+    # Reconcile every element by identity, keeping the ORIGINAL index so a nested
+    # trigger captures `…elements[i]` as its anchor (a content-root resolver
+    # forward-maps it back to graphics coordinates, Step 4c). Non-widget slots
+    # reconcile to `nothing` and are skipped when laying out.
+    child_cells = reconcile_child_iomaps(
+        () -> w.elements,
+        (i, item) -> item isa WidgetDocument ?
+            print_child(recursion, item,
+                make_child_context(ctx, FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))) :
+            nothing)
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        horizontal = w.orientation === :horizontal
+        _, item_h = p.measure("M", p.font)
+        item_gap = horizontal ? 12 : 0
+        child_iomaps = Any[]
+        elems = Any[]
+        x_cursor = cox
+        y_cursor = coy
+        for cim in child_cells[]
+            cim === nothing && continue
+            push!(child_iomaps, (x_cursor, y_cursor, cim))
+            push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
+            if horizontal
+                x_cursor += _menu_item_width(cim) + item_gap
+            else
+                y_cursor += item_h
+            end
         end
-    end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+        (elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+                  Cell(() -> build[].child_iomaps))
 end
 
 # `elements[i]/…` routes to the i-th item's forward image, shifted by where this
@@ -1645,18 +1663,21 @@ end
 function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::WidgetComposite, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
-    cox, coy = _content_offset(w)
-    child_iomaps = Any[]
-    elems = Any[]
-    for child in w.elements
-        # A composite renders widget children and embedded layout children (e.g.
-        # a GridLayout form from ObjectToWidget); both re-enter the recursion.
-        (child isa WidgetDocument || child isa LayoutDocument) || continue
-        cim = print_child(recursion, child, ctx)
-        push!(child_iomaps, (cox, coy, cim))
-        push!(elems, _make_canvas(cox, coy, Any[cim.output]))
-    end
-    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., elems), Cell(child_iomaps))
+    # A composite renders widget children and embedded layout children (e.g. a
+    # GridLayout form from ObjectToWidget); both re-enter the recursion. Reconcile
+    # the filtered children by identity so a structural edit reuses survivors.
+    child_cells = reconcile_child_iomaps(
+        () -> Any[c for c in w.elements if (c isa WidgetDocument || c isa LayoutDocument)],
+        (i, c) -> print_child(recursion, c, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        cims = child_cells[]
+        child_iomaps = Any[(cox, coy, cim) for cim in cims]
+        elems = Any[_make_canvas(cox, coy, Any[cim.output]) for cim in cims]
+        (elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> build[].elements),
+                  Cell(() -> build[].child_iomaps))
 end
 
 # A composite addresses children by `elements[i]`, each wrapped at the content
@@ -1991,23 +2012,28 @@ end
 
 function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    cox, coy = _content_offset(w)
-    elems = Any[]
-    child_iomaps = Any[]
-    title = string(w.title)
-    tw, th = _text_size(p.measure, p.title_text.font, title)
-    # Card-like: bold title, body in the content style.
-    _push_text!(elems, p.title_text.font, title, cox, coy, p.title_text.color)
-    content_y = coy + th + _sc(p.title_gap)
-    content = w.content
-    if content isa Document
-        cim = print_child(recursion, content, ctx)
-        push!(child_iomaps, (cox, content_y, cim))
-        push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-    elseif content isa AbstractString
-        _push_text!(elems, p.content_text.font, content, cox, content_y, p.content_text.color)
-    end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        elems = Any[]
+        child_iomaps = Any[]
+        title = string(w.title)
+        tw, th = _text_size(p.measure, p.title_text.font, title)
+        # Card-like: bold title, body in the content style.
+        _push_text!(elems, p.title_text.font, title, cox, coy, p.title_text.color)
+        content_y = coy + th + _sc(p.title_gap)
+        content = w.content
+        if content isa Document
+            cim = content_cell[]
+            push!(child_iomaps, (cox, content_y, cim))
+            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+        elseif content isa AbstractString
+            _push_text!(elems, p.content_text.font, content, cox, content_y, p.content_text.color)
+        end
+        (elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+                  Cell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference)
@@ -3129,23 +3155,28 @@ end
 
 function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetToolbar, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    cox, coy = _content_offset(w)
-    child_iomaps = Any[]
-    elems = Any[]
-    x_cursor = cox
-    item_gap = p.item_gap
-    for item in w.elements
-        item isa WidgetDocument || continue
-        cim = print_child(recursion, item, ctx)
-        push!(child_iomaps, (x_cursor, coy, cim))
-        push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
-        # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
-        # not just its text — otherwise an icon'd item overlaps the next one.
-        iw = _menu_item_width(cim)
-        iw <= 0 && ((iw, _) = p.measure("    ", p.font))
-        x_cursor += iw + item_gap
-    end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+    child_cells = reconcile_child_iomaps(
+        () -> Any[item for item in w.elements if item isa WidgetDocument],
+        (i, item) -> print_child(recursion, item, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        item_gap = p.item_gap
+        child_iomaps = Any[]
+        elems = Any[]
+        x_cursor = cox
+        for cim in child_cells[]
+            push!(child_iomaps, (x_cursor, coy, cim))
+            push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
+            # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
+            # not just its text — otherwise an icon'd item overlaps the next one.
+            iw = _menu_item_width(cim)
+            iw <= 0 && ((iw, _) = p.measure("    ", p.font))
+            x_cursor += iw + item_gap
+        end
+        (elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+                  Cell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference)
