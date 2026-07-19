@@ -109,7 +109,7 @@ pipe_on  = RecursiveProjection(SyntaxToText(expanded_marker=mk("▾"), collapsed
 # Marker off (default): byte-for-byte unchanged, no marker recorded.
 iomap_off = print_document(pipe_off, node)
 @test join(s.content for s in iomap_off.output.elements) == "[1, 2, 3]"
-@test iomap_off.marker_index[] == 0
+@test iomap_off.marker_index == 0
 
 # Marker on, expanded: leading ▾ as element 1.
 node.collapsed = false
@@ -117,7 +117,7 @@ iomap_x = print_document(pipe_on, node)
 spans_x = [s.content for s in iomap_x.output.elements]
 @test spans_x[1] == "▾"
 @test join(spans_x) == "▾[1, 2, 3]"
-@test iomap_x.marker_index[] == 1
+@test iomap_x.marker_index == 1
 
 # Marker on, collapsed: the glyph swaps to ▸ and the body folds to a single
 # ellipsis between the delimiters — the children are not laid out.
@@ -126,14 +126,14 @@ iomap_c = print_document(pipe_on, node)
 spans_c = [s.content for s in iomap_c.output.elements]
 @test spans_c[1] == "▸"
 @test join(spans_c) == "▸[…]"
-@test iomap_c.marker_index[] == 1
+@test iomap_c.marker_index == 1
 node.collapsed = false
 
 # Empty node: no marker even when configured (nothing to fold).
 empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 iomap_e = print_document(pipe_on, empty_node)
 @test join(s.content for s in iomap_e.output.elements) == "[]"
-@test iomap_e.marker_index[] == 0
+@test iomap_e.marker_index == 0
 
 # Offset shift: the marker adds exactly its length to the subtree, the marker
 # range maps to a projection-introduced position, and the round-trip identity

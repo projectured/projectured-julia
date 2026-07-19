@@ -118,7 +118,7 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
             @test true
             return
         end
-        coords = t2g.char_to_coord[]
+        coords = t2g.char_to_coord
         if isempty(coords)
             @warn "[$label] empty char_to_coord; skipping"
             @test true

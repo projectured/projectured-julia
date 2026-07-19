@@ -58,7 +58,7 @@ import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
 import ..StyleTextModule: StyleText, DStyleText
 import ..StyleStrokeModule: StyleStroke
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
@@ -515,7 +515,7 @@ end
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
 
-struct WidgetScrollPaneToGraphicsCanvasIoMap <: IoMap
+@iomap struct WidgetScrollPaneToGraphicsCanvasIoMap
     projection::Any
     input::WidgetScrollPane
     output::GraphicsCanvas
@@ -524,7 +524,7 @@ end
 
 # ── IoMap for WidgetTransformPane ──────────────────────────────────────────
 
-struct WidgetTransformPaneToGraphicsCanvasIoMap <: IoMap
+@iomap struct WidgetTransformPaneToGraphicsCanvasIoMap
     projection::Any
     input::WidgetTransformPane
     output::GraphicsCanvas
@@ -1334,7 +1334,7 @@ end
 
 # Carries the centered card's bounds (for the backdrop hit-test) plus the content
 # and button child-iomaps (for routing + re-rooting), all in dialog-canvas coords.
-struct WidgetDialogToGraphicsCanvasIoMap <: IoMap
+@iomap struct WidgetDialogToGraphicsCanvasIoMap
     projection::Any
     input::WidgetDialog
     output::GraphicsCanvas
@@ -1448,7 +1448,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     evt.button === :left || return nothing
     (cx, cy, cw, ch) = iomap.card
     (cx <= evt.x < cx + cw && cy <= evt.y < cy + ch) || return CloseWindowOperation(pid)
-    bop = _route_click_to_children(iomap.button_entries[]::Vector, evt)
+    bop = _route_click_to_children(iomap.button_entries::Vector, evt)
     bop !== nothing && return CompoundOperation(Any[bop, CloseWindowOperation(pid)])
     ce = iomap.content_entry
     ce === nothing && return nothing
@@ -4523,7 +4523,7 @@ end
 
 # IoMap: carries the grid iomap (for cell delegation) plus the persisted geometry
 # (the table analog of TextToGraphics's char_to_coord).
-struct WidgetTableToGraphicsCanvasIoMap <: IoMap
+@iomap struct WidgetTableToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
@@ -4828,8 +4828,8 @@ _wt_geometry_empty(pad::Int, bw::Int) =
 # Whole-element handles (`rows[r]∅`, `∅`, …) have no image on the canvas — the
 # band is drawn in place during print — so they map to nothing.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
-    geom = iomap.geometry[]
-    gim = iomap.grid_iomap[]
+    geom = iomap.geometry
+    gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     target = _wt_ref_to_grid_index(reference, geom)
     target === nothing && return nothing
@@ -4845,7 +4845,7 @@ map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
 # Backward: a grid-domain reference (`children[gidx].…`) maps back to the table
 # domain (`rows[r][c].…` etc.).
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     _wt_grid_ref_to_table(reference, geom)
 end
 
@@ -4945,7 +4945,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
         return Intent(g, _wt_hover_clear(iomap))
     end
     if change.operation === nothing && g isa KeyDown
-        op = _wt_key_navigate(iomap, g, iomap.geometry[])
+        op = _wt_key_navigate(iomap, g, iomap.geometry)
         op === nothing || return Intent(g, op)
     end
     # Fall through: plain editing keys route into the active cell via the grid; an
@@ -4957,7 +4957,7 @@ end
 
 # Resolve a left click into a selection operation (or nothing).
 function _wt_mouse_select(iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress)
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     hit = _wt_hit_test(geom, g.x, g.y)
     kind = hit[1]
     if kind === :corner
@@ -5033,7 +5033,7 @@ end
 # grid returns nothing (the tracker's MouseLeave clears it).
 function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
     w = iomap.input
-    ref = _wt_hover_ref(iomap.geometry[], x, y)
+    ref = _wt_hover_ref(iomap.geometry, x, y)
     ref === nothing && return nothing
     (!force && w.hovered == ref) && return nothing
     ReplaceReferencedValueOperation(w, "hovered", ref)
@@ -5050,12 +5050,12 @@ end
 # operation back into the table domain.
 function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry,
                               r::Int, c::Int, g::MousePress)
-    gim = iomap.grid_iomap[]
+    gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     gr = r + geom.row_offset
     gc = c + geom.col_offset
     gidx = _wt_grid_index(gr, gc, geom.grid_cols)
-    entries = gim.child_iomaps[]::Vector
+    entries = gim.child_iomaps::Vector
     (1 <= gidx <= length(entries)) || return nothing
     entry = entries[gidx]
     entry === nothing && return nothing
@@ -5166,12 +5166,12 @@ _wt_cell_ref(r::Int, c::Int) = ConcreteReference(FieldReferenceStep("rows"),
 
 # Place a character cursor at the start of a cell's content.
 function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry, r::Int, c::Int)
-    gim = iomap.grid_iomap[]
+    gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     gr = r + geom.row_offset
     gc = c + geom.col_offset
     gidx = _wt_grid_index(gr, gc, geom.grid_cols)
-    entries = gim.child_iomaps[]::Vector
+    entries = gim.child_iomaps::Vector
     (1 <= gidx <= length(entries)) || return nothing
     entry = entries[gidx]
     entry === nothing && return nothing
@@ -5201,9 +5201,9 @@ end
 # Dispatch a non-gesture event to the grid; the active cell answers and the grid
 # returns a `children[gidx].…` op, which we re-root into the table domain.
 function _wt_grid_passthrough(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
-    gim = iomap.grid_iomap[]
+    gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     op = read_intent(gim.projection, gim, event)
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(op.path, geom)
@@ -5268,7 +5268,7 @@ struct WTreeGeometry
     total_h::Int
 end
 
-struct WidgetTreeToGraphicsCanvasIoMap <: IoMap
+@iomap struct WidgetTreeToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
@@ -5494,7 +5494,7 @@ end
 # `selection` of its own, hence the explicit-selection `read_bound_gesture`.
 function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
     w = iomap.input
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     path = nothing
     if g isa MousePress
         (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
@@ -5516,7 +5516,7 @@ end
 # A left click on a parent row's chevron column toggles its collapse; anywhere
 # else on a row selects it.
 function _wtree_mouse_press(iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
     for row in geom.rows
         if row.y0 <= g.y < row.y0 + row.height
@@ -5543,7 +5543,7 @@ end
 # tree as its target; a plain `MouseMove` emits only when the row actually changes,
 # and returns nothing outside every row (the tracker's MouseLeave clears it).
 function _wtree_hover_set(iomap::WidgetTreeToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     w = iomap.input
     if 0 <= x < geom.total_w && 0 <= y < geom.total_h
         for row in geom.rows
@@ -5564,7 +5564,7 @@ end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
     g.key in (:up, :down) || return nothing
-    geom = iomap.geometry[]
+    geom = iomap.geometry
     isempty(geom.rows) && return nothing
     cur = _wtree_ref_path(iomap.input.selection)
     idx = cur === nothing ? 0 : something(findfirst(r -> r.path == cur, geom.rows), 0)
@@ -5709,7 +5709,7 @@ end
 
 # ── WidgetScrollPaneToGraphicsViewport ─────────────────────────────────────
 
-struct WidgetScrollPaneToGraphicsViewportIoMap <: IoMap
+@iomap struct WidgetScrollPaneToGraphicsViewportIoMap
     projection::Any
     input::WidgetScrollPane
     output::GraphicsCanvas

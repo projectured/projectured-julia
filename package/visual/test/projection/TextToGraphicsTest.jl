@@ -312,7 +312,7 @@ canvas = print_document(p, mkblock()).output
 @test Int(canvas.h) == 36
 
 # The coordinate table addresses a span inside a line by its index path.
-@test [sc.span_path for sc in print_document(p, mkblock()).char_to_coord[]] == [[1, 1], [2, 1]]
+@test [sc.span_path for sc in print_document(p, mkblock()).char_to_coord] == [[1, 1], [2, 1]]
 
 # The caret lands on the character it was placed against: past the indent on an
 # indented line, and on the right row for the line below. The selection is a flat

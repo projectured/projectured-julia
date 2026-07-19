@@ -31,7 +31,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
 import ..PointReferenceStepModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap
+import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap, var"@iomap"
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
@@ -41,14 +41,14 @@ struct ScreenToScreen <: Projection end
 
 # ── IoMaps ──────────────────────────────────────────────────────────────────
 
-struct ScreenToScreenIoMap <: IoMap
+@iomap struct ScreenToScreenIoMap
     projection::ScreenToScreen
     input::Any              # ScreenDocument
     output::Any             # ScreenDocument
     window_iomaps::Cell     # Vector of ScreenWindowIoMap, one per window
 end
 
-struct ScreenWindowIoMap <: IoMap
+@iomap struct ScreenWindowIoMap
     projection::ScreenToScreen
     input::Any              # WindowDocument
     output::Any             # WindowDocument
@@ -127,7 +127,7 @@ function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     elem = head(rest1)
     elem isa RangeReferenceStep || return reference
     i = elem.stop                       # ElementReferenceStep(i) == RangeReferenceStep(i-1, i)
-    ims = iomap.window_iomaps[]
+    ims = iomap.window_iomaps
     (i < 1 || i > length(ims)) && return nothing
     wim = ims[i]
     mapped = fn(wim.projection, wim, tail(rest1))
@@ -144,7 +144,7 @@ function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return reference
     h = head(reference)
     (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
-    cim = iomap.content_iomap[]
+    cim = iomap.content_iomap
     mapped = fn(cim.projection, cim, tail(reference))
     mapped === nothing && return nothing
     if mapped isa PointReferenceStep
@@ -171,7 +171,7 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
     window_input = change.gesture
     if window_input isa WindowInput
-        ims = iomap.window_iomaps[]
+        ims = iomap.window_iomaps
         for (i, wim) in enumerate(ims)
             win_in = wim.input
             win_in isa WindowDocument || continue
@@ -191,7 +191,7 @@ end
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
     window_input = change.gesture
     if window_input isa WindowInput
-        cim = iomap.content_iomap[]
+        cim = iomap.content_iomap
         inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReferenceStep("content"),))
         return Intent(change.gesture, op)

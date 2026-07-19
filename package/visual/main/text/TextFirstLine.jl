@@ -29,7 +29,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationApiModule: Operation
@@ -54,7 +54,7 @@ struct TextFirstLine <: Projection end
 # prefix is index-aligned). `trunc_span` is the 1-based index of the span that
 # was truncated at an embedded '\n' (or 0 if the prefix ended at a TextNewline /
 # end of input with no truncation); `trunc_len` is that span's kept char count.
-struct TextFirstLineIoMap <: IoMap
+@iomap struct TextFirstLineIoMap
     projection::Any
     input::TextBlock
     output::TextBlock
@@ -130,7 +130,7 @@ function _forward(info, sel)
 end
 
 map_reference_forward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference) =
-    _forward(iomap.info[], reference)
+    _forward(iomap.info, reference)
 
 # Backward: output spans are index-aligned with their input spans, so the map is
 # the identity over the visible prefix.

@@ -58,7 +58,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           evaluate_reference, try_evaluate_reference, head, tail,
                           strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap, reconcile_child_iomaps
+import ..IoMapModule: IoMap, reconcile_child_iomaps, var"@iomap"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
@@ -114,7 +114,7 @@ ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
 
 # ── IoMaps ────────────────────────────────────────────────────────────────────
 
-struct ClipboardSliceToAnyProjectionIoMap <: IoMap
+@iomap struct ClipboardSliceToAnyProjectionIoMap
     projection::ClipboardSliceToAnyProjection
     input::Any              # ClipboardSlice
     output::Any             # content or slice child output
@@ -122,7 +122,7 @@ struct ClipboardSliceToAnyProjectionIoMap <: IoMap
     slice_iomap::Any        # iomap of the stored slice, or nothing
 end
 
-struct ClipboardCollectionToAnyProjectionIoMap <: IoMap
+@iomap struct ClipboardCollectionToAnyProjectionIoMap
     projection::ClipboardCollectionToAnyProjection
     input::Any              # ClipboardCollection
     output::Any             # content child output, or CellVector of element outputs

@@ -33,7 +33,7 @@ _contents(text) = [e.content for e in text.elements if e isa TextString]
     iomap = print_document(TextFiltering(r"dolor"), _fixture())
     out = iomap.output
     @test _contents(out) == ["alpha dolor", "delta dolor"]
-    @test iomap.kept[] == [1, 2, 5]           # both matching lines incl. line 1's newline
+    @test iomap.kept == [1, 2, 5]           # both matching lines incl. line 1's newline
     @test count(e -> e isa TextNewline, out.elements) == 1
 
 end # @testset
@@ -42,7 +42,7 @@ end # @testset
 
     iomap = print_document(TextFiltering(r"dolor", invert=true), _fixture())
     @test _contents(iomap.output) == ["beta gamma"]
-    @test iomap.kept[] == [3, 4]
+    @test iomap.kept == [3, 4]
 
 end # @testset
 
@@ -50,7 +50,7 @@ end # @testset
 
     iomap = print_document(TextFiltering(), _fixture())
     @test length(iomap.output.elements) == 5
-    @test iomap.kept[] == [1, 2, 3, 4, 5]
+    @test iomap.kept == [1, 2, 3, 4, 5]
     @test _contents(iomap.output) == ["alpha dolor", "beta gamma", "delta dolor"]
 
 end # @testset
@@ -105,14 +105,14 @@ end # @testset
 
     pat = Cell(r"dolor")
     iomap = print_document(TextFiltering(pat), _fixture())
-    @test iomap.kept[] == [1, 2, 5]
+    @test iomap.kept == [1, 2, 5]
 
     pat[] = r"gamma"
-    @test iomap.kept[] == [3, 4]
+    @test iomap.kept == [3, 4]
     @test _contents(iomap.output) == ["beta gamma"]
 
     pat[] = nothing                 # empty search → keep everything
-    @test iomap.kept[] == [1, 2, 3, 4, 5]
+    @test iomap.kept == [1, 2, 3, 4, 5]
 
 end # @testset
 
@@ -120,21 +120,21 @@ end # @testset
 
     # String source compiles to a Regex; empty source keeps everything.
     iomap = print_document(TextFiltering("dolor"), _fixture())
-    @test iomap.kept[] == [1, 2, 5]
+    @test iomap.kept == [1, 2, 5]
 
     # case_insensitive adds the `i` flag.
     ci = Cell(false)
     iomap2 = print_document(TextFiltering(Cell("DOLOR"); case_insensitive=ci), _fixture())
-    @test iomap2.kept[] == Int[]             # case-sensitive: no line matches "DOLOR"
+    @test iomap2.kept == Int[]             # case-sensitive: no line matches "DOLOR"
     ci[] = true
-    @test iomap2.kept[] == [1, 2, 5]         # now the dolor lines match
+    @test iomap2.kept == [1, 2, 5]         # now the dolor lines match
 
     # invert is now a reactive Cell.
     inv = Cell(false)
     iomap3 = print_document(TextFiltering(Cell("dolor"); invert=inv), _fixture())
-    @test iomap3.kept[] == [1, 2, 5]
+    @test iomap3.kept == [1, 2, 5]
     inv[] = true
-    @test iomap3.kept[] == [3, 4]            # keep the complement
+    @test iomap3.kept == [3, 4]            # keep the complement
 
 end # @testset
 

@@ -57,7 +57,7 @@ end # @testset
     proj = TextHighlighting(r"alpha", color=color_red)
     iomap = print_document(proj, TextBlock(TextString("alpha beta alpha", _font, color_default)))
     out = iomap.output
-    segs = iomap.segs[]
+    segs = iomap.segs
     @test length(segs) == 3
     for seg in segs
         for k in 0:seg.length
@@ -89,7 +89,7 @@ end # @testset
     out = print_document(TextHighlighting(r"a*", color=color_red),
                            TextBlock(TextString("banana", _font, color_default))).output
     iomap_segs = print_document(TextHighlighting(r"a*", color=color_red),
-                                  TextBlock(TextString("banana", _font, color_default))).segs[]
+                                  TextBlock(TextString("banana", _font, color_default))).segs
     @test all(s.length >= 1 for s in iomap_segs)
     @test join((e.content for e in out.elements if e isa TextString), "") == "banana"
 

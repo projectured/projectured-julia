@@ -42,7 +42,7 @@ module ObjectToWidgetModule
 
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
@@ -71,7 +71,7 @@ redirect a control's edit back onto the object's field cell. `path` is the full
 reference from the root object to the bound field (a single `FieldReferenceStep` for a
 top-level field, a deeper path for a nested one).
 """
-struct ObjectToWidgetIoMap <: IoMap
+@iomap struct ObjectToWidgetIoMap
     projection::Any
     input::Any
     output::Any

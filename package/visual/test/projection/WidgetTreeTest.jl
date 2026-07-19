@@ -43,7 +43,7 @@ end
 
 @testset "flatten records rows, chevron box, and collapse flag" begin
     w, io = _fresh()
-    geom = io.geometry[]
+    geom = io.geometry
     @test length(geom.rows) == 4                       # src, a.jl, b.jl, README
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
     @test geom.rows[1].has_children && !geom.rows[1].collapsed
@@ -54,7 +54,7 @@ end
 
 @testset "MouseEnter sets the hovered row; a leave clears it" begin
     w, io = _fresh()
-    r1 = io.geometry[].rows[1]
+    r1 = io.geometry.rows[1]
     op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     getfield(w, :hovered)[] = op.value
@@ -70,7 +70,7 @@ end
 
 @testset "MouseMove updates hover only when the row changes" begin
     w, io = _fresh()
-    rows = io.geometry[].rows
+    rows = io.geometry.rows
     r1, r2 = rows[1], rows[2]
     getfield(w, :hovered)[] = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, :none, _mods)).value
     # Same row again → nothing (no churn).
@@ -82,23 +82,23 @@ end
 
 @testset "clicking a chevron collapses/expands; clicking a label selects" begin
     w, io = _fresh()
-    r1 = io.geometry[].rows[1]
+    r1 = io.geometry.rows[1]
     # Chevron click on the parent → collapse (children hidden, flag set).
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
     @test op isa ReplaceReferencedValueOperation
     getfield(w, :collapsed)[] = op.value
     @test [1] in w.collapsed
-    g = io.geometry[]
+    g = io.geometry
     @test length(g.rows) == 2 && g.rows[1].collapsed
     # Chevron click again → expand.
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
     getfield(w, :collapsed)[] = op.value
     @test !([1] in w.collapsed)
-    @test length(io.geometry[].rows) == 4
+    @test length(io.geometry.rows) == 4
 
     # A click on the label (past the chevron column) selects instead of toggling.
     w2, io2 = _fresh()
-    r = io2.geometry[].rows[1]
+    r = io2.geometry.rows[1]
     op = _readop(io2, MousePress(:left, r.chevron_x1 + 20, r.y0 + 2, _mods))
     @test op isa ReplaceSelectionOperation
 end
@@ -109,23 +109,23 @@ _bands(io) = [r for r in _rects(io) if r.color.alpha[] > 0]
 
 @testset "hover band overlay tracks w.hovered" begin
     w, io = _fresh()
-    _ = io.geometry[]
+    _ = io.geometry
     bands = _bands(io)
     @test length(bands) == 2                            # hover + selection bands
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
     # Hover row 1 → one band gains the row's height.
-    getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry[].rows[1].y0 + 2, :none, _mods)).value
+    getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, :none, _mods)).value
     @test any(Int(r.h[]) == 24 for r in _bands(io))
 end
 
 @testset "the whole tree canvas is a hit target (nested routability)" begin
     w, io = _fresh()
-    _ = io.geometry[]
+    _ = io.geometry
     # A transparent full-canvas rect makes the tree hittable over empty row space
     # when nested in a container that gates on hit_element_at.
     hit = [r for r in _rects(io) if r.color.alpha[] == 0]
     @test length(hit) == 1
-    @test Int(hit[1].w[]) == io.geometry[].total_w && Int(hit[1].h[]) == io.geometry[].total_h
+    @test Int(hit[1].w[]) == io.geometry.total_w && Int(hit[1].h[]) == io.geometry.total_h
 end
 
 # Regression: a tree nested in a layout / tabbed pane / shell must still receive

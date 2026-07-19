@@ -117,7 +117,7 @@ end # @testset
     proj = SelectionInverting()
     iomap = print_document(proj, _doc("alphabet", _range(1, 2, 5)))
     out = iomap.output
-    segs = iomap.segs[]
+    segs = iomap.segs
     @test length(segs) == 3
     for seg in segs
         seg.length == 0 && continue

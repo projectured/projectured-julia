@@ -39,7 +39,7 @@ import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyDown, KeyPress
 import ..EventModule: MousePress
 import ..EventPatternModule: var"@event_case"
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 export TextToGraphics, TextToGraphicsIoMap
 
 """
@@ -73,7 +73,7 @@ end
 IoMap for `TextToGraphics`. `char_to_coord` holds one `SegCoord` per emitted
 text segment with character range, pixel position, font, and text.
 """
-struct TextToGraphicsIoMap <: IoMap
+@iomap struct TextToGraphicsIoMap
     projection::Any
     input::TextBlock
     output::GraphicsCanvas
@@ -136,7 +136,7 @@ end
 # segment that owns the click and the character offset within it.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePress)
     evt.button === :left || return nothing
-    coord_map = iomap.char_to_coord[]
+    coord_map = iomap.char_to_coord
     isempty(coord_map) && return nothing
     sc = _hit_segment(coord_map, evt.x, evt.y)
     sc === nothing && return nothing
@@ -178,7 +178,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
 
     @event_case evt begin
         when(KeyDown(k), k === :home || k === :end) => begin
-            coord_map = iomap.char_to_coord[]
+            coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing
             seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
             seg_idx === nothing && return nothing
@@ -189,7 +189,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
             return _flat_hit_op(styled, sc.span_path, new_char)
         end
         when(KeyDown(k), k === :up || k === :down) => begin
-            coord_map = iomap.char_to_coord[]
+            coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing
             seg_idx = findfirst(sc -> sc.span_path == current.span && sc.char_start <= current.char <= sc.char_end, coord_map)
             seg_idx === nothing && return nothing
@@ -991,9 +991,9 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     rest = tail(path)
 
     # Adjust for highlight rects prepended before text segments
-    hl_off = iomap.highlight_offset[]
+    hl_off = iomap.highlight_offset
     i -= hl_off
-    coord_map = iomap.char_to_coord[]
+    coord_map = iomap.char_to_coord
     (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
 

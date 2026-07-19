@@ -23,7 +23,7 @@ module WindowManagingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
 import ..EventModule: WindowResize, WindowClose, WindowDefocus
@@ -45,7 +45,7 @@ end
 
 WindowManagingProjection(; inner) = WindowManagingProjection(inner)
 
-struct WindowManagingProjectionIoMap <: IoMap
+@iomap struct WindowManagingProjectionIoMap
     projection::WindowManagingProjection
     input::Any
     output::Any

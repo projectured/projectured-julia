@@ -42,17 +42,17 @@ end
 
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    @test iomap.output[] === content                         # content shown by default (reactive output cell)
+    @test iomap.output === content                         # content shown by default (reactive output cell)
 
     ps = ClipboardSliceToAnyProjection(display_slice=true)
     iomap_s = print_document(ps, IdentityProjection(), slice, PrinterContext())
-    @test iomap_s.output[] === stored                        # slice shown when toggled
+    @test iomap_s.output === stored                        # slice shown when toggled
 
     # The output cell re-derives reactively when display_slice flips — no re-print.
     p.display_slice[] = true
-    @test iomap.output[] === stored
+    @test iomap.output === stored
     p.display_slice[] = false
-    @test iomap.output[] === content
+    @test iomap.output === content
 end
 
 @testset "slice reference mapping" begin
@@ -156,11 +156,11 @@ end
 
     p = ClipboardCollectionToAnyProjection()
     iomap = print_document(p, IdentityProjection(), coll, PrinterContext())
-    @test iomap.output[] === content                         # content shown by default (reactive output cell)
+    @test iomap.output === content                         # content shown by default (reactive output cell)
 
     pc = ClipboardCollectionToAnyProjection(display_collection=true)
     iomap_c = print_document(pc, IdentityProjection(), coll, PrinterContext())
-    cv = iomap_c.output[]
+    cv = iomap_c.output
     @test cv isa CellVector
     @test length(cv) == 2
     @test cv[1].value == "a"
@@ -168,9 +168,9 @@ end
 
     # The output cell re-derives reactively when display_collection flips.
     p.display_collection[] = true
-    @test iomap.output[] isa CellVector
+    @test iomap.output isa CellVector
     p.display_collection[] = false
-    @test iomap.output[] === content
+    @test iomap.output === content
 end
 
 @testset "collection reader gestures" begin

@@ -24,7 +24,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"
@@ -83,7 +83,7 @@ end
 index of the j-th output element. Character offsets pass through unchanged, so
 unlike a wrap table only the element index is recorded.
 """
-struct TextFilteringIoMap <: IoMap
+@iomap struct TextFilteringIoMap
     projection::Any
     input::TextBlock
     output::TextBlock
@@ -188,7 +188,7 @@ function _forward_map(kept::Vector{Int}, in_block, out_block, sel)
 end
 
 map_reference_forward(p::TextFiltering, iomap::TextFilteringIoMap, reference) =
-    _forward_map(iomap.kept[], iomap.input, iomap.output, reference)
+    _forward_map(iomap.kept, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, reference)
     _is_structural_ref(reference) && return reference
@@ -197,7 +197,7 @@ function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, ref
     loc = text_flat_to_elem(iomap.output, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
-    kept = iomap.kept[]
+    kept = iomap.kept
     (out_span < 1 || out_span > length(kept)) && return nothing
     in_span = kept[out_span]
     f = text_elem_to_flat(iomap.input, in_span, out_char)
@@ -217,7 +217,7 @@ function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceStr
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
-    kept = iomap.kept[]
+    kept = iomap.kept
     (out_span < 1 || out_span > length(kept)) && return nothing
     in_span = kept[out_span]
     new_ref = ConcreteReference(FieldReferenceStep("elements"),

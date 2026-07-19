@@ -33,7 +33,7 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..IoMapModule: SimpleIoMap
+import ..IoMapModule: SimpleIoMap, var"@iomap"
 import ..IoMapModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
@@ -262,7 +262,7 @@ SyntaxCompoundToText(; indent_size::Int = 2,
 # `indent_indices` off the child's IoMap to widen them on splice
 # (`_splice_child!`). A compound with an IoMap of its own type would be invisible
 # to that read, and every indent beneath it would silently stop being widened.
-struct SyntaxCompoundToTextIoMap <: IoMap
+@iomap struct SyntaxCompoundToTextIoMap
     projection::Any
     input::SyntaxCompound
     output::TextBlock
@@ -345,14 +345,14 @@ end
 # path (ends in a field position) rather than a whole element, or descends into a
 # non-node child.
 function _child_elem_range(iomap::SyntaxCompoundToTextIoMap, child_i::Int, tail)
-    ranges = iomap.child_elem_ranges[]
+    ranges = iomap.child_elem_ranges
     (1 <= child_i <= length(ranges)) || return nothing
     base = ranges[child_i]
     tail isa EmptyReference && return base
     step = peel_child_step(tail)
     step === nothing && return nothing
     gj, gtail = step
-    cim = iomap.child_iomaps[][child_i]
+    cim = iomap.child_iomaps[child_i]
     cim isa SyntaxCompoundToTextIoMap || return nothing
     sub = _child_elem_range(cim, gj, gtail)
     sub === nothing && return nothing
@@ -364,7 +364,7 @@ end
 # when it has no such delimiter — in which case that field addresses no span, and
 # so offers no cursor position.
 function _own_index(iomap::SyntaxCompoundToTextIoMap, fname::AbstractString)
-    for (i, field) in iomap.own_spans[]
+    for (i, field) in iomap.own_spans
         String(field) == fname && return i
     end
     0
@@ -373,7 +373,7 @@ end
 # The document field the delimiter span at element `j` came from, or `nothing` when
 # `j` is not one of this compound's delimiters.
 function _own_field(iomap::SyntaxCompoundToTextIoMap, j::Int)
-    for (i, field) in iomap.own_spans[]
+    for (i, field) in iomap.own_spans
         i == j && return field
     end
     nothing
@@ -402,7 +402,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     if step !== nothing
         syntax_collapsed(node) && return nothing   # a collapsed node lays out no children
         child_i, ctail = step
-        cims = iomap.child_iomaps[]
+        cims = iomap.child_iomaps
         (1 <= child_i <= length(cims)) || return nothing
         # Whole-element (∅-terminating) selection → a parent-flat rectangle over
         # the child subtree's spliced (widened) spans.
@@ -417,7 +417,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
         child = cims[child_i]
         inner = map_reference_forward(child.projection, child, ctail)
         inner === nothing && return nothing
-        return _shift_child_cursor(inner, child.output.elements, elements, iomap.child_elem_ranges[][child_i])
+        return _shift_child_cursor(inner, child.output.elements, elements, iomap.child_elem_ranges[child_i])
     end
     rest = reference.tail
     rest isa ConcreteReference || return nothing
@@ -427,7 +427,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     # at the first occurrence (right after child 1).
     separator = syntax_separator(node)
     if separator !== nothing && fname == String(separator.first)
-        seps = iomap.sep_indices[]
+        seps = iomap.sep_indices
         isempty(seps) && return nothing
         return _anchor_nonempty(elements, seps[1], k)
     end
@@ -480,7 +480,7 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     elements = iomap.output.elements
     node = iomap.input
     (1 <= j <= length(elements)) || return nothing
-    ranges = iomap.child_elem_ranges[]
+    ranges = iomap.child_elem_ranges
     for (i, r) in enumerate(ranges)
         if j in r
             # An indent span is pure whitespace chrome, rendered at *this* level's
@@ -492,8 +492,8 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
             # projection-introduced position here instead, which round-trips (its
             # forward image is just this flat). ∅ (whole-element) queries still
             # delegate: they select the child subtree, not a caret in the chrome.
-            char !== nothing && j in iomap.indent_indices[] && break
-            cim = iomap.child_iomaps[][i]
+            char !== nothing && j in iomap.indent_indices && break
+            cim = iomap.child_iomaps[i]
             child_local = j - r.start + 1
             sub = char === nothing ? _child_tree_path(child_local) :
                   _text_elem_path(child_local, char::Int)
@@ -685,7 +685,7 @@ end
 # too. Records the element range the child occupies.
 function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
     base = length(buf.elements) + 1
-    child_iset = cim isa SyntaxCompoundToTextIoMap ? Set(cim.indent_indices[]) : Set{Int}()
+    child_iset = cim isa SyntaxCompoundToTextIoMap ? Set(cim.indent_indices) : Set{Int}()
     for (j, s) in enumerate(cim.output.elements)
         if j in child_iset && widen
             s = _widen_indent_span(buf.deco, (buf.nid, :widen, objectid(cim.input), j),
@@ -773,7 +773,7 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
         fwd = map_reference_forward(p, iomap, node_sel)                        # cases 2 & 3
         fwd !== nothing && return fwd
     end
-    ranges = iomap.child_elem_ranges[]                                         # case 4
+    ranges = iomap.child_elem_ranges                                         # case 4
     for (i, cim) in enumerate(cims)
         csel = cim.output.selection
         csel === nothing && continue
@@ -854,7 +854,7 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     loc === nothing && return nothing
     j, c = loc
     node = iomap.input
-    mi = iomap.marker_index[]
+    mi = iomap.marker_index
 
     # Own inline marker: [0, marker_len] inclusive of the boundary pixel (the
     # right edge of the glyph maps to the open delimiter's first column).
@@ -864,9 +864,9 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     syntax_collapsed(node) && length(syntax_children(node)) > 0 && j == mi + 2 &&
         return ToggleCollapseOperation(node)
 
-    for (i, r) in enumerate(iomap.child_elem_ranges[])
+    for (i, r) in enumerate(iomap.child_elem_ranges)
         if j in r
-            cim = iomap.child_iomaps[][i]
+            cim = iomap.child_iomaps[i]
             if cim isa SyntaxCompoundToTextIoMap
                 # Delegate the child-local element click to the child's resolver.
                 inner = _resolve_click(cim.projection, cim, gesture, _text_elem_path(j - r.start + 1, c))
@@ -949,9 +949,9 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     end
 
     # Both endpoints share element `span_idx`; delegate its child zone.
-    for (i, r) in enumerate(iomap.child_elem_ranges[])
+    for (i, r) in enumerate(iomap.child_elem_ranges)
         if span_idx in r
-            cim = iomap.child_iomaps[][i]
+            cim = iomap.child_iomaps[i]
             child_local = span_idx - r.start + 1
             child_op = ReplaceStringRangeOperation(
                 _text_elem_range(child_local, char_start, char_stop), op.replacement)
@@ -968,7 +968,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     # field. For a domain-projected node the separator is projection-introduced, so the
     # domain's own reader defers this `.<field>` edit and the key falls through to a
     # structural gesture; for a standalone syntax document it edits the separator in place.
-    if span_idx in iomap.sep_indices[]
+    if span_idx in iomap.sep_indices
         separator = syntax_separator(iomap.input)
         if separator !== nothing
             new_ref = ConcreteReference(get_reference_node_type(iomap.input),

@@ -29,7 +29,7 @@ import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_
                                  ConstraintSolver, FallbackConstraintSolver
 import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
 import ..IoMapModule: IoMap
 import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
@@ -100,7 +100,7 @@ The geometry cells:
 All cells are reactive: an edit that changes a child's intrinsic extent
 invalidates only the downstream geometry cells.
 """
-struct GridLayoutIoMap <: IoMap
+@iomap struct GridLayoutIoMap
     projection::Any
     input::Any
     output::Any

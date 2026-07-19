@@ -31,7 +31,8 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
@@ -43,7 +44,7 @@ export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
-struct ProjectionConfiguringProjectionIoMap <: IoMap
+@iomap struct ProjectionConfiguringProjectionIoMap
     projection::Any
     input::Any
     output::Any

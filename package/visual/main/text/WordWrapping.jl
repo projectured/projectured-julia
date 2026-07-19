@@ -20,7 +20,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraph
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
@@ -69,7 +69,7 @@ struct WrapSeg
     length::Int
 end
 
-struct WordWrappingIoMap <: IoMap
+@iomap struct WordWrappingIoMap
     projection::Any
     input::TextBlock
     output::TextBlock
@@ -282,7 +282,7 @@ function _forward_map(segs, in_block, out_block, sel)
 end
 
 map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
-    _forward_map(iomap.segs[], iomap.input, iomap.output, reference)
+    _forward_map(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
     _is_structural_ref(reference) && return reference
@@ -293,7 +293,7 @@ function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, refer
     # flat top-level span) maps backward to itself — the mirror of the forward map.
     loc === nothing && return reference
     out_span, out_char = loc
-    for seg in iomap.segs[]
+    for seg in iomap.segs
         seg.out_index == out_span || continue
         f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
         return f === nothing ? nothing : _flat_caret(f)
@@ -331,7 +331,7 @@ function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceStrin
     # to itself. `_parse_text_elem_range` only recognises the top-level span shape.
     parsed === nothing && return _is_line_nested_content_range(op.reference) ? op : nothing
     out_span, char_start, char_stop = parsed
-    segs = iomap.segs[]
+    segs = iomap.segs
     for seg in segs
         seg.out_index == out_span || continue
         new_start = seg.in_char_start + char_start

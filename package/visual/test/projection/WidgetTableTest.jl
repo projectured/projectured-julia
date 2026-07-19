@@ -37,7 +37,7 @@ function _rects(io)
 end
 
 @testset "MouseEnter/Move/Leave drive the whole-row hover" begin
-    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry
     # Enter a body cell → its whole row.
     op = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
@@ -54,7 +54,7 @@ end
 end
 
 @testset "column header hovers the column; a click still selects" begin
-    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
     op = _rd(io, MouseEnter(_bx(g), chy, :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
@@ -68,7 +68,7 @@ end
 end
 
 @testset "hover band renders (faint overlay follows w.hovered)" begin
-    w = _mktable(); io = print_document(_rec, w); g = io.geometry[]
+    w = _mktable(); io = print_document(_rec, w); g = io.geometry
     _ = _rects(io)
     # The hover band is the faint (alpha≈0x20) translucent rect; before hovering it
     # is collapsed to 0 height.

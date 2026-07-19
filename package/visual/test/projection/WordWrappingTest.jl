@@ -35,7 +35,7 @@ m = _test_measure(10, 18)
 proj = WordWrapping(max_width=80, measure=m)
 iomap = print_document(proj, input)
 out = iomap.output
-segs = iomap.segs[]
+segs = iomap.segs
 
 # Every output sub-span offset maps backward then forward to itself, in the flat
 # break-aware coordinate (a flat `TextRangeReferenceStep` caret, not the structural path).

@@ -31,7 +31,7 @@ function test_collapse_roundtrip()
         # ── Mouse: click the marker to collapse the root ───────────────────
         clear_selection!(doc)
         iomap  = print_document(proj, doc)
-        coords = _find_text_iomap(iomap).char_to_coord[]
+        coords = _find_text_iomap(iomap).char_to_coord
         click  = _glyph_click(coords, "▾")               # root's expanded marker
         @test click !== nothing
         op = read_intent(proj, iomap, MousePress(:left, click[1], click[2], ModifierKeys()))
@@ -42,7 +42,7 @@ function test_collapse_roundtrip()
 
         # Collapsed render shows the ellipsis and hides the inner content.
         iomap2  = print_document(proj, doc)
-        coords2 = _find_text_iomap(iomap2).char_to_coord[]
+        coords2 = _find_text_iomap(iomap2).char_to_coord
         line2   = join(sc.text for sc in coords2)
         @test occursin("…", line2)
         @test !occursin("defun", line2)

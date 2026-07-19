@@ -23,7 +23,7 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_yellow
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..ReferenceBuilderModule: var"@reference"
@@ -88,7 +88,7 @@ struct HighlightSeg
     length::Int
 end
 
-struct TextHighlightingIoMap <: IoMap
+@iomap struct TextHighlightingIoMap
     projection::Any
     input::TextBlock
     output::TextBlock
@@ -244,7 +244,7 @@ function _forward_map(segs, in_block, out_block, sel)
 end
 
 map_reference_forward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference) =
-    _forward_map(iomap.segs[], iomap.input, iomap.output, reference)
+    _forward_map(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference)
     _is_structural_ref(reference) && return reference
@@ -253,7 +253,7 @@ function map_reference_backward(p::TextHighlighting, iomap::TextHighlightingIoMa
     loc = text_flat_to_elem(iomap.output, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
-    for seg in iomap.segs[]
+    for seg in iomap.segs
         seg.out_index == out_span || continue
         f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
         return f === nothing ? nothing : _flat_caret(f)
@@ -273,7 +273,7 @@ function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::Repl
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
-    for seg in iomap.segs[]
+    for seg in iomap.segs
         seg.out_index == out_span || continue
         new_start = seg.in_char_start + char_start
         new_stop  = seg.in_char_start + char_stop

@@ -134,7 +134,7 @@ _pathref(i) = ConcreteReference(FieldReferenceStep("roots"),
     node = WidgetTreeNode(:file, "a.jl"; gestures = [nb])
     w = WidgetTree(Point2D(0, 0), Any[node])
     io = print_document(_treeproj, w)
-    row = io.geometry[].rows[1]
+    row = io.geometry.rows[1]
     op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
     @test opened[] == true
     @test op isa DoNothingOperation
@@ -144,7 +144,7 @@ end
     node = WidgetTreeNode(:file, "a.jl")            # no gestures
     w = WidgetTree(Point2D(0, 0), Any[node])
     io = print_document(_treeproj, w)
-    row = io.geometry[].rows[1]
+    row = io.geometry.rows[1]
     op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
     @test op isa ReplaceSelectionOperation          # built-in select intact
 end
