@@ -14,7 +14,7 @@ import ..IntentModule: Intent
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, reconcile_child_iomap
 import ..CellModule: Cell, AbstractCell, unwrap_cell
 export ChainingProjection, ChainingProjectionIoMap
 
@@ -111,12 +111,15 @@ function pure_print_document(seq::ChainingProjection, recursion, input, ctx)
     out
 end
 
-# One stage: its IoMap is a cell over the previous stage's output cell (so it
-# re-prints when that output changes); its output cell unwraps a Cell-valued
-# `iomap.output` (projections may expose a reactive output) to the plain value the
-# next stage prints. A helper so each closure captures its own `p`/`prev`/`cell`.
+# One stage: its IoMap reconciles over the previous stage's output cell — the
+# shared `reconcile_child_iomap` rebuilds the stage only when its input's identity
+# swaps structurally, and reuses the stage's (reactive) IoMap while the input is the
+# same object, so a content edit propagates through that held IoMap with no re-print.
+# Its output cell unwraps a Cell-valued `iomap.output` (projections may expose a
+# reactive output) to the plain value the next stage prints. A helper so each closure
+# captures its own `p`/`prev`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
-    iomap_cell = Cell(() -> print_document(p, recursion, prev[], ctx))
+    iomap_cell = reconcile_child_iomap(() -> prev[], v -> print_document(p, recursion, v, ctx))
     out_cell   = Cell(() -> unwrap_cell(iomap_cell[].output))
     (iomap_cell, out_cell)
 end
