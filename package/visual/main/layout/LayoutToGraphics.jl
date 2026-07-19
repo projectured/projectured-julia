@@ -998,80 +998,71 @@ end
 
 function print_document(p::FlowLayoutToGraphicsCanvas,
                           recursion, doc::FlowLayout, ctx)
-    n = length(doc.children)
-    if n == 0
-        return ChildrenIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]))
-    end
-
-    child_iomaps = Any[]
-    for i in 1:n
-        cim = _recurse_child(recursion, doc.children[i],
-                             make_child_context(ctx, doc, (@reference_step children), (@reference_step [i])))
-        push!(child_iomaps, cim)
-    end
-
-    max_w_cell = getfield(doc, :max_width)
-    hgap_cell  = getfield(doc, :horizontal_gap)
-    vgap_cell  = getfield(doc, :vertical_gap)
-    halign     = getfield(doc, :horizontal_align)
-    valign     = getfield(doc, :vertical_align)
-
-    line_plan = _fl_line_plan(n, child_iomaps, max_w_cell, hgap_cell)
-
-    line_count = Cell(function ()
-        plan = line_plan[]
-        isempty(plan) ? 0 : plan[end][1]
-    end)
-
-    line_h = Cell[]
-    line_w = Cell[]
-    for ln in 1:n
-        push!(line_h, _fl_line_h(ln, n, child_iomaps, line_plan))
-        push!(line_w, _fl_line_w(ln, n, child_iomaps, line_plan))
-    end
-
-    line_y = Cell[]
-    for ln in 1:n
-        push!(line_y, _fl_line_y(ln, line_h, vgap_cell))
-    end
-
-    child_x = Cell[]
-    child_y = Cell[]
-    for i in 1:n
-        push!(child_x, _fl_child_x(i, line_plan, max_w_cell, line_w, halign))
-        push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
-    end
-
-    outer_w = Cell(() -> max_w_cell[])
-    outer_h = Cell(function ()
-        lc = line_count[]
-        lc == 0 && return 0
-        total = 0
-        for ln in 1:lc
-            total += line_h[ln][]
+    # Rebuild children + geometry inside one build cell (the H/V/Constraint sibling
+    # pattern) so a structural edit to `doc.children` re-flows; the outer canvas's
+    # extent + membership derive from `build[]` (AR-STABLE-IOMAP-IDENTITY).
+    build = Cell(() -> begin
+        n = length(doc.children)
+        child_iomaps = Any[]
+        for i in 1:n
+            cim = _recurse_child(recursion, doc.children[i],
+                                 make_child_context(ctx, doc, (@reference_step children), (@reference_step [i])))
+            push!(child_iomaps, cim)
         end
-        total + max(0, lc - 1) * vgap_cell[]
+        max_w_cell = getfield(doc, :max_width)
+        hgap_cell  = getfield(doc, :horizontal_gap)
+        vgap_cell  = getfield(doc, :vertical_gap)
+        halign     = getfield(doc, :horizontal_align)
+        valign     = getfield(doc, :vertical_align)
+        line_plan = _fl_line_plan(n, child_iomaps, max_w_cell, hgap_cell)
+        line_count = Cell(function ()
+            plan = line_plan[]
+            isempty(plan) ? 0 : plan[end][1]
+        end)
+        line_h = Cell[]
+        line_w = Cell[]
+        for ln in 1:n
+            push!(line_h, _fl_line_h(ln, n, child_iomaps, line_plan))
+            push!(line_w, _fl_line_w(ln, n, child_iomaps, line_plan))
+        end
+        line_y = Cell[]
+        for ln in 1:n
+            push!(line_y, _fl_line_y(ln, line_h, vgap_cell))
+        end
+        child_x = Cell[]
+        child_y = Cell[]
+        for i in 1:n
+            push!(child_x, _fl_child_x(i, line_plan, max_w_cell, line_w, halign))
+            push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
+        end
+        outer_w = Cell(() -> max_w_cell[])
+        outer_h = Cell(function ()
+            lc = line_count[]
+            lc == 0 && return 0
+            total = 0
+            for ln in 1:lc
+                total += line_h[ln][]
+            end
+            total + max(0, lc - 1) * vgap_cell[]
+        end)
+        wrapped = Any[]
+        for i in 1:n
+            c = child_iomaps[i].output
+            c isa GraphicsDocument || continue
+            push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+        end
+        entries = Tuple{Cell,Cell,Any}[]
+        for i in 1:n
+            push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
+        end
+        (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
     end)
-
-    wrapped = Any[]
-    for i in 1:n
-        c = child_iomaps[i].output
-        c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
-    end
-
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           Cell(() -> Int32(outer_w[])),
-                           Cell(() -> Int32(outer_h[])),
-                           CellVector(Cell[Cell(e) for e in wrapped]),
+                           Cell(() -> Int32(build[].w[])),
+                           Cell(() -> Int32(build[].h[])),
+                           CellVector(() -> build[].wrapped),
                            layout_none, true, Cell(nothing))
-
-    entries = Tuple{Cell,Cell,Any}[]
-    for i in 1:n
-        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
-    end
-
-    ChildrenIoMap(p, doc, outer, Cell(entries))
+    ChildrenIoMap(p, doc, outer, Cell(() -> build[].entries))
 end
 
 function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)
