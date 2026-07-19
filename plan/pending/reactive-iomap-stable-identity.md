@@ -115,11 +115,19 @@ reconcile + reactive tests. One reviewable change.
   use `ChildrenIoMap` (Reversing) or their own IoMap structs, whose **reactive-output**
   compliance depends on those IoMaps being `@iomap`. `reconcile_child_iomaps`
   (child-identity) is independent and applies now; reactive `output` needs `@iomap`.
-- **Sequencing finding → do this first (Phase 2a):** `ChildrenIoMap → @iomap` (the
-  ~150-site sweep, now unblocked since the harness exists) is a **prerequisite** for
-  reactive-output across many projections (Reversing + most domain node projections
-  use `ChildrenIoMap`). Do the sweep before the piecemeal per-projection
-  reactive-output fixes, which then become clean.
+- **Phase 2a — `ChildrenIoMap → @iomap` sweep. Done `27900e5d`.** The prerequisite
+  for reactive-output across every ChildrenIoMap-using projection. `child_iomaps::Cell
+  → ::Any`; pure-ChildrenIoMap consumers use `.child_iomaps` (transparent value),
+  mixed-dispatch files use `getfield(iomap, :child_iomaps)[]` (uniform-safe: reaches
+  the backing cell whether the field is a transparent `@iomap` cell or a plain raw
+  `Cell`), and the plain non-converting structs (`SyntaxCompoundToTextIoMap`,
+  `GridLayoutIoMap`, `GraphLayout*`, `RuleIoMap`) are left. Verified: kernel guard
+  10/10, test_visual 48241, test_domain 106022, 0 Fail/Error.
+- **Phase 2b (next):** the per-projection reactive-output fixes for the base generic
+  projections that use ChildrenIoMap or their own IoMap structs (Reversing eager
+  `output`; Copying/Sorting/Filtering/Searching/Dragging — `@iomap` their structs +
+  wire output/children reactively + reconcile + reactive tests). Now clean because
+  `.child_iomaps` returns the value.
 
 **Phase 3 — base higher-order** (Switching, Nesting, ReferenceDispatching,
 WindowInputUnwrapping; NOT Chaining yet): the object-swapping dispatchers — the
