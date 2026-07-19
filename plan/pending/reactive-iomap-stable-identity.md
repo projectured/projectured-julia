@@ -268,13 +268,20 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
       its identity (core invariant met). Their eager `inner_iomaps`/`all_cims` (structural pane/tab
       add-remove reconcile) is a **deferred minor refinement** — same class as the domain rebuild-all
       children; untangling the per-child-context recursion is high-effort/low-value.
-    - **4c remaining:**
-      - **Geometry-coupled layouts** (Grid/Flow/Stack, `layout/LayoutToGraphics.jl`): eager
-        `CellVector(Cell[Cell(e)…])` + `Cell(entries)`, unlike the reactive H/V/Constraint siblings'
-        `build`-cell form. Grid's IoMap exposes per-column/row cells `WidgetToGraphics._wt_geometry`
-        reads via `iomap.col_x[c][]` — the build-cell move must not break that contract. Most
-        intricate remaining.
-      - The Workbench domain→widget builders (Phase 5 deferred).
+    - **4c layouts — done (`25007719`).** **Flow** was fully eager → converted to the H/V/Constraint
+      `build`-cell form (structural child add/remove now re-flows). **Stack** was already
+      reactive-output (`elements_cv`/`entries_cell` thunks reactive on `active` page-switch). **Grid**
+      is size/position-reactive already (eager `Cell(e)` wrappers hold reactive position cells +
+      reactive child canvases); its only gap — child-COUNT reflow — is blocked by the external
+      per-column/row geometry contract `WidgetToGraphics._wt_geometry` reads (`iomap.col_x[c][]`), so
+      it's a deferred refinement.
+
+⟹ **4c widget-rendering reactivity is essentially COMPLETE.** Every widget leaf (~25) and every
+container (7) has reactive output; the layouts are reactive-output. **Deferred minor refinements**
+(all "already reactive-output, structural child-COUNT reconcile pending" — the domain rebuild-all
+class): SplitPane/TabbedPane `inner_iomaps`/`all_cims`, Stack `child_iomaps`, Grid (geometry
+contract), and the Workbench domain→widget builders. These don't block the core invariant (stable
+IoMap + reactive output) — they're structural-edit minimality, not correctness.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
