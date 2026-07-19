@@ -114,13 +114,28 @@ here as the intended pattern; the consuming plan
       | `ReactiveCell` **+L1 (after)** | 39.8 | **56** |
 
       L1 = **168 → 56 B/cell (3×)**; the 56 B is the struct alone, the removed 112 B
-      was exactly the eager `Set`+`Vector`. **Decision:** L1 is a solid, universal
-      3× (it also makes reactive `CellVector` slots 3× cheaper, since each slot is a
-      `ReactiveCell`). But 56 B/40 ns per cell still means a *million*-cell reactive
-      tree costs ~56 MB / ~40 ms — so **L2 (lazy collection slots) is still warranted**
-      for FES-scale *unobserved* collections; **L4** stays optional (only if the
-      interactive-at-scale path needs to approach `MutableCell`'s 24 B).
-- [ ] **P4 — L2 lazy collection slots** (if warranted).
+      was exactly the eager `Set`+`Vector`. L1 is a solid, universal 3× (it also
+      makes reactive `CellVector` slots 3× cheaper, since each slot is a `ReactiveCell`).
+- [x] **P4 — measure whether L2 is warranted → NO (yet).** Reactive `CellVector`
+      at 1M elements (const-bound):
+
+      | collection of 1M | ms | bytes/elem |
+      |------------------|---:|-----------:|
+      | plain `Vector{Int}` (floor) | 1.3 | 8 |
+      | reactive `CellVector` (+L1) | 47.1 | **88** |
+      | mutable `CellVector` (plain store) | 6.5 | 32 |
+
+      A reactive collection is 88 B/elem (11× plain): ~56 B slot cell + ~24 B
+      `Any`-boxing + ~8 B vector. L2 would remove the ~56 B slot for *unobserved*
+      elements (→ ~32 B, the mutable-kind level; 1M FES: 88 MB/47 ms → ~32 MB/7 ms).
+      **But that only bites at FES scale.** Model-level reactive collections (nodes
+      ~10², queues/packets ~10¹) are ≤ a few thousand elements — ~260 KB, sub-ms —
+      already free post-L1. The one collection that would need L2 (a million-event
+      FES as a full reactive document) is better handled by **windowing** — expose a
+      top-N reactive slice over the plain kernel heap (app-level; the design-X plan's
+      interim), which sidesteps L2's tricky structural-reactivity-through-lazy-slots
+      change entirely. **Decision: defer L2**; revisit only if a concrete workload
+      needs generic million-element reactive collections.
 - [ ] **P5 — L4 object-granular** (only if the interactive-at-scale path demands it).
 
 ## Notes
