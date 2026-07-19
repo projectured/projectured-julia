@@ -34,10 +34,12 @@ function test_serialization()
                 save_document(loaded, p2)
                 @test read(p1) == read(p2)
 
-                # Loaded cells are detached from any reactive graph.
+                # Loaded cells are detached from any reactive graph. The edge
+                # containers are allocated lazily, so "detached" is `nothing` (never
+                # allocated) or an empty container.
                 selcell = getfield(loaded, :selection)
-                @test isempty(getfield(selcell, :deps))
-                @test isempty(getfield(selcell, :dependents))
+                @test (d = getfield(selcell, :deps);       d === nothing || isempty(d))
+                @test (d = getfield(selcell, :dependents); d === nothing || isempty(d))
                 @test getfield(selcell, :thunk) === nothing
 
                 # The detached document still projects through the real pipeline.

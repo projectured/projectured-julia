@@ -84,31 +84,26 @@ x[] = 999          # x is no longer a dep after last eval
     #
     # The edge is now a `Vector{WeakRef}`, so a discarded reader is collectable.
     source = Cell(1)
-    live(c) = count(w -> w.value !== nothing, getfield(c, :dependents))
+    # `dependents` is allocated lazily — `nothing` until first read (no live readers).
+    live(c) = (d = getfield(c, :dependents); d === nothing ? 0 : count(w -> w.value !== nothing, d))
     @test live(source) == 0
 
-    # A throwaway "pipeline": computed cells that read `source`, are forced once, and are
-    # then dropped. Built inside a function so that nothing roots them afterwards. A
-    # `WeakRef` to the first one is handed back so we can ask whether it was collected —
-    # a far sharper question than a count, which the *most recent* cell can spoil by
-    # lingering in a stack slot after the function returns.
-    function build_and_drop!(src)
-        first_ref = nothing
-        for i in 1:100
-            c = Cell(() -> src[] + 1)
-            c[]                       # forcing registers `c` as a dependent of `src`
-            i == 1 && (first_ref = WeakRef(c))
-        end
-        first_ref::WeakRef
-    end
-    discarded = build_and_drop!(source)
-    @test live(source) == 100                     # they registered
+    # A throwaway "pipeline": computed cells that read `source` and are forced once.
+    # They are kept in a vector while we assert the registration count, so nothing is
+    # collected mid-build — otherwise the count is at the mercy of GC scheduling (the
+    # edge containers are now allocated lazily, so a build allocates less and GC fires
+    # at different points). A `WeakRef` to the first one lets us later ask whether it
+    # was collected once every strong reference is dropped.
+    cells = [(c = Cell(() -> source[] + 1); c[]; c) for _ in 1:100]
+    @test live(source) == 100                     # all 100 registered
+    discarded = WeakRef(cells[1])
+    empty!(cells); cells = nothing                # drop every strong reference to them
 
-    # They are now unreachable and can never recompute, so nothing will ever detach them.
-    # The only thing still pointing at them is `source.dependents` — weakly.
+    # They are now unreachable and can never recompute, so nothing will ever detach
+    # them. The only thing still pointing at them is `source.dependents` — weakly.
     GC.gc(true); GC.gc(true)
     @test discarded.value === nothing             # ...so the reader really was collected
-    @test live(source) <= 1                       # (the last cell may linger in a stack slot)
+    @test live(source) <= 1                       # nothing live remains behind it
 
     # The emptied slots are pruned by the next scan, which registration is doing anyway,
     # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.

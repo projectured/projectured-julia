@@ -32,11 +32,18 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     thunk::Union{Nothing, Function}
     valid::Bool
-    deps::Set{ReactiveCell}           # cells I read from  (upstream, STRONG)
-    dependents::Vector{WeakRef}       # cells that read me  (downstream, WEAK)
+    # Upstream (cells I read, STRONG) and downstream (cells that read me, WEAK)
+    # edges, allocated LAZILY — `nothing` until the first edge forms. The
+    # overwhelming majority of cells are primitive leaves that read nothing and,
+    # until a projection observes them, are read by nothing; the eager empty `Set` +
+    # `Vector` was ~90% of a ReactiveCell's construction cost (measured ~168 B vs a
+    # MutableCell's 24 B). Every access below treats `nothing` as empty, and
+    # `_deps!` / `_dependents!` allocate on demand.
+    deps::Union{Nothing, Set{ReactiveCell}}       # cells I read from  (upstream, STRONG)
+    dependents::Union{Nothing, Vector{WeakRef}}   # cells that read me  (downstream, WEAK)
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, true, Set{ReactiveCell}(), WeakRef[])
+        new{T}(value, nothing, true, nothing, nothing)
     # A `Function` argument is the cell's *thunk* (a computed cell): `value` starts
     # *undefined* (a typed field cannot hold a placeholder) and `valid = false`
     # guarantees `recompute!` assigns it before any read returns. Pass
@@ -45,16 +52,24 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # bare `Cell(f)` reads `f` as a thunk.
     function ReactiveCell{T}(f::Function; as_value::Bool = false) where {T}
         if as_value
-            return new{T}(f, nothing, true, Set{ReactiveCell}(), WeakRef[])
+            return new{T}(f, nothing, true, nothing, nothing)
         end
         c = new{T}()
         c.thunk = f
         c.valid = false
-        c.deps = Set{ReactiveCell}()
-        c.dependents = WeakRef[]
+        c.deps = nothing
+        c.dependents = nothing
         return c
     end
 end
+
+# Lazily allocate the edge containers on first use. A cell that never reads another
+# keeps `deps === nothing`; one never read inside a computation keeps
+# `dependents === nothing` — and pays for neither.
+@inline _deps!(c::ReactiveCell) =
+    (d = c.deps; d === nothing ? (c.deps = Set{ReactiveCell}()) : d)
+@inline _dependents!(c::ReactiveCell) =
+    (d = c.dependents; d === nothing ? (c.dependents = WeakRef[]) : d)
 
 """
 `Cell` is a `const` alias for the **concrete** `ReactiveCell{Any}` — the untyped
@@ -100,7 +115,7 @@ function Base.getindex(c::ReactiveCell)
         observer = stack[end]
         if observer !== c
             _register_dependent!(c, observer)
-            push!(observer.deps, c)
+            push!(_deps!(observer), c)
         end
     end
     if !c.valid
@@ -130,10 +145,12 @@ function recompute!(c::ReactiveCell)
         return
     end
     # detach old upstream links
-    for dep in c.deps
-        _unregister_dependent!(dep, c)
+    if c.deps !== nothing
+        for dep in c.deps
+            _unregister_dependent!(dep, c)
+        end
+        empty!(c.deps)
     end
-    empty!(c.deps)
     # evaluate thunk while tracking dependencies
     stack = _computing_stack()
     push!(stack, c)
@@ -156,6 +173,7 @@ function _invalidate_walk!(c::ReactiveCell)
     c.valid = false
     @count_performance :invalidations
     ds = c.dependents
+    ds === nothing && return
     for i in eachindex(ds)
         d = ds[i].value
         d === nothing && continue      # reader already collected — nothing to invalidate
@@ -230,6 +248,7 @@ end
 # ── helpers ──────────────────────────────────────────────────────────────
 
 function _detach_upstream!(c::ReactiveCell)
+    c.deps === nothing && return
     for dep in c.deps
         _unregister_dependent!(dep, c)
     end
@@ -238,6 +257,7 @@ end
 
 function _invalidate_dependents!(c::ReactiveCell)
     ds = c.dependents
+    ds === nothing && return
     for i in eachindex(ds)
         d = ds[i].value
         d === nothing && continue      # reader already collected
@@ -265,7 +285,7 @@ end
 # already doing, so dead `WeakRef`s never accumulate.
 
 function _register_dependent!(c::ReactiveCell, observer::ReactiveCell)
-    ds = c.dependents
+    ds = _dependents!(c)
     i, n = 1, length(ds)
     @inbounds while i <= n
         v = ds[i].value
@@ -283,6 +303,7 @@ end
 
 function _unregister_dependent!(c::ReactiveCell, observer::ReactiveCell)
     ds = c.dependents
+    ds === nothing && return nothing
     i, n = 1, length(ds)
     @inbounds while i <= n
         v = ds[i].value

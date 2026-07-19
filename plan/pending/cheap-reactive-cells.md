@@ -90,12 +90,36 @@ here as the intended pattern; the consuming plan
 ## Phases
 
 - [x] **P1 — measure baseline** (table above).
-- [ ] **P2 — L1 lazy deps/dependents.** Implement; **run the full projectured test
-      suite** (`test_all` scope; the cell suite `test_cell()` first) to prove no
-      behavior change; re-measure the construction hierarchy.
-- [ ] **P3 — clean cost hierarchy.** Measure plain / mutable-kind doc /
-      reactive-kind doc / reactive+L1 side by side → decide whether L2 (and L4) are
-      needed, on numbers not guesses.
+- [x] **P2 — L1 lazy deps/dependents.** Done in `cell/ReactiveCell.jl`: `deps` /
+      `dependents` are `Union{Nothing,…}`, `nothing` until the first edge forms;
+      `_deps!` / `_dependents!` allocate on demand; every read/write/invalidate path
+      guards for `nothing`. Semantics unchanged. `test_cell()` **57/57** (one
+      GC-timing-fragile *intermediate* count in the dependents-leak test was made
+      deterministic by rooting the cells for the count — the leak-fix assertions
+      themselves were unaffected). Two test files that inspect the fields via
+      `getfield` updated to treat `nothing` as empty.
+      **Full regression clean (no behavior change across 106k+ assertions):**
+      `test_kernel()` 455 pass (the only 5 non-passes are the pre-existing
+      `DocumentMacro` "Rule C" cases — base's `CellVector` trait absent in the
+      kernel-only env), `test_base()` 158/158, `test_domain()` 106125 pass / 0 fail
+      / 0 error / 5 pre-existing broken (serializer tests included).
+- [x] **P3 — clean cost hierarchy** (const-bound, type-stable, ×1e6):
+
+      | kind | ms | bytes/cell |
+      |------|---:|-----------:|
+      | `Ref` (plain box) | 3.6 | 24 |
+      | `ImmutableCell` | 1.3 | 8 |
+      | `MutableCell` | 3.7 | 24 |
+      | `ReactiveCell` **eager (before)** | — | **168** |
+      | `ReactiveCell` **+L1 (after)** | 39.8 | **56** |
+
+      L1 = **168 → 56 B/cell (3×)**; the 56 B is the struct alone, the removed 112 B
+      was exactly the eager `Set`+`Vector`. **Decision:** L1 is a solid, universal
+      3× (it also makes reactive `CellVector` slots 3× cheaper, since each slot is a
+      `ReactiveCell`). But 56 B/40 ns per cell still means a *million*-cell reactive
+      tree costs ~56 MB / ~40 ms — so **L2 (lazy collection slots) is still warranted**
+      for FES-scale *unobserved* collections; **L4** stays optional (only if the
+      interactive-at-scale path needs to approach `MutableCell`'s 24 B).
 - [ ] **P4 — L2 lazy collection slots** (if warranted).
 - [ ] **P5 — L4 object-granular** (only if the interactive-at-scale path demands it).
 
