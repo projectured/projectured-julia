@@ -206,6 +206,37 @@ but not a native `BarMut` child. Consequences:
   `copy_document`/`walk` family-aware so a cross-layout rebuild produces the target
   kind.
 
+## Integration prototype — "projectured watches a simulation"
+
+`plan/pending/document-native-variants-omnetpp-watch.jl` (13/13) runs the full
+pipeline on the *real* `SequentialSimulator` observable shape (flat scalars + SoA
+primitive vectors, no nested documents): a native `SimSnapshotMut` mutated at full
+speed, `sync_document!` into a reactive shadow at pause points, and "view" cells
+(standing in for projectured's projections) recomputing incrementally.
+
+**Works today:** scalar fields give textbook partial invalidation — a changed scalar
+refreshes only its view, an unchanged scalar's view never recomputes, and a no-op sync
+invalidates nothing. This is the core "watch a sim" pipeline, proven end-to-end.
+
+**Two decisions the real integration hinges on** (owner's call — not resolved here):
+
+1. **Mutable-collection leaf fields alias under sync.** `sync_document!` stores a
+   changed leaf value by reference (`setproperty!(shadow, nm, sv)`), so a plain
+   `Vector` field ends up shared between sim and shadow: sim mutations are visible with
+   no sync but never invalidate the cell (`cur === sv`). Scalars are fine (immutable,
+   value-compared); document/collection *fields* are fine (synced structurally). The
+   gap is only plain **mutable-collection leaves** (the SoA `event_counts`). Fix =
+   copy-on-sync for mutable leaves — a small change to `DocumentSync.jl` (🔒).
+2. **SoA vectors give whole-vector invalidation, not per-module.** One cell per vector
+   means any element bump repaints the whole vector view. Per-module partial
+   invalidation wants **array-of-documents** (each module a reactive doc in the
+   shadow) — which, to stay single-schema on the sim side, needs the deferred
+   native-nesting unit. Alternatively keep SoA and accept coarse per-vector repaint.
+
+The real omnetpp rewrite (make `SequentialSimulator` an `@document`, sim uses the
+native variant, editor holds the reactive shadow) can proceed once these two are
+decided and the additive branch lands on `main`.
+
 ## Constraints / risks
 
 - **Large macro rewrite** — `document/DocumentMacro.jl`, `cell/CellStruct.jl`,
