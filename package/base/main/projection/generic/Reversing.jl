@@ -7,8 +7,8 @@ collection document.
 module ReversingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..CellModule: Cell
+import ..IoMapModule: ChildrenIoMap, reconcile_child_iomaps
+import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
@@ -29,12 +29,16 @@ struct ReversingProjection <: Projection end
 
 function print_document(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
-    child_iomaps = Cell(() -> [
-        print_child(recursion, input[i],
-            make_child_context(ctx, ElementReferenceStep(i)))
-        for i in 1:length(input)
-    ])
-    ChildrenIoMap(p, input, reverse(input), child_iomaps)
+    # Children are projected in input order and reconciled by identity, so a
+    # structural edit rebuilds only moved slots (AR-STABLE-IOMAP-IDENTITY).
+    child_iomaps = reconcile_child_iomaps(
+        () -> input,
+        (i, x) -> print_child(recursion, x,
+            make_child_context(ctx, ElementReferenceStep(i))))
+    # Output is the reversed child outputs, derived reactively into a persistent
+    # CellVector: the IoMap keeps its identity while the output tracks input edits.
+    output = CellVector(() -> reverse([im.output for im in child_iomaps[]]))
+    ChildrenIoMap(p, input, output, child_iomaps)
 end
 
 function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, reference)
