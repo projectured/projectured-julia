@@ -45,6 +45,42 @@ Routing: **any mutable field ⇒ mutable layout; all-immutable ⇒ immutable lay
 redundant for documents — a mutable field is just a raw field in the mutable layout —
 and is retired there.
 
+## Validated target expansion (proven by hand before touching the macro)
+
+`@document struct Point; x::Int; y::Int; end` must generate (verified 13/13,
+`plan/pending/document-native-variants-reference.jl`):
+
+```julia
+abstract type Point <: Document end                          # bare name = the family
+
+struct PointC{X<:AbstractCell,Y<:AbstractCell,S<:AbstractCell} <: Point   # cells layout
+    x::X; y::Y; selection::S
+end
+Base.getproperty(o::PointC, n)     = getfield(o, n)[]        # unwrap
+Base.setproperty!(o::PointC, n, v) = (getfield(o, n)[] = v)
+const RPoint = PointC{Cell,Cell,Cell}                                          # reactive
+const IPoint = PointC{ImmutableCell{Int},ImmutableCell{Int},ImmutableCell{Nothing}}  # isbits value-doc
+
+mutable struct PointM <: Point                               # mutable layout — NATIVE, no cells
+    x::Int; y::Int; selection::Union{Nothing,Reference}
+end
+const MPoint = PointM                    # no getproperty override → direct getfield/setfield!
+
+document_family(::Type{<:Point}) = Point # identity across layouts (replaces the `.wrapper` test)
+```
+
+Measured/checked:
+- **`MPoint` is byte-for-byte a plain `mutable struct`** — identical `@allocated` *and* identical
+  compiler elision (both drop to 0 allocs in a non-escaping loop; a boxed `MutableCell` `MFoo` cannot).
+  `!isbitstype(PointM)` (reference type, as expected).
+- **`IPoint` is isbits** (16 B: `x`+`y` inline, `selection` a zero-size `ImmutableCell{Nothing}`) → inlines.
+- **`x isa Point`** matches all three variants; **`x isa PointM`** still targets exactly one.
+- **`document_family`** makes reactive/mutable/immutable one document → `sync` bridges layouts.
+- **`sync` copies a mutated `MPoint` into a live `RPoint`** (reactive cells update; `RPoint` stays reactive).
+
+So the codegen target is settled; the remaining work is generating this from the macro and threading
+`document_family` through `is_same_document_type`/`sync_document!`/`copy_document`/`walk`.
+
 ## Naming & inheritance (abstract family types)
 
 - Bare **`Foo`** flips from today's concrete parametrized stem to an **abstract family
