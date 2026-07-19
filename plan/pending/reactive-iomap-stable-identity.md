@@ -251,11 +251,27 @@ visual **hot paths** (already reactive: text/, syntax/, TextToGraphics, WidgetTa
 clipboard outputs) + the visual **decorator forwarders** (4a) + **clipboard/screen reconcile
 fixes** (4b). A **text pipeline (json→syntax→text→graphics) is fully reactive end-to-end.**
 
-**Remaining (all in the deferred 4c project + later phases):** the widget-leaf renderers
-(4c, ~44 `_make_canvas` sites), the geometry-coupled layouts, Phase 5 (domain plain
-projections), Phase 6 (simplify Chaining — the payoff, gated on 4c), Phase 7 (editor
-tightening: remove WindowManaging's imperative output mutation + audit `editor.iomap`
-drops), then re-audit + seal the iomap layer.
+Phase 5's clean, widget-independent work is now also done (GestureHelp forwarder +
+WorkspaceToFileSystem; the domain hot paths were already reactive).
+
+**Remaining — everything now converges on the deferred 4c:**
+- **4c (deferred, user decision):** the widget-leaf renderers (~44 `_make_canvas` sites)
+  + the geometry-coupled layouts. Also folds in the Workbench domain→widget builders
+  (~11 sites in `WorkbenchToWidget.jl`) and `ConversationPartToWidget`, which are the
+  same domain→widget build-cell character feeding this layer.
+- **Phase 6 (simplify Chaining — the payoff): gated on 4c.** Chaining's `step_iomaps`
+  removal is wholesale — it cannot stop re-printing while any pipeline stage (the eager
+  widget renderers) is still eager. Text pipelines are ready; widget pipelines are not.
+- **Phase 7 (editor tightening): mostly gated on 4c.** One piece may be unblockable now
+  (removing WindowManaging's imperative `output.windows` mutation — Copying reconciles
+  and ScreenToScreen reconciles windows since 4b), but it is risky/interactive and best
+  done with a reactive test after the window path is confirmed reactive end-to-end.
+- **Optional, not a gap:** reconcile-by-identity for the ~45 domain `Cell(() -> [rebuild
+  all])` sites (a rebuild→reuse optimization; they already satisfy the invariant).
+
+⟹ **Coherent stopping point:** all reactive-identity work that is NOT blocked by the
+deferred widget-rendering (4c) is complete. Further substantive progress needs the 4c
+project, which then unblocks 6 and 7.
 
 Branch `reactive-iomap`: all commits green (test_visual 48507/0-fail, test_domain
 106125/0-fail, Broken 1/5), worktree clean — ready to `add to main`.
