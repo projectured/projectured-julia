@@ -34,11 +34,11 @@ end
 
 # The field convention every IoMap keeps unless it says otherwise: it stores the
 # `projection` that produced it and the `input`/`output` it maps between under
-# those names. Read through property access so the accessor yields the *value* for
-# a plain struct (`ChildrenIoMap`) and an `@iomap` cell-struct (`SimpleIoMap`)
-# alike — an `@iomap` field unwraps its `Cell`, and a synthesized `.output` (a
-# derived-output IoMap) resolves through its own `getproperty`. An IoMap that
-# stores a correspondence differently overrides the accessor it changes.
+# those names. Every IoMap is an `@iomap` cell-struct, so these read through
+# property access and yield the *value* — `iomap.output` unwraps the field's `Cell`
+# (pass a computed `Cell(() -> …)` so it re-derives reactively; `getfield` reaches
+# the raw cell). An IoMap whose derived correspondence lives under different field
+# names stores those as computed cells too (cf. `ChainingProjectionIoMap.output`).
 get_iomap_projection(iomap::IoMap) = iomap.projection
 get_iomap_input(iomap::IoMap) = iomap.input
 get_iomap_output(iomap::IoMap) = iomap.output

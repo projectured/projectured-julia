@@ -1,5 +1,21 @@
 # Every IoMap struct is `@iomap`
 
+## Status — COMPLETE (2026-07-19)
+
+All 29 plain `struct … <: IoMap` are now `@iomap`; **0 plain IoMap structs remain**.
+Commits on branch `iomap-all-reactive`: `40952226` (B0 kernel: ContentIoMap, RuleIoMap),
+`0c1e8438` (B1/B2 visual: 21 structs + `.field[]` ripples + `@iomap`/`Cell` imports),
+`4eab38f5` (B3 domain: Graph 2, Workbench 2), `214510a0` (B4: Chaining + VersioningToAny —
+derived `.output`/`.index`/`.value_iomap` stored as computed cells, custom `getproperty`
+dropped). Verified: test_base 158/0-fail, test_visual 49187/0-fail/1-broken,
+test_domain 111222/0-fail/5-broken (pass-counts up from cell-graph growth; Broken 1/5 = baseline).
+
+Ripple pattern that recurred: a converted module needs `var"@iomap"` (and `Cell`) imported;
+every `iomap.field[]` on a now-unwrapped `Cell` field drops the `[]` — in `main` *and* in
+the test files that read those fields directly. Generic field names (`w`/`h`/`columns`/
+`segs`/`geometry`/`child_iomaps`) collide with legitimately-`Cell` fields on other types
+(e.g. `GraphicsCanvas.w[]` stays), so fixes were test-error-driven, not blanket seds.
+
 ## Goal
 
 Uniform rule, no per-struct judgment: **every** `struct … <: IoMap` is declared with
