@@ -7,18 +7,21 @@ subset of elements matching a given predicate.
 module FilteringProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap
-import ..CellModule: Cell
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 export FilteringProjection, FilteringProjectionIoMap
 
-struct FilteringProjectionIoMap <: IoMap
+# `kept_indices` and `output` are computed cells for a reactive `CellVector`
+# input, so the IoMap keeps its identity while the kept subset tracks the input
+# (AR-STABLE-IOMAP-IDENTITY); `iomap.kept_indices` reads the current vector.
+@iomap struct FilteringProjectionIoMap
     projection::Any
     input::Any
     output::Any
-    kept_indices::Vector{Int}
+    kept_indices::Any
 end
 
 """
@@ -40,12 +43,10 @@ FilteringProjection(; predicate::Function=Returns(true)) =
     FilteringProjection(predicate)
 
 function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
-    n = length(input)
-    kept_indices = Int[i for i in 1:n if p.predicate(input[i])]
-    out_cells = Cell[Cell(input[i]) for i in kept_indices]
-    output = CellVector(out_cells)
-    output.selection = input.selection
-    FilteringProjectionIoMap(p, input, output, kept_indices)
+    kept = Cell(() -> Int[i for i in 1:length(input) if p.predicate(input[i])])
+    output = CellVector(() -> [input[i] for i in kept[]])
+    set_cell_function!(getfield(output, :selection), () -> input.selection)
+    FilteringProjectionIoMap(p, input, output, kept)
 end
 
 function print_document(p::FilteringProjection, recursion, input::Vector{Cell}, ctx)
