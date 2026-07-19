@@ -93,5 +93,5 @@ cell (AR-STABLE-IOMAP-IDENTITY).
     projection::Any
     input::Any
     output::Any
-    inner_iomap::Any
+    inner_iomap::IoMap        # the projected content's IoMap (documentary — @iomap stores it as a Cell)
 end
