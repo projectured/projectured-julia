@@ -39,7 +39,9 @@ using ProjecturedBase.FocusingProjectionModule: FocusingProjection, ReplaceFocus
 using ProjecturedBase.ReversingProjectionModule: ReversingProjection
 using ProjecturedBase.FilteringProjectionModule: FilteringProjection
 using ProjecturedBase.SearchingProjectionModule: SearchingProjection
+using ProjecturedBase.SortingProjectionModule: SortingProjection
 using ProjecturedBase.PrimitiveModule: PrimitiveString
+using ProjecturedBase.ProjectionApiModule: map_reference_backward
 using ProjecturedBase.ProjectionApiModule: map_reference_forward
 using ProjecturedBase.EventModule: KeyDown
 using ProjecturedBase.EventModule: ModifierKeys
@@ -52,6 +54,7 @@ include("projection/FocusingTest.jl")
 include("projection/ReversingTest.jl")
 include("projection/FilteringTest.jl")
 include("projection/SearchingTest.jl")
+include("projection/SortingTest.jl")
 
 """
     test_base_layering()
@@ -83,11 +86,12 @@ function test_base()
         test_reversing()
         test_filtering()
         test_searching()
+        test_sorting()
     end
 end
 
 export test_base, test_base_layering
-export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching
+export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 
 end # module ProjecturedBaseTest

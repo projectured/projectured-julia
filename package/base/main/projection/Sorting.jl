@@ -7,9 +7,8 @@ document by a configurable key function.
 module SortingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-import ..IoMapModule: IoMap
-import ..CellModule: Cell
+import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
+import ..CellModule: Cell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
@@ -36,28 +35,34 @@ end
 SortingProjection(; by::Function=identity, lt::Function=isless, rev::Bool=false) =
     SortingProjection(by, lt, rev)
 
-struct SortingProjectionIoMap <: IoMap
+# `output`, `index_map`, and `element_iomaps` are computed cells for a reactive
+# CellVector input, so the IoMap keeps its identity while a structural edit
+# re-sorts through it (AR-STABLE-IOMAP-IDENTITY); `iomap.index_map` /
+# `iomap.element_iomaps` read the current value.
+@iomap struct SortingProjectionIoMap
     projection::Any
     input::Any
     output::Any
-    index_map::Vector{Int}   # index_map[j] is the 1-based input index for 1-based output position j
-    element_iomaps::Cell
+    index_map::Any   # index_map[j] is the 1-based input index for 1-based output position j
+    element_iomaps::Any
 end
 
 function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
     recursion = something(recursion, IdentityProjection())
-    n = length(input)
-    perm = sortperm(1:n; by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)
-    # Recursively project each element (CellVector getindex already unwraps the Cell)
-    children = [print_child(recursion, input[i],
-                    make_child_context(ctx, ElementReferenceStep(i)))
-                for i in 1:n]
-    # Build output by arranging projected elements in sorted order
-    out_cells = Cell[Cell(children[perm[j]].output) for j in 1:n]
-    output = CellVector(out_cells)
-    output.selection = input.selection
-    element_iomaps = Cell(children)
-    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+    # Children projected + reconciled in input order; index_map re-derives the
+    # sorted permutation; output arranges child outputs by it — all reactive.
+    child_iomaps = reconcile_child_iomaps(
+        () -> input,
+        (i, x) -> print_child(recursion, x,
+            make_child_context(ctx, ElementReferenceStep(i))))
+    index_map = Cell(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev))
+    output = CellVector(() -> begin
+        cs = child_iomaps[]
+        perm = index_map[]
+        [cs[perm[j]].output for j in 1:length(perm)]
+    end)
+    set_cell_function!(getfield(output, :selection), () -> input.selection)
+    SortingProjectionIoMap(p, input, output, index_map, child_iomaps)
 end
 
 function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ctx)
@@ -95,7 +100,7 @@ function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoM
             (i < 1 || i > n) && return nothing
             j = findfirst(==(i), iomap.index_map)
             j === nothing && return nothing
-            elem_iomap = iomap.element_iomaps[][j]
+            elem_iomap = iomap.element_iomaps[j]
             mapped_tail = map_reference_forward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             ConcreteReference(get_reference_node_type(iomap.output), ElementReferenceStep(j), mapped_tail)
@@ -109,7 +114,7 @@ function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIo
         [j].rest... => begin
             n = length(iomap.output)
             (j < 1 || j > n) && return nothing
-            elem_iomap = iomap.element_iomaps[][j]
+            elem_iomap = iomap.element_iomaps[j]
             mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             i = iomap.index_map[j]
