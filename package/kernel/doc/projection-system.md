@@ -379,6 +379,22 @@ a character offset.
 The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
 `::Cell` fields are accessed transparently — see [the macros guide](macros.md).
 
+### Stable identity, reactive fields
+
+An IoMap keeps its **identity** for the life of its projection instance — a change
+never replaces it, so a chain's `step_iomaps` and any other projection that wired
+to it stay valid. What *varies* (the `output`, its selection, the child IoMaps) is
+a **computed cell** that re-derives from the projection's input and parameter
+cells; an operation writes a cell and the change propagates through the existing
+IoMap with no re-print. This is
+[AR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#ar-stable-iomap-identity),
+and `reconcile_child_iomaps` (iomap layer) is the shared way to keep child-IoMap
+identity across a structural edit. Note the split: `@iomap`/`@projection` give the
+transparent cell *fields*, but wiring those fields as **derivations** (a
+`Cell(() -> …)` thunk, not an eagerly-computed value) is what makes them reactive —
+`FocusingProjection` is the reference (`output = Cell(() -> evaluate_reference(input,
+p.part))`).
+
 ## Projection categories
 
 The **higher-order** and **generic** rows below are the complete sets — an
@@ -417,9 +433,13 @@ domain (via `map_reference_backward`).
 
 1. Define a struct that subtypes `Projection`. Use `@projection` if you have
    reactive Cell fields.
-2. Implement `print_document(p, recursion, input, ctx)` returning an
-   `IoMap`. Use `SimpleIoMap` for positional projections, or define your own
-   IoMap struct (with `<: IoMap`) when you need to carry extra data.
+2. Implement `print_document(p, recursion, input, ctx)` returning **one** `IoMap`
+   kept for the projection's life. Use `SimpleIoMap` for positional projections,
+   or define your own `@iomap` struct when you carry extra data. Wire whatever
+   varies (`output`, child IoMaps) as computed cells so a parameter/input change
+   re-derives it through the same IoMap
+   ([AR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#ar-stable-iomap-identity));
+   reconcile child collections with `reconcile_child_iomaps`.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
    the cleanest way is `@reference_case`. `print_document` wires its output
    selection by calling `map_reference_forward`; the default `read_intent`

@@ -225,6 +225,13 @@ This is `@cell_struct` (the cell layer's transparent-Cell struct codegen) plus
 one default: a struct without an explicit supertype gets `<: Projection`. The
 injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
 — same mechanic as `@iomap`/`IoMap`.
+
+A projection's parameter cells are what make its `print_document` reactive: an
+operation writes a parameter cell (e.g. `FocusingProjection`'s `part`), and the
+computed cells the returned IoMap wired from it re-derive — the change propagating
+through that same IoMap without a re-print. Wire the IoMap's `output` and child
+IoMaps as computed cells reading the parameters/input; a plain struct is fine only
+for a projection with no reactive parameters (see `@iomap`).
 """
 macro projection(args...)
     default, structdef = cell_struct_macro_default(args)

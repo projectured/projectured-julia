@@ -13,6 +13,14 @@ generated alongside the positional auto-wrapping one.
 
 This is `@cell_struct` plus one default: a struct without an explicit supertype
 gets `<: IoMap` (injected as `:IoMap`, resolved in the caller's `esc`'d scope).
+
+An IoMap's varying fields are meant to be *computed* cells: pass `output = Cell(()
+-> …)` and it re-derives reactively while the IoMap keeps its identity, so
+`iomap.output` reads the current value and a change propagates without re-printing.
+The transparent field is only the *vehicle* — the derivation (the thunk) is what
+makes it reactive; a cell field holding an eagerly-computed value does not
+re-derive. Keeping the IoMap's identity while its fields re-derive is what lets it
+sit in a chain and have other projections wire to it.
 """
 macro iomap(args...)
     default, structdef = cell_struct_macro_default(args)
