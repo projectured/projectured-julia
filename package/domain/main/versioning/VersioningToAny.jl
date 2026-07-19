@@ -56,7 +56,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
@@ -86,21 +86,13 @@ struct VersioningToAnyProjection <: Projection end
 # `editor.iomap` drop. `output`/`index`/`value_iomap` read it transparently via
 # `getproperty`, so the reference maps and reader see the *current* selection and the
 # reactive `ChainingProjection` re-pulls the output downstream.
-struct VersioningToAnyProjectionIoMap <: IoMap
-    projection::VersioningToAnyProjection
+@iomap struct VersioningToAnyProjectionIoMap
+    projection::Any
     input::Any                # VersionedObject
-    selection_cell::Cell      # Cell of (idx, value_iomap) or nothing
-    output_cell::Cell         # derived: value child output, or DocumentNothing
-end
-
-function Base.getproperty(io::VersioningToAnyProjectionIoMap, name::Symbol)
-    name === :output       && return getfield(io, :output_cell)[]
-    if name === :index || name === :value_iomap
-        sel = getfield(io, :selection_cell)[]
-        sel === nothing && return nothing
-        return name === :index ? sel[1] : sel[2]
-    end
-    getfield(io, name)
+    selection_cell::Any       # Cell of (idx, value_iomap) or nothing
+    output::Any               # computed: value child output, or DocumentNothing
+    index::Any                # computed: selected version index, or nothing
+    value_iomap::Any          # computed: the selected value's child IoMap, or nothing
 end
 
 # ── Printer ───────────────────────────────────────────────────────────────────
@@ -115,11 +107,13 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
                                         ElementReferenceStep(idx), FieldReferenceStep("value")))
         (idx, value_iomap)
     end)
-    output_cell = Cell(() -> begin
+    output = Cell(() -> begin
         sel = selection_cell[]
         sel === nothing ? DocumentNothing() : sel[2].output
     end)
-    VersioningToAnyProjectionIoMap(p, input, selection_cell, output_cell)
+    index = Cell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[1]))
+    value_iomap = Cell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[2]))
+    VersioningToAnyProjectionIoMap(p, input, selection_cell, output, index, value_iomap)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────

@@ -14,34 +14,27 @@ import ..IntentModule: Intent
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
-import ..IoMapModule: IoMap, reconcile_child_iomap
+import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
 import ..CellModule: Cell, AbstractCell, unwrap_cell
 export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
-# upstream stage's output changes *structurally*. `iomap.output` returns the LAST
-# stage's raw output — exactly as the old eager Sequential threaded it
-# (`current = iomap.output`): if the final stage exposes a Cell-valued output, it is
-# preserved (consumers like an inner text pipe do `seqiomap.output[]`). Reading it
-# pulls the last stage cell, which recomputes lazily if a structural change upstream
-# invalidated the chain. (Only the threading *between* stages unwraps a Cell-valued
-# output to the plain value the next stage prints — see `_seq_stage`.)
-struct ChainingProjectionIoMap <: IoMap
+# upstream stage's output changes *structurally*. `output` is a computed cell over the
+# LAST stage's raw output — exactly as the old eager Sequential threaded it
+# (`current = iomap.output`): if the final stage exposes a Cell-valued output it is
+# preserved (consumers like an inner text pipe do `seqiomap.output[]`), because
+# `@iomap` unwraps only the `output` field's own cell, revealing the last stage's
+# (possibly Cell-valued) output. Reading it pulls the last stage cell, which recomputes
+# lazily if a structural change upstream invalidated the chain. (Only the threading
+# *between* stages unwraps a Cell-valued output to the plain value the next stage
+# prints — see `_seq_stage`.) As an `@iomap` struct, `output` is a stored computed cell
+# rather than a synthesized property, so `iomap.output` / `hasproperty` work uniformly.
+@iomap struct ChainingProjectionIoMap
     projection::Any
     input::Any
-    step_iomaps::Vector{Cell}
+    step_iomaps::Any    # Vector{Cell}; wrapped by @iomap so `iomap.step_iomaps` reads the vector
+    output::Any         # computed: the last stage's output — `step_iomaps[end][].output`
 end
-
-function Base.getproperty(io::ChainingProjectionIoMap, name::Symbol)
-    name === :output && return getfield(io, :step_iomaps)[end][].output
-    getfield(io, name)
-end
-
-# `:output` is synthesized, not a field, so `propertynames` must list it too —
-# otherwise `hasproperty(iomap, :output)` is false while `iomap.output` works, and
-# a caller guarding its access with `hasproperty` silently skips every chain.
-Base.propertynames(::ChainingProjectionIoMap, private::Bool=false) =
-    (fieldnames(ChainingProjectionIoMap)..., :output)
 
 """
     ChainingProjection(projections...)
@@ -98,7 +91,8 @@ function print_document(seq::ChainingProjection, recursion, input, ctx)
         push!(step_iomaps, iomap_cell)
     end
     foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
-    return ChainingProjectionIoMap(seq, input, step_iomaps)
+    return ChainingProjectionIoMap(seq, input, step_iomaps,
+                                   Cell(() -> step_iomaps[end][].output))
 end
 
 # Pure: thread each stage's immutable output straight into the next stage — no
