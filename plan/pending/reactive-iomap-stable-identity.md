@@ -236,20 +236,24 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
       beside `_make_canvas` — `build_fn()` returns `(; width, height, elements)`, run inside a
       cell, so extent+membership re-derive while the canvas keeps identity. Per leaf: wrap the
       print body (after the `w.visible`/`position` prefix) in the thunk, return the named tuple.
-    - **4c progress (`2ead3fa9`, `8ecece19`):** the helper + **16 simple leaves** converted
-      (Badge, Separator, Progress, Slider by hand; Label, Checkbox, Button, Switch, RadioGroup,
-      Avatar, Alert, Skeleton, Toggle, ToggleGroup, Option, Textarea via a delegated mechanical
-      batch, spot-verified). test_visual 48507/0-fail — identical (eager values → computed
-      cells, same cell count). Delegating the mechanical batch + verifying test_visual works well.
-    - **4c remaining (harder, individual):**
-      - **Custom-IoMap leaves** (Select/SpinBox/List): their `WidgetSelect…IoMap` etc. store
-        `control_width`/`control_height`/`stepper_w` for the reader, so the extent can't just move
-        into the thunk — needs **extent-as-shared-cell** (compute extent as cells used by BOTH the
-        canvas and the IoMap fields; reader reads `iomap.control_width[]`). StatusBar: non-standard
-        origin (`_make_canvas(0,0,…)`, `_content_offset`).
-      - **Recursion leaves** (Text/ContextMenu/MenuItem/Tooltip): recurse a child (`content_iomap`/
-        `child_iomap`) — need **single-child-reconcile** (`reconcile_child_iomap`) + reactive extent
-        from the child's `w/h`.
+    - **4c progress — ALL ~25 widget LEAVES reactive** (`2ead3fa9`, `8ecece19`, `a1f49441`,
+      `e9e8d1e6`, `81e0ce46`, `809c0140`). Three conversion patterns, each verified green:
+      - **Simple wrap** (18): Badge, Separator, Progress, Slider, StatusBar + a delegated batch
+        (Label, Checkbox, Button, Switch, RadioGroup, Avatar, Alert, Skeleton, Toggle,
+        ToggleGroup, Option, Textarea). Body → `_reactive_canvas(origin, () -> (; width, height,
+        elements))`.
+      - **Custom-IoMap / extent-as-shared-cell** (Select, SpinBox, List): one `build` cell feeds
+        both the canvas (`_reactive_canvas_cell`) and the IoMap's `Cell(() -> build[].width)` etc.;
+        `@iomap` the IoMap struct so the reader reads `iomap.control_width` transparently.
+      - **Recursion leaves / single-child-reconcile** (ContextMenu, Text, MenuItem, Tooltip):
+        `reconcile_child_iomap` the child (forced only in the recurse branch for the conditional
+        ones), build cell reads the child canvas `w/h`; `@iomap` the struct. WidgetText handles both
+        editable (grows as typed) + non-editable branches; MenuItem/Tooltip carry a tuple
+        `child_iomaps` list read by the `getfield(iomap, :child_iomaps)[]` idiom (compatible).
+      Delegating the *simple* batch (Sonnet applies the transform, I verify test_visual + spot-check)
+      worked well; the custom/recursion ones were done by hand. All green throughout (0 Fail/Error,
+      Broken 1/5; pass counts rose only from added cells).
+    - **4c remaining — the container/layout sub-project (distinct, larger):**
       - **~17 container wrappers** (Composite/Shell/SplitPane/TabbedPane/Menu/Toolbar/TitlePane):
         eager `_make_canvas(0,0,elems)` membership → reactive membership + child reconcile.
       - **Geometry-coupled layouts** (Grid/Flow/Stack): their IoMaps expose per-column/row cells
