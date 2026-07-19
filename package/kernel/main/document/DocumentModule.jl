@@ -28,7 +28,7 @@ module DocumentModule
 using ..CellModule
 using ..CellStructModule
 
-export Document, copy_document, sync_document!,
+export Document, copy_document, sync_document!, document_family,
        is_element_collection, is_walk_opaque, is_collection_field_type, search_documents,
        @document, @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export DocumentWalk, walk_document, string_predicate

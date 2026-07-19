@@ -9,6 +9,12 @@ is_element_collection(value) = false
 is_walk_opaque(value) = false
 is_collection_field_type(::Val) = false
 
+# A plain type is its own family — its type-name wrapper. `@document` overrides this
+# per schema so all variant layouts of one schema (the isbits stem, the native
+# mutable struct) answer the same abstract family type.
+document_family(x) = document_family(typeof(x))
+document_family(::Type{T}) where {T} = Base.typename(T).wrapper
+
 """
 Maximum nesting depth printed by the generic document `show` before child
 documents are abbreviated to `…`. Bounds debug output for deeply nested trees.

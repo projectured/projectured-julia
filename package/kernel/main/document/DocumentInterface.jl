@@ -31,6 +31,20 @@ collection opts in with its own method.
 function is_element_collection end
 
 """
+    document_family(x) -> Type
+    document_family(::Type) -> Type
+
+The **family** a document belongs to: the identity used to decide whether two
+documents are the same document — including when they are two different *variant
+layouts* of one `@document` schema (the isbits/immutable stem and the native
+`mutable struct`, which do not share a type wrapper). Defaults to the type's name
+wrapper (`Base.typename(T).wrapper`), so a plain type is its own family; the
+`@document` macro overrides it to the schema's **abstract family type**, so every
+variant of one schema answers the same family.
+"""
+function document_family end
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are

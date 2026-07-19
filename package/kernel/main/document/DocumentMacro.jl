@@ -250,6 +250,22 @@ function _emit_collection_ctors(plan)
 end
 
 """
+    _emit_native_mutable(plan, family, native) -> Expr
+
+The **mutable-layout** struct: a real `mutable struct native <: family` whose
+fields hold the declared **value** types *directly* — no `MutableCell` box — so an
+all-mutable document (`MFoo`) is byte-for-byte a plain `mutable struct`
+(`getproperty`/`setproperty!` are the default `getfield`/`setfield!`). The value
+types resolve here exactly as they already do in the `IFoo` / `MFoo` aliases, so
+this introduces no new forward reference.
+"""
+function _emit_native_mutable(plan, family, native)
+    vts = cell_struct_value_types(plan)
+    fields = Any[:($(plan.field_names[i])::$(vts[i])) for i in eachindex(plan.field_names)]
+    Expr(:struct, true, Expr(:(<:), native, family), Expr(:block, fields...))
+end
+
+"""
     @document struct T [<: Super] ... end
 
 Annotate a Document struct whose fields are transparent cells. The programmer
@@ -323,6 +339,15 @@ macro document(args...)
     # injected `:Document` resolves in the caller's scope (the result is `esc`'d).
     supertype = plan.supertype === nothing ? :Document : plan.supertype
 
+    # ── Per-schema abstract family + native mutable layout (two-layout support) ──
+    # `family` is an abstract type inserted between the stem and its supertype; the
+    # stem and the native mutable struct both subtype it, so `document_family`
+    # recognizes every variant of one schema as the same document even though the
+    # two layouts share no type wrapper. Additive for now — the bare name is still
+    # the stem, and existing `Foo`/`Foo{…}` dispatch and aliases are unchanged.
+    family = Symbol("Abstract", plan.name)
+    native = Symbol(plan.name, "Mut")
+
     # ── Inject the selection field ────────────────────────────────────────────
     # Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
     # `Reference` (what is selected *inside* that node) or `nothing` for no
@@ -350,20 +375,29 @@ macro document(args...)
         add_cell_struct_field!(plan, :selection, :(Union{Nothing, Reference}), :nothing)
     end
 
-    plan = CellStructPlan(plan.structdef, plan.name, supertype, plan.field_names,
+    # The stem now subtypes `family` (which subtypes the real supertype), not the
+    # supertype directly — transparent for existing `<: Super` dispatch (transitive).
+    plan = CellStructPlan(plan.structdef, plan.name, family, plan.field_names,
                       plan.field_types, plan.field_slots, plan.defaults,
                       plan.n_declared, plan.n_programmer_defaults)
 
     # One gensym'd argument list, shared by the inner ctor and the kind ctors.
     arg_names = [gensym(f) for f in plan.field_names]
 
+    native_struct = _emit_native_mutable(plan, family, native)
+    family_method = :((::typeof($document_family))(::Type{<:$family}) = $family)
+
     structdef = _emit_stem!(plan)
     push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names; default = default))
     getprop, setprop = _emit_accessors(plan)
 
     esc(Expr(:block,
+             :(abstract type $family <: $supertype end),
              :(Base.@__doc__ $structdef),
              getprop, setprop,
+             native_struct,
+             family_method,
+             Expr(:export, family, native),
              _emit_kind_aliases(plan, arg_names; default = default)...,
              _emit_keyword_ctors(plan)...,
              # Rule Y (the cell layer's, generic over any cell struct), each arity
