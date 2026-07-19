@@ -123,11 +123,38 @@ reconcile + reactive tests. One reviewable change.
   `Cell`), and the plain non-converting structs (`SyntaxCompoundToTextIoMap`,
   `GridLayoutIoMap`, `GraphLayout*`, `RuleIoMap`) are left. Verified: kernel guard
   10/10, test_visual 48241, test_domain 106022, 0 Fail/Error.
-- **Phase 2b (next):** the per-projection reactive-output fixes for the base generic
-  projections that use ChildrenIoMap or their own IoMap structs (Reversing eager
-  `output`; Copying/Sorting/Filtering/Searching/Dragging — `@iomap` their structs +
-  wire output/children reactively + reconcile + reactive tests). Now clean because
-  `.child_iomaps` returns the value.
+- **Phase 2b — per-projection reactive-output fixes. Done.** All six base generic
+  projections converted, one commit each, every one with a reactive test proving
+  the change propagates through the *held* iomap (same `objectid`, output tracks):
+  - `Reversing` (`7755778e`) — `ChildrenIoMap`; `reverse(input)` → reactive CellVector
+    from reconciled child outputs. New `ReversingTest` (had none).
+  - `Filtering` (`741b9937`) — `@iomap`; reactive `kept_indices`+`output` on the
+    CellVector path, eager plain-vector paths. New `FilteringTest` (had none).
+  - `Searching` (`5392593b`) — `@iomap`; one reactive tree-walk cell feeds both
+    `output` and `match_paths`. New `SearchingTest` (had none).
+  - `Sorting` (`88b8809c`) — `@iomap`; reconciled children + reactive `index_map`/
+    `output`; the two `element_iomaps[][j]` mapper sites drop the inner `[]`
+    (@iomap flip). New `SortingTest`. **test_domain green** (production JSON/YAML sort).
+  - `Copying` (`800ef2b1`) — `@iomap`; reconciled children + reactive `output` on the
+    CellVector path; ListNode/Vector{Cell}/struct/primitive paths unchanged; the
+    mappers already read `iomap.children` as a value so **no mapper edits**. Reactive
+    +reconciliation testset added. **test_visual + test_domain green** (GraphicsCaching,
+    JSON/YAML/Markdown copy paths).
+  - `Dragging` (`aa1d360e`) — `@iomap`; transparent printer reconciles the single
+    `content` child (`reconcile_child_iomap`) + forwards `output` reactively. `test_dragging`
+    + example green.
+
+  **Discovered:** these six have **no mutable config parameters** (unlike Focusing), so
+  their reactive-output requirement is about tracking *input* structural/value edits — the
+  faithful translation is reactive on the CellVector (reactive-document) path, eager on
+  plain-vector/arbitrary inputs (nothing to react to), `@iomap` auto-wrapping the eager
+  values. Base generic reactive tests now live in `ProjecturedBaseTest`
+  (`test_reversing/_filtering/_searching/_sorting` + Copying's new testset).
+
+**Phase 2c (optional, later):** the base *higher-order* dispatchers are Phase 3 below.
+Not-yet-reactive base generics remaining after 2b: none in the generic tier. The
+`Recursive` projection and the compound helpers (`GenericCompound`/`HigherOrderCompound`)
+are thin wrappers; audit them when convenient.
 
 **Phase 3 — base higher-order** (Switching, Nesting, ReferenceDispatching,
 WindowInputUnwrapping; NOT Chaining yet): the object-swapping dispatchers — the
