@@ -401,10 +401,31 @@ output cell reads the structural choice, not inner values).
 - [ ] (if pursued) Reactive test: a structural swap mid-chain propagates end-to-end via
       `reconcile_child_iomap` with no `iomap` drop.
 
-**Phase 7 — editor tightening (conservative, last).**
-- [ ] Audit operations that null `editor.iomap`; where the reactive path now
-      covers them (proven by a reactive test), stop nulling. Leave genuine
-      whole-root rebinds alone. The payoff (fewer full re-prints), done cautiously.
+**Phase 7 — editor tightening. Audited (2026-07-19).**
+- [x] **Editor iomap-null audit — the editor is already tight.** The *only*
+      `invalidate_projection!(editor)` (which nulls `editor.iomap` → forces a full
+      re-print) is `Operations.jl:250`, the genuine **whole-root document swap**
+      (`ReplaceReferencedValueOperation` with an empty reference: `editor.document =
+      op.value`). That is exactly the case Phase 7 says to leave alone. Every other
+      operation already reuses the held iomap: `print!` re-prints only when
+      `editor.iomap === nothing`, and each frame re-forces `editor.iomap.output`
+      (`Editor.jl:184`), so selection / value / structural edits propagate reactively
+      through the held iomap with no re-print. **Nothing spurious to remove.**
+- [x] **WindowManaging dual-mutation removed (`0712401a`).** The one imperative
+      output mutation left in the pipeline: the window manager updated BOTH the input
+      `ScreenDocument` and the projected output windows (fragile 1:1 ordering +
+      stored `recursion`/`ctx`), on a stale "inner is `CopyingProjection`, which builds
+      eagerly" assumption. The real inner is `ScreenToScreen`, which reconciles windows.
+      Made `ScreenToScreen` also reconcile each window's **content** by identity
+      (`reconcile_child_iomap` over `input.content`), so replacing a same-id window's
+      content (hover probe, re-opened tooltip) re-projects reactively; metadata is
+      already shared cells. The manager now mutates **only the input**; the inner stage
+      mirrors add/remove (window reconcile) + content-replace (content reconcile) +
+      metadata (shared cells) into the output. Net −22 lines. Verified: tooltip 23/23
+      (incl duplicate-id update / close / defocus), test_visual 48760 / 0 fail,
+      test_domain 106144 / 0 fail.
+- ⟹ **Phase 7 complete.** The editor loop and the whole projection pipeline are now
+      re-print-free except the one legitimate whole-root document rebind.
 
 ## Implementation notes (discovered during Phase 0-1)
 
