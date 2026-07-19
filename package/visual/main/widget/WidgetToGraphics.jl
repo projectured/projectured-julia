@@ -59,7 +59,7 @@ import ..FontModule: StyleFont,
 import ..StyleTextModule: StyleText, DStyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
@@ -713,14 +713,21 @@ end
 # (the parent positions it). Reads of the widget/style cells inside `build_fn`
 # are what wire the reactivity. Replaces the eager `_make_canvas` at each leaf
 # whose extent/membership depends on reactive widget state.
-function _reactive_canvas(x::Int, y::Int, build_fn)
-    build = Cell(build_fn)
+# Build the reactive canvas from an existing build cell (`build[] ->
+# (; width, height, elements)`). A leaf whose IoMap must also expose the extent
+# (e.g. a form control whose reader hit-tests `control_width`/`control_height`)
+# holds the same `build` cell and stores `Cell(() -> build[].width)` etc., so the
+# canvas and the reader read one shared derivation.
+function _reactive_canvas_cell(x::Int, y::Int, build::Cell)
     GraphicsCanvas(Int32(x), Int32(y),
                    Cell(() -> Int32(build[].width)),
                    Cell(() -> Int32(build[].height)),
                    CellVector(() -> build[].elements),
                    layout_none, true, Cell(nothing))
 end
+
+# Convenience for leaves that need only the canvas: make the build cell from a thunk.
+_reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Cell(build_fn))
 
 _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                  CellVector(), layout_none, true, Cell(nothing))
@@ -4006,40 +4013,46 @@ end
 # at print time) and the rendered box size, so the reader can open the dropdown
 # popup anchored under the box without re-deriving its position. `control_width`
 # fixes the popup width to the box; `control_height` places it just below.
-struct WidgetSelectToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads `iomap.control_width`/`control_height` transparently
+# (the extent is now a shared build-derived cell); AR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetSelectToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetSelect
-    output::GraphicsCanvas
-    anchor::Reference
-    control_width::Int
-    control_height::Int
+    input::Any
+    output::Any
+    anchor::Any
+    control_width::Any
+    control_height::Any
 end
 
 function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    text = string(w.value)
-    enabled = !(w.enabled === false)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    text_width, text_height = _text_size(p.measure, p.text.font, text)
-    chevron_size = _sc(p.chevron_size)
-    # Fit the value text, a gap, the trailing chevron and both paddings.
-    content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
-    control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    control_height = text_height + 2padding_y
-    box_fill   = enabled ? p.background_color : p.disabled_color
-    text_color = enabled ? p.text.color : p.disabled_foreground
-    chevron_color = enabled ? p.chevron.color : p.disabled_foreground
-    elements = Any[]
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill, border=p.border.color,
-                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, text_color))
-    _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
-                   chevron_color; stroke=max(1, _sc(p.chevron.width)))
-    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
-    WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference, control_width, control_height)
+    build = Cell(() -> begin
+        text = string(w.value)
+        enabled = !(w.enabled === false)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        text_width, text_height = _text_size(p.measure, p.text.font, text)
+        chevron_size = _sc(p.chevron_size)
+        # Fit the value text, a gap, the trailing chevron and both paddings.
+        content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
+        control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+        control_height = text_height + 2padding_y
+        box_fill   = enabled ? p.background_color : p.disabled_color
+        text_color = enabled ? p.text.color : p.disabled_foreground
+        chevron_color = enabled ? p.chevron.color : p.disabled_foreground
+        elements = Any[]
+        _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill, border=p.border.color,
+                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, text_color))
+        _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
+                       chevron_color; stroke=max(1, _sc(p.chevron.width)))
+        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
+        (width=control_width, height=control_height, elements=elements)
+    end)
+    canvas = _reactive_canvas_cell(_origin(position)..., build)
+    WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference,
+                                      Cell(() -> build[].width), Cell(() -> build[].height))
 end
 
 # Forward image (Step 2.0): the select is a positioned leaf, so the empty
@@ -4146,43 +4159,49 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
     ring_color::StyleColor
 end
 
-struct WidgetSpinBoxToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads control_width/control_height/stepper_w transparently
+# (extent shared from the build cell); AR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetSpinBoxToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetSpinBox
-    output::GraphicsCanvas
-    control_width::Int
-    control_height::Int
-    stepper_w::Int
+    input::Any
+    output::Any
+    control_width::Any
+    control_height::Any
+    stepper_w::Any
 end
 
 function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    enabled = !(w.enabled === false)
-    text = string(w.value)
-    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
-    tw, th = _text_size(p.measure, p.text.font, text)
-    control_height = th + 2pad_y
-    stepper_w = control_height
-    content_min = 2pad_x + tw + stepper_w
-    control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    box_fill   = enabled ? p.background_color : p.disabled_color
-    text_color = enabled ? p.text.color : p.disabled_foreground
-    step_color = enabled ? p.stepper_color : p.disabled_foreground
-    bw = max(1, _sc(p.border.width))
-    elements = Any[]
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill,
-                 border=p.border.color, border_w=bw, radius=_sc(p.corner_radius))
-    _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, text_color)
-    sx = control_width - stepper_w
-    push!(elements, GraphicsLine(sx, 0, sx, control_height, p.border.color; width=bw))
-    isz = max(8, control_height ÷ 2 - _sc(3))
-    ix = sx + (stepper_w - isz) ÷ 2
-    _push_icon!(elements, :plus,  ix, (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
-    _push_icon!(elements, :minus, ix, control_height ÷ 2 + (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
-    _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
-    WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas, control_width, control_height, stepper_w)
+    build = Cell(() -> begin
+        enabled = !(w.enabled === false)
+        text = string(w.value)
+        pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+        tw, th = _text_size(p.measure, p.text.font, text)
+        control_height = th + 2pad_y
+        stepper_w = control_height
+        content_min = 2pad_x + tw + stepper_w
+        control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+        box_fill   = enabled ? p.background_color : p.disabled_color
+        text_color = enabled ? p.text.color : p.disabled_foreground
+        step_color = enabled ? p.stepper_color : p.disabled_foreground
+        bw = max(1, _sc(p.border.width))
+        elements = Any[]
+        _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill,
+                     border=p.border.color, border_w=bw, radius=_sc(p.corner_radius))
+        _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, text_color)
+        sx = control_width - stepper_w
+        push!(elements, GraphicsLine(sx, 0, sx, control_height, p.border.color; width=bw))
+        isz = max(8, control_height ÷ 2 - _sc(3))
+        ix = sx + (stepper_w - isz) ÷ 2
+        _push_icon!(elements, :plus,  ix, (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
+        _push_icon!(elements, :minus, ix, control_height ÷ 2 + (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
+        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
+        (width=control_width, height=control_height, stepper_w=stepper_w, elements=elements)
+    end)
+    canvas = _reactive_canvas_cell(_origin(position)..., build)
+    WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
+        Cell(() -> build[].width), Cell(() -> build[].height), Cell(() -> build[].stepper_w))
 end
 
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _self_point(reference)
@@ -4217,44 +4236,50 @@ end
     corner_radius::Int
 end
 
-struct WidgetListToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads row_height/control_width transparently (extent shared
+# from the build cell); AR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetListToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetList
-    output::GraphicsCanvas
-    row_height::Int
-    control_width::Int
+    input::Any
+    output::Any
+    row_height::Any
+    control_width::Any
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
-    items = collect(w.items)
-    n = length(items)
-    _, th = _text_size(p.measure, p.text.font, "M")
-    row_height = th + 2pad_y
-    intrinsic = 0
-    for it in items
-        tw, _ = _text_size(p.measure, p.text.font, string(it))
-        intrinsic = max(intrinsic, tw + 2pad_x)
-    end
-    control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
-    control_height = max(row_height, n * row_height)
-    sel = Int(w.selected)
-    elements = Any[]
-    _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
-                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    for (i, it) in enumerate(items)
-        y = (i - 1) * row_height
-        fg = p.text.color
-        if i == sel
-            _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
-            fg = p.selected_foreground
+    build = Cell(() -> begin
+        pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+        items = collect(w.items)
+        n = length(items)
+        _, th = _text_size(p.measure, p.text.font, "M")
+        row_height = th + 2pad_y
+        intrinsic = 0
+        for it in items
+            tw, _ = _text_size(p.measure, p.text.font, string(it))
+            intrinsic = max(intrinsic, tw + 2pad_x)
         end
-        _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, fg)
-    end
-    canvas = _make_canvas(_origin(position)..., control_width, control_height, elements)
-    WidgetListToGraphicsCanvasIoMap(p, w, canvas, row_height, control_width)
+        control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
+        control_height = max(row_height, n * row_height)
+        sel = Int(w.selected)
+        elements = Any[]
+        _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
+                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        for (i, it) in enumerate(items)
+            y = (i - 1) * row_height
+            fg = p.text.color
+            if i == sel
+                _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
+                fg = p.selected_foreground
+            end
+            _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, fg)
+        end
+        (width=control_width, height=control_height, row_height=row_height, elements=elements)
+    end)
+    canvas = _reactive_canvas_cell(_origin(position)..., build)
+    WidgetListToGraphicsCanvasIoMap(p, w, canvas,
+        Cell(() -> build[].row_height), Cell(() -> build[].width))
 end
 
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _self_point(reference)
