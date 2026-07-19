@@ -31,7 +31,7 @@ module DraggingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
 import ..CellModule: Cell
 import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
@@ -80,7 +80,11 @@ end
 
 DraggingProjection(; kw...) = DraggingProjection(_DragState())
 
-struct DraggingProjectionIoMap <: IoMap
+# `output` forwards the reconciled content child's output reactively, so the
+# IoMap keeps its identity while the inner projection re-derives, and a content
+# swap rebuilds the child (AR-STABLE-IOMAP-IDENTITY); `iomap.inner_iomap` reads
+# the current child.
+@iomap struct DraggingProjectionIoMap
     projection::Any
     input::Any          # DraggingState
     output::Any         # whatever content projects to
@@ -90,8 +94,9 @@ end
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
 function print_document(p::DraggingProjection, recursion, input::DraggingState, ctx)
-    inner = print_child(recursion, input.content, ctx)
-    DraggingProjectionIoMap(p, input, inner.output, inner)
+    inner = reconcile_child_iomap(() -> input.content, c -> print_child(recursion, c, ctx))
+    output = Cell(() -> inner[].output)
+    DraggingProjectionIoMap(p, input, output, inner)
 end
 
 # ── Operation ─────────────────────────────────────────────────────────────
