@@ -96,10 +96,11 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
 - **Layer 12 — iomap** (`iomap/`)
-  - ⬜ `iomap/IoMapLayer.jl`
-  - ⬜ `iomap/IoMapModule.jl`
-  - ⬜ `iomap/IoMapInterface.jl`
-  - ⬜ `iomap/IoMapDefaults.jl`
+  - 🔒 `iomap/IoMapLayer.jl`
+  - 🔒 `iomap/IoMapModule.jl`
+  - 🔒 `iomap/IoMapInterface.jl`
+  - 🔒 `iomap/IoMapDefaults.jl`
+  - 🔒 `iomap/IoMapReconcile.jl`
 - **Layer 13 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReferenceStep.jl`

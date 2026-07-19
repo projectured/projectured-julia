@@ -8,8 +8,8 @@
 Abstract supertype for all IoMap types. Every IoMap subtypes this and exposes the
 three accessors [`get_iomap_projection`](@ref), [`get_iomap_input`](@ref) and
 [`get_iomap_output`](@ref) — which `projection` produced it and the
-`input`/`output` documents it maps between. Specialised IoMaps add further
-accessors (child IoMaps, coordinate tables) on top of this minimum.
+`input`/`output` it maps between. Specialised IoMaps add further accessors (child
+IoMaps, coordinate tables) on top of this minimum.
 """
 abstract type IoMap end
 
@@ -30,9 +30,10 @@ The input-domain document `iomap` maps from. Answered from the conventional
 function get_iomap_input end
 
 """
-    get_iomap_output(iomap) -> output document
+    get_iomap_output(iomap) -> output
 
-The output-domain document `iomap` maps to. Answered from the conventional
+The output-domain value `iomap` maps to — usually a `Document`, but a terminal
+projection may map to a plain value (e.g. a string). Answered from the conventional
 `output` field; override when an IoMap stores it differently.
 """
 function get_iomap_output end
