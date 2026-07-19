@@ -20,7 +20,7 @@ import ..ColorModule: StyleColor, color_black, color_default, color_solarized_bl
 import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap
+import ..IoMapModule: SimpleIoMap, reconcile_child_iomap, reconcile_child_iomaps
 import ..ReferenceModule: ElementReferenceStep, FieldReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
 import ..SyntaxToTextModule: SyntaxToText
@@ -128,8 +128,13 @@ function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
     new_visited[cell] = true
     ctx = with_property(ctx, :objects_seen, new_visited)
-    unwrapped = cell[]
-    print_child(recursion, unwrapped, ctx)
+    # Reactive: re-project when the cell's value is swapped (its `objectid` changes —
+    # true for a scalar edit like `now = 5.0`, a reassigned collection, or a new child
+    # document). Reading `cell[]` inside the reconcile is what makes the output track
+    # the cell, so a `sync_document!`/`setproperty!` write repaints without rebuilding
+    # the whole projection.
+    inner = reconcile_child_iomap(() -> cell[], v -> print_child(recursion, v, ctx))
+    SimpleIoMap(p, cell, Cell(() -> inner[].output))
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -166,14 +171,26 @@ _unwrap_cell(x) = x isa Cell ? x[] : x
 _type_leaf(p::ObjectNodeToSyntaxNode, name::AbstractString) =
     SyntaxLeaf(TextString(name, p.type_name))
 
-# Build one `field_name <value>` node (inline: name leaf + projected value).
-function _field_node(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol)
-    name_leaf = SyntaxLeaf(TextString(string(fn), p.field_name))
-    value_node = isdefined(obj, fn) ?
+# A field's static name leaf plus its child IoMap — projecting the field's *cell*
+# (reactive via CellToSyntax for an `@document` field) or its raw value. A `nothing`
+# iomap marks an undefined field. Built once; the value is read reactively below.
+_field_entry(p::ObjectNodeToSyntaxNode, recursion, obj, ctx, fn::Symbol) =
+    (SyntaxLeaf(TextString(string(fn), p.field_name)),
+     isdefined(obj, fn) ?
         print_child(recursion, getfield(obj, fn),
-                         make_child_context(ctx, FieldReferenceStep(string(fn)))).output :
-        SyntaxLeaf(TextString("<undefined>", p.undef))
-    SyntaxNode("", "", " ", SyntaxDocument[name_leaf, value_node]; indentation=0)
+                    make_child_context(ctx, FieldReferenceStep(string(fn)))) :
+        nothing)
+
+# The (reactive) syntax output of a field entry — read inside the output cell so a
+# field change repaints; the `<undefined>` leaf for an absent field.
+_field_value(p::ObjectNodeToSyntaxNode, fim) =
+    fim === nothing ? SyntaxLeaf(TextString("<undefined>", p.undef)) : fim.output
+
+# The visible elements of a collection (after `filter`), read inside the reconcile so
+# appends/deletes repaint. Element order = collection order.
+_visible_elements(p::ObjectNodeToSyntaxNode, obj) = begin
+    els = Any[obj[i] for i in 1:length(obj)]
+    p.filter === nothing ? els : Any[x for x in els if p.filter(_unwrap_cell(x))]
 end
 
 function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
@@ -205,16 +222,15 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # struct branch below cannot reflect over them (e.g. an RGBA color stored
     # as NTuple{4,UInt8}).
     if is_element_collection(obj) || obj isa AbstractArray || obj isa Tuple
-        idxs = p.filter === nothing ? collect(1:length(obj)) :
-               [i for i in 1:length(obj) if p.filter(_unwrap_cell(obj[i]))]
-        element_nodes = SyntaxDocument[
-            print_child(recursion, obj[i],
-                           make_child_context(ctx, ElementReferenceStep(i))).output
-            for i in idxs
-        ]
-        node = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-            element_nodes; indentation = ind)
-        return SimpleIoMap(p, obj, node)
+        # Reconcile the element IoMaps by identity: unchanged elements reuse theirs, a
+        # new/moved slot rebuilds. The output cell re-derives the braced list when the
+        # element set changes (append/pop/reassign).
+        elem_ims = reconcile_child_iomaps(
+            () -> _visible_elements(p, obj),
+            (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
+        output = Cell(() -> SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
+            SyntaxDocument[im.output for im in elem_ims[]]; indentation = ind))
+        return SimpleIoMap(p, obj, output)
     end
 
     # Struct: render as `TypeName { field … }` — the type name labels the
@@ -227,12 +243,18 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     type_leaf = _type_leaf(p, string(nameof(T)))
     # No fields → just the type name, no empty braces.
     isempty(fnames) && return SimpleIoMap(p, obj, type_leaf)
-    field_nodes = SyntaxDocument[_field_node(p, recursion, obj, ctx, fn) for fn in fnames]
-    fields_block = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-        field_nodes; indentation = ind)
-    node = SyntaxNode("", "", " ",
-        SyntaxDocument[type_leaf, fields_block]; indentation = 0)
-    SimpleIoMap(p, obj, node)
+    # Field structure (which fields) is stable; build each field's entry once, then
+    # assemble the node in a computed cell that reads each field's (reactive) value.
+    entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
+    output = Cell(() -> begin
+        field_nodes = SyntaxDocument[
+            SyntaxNode("", "", " ", SyntaxDocument[nl, _field_value(p, fim)]; indentation = 0)
+            for (nl, fim) in entries]
+        fields_block = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
+            field_nodes; indentation = ind)
+        SyntaxNode("", "", " ", SyntaxDocument[type_leaf, fields_block]; indentation = 0)
+    end)
+    SimpleIoMap(p, obj, output)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────
