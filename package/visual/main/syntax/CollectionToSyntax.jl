@@ -56,7 +56,7 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
         if h isa RangeReferenceStep && is_element_reference_step(h)
             j = h.start + 1  # 1-based child index
             1 <= j <= length(iomap.input) || return nothing
-            child_iomaps_vec = iomap.child_iomaps[]
+            child_iomaps_vec = iomap.child_iomaps
             1 <= j <= length(child_iomaps_vec) || return nothing
             child = child_iomaps_vec[j]
             inner = map_reference_forward(child.projection, child, core.tail)

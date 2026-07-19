@@ -205,7 +205,7 @@ function map_reference_forward(p::YamlSequenceToBlockSyntaxNode, iomap::Children
         proj(^(p), _) => reference
         ::YamlSequence.elements{s:e}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -220,7 +220,7 @@ function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::Childre
         ∅ => @reference ::YamlSequence
         ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
@@ -250,7 +250,7 @@ function _block_seq_focused_child(iomap, sel)
     @reference_case sel begin
         ::YamlSequence.elements{s:e}.rest... => begin
             i = s + 1
-            ims = iomap.child_iomaps[]
+            ims = iomap.child_iomaps
             1 <= i <= length(ims) || return nothing
             (ims[i], (FieldReferenceStep("elements"), ElementReferenceStep(i)))
         end

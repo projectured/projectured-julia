@@ -114,7 +114,7 @@ function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::St
     h2 isa RangeReferenceStep || return nothing
     child_i = h2.start + 1
     child_rest = rest.tail
-    iomaps = iomap.child_iomaps[]
+    iomaps = iomap.child_iomaps
     1 <= child_i <= length(iomaps) || return nothing
     child = iomaps[child_i]
     inner = map_reference_forward(child.projection, child, child_rest)
@@ -134,7 +134,7 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
             @reference_case rest1 begin
                 ::SyntaxNode.children{s:e}.rest2... => begin
                     child_i = s + 1
-                    iomaps = iomap.child_iomaps[]
+                    iomaps = iomap.child_iomaps
                     1 <= child_i <= length(iomaps) || return nothing
                     child = iomaps[child_i]
                     inner = map_reference_backward(child.projection, child, rest2)

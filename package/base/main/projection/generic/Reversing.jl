@@ -42,7 +42,7 @@ function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, ref
         [i].rest... => begin
             n = length(iomap.input)
             (i < 1 || i > n) && return nothing
-            elem_iomap = iomap.child_iomaps[][i]
+            elem_iomap = iomap.child_iomaps[i]
             mapped_tail = map_reference_forward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             # The rebuilt element step descends from the reversed output
@@ -60,7 +60,7 @@ function map_reference_backward(p::ReversingProjection, iomap::ChildrenIoMap, re
         [i].rest... => begin
             n = length(iomap.output)
             (i < 1 || i > n) && return nothing
-            elem_iomap = iomap.child_iomaps[][n + 1 - i]
+            elem_iomap = iomap.child_iomaps[n + 1 - i]
             mapped_tail = map_reference_backward(elem_iomap.projection, elem_iomap, rest)
             mapped_tail === nothing && return nothing
             # Backward: the rebuilt step descends from the input collection.

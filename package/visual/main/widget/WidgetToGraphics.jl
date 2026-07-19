@@ -1173,7 +1173,7 @@ end
 
 function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseScroll || return nothing
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     _route_scroll_to_children(child_iomaps, evt)
 end
 
@@ -1504,7 +1504,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     end
     (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
     evt isa MouseScroll || return nothing
-    _route_scroll_to_children(iomap.child_iomaps[]::Vector, evt)
+    _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
 # Open the item's `submenu` as a floating popup anchored just below the item,
@@ -1571,14 +1571,14 @@ end
 # menu placed it (paths pass through). Orientation-agnostic: the per-item offset is
 # stored on the entry regardless of layout direction.
 map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    _forward_descend(iomap.child_iomaps[]::Vector, "elements", reference)
+    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
     return nothing
 end
 
 function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MousePress && return _route_click_to_children(child_iomaps, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(child_iomaps, evt)
     evt isa MouseScroll || return nothing
@@ -1608,7 +1608,7 @@ end
 # offset; forward-mapping shifts a coordinate image by that placement (paths pass
 # through). Same hop as a layout, just a different field name.
 map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    _forward_descend(iomap.child_iomaps[]::Vector, "elements", reference)
+    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1621,7 +1621,7 @@ end
 # the same scheme WidgetSplitPane uses. Identity-bearing ops (ReplaceReferencedValueOperation
 # from a control) pass through `reroot_operation` unchanged.
 function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
     # selection-only routing so a Tab the selected child declines can advance my
     # own selection to the next focusable sibling.
@@ -1844,7 +1844,7 @@ function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoM
     head isa FieldReferenceStep || return nothing
     target = _shell_field(iomap.input, head.name)
     target === nothing && return nothing
-    for entry in iomap.child_iomaps[]::Vector
+    for entry in getfield(iomap, :child_iomaps)[]::Vector
         entry === nothing && continue
         (ox, oy, cim) = entry
         cim.input === target || continue
@@ -1897,7 +1897,7 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
             action_shortcut_matches(action, evt) && return InvokeActionOperation(action)
         end
     end
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MousePress  => _route_click_to_children(child_iomaps, evt)
@@ -1965,7 +1965,7 @@ end
 
 function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseScroll || return nothing
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     _route_scroll_to_children(child_iomaps, evt)
 end
 
@@ -2273,7 +2273,7 @@ end
 # the grab origin (so rounding doesn't accumulate); `MouseUp` ends it.
 function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap,
                           w::WidgetSplitPane, evt)
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     n = length(child_iomaps)
     n < 2 && return nothing
     orientation = w.orientation::Symbol
@@ -2323,7 +2323,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         drag = _split_drag_read(p, iomap, w, evt)
         drag !== nothing && return drag
     end
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal (Stage 2): distributed focus advance, handled before the
     # selection-only coordless routing.
     if w isa WidgetSplitPane && evt isa KeyDown && evt.key === :tab
@@ -2616,7 +2616,7 @@ function _tab_view_w(iomap::ChildrenIoMap, strip_w::Int)
 end
 
 function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    child_iomaps = iomap.child_iomaps[]::Vector
+    child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     if evt isa MousePress
         w = iomap.input
         if !(w isa WidgetTabbedPane)
@@ -3102,7 +3102,7 @@ function map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, referenc
 end
 
 function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
+    entries = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MousePress && return _route_click_to_children(entries, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
     evt isa MouseScroll || return nothing
@@ -3396,7 +3396,7 @@ end
 # fold gesture → toggle the card. Clicks elsewhere route into the card content.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
     w = iomap.input
-    entries = iomap.child_iomaps[]
+    entries = getfield(iomap, :child_iomaps)[]
     if w.title isa Document && !isempty(entries)
         tx, ty, tim = entries[1]
         tcanvas = tim.output

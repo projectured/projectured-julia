@@ -166,7 +166,7 @@ function map_reference_forward(p::FileSystemDirectoryToSyntaxNode, iomap::Childr
         proj(^(p), _) => reference
         ::FileSystemDirectory.elements{s:e}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -181,7 +181,7 @@ function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::Child
         ∅ => @reference ::FileSystemDirectory
         ::SyntaxNode.children[2].children{s:e}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)

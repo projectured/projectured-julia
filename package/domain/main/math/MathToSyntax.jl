@@ -92,13 +92,13 @@ end
 function map_reference_forward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ::MathBinaryOperation.left.rest... => begin
-            child = iomap.child_iomaps[][1]
+            child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
         ::MathBinaryOperation.right.rest... => begin
-            child = iomap.child_iomaps[][2]
+            child = iomap.child_iomaps[2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[3].^(inner)
@@ -110,7 +110,7 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
     @reference_case reference begin
         ::SyntaxNode.children{s:_}.leaf_path... => begin
             child_i = s + 1
-            cims = iomap.child_iomaps[]
+            cims = iomap.child_iomaps
             if child_i == 1
                 child = cims[1]
                 translated = map_reference_backward(child.projection, child, leaf_path)
@@ -186,7 +186,7 @@ end
 function map_reference_forward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ::MathParenthesized.content.rest... => begin
-            child = iomap.child_iomaps[]
+            child = iomap.child_iomaps
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
@@ -198,7 +198,7 @@ function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ::SyntaxNode.children{s:_}.leaf_path... => begin
             s + 1 == 1 || return nothing
-            child = iomap.child_iomaps[]
+            child = iomap.child_iomaps
             translated = map_reference_backward(child.projection, child, leaf_path)
             translated === nothing && return nothing
             @reference ::MathParenthesized.content.^(translated)
@@ -254,13 +254,13 @@ end
 function map_reference_forward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ::MathAssignment.target.rest... => begin
-            child = iomap.child_iomaps[][1]
+            child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[1].^(inner)
         end
         ::MathAssignment.value.rest... => begin
-            child = iomap.child_iomaps[][2]
+            child = iomap.child_iomaps[2]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SyntaxNode.children::CellVector[3].^(inner)
@@ -272,7 +272,7 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
     @reference_case reference begin
         ::SyntaxNode.children{s:_}.leaf_path... => begin
             child_i = s + 1
-            cims = iomap.child_iomaps[]
+            cims = iomap.child_iomaps
             if child_i == 1
                 child = cims[1]
                 translated = map_reference_backward(child.projection, child, leaf_path)

@@ -188,7 +188,7 @@ function map_reference_forward(p::BookBookToSyntaxNode,
         ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReference && rest.head isa RangeReferenceStep) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.elements{s:_}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             child_i > length(iomaps) && return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -218,7 +218,7 @@ function map_reference_backward(p::BookBookToSyntaxNode,
                 offset = b.author !== nothing ? 2 : 1
                 elem_i = child_i - offset
                 elem_i < 1 && return nothing
-                iomaps = iomap.child_iomaps[]
+                iomaps = iomap.child_iomaps
                 elem_i > length(iomaps) && return nothing
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
@@ -362,7 +362,7 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
         ::BookChapter.numbering{s:_}.rest... => @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString{s}.^(rest)
         ::BookChapter.elements{s:_}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             child_i > length(iomaps) && return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -397,7 +397,7 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
                 end
             else
                 elem_i = child_i - 1
-                iomaps = iomap.child_iomaps[]
+                iomaps = iomap.child_iomaps
                 elem_i > length(iomaps) && return nothing
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
@@ -514,7 +514,7 @@ function map_reference_forward(p::BookListToSyntaxNode,
     @reference_case reference begin
         ::BookList.elements{s:_}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             child_i > length(iomaps) && return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -529,7 +529,7 @@ function map_reference_backward(p::BookListToSyntaxNode,
     @reference_case reference begin
         ::SyntaxNode.children{s:_}.content.tail... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             child_i > length(iomaps) && return nothing
             child = iomaps[child_i]
             translated = map_reference_backward(child.projection, child, tail)

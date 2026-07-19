@@ -372,7 +372,7 @@ function map_reference_forward(p::MarkdownStyledInline, iomap::ChildrenIoMap, re
         proj(^(p), _) => reference
         content{s:e}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -393,7 +393,7 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
             ∅ => EmptyReference($D)
             ::SyntaxNode.children{s:e}.rest... => begin
                 child_i = s + 1
-                iomaps = iomap.child_iomaps[]
+                iomaps = iomap.child_iomaps
                 1 <= child_i <= length(iomaps) || return nothing
                 child = iomaps[child_i]
                 inner = map_reference_backward(child.projection, child, rest)
@@ -531,7 +531,7 @@ function map_reference_forward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap
         proj(^(p), _) => reference
         ::MarkdownList.items{s:e}.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_forward(child.projection, child, rest)
@@ -546,7 +546,7 @@ function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMa
         ∅ => @reference ::MarkdownList
         ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             1 <= child_i <= length(iomaps) || return nothing
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)

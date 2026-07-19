@@ -208,7 +208,7 @@ end
 function _find_collapse_target(iomap, target)
     iomap.output === target && return iomap.input
     if iomap isa ChildrenIoMap
-        for entry in iomap.child_iomaps[]
+        for entry in getfield(iomap, :child_iomaps)[]
             cim = entry isa Tuple ? entry[end] : entry
             node = _find_collapse_target(cim, target)
             node !== nothing && return node

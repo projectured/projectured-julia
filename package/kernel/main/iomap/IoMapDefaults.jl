@@ -62,19 +62,22 @@ end
 """
     ChildrenIoMap(projection, input, output, child_iomaps)
 
-IoMap for projections whose output has recursively projected children;
-`child_iomaps` is a `Cell` holding a vector of child IoMaps. Storing them lets
-the reference mappers and the reader recurse in lockstep with the printer: peel
-the one step the projection owns, look the child up here, and delegate the tail
-to that child's own mapper — which keeps the projection independent of the
-domains its children belong to. A projection with a strict positional contract
-and no recursion uses `SimpleIoMap`.
+IoMap for projections whose output has recursively projected children. As an
+`@iomap` struct, `iomap.child_iomaps` reads the current per-child IoMap vector —
+pass a computed/reconciling cell (`reconcile_child_iomaps`) so it re-derives on a
+structural edit while the IoMap keeps its identity; `getfield(iomap,
+:child_iomaps)` reaches the raw cell. Storing the child IoMaps lets the reference
+mappers and the reader recurse in lockstep with the printer: peel the one step the
+projection owns, look the child up here, and delegate the tail to that child's own
+mapper — which keeps the projection independent of the domains its children belong
+to. A projection with a strict positional contract and no recursion uses
+`SimpleIoMap`.
 """
-struct ChildrenIoMap <: IoMap
+@iomap struct ChildrenIoMap
     projection::Any
     input::Any
     output::Any
-    child_iomaps::Cell
+    child_iomaps::Any
 end
 
 """

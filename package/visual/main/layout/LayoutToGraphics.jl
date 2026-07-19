@@ -249,7 +249,7 @@ function _layout_tab(w, entries::Vector, evt)
 end
 
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
+    entries = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal: distributed focus advance, handled before the selection-only
     # coordless routing (so a declined Tab advances my own selection).
     if evt isa KeyDown && evt.key === :tab
@@ -415,7 +415,7 @@ A reference of the form `children[i]/...` routes to the i-th child iomap's
 forward mapping, shifting a coordinate image by the child's laid-out offset.
 """
 _children_forward(iomap::_LayoutChildrenIoMap, reference) =
-    _forward_descend(iomap.child_iomaps[]::Vector, "children", reference)
+    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "children", reference)
 
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
@@ -1139,7 +1139,7 @@ _route_click_reverse(entries, evt::MousePress) =
         (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 
 function _route_stack_event(iomap::ChildrenIoMap, evt)
-    entries = iomap.child_iomaps[]::Vector
+    entries = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal: distributed focus advance, handled before the selection-only
     # coordless routing (same as the other layout readers).
     if evt isa KeyDown && evt.key === :tab
