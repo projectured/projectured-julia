@@ -42,7 +42,7 @@ import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap
+import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap, reconcile_child_iomaps, var"@iomap"
 import ..CellModule: Cell, set_cell_function!
 import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -94,11 +94,14 @@ struct WorkbenchWorkbenchToWidgetShellIoMap <: IoMap
     control_page_iomap::Any      # IoMap for control_page
 end
 
-struct WorkbenchPageToWidgetTabbedPaneIoMap <: IoMap
+# @iomap so the mappers/readers keep reading `iomap.element_iomaps` as the value
+# while it is now a reconciling cell (a page tab add/remove reflows through it,
+# AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WorkbenchPageToWidgetTabbedPaneIoMap
     projection::Any
-    input::WorkbenchPage
-    output::WidgetTabbedPane
-    element_iomaps::Vector       # one IoMap per page element
+    input::Any
+    output::Any
+    element_iomaps::Any          # reconciling cell: one IoMap per page element
 end
 
 struct WorkbenchNavigatorToWidgetScrollPaneIoMap <: IoMap
@@ -235,12 +238,18 @@ end
 
 function print_document(::WorkbenchPageToWidgetTabbedPane,
                            recursion, page::WorkbenchPage, ctx)
-    element_iomaps = Any[_recurse(recursion, page.elements[i],
-                             make_child_context(ctx, page, (@reference_step elements), (@reference_step [i])))
-                         for i in eachindex(page.elements)]
-    pairs = Any[(_title_widget(page.elements[i]), element_iomaps[i].output)
-                for i in eachindex(page.elements)]
-    tabbed = WidgetTabbedPane(pairs; border=_PAD5)
+    # Reconcile the page elements by identity so a tab add/remove reuses the
+    # survivors' iomaps, and wire the tab strip reactively so it reflows on a
+    # structural edit (each tab page is `(title, content-output)` per element).
+    element_iomaps = reconcile_child_iomaps(
+        () -> page.elements,
+        (i, elem) -> _recurse(recursion, elem,
+            make_child_context(ctx, page, (@reference_step elements), (@reference_step [i]))))
+    tabbed = WidgetTabbedPane(Any[]; border=_PAD5)
+    set_cell_function!(tabbed, () -> begin
+        ims = element_iomaps[]
+        Any[(_title_widget(page.elements[i]), ims[i].output) for i in eachindex(ims)]
+    end)
     iomap = WorkbenchPageToWidgetTabbedPaneIoMap(nothing, page, tabbed, element_iomaps)
     # Forward-project the page's selection onto the tabbed pane so the active
     # tab follows the document selection (and coordless events route to it).

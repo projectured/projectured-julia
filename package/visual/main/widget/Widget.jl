@@ -942,7 +942,11 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                      Cell(nothing))
 end
 
-set_cell_function!(w::WidgetTabbedPane, f::Function) = (set_cell_function!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(x) for x in f()]); w)
+# Wire the tabs reactively: `f()` returns the same shape the positional constructor
+# takes — `(selector, element)` / `(selector, element, icon)` tuples or `WidgetTabPage`s
+# — each wrapped via `_as_tab_page` (so it stays consistent with the eager ctor above,
+# which the reader relies on: `selector_element_pairs[i]` is always a `WidgetTabPage`).
+set_cell_function!(w::WidgetTabbedPane, f::Function) = (set_cell_function!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(_as_tab_page(x)) for x in f()]); w)
 
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
