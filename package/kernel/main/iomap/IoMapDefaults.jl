@@ -84,9 +84,12 @@ end
     ContentIoMap(projection, input, output, inner_iomap)
 
 IoMap for projections that wrap a single inner projection result; `inner_iomap`
-holds the IoMap of the projected content.
+holds the IoMap of the projected content. As an `@iomap` struct its `output` /
+`inner_iomap` may be computed cells that re-derive reactively while the IoMap keeps
+its identity; `iomap.output` reads the current value, `getfield` reaches the raw
+cell (AR-STABLE-IOMAP-IDENTITY).
 """
-struct ContentIoMap <: IoMap
+@iomap struct ContentIoMap
     projection::Any
     input::Any
     output::Any

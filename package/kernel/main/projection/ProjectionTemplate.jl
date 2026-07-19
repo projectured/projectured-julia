@@ -186,7 +186,7 @@ struct SectionsWiring
     children_field::Symbol
 end
 
-struct RuleIoMap <: IoMap
+@iomap struct RuleIoMap
     projection::Any
     input::Any
     output::Any
@@ -828,7 +828,7 @@ function _node_forward(p, w, iomap, reference)
         after = core.tail
         if after isa ConcreteReference && after.head isa RangeReferenceStep
             child_i = after.head.start + 1
-            ims = iomap.child_iomaps[]
+            ims = iomap.child_iomaps
             1 <= child_i <= length(ims) || return nothing
             child = ims[child_i]
             inner = map_reference_forward(child.projection, child, after.tail)
@@ -848,7 +848,7 @@ function _node_backward(p, w, iomap, reference)
         after = core.tail
         if after isa ConcreteReference && after.head isa RangeReferenceStep
             child_i = after.head.start + 1
-            ims = iomap.child_iomaps[]
+            ims = iomap.child_iomaps
             1 <= child_i <= length(ims) || return nothing
             child = ims[child_i]
             inner = map_reference_backward(child.projection, child, after.tail)
@@ -962,9 +962,9 @@ _fixed_backward(p, w, iomap, reference) =
 # Conditional node: read the current (slots, store) from the reactive state cell.
 _conditional_forward(p, w, iomap, reference) =
     is_introduced_reference(reference, p) ? reference :
-    (st = iomap.child_iomaps[]; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
+    (st = iomap.child_iomaps; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
 _conditional_backward(p, w, iomap, reference) =
-    (st = iomap.child_iomaps[]; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
+    (st = iomap.child_iomaps; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
 
 # ── mixed node (fixed prefix + spliced collection) ─────────────────────────────
 #
@@ -1105,7 +1105,7 @@ end
 
 function _sections_forward(p, w, iomap, reference)
     reference === nothing && return nothing
-    secs = iomap.child_iomaps[]
+    secs = iomap.child_iomaps
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
     if is_introduced_reference(core, p)
@@ -1132,7 +1132,7 @@ end
 
 function _sections_backward(p, w, iomap, reference)
     reference === nothing && return nothing
-    secs = iomap.child_iomaps[]
+    secs = iomap.child_iomaps
     cf = String(w.children_field)
     core = reference
     core isa EmptyReference && return _typed(w.intype)
@@ -1191,7 +1191,7 @@ function _focused_child(w::NodeWiring, iomap, sel)
     after = core.tail
     (after isa ConcreteReference && after.head isa RangeReferenceStep) || return nothing
     i = after.head.start + 1
-    ims = iomap.child_iomaps[]
+    ims = iomap.child_iomaps
     1 <= i <= length(ims) || return nothing
     (ims[i], (FieldReferenceStep(String(w.coll_input_field)), ElementReferenceStep(i)))
 end
@@ -1214,7 +1214,7 @@ function _focused_child(w::FixedNodeWiring, iomap, sel)
 end
 
 function _focused_child(w::ConditionalNodeWiring, iomap, sel)
-    st = iomap.child_iomaps[]
+    st = iomap.child_iomaps
     core = sel
     (core isa ConcreteReference && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
@@ -1255,7 +1255,7 @@ function _focused_child(w::SectionsWiring, iomap, sel)
     after = core.tail
     (after isa ConcreteReference && after.head isa RangeReferenceStep) || return nothing
     i = after.head.start + 1
-    for s in iomap.child_iomaps[]
+    for s in iomap.child_iomaps
         if s.field === fname
             1 <= i <= length(s.entries) || return nothing
             return (s.entries[i], (FieldReferenceStep(String(fname)), ElementReferenceStep(i)))
