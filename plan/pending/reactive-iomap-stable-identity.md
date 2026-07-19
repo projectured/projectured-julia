@@ -216,16 +216,49 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
     `iomap.col_x[c][]` — moving `child_iomaps` into a build cell ripples into that external
     geometry contract. Interlocks with 4c; do together. (Layouts are currently "saved" by
     parent-composite reconciliation, so this is a Phase-6 prerequisite, not a live bug yet.)
-  - **4c (the bulk):** the 10 eager `WidgetToGraphics` structs built via `_make_canvas`
-    with **snapshot extent** (`Int(w.h[])` captured) **+ eager CellVector membership**:
-    `WidgetScrollPane`/`WidgetTransformPane`/`WidgetScrollPaneToGraphicsViewport` (panes,
-    reconcile single content), `WidgetText`/`WidgetContextMenu`/`WidgetDialog`/
-    `WidgetMenuItem` (eager content + `Cell(list)` children), `WidgetSelect`/`WidgetSpinBox`/
-    `WidgetList` (leaves). **Template to copy: `WidgetTable`/`WidgetTree`** (already reactive
-    in the same file). Plus `ObjectToWidgetIoMap` + `ProjectionConfiguring` (eager output
-    shell, reactive leaf views — lower urgency). Big, intricate (WidgetToGraphics.jl ~5k lines).
+  - **4c — deferred to its own project (user decision, 2026-07-19).** A per-struct
+    analysis showed the eager `_make_canvas` pattern (snapshot `Int32` extent + eager
+    `CellVector(Cell[Cell(e) …])` membership, WidgetToGraphics.jl:697-707) spans the
+    **whole widget-rendering surface**, not 10 structs: **~27 leaf renderers CONVERT**
+    (Label, Text, ContextMenu, Dialog, MenuItem, Select, SpinBox, List — plus the broader
+    scan: Button, Checkbox(membership-only), Tooltip, StatusBar, ScrollBar, Badge, Separator,
+    Switch, Progress, Slider, RadioGroup, Avatar, Alert, Skeleton, Toggle, ToggleGroup,
+    Option, Textarea, Accordion) **+ ~17 container wrappers** (Composite/Shell/SplitPane/
+    TabbedPane/Menu/Toolbar/TitlePane snapshot membership). **Already reactive → SKIP:**
+    `WidgetScrollPane`/`WidgetTransformPane`/`WidgetScrollPaneToGraphicsViewport` (build cell-backed
+    `outer_w/h`), `WidgetCard` (`build = Cell(() -> _card_build(…))`), `WidgetInsertion` (fixed
+    placeholder). `ObjectToWidget`/`ProjectionConfiguring` (eager output shell, reactive leaf
+    views) also belong here.
+    - **Why deferred, not a live bug:** these leaves are masked by the editor re-printing on
+      edits (Phase 7's target); staleness only bites once re-printing stops → this is a
+      **Phase 6 prerequisite**, not a current defect.
+    - **Recommended approach for the project:** add a shared helper
+      `_reactive_canvas(x, y, () -> (w, h, elements))` that builds `GraphicsCanvas(Cell(Int32(x)),
+      Cell(Int32(y)), Cell(() -> Int32(build[].w)), Cell(() -> Int32(build[].h)),
+      CellVector(() -> build[].elements), …)` (the WidgetCard/WidgetTable pattern), then per
+      leaf: move the existing print body into a `() -> (w, h, elements)` thunk and call it.
+      Mechanical + verifiable per struct; delegate the transforms in batches, verify
+      test_visual after each. The geometry-coupled layouts (Grid/Flow/Stack — their IoMaps
+      expose per-column/row cells `WidgetToGraphics._wt_geometry` reads) interlock and go in
+      the same project.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
+
+## Stopping point (2026-07-19) — merge-ready milestone
+
+**Complete + verified:** the entire **base package** projection tier (Phases 0-3) and the
+visual **hot paths** (already reactive: text/, syntax/, TextToGraphics, WidgetTable/Tree,
+clipboard outputs) + the visual **decorator forwarders** (4a) + **clipboard/screen reconcile
+fixes** (4b). A **text pipeline (json→syntax→text→graphics) is fully reactive end-to-end.**
+
+**Remaining (all in the deferred 4c project + later phases):** the widget-leaf renderers
+(4c, ~44 `_make_canvas` sites), the geometry-coupled layouts, Phase 5 (domain plain
+projections), Phase 6 (simplify Chaining — the payoff, gated on 4c), Phase 7 (editor
+tightening: remove WindowManaging's imperative output mutation + audit `editor.iomap`
+drops), then re-audit + seal the iomap layer.
+
+Branch `reactive-iomap`: all commits green (test_visual 48507/0-fail, test_domain
+106125/0-fail, Broken 1/5), worktree clean — ready to `add to main`.
 
 **Phase 5 — domain projections** (versioning, workbench, graph, formula, …).
 Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
