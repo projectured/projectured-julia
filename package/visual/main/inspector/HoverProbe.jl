@@ -37,7 +37,8 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..EventModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
@@ -76,8 +77,10 @@ HoverProbeProjection(; inner::Projection,
                          (Int(size[1]), Int(size[2])), String(title),
                          Ref(false), Ref{Any}(nothing))
 
-struct HoverProbeProjectionIoMap <: IoMap
-    projection::HoverProbeProjection
+# Transparent: `output` forwards the child's output through a cell so the IoMap
+# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct HoverProbeProjectionIoMap
+    projection::Any
     input::Any
     output::Any
     child_iomap::Any
@@ -87,7 +90,7 @@ end
 
 function print_document(p::HoverProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    HoverProbeProjectionIoMap(p, input, child_iomap.output, child_iomap)
+    HoverProbeProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

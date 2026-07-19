@@ -39,7 +39,8 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
@@ -65,8 +66,10 @@ Wrap `inner` (the widget pipeline whose hover crossings should be tracked).
 WidgetHoverTrackingProjection(; inner::Projection) =
     WidgetHoverTrackingProjection(inner, Ref{Any}(nothing), Ref{Any}(nothing))
 
-struct WidgetHoverTrackingProjectionIoMap <: IoMap
-    projection::WidgetHoverTrackingProjection
+# Transparent: `output` forwards the child's output through a cell so the IoMap
+# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WidgetHoverTrackingProjectionIoMap
+    projection::Any
     input::Any
     output::Any
     child_iomap::Any
@@ -76,7 +79,7 @@ end
 
 function print_document(p::WidgetHoverTrackingProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetHoverTrackingProjectionIoMap(p, input, child_iomap.output, child_iomap)
+    WidgetHoverTrackingProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

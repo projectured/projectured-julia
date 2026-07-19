@@ -23,7 +23,8 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward,
                               Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
 
@@ -41,8 +42,10 @@ it can resolve anchors against the whole content.
 """
 WidgetPopupResolverProjection(; inner::Projection) = WidgetPopupResolverProjection(inner)
 
-struct WidgetPopupResolverProjectionIoMap <: IoMap
-    projection::WidgetPopupResolverProjection
+# Transparent: `output` forwards the child's output through a cell so the IoMap
+# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WidgetPopupResolverProjectionIoMap
+    projection::Any
     input::Any
     output::Any
     child_iomap::Any
@@ -52,7 +55,7 @@ end
 
 function print_document(p::WidgetPopupResolverProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetPopupResolverProjectionIoMap(p, input, child_iomap.output, child_iomap)
+    WidgetPopupResolverProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

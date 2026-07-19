@@ -20,7 +20,7 @@ module TooltipDecoratorProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
 import ..TooltipDocumentModule: TooltipSource
@@ -29,7 +29,9 @@ import ..OperationApiModule: Operation
 
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 
-struct TooltipDecoratorProjectionIoMap <: IoMap
+# Transparent: `output` forwards the child's output through a cell so the IoMap
+# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct TooltipDecoratorProjectionIoMap
     projection::Any
     input::Any              # TooltipSource
     output::Any             # whatever child projects to
@@ -76,7 +78,7 @@ TooltipDecoratorProjection(; trigger::Function,
 
 function print_document(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
     child_iomap = print_child(recursion, input.child, ctx)
-    TooltipDecoratorProjectionIoMap(p, input, child_iomap.output, child_iomap)
+    TooltipDecoratorProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
