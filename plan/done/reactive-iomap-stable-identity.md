@@ -1,5 +1,25 @@
 # Identity-stable, fully-reactive projections and IoMaps
 
+## Status — COMPLETE (2026-07-19)
+
+All phases landed. The invariant holds across every reachable projection: the base
+tier (Phases 0-3), the visual leaves/containers/layouts + the page-container reflow
+(4c), the domain hot paths + Workbench (5), the Chaining critical path (6), and the
+editor/window path (7). The editor loop is re-print-free except the one legitimate
+whole-root document rebind. Content, selection, and structural edits all propagate
+through the held IoMap; every runtime-variable child count (tabs, stack pages, screen
+windows) reflows reactively.
+
+**Intentionally NOT reconciled (documented, with reasons):** SplitPane & Grid graphics
+renderers — their children are structurally fixed in every real usage (literal 2-3
+split panels; fixed object/form fields), so the child-count reconcile is an unreachable
+path, and forcing it would regress SplitPane's splitter-drag perf / break Grid's
+`_wt_geometry` contract. See the Phase 4c section.
+
+Branch `reactive-iomap`, 7 commits past the merged core: `98f65e03` `03308331`
+`19ba7b73` `e03865fa` `0712401a` `d9687255` `34d079ca`. All green (test_base
+158/0-fail, test_visual 48760/0-fail, test_domain 106144/0-fail; Broken 1/5 baseline).
+
 ## Goal — the invariant
 
 Establish and enforce, across every projection in the project:
@@ -395,11 +415,15 @@ output cell reads the structural choice, not inner values).
   `.output[]` sites — one is Chaining's own doc comment, one in `ProjectionApi.jl`; no external
   `ChainingProjectionIoMap` consumers) BUT it is the **critical path every pipeline runs through**,
   with a Cell-valued-final-output threading subtlety (`unwrap_cell`, the TextToString console case).
-- ⟹ **Deprioritized.** Not a correctness/performance win; changing the universal critical path for
-  cleanliness is best done deliberately, not at speed. The refactor's core goal (stable IoMap
-  identity + reactive output everywhere; content reactive end-to-end) is already met without it.
-- [ ] (if pursued) Reactive test: a structural swap mid-chain propagates end-to-end via
-      `reconcile_child_iomap` with no `iomap` drop.
+- ⟹ **DONE (`34d079ca`).** Swapped the one line — `_seq_stage`'s bespoke
+  `Cell(() -> print_document(...))` → `reconcile_child_iomap(() -> prev[], v ->
+  print_document(p, recursion, v, ctx))`. Every consumer already reads `step_iomaps[i][]`
+  (the child IoMap the reconcile cell yields), so the ripple was exactly one line, and the
+  `out_cell`/`getproperty` Cell-valued-output threading is unchanged. Behavior-identical
+  (rebuild only on a structural input-identity swap; a content edit propagates through the
+  reused stage IoMap with no re-print). Verified: test_base 158/0-fail, test_visual
+  48760/0-fail, test_domain 106144/0-fail. Chaining now shares the pipeline's reconciler
+  instead of re-implementing rebuild-on-swap.
 
 **Phase 7 — editor tightening. Audited (2026-07-19).**
 - [x] **Editor iomap-null audit — the editor is already tight.** The *only*
