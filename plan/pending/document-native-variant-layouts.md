@@ -165,11 +165,26 @@ keeps working with no migration:
   **byte-identical at baseline** (106125/0/0/5) — strong evidence the change is
   behaviour-preserving across every domain `@document`.
 
-**Capability proven** (`scratchpad/native_sync_capability.jl`, 22/23):
+**Capability proven** (`plan/pending/document-native-variants-capability.jl`, 22/23):
 native `FooMut` constructs + mutates as a plain mutable struct; `sync_document!(RFoo,
 FooMut)` copies values into the reactive shadow; and it does so with **minimal
 invalidation** — a changed field invalidates only its own reactive watcher, an
 unchanged field's watcher stays valid → the L1 lazy engine repaints only what changed.
+
+**FES speed answered — native `@document` costs nothing on the hot path**
+(`plan/pending/document-native-variants-fes-speed.jl`). A 2 M-iteration sim inner loop (advance time, bump
+a per-module counter, push!/pop! the event set) on the native variant vs a hand-written
+plain `mutable struct` with identical fields:
+
+| | native `SimStateMut` | plain `mutable struct` | ratio |
+|---|---|---|---|
+| allocated | 178 049 920 B | 178 038 560 B | **1.00** |
+| time | 0.0298 s | 0.0319 s | **0.93** |
+
+Byte-identical allocation (no per-access boxing) and indistinguishable time — native
+field access lowers to `getfield`/`setfield!`. So the omnetpp sim can be **one**
+`@document` schema mutating the native variant at full speed; there is no perf reason
+to keep a separate hand-written simulator struct.
 
 **One characterized limitation — native cannot nest native.** A document-typed field
 in `FooMut` is typed to the *stem* (`child::Union{Bar,Nothing}`), and `BarMut <:
