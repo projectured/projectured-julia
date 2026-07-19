@@ -30,7 +30,7 @@ module DomainModule
 import InteractiveUtils: subtypes
 import ..EventPatternModule
 import ..GestureBindingModule
-import ..DocumentModule: Document, var"@document"
+import ..DocumentModule: Document, var"@document", document_family
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, ElementReferenceStep, PositionReferenceStep,
                           extend_reference, concat_references, annotate_reference_types,
@@ -199,6 +199,16 @@ function _is_domain_entry(T::Type)
     domain_insertion(insertion_root(T)) === T
 end
 
+# A native mutable-layout struct (`FooMut`) is the same document as its stem (`Foo`)
+# — they share a `document_family` — just a different variant layout. Reflection
+# over *document types* must see one type per schema, so we skip the concrete
+# layout variants: a concrete type whose family is not its own name-wrapper is a
+# variant of another schema, not a document type in its own right. (The stem is a
+# UnionAll, so `isconcretetype` is false and it stays; a hand-written document is
+# its own family via the fallback, so it stays too.)
+_is_layout_variant(T::Type) =
+    isconcretetype(T) && document_family(T) !== Base.typename(T).wrapper
+
 """
     insertion_candidates(root::Type) -> Vector{Type}
 
@@ -215,7 +225,7 @@ function insertion_candidates(root::Type)
     cached = get(_CANDIDATE_CACHE, root, nothing)
     cached !== nothing && cached[1] == world && return cached[2]
     own = domain_insertion(root)
-    result = filter!(T -> insertable(T) && T !== own && _is_domain_entry(T),
+    result = filter!(T -> insertable(T) && T !== own && _is_domain_entry(T) && !_is_layout_variant(T),
                      _collect_concrete!(Type[], root))
     _CANDIDATE_CACHE[root] = (world, result)
     result
