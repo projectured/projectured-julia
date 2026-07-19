@@ -13,7 +13,7 @@ document tree and gathers matches from anywhere inside it.
 module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
@@ -25,11 +25,14 @@ export SearchingProjection, SearchingProjectionIoMap
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
-struct SearchingProjectionIoMap <: IoMap
+# `output` and `match_paths` derive from one reactive walk of the input tree, so
+# the IoMap keeps its identity while a structural edit anywhere re-collects the
+# matches (AR-STABLE-IOMAP-IDENTITY); `iomap.match_paths` reads the current vector.
+@iomap struct SearchingProjectionIoMap
     projection::Any
     input::Any
     output::Any                          # CellVector of the matched objects
-    match_paths::Vector{Reference}   # input-root-relative path to each match
+    match_paths::Any                     # Vector{Reference}: input-root-relative path per match
 end
 
 # ── Projection ────────────────────────────────────────────────────────────
@@ -67,14 +70,16 @@ SearchingProjection(pattern::AbstractString; kw...) =
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::SearchingProjection, recursion, input, ctx)
-    matches = Tuple{Reference,Any}[]
-    seen = Base.IdSet{Any}()
-    _walk(p, input, EmptyReference(), matches, seen)
-
-    out_cells = Cell[Cell(obj) for (_, obj) in matches]
-    output = CellVector(out_cells)
-    iomap = SearchingProjectionIoMap(p, input, output,
-        Reference[path for (path, _) in matches])
+    # One reactive walk feeds both output and match_paths: reading the tree's
+    # cells inside the closure makes the match set track structural edits.
+    matches = Cell(() -> begin
+        acc = Tuple{Reference,Any}[]
+        _walk(p, input, EmptyReference(), acc, Base.IdSet{Any}())
+        acc
+    end)
+    output = CellVector(() -> [obj for (_, obj) in matches[]])
+    match_paths = Cell(() -> Reference[path for (path, _) in matches[]])
+    iomap = SearchingProjectionIoMap(p, input, output, match_paths)
 
     # Forward-project the input selection so the cursor lands on the matching
     # result when it points inside one. Lazy so the not-yet-needed `iomap`
