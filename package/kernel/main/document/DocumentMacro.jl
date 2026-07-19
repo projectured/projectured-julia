@@ -386,6 +386,14 @@ macro document(args...)
 
     native_struct = _emit_native_mutable(plan, family, native)
     family_method = :((::typeof($document_family))(::Type{<:$family}) = $family)
+    # Native-layout constructors targeting `FooMut`'s auto (all-args) ctor — the same
+    # Rule Y positional-defaults + keyword forms the stem gets, but storing raw values
+    # (no cell wrapping), so building the mutable variant is as ergonomic as the stem.
+    native_ctors = Any[cell_struct_positional_ctors(plan, native)...]
+    if plan.n_programmer_defaults > 0 || plan.n_declared == 0
+        push!(native_ctors, cell_struct_kwctor(native, plan.field_names,
+                            cell_struct_kw_params(plan.field_names, plan.defaults)))
+    end
 
     structdef = _emit_stem!(plan)
     push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names; default = default))
@@ -396,6 +404,7 @@ macro document(args...)
              :(Base.@__doc__ $structdef),
              getprop, setprop,
              native_struct,
+             native_ctors...,
              family_method,
              Expr(:export, family, native),
              _emit_kind_aliases(plan, arg_names; default = default)...,
