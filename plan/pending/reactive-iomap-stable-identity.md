@@ -280,8 +280,23 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
 container (7) has reactive output; the layouts are reactive-output. **Deferred minor refinements**
 (all "already reactive-output, structural child-COUNT reconcile pending" — the domain rebuild-all
 class): SplitPane/TabbedPane `inner_iomaps`/`all_cims`, Stack `child_iomaps`, Grid (geometry
-contract), and the Workbench domain→widget builders. These don't block the core invariant (stable
-IoMap + reactive output) — they're structural-edit minimality, not correctness.
+contract). These don't block the core invariant (stable IoMap + reactive output) — they're
+structural-edit minimality, not correctness.
+
+**Workbench domain→widget (`WorkbenchToWidget.jl`) — assessed, more compliant than the survey
+implied.** The builders are **reactive-*content***: the widget-tree leaves wire *reactive child
+outputs* (`LayoutConstraint(edit_iomap.output)` where the child output is a stable reactive
+container), and `selection`/`size` are `set_cell_function!` cells — this is the template's
+"stable output node, reactive children" shape. The tree *structure* is eager, but for **Shell**
+(3 panels) / **Navigator** / the 8 **panels** the structure is **inherently fixed** → no real gap.
+The one genuine structural gap is **Page→WidgetTabbedPane** (`page.elements` can add/remove tabs):
+its `element_iomaps` comprehension + eager `pairs` don't reflow on a tab add/remove. WidgetTabbedPane
+*supports* reactive tabs (`selector_element_pairs::CellVector` + `set_cell_function!(w, f)` wiring
+`WidgetTabPage`s), so the fix is `reconcile_child_iomaps` + a reactive `pairs` thunk — deferred as
+a structural refinement (intricate cross-package `_as_tab_page` contract; tab add/remove is
+occasional). **⟹ the domain→widget stage does not hard-block Phase 6 for content edits** (both
+widget stages are reactive-content); only structural tab add/remove needs a re-print until this
+refinement lands.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
