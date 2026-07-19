@@ -1823,83 +1823,87 @@ end
 
 function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShell, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    cox, coy = _content_offset(w)
-    elems = Any[]
-    child_iomaps = Any[]
-    sz  = w.size
-    if sz isa Point2D
-        push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), p.background_color))
-    end
-    content_y = coy
-    mb = w.menu_bar
-    if mb isa WidgetDocument
-        # Extend the reference into `menu_bar` so a menu-bar entry's submenu anchor
-        # (`menu_bar.elements[i]`) forward-maps back through the shell (Step 4c).
-        mb_ctx = make_child_context(ctx, FieldReferenceStep("menu_bar"))
-        cim = print_child(recursion, mb, mb_ctx)
-        push!(child_iomaps, (cox, content_y, cim))
-        push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-        _, menu_h = p.measure("M", p.font)
-        content_y += menu_h
-    end
-    tb = w.toolbar
-    if tb isa WidgetDocument
-        cim = print_child(recursion, tb, ctx)
-        push!(child_iomaps, (cox, content_y, cim))
-        push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-        _, toolbar_h = p.measure("M", p.font)
-        content_y += toolbar_h + p.band_gap
-    end
-    # Status bar (Stage 4): reserve a fixed-height bottom band so the content does
-    # not draw under it; it is placed at the shell's bottom after the content.
-    sb = w.status_bar
-    _, status_h = sb isa WidgetDocument ? p.measure("M", p.font) : (0, 0)
-    content = w.content
-    if content isa WidgetDocument
-        # Seed available size on the context so that any layout/split
-        # descendant can allocate its slots within the shell's content
-        # area. Computed reactively from the shell's own `size` cell and
-        # box-model insets so a resize re-flows downstream automatically.
-        size_cell = getfield(w, :size)
-        margin_cell  = getfield(w, :margin)
-        border_cell  = getfield(w, :border)
-        padding_cell = getfield(w, :padding)
-        content_y_now = content_y
-        coy_now = coy
-        status_h_now = status_h
-        avail_w_cell = Cell(function ()
-            sz = size_cell[]
-            sz isa Point2D || return 0
-            tx, _ = _inset_total(w)
-            max(0, Int(sz.x[]) - tx)
-        end)
-        avail_h_cell = Cell(function ()
-            sz = size_cell[]
-            sz isa Point2D || return 0
-            _, ty = _inset_total(w)
-            max(0, Int(sz.y[]) - ty - (content_y_now - coy_now) - status_h_now)
-        end)
-        content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
-        cim = print_child(recursion, content, content_ctx)
-        push!(child_iomaps, (cox, content_y, cim))
-        push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-    end
-    # Place the status bar along the shell's bottom edge (a fixed print-time y from
-    # the size; live-resize repositioning is a v1 limitation, like the other bands).
-    if sb isa WidgetDocument && sz isa Point2D
-        cim = print_child(recursion, sb, ctx)
+    # Each named slot is reconciled by its field value and forced only in the
+    # branch that renders it (a nil slot never re-projects). The menu bar's
+    # reference is extended into `menu_bar` so a submenu anchor forward-maps back
+    # through the shell (Step 4c).
+    mb_cell = reconcile_child_iomap(() -> w.menu_bar,
+        c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("menu_bar"))))
+    tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, ctx))
+    sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, ctx))
+    tt_cell = reconcile_child_iomap(() -> w.tooltip, c -> print_child(recursion, c, ctx))
+    # Band offsets + status-bar height, reactive on which slots are present.
+    bands = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        _, line_h = p.measure("M", p.font)
+        content_y = coy
+        w.menu_bar isa WidgetDocument && (content_y += line_h)
+        w.toolbar isa WidgetDocument && (content_y += line_h + p.band_gap)
+        status_h = w.status_bar isa WidgetDocument ? line_h : 0
+        (cox=cox, coy=coy, line_h=line_h, content_y=content_y, status_h=status_h)
+    end)
+    # Seed available size on the content context so any layout/split descendant
+    # re-flows on resize, from the shell's `size` cell + insets + band offsets.
+    avail_w_cell = Cell(() -> begin
+        sz = getfield(w, :size)[]
+        sz isa Point2D || return 0
+        tx, _ = _inset_total(w)
+        max(0, Int(sz.x[]) - tx)
+    end)
+    avail_h_cell = Cell(() -> begin
+        sz = getfield(w, :size)[]
+        sz isa Point2D || return 0
         _, ty = _inset_total(w)
-        sb_y = coy + Int(sz.y[]) - ty - status_h
-        push!(child_iomaps, (cox, sb_y, cim))
-        push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
-    end
-    tt = w.tooltip
-    if tt isa WidgetDocument
-        cim = print_child(recursion, tt, ctx)
-        push!(child_iomaps, (0, 0, cim))
-        push!(elems, _make_canvas(0, 0, Any[cim.output]))
-    end
-    ChildrenIoMap(p, w, _make_canvas(0, 0, elems), Cell(child_iomaps))
+        b = bands[]
+        max(0, Int(sz.y[]) - ty - (b.content_y - b.coy) - b.status_h)
+    end)
+    content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
+    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
+    build = Cell(() -> begin
+        b = bands[]
+        cox, coy = b.cox, b.coy
+        elems = Any[]
+        child_iomaps = Any[]
+        sz = getfield(w, :size)[]
+        if sz isa Point2D
+            push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), p.background_color))
+        end
+        content_y = coy
+        if w.menu_bar isa WidgetDocument
+            cim = mb_cell[]
+            push!(child_iomaps, (cox, content_y, cim))
+            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+            content_y += b.line_h
+        end
+        if w.toolbar isa WidgetDocument
+            cim = tb_cell[]
+            push!(child_iomaps, (cox, content_y, cim))
+            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+            content_y += b.line_h + p.band_gap
+        end
+        if w.content isa WidgetDocument
+            cim = content_cell[]
+            push!(child_iomaps, (cox, content_y, cim))
+            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+        end
+        # Status bar along the shell's bottom edge (a fixed y from the size; live
+        # repositioning on resize is a v1 limitation, like the other bands).
+        if w.status_bar isa WidgetDocument && sz isa Point2D
+            cim = sb_cell[]
+            _, ty = _inset_total(w)
+            sb_y = coy + Int(sz.y[]) - ty - b.status_h
+            push!(child_iomaps, (cox, sb_y, cim))
+            push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
+        end
+        if w.tooltip isa WidgetDocument
+            cim = tt_cell[]
+            push!(child_iomaps, (0, 0, cim))
+            push!(elems, _make_canvas(0, 0, Any[cim.output]))
+        end
+        (elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+                  Cell(() -> build[].child_iomaps))
 end
 
 # A shell renders several field-addressed children (`menu_bar`, `toolbar`,
