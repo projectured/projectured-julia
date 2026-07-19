@@ -31,7 +31,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
 import ..PointReferenceStepModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapModule: IoMap, reconcile_child_iomaps
+import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
@@ -83,21 +83,28 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     content_ctx = with_available_size(make_child_context(ctx, FieldReferenceStep("content"));
                                       width=getfield(input, :width),
                                       height=getfield(input, :height))
-    content_iomap = print_child(recursion, input.content, content_ctx)
+    # Reconcile the content by identity so replacing a same-id window's content
+    # (a hover probe following the cursor, a re-opened tooltip) re-projects it
+    # reactively; a same object mutated in place reuses the iomap and re-derives
+    # through its own cells. This is what lets the window manager mutate only the
+    # input screen and rely on this stage to mirror the output (AR-STABLE-IOMAP-IDENTITY).
+    content_iomap = reconcile_child_iomap(() -> input.content,
+                                          c -> print_child(recursion, c, content_ctx))
     iomap_cell = Cell(nothing)
     sel = Cell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, input.selection)
     end)
-    # Metadata cells are shared verbatim (as CopyingProjection does for
-    # non-document fields); only content and selection are produced fresh.
+    # Metadata cells are shared verbatim (non-document fields), so a metadata edit on
+    # the input window is reflected here through the shared cell; only content and
+    # selection are produced fresh.
     output = WindowDocument(getfield(input, :id), getfield(input, :title),
                             getfield(input, :x), getfield(input, :y),
                             getfield(input, :width), getfield(input, :height),
                             getfield(input, :bg), getfield(input, :style),
                             getfield(input, :auto_dismiss), getfield(input, :modal),
-                            Cell(() -> content_iomap.output), sel)
+                            Cell(() -> content_iomap[].output), sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap
@@ -137,7 +144,7 @@ function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return reference
     h = head(reference)
     (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
-    cim = iomap.content_iomap
+    cim = iomap.content_iomap[]
     mapped = fn(cim.projection, cim, tail(reference))
     mapped === nothing && return nothing
     if mapped isa PointReferenceStep
@@ -184,7 +191,7 @@ end
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
     window_input = change.gesture
     if window_input isa WindowInput
-        cim = iomap.content_iomap
+        cim = iomap.content_iomap[]
         inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReferenceStep("content"),))
         return Intent(change.gesture, op)

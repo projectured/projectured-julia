@@ -3,26 +3,25 @@
 
 A higher-order projection that wraps the `ScreenDocument` case of the
 type dispatcher in the main pipeline. Its printer is a passthrough to
-the inner projection (typically `CopyingProjection`). Its reader
-intercepts `OpenWindowOperation` and `CloseWindowOperation` bubbling
-up from below, applying them to *both* the input `ScreenDocument` and
-the projected output, so the next frame's reconciler sees the change.
+the inner projection (typically `ScreenToScreen`). Its reader intercepts
+`OpenWindowOperation` and `CloseWindowOperation` bubbling up from below
+and applies them to the input `ScreenDocument`; the inner stage mirrors
+the change into the projected output reactively, so the next frame renders it.
 
 Together with `TooltipDecoratorProjection`, this turns "show a tooltip"
 into "request a window via an operation; let the manager apply it" —
 the same input → operation → input → printer loop every other state
 change uses.
 
-The manager has to mutate the *output* explicitly because
-`CopyingProjection` builds its `CellVector` of children eagerly at
-print time: a later push to the input's `windows` cell would not
-propagate to the output. The manager therefore stores the outer
-`recursion` projection and `ctx` it was called with, and re-runs the
-recursion on each new window to produce the output side.
+The manager mutates only the *input* screen. `ScreenToScreen` reconciles
+the output's windows by identity (a push/remove on the input's `windows`
+cell reflows the output), re-projects a replaced window's content, and
+shares each window's metadata cells — so the output tracks the input with
+no explicit output mutation (AR-STABLE-IOMAP-IDENTITY).
 """
 module WindowManagingProjectionModule
 
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap
 import ..CellModule: Cell
@@ -51,15 +50,13 @@ struct WindowManagingProjectionIoMap <: IoMap
     input::Any
     output::Any
     inner_iomap::Any
-    recursion::Any
-    ctx::Any
 end
 
-# ── Printer (passthrough; remembers recursion + ctx for the reader) ──────
+# ── Printer (passthrough) ────────────────────────────────────────────────
 
 function print_document(p::WindowManagingProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    WindowManagingProjectionIoMap(p, input, inner_iomap.output, inner_iomap, recursion, ctx)
+    WindowManagingProjectionIoMap(p, input, inner_iomap.output, inner_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
@@ -143,54 +140,37 @@ end
 read_intent(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# Apply Open: add a new window (or update an existing one with the same
-# id) on both the input and the output. The output side requires
-# projecting the new WindowDocument through the same recursion that
-# produced the rest of the output.
+# Apply Open: add a new window, or update an existing one with the same id, on the
+# input screen only. `ScreenToScreen` mirrors the change into the output — it
+# reconciles the output's windows against the input (so a new/removed window
+# reflows), re-projects a window's content when it is replaced, and shares each
+# window's metadata cells — so the manager never touches the output.
 
 function _apply_open!(iomap::WindowManagingProjectionIoMap, op::OpenWindowOperation)
     input = iomap.input
-    output = iomap.output
     input isa ScreenDocument || return
-    output isa ScreenDocument || return
 
-    # Existing window with this id → update in place on both sides.
+    # Existing window with this id → update in place.
     in_wins = input.windows
-    out_wins = output.windows
     for i in 1:length(in_wins)
         existing_in = in_wins[i]
         existing_in isa WindowDocument || continue
         existing_in.id === op.id || continue
         _update_window!(existing_in, op)
-        # Output window with the same index/id (assumes 1:1 ordering — the
-        # invariant the printer establishes and that this code maintains).
-        if i <= length(out_wins)
-            existing_out = out_wins[i]
-            if existing_out isa WindowDocument
-                _update_window!(existing_out, op; project_content=true,
-                                recursion=iomap.recursion, ctx=iomap.ctx)
-            end
-        end
         return
     end
 
-    # New window: construct input side, project to get output side, push both.
+    # New window: construct and push; the inner stage projects the output side.
     new_in = WindowDocument(; id=op.id, title=op.title,
                               x=op.x, y=op.y,
                               width=op.width, height=op.height,
                               bg=op.bg, style=op.style,
                               auto_dismiss=op.auto_dismiss, modal=op.modal,
                               content=op.content)
-    new_iomap = print_child(iomap.recursion, new_in, iomap.ctx)
-    new_out = new_iomap.output
-
     push!(in_wins, Cell(new_in))
-    push!(out_wins, Cell(new_out))
 end
 
-function _update_window!(w::WindowDocument, op::OpenWindowOperation;
-                         project_content::Bool = false,
-                         recursion = nothing, ctx = nothing)
+function _update_window!(w::WindowDocument, op::OpenWindowOperation)
     w.title  = op.title
     w.x      = op.x
     w.y      = op.y
@@ -200,31 +180,22 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation;
     w.style  = op.style
     w.auto_dismiss = op.auto_dismiss
     w.modal  = op.modal
-    if project_content
-        # Re-project the new content for the output side.
-        content_iomap = print_child(recursion, op.content, ctx)
-        w.content = content_iomap.output
-    else
-        w.content = op.content
-    end
+    w.content = op.content
 end
 
-# Apply Close: remove the matching window from both input and output.
+# Apply Close: remove the matching window from the input; the inner stage's
+# window reconcile drops it from the output.
 
 function _apply_close!(iomap::WindowManagingProjectionIoMap, op::CloseWindowOperation)
     input = iomap.input
-    output = iomap.output
     input isa ScreenDocument || return
-    output isa ScreenDocument || return
 
     in_wins = input.windows
-    out_wins = output.windows
     for i in 1:length(in_wins)
         existing = in_wins[i]
         existing isa WindowDocument || continue
         existing.id === op.id || continue
         deleteat!(in_wins, i)
-        i <= length(out_wins) && deleteat!(out_wins, i)
         return
     end
 end
