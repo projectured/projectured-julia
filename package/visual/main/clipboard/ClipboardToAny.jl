@@ -58,7 +58,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           evaluate_reference, try_evaluate_reference, head, tail,
                           strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, reconcile_child_iomaps
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
@@ -152,14 +152,16 @@ end
 function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
     content_iomap = print_child(recursion, input.content,
                         make_child_context(ctx, FieldReferenceStep("content")))
-    elements = input.elements
-    element_iomaps = [print_child(recursion, elements[i],
-                          make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
-                      for i in 1:length(elements)]
+    # Reconcile the element children by identity so a structural edit to
+    # `elements` reuses surviving child iomaps (AR-STABLE-IOMAP-IDENTITY).
+    element_iomaps = reconcile_child_iomaps(
+        () -> input.elements,
+        (i, x) -> print_child(recursion, x,
+            make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
     # Reactive output (see the slice printer): a derived cell over the display flag,
     # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
     output = Cell(() -> p.display_collection[] ?
-        CellVector(Cell[Cell(im.output) for im in element_iomaps]) :
+        CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
         content_iomap.output)
     ClipboardCollectionToAnyProjectionIoMap(p, input, output, content_iomap, element_iomaps)
 end
@@ -201,7 +203,7 @@ function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::Clip
         e = head(rest)
         e isa RangeReferenceStep || return nothing
         i = e.stop
-        ims = iomap.element_iomaps
+        ims = iomap.element_iomaps[]
         (i < 1 || i > length(ims)) && return nothing
         child = ims[i]
         mapped = map_reference_forward(child.projection, child, tail(rest))
@@ -221,7 +223,7 @@ function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::Cli
         e = head(reference)
         e isa RangeReferenceStep || return nothing
         i = e.stop
-        ims = iomap.element_iomaps
+        ims = iomap.element_iomaps[]
         (i < 1 || i > length(ims)) && return nothing
         child = ims[i]
         mapped = map_reference_backward(child.projection, child, tail(reference))

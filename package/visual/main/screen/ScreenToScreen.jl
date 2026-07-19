@@ -31,7 +31,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
 import ..PointReferenceStepModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapModule: IoMap
+import ..IoMapModule: IoMap, reconcile_child_iomaps
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 
@@ -59,11 +59,12 @@ end
 
 function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx)
     iomap_cell = Cell(nothing)
-    window_iomaps = Cell(() -> [
-        print_document(p, recursion, input.windows[i],
-                         make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i)))
-        for i in 1:length(input.windows)
-    ])
+    # Reconcile windows by identity so opening/closing a sibling reuses the
+    # surviving windows' iomaps (AR-STABLE-IOMAP-IDENTITY).
+    window_iomaps = reconcile_child_iomaps(
+        () -> input.windows,
+        (i, x) -> print_document(p, recursion, x,
+            make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i))))
     out_windows = Cell(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
     sel = Cell(() -> begin
         im = iomap_cell[]
@@ -96,7 +97,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                             getfield(input, :width), getfield(input, :height),
                             getfield(input, :bg), getfield(input, :style),
                             getfield(input, :auto_dismiss), getfield(input, :modal),
-                            Cell(content_iomap.output), sel)
+                            Cell(() -> content_iomap.output), sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap
