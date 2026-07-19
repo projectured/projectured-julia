@@ -276,29 +276,46 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
       per-column/row geometry contract `WidgetToGraphics._wt_geometry` reads (`iomap.col_x[c][]`), so
       it's a deferred refinement.
 
-⟹ **4c widget-rendering reactivity is essentially COMPLETE.** Every widget leaf (~25) and every
-container (7) has reactive output; the layouts are reactive-output. **Deferred minor refinements**
-(all "already reactive-output, structural child-COUNT reconcile pending" — the domain rebuild-all
-class): SplitPane/TabbedPane `inner_iomaps`/`all_cims`, Stack `child_iomaps`, Grid (geometry
-contract). These don't block the core invariant (stable IoMap + reactive output) — they're
-structural-edit minimality, not correctness.
+⟹ **4c widget-rendering reactivity is COMPLETE for every case that varies at runtime.** Every
+widget leaf (~25) and every container (7) has reactive output; the layouts are reactive-output.
 
-**Workbench domain→widget (`WorkbenchToWidget.jl`) — assessed, more compliant than the survey
-implied.** The builders are **reactive-*content***: the widget-tree leaves wire *reactive child
-outputs* (`LayoutConstraint(edit_iomap.output)` where the child output is a stable reactive
-container), and `selection`/`size` are `set_cell_function!` cells — this is the template's
-"stable output node, reactive children" shape. The tree *structure* is eager, but for **Shell**
-(3 panels) / **Navigator** / the 8 **panels** the structure is **inherently fixed** → no real gap.
-The one genuine structural gap is **Page→WidgetTabbedPane** (`page.elements` can add/remove tabs):
-its `element_iomaps` comprehension + eager `pairs` don't reflow on a tab add/remove. WidgetTabbedPane
-*supports* reactive tabs (`selector_element_pairs::CellVector` + `set_cell_function!(w, f)` wiring
-`WidgetTabPage`s), so the fix is `reconcile_child_iomaps` + a reactive `pairs` thunk — deferred as
-a structural refinement (intricate cross-package `_as_tab_page` contract; tab add/remove is
-occasional). **⟹ the domain→widget stage does not hard-block Phase 6 for content edits** (both
-widget stages are reactive-content); only structural tab add/remove needs a re-print until this
-refinement lands.
+**Page-container child-count reflow — DONE (2026-07-19).** The containers whose child *count*
+genuinely varies at runtime are the *page containers* — tabs and stack pages add & remove. Both now
+reflow through the held iomap, no re-print:
+- **TabbedPane, end-to-end.** Domain **Page→WidgetTabbedPane** (`98f65e03`): `page.elements`
+  reconciled (`reconcile_child_iomaps`) + reactive tab strip (`set_cell_function!(::WidgetTabbedPane)`,
+  fixed to `_as_tab_page`-wrap). Visual **WidgetTabbedPane renderer** (`03308331`): reactive
+  `geom = Cell(_tab_strip_geometry)` + reconciled `all_cims` + reactive `child_iomaps`. A tab
+  add/remove reflows the strip *and* the content. Proven: tab-strip routing 20/20 (reflow n→n-1→n).
+- **StackLayout renderer** (`19ba7b73`): a `build` cell reads `doc.children` and rebuilds the child
+  iomaps on a structural edit; extent / positions / elements / entries re-derive; `active`/size
+  changes flow through without re-entering `build`. Proven: layout closeout 16/16 (reflow 2→3→2).
+
+**SplitPane & Grid child-count reconcile — INTENTIONALLY NOT DONE (2026-07-19).** Unlike page
+containers, a split's panes and a grid/form's cells are **structurally fixed** at construction —
+every `WidgetSplitPane` is built with a literal 2–3 children (shell: nav|edit|ctrl; center: edit|info;
+`ProjectionConfiguring`: control|doc) and `GridLayout`/`FormLayout` mirror an object's fixed fields.
+Nothing wires a split/grid with a reactive/variable child count (`set_cell_function!(::WidgetSplitPane)`
+exists but has no caller). So the reconcile is an **unreachable path**, and each also carries a real cost:
+- **SplitPane** is the highest-risk renderer (forward-declared `alloc_cell` + two-phase
+  `set_cell_function!` slot machinery). Worse, wrapping its `inner_iomaps` in a structural `build`
+  cell would make `build` *depend on `avail_main`* — the two-phase design has a child force its slot
+  (→ `alloc_cell` → `avail_main`) at print time — so it would **rebuild every child on a splitter
+  drag** (a resize-perf regression the current build-once avoids). Not worth it for an unreachable path.
+- **Grid**'s child-COUNT reflow is blocked by the external per-column/row geometry contract
+  `WidgetToGraphics._wt_geometry` reads (`iomap.col_x[c][]`); a `build`-cell wrap breaks that
+  contract. Fixed children ⇒ unreachable ⇒ not worth the contract surgery.
+
+**Workbench domain→widget (`WorkbenchToWidget.jl`) — the rest is reactive-content.** The builders
+wire *reactive child outputs* (`LayoutConstraint(edit_iomap.output)`, a stable reactive container),
+with `selection`/`size` as `set_cell_function!` cells — the template's "stable output node, reactive
+children" shape. The tree *structure* is eager, but **Shell** (3 panels) / **Navigator** / the 8
+**panels** are inherently fixed → no gap. The one runtime-variable structure was Page→TabbedPane,
+now done (above). **⟹ both widget stages are reactive-content**, so the domain→widget stage does not
+hard-block Phase 6 for content edits.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
+Latest (tabs + stack): test_visual 48759 / 0 fail / 1 broken; test_domain 106144 / 0 fail / 5 broken.
 
 ## Stopping point (2026-07-19) — merge-ready milestone
 
