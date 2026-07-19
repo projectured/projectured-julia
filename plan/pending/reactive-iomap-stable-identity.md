@@ -253,12 +253,22 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
       Delegating the *simple* batch (Sonnet applies the transform, I verify test_visual + spot-check)
       worked well; the custom/recursion ones were done by hand. All green throughout (0 Fail/Error,
       Broken 1/5; pass counts rose only from added cells).
-    - **4c remaining — the container/layout sub-project (distinct, larger):**
-      - **~17 container wrappers** (Composite/Shell/SplitPane/TabbedPane/Menu/Toolbar/TitlePane):
-        eager `_make_canvas(0,0,elems)` membership → reactive membership + child reconcile.
+    - **4c containers — 4 of 7 done (`2cc355dc`):** the multi-child pattern — reconcile the
+      children (`reconcile_child_iomaps` for element collections; `reconcile_child_iomap` for a
+      single content), a build cell lays them out (cumulative x/y) + produces membership + the
+      `(x,y,cim)` tuple list, and a new `_reactive_canvas_auto` helper gives the auto-extent
+      (`w=h=0`) reactive canvas. **Composite/Menu/Toolbar/TitlePane** done, test_visual identical.
+      Menu reconciles ALL elements (`nothing` for non-widget slots) to keep the ORIGINAL index its
+      per-item context needs; Composite/Toolbar filter.
+    - **4c remaining — the complex tail (distinct, lower value-per-effort):**
+      - **Shell/SplitPane/TabbedPane** (the 3 complex containers): Shell has 5 optional NAMED slots
+        (menu_bar/toolbar/content/status_bar/tooltip) with cumulative band positioning + a reactive
+        content-size context → per-slot `reconcile_child_iomap` with conditional force; SplitPane has
+        drag geometry; TabbedPane a tab bar + active tab. Higher complexity, low reactivity value
+        (slots/panes rarely swap; the top-level frame is re-printed anyway).
       - **Geometry-coupled layouts** (Grid/Flow/Stack): their IoMaps expose per-column/row cells
         `WidgetToGraphics._wt_geometry` reads via `iomap.col_x[c][]` — move `child_iomaps` into a
-        build cell without breaking that contract.
+        build cell without breaking that contract. The most intricate remaining.
       - The Workbench domain→widget builders (Phase 5 deferred) fold in here.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
