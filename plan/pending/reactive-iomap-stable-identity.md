@@ -109,6 +109,17 @@ load-bearing work, done per projection.
 **Phase 2 — base generic / degenerate** (Identity, Constant, Reversing, Copying,
 Sorting, Filtering, Searching, Dragging): convert struct + wire output/children +
 reconcile + reactive tests. One reviewable change.
+- **Assessed (impl):** `IdentityProjection` (empty struct, `output === input`) and
+  `ConstantProjection` (fixed `output` field) are **already compliant** — no change;
+  AR-USE-PROJECTION-MACRO permits their plain structs (no reactive fields). The rest
+  use `ChildrenIoMap` (Reversing) or their own IoMap structs, whose **reactive-output**
+  compliance depends on those IoMaps being `@iomap`. `reconcile_child_iomaps`
+  (child-identity) is independent and applies now; reactive `output` needs `@iomap`.
+- **Sequencing finding → do this first (Phase 2a):** `ChildrenIoMap → @iomap` (the
+  ~150-site sweep, now unblocked since the harness exists) is a **prerequisite** for
+  reactive-output across many projections (Reversing + most domain node projections
+  use `ChildrenIoMap`). Do the sweep before the piecemeal per-projection
+  reactive-output fixes, which then become clean.
 
 **Phase 3 — base higher-order** (Switching, Nesting, ReferenceDispatching,
 WindowInputUnwrapping; NOT Chaining yet): the object-swapping dispatchers — the
