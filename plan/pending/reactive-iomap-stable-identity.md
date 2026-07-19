@@ -232,15 +232,30 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
     - **Why deferred, not a live bug:** these leaves are masked by the editor re-printing on
       edits (Phase 7's target); staleness only bites once re-printing stops → this is a
       **Phase 6 prerequisite**, not a current defect.
-    - **Recommended approach for the project:** add a shared helper
-      `_reactive_canvas(x, y, () -> (w, h, elements))` that builds `GraphicsCanvas(Cell(Int32(x)),
-      Cell(Int32(y)), Cell(() -> Int32(build[].w)), Cell(() -> Int32(build[].h)),
-      CellVector(() -> build[].elements), …)` (the WidgetCard/WidgetTable pattern), then per
-      leaf: move the existing print body into a `() -> (w, h, elements)` thunk and call it.
-      Mechanical + verifiable per struct; delegate the transforms in batches, verify
-      test_visual after each. The geometry-coupled layouts (Grid/Flow/Stack — their IoMaps
-      expose per-column/row cells `WidgetToGraphics._wt_geometry` reads) interlock and go in
-      the same project.
+    - **Approach (validated + underway):** `_reactive_canvas(x, y, build_fn)` helper added
+      beside `_make_canvas` — `build_fn()` returns `(; width, height, elements)`, run inside a
+      cell, so extent+membership re-derive while the canvas keeps identity. Per leaf: wrap the
+      print body (after the `w.visible`/`position` prefix) in the thunk, return the named tuple.
+    - **4c progress (`2ead3fa9`, `8ecece19`):** the helper + **16 simple leaves** converted
+      (Badge, Separator, Progress, Slider by hand; Label, Checkbox, Button, Switch, RadioGroup,
+      Avatar, Alert, Skeleton, Toggle, ToggleGroup, Option, Textarea via a delegated mechanical
+      batch, spot-verified). test_visual 48507/0-fail — identical (eager values → computed
+      cells, same cell count). Delegating the mechanical batch + verifying test_visual works well.
+    - **4c remaining (harder, individual):**
+      - **Custom-IoMap leaves** (Select/SpinBox/List): their `WidgetSelect…IoMap` etc. store
+        `control_width`/`control_height`/`stepper_w` for the reader, so the extent can't just move
+        into the thunk — needs **extent-as-shared-cell** (compute extent as cells used by BOTH the
+        canvas and the IoMap fields; reader reads `iomap.control_width[]`). StatusBar: non-standard
+        origin (`_make_canvas(0,0,…)`, `_content_offset`).
+      - **Recursion leaves** (Text/ContextMenu/MenuItem/Tooltip): recurse a child (`content_iomap`/
+        `child_iomap`) — need **single-child-reconcile** (`reconcile_child_iomap`) + reactive extent
+        from the child's `w/h`.
+      - **~17 container wrappers** (Composite/Shell/SplitPane/TabbedPane/Menu/Toolbar/TitlePane):
+        eager `_make_canvas(0,0,elems)` membership → reactive membership + child reconcile.
+      - **Geometry-coupled layouts** (Grid/Flow/Stack): their IoMaps expose per-column/row cells
+        `WidgetToGraphics._wt_geometry` reads via `iomap.col_x[c][]` — move `child_iomaps` into a
+        build cell without breaking that contract.
+      - The Workbench domain→widget builders (Phase 5 deferred) fold in here.
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
