@@ -360,12 +360,29 @@ identity reuse); reconcile is a *secondary optimization* across those ~45 sites,
   would wrap `print_child` subtree calls in thunks (re-projection cost) for little gain.
   `GestureMapToSyntax` — static help-window snapshot input (fixed, snapshot-fine).
 
-**Phase 6 — simplify `ChainingProjection`.**
-- [ ] Replace `step_iomaps::Vector{Cell}` + per-stage re-print cells with a plain
-      list of stage IoMaps whose input/output cells are shared across the
-      boundary; drop the synthesized `:output` getproperty/propertynames.
-- [ ] Reactive test: a structural swap mid-chain propagates end-to-end with no
-      bespoke chain cell and no iomap drop.
+**Phase 6 — simplify `ChainingProjection`. Assessed — reconsidered as elegance-only, deprioritized.**
+Reading `Chaining.jl` in full: **Chaining is already reactive-optimal.** Each `step_iomaps` cell is
+`Cell(() -> print_document(p, recursion, prev[], ctx))`, keyed on `prev[]` = the previous stage's
+*output value*; a stage re-prints **only when its input identity swaps structurally**, and value
+changes propagate through each stage's existing reactive IoMap with no re-print (the per-stage
+output cell reads the structural choice, not inner values).
+- **The plan's original vision — "a plain list of stage IoMaps, no cells" — is UNACHIEVABLE.**
+  Stages that swap output identity (`Switching` on an index write; any dispatcher; the deferred
+  structural container/tab reconciles) genuinely require the *next* stage to rebuild on that
+  structural input change, which needs a cell. So the re-print machinery is *correct*, not
+  incidental.
+- **What Phase 6 CAN do is elegance-only:** swap the bespoke `Cell(() -> print_document(…))` in
+  `_seq_stage` for the shared `reconcile_child_iomap(() -> prev[], v -> print_document(p, …, v, ctx))`
+  (identical "rebuild on input-identity swap" behavior, via the shared reconciler), and optionally
+  store `output` as a field instead of the `getproperty` synthesis. Blast radius is tiny (2
+  `.output[]` sites — one is Chaining's own doc comment, one in `ProjectionApi.jl`; no external
+  `ChainingProjectionIoMap` consumers) BUT it is the **critical path every pipeline runs through**,
+  with a Cell-valued-final-output threading subtlety (`unwrap_cell`, the TextToString console case).
+- ⟹ **Deprioritized.** Not a correctness/performance win; changing the universal critical path for
+  cleanliness is best done deliberately, not at speed. The refactor's core goal (stable IoMap
+  identity + reactive output everywhere; content reactive end-to-end) is already met without it.
+- [ ] (if pursued) Reactive test: a structural swap mid-chain propagates end-to-end via
+      `reconcile_child_iomap` with no `iomap` drop.
 
 **Phase 7 — editor tightening (conservative, last).**
 - [ ] Audit operations that null `editor.iomap`; where the reactive path now
