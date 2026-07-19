@@ -260,16 +260,21 @@ Verified: test_base 158/158; test_visual 48347 / 0 fail; test_domain 106079 /
       (`w=h=0`) reactive canvas. **Composite/Menu/Toolbar/TitlePane** done, test_visual identical.
       Menu reconciles ALL elements (`nothing` for non-widget slots) to keep the ORIGINAL index its
       per-item context needs; Composite/Toolbar filter.
-    - **4c remaining — the complex tail (distinct, lower value-per-effort):**
-      - **Shell/SplitPane/TabbedPane** (the 3 complex containers): Shell has 5 optional NAMED slots
-        (menu_bar/toolbar/content/status_bar/tooltip) with cumulative band positioning + a reactive
-        content-size context → per-slot `reconcile_child_iomap` with conditional force; SplitPane has
-        drag geometry; TabbedPane a tab bar + active tab. Higher complexity, low reactivity value
-        (slots/panes rarely swap; the top-level frame is re-printed anyway).
-      - **Geometry-coupled layouts** (Grid/Flow/Stack): their IoMaps expose per-column/row cells
-        `WidgetToGraphics._wt_geometry` reads via `iomap.col_x[c][]` — move `child_iomaps` into a
-        build cell without breaking that contract. The most intricate remaining.
-      - The Workbench domain→widget builders (Phase 5 deferred) fold in here.
+    - **4c containers — all 7 addressed.** Converted (`2cc355dc`, `f346978a`):
+      Composite/Menu/Toolbar/TitlePane + **Shell** (5 named slots, reconcile-per-slot + reactive
+      bands/avail cells). **SplitPane and TabbedPane were already reactive-output** — both build the
+      outer canvas with `CellVector(thunk)` membership + reactive extent cells + reactive
+      selection/slot-sizing, so their output re-derives on resize/tab-switch/drag and the IoMap keeps
+      its identity (core invariant met). Their eager `inner_iomaps`/`all_cims` (structural pane/tab
+      add-remove reconcile) is a **deferred minor refinement** — same class as the domain rebuild-all
+      children; untangling the per-child-context recursion is high-effort/low-value.
+    - **4c remaining:**
+      - **Geometry-coupled layouts** (Grid/Flow/Stack, `layout/LayoutToGraphics.jl`): eager
+        `CellVector(Cell[Cell(e)…])` + `Cell(entries)`, unlike the reactive H/V/Constraint siblings'
+        `build`-cell form. Grid's IoMap exposes per-column/row cells `WidgetToGraphics._wt_geometry`
+        reads via `iomap.col_x[c][]` — the build-cell move must not break that contract. Most
+        intricate remaining.
+      - The Workbench domain→widget builders (Phase 5 deferred).
 
 Verified after 4a/4b: test_visual 48507 / 0 fail; test_domain 106125 / 0 fail; Broken (1, 5).
 
