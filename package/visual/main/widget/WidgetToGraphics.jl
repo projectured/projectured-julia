@@ -1216,24 +1216,28 @@ end
 # Carries the recursed child's iomap (for event routing + re-rooting) and the
 # wrapper's own document path (captured from `ctx.reference`) — the anchor a right
 # click uses to place the context-menu popup at the pointer.
-struct WidgetContextMenuToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads child_iomap/anchor transparently; the child is
+# reconciled so a content swap rebuilds it (AR-STABLE-IOMAP-IDENTITY).
+@iomap struct WidgetContextMenuToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetContextMenu
-    output::GraphicsCanvas
+    input::Any
+    output::Any
     child_iomap::Any
-    anchor::Reference
+    anchor::Any
 end
 
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    child = w.child
-    child isa Document || return SimpleIoMap(p, w, _empty_canvas())
-    cox, coy = _content_offset(w)
-    child_iomap = print_child(recursion, child, ctx)
-    inner = child_iomap.output::GraphicsCanvas
-    iw, ih = Int(inner.w[]), Int(inner.h[])
-    tx, ty = _inset_total(w)
-    canvas = _make_canvas(0, 0, iw + tx, ih + ty, Any[_make_canvas(cox, coy, Any[inner])])
+    w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
+    child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        inner = child_iomap[].output::GraphicsCanvas
+        iw, ih = Int(inner.w[]), Int(inner.h[])
+        tx, ty = _inset_total(w)
+        (width=iw + tx, height=ih + ty, elements=Any[_make_canvas(cox, coy, Any[inner])])
+    end)
+    canvas = _reactive_canvas_cell(0, 0, build)
     WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, ctx.reference)
 end
 
@@ -3151,22 +3155,24 @@ end
 
 function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    cox, coy = _content_offset(w)
-    gap = _sc(p.gap)
-    labels = Any[]
-    x = cox; text_h = 0
-    for seg in w.elements
-        s = string(seg)
-        tw, th = _text_size(p.measure, p.text.font, s)
-        _push_text!(labels, p.text.font, s, x, coy, p.text.color)
-        x += tw + gap; text_h = max(text_h, th)
-    end
-    width  = _resolve_width(ctx, x, x)
-    height = text_h + 2coy
-    elements = Any[]
-    _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
-    append!(elements, labels)
-    SimpleIoMap(p, w, _make_canvas(0, 0, width, height, elements))
+    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+        cox, coy = _content_offset(w)
+        gap = _sc(p.gap)
+        labels = Any[]
+        x = cox; text_h = 0
+        for seg in w.elements
+            s = string(seg)
+            tw, th = _text_size(p.measure, p.text.font, s)
+            _push_text!(labels, p.text.font, s, x, coy, p.text.color)
+            x += tw + gap; text_h = max(text_h, th)
+        end
+        width  = _resolve_width(ctx, x, x)
+        height = text_h + 2coy
+        elements = Any[]
+        _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
+        append!(elements, labels)
+        (width=width, height=height, elements=elements)
+    end))
 end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
