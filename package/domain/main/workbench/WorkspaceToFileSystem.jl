@@ -21,7 +21,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..OperationApiModule: Operation
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap, reconcile_child_iomaps
 import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep
@@ -34,8 +34,8 @@ struct WorkspaceFolderToFileSystemDirectory <: Projection end
 
 function print_document(p::WorkspaceFolderToFileSystemDirectory,
                            recursion, folder::WorkspaceFolder, ctx)
-    dir = make_filesystem_pathname(folder.pathname)
-    SimpleIoMap(p, folder, dir)
+    # Reactive output so a pathname change re-derives through the held iomap.
+    SimpleIoMap(p, folder, Cell(() -> make_filesystem_pathname(folder.pathname)))
 end
 
 function map_reference_forward(::WorkspaceFolderToFileSystemDirectory, iomap, reference)
@@ -63,13 +63,16 @@ struct WorkspaceWorkspaceProjection <: Projection end
 
 function print_document(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
-    child_iomaps = [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReferenceStep("folders"), ElementReferenceStep(i)))
-                    for (i, elem) in enumerate(w.folders)]
+    # Reconcile folders by identity, and forward the single-root output reactively
+    # so a structural edit propagates through the held iomap (AR-STABLE-IOMAP-IDENTITY).
+    child_iomaps = reconcile_child_iomaps(
+        () -> w.folders,
+        (i, elem) -> print_child(recursion, elem,
+            make_child_context(ctx, FieldReferenceStep("folders"), ElementReferenceStep(i))))
     # The output is the first folder's output for single-root workspaces.
     # Multi-root rendering can be refined later with a composite output.
-    output = isempty(child_iomaps) ? nothing : child_iomaps[1].output
-    ChildrenIoMap(p, w, output, Cell(child_iomaps))
+    output = Cell(() -> (ims = child_iomaps[]; isempty(ims) ? nothing : ims[1].output))
+    ChildrenIoMap(p, w, output, child_iomaps)
 end
 
 function map_reference_forward(::WorkspaceWorkspaceProjection, iomap, reference)

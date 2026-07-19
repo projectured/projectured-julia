@@ -260,8 +260,33 @@ drops), then re-audit + seal the iomap layer.
 Branch `reactive-iomap`: all commits green (test_visual 48507/0-fail, test_domain
 106125/0-fail, Broken 1/5), worktree clean — ready to `add to main`.
 
-**Phase 5 — domain projections** (versioning, workbench, graph, formula, …).
-Includes the other derived-output IoMap, `VersioningToAnyProjectionIoMap`.
+**Phase 5 — domain projections.** Surveyed (7 own-IoMap structs + hand-built
+shared-IoMap sites). **The domain hot paths are already reactive** — the entire
+syntax-node family (yaml/sql/book/markdown/math/formula/filesystem/insertion +
+`DbCatalogToSyntax`), `ConversationToSyntax`/`ConversationEditor`, `VersioningToAny`
+(the derived-output reference model, `getproperty` over two cells), and both Graph
+IoMaps use `CellVector(() -> …)` + `Cell(() -> [print_child …])` + deferred-`iomap_cell`
+selection cells. ~48 sites, no change. **Note:** domain uses `reconcile_child_iomaps`
+**nowhere** — its reactive baseline is `Cell(() -> [rebuild all])` (recomputes but no
+identity reuse); reconcile is a *secondary optimization* across those ~45 sites, not a gap.
+
+- **Done (clean, widget-independent gaps):**
+  - `GestureHelpProjectionIoMap` (gesturemap) — transparent forwarder, `@iomap` +
+    `Cell(() -> inner_iomap.output)`.
+  - `WorkspaceToFileSystem` — `WorkspaceFolderToFileSystemDirectory` eager `dir` →
+    `Cell(() -> make_filesystem_pathname(folder.pathname))`; `WorkspaceWorkspaceProjection`
+    eager comprehension + `Cell([...])` → `reconcile_child_iomaps` + reactive single-root
+    `output` (mappers return `nothing`, so no deref changes).
+- **Deferred (with the 4c widget project — same character / interlocked):** the Workbench
+  domain→widget builders (`WorkbenchToWidget.jl`: Shell/TabbedPane/Navigator IoMaps + 8
+  panel `print_document`s, ~11 sites — build `WidgetShell`/`WidgetTabbedPane`/`WidgetSplitPane`
+  trees eagerly, only selection cells reactive) and `ConversationPartToWidget` (eager
+  `WidgetCard`). These feed the deferred eager widget→graphics layer, so low marginal value
+  until 4c lands.
+- **Deferred (low value):** `DbCatalogToSql` (5 sites) — a **read-only** DDL serializer
+  (all maps/reader return `nothing`) over a rarely-changing catalog snapshot; reactivity
+  would wrap `print_child` subtree calls in thunks (re-projection cost) for little gain.
+  `GestureMapToSyntax` — static help-window snapshot input (fixed, snapshot-fine).
 
 **Phase 6 — simplify `ChainingProjection`.**
 - [ ] Replace `step_iomaps::Vector{Cell}` + per-stage re-print cells with a plain
