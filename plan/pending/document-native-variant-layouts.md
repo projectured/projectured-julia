@@ -114,19 +114,19 @@ window it" note once native layouts exist: the FES *can* now be `IFoo`).
 
 ## Phases
 
-1. **Family abstract + variant naming.** Bare `Foo` → `abstract type Foo <: Super`;
-   emit `IFoo`/`MFoo`/`RFoo`/`DFoo <: Foo`; `Foo(args…)` builds `DFoo`. Migrate all
-   dispatch that currently uses the concrete stem `Foo{…}`.
-2. **Mutable layout.** Emit `mutable struct Foo_m{…}` with raw/`const`/cell fields +
-   compile-time per-field accessors. `MFoo` = all-raw = plain mutable struct. Sanity
-   check (not a perf gate): `MFoo` allocates like a hand-written `mutable struct` and
-   its accessors lower to `getfield`/`setfield!`. Retire `MutableCell` for documents.
-3. **Immutable layout.** Keep today's isbits `IFoo` + reactive `RFoo`; make them
-   coexist with the mutable layout under the family abstract.
-4. **Schema identity across layouts.** `sync_document!`/`copy_document`/`walk`/
-   `is_same_document_type` recognize all variants of a family as one document (via the
-   family abstract / a schema tag, not the type wrapper). Implement cross-kind
-   `sync_document!` (mutable/immutable source → reactive shadow, and any → any writable).
+1. **Family abstract + variant naming.** ✅ **Done (additive form).** Emitted
+   `abstract type AbstractFoo <: Super` with the stem and native both subtyping it —
+   *without* the disruptive bare-`Foo`-rename; existing dispatch and aliases unchanged.
+2. **Mutable layout.** ✅ **Done as native `FooMut`** — a plain `mutable struct` with
+   raw value fields (no `MutableCell` box; default `getfield`/`setfield!`), same Rule-Y
+   ctors. *Not yet:* flip the `MFoo` alias to native + retire the box (optional tail).
+3. **Immutable layout.** ✅ Unchanged — the isbits `IFoo` + reactive `RFoo` stem
+   already coexist; `FooMut` now sits beside them under the family abstract.
+4. **Schema identity across layouts.** ◐ **Partial.** `is_same_document_type` /
+   `sync_document!` are family-aware and cross-kind sync (native → reactive shadow) is
+   proven with minimal invalidation. *Not yet:* `copy_document`/`walk` family-threading
+   — deferred **with** native-nesting (see Implementation status; can't be triggered
+   until a native document nests native children).
 5. **Per-field kind override** — type-level declaration and per-instance.
 6. **Inheritance.** Dispatch inheritance from Phase 1; *optional* field-splicing so
    `Derived` carries `Base`'s fields across all variants (Julia has no struct field
@@ -135,6 +135,61 @@ window it" note once native layouts exist: the FES *can* now be `IFoo`).
 7. **Migrate the whole document surface** to the new codegen; keep behavior — diff the
    full suite against a clean baseline (the L1 change alone spanned 106k+ assertions;
    this touches every `@document`).
+
+## Implementation status (what is actually built)
+
+The macro rewrite was done **additively**, not as the disruptive Phase-1 rename. The
+existing stem `Foo` and its `RFoo`/`IFoo`/`MFoo`/`DFoo` aliases are **untouched**;
+the two-layout support is emitted *alongside* them, so the whole document surface
+keeps working with no migration:
+
+- **Family abstract** `AbstractFoo` is inserted between the stem and its supertype:
+  `struct Foo{…} <: AbstractFoo`, `abstract type AbstractFoo <: Super`. Transitive, so
+  every existing `<: Super` dispatch is unchanged.
+- **Native mutable layout** `mutable struct FooMut <: AbstractFoo` holds the declared
+  **value** types directly (no `MutableCell` box) — an all-mutable document is
+  byte-for-byte a plain `mutable struct`. Emitted by `_emit_native_mutable` in
+  `DocumentMacro.jl`; gets the same Rule-Y positional + keyword constructors (storing
+  raw values). *(Bare `Foo` stays the stem; `MFoo` stays the boxed alias. The native
+  variant is the new `FooMut`. Flipping `MFoo` → native and retiring the box is the
+  optional Phase-2 tail.)*
+- **Schema identity across layouts** via `document_family` (`DocumentInterface.jl`
+  declares it, `DocumentDefaults.jl` defines the fallback = name-wrapper, the macro
+  emits `document_family(::Type{<:AbstractFoo}) = AbstractFoo`). `is_same_document_type`
+  and hence `sync_document!` now compare families, so a reactive `Foo`, an immutable
+  `IFoo`, and a native `FooMut` all count as **the same document**.
+- **Regression guard:** native `FooMut` structs subtype the family, so document-type
+  reflection (`insertion_candidates` in base `Domain.jl`) would pick them up as a second
+  concrete type per schema. `_is_layout_variant` filters them out structurally (a
+  concrete type whose `document_family` isn't its own name-wrapper). Domain suite stayed
+  **byte-identical at baseline** (106125/0/0/5) — strong evidence the change is
+  behaviour-preserving across every domain `@document`.
+
+**Capability proven** (`scratchpad/native_sync_capability.jl`, 22/23):
+native `FooMut` constructs + mutates as a plain mutable struct; `sync_document!(RFoo,
+FooMut)` copies values into the reactive shadow; and it does so with **minimal
+invalidation** — a changed field invalidates only its own reactive watcher, an
+unchanged field's watcher stays valid → the L1 lazy engine repaints only what changed.
+
+**One characterized limitation — native cannot nest native.** A document-typed field
+in `FooMut` is typed to the *stem* (`child::Union{Bar,Nothing}`), and `BarMut <:
+AbstractBar` is **not** `<: Bar`, so a native parent can hold a **reactive/stem** child
+but not a native `BarMut` child. Consequences:
+
+- **Not needed for omnetpp.** `SequentialSimulator`'s fields are plain Julia values
+  (`SimTime`, `BinaryMinHeap{SequentialEvent}`, `Vector{UInt128}`, scalars, `Function`)
+  — **no nested documents** — so its native variant nests nothing and the limit never
+  bites. This is why Phase-4's `copy_document` threading is **not** implemented yet.
+- **`copy_document` family-threading defers with it.** Sync only calls `copy_document(K,
+  child)` when a `child isa Document` slot changed type — which requires a *native
+  document nested in a native document*, i.e. exactly the case the layout forbids. So
+  `copy_document(ReactiveCell, FooMut)` rebuilding a native `FooMut` instead of a
+  reactive `RFoo` is a latent bug that **cannot be triggered** until native-nesting
+  exists. The two are one coherent future unit: **type document-typed native fields as
+  the family abstract** (needs macro-time detection of which field types are documents,
+  the same problem `is_collection_field_type` solves via an opt-in trait) **and** make
+  `copy_document`/`walk` family-aware so a cross-layout rebuild produces the target
+  kind.
 
 ## Constraints / risks
 
