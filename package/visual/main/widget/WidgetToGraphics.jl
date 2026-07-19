@@ -1169,36 +1169,41 @@ end
 function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
-    cox, coy = _content_offset(w)
-    tx, ty = _inset_total(w)
-    # Use sensible default padding when the document specifies none, so the box
-    # never hugs the text.
-    default_padding_x = _sc(Int(p.default_padding.left[]))
-    default_padding_y = _sc(Int(p.default_padding.top[]))
-    cox = max(cox, default_padding_x); coy = max(coy, default_padding_y)
-    txp = max(tx, 2default_padding_x); typ = max(ty, 2default_padding_y)
-    child_iomaps = Any[]
-    content = w.content
-    elems = Any[]
-    # Size the box to its content (at least the requested size).
-    cw, ch = 0, 0
-    body = Any[]
-    if content isa AbstractString
-        cw, ch = _text_size(p.measure, p.text.font, content)
-        _push_text!(body, p.text.font, content, cox, coy, p.text.color)
-    elseif content isa WidgetDocument
-        cim = print_child(recursion, content, ctx)
-        inner = cim.output
-        cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
-        push!(child_iomaps, (cox, coy, cim))
-        push!(body, _make_canvas(cox, coy, Any[inner]))
-    end
-    vw = cw + txp
-    vh = ch + typ
-    _push_panel!(elems, 0, 0, vw, vh; fill=p.surface_color,
-                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    append!(elems, body)
-    ChildrenIoMap(p, w, _make_canvas(_origin(pos)..., vw, vh, elems), Cell(child_iomaps))
+    # The child is reconciled and forced only in the WidgetDocument branch.
+    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        tx, ty = _inset_total(w)
+        # Use sensible default padding when the document specifies none, so the box
+        # never hugs the text.
+        default_padding_x = _sc(Int(p.default_padding.left[]))
+        default_padding_y = _sc(Int(p.default_padding.top[]))
+        cox = max(cox, default_padding_x); coy = max(coy, default_padding_y)
+        txp = max(tx, 2default_padding_x); typ = max(ty, 2default_padding_y)
+        child_iomaps = Any[]
+        content = w.content
+        elems = Any[]
+        # Size the box to its content (at least the requested size).
+        cw, ch = 0, 0
+        body = Any[]
+        if content isa AbstractString
+            cw, ch = _text_size(p.measure, p.text.font, content)
+            _push_text!(body, p.text.font, content, cox, coy, p.text.color)
+        elseif content isa WidgetDocument
+            cim = child_iomap[]
+            inner = cim.output
+            cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
+            push!(child_iomaps, (cox, coy, cim))
+            push!(body, _make_canvas(cox, coy, Any[inner]))
+        end
+        vw = cw + txp
+        vh = ch + typ
+        _push_panel!(elems, 0, 0, vw, vh; fill=p.surface_color,
+                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        append!(elems, body)
+        (width=vw, height=vh, elements=elems, child_iomaps=child_iomaps)
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), Cell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference)
@@ -1450,14 +1455,16 @@ end
 # `submenu` as a popup anchored just below itself without re-deriving its position
 # (Step 4b, mirroring `WidgetSelect`). `child_iomaps` keeps scroll routing into
 # embedded widget content working.
-struct WidgetMenuItemToGraphicsCanvasIoMap <: IoMap
+# @iomap so the reader reads child_iomaps/anchor/control_width/control_height
+# transparently (all shared from the build cell); AR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetMenuItemToGraphicsCanvasIoMap
     projection::Any
-    input::WidgetMenuItem
-    output::GraphicsCanvas
-    child_iomaps::Cell
-    anchor::Reference
-    control_width::Int
-    control_height::Int
+    input::Any
+    output::Any
+    child_iomaps::Any
+    anchor::Any
+    control_width::Any
+    control_height::Any
 end
 
 # A bound command (Stage 4) supplies the item's label, enabled-state, and callback,
@@ -1469,47 +1476,53 @@ _menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); (c !== nothing 
 
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    cox, coy = _content_offset(w)
-    command = _menu_item_command(w)
-    enabled = _menu_item_enabled(w)
-    fg = enabled ? p.text.color : p.disabled_foreground
-    # A bound command's label overrides the content; otherwise the content is the
-    # label (text) or a recursed widget.
-    content = command !== nothing ? string(command.label) : w.content
-    child_iomaps = Any[]
-    elems = Any[]
-    cw, ch = 0, 0
-    if content isa WidgetDocument
-        cim = print_child(recursion, content, ctx)
-        inner = cim.output
-        cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
-        push!(child_iomaps, (cox, coy, cim))
-        push!(elems, _make_canvas(cox, coy, Any[inner]))
-    else
-        text = string(content)
-        cw, ch = _text_size(p.measure, p.text.font, text)
-        # Optional leading icon (Stage 5), tinted to the item's foreground.
-        icon = _menu_item_icon(w)
-        icon_w = icon_width(icon, ch)
-        gap = icon_w > 0 ? _sc(6) : 0
-        icon_w > 0 && _push_icon!(elems, icon, cox, coy, ch, fg)
-        _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, fg)
-        cw += icon_w + gap
-    end
-    # Hover surface behind the content (Stage 6), only when hovered + enabled.
-    control_w = cw + 2cox; control_h = ch + 2coy
-    final = Any[]
-    _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
-    append!(final, elems)
+    # The child (a recursed widget content) is reconciled and forced only in the
+    # WidgetDocument branch.
+    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    build = Cell(() -> begin
+        cox, coy = _content_offset(w)
+        command = _menu_item_command(w)
+        enabled = _menu_item_enabled(w)
+        fg = enabled ? p.text.color : p.disabled_foreground
+        # A bound command's label overrides the content; otherwise the content is the
+        # label (text) or a recursed widget.
+        content = command !== nothing ? string(command.label) : w.content
+        child_iomaps = Any[]
+        elems = Any[]
+        cw, ch = 0, 0
+        if content isa WidgetDocument
+            cim = child_iomap[]
+            inner = cim.output
+            cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
+            push!(child_iomaps, (cox, coy, cim))
+            push!(elems, _make_canvas(cox, coy, Any[inner]))
+        else
+            text = string(content)
+            cw, ch = _text_size(p.measure, p.text.font, text)
+            # Optional leading icon (Stage 5), tinted to the item's foreground.
+            icon = _menu_item_icon(w)
+            icon_w = icon_width(icon, ch)
+            gap = icon_w > 0 ? _sc(6) : 0
+            icon_w > 0 && _push_icon!(elems, icon, cox, coy, ch, fg)
+            _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, fg)
+            cw += icon_w + gap
+        end
+        # Hover surface behind the content (Stage 6), only when hovered + enabled.
+        control_w = cw + 2cox; control_h = ch + 2coy
+        final = Any[]
+        _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
+        append!(final, elems)
+        (width=control_w, height=control_h, elements=final, child_iomaps=child_iomaps)
+    end)
     # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
     # events to it. A `GraphicsText` has no right edge, so an auto-sized (w=h=0) item
     # canvas would claim hits anywhere to the right of its label — harmless in a
     # vertical menu (per-item y-bands differ) but in a *horizontal* toolbar / menu
     # bar the leftmost item then swallows every crossing, so hover always lit the
     # first button. See `hit_element_at` in document/Graphics.jl.
-    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _make_canvas(0, 0, control_w, control_h, final),
-                                        Cell(child_iomaps), ctx.reference,
-                                        control_w, control_h)
+    WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
+                                        Cell(() -> build[].child_iomaps), ctx.reference,
+                                        Cell(() -> build[].width), Cell(() -> build[].height))
 end
 
 # Forward image (Step 2.0 leaf): the empty reference maps to the item's own
