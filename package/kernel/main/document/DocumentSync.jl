@@ -13,11 +13,14 @@
 # protocol. `is_same_document_type` / `copy_shadow_element` are private helpers of
 # that walk.
 
-# `true` when `a` and `b` are the same document type IGNORING cell kind — a
-# reactive `RFoo` and an immutable `IFoo` answer `true`, since both are `Foo`. The
-# shape test the sync makes before recursing into a slot: same type ⇒ sync in
-# place, different type ⇒ rebuild it.
-is_same_document_type(a, b) = Base.typename(typeof(a)).wrapper === Base.typename(typeof(b)).wrapper
+# `true` when `a` and `b` are the same document IGNORING variant — a reactive
+# `RFoo`, an immutable `IFoo`, and the native mutable `FooMut` all answer `true`,
+# via `document_family` (the schema's abstract family type; for a plain type it
+# falls back to the name wrapper, so this is equivalent to the old wrapper test
+# everywhere except that it now also unifies the two struct layouts). The shape
+# test the sync makes before recursing into a slot: same document ⇒ sync in place,
+# different ⇒ rebuild it.
+is_same_document_type(a, b) = document_family(a) === document_family(b)
 
 # A source element rebuilt for a shadow of cell kind `K`: a document is copied in
 # that kind, a plain value passes through. Written into a shadow slot whose source
