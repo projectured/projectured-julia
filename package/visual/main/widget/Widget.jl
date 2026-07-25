@@ -29,7 +29,8 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        InvokeActionOperation, numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
        inset_bottom_right, set_cell_function!,
-       widget_list_selection, widget_list_selected
+       widget_list_selection, widget_list_selected,
+       widget_table_row_selection, widget_table_selected_row
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -210,10 +211,28 @@ selection back with [`widget_list_selected`](@ref).
     enabled::Bool
 end
 
-# The canonical selection reference for row `i` (1-based); `nothing` for none.
-widget_list_selection(i::Integer) = i <= 0 ? nothing :
-    ConcreteReference(FieldReferenceStep("items"),
+# `field[i-1:i]` — the canonical "element i of this collection field" selection
+# reference, shared by every widget that selects a row of something (a list's
+# `items`, a table's `rows`). `nothing` for "no selection".
+_widget_element_selection(field::AbstractString, i::Integer) = i <= 0 ? nothing :
+    ConcreteReference(FieldReferenceStep(field),
         ConcreteReference(RangeReferenceStep(Int(i) - 1, Int(i)), EmptyReference()))
+
+# The index such a reference points at, or 0 if it is not one (or names a
+# different field).
+function _widget_element_selected(sel, field::AbstractString)
+    sel isa ConcreteReference || return 0
+    h = sel.head
+    (h isa FieldReferenceStep && h.name == field) || return 0
+    t = sel.tail
+    t isa ConcreteReference || return 0
+    r = t.head
+    r isa RangeReferenceStep || return 0
+    r.start + 1
+end
+
+# The canonical selection reference for row `i` (1-based); `nothing` for none.
+widget_list_selection(i::Integer) = _widget_element_selection("items", i)
 
 """
     widget_list_selected(list) -> Int
@@ -221,17 +240,7 @@ widget_list_selection(i::Integer) = i <= 0 ? nothing :
 The selected row of a [`WidgetList`](@ref) as a 1-based index, or `0` when
 nothing is selected. The inverse of the `selected` construction keyword.
 """
-function widget_list_selected(w::WidgetList)
-    sel = w.selection
-    sel isa ConcreteReference || return 0
-    h = sel.head
-    (h isa FieldReferenceStep && h.name == "items") || return 0
-    t = sel.tail
-    t isa ConcreteReference || return 0
-    r = t.head
-    r isa RangeReferenceStep || return 0
-    r.start + 1
-end
+widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, "items")
 
 function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=220,
@@ -1516,6 +1525,19 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     visible::Bool
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
+
+"""
+    widget_table_row_selection(i) -> Reference
+    widget_table_selected_row(table) -> Int
+
+The canonical whole-row selection for a [`WidgetTable`](@ref) (`rows[i-1:i]`,
+1-based; `0`/`nothing` = none) and its inverse — the pair a row-selecting reader
+emits and an enclosing projection maps across domains. Row selection is what the
+table's reader produces for a click on the ROW-HEADER strip, so a table that
+wants it must be built with `row_headers`.
+"""
+widget_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
+widget_table_selected_row(w::WidgetTable) = _widget_element_selected(w.selection, "rows")
 
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
 _table_cell_doc(v::Document) = v
