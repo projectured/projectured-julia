@@ -28,7 +28,8 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        EndSplitterDragOperation, InvokeWidgetActionOperation, Shortcut, action_shortcut_matches,
        InvokeActionOperation, numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!
+       inset_bottom_right, set_cell_function!,
+       widget_list_selection, widget_list_selected
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -191,23 +192,53 @@ end
     WidgetList(position, items; selected=0, width=220, <enabled/visible>)
 
 A single-column selectable list (Qt's `QListWidget`): `items` are stringified
-rows; the `selected` row (1-based; `0` = none) draws a selection band. A click
-selects the hit row; Up/Down move the selection. Stage 6.
+rows; the selected row draws a selection band. A click selects the hit row;
+Up/Down move the selection. Stage 6.
+
+Selection lives in the standard macro-injected `selection` field, as a reference
+`items[i-1:i]` — the same representation [`WidgetTable`](@ref) uses for its rows,
+so a reader returns a `ReplaceSelectionOperation` like every other widget and an
+enclosing projection can map the reference across domains. The `selected`
+keyword is 1-based sugar (`0` = none) that builds that reference; read the
+selection back with [`widget_list_selected`](@ref).
 """
 @document struct WidgetList <: WidgetDocument
     position::Point2D
     items::CellVector
-    selected::Int
     width::Int
     visible::Bool
     enabled::Bool
+end
+
+# The canonical selection reference for row `i` (1-based); `nothing` for none.
+widget_list_selection(i::Integer) = i <= 0 ? nothing :
+    ConcreteReference(FieldReferenceStep("items"),
+        ConcreteReference(RangeReferenceStep(Int(i) - 1, Int(i)), EmptyReference()))
+
+"""
+    widget_list_selected(list) -> Int
+
+The selected row of a [`WidgetList`](@ref) as a 1-based index, or `0` when
+nothing is selected. The inverse of the `selected` construction keyword.
+"""
+function widget_list_selected(w::WidgetList)
+    sel = w.selection
+    sel isa ConcreteReference || return 0
+    h = sel.head
+    (h isa FieldReferenceStep && h.name == "items") || return 0
+    t = sel.tail
+    t isa ConcreteReference || return 0
+    r = t.head
+    r isa RangeReferenceStep || return 0
+    r.start + 1
 end
 
 function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=220,
                     visible::Bool=true, enabled::Bool=true)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
-               Cell(Int(selected)), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+               Cell(Int(width)), Cell(visible), Cell(enabled),
+               Cell(widget_list_selection(selected)))
 end
 
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────

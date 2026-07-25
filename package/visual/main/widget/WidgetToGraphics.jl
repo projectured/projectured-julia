@@ -41,7 +41,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
-                       WidgetSpinBox, WidgetList,
+                       WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation,
@@ -4326,7 +4326,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         end
         control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
         control_height = max(row_height, n * row_height)
-        sel = Int(w.selected)
+        sel = widget_list_selected(w)
         elements = Any[]
         _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
                      border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
@@ -4356,12 +4356,17 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     (w.enabled === false) && return nothing
     n = length(collect(w.items))
     n == 0 && return nothing
-    sel = Int(w.selected)
-    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? ReplaceReferencedValueOperation(w, "selected", r) : nothing)
+    sel = widget_list_selected(w)
+    # Selection is a selection: like every other widget, the reader reports it as
+    # a ReplaceSelectionOperation carrying a reference (`items[i-1:i]`), not as a
+    # write to a private index field. That is what lets an enclosing projection
+    # map the reference into its own domain (and map it back when printing).
+    pick(r) = ReplaceSelectionOperation(widget_list_selection(r))
+    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? pick(r) : nothing)
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? click_row(y) : nothing
-        when(KeyDown(k), k === :down) => ReplaceReferencedValueOperation(w, "selected", sel == 0 ? 1 : min(sel + 1, n))
-        when(KeyDown(k), k === :up)   => ReplaceReferencedValueOperation(w, "selected", sel <= 1 ? 1 : sel - 1)
+        when(KeyDown(k), k === :down) => pick(sel == 0 ? 1 : min(sel + 1, n))
+        when(KeyDown(k), k === :up)   => pick(sel <= 1 ? 1 : sel - 1)
         _ => nothing
     end
 end

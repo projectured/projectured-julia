@@ -1,6 +1,7 @@
 # Form widgets (Qt-gap Parts C/D/E): WidgetSpinBox steppers, WidgetList selection,
-# and the numeric validator. Steppers/list clicks emit ReplaceReferencedValueOperation(value
-# / selected); the validator is an acceptor the editable text reader consults.
+# and the numeric validator. Steppers emit ReplaceReferencedValueOperation(value);
+# the list reports selection as a ReplaceSelectionOperation like every other
+# widget; the validator is an acceptor the editable text reader consults.
 
 function test_widget_forms()
 @testset "WidgetSpinBox / WidgetList / validator" begin
@@ -33,10 +34,20 @@ end
     l  = WidgetList(Point2D(0, 0), ["Alpha", "Beta", "Gamma"]; selected=1)
     io = print_document(proj, l)
     rh = Int(io.output.h[]) ÷ 3
+    # Selection is reported the way every widget reports selection: a
+    # ReplaceSelectionOperation carrying an `items[i-1:i]` reference, so an
+    # enclosing projection can map it into its own domain (and back when
+    # printing). It is NOT a write to a private index field.
     pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, ModifierKeys()))           # row 2
-    @test pick2 isa ReplaceReferencedValueOperation && pick2.value == 2
-    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false)).value == 2          # 1 → 2
-    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false)).value == 1            # 1 → 1 (floor)
+    @test pick2 isa ReplaceSelectionOperation
+    @test pick2.path == widget_list_selection(2)
+    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false)).path ==
+          widget_list_selection(2)                                                         # 1 → 2
+    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false)).path ==
+          widget_list_selection(1)                                                         # 1 → 1 (floor)
+    # `selected=` sugar and `widget_list_selected` are inverses; 0 = none.
+    @test widget_list_selected(l) == 1
+    @test widget_list_selected(WidgetList(Point2D(0, 0), ["Alpha", "Beta"])) == 0
     # An empty list is inert.
     @test read_intent(proj, print_document(proj, WidgetList(Point2D(0, 0), String[])),
                           MousePress(:left, 2, 2, ModifierKeys())) === nothing
