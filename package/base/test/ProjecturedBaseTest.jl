@@ -48,11 +48,13 @@ using ProjecturedBase.ProjectionApiModule: map_reference_forward
 using ProjecturedBase.EventModule: KeyDown
 using ProjecturedBase.EventModule: ModifierKeys
 using ProjecturedBase.BoundedSyncModule
+using ProjecturedBase.DocumentReflectionModule
 using ProjecturedBase.DocumentModule: get_cell_struct_kind
 
 include("document/CollectionTest.jl")
 include("document/DocumentWalkTest.jl")
 include("document/BoundedSyncTest.jl")
+include("document/DocumentReflectionTest.jl")
 include("document/SelectionEnumeration.jl")
 include("projection/CopyingProjectionTest.jl")
 include("projection/FocusingTest.jl")
@@ -88,6 +90,7 @@ function test_base()
         test_collection()
         test_document_walk()
         test_bounded_sync()
+        test_document_reflection()
         test_copying_projection()
         test_focusing()
         test_reversing()
@@ -100,7 +103,7 @@ function test_base()
 end
 
 export test_base, test_base_layering
-export test_bounded_sync
+export test_bounded_sync, test_document_reflection
 export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections

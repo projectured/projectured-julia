@@ -79,6 +79,11 @@ include("document/DocumentCore.jl")
 # an UnsyncedDocument marker, so a shadow grows only where a consumer looked. A
 # separate method of the kernel's generic; the unbounded walk is untouched.
 include("document/BoundedSync.jl")
+# DocumentReflection — the same bound over an *arbitrary Julia object*. Bounded
+# sync needs a Document on both sides; the things worth inspecting (a live
+# engine, a model) are plain structs, so this reflects one into a ReflectedNode
+# tree and syncs that under the same policy and the same marker.
+include("document/DocumentReflection.jl")
 # Domain — the @domain macro (per-domain root/Nothing/Insertion kit + Insert
 # gesture + insertion traits) and the reflection-based completion machinery
 # (insertion_candidates / insertion_names / complete_insertion /

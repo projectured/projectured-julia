@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** in progress — Phases 1–3 done (§7). Next: §4a (reflective shadow), then Phase 4.
+**Status:** in progress — Phases 1–3 and §4a done (§7). Next: Phase 4 (rendering).
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -210,6 +210,28 @@ which is exactly what Phase 3 caps. It does reshape Phase 5, which is now two
 steps (reflect, then render) rather than one, and it moves §4's Tree-vs-
 ObjectToWidget question — the reflection is shared either way, so the choice is
 purely about presentation.
+
+**✅ Built** as `package/base/main/document/DocumentReflection.jl` +
+`DocumentReflectionTest.jl` (`test_document_reflection`, in `test_base`).
+`ReflectedNode(label, kind, value, children)`, where `children` is a `CellVector`
+when expanded, an `UnsyncedDocument` when collapsed and `nothing` for a leaf —
+the same three states `should_descend_sync` already distinguishes, so collapsing
+is just writing a marker there and no new policy concept was needed.
+
+What the build settled:
+
+- **The child interface is an iterator plus a count**, `reflect_child_pairs` /
+  `reflect_child_count`, not a vector. The first version returned a vector and
+  cost **162 KB per sync** on a 1000-element field showing four of them — the
+  bound was defeated by the act of enumerating what it was withholding. This is
+  the sharpest lesson of the phase: a cap only saves you if the code above it
+  never materialises what is capped.
+- **Measured**: a collapsed 1 000 000-element field costs the same per sync as a
+  1 000-element one (~74 KB, and the test asserts within 2×), and a small object
+  costs ~650 B per *shown* node. That is §6's "does not grow with model size"
+  criterion, met at the sync layer before any UI exists.
+- Type labels keep their parameters (`Vector{Int64}`, not `Array`) and drop
+  module qualifiers.
 
 ## 5. Open questions
 
