@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** design proposal, staged build (§7). Not started.
+**Status:** in progress — Phase 1 done (§7), Phase 2 next.
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -126,6 +126,36 @@ Either way the ask happens **with a working feature and a measurement in hand**,
 never speculatively, and per the standing rule it is a per-change review of a
 specific diff — not a blanket grant.
 
+### 3.1 What Phase 1 found: the duplication signal fired
+
+The out-of-file version works, but it is the *second* case above, not the first.
+
+The sealed walk recurses through the **two-argument** `sync_document!`, so there
+is no seam to thread a policy through: `_sync_fields!` calls `sync_document!(cur,
+sv)` and that method knows nothing of a bound. A three-argument method defined
+elsewhere cannot re-enter that recursion carrying state. So `_bounded_fields!`
+and `_bounded_elements!` **mirror** `_sync_fields!` (18 lines) and
+`_sync_elements!` (16 lines) rather than delegating — two traversals, identical
+in every decision except the policy check, that must now be kept in step by hand.
+
+`_prune!` (21 lines) is worse, and is pure workaround. When a child's type
+changes the sealed walk writes `copy_document(K, sv)`, which copies the *whole*
+subtree; `DocumentCopy.jl` is sealed too, so the bounded version cannot ask for a
+shallow one. It therefore copies everything and then walks back over the copy
+replacing what it should not have copied. That is the exact cost the feature
+exists to avoid, merely deferred to first expansion instead of paid every sync.
+
+Inside `DocumentSync.jl` none of this is needed: a `policy`/`depth` pair
+defaulted to unbounded on the three existing functions makes the bound one branch
+in the walk that is already there, and the type-change case can write a marker
+instead of copying. Roughly **-55 lines of mirrored logic, +10 in the sealed
+file**, and one traversal instead of two.
+
+Holding to the sequencing anyway: build Phases 2–3 on the out-of-file version,
+get §6's measurement, then ask with the diff. If the measurement shows `_prune!`'s
+eager copy is not actually a problem in practice, the ask gets weaker and the
+duplication may simply not be worth an unseal.
+
 ---
 
 ## 4. Tree vs ObjectToWidget — which renders it
@@ -205,12 +235,29 @@ inspector still needs a hand-written view to be usable, the answer is no.
 `sync_document!` callers keep byte-identical behaviour; `test_visual` and
 `test_kernel` stay green.
 
-### Phase 1 — the marker + bounded sync
+### Phase 1 — the marker + bounded sync ✅ done
 `UnsyncedDocument`, `SyncPolicy`, `DepthPolicy`, and
 `sync_document!(shadow, source, policy)` in a new unsealed file. No consumer yet.
 *Verify: a depth-bounded sync of a deep nested document produces markers at the
 bound and leaves ancestors identical to an unbounded sync; an unbounded policy
 reproduces today's result exactly.*
+
+Built as `package/base/main/document/BoundedSync.jl` +
+`package/base/test/document/BoundedSyncTest.jl` (`test_bounded_sync`, wired into
+`test_base`). 39 assertions green; `test_base` 197/197. What the build settled:
+
+- **The unbounded policy delegates**, so "reproduces today's result exactly" is
+  true by construction rather than by test — and §5's worry about the per-node
+  policy check slowing an unbounded sync is answered: there is no check on that
+  path. The test still compares both walks, because the guarantee is only as good
+  as the delegation, and a later "optimisation" could quietly remove it.
+- **Identity holds across a bounded sync** (asserted directly): a same-type child
+  is synced in place, so a widget holding a node still holds it afterwards. This
+  is the premise §1 rests on for keeping expansion state in the shadow.
+- **`@document` appends a `selection` field to every document**, so a marker's
+  `size` for a record is `fieldcount - 1`. Counting raw fields misreports every
+  label by one — caught by the test, not by inspection.
+- **The bounded walk mirrors rather than delegates per level**, see §3 below.
 
 ### Phase 2 — requests
 `requested` honoured: flagging a marker fills that node one level on the next

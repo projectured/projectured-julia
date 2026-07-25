@@ -75,6 +75,10 @@ include("backend/DefaultBackend.jl")
 include("document/Collection.jl")
 include("document/Primitive.jl")
 include("document/DocumentCore.jl")
+# BoundedSync — a policy-taking `sync_document!` that stops at a bound and leaves
+# an UnsyncedDocument marker, so a shadow grows only where a consumer looked. A
+# separate method of the kernel's generic; the unbounded walk is untouched.
+include("document/BoundedSync.jl")
 # Domain — the @domain macro (per-domain root/Nothing/Insertion kit + Insert
 # gesture + insertion traits) and the reflection-based completion machinery
 # (insertion_candidates / insertion_names / complete_insertion /
