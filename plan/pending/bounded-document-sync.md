@@ -98,16 +98,33 @@ so a long inspection session does not accumulate the whole model.
 
 `package/kernel/main/document/DocumentSync.jl` is **🔒 sealed**.
 
-**The design deliberately does not touch it.** `sync_document!` is a generic
-function, so the policy-taking methods can live in a new, unsealed file — most
-naturally `package/base/main/document/BoundedSync.jl`, beside the existing
-unsealed document code. The sealed 2-argument `sync_document!(shadow, source)`
-keeps its exact current behaviour and is what the 3-argument version calls once
-it decides to descend fully.
+**Phase 1–5 do not touch it.** `sync_document!` is a generic function, so the
+policy-taking methods can live in a new, unsealed file — most naturally
+`package/base/main/document/BoundedSync.jl`, beside the existing unsealed
+document code. The sealed 2-argument `sync_document!(shadow, source)` keeps its
+exact current behaviour and is what the 3-argument version calls once it decides
+to descend fully.
 
-If the build discovers that the bounded version genuinely cannot be written
-without re-entering the sealed recursion, that is a **stop-and-ask** point, not
-something to work around quietly.
+**The user is open to unsealing it if the feature proves out** — bounded sync is
+something they have wanted, with no occasion for it until now. That is
+*conditional*, and the condition is the point: build it beside the sealed file
+first, demonstrate the value with §6's acceptance test, and only then come back
+with evidence and ask.
+
+So the sequencing is deliberate, not timid:
+
+- **If the out-of-file version is clean**, leave it there. A generic function
+  extended from an unsealed file is not a workaround; it is how Julia is meant
+  to work, and it keeps the audited file audited.
+- **If it turns out to duplicate the sealed recursion** — i.e. the bounded walk
+  has to re-implement `_sync_fields!` / `_sync_elements!` rather than delegate to
+  them — then the honest implementation lives *inside* `DocumentSync.jl`, and
+  that is when to ask. Duplicated traversal logic that must stay in step with a
+  sealed file is worse than editing the sealed file with permission.
+
+Either way the ask happens **with a working feature and a measurement in hand**,
+never speculatively, and per the standing rule it is a per-change review of a
+specific diff — not a blanket grant.
 
 ---
 
