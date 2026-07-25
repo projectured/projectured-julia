@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** in progress — Phases 1–2 done (§7), Phase 3 next.
+**Status:** in progress — Phases 1–3 done (§7). Next: §4a (reflective shadow), then Phase 4.
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -190,6 +190,27 @@ remains the fallback if `ObjectToWidget`'s density turns out to be unworkable.
 
 ---
 
+## 4a. The gap Phase 3 exposed: the engine is not a document
+
+`sync_document!` — bounded or not — requires **both sides to be `Document`s**. A
+`SequentialSimulator`, a `RoutingModel`, a `Recorder` are ordinary Julia structs.
+So there is no shadow of the engine to bound in the first place, which is the
+real reason the workbench hand-wrote `SimulationExecutionView` rather than
+shadowing anything.
+
+So §6 needs one more piece: a **reflective bounded shadow** — walk an arbitrary
+Julia object and produce a generic document tree (a node with a label, a value
+and a child collection), bounded by the same policy and marked by the same
+`UnsyncedDocument`. That is the reflection `ObjectToWidget` already performs,
+emitting documents instead of widgets.
+
+This does not change Phases 1–3, and the element cap becomes *more* load-bearing
+under it: in a reflected tree an engine's 1345-entry array is a child collection,
+which is exactly what Phase 3 caps. It does reshape Phase 5, which is now two
+steps (reflect, then render) rather than one, and it moves §4's Tree-vs-
+ObjectToWidget question — the reflection is shared either way, so the choice is
+purely about presentation.
+
 ## 5. Open questions
 
 - **Does a marker need to remember its source?** Filling it in requires the
@@ -282,11 +303,27 @@ Verified, and it forced two design changes that §2.3 had not anticipated.
   about the eager copy is answered without touching `DocumentCopy.jl` — the same
   unsealed-extension trick as the sync. The mirrored-traversal complaint stands.
 
-### Phase 3 — collection cap
+### Phase 3 — collection cap ✅ done
 Large collections sync a prefix and mark the tail. This is what makes a 1345-
 element engine array survivable.
 *Verify: a 10 000-element vector syncs in bounded time; the marker reports the
 remaining count.*
+
+`DepthPolicy` gained `elements` (default 32) and a second hook,
+`sync_element_limit(policy, total, shown, requested)`, deliberately *not* folded
+into `should_descend_sync` — "how many siblings" and "descend into this one" are
+different questions and a policy may well answer them independently.
+
+The hook's shape repeats Phase 2's rule one dimension over: what is already shown
+stays shown, and a request buys **one more page** rather than the whole tail.
+Verified on a 10 000-element vector — 8 shown, tail marker reporting 9 992, and
+re-syncing allocates under 100 KB, so the cost tracks what is displayed rather
+than what exists.
+
+One implementation note worth keeping: the capped copy builds with
+`similar(v, 0)`, not a comprehension. A collection document declares its backing
+vector's element type (`Vector{Cell}`), and an `Any[]` fails the type assert on
+first index — which is how it was found.
 
 ### Phase 4 — rendering
 Whichever of §4 wins. A marker renders as a collapsed node with a chevron whose
@@ -294,7 +331,8 @@ toggle writes `requested`.
 *Verify: a headless test drives expand → sync → deeper node appears.*
 
 ### Phase 5 — the omnetpp inspector
-The two cards of §6, in the workbench, scroll-paned like Topology.
+The two cards of §6, in the workbench, scroll-paned like Topology — preceded by
+the reflective bounded shadow of §4a, without which there is nothing to render.
 *Verify: opening on a 57-node routing instance is bounded; drilling to a
 per-node queue works; the per-slice sync cost does not grow with model size —
 measured, not assumed.*

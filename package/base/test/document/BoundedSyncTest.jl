@@ -165,6 +165,54 @@ end
     end
 end
 
+# ── The element cap: what makes a thousand-entry array survivable ─────────
+# Depth alone does not save you. A big array is one level down, so a walk bounded
+# only by depth still touches every entry of it.
+@testset "a large collection syncs a prefix and marks the tail" begin
+    big = CellVector([sync_chain(2) for _ in 1:10_000])
+    policy = DepthPolicy(depth = 2, elements = 8)
+
+    shadow = copy_document(get_cell_struct_kind(big), big, policy)
+    @test length(shadow) == 9                      # 8 elements + one tail marker
+    tail = shadow[9]
+    @test tail isa AbstractUnsyncedDocument
+    @test tail.size == 9_992                       # ...which says how many are behind it
+
+    sync_document!(shadow, big, policy)            # and syncing changes nothing
+    @test length(shadow) == 9
+    @test shadow[9] === tail
+
+    # the cost is the point: touching 8 of 10 000 must not scale with the 10 000
+    n = @allocated sync_document!(shadow, big, policy)
+    @test n < 100_000
+end
+
+@testset "requesting the tail buys one more page" begin
+    big = CellVector([sync_chain(1) for _ in 1:100])
+    policy = DepthPolicy(depth = 1, elements = 10)
+    shadow = copy_document(get_cell_struct_kind(big), big, policy)
+
+    for shown in (20, 30, 40)
+        request_sync!(shadow[length(shadow)])
+        sync_document!(shadow, big, policy)
+        @test length(shadow) == shown + 1
+        @test shadow[shown + 1].size == 100 - shown
+        @test !shadow[shown + 1].requested         # the request is spent, not sticky
+    end
+end
+
+@testset "a collection shorter than the cap has no tail marker" begin
+    small = CellVector([sync_chain(1) for _ in 1:3])
+    policy = DepthPolicy(depth = 2, elements = 8)
+    shadow = copy_document(get_cell_struct_kind(small), small, policy)
+
+    @test length(shadow) == 3
+    @test !any(e -> e isa AbstractUnsyncedDocument, shadow)
+
+    pop!(small); sync_document!(shadow, small, policy)   # and it tracks a shrinking source
+    @test length(shadow) == 2
+end
+
 # ── Requests: the drill-down, one level per interaction ───────────────────
 # This is the mechanism's whole point — the shadow grows only where someone
 # looked, and it grows a level at a time rather than all at once.
