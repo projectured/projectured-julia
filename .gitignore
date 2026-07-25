@@ -17,3 +17,6 @@ asset/image/baseline-shadcn/
 # dev env is the repo root project (root Manifest.toml stays tracked).
 package/*/test/Manifest.toml
 package/*/example/Manifest.toml
+
+# Generated run output (vector files, plots) — never source.
+results/
