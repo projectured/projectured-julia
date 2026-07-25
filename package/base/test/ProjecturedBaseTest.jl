@@ -48,6 +48,7 @@ using ProjecturedBase.ProjectionApiModule: map_reference_forward
 using ProjecturedBase.EventModule: KeyDown
 using ProjecturedBase.EventModule: ModifierKeys
 using ProjecturedBase.BoundedSyncModule
+using ProjecturedBase.DocumentModule: get_cell_struct_kind
 
 include("document/CollectionTest.jl")
 include("document/DocumentWalkTest.jl")

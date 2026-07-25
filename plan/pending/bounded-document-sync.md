@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** in progress — Phase 1 done (§7), Phase 2 next.
+**Status:** in progress — Phases 1–2 done (§7), Phase 3 next.
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -138,18 +138,15 @@ and `_bounded_elements!` **mirror** `_sync_fields!` (18 lines) and
 `_sync_elements!` (16 lines) rather than delegating — two traversals, identical
 in every decision except the policy check, that must now be kept in step by hand.
 
-`_prune!` (21 lines) is worse, and is pure workaround. When a child's type
-changes the sealed walk writes `copy_document(K, sv)`, which copies the *whole*
-subtree; `DocumentCopy.jl` is sealed too, so the bounded version cannot ask for a
-shallow one. It therefore copies everything and then walks back over the copy
-replacing what it should not have copied. That is the exact cost the feature
-exists to avoid, merely deferred to first expansion instead of paid every sync.
+Phase 2 then added a third mirror, `_bounded_copy`, against
+`copy_document(K, doc)` in the equally sealed `DocumentCopy.jl` — same shape,
+same reason. (It replaced a worse `_prune!` that copied the whole subtree and
+walked back over it; the mirror is the honest version.)
 
-Inside `DocumentSync.jl` none of this is needed: a `policy`/`depth` pair
-defaulted to unbounded on the three existing functions makes the bound one branch
-in the walk that is already there, and the type-change case can write a marker
-instead of copying. Roughly **-55 lines of mirrored logic, +10 in the sealed
-file**, and one traversal instead of two.
+Inside the sealed files none of this is needed: a `policy`/`depth` pair defaulted
+to unbounded on the existing functions makes the bound one branch in the walks
+that are already there. Roughly **-70 lines of mirrored logic, +15 in the sealed
+files**, and one traversal of each kind instead of two.
 
 Holding to the sequencing anyway: build Phases 2–3 on the out-of-file version,
 get §6's measurement, then ask with the diff. If the measurement shows `_prune!`'s
@@ -259,12 +256,31 @@ Built as `package/base/main/document/BoundedSync.jl` +
   label by one — caught by the test, not by inspection.
 - **The bounded walk mirrors rather than delegates per level**, see §3 below.
 
-### Phase 2 — requests
+### Phase 2 — requests ✅ done
 `requested` honoured: flagging a marker fills that node one level on the next
 sync, writing fresh markers below. Collapsing restores a marker.
 *Verify: expand/collapse cycles converge — the shadow after expand-then-collapse
 equals the shadow before; repeated expansion walks down a chain one level per
 sync.*
+
+Verified, and it forced two design changes that §2.3 had not anticipated.
+
+- **The shadow decides, not the depth.** The first attempt consulted the depth
+  for every slot and honoured `requested` as an override. It *oscillated*: a
+  request materialises a node past the bound, and the next sync sees a real node
+  past the bound and collapses it again — expand, collapse, expand, forever. The
+  rule is now three cases, and only the third is the bound: a marker descends iff
+  `requested`; a slot already holding a document is kept whatever its depth; an
+  **empty** slot faces the depth. So `depth` means "where growth starts", not
+  "the deepest anyone may see" — and collapse becomes symmetric at every level,
+  including inside the bound, which the depth-first rule got wrong too.
+- **A shadow must be born bounded**, hence `copy_document(kind, doc, policy)`.
+  Once the shadow is authoritative, a shadow made by the ordinary full copy has
+  already grown everything and the bound has nothing left to withhold. This also
+  **deletes `_prune!`**: materialising a request builds only to the bound instead
+  of copying the whole subtree and walking back over it, so §3.1's complaint
+  about the eager copy is answered without touching `DocumentCopy.jl` — the same
+  unsealed-extension trick as the sync. The mirrored-traversal complaint stands.
 
 ### Phase 3 — collection cap
 Large collections sync a prefix and mark the tail. This is what makes a 1345-
