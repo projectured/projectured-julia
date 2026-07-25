@@ -177,6 +177,27 @@ bulk of the work and is exactly what we do not want to hand-write for
 depth-recursion stops being a liability, because there is little to recurse
 *into*.
 
+**✅ Decided — `WidgetTree`.** §4a inverted the argument. The leaning above rested
+entirely on `ObjectToWidget` already doing the reflection; now
+`DocumentReflection` does it, ahead of any widget, and both candidates render the
+same `ReflectedNode` tree. What is left of the table is density — one compact row
+per node versus a card per node — and for an inspector meant to be drilled into,
+that is not close. `ObjectToWidget` also brings editability, which is the wrong
+affordance for a running engine's internals.
+
+The wiring, from reading `WidgetToGraphics`:
+
+- A tree chevron already emits `ReplaceReferencedValueOperation(tree, "collapsed",
+  next_set)`. The reader diffs old against new to find the one toggled path, maps
+  it to a `ReflectedNode`, and either `request_sync!`s that node's marker or
+  writes a marker back — then swallows the operation. The printer derives
+  `collapsed` from the domain (a node whose `children` is a marker is collapsed),
+  which is the same round-trip discipline the workbench's selection uses.
+- A collapsed node has no materialised children, but the flattener draws a
+  chevron only when `!isempty(children)`. So a marker node emits **one placeholder
+  child** carrying the marker's summary ("1000 items"). It is never rendered — the
+  path is in `collapsed` — it exists so the chevron is there to click.
+
 **But** it needs an expansion affordance it does not have today. Two ways:
 
 - **(a)** Give `ObjectToWidget` a chevron per composite value that toggles the
