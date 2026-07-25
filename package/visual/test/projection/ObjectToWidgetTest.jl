@@ -192,4 +192,17 @@ end # @testset
     @test WidgetCard(Point2D(0, 0); title="t", content="c").collapsed == false
 end # @testset
 
+@testset "WidgetCard height: content-tall by default, fixed when given" begin
+    proj = make_widget_projection_example()
+    # height = 0 (default) wraps the content...
+    auto = WidgetCard(Point2D(0, 0); title="t", content="c")
+    @test auto.height == 0
+    auto_h = Int(print_document(proj, auto).output.h[])
+    @test auto_h > 0
+    # ...while a positive height is taken literally, so a scrolling body has a
+    # bounded allocation to scroll inside instead of extending past the border.
+    fixed = WidgetCard(Point2D(0, 0); title="t", content="c", height = auto_h + 200)
+    @test Int(print_document(proj, fixed).output.h[]) == auto_h + 200
+end # @testset
+
 end # test_object_to_widget

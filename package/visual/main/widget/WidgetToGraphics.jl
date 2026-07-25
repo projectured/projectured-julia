@@ -3450,7 +3450,9 @@ function _card_build(p, w, ctx, tim, cim)
         max_content_width = max(max_content_width, footer_width); y += footer_height
     end
     card_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
-    card_height = y + padding
+    # A fixed card is exactly its declared height; a content-tall one grows to fit.
+    fixed_height = _sc(Int(w.height))
+    card_height = fixed_height > 0 ? fixed_height : y + padding
     # Card surface drawn first (behind content).
     surface = Any[]
     _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,

@@ -1200,13 +1200,30 @@ Cards left at the default `collapsed=false` render exactly as before.
     content::Any
     footer::Any
     width::Int
+    height::Int
     visible::Bool
     collapsed::Bool
 end
+
+"""
+    WidgetCard(position; title, description, content, footer, width=320, height=0, ...)
+
+`height = 0` (the default) is **content-tall**: the card wraps whatever its
+content measures, and its content is laid out with no height allocation. A
+positive `height` makes the card **fixed**: it is exactly that tall regardless of
+its content, and the content is given the remaining interior height to fill.
+
+Fixed height is what lets a scrolling body work — a `WidgetScrollPane` (or any
+widget that wants an allocation to scroll within) needs a bounded height to
+scroll *inside*; in the content-tall mode there is nothing to scroll against, so
+tall content simply extends past the card.
+"""
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
-           footer=nothing, width::Integer=320, visible::Bool=true, collapsed::Bool=false) =
+           footer=nothing, width::Integer=320, height::Integer=0,
+           visible::Bool=true, collapsed::Bool=false) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
-               Cell(footer), Cell(Int(width)), Cell(visible), Cell(collapsed), Cell(nothing))
+               Cell(footer), Cell(Int(width)), Cell(Int(height)),
+               Cell(visible), Cell(collapsed), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
