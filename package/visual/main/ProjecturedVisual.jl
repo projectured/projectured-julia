@@ -78,6 +78,8 @@ const CollectionModule = ProjecturedBase.CollectionModule
 const PrimitiveModule = ProjecturedBase.PrimitiveModule
 const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 const DomainModule = ProjecturedBase.DomainModule
+const BoundedSyncModule = ProjecturedBase.BoundedSyncModule
+const DocumentReflectionModule = ProjecturedBase.DocumentReflectionModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const EventModule = ProjecturedKernel.EventModule
@@ -206,6 +208,9 @@ include("widget/Widget.jl")
 include("layout/LayoutToGraphics.jl")
 include("widget/WidgetToGraphics.jl")
 include("widget/ObjectToWidget.jl")
+# ReflectionToWidget — a bounded reflected-object shadow as a WidgetTree, where a
+# chevron drives the sync (requests a marker) rather than merely hiding a row.
+include("widget/ReflectionToWidget.jl")
 include("widget/CellTableToWidgetTable.jl")
 include("widget/WidgetHoverTracking.jl")
 include("widget/ProjectionConfiguring.jl")

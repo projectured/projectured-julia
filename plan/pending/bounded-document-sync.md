@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** in progress — Phases 1–3 and §4a done (§7). Next: Phase 4 (rendering).
+**Status:** in progress — Phases 1–4 and §4a done (§7). Next: Phase 5 (the omnetpp inspector).
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -368,10 +368,24 @@ One implementation note worth keeping: the capped copy builds with
 vector's element type (`Vector{Cell}`), and an `Any[]` fails the type assert on
 first index — which is how it was found.
 
-### Phase 4 — rendering
+### Phase 4 — rendering ✅ done
 Whichever of §4 wins. A marker renders as a collapsed node with a chevron whose
 toggle writes `requested`.
 *Verify: a headless test drives expand → sync → deeper node appears.*
+
+`package/visual/main/widget/ReflectionToWidget.jl` + `ReflectionToWidgetTest.jl`
+(`test_reflection_to_widget`, in `test_visual`). 19 assertions; `test_visual`
+49 228/49 229 with the one pre-existing `@test_broken`.
+
+The round trip came out as §4 predicted, with one wrinkle worth keeping: the
+printer *derives* `collapsed` from the shadow and the reader swallows the
+chevron's write, so the widget never holds a second copy of the expansion state.
+The wrinkle is that `WidgetTree` draws a chevron only for a node with children,
+and a collapsed node has none — so a marker node emits one placeholder child
+carrying the marker's summary ("100 items not loaded"). It is never rendered,
+since its parent's path is in `collapsed`; it exists so there is a chevron to
+click. That also gives the collapsed row somewhere to state what it is hiding,
+which turned out to read better than a bare chevron.
 
 ### Phase 5 — the omnetpp inspector
 The two cards of §6, in the workbench, scroll-paned like Topology — preceded by

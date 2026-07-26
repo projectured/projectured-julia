@@ -37,6 +37,10 @@ using ProjecturedBaseTest
 # mirrored Fixtures.jl copies are gone (plan/done/example-package-split.md).
 using ProjecturedVisualExample
 import ProjecturedBaseTest: _text_leaf_length
+using ProjecturedBase.BoundedSyncModule
+using ProjecturedBase.DocumentReflectionModule
+using ProjecturedVisual.ReflectionToWidgetModule
+using ProjecturedVisual.OperationModule: ReplaceReferencedValueOperation
 
 # The tests below were written against the flat `Projectured` namespace. Build
 # the same flat namespace over this package's three main-package sources — one
@@ -83,6 +87,7 @@ include("projection/SelectionInvertingTest.jl")
 
 # ── widget projections ───────────────────────────────────────────────────────
 include("projection/ObjectToWidgetTest.jl")
+include("projection/ReflectionToWidgetTest.jl")
 include("projection/ProjectionConfiguringTest.jl")
 include("projection/CellTableToWidgetTableTest.jl")
 include("projection/WidgetTextEditTest.jl")
@@ -180,6 +185,7 @@ function test_visual()
         test_selection_inverting()
         # widget projections
         test_object_to_widget()
+        test_reflection_to_widget()
         test_projection_configuring()
         test_cell_table_to_widget_table()
         test_widget_text_editing()
@@ -233,6 +239,7 @@ export test_projection_template_hygiene, test_projection_template_fixed_children
 export test_syntax_to_text, test_primitive_to_text, test_text_to_graphics,
        test_word_wrapping, test_text_filtering, test_text_highlighting,
        test_selection_inverting
+export test_reflection_to_widget
 export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
