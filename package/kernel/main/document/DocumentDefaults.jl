@@ -1,13 +1,37 @@
 # Fragment of `DocumentModule` — the default behaviours every document inherits
 # unless it overrides them: the two walk-steering traits (`is_element_collection`
-# / `is_walk_opaque`, declared in `DocumentInterface.jl`) and the depth-limited
-# debug `show`. The trait defaults keep the walk from ever naming a concrete
+# / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
+# for the three sync/copy policy hooks, and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
 # collection type — a document opts into a shape by overriding one, and the walk
 # reads the shape off the trait, so it sits below every collection it descends.
 
 is_element_collection(value) = false
 is_walk_opaque(value) = false
 is_collection_field_type(::Val) = false
+
+"""
+    HiddenElements(source, from, to)
+
+The elements a bounded walk is *not* keeping, handed to `unsynced_placeholder`
+without copying them. An `AbstractVector`, so a policy can `length` it and look
+at one element for a label; a positional collection document is not `view`-able,
+which is why this exists rather than a `SubArray`.
+"""
+struct HiddenElements{S} <: AbstractVector{Any}
+    source::S
+    from::Int
+    to::Int
+end
+Base.size(h::HiddenElements) = (max(0, h.to - h.from + 1),)
+Base.getindex(h::HiddenElements, i::Int) = h.source[h.from + i - 1]
+
+# The unbounded default: descend everywhere, keep every element, and so never
+# reach the third. A policy overriding these is what bounds a sync or a copy —
+# the walks in `DocumentSync.jl` / `DocumentCopy.jl` consult them at every child.
+should_descend_sync(policy, depth::Int, slot) = true
+sync_element_limit(policy, source, shadow) = length(source)
+unsynced_placeholder(policy, source, current) =
+    error("unsynced_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
 
 # A plain type is its own family — its type-name wrapper. `@document` overrides this
 # per schema so all variant layouts of one schema (the isbits stem, the native

@@ -87,12 +87,16 @@ uniformly:
   **positional collection** (`is_element_collection`) syncs its elements by index
   through the vector protocol.
 
-A shadow of something *large* has a matching problem — a full walk per frame of
-an object with thousand-entry collections is wasted work. `ProjecturedBase` adds
-a policy-taking method of the same generic that stops at a bound and leaves a
-marker where it stopped, so the shadow grows only where a consumer looked; see
-[bounded-sync.md](../../base/doc/bounded-sync.md). The two-argument walk
-documented here is untouched, and an unbounded policy delegates straight to it.
+Both walks are optionally **bounded**. A full walk per frame of an object with
+thousand-entry collections is wasted work, so `sync_document!` and
+`copy_document` take a `policy` and consult three generics at every child —
+`should_descend_sync`, `sync_element_limit`, `unsynced_placeholder` (declared in
+`DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
+`nothing` descends everywhere and keeps every element, so an un-policed walk is
+the walk described above and pays nothing for the option. This layer never names
+a marker *type*: it asks the policy what stands where it stopped. `base` supplies
+the one implementation — see
+[bounded-sync.md](../../base/doc/bounded-sync.md).
 
 Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own kind;
 the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are

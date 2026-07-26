@@ -96,6 +96,39 @@ its elements by index through the vector protocol.
 function sync_document! end
 
 """
+    should_descend_sync(policy, depth, slot) -> Bool
+    sync_element_limit(policy, source, shadow) -> Int
+    unsynced_placeholder(policy, source, current) -> value
+
+The **bound** on a sync or a copy. `sync_document!`/`copy_document` consult these
+at every child; the default policy (`nothing`) answers "descend", "take them all"
+and never reaches the third, so an un-policed walk is the whole walk.
+
+A policy that answers otherwise makes the walk stop, and
+`unsynced_placeholder` supplies what stands where it stopped — a marker the
+policy's owner understands. That keeps the marker's *type* out of this layer:
+the walk knows only that something goes in the slot.
+
+`depth` is the child's depth (1 for a root's children). `slot` is what occupies
+it now — including a placeholder the policy itself put there, which is how a
+policy recognises "already stopped here" and how a consumer's request to go
+deeper reaches the walk. `unsynced_placeholder` likewise receives `current` so a
+policy can hand back the placeholder already standing there rather than a fresh
+one, leaving the shadow's identity alone.
+
+`sync_element_limit` is given the whole source and shadow rather than counts,
+because how many elements to keep depends on what the shadow already holds —
+including whether its trailing placeholder was flagged — and that is the
+policy's own bookkeeping, not this layer's.
+
+Defaults in `DocumentDefaults.jl`; see `package/base/doc/bounded-sync.md`
+for the policy `base` supplies.
+"""
+function should_descend_sync end
+function sync_element_limit end
+function unsynced_placeholder end
+
+"""
     search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector
     search_documents(obj, query::Union{AbstractString,Regex}; …)                      -> Vector
 

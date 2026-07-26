@@ -6,6 +6,11 @@
 #   copy_document(doc)     -> Document              # preserve every cell's kind
 #   copy_document(K, doc)  -> Document              # rebuild every cell as kind K
 #
+# The kinded form is optionally **bounded** by a `policy` (see
+# `DocumentInterface.jl`), which is what lets a shadow be *born* stopping short
+# of a large subtree rather than copied whole and cut back. The default policy
+# (`nothing`) descends everywhere, so an un-policed copy is the whole copy.
+#
 # The walk is generic over structure — struct fields (`fieldnames`), Vector
 # elements, and per-slot cells inside a Vector are all traversed uniformly.
 
@@ -45,13 +50,35 @@ end
 # typed field may actually hold `nothing`, and `ImmutableCell{SomeType}(nothing)`
 # would be unconstructable; it lands on `ImmutableCell{Nothing}` instead (still
 # type-stable, just off the alias). Contract at `copy_document` in `DocumentInterface.jl`.
-copy_document(::Type{<:AbstractCell}, value) = value
+copy_document(::Type{<:AbstractCell}, value, policy = nothing, depth::Int = 0) = value
 
-copy_document(K::Type{<:AbstractCell}, v::AbstractVector) =
-    [copy_document(K, x) for x in v]
+copy_document(K::Type{<:AbstractCell}, v::AbstractVector, policy = nothing, depth::Int = 0) =
+    _copy_elements(K, v, policy, depth)
 
-function copy_document(K::Type{<:AbstractCell}, c::AbstractCell)
-    v = copy_document(K, c[])
+# A bounded element copy has to preserve the source vector's element type (a
+# collection document declares `Vector{Cell}`), so it builds with `similar`
+# rather than a comprehension, and stops after `sync_element_limit` with one
+# placeholder standing for the tail.
+function _copy_elements(K, v::AbstractVector, policy, depth)
+    policy === nothing && return [copy_document(K, x) for x in v]
+    n = length(v)
+    limit = sync_element_limit(policy, v, ())
+    out = similar(v, 0)
+    for i in 1:min(limit, n)
+        push!(out, copy_document(K, v[i], policy, depth))
+    end
+    if limit < n
+        m = unsynced_placeholder(policy, HiddenElements(v, limit + 1, n), nothing)
+        # Wrapped exactly as a copied element would be — a slot-celled vector
+        # (`Vector{Cell}`) cannot hold a bare document.
+        push!(out, v[limit + 1] isa AbstractCell ?
+                   K{K === ReactiveCell ? Any : typeof(m)}(m) : m)
+    end
+    out
+end
+
+function copy_document(K::Type{<:AbstractCell}, c::AbstractCell, policy = nothing, depth::Int = 0)
+    v = copy_document(K, c[], policy, depth)
     Tv = K === ReactiveCell ? Any : typeof(v)
     K{Tv}(v)
 end
@@ -71,20 +98,20 @@ function _kinded_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
     v isa Td ? Td : typeof(v)
 end
 
-function copy_document(K::Type{<:AbstractCell}, doc::Document)
+function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing, depth::Int = 0)
     T = typeof(doc)
     base = Base.typename(T).wrapper
     Ts = _declared_value_types(base)
     args = Any[]
     for (i, nm) in enumerate(fieldnames(T))
         raw = getfield(doc, nm)
-        if raw isa AbstractCell
-            v = copy_document(K, raw[])
-            Tv = _kinded_value_type(K, Ts, i, v)
-            push!(args, K{Tv}(v))
-        else
-            push!(args, copy_document(K, raw))
-        end
+        inner = raw isa AbstractCell ? raw[] : raw
+        # A document-valued child faces the bound; anything else is a leaf or a
+        # container the walk copies through.
+        v = inner isa Document && !should_descend_sync(policy, depth + 1, nothing) ?
+            unsynced_placeholder(policy, inner, nothing) :
+            copy_document(K, inner, policy, depth + 1)
+        push!(args, raw isa AbstractCell ? K{_kinded_value_type(K, Ts, i, v)}(v) : v)
     end
     base(args...)
 end

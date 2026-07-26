@@ -26,9 +26,10 @@ import ..CellModule: Cell, MutableCell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector
+import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
+                         HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AbstractUnsyncedDocument,
-                            UnsyncedDocument, should_descend_sync,
-                            sync_element_limit, unsynced_marker, _tail_marker
+                            UnsyncedDocument, unsynced_marker
 
 export ReflectedNode, AbstractReflectedNode,
        reflect_document, sync_reflection!,
@@ -221,16 +222,21 @@ function _sync_reflected_children!(kids, object, policy::SyncPolicy, depth::Int)
         pop!(kids)
     end
     limit < ns || return kids
-    rest = ns - limit
     cur = length(kids) >= want ? kids[want] : nothing
-    if cur isa AbstractUnsyncedDocument
-        cur.size == rest || (cur.size = rest)
-        cur.requested = false                         # the request is spent
-    else
-        m = _tail_marker(first_hidden, rest)
-        length(kids) >= want ? (kids[want] = m) : push!(kids, m)
-    end
+    # The same placeholder the kernel walk would ask for, so a reflected tail and
+    # a real collection's tail behave identically.
+    new = unsynced_placeholder(policy, HiddenElements(_Repeated(first_hidden), 1, ns - limit), cur)
+    new === cur && return kids
+    length(kids) >= want ? (kids[want] = new) : push!(kids, new)
     kids
 end
+
+# The hidden children are produced by an iterator, not indexed out of a
+# container, so there is nothing for `HiddenElements` to index into — only the
+# first of them, which is all a placeholder needs for its label.
+struct _Repeated
+    value::Any
+end
+Base.getindex(r::_Repeated, ::Int) = r.value
 
 end # module

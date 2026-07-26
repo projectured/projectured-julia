@@ -55,7 +55,7 @@ materialise.
 
 ```julia
 should_descend_sync(policy, depth, shadow_slot) -> Bool
-sync_element_limit(policy, total, shown, requested) -> Int
+sync_element_limit(policy, source, shadow) -> Int
 ```
 
 `DepthPolicy(depth = 1, elements = 32)` is the general answer. Its rule is three
@@ -84,6 +84,7 @@ rather than the whole tail.
 copy_document(kind, document, policy) -> Document
 ```
 
+`copy_document(kind, doc, policy)` is sugar for the four-argument kernel form.
 Because the shadow is authoritative for everything except empty slots, it has to
 be **born** bounded. A shadow made by the ordinary full `copy_document` has
 already grown everything, and a bound can only withhold what has not been grown
@@ -135,20 +136,40 @@ node that has children, and a collapsed node has none, so a marker node emits a
 single placeholder child carrying the marker's summary. It is never rendered; it
 exists so there is a chevron to click.
 
-## Relationship to the unbounded walk
+## Where the walk lives
 
-`sync_document!(shadow, source, policy)` and `copy_document(kind, doc, policy)`
-are methods of the kernel's generics, defined in
-[BoundedSync.jl](../main/document/BoundedSync.jl) outside the sealed
-`DocumentSync.jl` / `DocumentCopy.jl`. `UNBOUNDED_SYNC` delegates straight to the
-unbounded method, so today's behaviour is preserved by construction rather than
-imitated — and there is no policy check on that path to slow it down.
+**In the kernel, and there is only one of it.** Bounding is a *parameter* of
+`sync_document!` / `copy_document`, not a second traversal beside them:
 
-The bounded walk cannot delegate *per level*, because the unbounded one recurses
-through the two-argument `sync_document!` and so has no way to carry a policy
-down. It therefore **mirrors** that walk's structure — same-type children synced
-in place, leaves written only when changed, collections matched by index — while
-consulting the policy at each child. Two traversals that must be kept in step by
-hand is a real cost, and the case for folding the bound into the sealed files
-instead is recorded in
-[plan/pending/bounded-document-sync.md](../../../plan/pending/bounded-document-sync.md) §3.
+```julia
+sync_document!(shadow, source, policy = nothing, depth = 0)
+copy_document(kind, document, policy = nothing, depth = 0)
+```
+
+The kernel consults three generics at every child, declared in
+`DocumentInterface.jl` with unbounded defaults in `DocumentDefaults.jl`:
+
+| | |
+|---|---|
+| `should_descend_sync(policy, depth, slot)` | descend, or stop here? |
+| `sync_element_limit(policy, source, shadow)` | how many elements to keep |
+| `unsynced_placeholder(policy, source, current)` | what stands where it stopped |
+
+`policy = nothing` answers "descend" and "keep them all" and so never reaches the
+third — an un-policed walk is exactly the walk it always was, and pays nothing
+for the option.
+
+Crucially the kernel never names `UnsyncedDocument` or `DepthPolicy`. It knows
+only that *something* goes in the stopped slot, and asks the policy for it; the
+marker type and the depth rule stay in this package. `HiddenElements` is the one
+piece of vocabulary the contract needs — the elements a capped walk is not
+keeping, handed over without copying them, since a positional collection document
+is not `view`-able.
+
+An earlier version put a second, bounded walk in
+[BoundedSync.jl](../main/document/BoundedSync.jl) beside the sealed one. It
+worked, but it mirrored `_sync_fields!` / `_sync_elements!` / `copy_document`
+line for line — two traversals differing only by a policy check, kept in step by
+hand — and it could only reach the kinded-copy machinery by importing kernel
+internals, which the module boundary forbids. Folding the bound in removed ~150
+lines from this package and that violation with them.

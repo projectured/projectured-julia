@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** complete — Phases 1–6 and §4a done (§7). One open decision: §3's unsealing ask.
+**Status:** complete. Phases 1–6, §4a, and §3's fold into the sealed files.
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -152,6 +152,64 @@ Holding to the sequencing anyway: build Phases 2–3 on the out-of-file version,
 get §6's measurement, then ask with the diff. If the measurement shows `_prune!`'s
 eager copy is not actually a problem in practice, the ask gets weaker and the
 duplication may simply not be worth an unseal.
+
+### 3.2 What the fold actually cost — asked, approved, applied
+
+The estimate above was **wrong**, and knowing why is the useful part.
+
+It assumed the bound could be added to two sealed files. It could not: the policy
+hooks live in `base`, *above* the kernel, so for the sealed walk to carry a bound
+the **protocol** has to sink to the kernel (AR-PACKAGE-CHAIN). Five sealed files,
+not two:
+
+| | |
+|---|---|
+| `DocumentInterface.jl` | declares the three hooks + `HiddenElements` |
+| `DocumentDefaults.jl` | their unbounded defaults |
+| `DocumentModule.jl` | exports them |
+| `DocumentSync.jl` | threads `policy`/`depth`; one shared `_synced_child` |
+| `DocumentCopy.jl` | the same, plus the capped element copy |
+
+The marker type does **not** sink. The kernel knows only that *something* goes in
+a stopped slot and asks the policy for it, so `UnsyncedDocument` and `DepthPolicy`
+stay in base. `HiddenElements` is the one piece of vocabulary the contract needed
+— the elements a capped walk is not keeping, handed over without copying them,
+since a positional collection document is not `view`-able.
+
+`BoundedSync.jl` lost ~150 lines and now answers three questions instead of
+walking anything.
+
+**A stronger reason than duplication surfaced while drafting.** The out-of-file
+mirror could only reach the kinded-copy machinery by importing
+`_declared_value_types` / `_kinded_value_type` — *non-exported* kernel internals,
+from a higher layer. AR-MODULE-BOUNDARY-IS-API forbids exactly that ("reaching
+into an internal is the smell, never the fix"). The mirror was not merely
+duplicative; it was a layering violation. Folding in removed it.
+
+**Three things the apply caught that the draft did not:**
+
+- **`AR-INTERFACE-DECLARES-ONLY` fired.** Putting the defaults and a concrete
+  struct in `DocumentInterface.jl` is exactly what that guard exists to stop;
+  they belong in `DocumentDefaults.jl`. The layering test caught it, which is the
+  audit working as designed.
+- **A capped copy must wrap its placeholder in a cell** like the elements beside
+  it — a `Vector{Cell}` cannot hold a bare document.
+- **The element walk nearly lost an `isequal` short-circuit.** Routing every
+  document-valued slot through the shared `_synced_child` would have rebuilt a
+  slot already holding the very same object. Caught by reading, not by a test.
+
+**Verified:** kernel 455/3/2 — *identical to the pre-change baseline*, whose 3
+failures and 2 errors are pre-existing `DmSoleVector` macro tests; base 269/269;
+visual 49 228/49 229; omnetpp suites and all watch self-tests green. The
+measurements are unchanged: 1 536 B per slice for a 334-module engine, the same
+for a 7-module one.
+
+**Left open:** `DocumentInterface.jl`, `DocumentDefaults.jl`, `DocumentModule.jl`,
+`DocumentSync.jl` and `DocumentCopy.jl` are modified sealed files and want a
+re-audit against `architecture-requirements.md` before they are considered sealed
+again. The layering guard passes, which covers AR-INTERFACE-DECLARES-ONLY,
+AR-MODULE-BOUNDARY-IS-API and the layer height rules, but that is not the whole
+document.
 
 ---
 

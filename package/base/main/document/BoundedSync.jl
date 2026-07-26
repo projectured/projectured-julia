@@ -35,32 +35,29 @@ The corollary is that a shadow must be *born* bounded, which is what
 copy has already grown everything, and a bound can only withhold what has not
 been grown yet.
 
-# Relationship to the unbounded walk
+# Where the walk lives
 
-`sync_document!(shadow, source, policy)` is a separate method of the same
-generic function, living outside the sealed `DocumentSync.jl`. A policy that
-never stops delegates to the unbounded method outright, so "unbounded" is the
-existing behaviour by construction rather than by imitation.
+Not here. `sync_document!` and `copy_document` take a policy and consult
+`should_descend_sync` / `sync_element_limit` / `unsynced_placeholder` at every
+child; this module answers those three and supplies the marker. There is one
+traversal of each kind, in the kernel, and bounding is a parameter of it.
 
-The bounded walk cannot delegate *per level*, because the unbounded one recurses
-through the two-argument `sync_document!` and so has no way to carry a policy
-down. It therefore mirrors that walk's structure (same-type children synced in
-place, leaves written only when changed, collections matched by index) while
-consulting the policy at each child. `copy_document(kind, doc, policy)` mirrors
-`copy_document(kind, doc)` for the same reason.
+An earlier version put a second, bounded walk here beside the sealed one. It
+worked, but it mirrored `_sync_fields!` / `_sync_elements!` / `copy_document`
+line for line — two traversals differing only by a policy check, kept in step by
+hand — and it could only reach the kinded-copy machinery by importing kernel
+internals, which the module boundary forbids. The hooks are the honest shape.
 """
 module BoundedSyncModule
 
-import ..CellModule: AbstractCell, Cell, ReactiveCell
+import ..CellModule: AbstractCell, Cell
 import ..DocumentModule: Document, @document, sync_document!, copy_document,
-                         is_element_collection, get_cell_struct_kind,
-                         is_same_document_type, copy_shadow_element,
-                         _declared_value_types, _kinded_value_type
+                         is_element_collection,
+                         should_descend_sync, sync_element_limit, unsynced_placeholder
 import ..ReferenceModule: Reference
 
 export UnsyncedDocument, AbstractUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,
-       should_descend_sync, sync_element_limit,
        unsynced_size, unsynced_marker, request_sync!
 
 # ── the marker ────────────────────────────────────────────────────────────────
@@ -189,119 +186,26 @@ end
 """
     UNBOUNDED_SYNC
 
-A policy that never stops. `sync_document!` with it delegates straight to the
-unbounded two-argument method, so it is that behaviour rather than a copy of it.
+A policy that never stops — every child descended, every element taken. The same
+result as passing no policy at all, and useful for a caller that holds a policy
+variable and wants to turn the bound off without a second code path.
 """
 const UNBOUNDED_SYNC = DepthPolicy(typemax(Int), typemax(Int))
 
-_is_unbounded(p::DepthPolicy) = p.depth == typemax(Int)
-_is_unbounded(::SyncPolicy)   = false
-
-# ── the bounded walk ──────────────────────────────────────────────────────────
+# ── the policy the kernel walk consults ───────────────────────────────────────
+#
+# There is no walk here. `sync_document!` / `copy_document` carry a policy and
+# ask these three questions at every child; this module answers them and supplies
+# the marker. The traversal stays where it belongs — one of it, in the kernel.
 
 """
     sync_document!(shadow, source, policy) -> shadow
 
 Sync `source` into `shadow`, stopping where `policy` says to and leaving an
-[`UnsyncedDocument`](@ref) there. Same contract as the two-argument method
-otherwise: same-type children are synced in place, leaves are written only when
-they changed, and a positional collection is matched by index.
+[`UnsyncedDocument`](@ref) there. Sugar for the kernel's four-argument form.
 """
-function sync_document!(shadow::Document, source::Document, policy::SyncPolicy)
-    _is_unbounded(policy) && return sync_document!(shadow, source)
-    _bounded_sync!(shadow, source, policy, 0)
-end
-
-function _bounded_sync!(shadow::Document, source::Document, policy::SyncPolicy, depth::Int)
-    is_same_document_type(shadow, source) ||
-        error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
-    K = get_cell_struct_kind(shadow)
-    is_element_collection(source) ? _bounded_elements!(shadow, source, K, policy, depth) :
-                                    _bounded_fields!(shadow, source, K, policy, depth)
-    shadow
-end
-
-# The child value to store in a shadow slot, given what is there now. Returns
-# `nothing` when the slot needs no write — either it was synced in place, or a
-# marker already standing there is to be left alone.
-function _synced_child(cur, sv, K, policy, depth)
-    same = cur isa Document && !(cur isa AbstractUnsyncedDocument) &&
-           is_same_document_type(cur, sv)
-    # What the policy is shown: a marker, an already-materialised node, or
-    # `nothing` for a slot that has to be grown from scratch. A document of the
-    # *wrong* type is not "already there" — it has to be rebuilt, so it counts as
-    # growth and faces the bound.
-    slot = (same || cur isa AbstractUnsyncedDocument) ? cur : nothing
-    should_descend_sync(policy, depth, slot) ||
-        return cur isa AbstractUnsyncedDocument ? nothing : unsynced_marker(sv)
-    same && (_bounded_sync!(cur, sv, policy, depth); return nothing)  # identity preserved
-    _bounded_copy(K, sv, policy, depth)
-end
-
-function _bounded_fields!(shadow, source, K, policy, depth)
-    for nm in fieldnames(typeof(source))
-        sv  = getproperty(source, nm)
-        cur = getproperty(shadow, nm)
-        if sv isa Document
-            new = _synced_child(cur, sv, K, policy, depth + 1)
-            new === nothing || setproperty!(shadow, nm, new)
-        else
-            isequal(cur, sv) || setproperty!(shadow, nm, sv)
-        end
-    end
-end
-
-function _bounded_elements!(shadow, source, K, policy, depth)
-    ns, nc = length(source), length(shadow)
-    tail = nc > 0 && shadow[nc] isa AbstractUnsyncedDocument ? shadow[nc] : nothing
-    shown = tail === nothing ? nc : nc - 1
-    limit = sync_element_limit(policy, ns, shown, tail !== nothing && tail.requested)
-
-    for i in 1:min(limit, shown)
-        s, c = source[i], shadow[i]
-        if s isa Document
-            new = _synced_child(c, s, K, policy, depth + 1)
-            new === nothing || (shadow[i] = new)
-        else
-            isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))
-        end
-    end
-    for i in (shown + 1):limit
-        s = source[i]
-        e = s isa Document ?
-            (should_descend_sync(policy, depth + 1, nothing) ?
-             _bounded_copy(K, s, policy, depth + 1) : unsynced_marker(s)) :
-            copy_shadow_element(K, s)
-        i <= nc ? (shadow[i] = e) : push!(shadow, e)
-    end
-    _fit_tail!(shadow, source, limit, ns)
-end
-
-# One trailing marker standing for elements `limit+1 … ns`, or none when the
-# collection is fully shown. Trims whatever the shadow held past that.
-function _fit_tail!(shadow, source, limit::Int, ns::Int)
-    want = limit < ns ? limit + 1 : limit
-    for _ in 1:(length(shadow) - want)
-        pop!(shadow)
-    end
-    limit < ns || return
-    rest = ns - limit
-    cur = length(shadow) >= want ? shadow[want] : nothing
-    if cur isa AbstractUnsyncedDocument
-        cur.size == rest || (cur.size = rest)
-        cur.requested = false                  # the request is spent
-    else
-        m = _tail_marker(source[limit + 1], rest)
-        length(shadow) >= want ? (shadow[want] = m) : push!(shadow, m)
-    end
-end
-
-# A tail marker reports how many elements are behind it, not the child count of
-# the one that happens to stand first.
-_tail_marker(x, rest::Int) =
-    UnsyncedDocument(string(nameof(typeof(x isa AbstractCell ? x[] : x))), rest, false)
-
-# ── the bounded copy ──────────────────────────────────────────────────────────
+sync_document!(shadow::Document, source::Document, policy::SyncPolicy) =
+    sync_document!(shadow, source, policy, 0)
 
 """
     copy_document(kind, document, policy) -> Document
@@ -313,62 +217,42 @@ to and leaving an [`UnsyncedDocument`](@ref) there.
 `copy_document` builds the whole subtree, and a shadow that already holds
 everything has nothing left for the bound to withhold — the depth governs
 *growth*, and a full copy has already grown. Start bounded and stay bounded.
-
-Structurally a bounded `copy_document(K, doc)`: same reconstruction through the
-type's `UnionAll` constructor and the same cell-kind conversion, with the one
-difference that a document-valued child past the bound is never visited.
 """
 copy_document(K::Type{<:AbstractCell}, doc::Document, policy::SyncPolicy) =
-    _is_unbounded(policy) ? copy_document(K, doc) : _bounded_copy(K, doc, policy, 0)
+    copy_document(K, doc, policy, 0)
 
-# `depth` is where `doc` itself sits, so its children are checked at `depth + 1`.
-# A vector is not a level of its own: a collection document's elements are its
-# children, matching how the sync walks them.
-function _bounded_copy(K::Type{<:AbstractCell}, doc::Document, policy::SyncPolicy, depth::Int)
-    T = typeof(doc)
-    base = Base.typename(T).wrapper
-    Ts = _declared_value_types(base)
-    # A collection document's backing vector holds its children, so the element
-    # cap applies to it; a plain vector field is a leaf and is copied whole.
-    cap = is_element_collection(doc) ?
-          sync_element_limit(policy, length(doc), 0, false) : -1
-    args = Any[]
-    for (i, nm) in enumerate(fieldnames(T))
-        raw = getfield(doc, nm)
-        inner = raw isa AbstractCell ? raw[] : raw
-        v = (cap >= 0 && inner isa AbstractVector) ?
-            _capped_copy(K, inner, policy, depth + 1, cap) :
-            _bounded_copy_value(K, inner, policy, depth + 1)
-        push!(args, raw isa AbstractCell ? K{_kinded_value_type(K, Ts, i, v)}(v) : v)
-    end
-    base(args...)
+# What stands where the walk stopped. `current` is what is in the slot now, so an
+# already-placed marker is handed straight back and the shadow keeps its identity
+# — the kernel writes only when this returns something new.
+unsynced_placeholder(::SyncPolicy, source, current) =
+    current isa AbstractUnsyncedDocument ? current : unsynced_marker(source)
+
+# A tail placeholder reports how many elements are behind it, not the child count
+# of whichever one happens to stand first.
+unsynced_placeholder(::SyncPolicy, source::AbstractVector, current) =
+    current isa AbstractUnsyncedDocument ?
+        (current.size == length(source) || (current.size = length(source));
+         current.requested = false;                    # the request is spent
+         current) :
+        UnsyncedDocument(isempty(source) ? "" : string(nameof(typeof(_unwrap(first(source))))),
+                         length(source), false)
+
+_unwrap(x) = x isa AbstractCell ? x[] : x
+
+# How many of a collection's elements to keep. Given the whole source and shadow
+# because the answer depends on what the shadow already holds — including whether
+# its trailing marker was flagged — which is this module's bookkeeping, not the
+# kernel's.
+function sync_element_limit(p::DepthPolicy, source, shadow)
+    total = length(source)
+    nc = length(shadow)
+    tail = nc > 0 && shadow[nc] isa AbstractUnsyncedDocument ? shadow[nc] : nothing
+    shown = tail === nothing ? nc : nc - 1
+    limit = max(p.elements, shown)
+    tail !== nothing && tail.requested && (limit += p.elements)
+    min(limit, total)
 end
 
-# `similar(v, 0)` rather than a comprehension: a collection document declares its
-# backing vector's element type (`Vector{Cell}`), and an `Any[]` would not fit it.
-function _capped_copy(K, v::AbstractVector, policy, depth, cap::Int)
-    n = length(v)
-    out = similar(v, 0)
-    for i in 1:min(cap, n)
-        push!(out, _bounded_copy_value(K, v[i], policy, depth))
-    end
-    if cap < n
-        e = v[cap + 1]
-        m = _tail_marker(e, n - cap)
-        push!(out, e isa AbstractCell ? K{K === ReactiveCell ? Any : typeof(m)}(m) : m)
-    end
-    out
-end
-
-_bounded_copy_value(K, x::Document, policy, depth) =
-    should_descend_sync(policy, depth, nothing) ? _bounded_copy(K, x, policy, depth) :
-                                                  unsynced_marker(x)
-_bounded_copy_value(K, x::AbstractVector, policy, depth) =
-    [_bounded_copy_value(K, e, policy, depth) for e in x]
-function _bounded_copy_value(K, c::AbstractCell, policy, depth)   # a per-slot cell
-    v = _bounded_copy_value(K, c[], policy, depth)
-    K{K === ReactiveCell ? Any : typeof(v)}(v)
-end
-_bounded_copy_value(K, x, policy, depth) = copy_document(K, x)    # leaf
+sync_element_limit(::SyncPolicy, source, shadow) = length(source)
 
 end # module
