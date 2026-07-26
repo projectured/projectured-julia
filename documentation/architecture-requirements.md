@@ -109,6 +109,8 @@ requirement; the rule is its own lead sentence.
 | ID | Rule |
 | --- | --- |
 | [AR-ONE-WAY-TO-EDIT](#ar-one-way-to-edit) | `evaluate_operation(editor, op)` is the one way to change the document |
+| [AR-READER-IS-PURE](#ar-reader-is-pure) | A reader never mutates; it returns an operation |
+| [AR-REACTIVE-OUTPUT-STRUCTURE](#ar-reactive-output-structure) | A projection's output structure is reactive, not re-printed |
 | [AR-PREFER-REPLACE-VALUE](#ar-prefer-replace-value) | Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a new operation type |
 | [AR-REGISTER-NEW-OPERATION](#ar-register-new-operation) | A new reference-carrying operation must be registered in both the default `read_intent` and `reroot_operation` |
 | [AR-MUTATE-OR-NULL-IOMAP](#ar-mutate-or-null-iomap) | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
@@ -599,6 +601,55 @@ Every edit is an `Operation` produced by a reader and applied by the editor; to
 script the editor, do exactly what a reader does — find the target
 (`search_references`/`search_documents`), build the operation, evaluate it.
 Prefer this over bespoke imperative helpers.
+
+### AR-READER-IS-PURE
+
+**A reader never mutates; it returns an operation.** `read_intent` inspects the
+input and the IoMap and *returns* — it must not write a document field, call a
+domain mutator, or otherwise change state on the way past. Swallowing an input by
+returning `nothing` is legal; swallowing it *after* performing the edit by hand is
+not, however local the edit looks. If a reader needs an effect, it names that
+effect as an `Operation` and lets `evaluate_operation` apply it
+(AR-ONE-WAY-TO-EDIT).
+
+This is not bookkeeping. A reader that mutates is invisible to every mechanism
+built on the operation stream — undo, playback, scripting, logging, an agent
+driving the editor — because the edit never becomes an operation. It also runs at
+a moment the editor has not sanctioned, so an operation-level guard (enablement,
+a read-only mode, a transaction) cannot see it, and the same gesture behaves
+differently depending on whether the projection that read it happened to take the
+shortcut. Two projections over the same domain then disagree about what an input
+*means*, which is precisely what the printer/reader pair exists to prevent.
+
+The temptation is a reader that already knows the target and the new value, where
+building an operation feels like ceremony. Build it anyway;
+`ReplaceReferencedValueOperation` covers the common case (AR-PREFER-REPLACE-VALUE)
+and `InvokeActionOperation` carries a callback for an effect that is not a field
+write.
+
+### AR-REACTIVE-OUTPUT-STRUCTURE
+
+**A projection's output structure is reactive, not re-printed.** When what the
+output *contains* depends on domain state — which children a layout holds, which
+of them are disclosed — that dependency is a derived cell over persistent widget
+objects, wired with `set_cell_function!`. Do not rebuild the output by asking the
+editor to drop its IoMap.
+
+`invalidate_projection!` exists for a change the reactive pipeline genuinely
+cannot carry — a whole-root swap, where the object the projection was built
+against is gone. Reaching for it because a *child list* changed is a different
+thing: it throws away and rebuilds every widget in the tree, so transient view
+state (scroll positions, in-progress text, hover) dies, expensive sub-projections
+re-run wholesale, and identity is lost for every consumer that was holding a
+widget — which is the guarantee `sync_document!` and the IoMap reconciler are
+built on. It also hides the cost: a re-print is O(tree) on an interaction the
+reactive graph would have served with a handful of cell writes.
+
+The failure it masks is silent. A `Vector` passed to a layout constructor is
+frozen into constant `Cell`s, so a printer that builds `children` conditionally
+produces output that is correct on the first frame and never changes again — it
+does not error, it just stops growing. If output structure varies with domain
+state, bind the container's `elements` to a thunk and let the graph do it.
 
 ### AR-PREFER-REPLACE-VALUE
 
