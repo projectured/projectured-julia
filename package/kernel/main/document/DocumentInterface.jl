@@ -121,8 +121,7 @@ because how many elements to keep depends on what the shadow already holds —
 including whether its trailing placeholder was flagged — and that is the
 policy's own bookkeeping, not this layer's.
 
-Defaults in `DocumentDefaults.jl`; see `package/base/doc/bounded-sync.md`
-for the policy `base` supplies.
+Unbounded defaults in `DocumentDefaults.jl`.
 """
 function should_descend_sync end
 function sync_element_limit end

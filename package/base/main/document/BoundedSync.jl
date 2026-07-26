@@ -5,10 +5,10 @@ Bounded `sync_document!`: stop the shadow walk at a bound and leave a marker
 where it stopped, so a shadow grows only where someone looked.
 
 The unbounded `sync_document!(shadow, source)` walks the whole source. That is
-right for a small document and ruinous for a large one — an OMNeT++ sequential
-engine holds per-module hash and count arrays with over a thousand entries each
-plus a future-event heap, and syncing all of it every frame to display a handful
-of numbers is wasted work.
+right for a small document and ruinous for a large one — an object holding
+thousand-entry collections and a heap of closures costs the same to shadow
+whether four of its fields are on screen or all of it is, and syncing that every
+frame to display the four is wasted work.
 
 Making the *projection* lazy would be the wrong layer: the sync cost would stay
 and the result would be discarded. So the bound goes here. Where the walk stops

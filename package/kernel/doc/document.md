@@ -94,9 +94,8 @@ thousand-entry collections is wasted work, so `sync_document!` and
 `DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
 `nothing` descends everywhere and keeps every element, so an un-policed walk is
 the walk described above and pays nothing for the option. This layer never names
-a marker *type*: it asks the policy what stands where it stopped. `base` supplies
-the one implementation — see
-[bounded-sync.md](../../base/doc/bounded-sync.md).
+a marker *type*, and never sees a policy that is not handed to it: it asks
+whoever supplied the policy what stands where the walk stopped.
 
 Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own kind;
 the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are

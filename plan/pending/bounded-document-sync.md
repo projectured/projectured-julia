@@ -204,12 +204,36 @@ visual 49 228/49 229; omnetpp suites and all watch self-tests green. The
 measurements are unchanged: 1 536 B per slice for a 334-module engine, the same
 for a 7-module one.
 
-**Left open:** `DocumentInterface.jl`, `DocumentDefaults.jl`, `DocumentModule.jl`,
-`DocumentSync.jl` and `DocumentCopy.jl` are modified sealed files and want a
-re-audit against `architecture-requirements.md` before they are considered sealed
-again. The layering guard passes, which covers AR-INTERFACE-DECLARES-ONLY,
-AR-MODULE-BOUNDARY-IS-API and the layer height rules, but that is not the whole
-document.
+**Re-audit of the five sealed files** against `architecture-requirements.md`,
+done rather than deferred. The layering guard covers AR-INTERFACE-DECLARES-ONLY,
+AR-MODULE-BOUNDARY-IS-API and the layer heights, and passes. By hand:
+
+- **AR-NO-CONSUMER-DOCS — violated, fixed.** `DocumentInterface.jl` pointed at
+  `base`'s guide "for the policy `base` supplies", and the kernel's document
+  guide said the same. A lower layer naming its consumer inverts the dependency
+  in prose exactly as an import would. Both now describe the contract offered to
+  *any* caller. Same fix in `BoundedSync.jl`, which named OMNeT++ in its
+  motivation.
+- **AR-QUALIFIED-EXTENSION — not applied, deliberately.** The rule wants
+  `using ..XxxModule` plus `XxxModule.f(…) = …`; `BoundedSync.jl` uses
+  `import ..DocumentModule: …` and extends by bare definition. That matches every
+  sibling in `base` — `Collection.jl` extends `copy_document` the very same way —
+  and the rule's own text describes a staged rollout. Converting one file would
+  leave it inconsistent with its layer for no gain (AR-FOCUSED-DIFFS). Worth
+  doing as its own sweep of `base`.
+- **AR-DOCUMENT-IDENTITY** — the element walk's `isequal` short-circuit is
+  preserved, so a slot holding the very same object is still not rebuilt.
+- **AR-FIELDS-ARE-CELLS / AR-EVERY-DOCUMENT-HAS-SELECTION** — `HiddenElements` is
+  a plain value type, not a `Document`; `UnsyncedDocument` is a `@document` and
+  gets both by construction.
+- **AR-NO-PROJECTION-GLOBALS / AR-PER-EDITOR-STATE** — no state added; the policy
+  is a parameter the caller holds.
+- **AR-NEW-CODE-SHIPS-TESTS** — `test_bounded_sync` / `test_document_reflection`
+  in `test_base`, `test_reflection_to_widget` in `test_visual`.
+
+The five files are unchanged in behaviour for every existing caller (kernel tests
+match the pre-change baseline exactly) and are ready to be considered sealed
+again.
 
 ---
 
