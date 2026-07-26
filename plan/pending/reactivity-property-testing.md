@@ -76,47 +76,67 @@ docstring: *"its `output` / `inner_iomap` may be computed cells that re-derive
 reactively while the IoMap keeps its identity"*. The WorkbenchEditor bug was that
 one of them was a constant.
 
-### 2.1 "Under its output", not "its output cell"
+### 2.1 The observable is the node's whole reactive surface
 
-The obvious reading — `iomap.output` itself must invalidate — is **too strong**,
-and AR-STABLE-IOMAP-IDENTITY says why: a projection is supposed to keep a stable
-output object whose *varying parts* are computed cells. The workbench's root
-`VerticalLayout` never changes identity; its `children.elements` is a thunk. That
-is correct, and the strict reading would fail it.
+Not "the output document", and not "the `output` cell" — **both, plus the IoMap's
+other cells**. An `@iomap` struct stores every field as a Cell, so a node's
+reactive surface is:
 
-So: **at least one cell reachable from `iomap.output` must change**, and the
-IoMap's own identity must not. The two together are the property; either alone
-is satisfiable by something wrong.
+```
+{ getfield(iomap, :output), getfield(iomap, :inner_iomap | :child_iomaps), ... }
+  union  { cells reachable from iomap.output }
+```
+
+**Watching only the output tree is not merely incomplete, it produces FALSE
+FAILURES.** If a projection re-derives its output wholesale, the `output` cell
+invalidates and yields a *new* tree — and the cells snapshotted from the *old*
+tree are now orphaned. Re-reading them shows no change, so a correctly reactive
+projection is reported as frozen. The invalidation happened one level up, on the
+IoMap's own cell, which is exactly where a test that never looked would miss it.
+
+Both shapes are legitimate and both must pass:
+
+| shape | where the invalidation shows |
+|---|---|
+| stable output, reactive interior (the workbench's root layout, whose `children.elements` is a thunk) | a cell inside the output tree |
+| re-derived output (an `@iomap` whose `output` is a computed cell) | `getfield(iomap, :output)` |
+| reconciled children (`ContentIoMap.inner_iomap`) | the child-IoMap cell |
+
+AR-STABLE-IOMAP-IDENTITY still holds and is still asserted: the IoMap **object**
+keeps its identity. Its **field cells** are exactly what may re-derive — that is
+what the `@iomap` macro exists for.
 
 ### 2.2 The procedure, per node
 
 ```
 1. print once; force every Cell reachable from the ROOT output
 2. for each IoMap node, in tree order:
-     a. snapshot the cells reachable from THIS node's output
+     a. snapshot the node's reactive surface — its own field cells AND the cells
+        currently reachable from its output — recording which are VALID
      b. mutate one leaf of THIS node's input
-     c. assert: >= 1 snapshot cell changed, and the node's iomap identity is unchanged
-     d. restore the leaf
+     c. assert: >= 1 snapshotted cell became invalid
+                and the IoMap object itself is the same object
+     d. restore the leaf, and re-force
 ```
 
 Printing once and restoring after each write keeps one tree alive for a whole
 example, which is what makes 88 examples affordable at all.
 
-### 2.3 Detecting the change
+### 2.3 Validity, not values
 
-Two candidate observations, and the choice is not obvious:
+An earlier draft proposed diffing *values* on the grounds that it measures what a
+user would see. That is wrong here, for two independent reasons:
 
-- **Validity flags.** `ReactiveCell` carries `valid::Bool`, so reading it measures
-  invalidation exactly, which is what the property says.
-- **Values.** Force again and diff. Coarser — an invalidation that recomputes the
-  same value is invisible — but it measures what a user would see and does not
-  depend on cell internals.
+- **It cannot see a re-derived output.** Per §2.1, the old tree's cells are
+  orphaned and their values never move, so the correct projection fails.
+- **This test is about reactivity.** The question is whether the graph propagated,
+  not whether the pixels happen to differ. A cell that invalidates and recomputes
+  an identical value has behaved correctly; a cell that never invalidates has not,
+  even if some coincidence makes the render look right.
 
-**Proposal: values, with validity as the diagnostic.** A projection that
-invalidates and recomputes an identical value has not misbehaved; one whose
-visible output is unchanged after an input edit has, whatever its flags say.
-Validity then explains a failure — "nothing was invalidated" is a frozen cell,
-"invalidated but recomputed identically" is something else entirely.
+So the primary observation is `valid`, and values are kept only as a **diagnostic**
+on failure — "nothing invalidated" (a frozen cell) reads very differently from
+"invalidated everywhere" (§1.2's churn).
 
 ### 2.4 Mutating a leaf, generically
 
@@ -229,11 +249,15 @@ non-nothing; on `object_to_widget_example` the tree is deeper than one node, so
 the walk genuinely descends into sub-projections.*
 
 ### Phase 2 — the observation primitives
-`force_output!`, `snapshot_output(node)` over cells reachable from that node's
-output, and `changed(snapshot)`.
-*Verify: forcing then snapshotting twice with no edit reports zero changes;
-writing one leaf by hand reports at least one. A node's snapshot is a SUBSET of
-the root's — if they are equal for a nested node, the walk is not descending.*
+`force_output!`, `reactive_surface(node)` returning the node's own field cells
+PLUS the cells reachable from its output, and `invalidated(snapshot)`.
+*Verify: forcing then snapshotting twice with no edit reports zero invalidations;
+writing one leaf by hand reports at least one. A nested node's surface is a strict
+SUBSET of the root's — if they are equal, the walk is not descending. And
+critically: construct a projection whose `output` is a computed cell, and assert
+the surface catches its invalidation even though every cell of the OLD output
+tree is untouched — that is the orphaning case of §2.1, and a harness that misses
+it reports false failures forever.*
 
 ### Phase 3 — the property, one example
 `check_reactivity(example)` returning per-node verdicts, with the
