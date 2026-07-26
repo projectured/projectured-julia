@@ -110,6 +110,7 @@ include("projection/GestureMapTest.jl")
 include("projection/HoverProbeTest.jl")
 include("projection/TableNavigationTest.jl")
 include("projection/WorkbenchTabClickTest.jl")
+include("projection/WorkbenchContentPaneTest.jl")
 include("serializer/SerializationTest.jl")
 include("editor/ConstructTest.jl")
 
@@ -179,6 +180,7 @@ function test_domain()
         test_hover_probe()
         test_hover_probe_pipeline()
         test_workbench_tab_click()
+        test_workbench_content_pane()
         test_dragging()
         test_serialization()
         test_mcp_tools()
@@ -227,7 +229,7 @@ export test_construct, reconstruct, test_json_construct, test_yaml_construct, te
 # moved down from the umbrella
 export test_gesture_map, test_gesture_help, test_db_catalog_sql,
        test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline,
-       test_workbench_tab_click, test_dragging, test_serialization, test_mcp_tools,
+       test_workbench_tab_click, test_workbench_content_pane, test_dragging, test_serialization, test_mcp_tools,
        test_mcp_resources, test_conversation_serialization, test_parse_markdown_blocks,
        test_document_insertion, test_julia_typein, test_conversation_editor,
        test_assistant_composer_panel, test_assistant_mvp, test_workbench_file_keys,

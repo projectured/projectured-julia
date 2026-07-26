@@ -42,7 +42,8 @@ import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap, reconcile_child_iomaps, var"@iomap"
+import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap,
+                      reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
 import ..CellModule: Cell, set_cell_function!
 import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -304,13 +305,33 @@ function print_document(::WorkbenchNavigatorToWidgetScrollPane,
     WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, Any[])
 end
 
-function print_document(::WorkbenchConsoleToWidgetScrollPane,
-                           recursion, c::WorkbenchConsole, ctx)
-    content_iomap = _recurse(recursion, c.content, make_child_context(ctx, c, @reference_step content))
-    scroll = WidgetScrollPane(content_iomap.output;
-                              padding=_PAD5, padding_color=_WHITE)
-    ContentIoMap(nothing, c, scroll, content_iomap)
+
+# A panel whose CONTENT can be replaced — an editor reloaded from disk, a console
+# handed a new block, an evaluator given a new expression.
+#
+# The obvious printing (`_recurse` once, hand the result to `WidgetScrollPane`)
+# freezes it: the constructor wraps whatever it is given in `Cell(content)`, a
+# CONSTANT, so a later write to `panel.content` has no reactive edge and the pane
+# keeps rendering the document it was born with. It does not error; it silently
+# stops updating (AR-REACTIVE-OUTPUT-STRUCTURE).
+#
+# So the child IoMap is reconciled by identity and the pane's content is a THUNK
+# over it. Replacing the content re-projects exactly once and the pane follows;
+# leaving it alone reuses the same child IoMap, so nothing downstream is rebuilt.
+function _content_pane(recursion, node, step, ctx; kwargs...)
+    field = Symbol(step.name)     # the step addresses it; reading it needs the name
+    child = reconcile_child_iomap(() -> getproperty(node, field),
+                                  v -> _recurse(recursion, v, make_child_context(ctx, node, step)))
+    scroll = WidgetScrollPane(child[].output; kwargs...)
+    set_cell_function!(getfield(scroll, :content), () -> child[].output)
+    iomap = ContentIoMap(nothing, node, scroll, child[])
+    set_cell_function!(getfield(iomap, :inner_iomap), () -> child[])
+    iomap
 end
+
+print_document(::WorkbenchConsoleToWidgetScrollPane, recursion, c::WorkbenchConsole, ctx) =
+    _content_pane(recursion, c, @reference_step(content), ctx;
+                  padding=_PAD5, padding_color=_WHITE)
 
 function print_document(::WorkbenchDescriptorToWidgetScrollPane,
                            recursion, d::WorkbenchDescriptor, ctx)
@@ -337,13 +358,9 @@ function print_document(::WorkbenchSearcherToWidgetScrollPane,
     SimpleIoMap(nothing, s, scroll)
 end
 
-function print_document(::WorkbenchEvaluatorToWidgetScrollPane,
-                           recursion, e::WorkbenchEvaluator, ctx)
-    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, e, @reference_step content))
-    scroll = WidgetScrollPane(content_iomap.output;
-                              padding=_PAD5, padding_color=_WHITE)
-    ContentIoMap(nothing, e, scroll, content_iomap)
-end
+print_document(::WorkbenchEvaluatorToWidgetScrollPane, recursion, e::WorkbenchEvaluator, ctx) =
+    _content_pane(recursion, e, @reference_step(content), ctx;
+                  padding=_PAD5, padding_color=_WHITE)
 
 function print_document(::WorkbenchAssistantToWidgetSplitPane,
                            recursion, a::WorkbenchAssistant, ctx)
@@ -376,14 +393,9 @@ function print_document(::WorkbenchAssistantToWidgetSplitPane,
     SimpleIoMap(nothing, a, column)
 end
 
-function print_document(::WorkbenchEditorToWidgetScrollPane,
-                           recursion, e::WorkbenchEditor, ctx)
-    content_iomap = _recurse(recursion, e.content, make_child_context(ctx, e, @reference_step content))
-    scroll = WidgetScrollPane(content_iomap.output;
-                              follow_end=e.follow_end === true,
-                              padding=_PAD5, padding_color=_WHITE)
-    ContentIoMap(nothing, e, scroll, content_iomap)
-end
+print_document(::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
+    _content_pane(recursion, e, @reference_step(content), ctx;
+                  follow_end=e.follow_end === true, padding=_PAD5, padding_color=_WHITE)
 
 # ── map_reference_forward ──────────────────────────────────────────────
 #
