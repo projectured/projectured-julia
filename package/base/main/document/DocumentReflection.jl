@@ -125,7 +125,12 @@ reflect_children(x) = collect(reflect_child_pairs(x))
 # `Vector{Int64}` rather than `Array`: a bare type name loses exactly the part a
 # reader wants. Module qualifiers go the other way — `Foo.Bar.Baz` is noise in a
 # label — and a deeply parameterised type has no useful tail.
+#
+# A document is the exception: every one of its type parameters is a cell kind,
+# so `SimulationRun{Cell, Cell, Cell, Cell, Cell}` says nothing a reader wants
+# and `…Mut` is the alias for one such spelling. The bare name is the type.
 function _kind_of(x)
+    x isa Document && return string(nameof(typeof(x)))
     s = replace(string(typeof(x)), r"[A-Za-z_][A-Za-z0-9_!]*\." => "")
     length(s) <= 48 ? s : string(first(s, 45), "...")
 end

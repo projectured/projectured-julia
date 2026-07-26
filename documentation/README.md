@@ -146,3 +146,4 @@ Each package also documents its own internal structure in its `doc/architecture.
 | [Graphics domain](../package/visual/doc/graphics.md) | Graphics + write_image + write_pdf | visual |
 | [Widget domain](../package/visual/doc/widget.md) | Widgets | visual |
 | [Collection domain](../package/base/doc/collection.md) | CellVector and ListNode | base |
+| [Bounded sync](../package/base/doc/bounded-sync.md) | shadowing something too big to walk whole | base |

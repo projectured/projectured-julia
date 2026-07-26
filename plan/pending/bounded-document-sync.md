@@ -1,6 +1,6 @@
 # Bounded document sync — drill-down by demand, not by depth
 
-**Status:** in progress — Phases 1–4 and §4a done (§7). Next: Phase 5 (the omnetpp inspector).
+**Status:** complete — Phases 1–6 and §4a done (§7). One open decision: §3's unsealing ask.
 **Scope:** let `sync_document!` stop at a bound and leave a marker where it
 stopped; let a consumer *request* that a marker be filled in on the next sync.
 Then a shadow grows only where someone looked.
@@ -213,11 +213,16 @@ remains the fallback if `ObjectToWidget`'s density turns out to be unworkable.
 
 ## 4a. The gap Phase 3 exposed: the engine is not a document
 
-`sync_document!` — bounded or not — requires **both sides to be `Document`s**. A
-`SequentialSimulator`, a `RoutingModel`, a `Recorder` are ordinary Julia structs.
-So there is no shadow of the engine to bound in the first place, which is the
-real reason the workbench hand-wrote `SimulationExecutionView` rather than
-shadowing anything.
+`sync_document!` — bounded or not — requires **both sides to be `Document`s**, and
+plenty of what one wants to inspect is not one.
+
+*(Corrected during Phase 5: the omnetpp engine and execution actually **are**
+`@document`s — the engine was made one for the dashboard's sake — so bounded
+`sync_document!` would have applied to them directly. The gap is real but
+narrower than stated: it is the model, the recorder and everything reached
+through them. Reflection is still the right answer, because it gives **one**
+uniform tree over documents and plain structs alike, and the inspector should not
+have to care which it is standing on.)*
 
 So §6 needs one more piece: a **reflective bounded shadow** — walk an arbitrary
 Julia object and produce a generic document tree (a node with a label, a value
@@ -387,12 +392,48 @@ since its parent's path is in `collapsed`; it exists so there is a chevron to
 click. That also gives the collapsed row somewhere to state what it is hiding,
 which turned out to read better than a bare chevron.
 
-### Phase 5 — the omnetpp inspector
+### Phase 5 — the omnetpp inspector ✅ done
 The two cards of §6, in the workbench, scroll-paned like Topology — preceded by
 the reflective bounded shadow of §4a, without which there is nothing to render.
 *Verify: opening on a 57-node routing instance is bounded; drilling to a
 per-node queue works; the per-slice sync cost does not grow with model size —
 measured, not assumed.*
+
+In omnetpp-julia: `watch/SimulationInspectorToWidget.jl`, the standalone
+`watch/inspector.jl` / `inspector_sdl.jl`, and two cards spliced into the
+workbench — **Instance details** beside Topology (an instance-stage view: no
+engine, nothing run) and **Execution details** after Control. `SimulationWorkbench`
+grew `instance_shadow` / `execution_shadow`, refreshed in `workbench_refresh!`.
+
+**The measurements, which are the actual result:**
+
+| | |
+|---|---|
+| per-slice sync, 334-module RoutingModel engine, one level open | **1 536 B** |
+| per-slice sync, 7-module ChainModel, same | **1 536 B** — identical |
+| refreshing both workbench cards on a finished run | **2.7 KB** |
+| collapsed 1 000 000-element field vs 1 000-element | same (~74 KB) |
+
+So the criterion is met literally: cost is flat in model size and tracks the rows
+on screen. The honest test §6 set — "if the inspector still needs a hand-written
+view to be usable, the answer is no" — passes: the Execution details card shows
+the engine itself, and `SimulationExecutionView` survives only because the
+Control card wants four specific scalars in a status line, not because the engine
+is unaffordable to show.
+
+Two things worth keeping:
+
+- **Rendering caught what assertions could not**, again. A `+`/`-` icon column
+  beside the chevron read as noise; document labels printed their cell-kind type
+  parameters (`SimulationRun{Cell, Cell, Cell, Cell, Cell}`); and both cards
+  reserved ~70 px of dead space. None of these is a test failure.
+- The scroll pane's recursion had to become a **dispatch**, since a pane in the
+  workbench can now hold either a topology graph or a reflected shadow.
+
+### Phase 6 — docs + close-out ✅ done
+`package/base/doc/bounded-sync.md` (the guide), a pointer from
+`package/kernel/doc/document.md`'s sync section, and index entries in
+`documentation/README.md` and `CLAUDE.md`.
 
 ### Phase 6 — docs + close-out
 Document bounded sync in `package/base/doc/`, note it in the sync guide, and
