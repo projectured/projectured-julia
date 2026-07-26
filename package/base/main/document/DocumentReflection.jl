@@ -94,14 +94,20 @@ cap is not to touch what it withholds. Building a thousand pairs to show the
 first eight would put the cost back exactly where the bound was meant to remove
 it — which is what the first version did, at 162 KB per sync.
 """
-reflect_child_count(x) = fieldcount(typeof(x))
+reflect_child_count(x) = length(_reflect_fieldnames(x))
 reflect_child_count(x::AbstractArray) = length(x)
 reflect_child_count(x::AbstractDict)  = length(x)
 reflect_child_count(x::Tuple)         = length(x)
 reflect_child_count(::Union{Number, AbstractString, Symbol, Char, Function, Type}) = 0
 
 reflect_child_pairs(x) =
-    (string(nm) => getfield(x, nm) for nm in fieldnames(typeof(x)))
+    (string(nm) => getproperty(x, nm) for nm in _reflect_fieldnames(x))
+
+# `getproperty`, not `getfield`: a `@document` struct keeps every field in a
+# `Cell`, and an inspector wants the value, not the box. Its trailing `selection`
+# field is the document's own cursor slot — machinery, never content.
+_reflect_fieldnames(x) =
+    (f = fieldnames(typeof(x)); x isa Document ? f[1:end-1] : f)
 reflect_child_pairs(x::AbstractArray) = (string(i) => x[i] for i in eachindex(x))
 reflect_child_pairs(x::AbstractDict)  = (string(k) => v for (k, v) in x)
 reflect_child_pairs(x::Tuple)         = (string(i) => x[i] for i in eachindex(x))
