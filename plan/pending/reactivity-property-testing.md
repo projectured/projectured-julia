@@ -1,8 +1,9 @@
 # Reactivity property testing — touch an input, watch the output move
 
 **Status:** design proposal, staged build (§7). Not started.
-**Scope:** a property-based harness over the 88 registered examples that writes to
-one input field at a time and asserts the output followed.
+**Scope:** a property-based harness over the 88 registered examples that walks the
+**IoMap tree**, writes to each node's input, and asserts that node's output
+followed.
 **Driver:** three bugs in one work stream, all the same shape, none caught by any
 test — because every test re-printed, and a re-print always looks correct.
 
@@ -47,40 +48,77 @@ bounds.
 
 ---
 
-## 2. Mechanism
+## 2. The unit is an IoMap node, not a document leaf
 
-For one example and one input leaf:
+The property is stated per **IoMap**, because that is the thing that pairs an
+input with an output:
+
+> For every node of the IoMap tree: touch that node's `input`, and something
+> under that node's `output` must be invalidated.
+
+An IoMap is exactly `(projection, input, output)` plus its children —
+`ChildrenIoMap.child_iomaps`, `ContentIoMap.inner_iomap` — so the tree is
+walkable and every node carries the projection responsible for it. Three things
+follow, and they are why this framing beats walking the input document's leaves:
+
+- **Failures localise.** "This `ContentIoMap` for `WorkbenchEditorToWidgetScrollPane`
+  did not follow its input" names the projection and the file. A leaf walk says
+  only "something in this 88-example tree went stale".
+- **Sub-projections are covered by construction.** The bugs were in *nested*
+  projections, and a nested projection is exactly a child IoMap.
+- **Most of the reachability problem disappears.** A projection that drops part of
+  its input produces no IoMap for the dropped part, so the IoMap tree is
+  self-selecting at node granularity. §3's oracle is then only needed *within* a
+  node.
+
+This is also what the codebase already says it intends. `ContentIoMap`'s own
+docstring: *"its `output` / `inner_iomap` may be computed cells that re-derive
+reactively while the IoMap keeps its identity"*. The WorkbenchEditor bug was that
+one of them was a constant.
+
+### 2.1 "Under its output", not "its output cell"
+
+The obvious reading — `iomap.output` itself must invalidate — is **too strong**,
+and AR-STABLE-IOMAP-IDENTITY says why: a projection is supposed to keep a stable
+output object whose *varying parts* are computed cells. The workbench's root
+`VerticalLayout` never changes identity; its `children.elements` is a thunk. That
+is correct, and the strict reading would fail it.
+
+So: **at least one cell reachable from `iomap.output` must change**, and the
+IoMap's own identity must not. The two together are the property; either alone
+is satisfiable by something wrong.
+
+### 2.2 The procedure, per node
 
 ```
-1. print_document(projection, document)      -> iomap
-2. force every Cell reachable from iomap.output   (walk_printer_output already does this)
-3. snapshot: which output cells are valid, and their values
-4. write ONE input leaf with a different value
-5. re-read the snapshot set
-6. assert: >= 1 cell changed   AND   fraction changed <= bound
+1. print once; force every Cell reachable from the ROOT output
+2. for each IoMap node, in tree order:
+     a. snapshot the cells reachable from THIS node's output
+     b. mutate one leaf of THIS node's input
+     c. assert: >= 1 snapshot cell changed, and the node's iomap identity is unchanged
+     d. restore the leaf
 ```
 
-Step 2 matters: an unforced cell is already invalid, so without it every test
-passes vacuously. `walk_printer_output` (kernel/test) already forces every
-reachable cell and is the right starting point.
+Printing once and restoring after each write keeps one tree alive for a whole
+example, which is what makes 88 examples affordable at all.
 
-### 2.1 Detecting the change
+### 2.3 Detecting the change
 
 Two candidate observations, and the choice is not obvious:
 
-- **Validity flags.** `ReactiveCell` carries `valid::Bool`. Reading it directly
-  measures invalidation exactly, which is what the property says.
-- **Values.** Force again and diff. Coarser — an invalidation that recomputes to
-  the same value is invisible — but it measures what a user would see, and it
-  does not depend on cell internals.
+- **Validity flags.** `ReactiveCell` carries `valid::Bool`, so reading it measures
+  invalidation exactly, which is what the property says.
+- **Values.** Force again and diff. Coarser — an invalidation that recomputes the
+  same value is invisible — but it measures what a user would see and does not
+  depend on cell internals.
 
 **Proposal: values, with validity as the diagnostic.** A projection that
-invalidates and recomputes an identical value has not misbehaved; a projection
-whose visible output is unchanged after an input edit has, whatever its flags
-say. Validity flags then explain a failure ("nothing was even invalidated" vs
-"invalidated but recomputed the same").
+invalidates and recomputes an identical value has not misbehaved; one whose
+visible output is unchanged after an input edit has, whatever its flags say.
+Validity then explains a failure — "nothing was invalidated" is a frozen cell,
+"invalidated but recomputed identically" is something else entirely.
 
-### 2.2 Mutating a leaf, generically
+### 2.4 Mutating a leaf, generically
 
 The awkward part. A type-directed mutator over leaf values:
 
@@ -94,11 +132,9 @@ The awkward part. A type-directed mutator over leaf values:
 | enum | the next member, wrapping |
 | anything else | **skip, and count it** |
 
-Documents are not mutated wholesale — the walk recurses into them, so their own
-leaves get their turn. The skip count is reported, because a harness that
-silently skips most of the tree looks green while testing nothing.
-
----
+Documents are not mutated wholesale — the walk recurses, so their own leaves get
+their turn. The skip count is reported, because a harness that silently skips most
+of a tree looks green while testing nothing.
 
 ## 3. The hard part: not every input field owes the output anything
 
@@ -106,7 +142,10 @@ silently skips most of the tree looks green while testing nothing.
 drop parts of their input. Touching a filtered-out element legitimately changes
 nothing, and a naive harness would report a false failure on every one of them.
 
-So the property needs a reachability oracle, and there is already exactly one:
+At node granularity the IoMap tree already handles this — a dropped child has no
+IoMap. But *within* a node, an input document may still carry fields the
+projection does not show, so the oracle is still needed there, and there is
+already exactly one:
 
 ```julia
 map_reference_forward(projection, iomap, input_reference)
@@ -182,22 +221,23 @@ Worth stating so nobody assumes otherwise:
 **Invariants:** existing suites stay green; the harness adds no dependency; it is
 opt-in, not part of `test_kernel` / `test_base` / `test_visual`.
 
-### Phase 1 — the observation primitives
-`force_output!(iomap)` (reuse `walk_printer_output`), `snapshot_output(iomap)`
-returning a `Vector{Pair{Cell,Any}}`, and `changed(snapshot)` re-reading it.
-*Verify: on `json_example`, forcing then snapshotting twice with no edit reports
-zero changes; writing one leaf by hand reports at least one.*
+### Phase 1 — walk the IoMap tree
+`iomap_nodes(iomap)` yielding every node via `child_iomaps` / `inner_iomap`, each
+with its projection, input and output. Nothing is asserted yet.
+*Verify: on `json_example` the node count is stable and every node's projection is
+non-nothing; on `object_to_widget_example` the tree is deeper than one node, so
+the walk genuinely descends into sub-projections.*
 
-### Phase 2 — the leaf walk and the mutator
-`input_leaves(document)` (reuse `walk_document`) and `mutate_leaf!` per §2.2,
-with restore.
-*Verify: on `json_example`, the leaf count is stable and every mutation is
-reversible — the document compares equal to a pre-walk copy afterwards. The skip
-count is reported, and it is small.*
+### Phase 2 — the observation primitives
+`force_output!`, `snapshot_output(node)` over cells reachable from that node's
+output, and `changed(snapshot)`.
+*Verify: forcing then snapshotting twice with no edit reports zero changes;
+writing one leaf by hand reports at least one. A node's snapshot is a SUBSET of
+the root's — if they are equal for a nested node, the walk is not descending.*
 
 ### Phase 3 — the property, one example
-`check_reactivity(example)` returning per-leaf verdicts, with the
-`map_reference_forward` oracle deciding obligation.
+`check_reactivity(example)` returning per-node verdicts, with the
+`map_reference_forward` oracle deciding obligation within a node.
 *Verify: `json_example` passes with no allowlist. Then INJECT each of the three
 §1.1 bugs in turn and assert the harness FAILS — that is the real acceptance
 test, and it is worth writing the injections as a fixture rather than by hand.*
@@ -205,8 +245,8 @@ test, and it is worth writing the injections as a fixture rather than by hand.*
 ### Phase 4 — all 88, and the granularity bound
 `test_reactivity()` over the registry, with the over-invalidation bound from §6
 Q2 measured first and pinned second.
-*Verify: report per example — leaves tested, skipped, obliged, failed, and the
-worst invalidation fraction. Whatever fails on the first full run is a FINDING,
+*Verify: report per example — nodes walked, leaves tested, skipped, obliged,
+failed, and the worst invalidation fraction. Whatever fails on the first full run is a FINDING,
 not a bug in the harness — record each one before fixing it.*
 
 ### Phase 5 — structural edits
