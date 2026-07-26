@@ -101,9 +101,10 @@ function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, colla
     WidgetTreeNode(_icon(node), _label(p, node), children)
 end
 
-# ASCII only: the monospace UI font has no glyph for the obvious box-drawing and
-# arrow characters, and a missing glyph renders as tofu rather than failing.
-_icon(node) = node.children === nothing ? "-" : "+"
+# No icon: the tree already draws a chevron for every node that has children, so
+# a per-node glyph beside it is redundant — and the monospace UI font has no
+# glyph for the obvious decorative characters anyway, which renders as tofu.
+_icon(node) = ""
 
 function _label(p::ReflectionToWidget, node)
     name = _text(node.label)
