@@ -3521,7 +3521,28 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
     end
     _route_click_to_children(entries, evt)
 end
-read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt) = nothing
+# Pointer events the card does not itself handle (hover/scroll/press-down) are
+# ignored, as before. A coordless keyboard event instead routes into the card's
+# CONTENT, which is TRANSPARENT in the reference domain — the card consumes no
+# reference step, so the content's operation bubbles up unchanged, mirroring the
+# MousePress path (`_route_click_to_children`, which likewise does not re-root).
+# Selection-directed: it forwards only when the card's forward-projected
+# `selection` actually points inside it, so a card onto which nothing projects
+# (every card in a plain display, where `selection === nothing`) behaves exactly
+# as it did before.
+function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+    (evt isa MouseMove || evt isa MouseScroll || evt isa MouseEnter ||
+     evt isa MouseLeave || evt isa MouseDown || evt isa MouseUp) && return nothing
+    w = iomap.input
+    getfield(w, :selection)[] === nothing && return nothing
+    for entry in getfield(iomap, :child_iomaps)[]
+        entry === nothing && continue
+        (_, _, cim) = entry::Tuple{Int,Int,Any}
+        cim.input === w.content || continue
+        return read_intent(cim.projection, cim, evt)
+    end
+    nothing
+end
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 
