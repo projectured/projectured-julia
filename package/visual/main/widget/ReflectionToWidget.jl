@@ -25,9 +25,9 @@ affordance for a running engine's internals.
 its chevron emits a `ReplaceReferencedValueOperation` writing a new set. That
 state is *derived* here, not owned: the printer collects the path of every node
 standing on a marker, and the reader diffs the incoming set against it to find
-the one path that toggled, translates that to a request or a collapse on the
-shadow, and swallows the operation. The widget's own copy is never written to —
-the shadow is the only place expansion is recorded.
+the paths that toggled and RETURNS a `SetReflectedDisclosureOperation` naming
+them; evaluating that is what writes the shadow. The widget's own copy is never
+written to — the shadow is the only place expansion is recorded.
 """
 module ReflectionToWidgetModule
 
@@ -37,8 +37,8 @@ import ..CellModule: Cell
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep
-import ..DocumentReflectionModule: AbstractReflectedNode
-import ..BoundedSyncModule: AbstractUnsyncedDocument, request_sync!, unsynced_marker
+import ..DocumentReflectionModule: AbstractReflectedNode, SetReflectedDisclosureOperation
+import ..BoundedSyncModule: AbstractUnsyncedDocument
 
 export ReflectionToWidget
 
@@ -138,18 +138,17 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
     next = op.value
     next isa AbstractSet || return op
 
+    # AR-READER-IS-PURE: collect what changed and RETURN the edit; the shadow is
+    # written by evaluating SetReflectedDisclosureOperation, never here. The
+    # widget's own `collapsed` is still never written — the returned operation
+    # targets the shadow, so expansion stays recorded there.
+    changes = Pair{Any,Bool}[]
     for path in symdiff(next, iomap.collapsed)
         node = get(iomap.nodes, path, nothing)
         node === nothing && continue
-        if path in next
-            # collapsing: drop the subtree, and it stays dropped
-            node.children isa AbstractUnsyncedDocument ||
-                (node.children = unsynced_marker(node.children))
-        elseif node.children isa AbstractUnsyncedDocument
-            request_sync!(node.children)      # the next sync fills it one level
-        end
+        push!(changes, node => !(path in next))
     end
-    nothing      # swallowed: expansion is recorded in the shadow, not the widget
+    isempty(changes) ? nothing : SetReflectedDisclosureOperation(changes)
 end
 
 # A row click selects; there is no reflected-domain cursor to move it to.

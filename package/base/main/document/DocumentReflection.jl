@@ -29,9 +29,10 @@ import ..CollectionModule: CellVector
 import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
                          HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AbstractUnsyncedDocument,
-                            UnsyncedDocument, unsynced_marker
+                            UnsyncedDocument, unsynced_marker, request_sync!
+import ..OperationModule: Operation, evaluate_operation
 
-export ReflectedNode, AbstractReflectedNode,
+export ReflectedNode, AbstractReflectedNode, SetReflectedDisclosureOperation,
        reflect_document, sync_reflection!,
        reflect_child_count, reflect_child_pairs, reflect_children,
        is_reflection_leaf, reflection_value
@@ -55,6 +56,38 @@ distinguishes, which is why collapsing is just writing a marker there.
     kind::Any
     value::Any
     children::Any
+end
+
+# ── disclosure, as an operation ───────────────────────────────────────────────
+
+"""
+    SetReflectedDisclosureOperation(changes)
+
+Open or close reflected nodes. `changes` is a vector of `node => expanded` pairs.
+
+The two directions are deliberately asymmetric, because the sync policy is:
+collapsing is IMMEDIATE — the subtree is dropped behind a marker and stays
+dropped — while expanding is a REQUEST, flagging the marker so the next
+`sync_reflection!` fills it one level deeper. Opening a node therefore costs
+nothing until something syncs.
+
+This type exists so a projection's reader can stay pure (AR-READER-IS-PURE): a
+chevron click RETURNS this operation rather than writing the shadow itself, which
+also makes disclosure undoable and scriptable like every other edit. Collapse is
+the exact inverse of expand (AR-INVERTIBLE-OPERATIONS).
+"""
+struct SetReflectedDisclosureOperation <: Operation
+    changes::Vector{Pair{Any,Bool}}
+end
+
+function evaluate_operation(editor, op::SetReflectedDisclosureOperation)
+    for (node, expanded) in op.changes
+        if expanded
+            node.children isa AbstractUnsyncedDocument && request_sync!(node.children)
+        elseif !(node.children isa AbstractUnsyncedDocument)
+            node.children = unsynced_marker(node.children)
+        end
+    end
 end
 
 # ── what counts as a leaf, and what a leaf shows ──────────────────────────────

@@ -4,11 +4,15 @@ where a chevron drives the sync instead of merely hiding a row.
 
 The thing under test is the *round trip*, because that is where this design
 differs from an ordinary tree. `WidgetTree` owns a `collapsed` set; here that set
-is derived from the shadow on every print and never written back. A chevron click
-must therefore reach the shadow — setting a marker's `requested` so the next sync
-opens one more level — and the operation must be swallowed rather than allowed to
-edit the widget's own copy. If it were not swallowed, the widget and the shadow
-would hold two disagreeing versions of the same state.
+is derived from the shadow on every print and never written back. A chevron click must therefore reach the shadow — setting a marker's `requested`
+so the next sync opens one more level — and must never edit the widget's own
+copy, or the widget and the shadow would hold two disagreeing versions of the
+same state.
+
+The reader is PURE (AR-READER-IS-PURE): it returns a
+`SetReflectedDisclosureOperation` naming the nodes that toggled, and evaluating
+that is what moves the shadow. `apply_chevron!` below does both, standing in for
+what the editor does with whatever a reader returns.
 """
 
 mutable struct TreeReflectInner
@@ -36,6 +40,14 @@ function chevron(tree, path::Vector{Int})
     next = copy(tree.collapsed)
     path in next ? delete!(next, path) : push!(next, path)
     ReplaceReferencedValueOperation(tree, "collapsed", next)
+end
+
+# Click a chevron the way the editor would: read the intent, then evaluate what
+# it returns. Returns the operation so a test can assert on it.
+function apply_chevron!(projection, iomap, path::Vector{Int})
+    op = read_intent(projection, iomap, chevron(iomap.output, path))
+    op === nothing || evaluate_operation(nothing, op)
+    op
 end
 
 function test_reflection_to_widget()
@@ -66,7 +78,7 @@ end
     @test marker isa AbstractUnsyncedDocument
     @test !marker.requested
 
-    @test read_intent(projection, iomap, chevron(iomap.output, [1, 2])) === nothing
+    @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
     @test marker.requested                           # the click landed on the shadow
 end
 
@@ -75,7 +87,7 @@ end
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
 
-    read_intent(projection, iomap, chevron(iomap.output, [1, 2]))
+    apply_chevron!(projection, iomap, [1, 2])
     sync_reflection!(shadow, obj, policy)
     labels = tree_labels(print_document(projection, nothing, shadow, nothing).output.roots[1])
 
@@ -88,13 +100,13 @@ end
 @testset "collapsing puts a marker back" begin
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
-    read_intent(projection, iomap, chevron(iomap.output, [1, 2]))
+    apply_chevron!(projection, iomap, [1, 2])
     sync_reflection!(shadow, obj, policy)
 
     iomap = print_document(projection, nothing, shadow, nothing)
     @test !([1, 2] in iomap.output.collapsed)        # now expanded
 
-    read_intent(projection, iomap, chevron(iomap.output, [1, 2]))
+    apply_chevron!(projection, iomap, [1, 2])
     sync_reflection!(shadow, obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
 
@@ -109,7 +121,7 @@ end
 @testset "the tail of a capped collection opens too" begin
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
-    read_intent(projection, iomap, chevron(iomap.output, [1, 3]))
+    apply_chevron!(projection, iomap, [1, 3])
     sync_reflection!(shadow, obj, policy)
 
     labels = tree_labels(print_document(projection, nothing, shadow, nothing).output.roots[1])

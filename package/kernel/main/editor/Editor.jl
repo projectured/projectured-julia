@@ -223,7 +223,8 @@ When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
-              mcp_instructions::Union{AbstractString,Nothing}=nothing)
+              mcp_instructions::Union{AbstractString,Nothing}=nothing,
+              on_frame=nothing)
     server = if mcp
         mcp_instructions === nothing ?
             make_agent_server(:mcp, editor) :
@@ -242,6 +243,12 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
+                # Per-frame work that must WRITE — refreshing a derived shadow,
+                # advancing a simulation view. A reactive thunk cannot do this
+                # (AR-NO-WRITE-IN-THUNK) and the clock only invalidates readers,
+                # so a writer needs this seam. Runs before `read!` so the frame
+                # reads what it just refreshed.
+                on_frame === nothing || on_frame(editor)
                 @performance_time :read_time     read!(editor)
                 @performance_time :evaluate_time evaluate!(editor)
                 @performance_time :print_time    print!(editor)
@@ -279,12 +286,13 @@ which has no native window or pointer — pass their own set (e.g.
 `Device[Keyboard()]`).
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
-              devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()])
+              devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
+              on_frame=nothing)
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)
         editor = Editor(backend, document, projection, devices)
-        run_editor!(editor; mcp=mcp)
+        run_editor!(editor; mcp=mcp, on_frame=on_frame)
     finally
         quit_backend!(backend)
     end
