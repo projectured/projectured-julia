@@ -193,8 +193,14 @@ end
     WidgetList(position, items; selected=0, width=220, <enabled/visible>)
 
 A single-column selectable list (Qt's `QListWidget`): `items` are stringified
-rows; the selected row draws a selection band. A click selects the hit row;
-Up/Down move the selection. Stage 6.
+rows; the selected row draws a selection band and the row under the pointer a
+lighter hover band. A click selects the hit row; Up/Down move the selection.
+Stage 6.
+
+`hovered` is the 1-based row under the pointer (`0` = none). Like a button's
+`hovered` it is **transient UI state**, not content: the reader writes it from
+pointer motion and nothing else reads it back. It is an `Int` rather than the
+shared `Bool` because a list hovers per ROW, not as a whole.
 
 Selection lives in the standard macro-injected `selection` field, as a reference
 `items[i-1:i]` — the same representation [`WidgetTable`](@ref) uses for its rows,
@@ -209,6 +215,7 @@ selection back with [`widget_list_selected`](@ref).
     width::Int
     visible::Bool
     enabled::Bool
+    hovered::Int
 end
 
 # `field[i-1:i]` — the canonical "element i of this collection field" selection
@@ -246,7 +253,7 @@ function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=220,
                     visible::Bool=true, enabled::Bool=true)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
-               Cell(Int(width)), Cell(visible), Cell(enabled),
+               Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0),
                Cell(widget_list_selection(selected)))
 end
 

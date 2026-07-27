@@ -4344,12 +4344,18 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
         control_height = max(row_height, n * row_height)
         sel = widget_list_selected(w)
+        hov = w.enabled === false ? 0 : w.hovered
         elements = Any[]
         _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
                      border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
         for (i, it) in enumerate(items)
             y = (i - 1) * row_height
             fg = p.text.color
+            # The hover tint sits UNDER the selection band, so hovering the
+            # selected row does not repaint it — same tint the tree and table use.
+            if i == hov && i != sel
+                _push_panel!(elements, 0, y, control_width, row_height; fill=_WT_HOVER_COLOR)
+            end
             if i == sel
                 _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
                 fg = p.selected_foreground
@@ -4379,9 +4385,16 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     # write to a private index field. That is what lets an enclosing projection
     # map the reference into its own domain (and map it back when printing).
     pick(r) = ReplaceSelectionOperation(widget_list_selection(r))
-    click_row(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? pick(r) : nothing)
+    row_at(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? r : 0)
+    click_row(yy) = (r = row_at(yy); r == 0 ? nothing : pick(r))
+    # Hover is per ROW, so it follows motion rather than the shared enter/leave
+    # Bool: report it only when the row actually changes, or every mouse move
+    # would write a cell and invalidate the canvas.
+    hover_row(r) = r == w.hovered ? nothing : ReplaceReferencedValueOperation(w, "hovered", r)
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? click_row(y) : nothing
+        MouseMove(x, y)          => hover_row(row_at(y))
+        MouseLeave()             => hover_row(0)
         when(KeyDown(k), k === :down) => pick(sel == 0 ? 1 : min(sel + 1, n))
         when(KeyDown(k), k === :up)   => pick(sel <= 1 ? 1 : sel - 1)
         _ => nothing
