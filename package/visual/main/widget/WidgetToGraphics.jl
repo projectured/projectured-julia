@@ -5764,14 +5764,20 @@ struct WidgetScrollPaneToGraphicsViewport <: Projection
 end
 
 function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::WidgetScrollPane, ctx)
-    content_iomap = print_child(recursion, w.content, ctx)
-
     pos = w.position
     sz  = w.size
     bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
     vw = sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH
     vh = sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT
+
+    # The content is allocated the VIEWPORT's width, not the pane's own parent
+    # allocation: a width-filling child (`_resolve_width`) would otherwise size
+    # itself to a parent the pane then clips, losing its right edge. Content that
+    # genuinely needs more still gets it — `_resolve_width` never goes below
+    # `content_min` — and scrolls, which is what the pane is for.
+    content_ctx = ctx === nothing ? ctx : with_available_size(ctx; width = Cell(vw))
+    content_iomap = print_child(recursion, w.content, content_ctx)
     scroll_cell = getfield(w, :scroll_position)
     inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
