@@ -2970,18 +2970,19 @@ _scroll_by(sp, dx, dy) = let old = sp.scroll_position
     ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
 end
 
+# Scroll this pane, if the wheel landed on it. Only reached once the content has
+# declined the event, so the innermost pane under the pointer wins.
+function _self_scroll(p, iomap, canvas, evt)
+    evt isa MouseScroll || return nothing
+    hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
+    _, scroll_step = p.measure("M", p.font)
+    evt.dx != 0 && evt.dy == 0 ?
+        _scroll_by(iomap.input, -evt.dx * scroll_step, 0) :
+        _scroll_by(iomap.input, 0, -evt.dy * scroll_step)
+end
+
 function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
     canvas = iomap.output
-    @event_case evt begin
-        MouseScroll(dx, dy, x, y) => begin
-            # evt coords are already relative to canvas origin (parent routing subtracted position)
-            hit_element_at(canvas, x, y) === nothing && return nothing
-            _, scroll_step = p.measure("M", p.font)
-            return dx != 0 && dy == 0 ?
-                _scroll_by(iomap.input, -dx * scroll_step, 0) :
-                _scroll_by(iomap.input, 0, -dy * scroll_step)
-        end
-    end
     # Forward other events (MousePress, KeyDown, KeyPress) to the wrapped
     # content. Coords for MousePress arrive relative to the scroll pane's
     # canvas origin (parent routing has already subtracted the pane's own
@@ -2992,7 +2993,9 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     # `map_reference_backward` to re-root it at `.content.<rest>` in the
     # scroll pane's input domain.
     content_iomap = iomap.content_iomap
-    content_iomap === nothing && return nothing
+    # No content: nothing can refuse the wheel, so fall through to scrolling
+    # ourselves rather than dropping the event.
+    content_iomap === nothing && return _self_scroll(p, iomap, canvas, evt)
     op = @event_case evt begin
         MousePress(button, x, y) => begin
             w = iomap.input
@@ -3003,9 +3006,21 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
             read_intent(content_iomap.projection, content_iomap,
                              MousePress(button, lx, ly, evt.modifiers))
         end
+        # The wheel goes to the innermost pane under the pointer, so translate
+        # it like a press and let the content refuse first; see the viewport
+        # variant for why intercepting here would strand a nested pane.
+        MouseScroll(dx, dy, x, y) => begin
+            w = iomap.input
+            cox, coy = _content_offset(w)
+            sp = getfield(w, :scroll_position)[]::Point2D
+            sx, sy = Int(sp.x[]), Int(sp.y[])
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseScroll(dx, dy, x - cox + sx, y - coy + sy, evt.modifiers))
+        end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
-    _retarget_op(p, iomap, op)
+    op === nothing || return _retarget_op(p, iomap, op)
+    _self_scroll(p, iomap, canvas, evt)
 end
 
 # ── WidgetTransformPane ───────────────────────────────────────────────────────
@@ -5766,24 +5781,12 @@ function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::Wid
 end
 
 function read_intent(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, evt)
-    if evt isa MouseScroll
-        mx, my = evt.x, evt.y
-        hit_element_at(iomap.output, mx, my) === nothing && return nothing
-        _, scroll_step = p.measure("M", p.font)
-        if evt.dx != 0 && evt.dy == 0
-            return _scroll_by(iomap.input, -evt.dx * scroll_step, 0)
-        else
-            return _scroll_by(iomap.input, 0, -evt.dy * scroll_step)
-        end
-    end
     content_iomap = iomap.content_iomap
-    content_iomap === nothing && return nothing
     # Translate pointer coordinates into the scrolled content's frame for any
     # event carrying coords. The viewport is drawn at (bx, by); the inner
     # canvas inside it is offset by (-scroll_x, -scroll_y), so an element at
     # content (cx, cy) renders at viewport (bx + cx - sx, by + cy - sy). To
     # invert: content_x = (evt.x - bx) + sx, content_y = (evt.y - by) + sy.
-    # MouseScroll is intercepted above so the inner pipeline never sees it.
     w = iomap.input
     pos = w.position
     bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
@@ -5795,10 +5798,26 @@ function read_intent(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollP
         MouseDown(button, x, y)  => MouseDown(button, x - bx + sx, y - by + sy, evt.modifiers)
         MouseUp(button, x, y)    => MouseUp(button, x - bx + sx, y - by + sy, evt.modifiers)
         MouseMove(x, y)          => MouseMove(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
+        MouseScroll(dx, dy, x, y) => MouseScroll(dx, dy, x - bx + sx, y - by + sy, evt.modifiers)
         _ => evt
     end
-    op = read_intent(content_iomap.projection, content_iomap, translated)
-    return _retarget_op(p, iomap, op)
+    # A wheel turn belongs to the INNERMOST pane under the pointer, so the
+    # content gets first refusal: routing is by POSITION, not by selection. Only
+    # when nothing inside takes it does this pane scroll itself. Handling the
+    # wheel here first is what made a nested pane unscrollable — the outer pane
+    # hit-tests true for every point inside it, so the inner one never saw it.
+    if content_iomap !== nothing
+        op = read_intent(content_iomap.projection, content_iomap, translated)
+        op === nothing || return _retarget_op(p, iomap, op)
+    end
+    if evt isa MouseScroll
+        hit_element_at(iomap.output, evt.x, evt.y) === nothing && return nothing
+        _, scroll_step = p.measure("M", p.font)
+        return evt.dx != 0 && evt.dy == 0 ?
+            _scroll_by(w, -evt.dx * scroll_step, 0) :
+            _scroll_by(w, 0, -evt.dy * scroll_step)
+    end
+    nothing
 end
 
 function map_reference_forward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)
