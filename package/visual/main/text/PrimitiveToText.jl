@@ -16,6 +16,7 @@ import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
                           ReplaceStringRangeOperation
 import ..TextModule: TextDocument, TextBlock, TextString
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
 import ..StyleTextModule: StyleText, DStyleText
@@ -38,21 +39,37 @@ function _forward_value(reference)
     end
 end
 
+# The Text domain has two legal caret forms and `TextToGraphics` emits the
+# CANONICAL one — a flat character offset on the block (`TextRangeReferenceStep`)
+# — while the structural `.elements[1].content{k}` path is what the forward
+# direction produces. Both have to map back, or a primitive nested in a widget
+# renders and never accepts a caret: the printers compose, so the readers must
+# too. On a single-span block the two forms denote the same position.
+_flat_caret_offset(reference) =
+    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep ?
+        reference.head.start : nothing
+
 # Backward: .elements[1].content[k] on the TextBlock → .value[k] on the primitive.
 # Type-specific variants so the returned reference carries the leading document type.
 function _backward_bool(reference)
+    flat = _flat_caret_offset(reference)
+    flat === nothing || return @reference ::PrimitiveBool.value::Bool{flat}::Position
     @reference_case reference begin
         ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveBool.value::Bool{s}::Position
     end
 end
 
 function _backward_number(reference)
+    flat = _flat_caret_offset(reference)
+    flat === nothing || return @reference ::PrimitiveNumber.value::Number{flat}::Position
     @reference_case reference begin
         ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveNumber.value::Number{s}::Position
     end
 end
 
 function _backward_string(reference)
+    flat = _flat_caret_offset(reference)
+    flat === nothing || return @reference ::PrimitiveString.value::String{flat}::Position
     @reference_case reference begin
         ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveString.value::String{s}::Position
     end
