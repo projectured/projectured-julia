@@ -34,10 +34,10 @@ export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
 
 # The four collection shapes, one fragment file each (fragments share this
 # module's namespace). CellVector first — CellTable's rows are a CellVector.
-include("collection/CellVector.jl")
-include("collection/CellMatrix.jl")
-include("collection/CellTable.jl")
-include("collection/ListNode.jl")
+include("CellVector.jl")
+include("CellMatrix.jl")
+include("CellTable.jl")
+include("ListNode.jl")
 
 """
     CollectionDocument

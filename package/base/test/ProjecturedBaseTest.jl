@@ -74,9 +74,10 @@ function test_base_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedBase.jl
     # is not under a src/), so derive the package root from `pathof`.
     main = normpath(dirname(pathof(ProjecturedBase)))
-    check_layering(main, joinpath(main, "ProjecturedBase.jl");
-                   name = "base",
-                   layers = ["document", "projection", "serialization"])
+    # base is an acyclic DAG of concept folders (sliced like `domain`), not
+    # ordered layers, so no `layers` indices are declared — the topological
+    # include-order check enforces slice acyclicity.
+    check_layering(main, joinpath(main, "ProjecturedBase.jl"); name = "base")
 end
 
 """
