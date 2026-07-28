@@ -188,8 +188,10 @@ package/base/main/
 
   # ---- persistence ----
   serialization/  BinarySerialization                  (exact/lossless binary)
-  fileformat/     NaturalFormat + DocumentFile         (human-readable file formats + the
-                  extension-dispatched file entry point; framework skeleton, post §2)
+  # NOTE (outcome): fileformat/ did NOT land in base. Natural-format export renders
+  # through visual (SyntaxToText -> TextToString), so NaturalFormat + DocumentFile
+  # went to VISUAL as visual/fileformat/ (see Step 3). base's only persistence
+  # concept is the binary serializer above.
 ```
 
 Two pairings worth noting: `primitive/` co-locates `Primitive` with
