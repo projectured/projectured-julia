@@ -778,6 +778,14 @@ _route_move_to_children(child_entries::Vector, evt::MouseMove) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
 
+# Route a raw press-down / release to the hit child (coordinate-translated), so a
+# button nested in a container flips its `pressed` cell (the depress feedback). The
+# composed MousePress click is routed separately via `_route_click_to_children`.
+_route_downup_to_children(child_entries::Vector, evt) =
+    _route_to_children(child_entries, evt.x, evt.y,
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
+                                      MouseUp(evt.button, x, y, evt.modifiers))
+
 # Translate a path-bearing op from `op`'s current domain (this projection's
 # child's input domain — what the bubbled-up reader returned) into this
 # projection's own input domain by running its reference through
@@ -3521,21 +3529,28 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
     end
     _route_click_to_children(entries, evt)
 end
-# Pointer events the card does not itself handle (hover/scroll/press-down) are
-# ignored, as before. A coordless keyboard event instead routes into the card's
-# CONTENT, which is TRANSPARENT in the reference domain — the card consumes no
-# reference step, so the content's operation bubbles up unchanged, mirroring the
-# MousePress path (`_route_click_to_children`, which likewise does not re-root).
-# Selection-directed: it forwards only when the card's forward-projected
+# Pointer events route into the card's content by coordinate, so an interactive
+# widget nested in a card (a button, a hovered row) still sees hover crossings, the
+# pointer motion behind them, and the raw press-down/release that drive its
+# `hovered`/`pressed` feedback. These paths do not re-root: the card is TRANSPARENT
+# in the reference domain (it consumes no reference step), so a child's operation
+# bubbles up unchanged, mirroring the MousePress path (`_route_click_to_children`).
+# The scroll wheel is still the card's own concern to decline (nothing).
+#
+# A coordless keyboard event has no coordinate to hit-test, so it routes into the
+# card's CONTENT selection-directed: forwarded only when the card's forward-projected
 # `selection` actually points inside it, so a card onto which nothing projects
-# (every card in a plain display, where `selection === nothing`) behaves exactly
-# as it did before.
+# (every card in a plain display, where `selection === nothing`) behaves exactly as
+# it did before.
 function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    (evt isa MouseMove || evt isa MouseScroll || evt isa MouseEnter ||
-     evt isa MouseLeave || evt isa MouseDown || evt isa MouseUp) && return nothing
+    entries = getfield(iomap, :child_iomaps)[]
+    (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
+    evt isa MouseMove && return _route_move_to_children(entries, evt)
+    (evt isa MouseDown || evt isa MouseUp) && return _route_downup_to_children(entries, evt)
+    evt isa MouseScroll && return nothing
     w = iomap.input
     getfield(w, :selection)[] === nothing && return nothing
-    for entry in getfield(iomap, :child_iomaps)[]
+    for entry in entries
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
         cim.input === w.content || continue
@@ -5838,6 +5853,8 @@ function read_intent(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollP
         MouseDown(button, x, y)  => MouseDown(button, x - bx + sx, y - by + sy, evt.modifiers)
         MouseUp(button, x, y)    => MouseUp(button, x - bx + sx, y - by + sy, evt.modifiers)
         MouseMove(x, y)          => MouseMove(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
+        MouseEnter(x, y)         => MouseEnter(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
+        MouseLeave(x, y)         => MouseLeave(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
         MouseScroll(dx, dy, x, y) => MouseScroll(dx, dy, x - bx + sx, y - by + sy, evt.modifiers)
         _ => evt
     end

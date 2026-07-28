@@ -408,4 +408,58 @@ end
     @test _slot(_read(lay, tab)) == 1               # last wraps to first
 end
 
+# A button laid out in a VerticalLayout must receive the raw MouseDown/MouseUp that
+# drive its `pressed` cell (the depress feedback), not only the composed MousePress.
+# Before the layout routed down/up by coordinate, these fell to selection-only routing
+# and — with no selection on the button — went nowhere, so a nested button never
+# depressed even though its click still fired.
+@testset "a button inside a layout depresses (press-down/up routed by coordinate)" begin
+    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> nothing)
+    layout = VerticalLayout(Any[button]; gap = 8)                 # single child at origin
+    proj = ChainingProjection(WidgetHoverTrackingProjection(inner =
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch,
+            WidgetToGraphics(_font; measure=_stub).dispatch)))))
+    iomap = print_document(proj, nothing, layout, PrinterContext())
+
+    dn = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys()))
+    @test dn isa ReplaceReferencedValueOperation && dn.document === button && dn.value == true
+    up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys()))
+    @test up isa ReplaceReferencedValueOperation && up.document === button && up.value == false
+    # The composed click still reaches the action, as before.
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
+end
+
+# A WidgetCard used to swallow every pointer event but a click, so an interactive
+# widget nested in a card never saw hover crossings or the press-down/up. It now
+# routes them to the hit child. The button is located from the card's rendered child
+# entries so the test does not hard-code the header/padding offset.
+@testset "a button inside a card receives hover + press through the card" begin
+    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> nothing)
+    card = WidgetCard(Point2D(0, 0); title = "T", content = button, width = 240)
+    proj = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(_font; measure=_stub).dispatch)))
+    iomap = print_document(proj, nothing, card, PrinterContext())
+
+    # Absolute centre of the button, read back from the card's child entries.
+    bx = by = bw = bh = 0
+    for e in getfield(iomap, :child_iomaps)[]
+        e === nothing && continue
+        (ex, ey, cim) = e
+        cim.input === button || continue
+        c = cim.output
+        bx = ex + Int(c.x); by = ey + Int(c.y); bw = Int(c.w[]); bh = Int(c.h[])
+    end
+    @test bw > 0 && bh > 0                                        # the button was found
+    cx = bx + bw ÷ 2; cy = by + bh ÷ 2
+
+    hov = read_intent(proj, iomap, MouseEnter(cx, cy, :none, ModifierKeys()))
+    @test hov isa ReplaceReferencedValueOperation && hov.document === button && hov.value == true
+    dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys()))
+    @test dn isa ReplaceReferencedValueOperation && dn.document === button && dn.value == true
+    # And a click still reaches the action through the card.
+    @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys())) isa InvokeWidgetActionOperation
+end
+
 end # test_widget_button_behavior

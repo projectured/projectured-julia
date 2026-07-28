@@ -31,7 +31,7 @@ import ..CollectionModule: CellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
 import ..IoMapModule: IoMap
-import ..EventModule: MouseScroll, MousePress, MouseMove, MouseEnter, MouseLeave
+import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
@@ -192,6 +192,14 @@ _route_crossing(entries, evt) =
         (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
                                        MouseLeave(x, y, evt.buttons, evt.modifiers))
 
+# A raw press-down / release also hit-tests by coordinate, so a button laid out in a
+# layout flips its `pressed` cell (the depress feedback). The composed MousePress
+# click is routed separately by `_route_click`.
+_route_downup(entries, evt) =
+    _route_to_children(entries, evt.x, evt.y,
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
+                                      MouseUp(evt.button, x, y, evt.modifiers))
+
 # Forward a coordless event to the single child the layout's selection points at.
 function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
     (1 <= slot <= length(entries)) || return nothing
@@ -261,6 +269,8 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         MouseMove   => _route_move(entries, evt)
         MouseEnter  => _route_crossing(entries, evt)
         MouseLeave  => _route_crossing(entries, evt)
+        MouseDown   => _route_downup(entries, evt)
+        MouseUp     => _route_downup(entries, evt)
         _ => begin
             # Selection-only: route the coordless event to the child the
             # selection points at, or nowhere (no broadcast fallback) — selection
