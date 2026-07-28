@@ -122,6 +122,18 @@ function test_julia_typein()
             @test starts[4] == starts[3]   # clamp at the last hole
         end
 
+        @testset "SelectNextInsertion clears the old branch (no stale cursor)" begin
+            # Moving between holes in different branches must clear the branch we
+            # leave. A bare `set_selection!` only writes the new path and leaves the
+            # departed hole's own `selection` cell set, so both nodes draw a cursor.
+            sc = _JT_M.julia_scaffold("function")
+            nm = evaluate_reference(sc, _jt_hole_path(getfield(sc, :selection)[]))
+            @test getfield(nm, :selection)[] !== nothing        # `name` hole selected
+            evaluate_operation((document = sc,),
+                               SelectNextInsertionOperation(_jt_hole, _jt_v0()))
+            @test getfield(nm, :selection)[] === nothing        # left branch cleared
+        end
+
         @testset "gesture operations build the factorial tree" begin
             ed = _JtEditor(with_selection(JuliaInsertion(""), _jt_v0()), nothing)
             _jt_step!(ed, "function")               # -> JuliaFunction scaffold, cursor on name

@@ -11,10 +11,10 @@ a model. Both spend the same currency, the editor's `ToolSet`: an agent server
 publishes it, an agent loop calls it.
 
 Concrete servers live in their own packages and register methods for
-`make_agent_server` / `start_agent_server!` / `stop_agent_server!` — the MCP server
-is `ProjecturedMcp`. The editor loop drives a server only through these generics, so
-it never names a concrete server type, which is what lets the implementation live in
-an optional package whose types cannot be referenced at load time.
+`make_agent_server` / `start_agent_server!` / `stop_agent_server!`. The editor loop
+drives a server only through these generics, so it never names a concrete server
+type, which is what lets the implementation live in an optional package whose types
+cannot be referenced at load time.
 """
 module AgentServerModule
 

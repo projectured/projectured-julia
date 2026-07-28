@@ -3,8 +3,8 @@
 
 # The umbrella `Projectured` package (loaded, but not a dependency of the kernel —
 # that would be circular) re-exports every kernel/base/visual/domain submodule.
-# Prefer it, so scratch code can reach any domain type (`JsonArray`,
-# `WorkbenchAssistant`, `CellVector`, …). In a per-package test environment the
+# Prefer it, so scratch code can reach any loaded domain type. In a per-package
+# test environment the
 # umbrella is absent, so fall back to whichever source packages ARE loaded and
 # flat-re-export each of their submodules ourselves — the same names then resolve.
 const _SOURCE_PREFERENCE = ("Projectured", "ProjecturedDomain", "ProjecturedVisual",

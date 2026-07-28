@@ -98,9 +98,8 @@ Child context whose reference is `ctx.reference` extended by `steps`, kept
 document `ctx` currently points at, e.g. the `print_document` input) so every
 new node — and the terminal — records its type, then concatenated onto the
 already-typed parent reference. This preserves the strict-typing invariant
-across the print recursion (the reference-types-always-present plan), replacing
-the old `@reference ^(ctx.reference).field` splice whose appended terminal was
-left untyped. `current_doc` is any document (not a `ReferenceStep`/`Reference`,
+across the print recursion (the reference-types-always-present plan).
+`current_doc` is any document (not a `ReferenceStep`/`Reference`,
 which select the other methods).
 """
 function make_child_context(ctx::PrinterContext, current_doc::Document,

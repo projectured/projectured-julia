@@ -42,8 +42,7 @@ function stream_turn end
 Render `tools` into the shape this provider's API expects (for Anthropic, a
 JSON-Schema-shaped `Vector{Dict}`).
 
-This is the provider adapter's job, exactly as rendering a `Tool` into MCP's wire
-format is `ProjecturedMcp`'s. A `Tool` itself describes its parameters abstractly
-and knows no wire format at all.
+This is the provider adapter's job. A `Tool` itself describes its parameters
+abstractly and knows no wire format at all.
 """
 function tool_schema end

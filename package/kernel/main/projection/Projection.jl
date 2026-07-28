@@ -25,9 +25,9 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               pure_print_document, pure_print_child
 using ..IntentModule
 using ..OperationModule
-# The ReplaceStringRangeOperation / ReplaceNumberRangeOperation branches of
-# the default read_intent live in base/projection/ReaderDefaults.jl beside
-# the Primitive document types. This module stays Primitive-free.
+# The text- and number-range replace branches of the default read_intent live
+# in a higher package, beside the primitive leaf types they edit; this module
+# names none of them.
 using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
@@ -132,13 +132,13 @@ end
 
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
-`map_reference_backward`: the path/reference of `ReplaceSelectionOperation`,
-`ReplaceStringRangeOperation`, and `ReplaceNumberRangeOperation`, plus each member
-of a `CompoundOperation` recursively (so edits flow back through generic
-projections such as `SortingProjection`/`ReversingProjection`/`CopyingProjection`
-without a bespoke reader). A `document === nothing` (`editor.document`-rooted)
-`ReplaceReferencedValueOperation` has its `reference` re-targeted — this now covers the
-former document-replace and sequence-insert/delete operations, which are
+`map_reference_backward`: the path/reference of `ReplaceSelectionOperation` and
+the text- and number-range replace operations, plus each member
+of a `CompoundOperation` recursively (so edits flow back through
+structure-preserving generic projections without a bespoke reader). A
+`document === nothing` (`editor.document`-rooted)
+`ReplaceReferencedValueOperation` has its `reference` re-targeted — this covers
+document-replace and sequence-insert/delete, which are
 `ReplaceReferencedValueOperation`s with a terminal `RangeReferenceStep`; a self-contained one
 (carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
 forwarded unchanged; all other operation types return `nothing`.
@@ -152,7 +152,7 @@ function read_intent(projection::Projection, iomap, operation)
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
         # `read_gesture` of its input document. This generalizes the per-projection
-        # delegation `SyntaxToText`/`TextToGraphics` already do by hand, so any
+        # delegation that render-stage projections already do by hand, so any
         # `@gestures`-declared domain is reachable through any projection with no
         # bespoke reader. (Higher-order projections route events through their own
         # 4-arg readers and never reach this leaf default.)
@@ -160,7 +160,7 @@ function read_intent(projection::Projection, iomap, operation)
         return input isa Document ? read_gesture(input, operation) : nothing
     elseif operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
-        # path identity-rooted controls (`ObjectToWidget`/`WidgetToGraphics`) take
+        # path identity-rooted controls (widgets, rendered controls) take
         # back through any generic projection. Document-rooted (`document === nothing`):
         # re-target the reference, like the dedicated path-bearing ops below.
         operation.document === nothing || return operation
@@ -171,9 +171,9 @@ function read_intent(projection::Projection, iomap, operation)
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    # ReplaceString/NumberRange branches live in base/projection/ReaderDefaults.jl
-    # (as more-specific `read_intent(::Projection, iomap, ::ReplaceStringRangeOperation)`
-    # methods there — they take precedence over this catch-all).
+    # The text-/number-range replace branches live in a higher package (as
+    # more-specific `read_intent` methods on those operation types — they take
+    # precedence over this catch-all).
     elseif operation isa CompoundOperation
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing

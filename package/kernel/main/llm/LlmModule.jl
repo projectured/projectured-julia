@@ -12,7 +12,7 @@ comes back. Three fragments share this namespace:
 
 **Nothing here is any provider's wire format.** Messages and events are the
 project's own vocabulary; each adapter translates its protocol into them
-(`ProjecturedLlm` for the Anthropic Messages API, the example doubles for tests).
+(one adapter per provider, plus test doubles).
 That is the difference between an abstraction with implementations and a hook the
 one implementation leaks through: a second provider writes an adapter, rather than
 transcoding its stream into the first provider's event names.
@@ -22,9 +22,9 @@ belongs to the concrete `Llm`, not to this seam. A local model has no API key an
 hosted one may want a region; `stream_turn` therefore takes only what varies per
 turn.
 
-Concrete backends live outside `main`: the real one in the opt-in `ProjecturedLlm`
-package, the fakes (`FakeLlm`, `ScriptedLlm`) in `ProjecturedKernelExample`, never
-in a `main` package (AR-NO-TEST-DOUBLES-IN-MAIN).
+Concrete backends live outside `main`: the real provider adapters in their own
+opt-in packages, the test doubles in an example package, never in a `main`
+package.
 """
 module LlmModule
 

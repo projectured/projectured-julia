@@ -34,7 +34,7 @@ export Editor, run_editor!
 Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
   - `document`   — the reactive document being edited
-  - `projection` — the projection (or ChainingProjection)
+  - `projection` — the projection (or a chaining projection)
   - `devices`    — input/output devices (e.g. window, keyboard)
   - `clock`      — this editor's private animation clock (fresh `Clock()` by
                    default); `run_editor!` ticks it once per frame from OS
@@ -45,7 +45,7 @@ Holds the state for a read-eval-print loop:
                    `register_default_tools!(editor.tools)` fills it with the
                    built-ins on first use. Per editor, so two editors in one
                    process neither share a tool list nor evaluate code into each
-                   other's namespace (AR-PER-EDITOR-STATE).
+                   other's namespace.
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)

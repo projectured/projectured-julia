@@ -46,7 +46,7 @@ Resource(uri, name, description, provider; mime_type::AbstractString = "text/mar
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
 
-Per editor, never process-global (AR-PER-EDITOR-STATE): `scratch` is the module
+Per editor, never process-global: `scratch` is the module
 `execute_julia_code` evaluates into — so a top-level assignment in one call is
 still bound in the next — and `last_value` is that call's actual return value,
 which lets a caller embed a returned `Document` live instead of stringifying it.

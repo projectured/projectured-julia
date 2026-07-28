@@ -3,7 +3,7 @@
 
 Scripted live playback: drive the editor's read-eval-print loop while firing a
 predefined timeline on a wall-clock schedule, so a scripted session unfolds in a
-real window. Extracted from Editor.jl; builds on the editor-loop primitives
+real window. Builds on the editor-loop primitives
 (`read!`/`evaluate!`/`print!`/`perf!`).
 """
 module PlaybackModule

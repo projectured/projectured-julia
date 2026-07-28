@@ -28,11 +28,11 @@ documents — no adapter or engine change.
 module ProjectionTemplateModule
 
 using ..CellModule
-# ProjectionTemplate does not name CellVector directly.
-# `make_children_container(...)` builds the container (base's
-# Collection.jl registers Vector/Function methods on CellVector);
+# This module does not name the concrete children-container type.
+# `make_children_container(...)` builds the container and
 # `children_container_type()` returns the concrete type for TypeReferenceStep
-# markers. This is the pressure that keeps ProjectionTemplate kernel-pure.
+# markers; a higher package registers both. This is the pressure that keeps the
+# template engine kernel-pure.
 using ..ChildrenContainerModule
 using ..IoMapModule
 # This also binds the module itself, so `@projection_template` can emit a
@@ -46,13 +46,11 @@ using ..ReferenceModule
 using ..ProjectionReferenceStepModule
 using ..PrinterContextModule
 using ..OperationModule
-# The `RuleIoMap` readers keyed on `RecursiveProjection` (the transparent
-# wrapper disambiguations) and the single
-# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)`
-# method all live in base beside the reader defaults: `RecursiveProjection`
-# is a base projection and `ReplaceStringRangeOperation` a base/Primitive
-# type, neither of which the kernel can name. Base imports `RuleIoMap` +
-# `AtomicWiring` from this module to preserve the same dispatch behaviour.
+# The `RuleIoMap` readers keyed on the transparent recursive wrapper and the
+# single text-range-replace retype method live in a higher package beside the
+# reader defaults: that wrapper projection and that operation type are defined
+# there, and the kernel cannot name either. The higher package imports
+# `RuleIoMap` + `AtomicWiring` from this module to preserve the same dispatch.
 using ..DocumentModule
 using ..EventModule
 using ..EventPatternModule
@@ -121,7 +119,7 @@ struct NodeWiring
     children_field::Symbol               # output field holding the children, e.g. :children
 end
 
-# A fixed-children node (e.g. JsonObject's per-entry pair node): its children are
+# A fixed-children node (e.g. an object's per-entry key/value pair node): its children are
 # a fixed list, each wired individually rather than a homogeneous collection.
 # Such a node is produced by a `collection(:f) do x … end` element builder, walked
 # per element, and delegated to by the enclosing collection mapper.
@@ -217,11 +215,10 @@ _prepend(tail::Reference, steps...) = begin
     end
     fold_reference_types(p)
 end
-# Reduce a path to its plain navigation skeleton (node types blanked). The JSON
-# input boundary wants clean, type-free reference paths (see
-# test_json_content_clicks_clean); a delegated child's backward result carries the
-# child's folded node types, so the collection mapper strips them when it splices
-# the child's tail under `.elements[i]` / `.entries[i]`.
+# Reduce a path to its plain navigation skeleton (node types blanked). A structural
+# input boundary wants clean, type-free reference paths; a delegated child's backward
+# result carries the child's folded node types, so the collection mapper strips them
+# when it splices the child's tail under `.elements[i]` / `.entries[i]`.
 _strip_checkpoints(x) = strip_reference_types(x)
 
 # ── The builder/walk printer ─────────────────────────────────────────────────
@@ -268,24 +265,24 @@ end
 #
 # A node built with a *positional* constructor stores its children as a raw `Vector`
 # — whatever it was handed. One built with a *keyword* constructor has them coerced
-# into an element collection (base's `CellVector`), because that is what a real output
+# into an element collection, because that is what a real output
 # node needs: the reference machinery navigates `.children[i]` through its element
 # cells.
 #
 # Both are the same blueprint, and the engine has to walk either. Recognising only the
 # raw `Vector` is why a fixed-children template node had to be spelled in the long
-# positional form: written `SyntaxNode([...])` or `SyntaxConcatenation([...])`, its
+# positional form: written with a node constructor over a raw child vector, its
 # children were invisible here, the node fell through to `_atomic_print`, and the
 # `bound`/`project` markers reached the printer unresolved — where it reads `.content`
 # off a `Bound` and dies.
 #
-# A raw `Vector` counts unconditionally, exactly as before. An element collection counts
+# A raw `Vector` counts unconditionally. An element collection counts
 # only when it actually CARRIES a marker: a marker-free one is an ordinary output subtree
 # and must keep going to `_atomic_print`. So the rule is strictly additive — it cannot
 # change what any existing template does.
 #
 # `is_element_collection` is the document-layer trait a positional collection opts into.
-# The kernel cannot name `CellVector`, which lives in base, so it asks the trait instead.
+# The kernel cannot name the concrete element-collection type, so it asks the trait instead.
 _is_fixed_children(::Vector) = true
 _is_fixed_children(x) = is_element_collection(x) && any(_carries_marker, x)
 
@@ -307,8 +304,8 @@ end
 _has_fixed_children(out) = any(fname -> _is_fixed_children(getfield(out, fname)[]), fieldnames(typeof(out)))
 
 # Locate a reactive children *thunk* (F2): a field holding a bare `Function`. Only
-# the 7-arg positional `SyntaxNode(open, close, sep, thunk, …)` stores an unevaluated
-# thunk (the keyword `children=` ctor wraps a Function as an output CellVector), so a
+# a positional node constructor with a trailing thunk argument stores it unevaluated
+# (the keyword `children=` ctor wraps a Function as an output element collection), so a
 # `Function` here unambiguously marks a conditional-children node.
 function _find_conditional(out)
     for fname in fieldnames(typeof(out))
@@ -387,8 +384,7 @@ end
 # Rebuild `node` with `sel` as its selection cell, reusing every other field's Cell
 # object — child/shared cells keep their identity, and prior value writes through
 # those cells are preserved. The auto-wrapping inner ctor passes Cells through
-# unchanged. Every call site rebuilds the node *before* anything else references it,
-# replacing the former post-construction `setfield!(node, :selection, …)` swap, so
+# unchanged. Every call site rebuilds the node *before* anything else references it, so
 # document nodes are never retargeted after construction.
 _with_selection(node, sel::Cell) =
     Base.typename(typeof(node)).wrapper(   # the UnionAll: its ctor accepts cells
@@ -410,10 +406,10 @@ function _atomic_print(p, doc, out)
     #                             untyped, an unmapped path returns as-is).
     #   bound on :value         ⇒ share doc's cell raw — the leaf's value span is
     #                             literally `.value`, so the input cursor already
-    #                             reads as a leaf cursor (JSON/SQL fast path).
+    #                             reads as a leaf cursor (leaf fast path).
     #   bound on another field  ⇒ value-lens: forward-map `.field{k}` to the leaf's
-    #                             `.value{k}` so `SyntaxToText._leaf_cursor` (which
-    #                             only knows `.value`/`.open`/`.close`) renders it.
+    #                             `.value{k}` so the render stage's leaf-cursor logic
+    #                             (which only knows `.value`/`.open`/`.close`) renders it.
     iomap_cell = Cell(nothing)
     sel = wiring.bound_field === nothing ? Cell(() -> map_reference_forward(p, nothing, doc.selection)) :
           wiring.bound_field === :value  ? getfield(doc, :selection) :
@@ -489,7 +485,7 @@ function _scan_atomic!(p, doc, out)
     AtomicWiring(intype, outtype, bound_field, bound_type, value_field, value_checkpoint, retype)
 end
 
-# A fixed-children node built per element (e.g. JsonObject's pair node). Each child
+# A fixed-children node built per element (e.g. an object's key/value pair node). Each child
 # of its `children` vector is classified: a `project(:f)` marker → delegated child;
 # a built leaf carrying a `bound` marker → key slot (its value holds a doc field);
 # anything else → introduced. The element's own selection cells (set by the
@@ -504,7 +500,7 @@ function _walk_markers(p, recursion, doc, ctx, markers)
     for child in markers
         if child isa Project
             # Delegated child reconciled by value identity, so a later type-swap of
-            # `doc.<field>` (JSON type-to-replace on a JsonInsertion slot) rebuilds it
+            # `doc.<field>` (type-to-replace on an insertion slot) rebuilds it
             # instead of leaving a stale child iomap. The store holds the *cell*;
             # mappers/reader force it (`[]`) for the current child iomap.
             fld = child.input
@@ -529,7 +525,7 @@ function _walk_markers(p, recursion, doc, ctx, markers)
                 # A bound child leaf renders its own cursor from its own selection
                 # cell, which `_leaf_cursor` reads as `.value{k}`. Lens the element's
                 # `.<bound_field>{k}` onto the leaf's `.value{k}` generically, so the
-                # builder needn't hand-wire it (this replaces JSON's `_entry_key_sel`).
+                # builder needn't hand-wire it.
                 child = _with_selection(child, _key_leaf_sel(doc, w.bound_field))
                 push!(slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
             end
@@ -853,7 +849,7 @@ function _node_backward(p, w, iomap, reference)
             child = ims[child_i]
             inner = map_reference_backward(child.projection, child, after.tail)
             inner === nothing && return nothing
-            # JSON boundary: emit a clean, checkpoint-free input path (matches the
+            # Structural boundary: emit a clean, checkpoint-free input path (matches the
             # canonical walk and what clicks produce), so navigation reaches every
             # caret. The child's tail is stripped of its checkpoints before splicing.
             return _prepend(_strip_checkpoints(inner), FieldReferenceStep(String(w.coll_input_field)), ElementReferenceStep(child_i))
@@ -862,7 +858,7 @@ function _node_backward(p, w, iomap, reference)
     return nothing
 end
 
-# ── fixed-children node (e.g. a JsonObject pair node) ──────────────────────────
+# ── fixed-children node (e.g. an object key/value pair node) ───────────────────
 #
 # References here are relative to the element (input = the entry, output = the pair
 # node). The enclosing collection mapper prepends `.children[i]`. A KeySlot's child
@@ -929,12 +925,12 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 return _prepend(inner, FieldReferenceStep(String(slot.in_field)))
             elseif slot isa SubNodeSlot
                 # A *whole-element* selection of an introduced grouping sub-node (e.g.
-                # the Julia `function name(params)` header) has no input pre-image;
+                # a keyword-header node's leading token) has no input pre-image;
                 # delegating maps ∅ back to the whole parent (∅), colliding with the
                 # root and stalling tree navigation. Represent it as an opaque
                 # structural position — a ProjectionReferenceStep into this node's output —
                 # so it round-trips distinctly (forward via `is_introduced_reference`;
-                # `SyntaxToText._syntax_to_flat` renders it transparently). A *deeper*
+                # the render stage renders it transparently). A *deeper*
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReference &&
                     return _path(ProjectionReferenceStep(slot.iomap.projection, reference))
@@ -952,7 +948,7 @@ end
 # forward, mirroring `_node_forward` / `_mixed_forward` / `_inline_forward`. Without
 # this the cursor on an introduced token of a fixed/conditional node fails to
 # forward-project (selection → nothing), so no caret renders and relative navigation
-# and typein die (the Julia `function`/`if`/operator tokens are all such positions).
+# and typein die (a keyword node's leading/operator tokens are all such positions).
 _fixed_forward(p, w, iomap, reference) =
     is_introduced_reference(reference, p) ? reference :
     _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
@@ -1171,7 +1167,7 @@ end
 # to the nearest enclosing structural node. This is the reader-side mirror of the
 # recursive printer (`collection`/`project`) and the recursive operation reader
 # (`map_reference_backward` below), and reuses the same lift (`reroot_operation`)
-# the container projections (`WidgetToGraphics`/`LayoutToGraphics`) use. The general
+# the container projections use. The general
 # principle is documented in package/kernel/doc/projection-system.md.
 #
 # Each level reads its own `iomap.input.selection`: `set_selection!` propagates the
@@ -1326,7 +1322,7 @@ layers already produced for it — the seam an `override` binding fires through 
 otherwise behaves exactly like the generic bridge in `ProjectionModule`.
 
 Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
-wrappers `RecursiveProjection` / `TypeDispatchingProjection` hand a leaf its own iomap
+recursive and type-dispatching wrappers hand a leaf its own iomap
 and already carry 4-arg methods of their own, so a method keyed on the iomap would be
 ambiguous with every one of them.
 """
@@ -1341,14 +1337,12 @@ function template_read_intent(p, recursion, change::Intent, iomap)
 end
 
 # The `KeyPress`/`KeyDown` and `ReplaceSelectionOperation` disambiguations for
-# the transparent `RecursiveProjection` wrapper over `RuleIoMap` — together with
-# the value-edit retype method
-# `read_intent(::Projection, ::RuleIoMap, ::ReplaceStringRangeOperation)` — all
-# live in `package/base/main/projection/ReaderDefaults.jl` beside the reader
-# defaults. `RecursiveProjection` is a base projection and
-# `ReplaceStringRangeOperation` a base/Primitive type, neither of which the
-# kernel can name; base imports `RuleIoMap` + `AtomicWiring` from this module to
-# preserve the same dispatch behaviour.
+# the transparent recursive wrapper over `RuleIoMap` — together with the
+# value-edit retype method for text-range replaces — all live in a higher
+# package beside the reader defaults. That wrapper projection and that operation
+# type are defined there, neither of which the kernel can name; the higher
+# package imports `RuleIoMap` + `AtomicWiring` from this module to preserve the
+# same dispatch behaviour.
 
 # Whole-element selection: map back, else (node) the position is a structural
 # introduced one with no input pre-image ⇒ wrap into this projection's own step

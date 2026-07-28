@@ -44,8 +44,8 @@ A tool the model asked for has been run. `call` is the request it answers — it
 textual result, and `is_error` says whether it failed.
 
 The loop reports the result rather than storing it, because what a result *is* to
-the caller varies: the workbench turns it into a live document in the chat, an MCP
-client would put it on the wire, and a script might just print it.
+the caller varies: one caller renders it live in a chat, another puts it on the
+wire, and a script might just print it.
 """
 struct AgentToolResult <: AgentEvent
     call::LlmToolUse

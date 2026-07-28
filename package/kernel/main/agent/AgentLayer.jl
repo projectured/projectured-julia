@@ -4,9 +4,8 @@
 # The layer is two directions through the same tool surface:
 #
 #   AgentServerModule — inbound.  Something outside drives this editor. The editor
-#                       loop reaches it through make_agent_server / start / stop;
-#                       the MCP transport implementing that seam is the opt-in
-#                       ProjecturedMcp package.
+#                       loop reaches it through make_agent_server / start / stop,
+#                       a seam a transport package implements out of tree.
 #   AgentModule       — outbound. This editor drives a model: the Agent, and the
 #                       run_turn! loop that streams a round, dispatches the tools
 #                       the model asked for, and goes again until it stops asking.

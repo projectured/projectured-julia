@@ -15,13 +15,12 @@ be asked to read. Five fragments share this namespace:
   above into a `ToolSet`.
 
 A tool surface is **not** an AI concept. It is what an editor exposes; who calls
-it is someone else's question. Three callers reach the same `ToolSet` from three
-directions, and none of them knows about the others: the `agent` layer's loop
-drives it locally on behalf of an LLM, the opt-in `ProjecturedMcp` package
-exposes it over the Model Context Protocol, and a human calls the same functions
-from the REPL.
+it is someone else's question. Callers reach the same `ToolSet` from several
+directions, and none of them knows about the others: an in-process agent loop
+drives it on behalf of a model, an out-of-process protocol server exposes it to
+the outside, and a human calls the same functions from the REPL.
 
-**One `ToolSet` per editor** (AR-PER-EDITOR-STATE). Nothing here is
+**One `ToolSet` per editor**. Nothing here is
 process-global: the tool list, the resource list, the code-execution scratch
 namespace, and its last
 result all live on the `ToolSet` instance an `Editor` owns, so two editors in one

@@ -176,7 +176,7 @@ end
 
 # Write `value` into the slot `step` selects on `parent`: a FieldReferenceStep names
 # a `Cell`-backed field; a RangeReferenceStep selects and overwrites an element of a
-# sequence container (`CellVector`). Terminal-kind dispatch is what lets
+# sequence container (an element collection). Terminal-kind dispatch is what lets
 # `ReplaceReferencedValueOperation` write either a document or a scalar through one path.
 function _write_slot!(parent, step::FieldReferenceStep, value)
     f = getfield(parent, Symbol(step.name))
@@ -283,7 +283,7 @@ end
 """
     insert_elements(path, index, items[, selection]; root=nothing) -> operation
 
-Insert each of `items` into the sequence container at `path` (a `CellVector`), at
+Insert each of `items` into the sequence container at `path` (an element collection), at
 the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation`
 whose terminal step is a **zero-width** `RangeReferenceStep(index, index)`
 and whose value is the item vector. When `selection` is non-`nothing`, a trailing
@@ -344,7 +344,7 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     end
     for j in (cur + 1):length(nodes)
         if op.predicate(nodes[j][2])
-            set_selection!(root, concat_references(nodes[j][1], op.cursor))
+            replace_selection!(root, concat_references(nodes[j][1], op.cursor))
             return
         end
     end
@@ -357,7 +357,7 @@ end
 Open traversal seam. The default enumerates struct fields as
 `FieldReferenceStep` steps, skipping `selection` and any field whose (unwrapped)
 value is not a `Document`. Override for container documents whose children
-are addressed by index (`CellVector`), by position, etc.
+are addressed by index (an element collection), by position, etc.
 """
 function child_reference_steps end
 
@@ -426,8 +426,7 @@ function evaluate_operation(editor, op::ToggleCollapseOperation)
     target.collapsed = !target.collapsed
 end
 
-# The window operations (`OpenWindowOperation`, `OpenPopupOperation`,
-# `CloseWindowOperation`, `ResizeWindowOperation`) are the screen domain's
-# vocabulary and live with `WindowDocument` in `ScreenDocumentModule`
-# (`document/ScreenDocument.jl`), not here.
+# Window operations are not here: an operation whose vocabulary belongs to a
+# single domain is declared with that domain's own document, and only
+# cross-domain operations live in this layer.
 

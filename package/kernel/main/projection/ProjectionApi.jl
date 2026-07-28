@@ -78,8 +78,8 @@ Forward half of a projection: transform `input` from this projection's input
 domain into its output domain. Returns an `IoMap` recording `projection`,
 `input`, `output`, and whatever the reader and the reference maps need to
 invert the transformation — crucially the **child IoMaps** when the projection
-recurses. Each concrete projection adds a method; compound projections such as
-`ChainingProjection` compose arbitrary projections purely via this dispatch.
+recurses. Each concrete projection adds a method; compound projections compose
+arbitrary projections purely via this dispatch.
 
 # Arguments
 - `recursion` — the projection to invoke when descending into a child. A leaf
@@ -91,7 +91,7 @@ recurses. Each concrete projection adds a method; compound projections such as
   which expands to `print_document(recursion, recursion, child, child_ctx)` —
   `recursion` is *both* the projection to call and that call's own `recursion`
   argument, so the child re-enters the whole pipeline (normally a
-  `RecursiveProjection` wrapping a `TypeDispatchingProjection`) instead of this
+  recursive projection wrapping a type-dispatcher) instead of this
   single projection. Always recurse through the helper rather than open-coding
   the doubled argument. The 2-arg overload `print_document(p, input)` supplies
   `nothing`.
@@ -120,7 +120,7 @@ recurses. Each concrete projection adds a method; compound projections such as
    - A node projection's `iomap` does not exist yet when the selection cell is
      built. Use the deferred-iomap trick: `iomap_cell = Cell(nothing)`, close
      over it in the thunk, and assign `iomap_cell[] = iomap` after constructing
-     the IoMap (see `CopyingProjection`).
+     the IoMap.
    - A leaf whose input and output selection formats are identical may instead
      *share* the same `selection::Cell` (`getfield(input, :selection)`) on both
      sides — writes are then visible on both with no mapping. Valid only
@@ -147,8 +147,8 @@ function print_document end
 Project a child by re-entering the whole pipeline. Equivalent to
 `print_document(recursion, recursion, input, ctx)`: `recursion` is both the
 projection to invoke *and* that call's own `recursion` argument, so the child
-goes back through the full pipeline (normally a `RecursiveProjection` wrapping a
-`TypeDispatchingProjection`) instead of one projection. Node printers should
+goes back through the full pipeline (normally a recursive projection wrapping a
+type-dispatcher) instead of one projection. Node printers should
 recurse through this helper so the doubled `recursion` argument lives in exactly
 one place and call sites read as "recurse into this child".
 """
@@ -203,11 +203,11 @@ compound projections that thread the change to children override the 4-arg form.
 
 The editor hands the raw device event (key press, mouse click) to the
 **top-level** projection's `read_intent`; from there, routing is entirely
-up to each projection. A `ChainingProjection` forwards the event down its
+up to each projection. A chaining projection forwards the event down its
 chain and threads the operation that comes back up through each earlier step,
 translating it one domain closer to the input at every step. A different
 projection might instead dispatch the event to the sub-projection of one of its
-document parts (e.g. `CopyingProjection` over a multi-window screen routes each
+document parts (e.g. a projection over a multi-window screen routes each
 event to the matching window's content). So `event_or_op` is a raw event when a
 parent handed this projection the bare event, or an `Operation` another
 projection already produced — and the method returns an `Operation` in *this*
@@ -221,12 +221,12 @@ these are the moves available — from the lightest touch to the most involved:
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from the output domain to the input
   domain with `map_reference_backward` — rewrite the `.reference` of a
-  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or the `.path`
+  text- or number-range replace operation, or the `.path`
   of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g. a
-  projection over a numeric leaf turns an incoming `ReplaceStringRangeOperation`
-  into a `ReplaceNumberRangeOperation` so the evaluator re-parses the edited text
+  projection over a numeric leaf turns an incoming text-range replace
+  into a number-range replace so the evaluator re-parses the edited text
   as a number), or replace it outright with whatever operation expresses the same
   intent in this projection's input domain.
 - **Recurse, then extend.** When `print_document` descended into children, the
@@ -280,7 +280,7 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   one that triggered it).
 - **Do not add a parallel "resolve position" generic.** Because forward mapping
   is this *single* recursive map method, every compositional wrapper
-  (`ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, …)
+  (chaining, recursive, type-dispatching, …)
   already threads or composes it for free. A second generic for coordinate
   resolution would force each of those wrappers to re-implement the same
   composition. Reuse `map_reference_forward` instead: a projection takes part

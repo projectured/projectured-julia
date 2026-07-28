@@ -2,8 +2,7 @@
 # for one turn.
 #
 # This is the project's own vocabulary, not any provider's. An adapter renders it
-# into its wire format; a caller builds it from whatever it actually has (the
-# workbench assistant builds it from a Conversation document).
+# into its wire format; a caller builds it from whatever it actually has.
 
 """
     LlmContent
