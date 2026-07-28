@@ -51,11 +51,23 @@ _flat_caret_offset(reference) =
 
 # Backward: .elements[1].content[k] on the TextBlock → .value[k] on the primitive.
 # Type-specific variants so the returned reference carries the leading document type.
+# A caret is the s == e case; a Backspace/Delete arrives as a genuine RANGE edit
+# (`ReplaceStringRangeOperation` over `content{s:e}`), and `evaluate_operation`
+# splices `range_step.start..range_step.stop`. Collapsing the range to `{s}` made
+# the deletion empty, so Backspace/Delete were silent no-ops. Keep the caret's
+# typed form (the DSL needs a terminal `::Position`); build the deletion range
+# directly — `.value{s:e}` — since a range over a scalar value has no evaluatable
+# terminal type and the operation reader strips reference types anyway.
+_value_range_ref(s::Int, e::Int) =
+    ConcreteReference(FieldReferenceStep("value"),
+                      ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))
+
 function _backward_bool(reference)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveBool.value::Bool{flat}::Position
     @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveBool.value::Bool{s}::Position
+        ::TextBlock.elements[1].content{s:e} =>
+            (s == e ? (@reference ::PrimitiveBool.value::Bool{s}::Position) : _value_range_ref(s, e))
     end
 end
 
@@ -63,7 +75,8 @@ function _backward_number(reference)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveNumber.value::Number{flat}::Position
     @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveNumber.value::Number{s}::Position
+        ::TextBlock.elements[1].content{s:e} =>
+            (s == e ? (@reference ::PrimitiveNumber.value::Number{s}::Position) : _value_range_ref(s, e))
     end
 end
 
@@ -71,7 +84,8 @@ function _backward_string(reference)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveString.value::String{flat}::Position
     @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} => @reference ::PrimitiveString.value::String{s}::Position
+        ::TextBlock.elements[1].content{s:e} =>
+            (s == e ? (@reference ::PrimitiveString.value::String{s}::Position) : _value_range_ref(s, e))
     end
 end
 
