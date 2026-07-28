@@ -60,11 +60,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `backend/BackendDefaults.jl`
 - **Layer 7 — document** (`document/`)
   - 🔒 `document/DocumentLayer.jl`
-  - 🔒 `document/DocumentModule.jl`
-  - 🔒 `document/DocumentInterface.jl`
-  - 🔒 `document/DocumentDefaults.jl`
-  - 🔒 `document/DocumentCopy.jl`
-  - 🔒 `document/DocumentSync.jl`
+  - ⬜ `document/DocumentModule.jl`
+  - ⬜ `document/DocumentInterface.jl`
+  - ⬜ `document/DocumentDefaults.jl`
+  - ⬜ `document/DocumentCopy.jl`
+  - ⬜ `document/DocumentSync.jl`
   - 🔒 `document/DocumentMacro.jl`
   - 🔒 `document/DocumentWalk.jl`
   - 🔒 `document/DocumentSearch.jl`
