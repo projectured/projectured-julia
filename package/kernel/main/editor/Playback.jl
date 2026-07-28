@@ -4,14 +4,11 @@
 Scripted live playback: drive the editor's read-eval-print loop while firing a
 predefined timeline on a wall-clock schedule, so a scripted session unfolds in a
 real window. Builds on the editor-loop primitives
-(`read!`/`evaluate!`/`print!`/`perf!`).
+(`read!`/`evaluate!`/`print!`).
 """
 module PlaybackModule
 
-# The read/evaluate/print/perf loop steps are internal to `EditorModule` (not
-# exported), so they have to be named explicitly.
-using ..EditorModule: Editor, read!, evaluate!, print!, perf!
-using ..PerformanceCounterModule
+using ..EditorModule
 using ..ProjectionApiModule
 using ..IntentModule
 using ..EventModule
@@ -105,19 +102,16 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            with_performance_counters() do
-                @performance_time :read_time read!(editor)
-                # When no real-input operation is pending and the next scheduled
-                # entry is due, inject it. Real input wins the frame; the scheduled
-                # entry retries on the following frame.
-                if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
-                    editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
-                    next += 1
-                end
-                @performance_time :evaluate_time evaluate!(editor)
-                @performance_time :print_time    print!(editor)
-                perf!(editor)
+            read!(editor)
+            # When no real-input operation is pending and the next scheduled entry
+            # is due, inject it. Real input wins the frame; the scheduled entry
+            # retries on the following frame.
+            if editor.operation === nothing && next <= n && (time() - start) >= fire_at[next]
+                editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
+                next += 1
             end
+            evaluate!(editor)
+            print!(editor)
             sleep(0.01)
         end
     catch e

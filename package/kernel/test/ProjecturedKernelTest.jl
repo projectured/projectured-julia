@@ -116,7 +116,11 @@ function test_kernel_layering()
                    # as the sweep proceeds; when it covers every file the
                    # parameter goes.
                    qualified_files = Set([
-                       "projection/ProjectionReferenceStep.jl"]))   # the reference-step seam
+                       "projection/ProjectionReferenceStep.jl",   # the reference-step seam
+                       "editor/Editor.jl",
+                       "editor/Playback.jl",
+                       "llm/LlmModule.jl",
+                       "agent/AgentModule.jl"]))
 end
 
 """

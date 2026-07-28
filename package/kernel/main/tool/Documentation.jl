@@ -468,12 +468,10 @@ function _index_api()
     entries
 end
 
-# **Accepted AR-PER-EDITOR-STATE carve-out.** These two are process-global lazily-built
-# caches, not per-editor state. They are derived read-only from source files that do not
-# change while the process runs, and are identical for every editor — the same
-# principled exception AR-PER-EDITOR-STATE grants the wall clock: one writer, read-only
-# thereafter, a genuine singleton. No editor can observe another's writes through
-# them, which is the cross-editor conflict AR-PER-EDITOR-STATE exists to prevent.
+# Process-global, deliberately: lazily-built read-only indexes of the project's own
+# guides and API, identical for every editor and derived from sources that do not
+# change at runtime. This is the "state identical for every editor" carve-out
+# AR-PER-EDITOR-STATE grants (alongside the wall clock).
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 

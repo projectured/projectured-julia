@@ -28,8 +28,8 @@ package.
 """
 module LlmModule
 
-import ..DocumentModule: is_walk_opaque
-import ..ToolModule: Tool
+using ..DocumentModule
+using ..ToolModule
 
 export Llm, stream_turn, tool_schema,
        LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,

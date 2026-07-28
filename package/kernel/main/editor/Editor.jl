@@ -20,13 +20,11 @@ using ..ClockModule
 using ..PrinterContextModule
 using ..DocumentModule
 using ..OperationModule
-# `import`, not `using`: this module adds the Editor method to the invalidation seam.
-import ..OperationModule: invalidate_projection!
 using ..GestureRecognizerModule
 using ..ToolModule
 using ..AgentServerModule
 
-export Editor, run_editor!
+export Editor, run_editor!, read!, evaluate!, print!, run_frame!
 
 """
     Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
@@ -71,7 +69,7 @@ Editor(backend, document, projection, devices;
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
 # is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.
-invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
+OperationModule.invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
@@ -207,6 +205,23 @@ function perf!(editor::Editor)
     @info "[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms"
 end
 
+# ── One frame ─────────────────────────────────────────────────────────
+
+"""
+    run_frame!(editor::Editor)
+
+Run one read-eval-print frame: poll input via the backend into an operation,
+apply it with `evaluate!`, and repaint with `print!`. `run_editor!` runs this
+once per tick; call it directly to drive an editor one frame at a time — a test
+harness, an embedder, or a scripted timeline that interleaves its own work
+between frames.
+"""
+function run_frame!(editor::Editor)
+    @performance_time :read_time     read!(editor)
+    @performance_time :evaluate_time evaluate!(editor)
+    @performance_time :print_time    print!(editor)
+end
+
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
@@ -249,9 +264,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                 # so a writer needs this seam. Runs before `read!` so the frame
                 # reads what it just refreshed.
                 on_frame === nothing || on_frame(editor)
-                @performance_time :read_time     read!(editor)
-                @performance_time :evaluate_time evaluate!(editor)
-                @performance_time :print_time    print!(editor)
+                run_frame!(editor)
                 perf!(editor)
             end
             sleep(0.01)

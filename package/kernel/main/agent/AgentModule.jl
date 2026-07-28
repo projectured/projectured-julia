@@ -25,9 +25,8 @@ outside the process drives *this* editor.
 """
 module AgentModule
 
-import ..ToolModule: ToolSet, Tool, list_tools, call_tool, register_default_tools!
-import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage,
-                    LlmEvent, LlmToolUse, LlmToolUseStop, LlmTurnEnd, LlmFailure
+using ..ToolModule
+using ..LlmModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
 

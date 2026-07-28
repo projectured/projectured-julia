@@ -30,8 +30,7 @@ include("GestureBindings.jl")
 
 # ── Projection defaults & the `@projection` macro ──────────────────────────
 # ProjectionModule holds the four-generic fallbacks and the `@projection`
-# macro. Nothing in the kernel imports it, so it loads after the whole algebra;
-# it needs Primitive, ReferenceCase/Builder, PrinterContext, Keyboard, Mouse.
+# macro. Nothing in the kernel imports it, so it loads after the whole algebra.
 include("Projection.jl")
 
 # ── ProjectionTemplate ─────────────────────────────────────────────────────

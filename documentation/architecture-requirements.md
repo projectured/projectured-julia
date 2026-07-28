@@ -786,16 +786,34 @@ per-editor `Clock` (a `@cell_struct`, not a document — `cell/Clock.jl`);
 clock the printer context carries, so two editors in one process never
 cross-invalidate each other's animation graph.
 
-**Accepted carve-out — the wall clock.** The `Clock` behind
-`ClockModule.get_wall_clock()` is a process-global one reflecting OS time. It
-is a principled exception: exactly one writer (the
-`_start_wall_clock_heartbeat!` background task) and read-only for every editor,
-representing the genuine singleton of real time. Reader-armed animations (which
-see no `PrinterContext` and so cannot reach the enclosing editor's private
-clock) read the wall clock; those animations consequently move in step across
-editors — the trade-off until a reader-side seam analogous to `PrinterContext`
-lands. A shared read of one real external truth does not reintroduce the
-cross-editor *write* conflict AR-PER-EDITOR-STATE targets.
+**Accepted carve-out — state that is identical for every editor.** Process-global
+state is permitted precisely when its value is the same for every editor in the
+process: no editor can observe another's writes through it, so there is no
+cross-editor divergence to create. This is the escape valve the rule's rationale
+leaves open — what AR-PER-EDITOR-STATE forbids is one editor's state *conflicting
+with or leaking into* another's, which a genuine singleton cannot do. Two kinds
+qualify:
+
+- **An external truth every editor shares.** The `Clock` behind
+  `ClockModule.get_wall_clock()` is a process-global one reflecting OS time —
+  exactly one writer (the `_start_wall_clock_heartbeat!` background task) and
+  read-only for every editor, representing the genuine singleton of real time.
+  Reader-armed animations (which see no `PrinterContext` and so cannot reach the
+  enclosing editor's private clock) read the wall clock; those animations
+  consequently move in step across editors — the trade-off until a reader-side
+  seam analogous to `PrinterContext` lands.
+
+- **Read-only data derived from process-invariant sources.** A cache built once
+  from inputs that do not change while the process runs and are the same for
+  every editor — for example the documentation and API indexes behind
+  `search_documentation` / `search_api` (`tool/Documentation.jl`), built by
+  reflection over the loaded code and the guide files on disk. Lazily populated,
+  read-only thereafter, and identical for all editors, so — like the wall clock —
+  it introduces no cross-editor write conflict; giving each editor its own copy
+  would only duplicate identical work.
+
+A shared read of one such value does not reintroduce the cross-editor *write*
+conflict AR-PER-EDITOR-STATE targets.
 
 ## Package, layer, slice, and module structure
 

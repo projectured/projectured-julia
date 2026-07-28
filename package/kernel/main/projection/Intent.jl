@@ -25,7 +25,7 @@ in two coordinate frames:
   Starts as `nothing` (a "nothing-change") and is filled in / re-mapped by the
   readers as the change travels one domain inward at each step.
 
-A reader returns a `Intent`: it either keeps `operation === nothing` (it had
+A reader returns an `Intent`: it either keeps `operation === nothing` (it had
 nothing to say) or returns a fresh `Intent` with the gesture preserved and a real
 operation swapped in (cf. Lisp's `clone-command`; the original names this
 type `command`).
