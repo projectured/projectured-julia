@@ -45,10 +45,10 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
-import ..SelectionApiModule: clear_selection!
+import ..SelectionModule: clear_selection!
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
 import ..CollectionModule: CellVector

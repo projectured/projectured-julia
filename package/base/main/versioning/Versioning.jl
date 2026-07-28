@@ -9,7 +9,7 @@ value with `VersionProperties` (when/who/where). Elimination happens through
 module VersioningModule
 
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference

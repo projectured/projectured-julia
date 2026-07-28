@@ -160,7 +160,6 @@ include("xml/Xml.jl")
 include("filesystem/FileSystem.jl")
 include("component/Component.jl")
 include("workbench/Workspace.jl")
-include("versioning/Versioning.jl")
 include("graph/Graph.jl")
 include("graph/GraphLayout.jl")
 include("graph/GraphLayoutEngine.jl")
@@ -177,7 +176,6 @@ include("markdown/MarkdownParser.jl")
 include("sql/SqlParser.jl")
 include("workbench/Workbench.jl")
 include("gesturemap/GestureHelpDecorator.jl")
-include("versioning/VersioningToAny.jl")
 # DocumentInsertionToSyntax before every domain ToSyntax: it defines the shared
 # insertion leaf (typed-name buffer with live completion), the per-domain
 # delegates (JuliaInsertionToSyntaxLeaf, …) those projections register, and the

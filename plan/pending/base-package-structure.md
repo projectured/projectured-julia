@@ -235,9 +235,15 @@ Branch `base-concept-folders` (worktree `projectured-julia-base-restructure`).
   (dropped the `layers=` kwarg). Deferred (module renames, out of scope here):
   `GenericCompound`/`HigherOrderCompound` keep their names inside `compound/`
   rather than becoming `ApplyAt`/`SortingAt`.
-- [ ] **Step 2 — versioning move** `domain/versioning/` → base `versioning/`
-  (document + `VersioningToAny`), with its tests. Cross-package; example stays in
-  domain/example (base has no example package).
+- [x] **Step 2 — versioning move** `domain/versioning/{Versioning,VersioningToAny}.jl`
+  → base `versioning/` (document + projection); the two `..DocumentApiModule` /
+  `..SelectionApiModule` imports switched to base's canonical `DocumentModule` /
+  `SelectionModule` (base has no `*ApiModule` aliases). The base-expressible unit
+  test (it versions a `PrimitiveString`) moved to `base/test` and is wired into
+  `test_base()` (now 321/321, versioning testset included). The example stays in
+  `domain/example` (base has no example package) and resolves
+  `VersioningToAnyProjection` from base unchanged — domain guard 6/6, the
+  versioning example's printer/reader/navigation pass 830/225/72.
 - [ ] **Step 3 — `fileformat/` seam refactor** (separate plan): invert
   `NaturalFormat`/`DocumentFile`'s hard-coded Json/Xml/Sql/Julia into the seam
   pattern, then move the framework skeleton to base `fileformat/`.

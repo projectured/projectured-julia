@@ -79,7 +79,6 @@ include("projection/SqlToSyntaxTest.jl")
 include("projection/FormulaToSyntaxTest.jl")
 include("projection/FileSystemToSyntaxTest.jl")
 include("projection/GraphTest.jl")
-include("projection/VersioningToAnyTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableSelectionTest.jl")
 
@@ -162,7 +161,6 @@ function test_domain()
         test_formula_to_syntax()
         test_filesystem_to_syntax()
         test_graph()
-        test_versioning_to_any()
         test_syntax_tree_selection()
         test_table_selection()
         # backends / references / clicks on domain fixtures
@@ -221,7 +219,7 @@ export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collec
        test_sql_to_syntax, test_sql_to_syntax_selection,
        test_sql_insert_update_selection, test_sql_ddl, test_sql_ddl_selection,
        test_formula_to_syntax, test_filesystem_to_syntax, test_graph
-export test_versioning_to_any, test_syntax_tree_selection,
+export test_syntax_tree_selection,
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference
 export test_json_content_clicks_clean, collect_json_tree_selections, test_json_placeholder_navigation

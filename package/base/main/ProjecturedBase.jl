@@ -94,6 +94,8 @@ include("domain/Domain.jl")
 
 # dragging/ — the DraggingState reorder wrapper document; its projection is below.
 include("dragging/Dragging.jl")
+# versioning/ — the VersionedObject overlay document; its projection is below.
+include("versioning/Versioning.jl")
 
 # projection algebra — the domain-free generic + higher-order combinators. The
 # only intra-order edge is Identity → Reversing; Sorting imports IdentityProjection
@@ -121,6 +123,8 @@ include("projection/Copying.jl")
 include("primitive/ReaderDefaults.jl")
 # dragging/ projection — the press→drag→drop reader over DraggingState
 include("dragging/DraggingProjection.jl")
+# versioning/ projection — version-elimination (School-A reader over the value child)
+include("versioning/VersioningToAny.jl")
 # compound aggregates
 include("projection/compound/HigherOrderCompound.jl")
 include("projection/compound/GenericCompound.jl")
