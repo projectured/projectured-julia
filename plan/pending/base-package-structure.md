@@ -244,9 +244,26 @@ Branch `base-concept-folders` (worktree `projectured-julia-base-restructure`).
   `domain/example` (base has no example package) and resolves
   `VersioningToAnyProjection` from base unchanged — domain guard 6/6, the
   versioning example's printer/reader/navigation pass 830/225/72.
-- [ ] **Step 3 — `fileformat/` seam refactor** (separate plan): invert
-  `NaturalFormat`/`DocumentFile`'s hard-coded Json/Xml/Sql/Julia into the seam
-  pattern, then move the framework skeleton to base `fileformat/`.
+- [x] **Step 3 — `fileformat/` seam refactor.** **Design correction (2026-07-28):**
+  fileformat landed in **`visual/fileformat/`, not base** — natural-format *export*
+  renders through `SyntaxToText → TextToString` (visual), so a clean seam needs the
+  framework to own that tail; base would only have delegated to a whole
+  domain-supplied pipeline (coarse, repetitive). User chose the visual home. So:
+  - `visual/main/fileformat/{NaturalFormat,DocumentFile}.jl` — the framework owns the
+    shared `SyntaxToText → TextToString` tail + the extension dispatch + the binary
+    bridge (calls up to base's `BinarySerialization`) + the editor operations. It
+    declares four open-generic seams: `natural_syntax_projection` / `natural_extension`
+    / `parse_natural` (`NaturalFormatModule`) and `new_document_seed` (`DocumentFileModule`).
+    Unknown-extension handling uses `applicable(parse_natural, …)` (no catch-all), so
+    the export guard and import error stay faithful without a global registry.
+  - Each source domain registers four one-line methods in its `*ToSyntax.jl`
+    (json/xml/sql/julia). `ProjecturedDomain.jl` drops the two includes and aliases
+    `NaturalFormatModule`/`DocumentFileModule` to visual; `WorkbenchFile.jl` /
+    `FileEditor.jl` / the two tests need no change (import via the alias, or use the
+    functions bare via re-export). Binary serialization stays in `base/serialization/`.
+
+  This supersedes the earlier "fileformat in base / `serialization/` + `fileformat/`
+  siblings" note in §2–§3: binary is base, natural+entry is visual.
 - [x] Rewrite `base/doc/architecture.md` from the 3-layer description to the
   concept-folder DAG (also dropped the "moved down from …" history lines).
 

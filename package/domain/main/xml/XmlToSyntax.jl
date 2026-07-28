@@ -180,4 +180,14 @@ function xml_escape_attr(s::AbstractString)
     String(take!(buf))
 end
 
+# ── Natural-format registration ─────────────────────────────────────────────
+# XML's seams for import_document / export_document / read+write_document_file.
+import ..XmlParserModule: xmlparse
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..DocumentFileModule: new_document_seed
+natural_syntax_projection(::XmlDocument) = XmlToSyntax()
+natural_extension(::XmlDocument) = ".xml"
+parse_natural(::Val{:xml}, text::AbstractString) = xmlparse(text)
+new_document_seed(::Val{:xml}) = XmlInsertion()
+
 end # module

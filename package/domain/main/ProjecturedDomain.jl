@@ -141,6 +141,13 @@ const PrimitiveToSyntaxModule = ProjecturedVisual.PrimitiveToSyntaxModule
 const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
 const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 
+# File format — natural text I/O + the document-file entry point (moved down to
+# visual, beside the text printers it needs). Domains register the per-domain
+# seams (natural_syntax_projection / natural_extension / parse_natural /
+# new_document_seed) on these modules from their existing ToSyntax files.
+const NaturalFormatModule = ProjecturedVisual.NaturalFormatModule
+const DocumentFileModule = ProjecturedVisual.DocumentFileModule
+
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
@@ -202,8 +209,6 @@ include("conversation/ConversationToSyntax.jl")
 include("conversation/ConversationToWidget.jl")
 include("workbench/WorkbenchToWidget.jl")
 include("insertion/NaturalProjection.jl")
-include("naturalformat/NaturalFormat.jl")
-include("naturalformat/DocumentFile.jl")
 include("database/DatabaseAdapters.jl")
 include("conversation/ConversationEditor.jl")
 include("workbench/WorkbenchAssistant.jl")

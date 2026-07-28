@@ -524,4 +524,14 @@ function JuliaToSyntax()
     )
 end
 
+# ── Natural-format registration ─────────────────────────────────────────────
+# Julia's seams for import_document / export_document / read+write_document_file.
+import ..JuliaParserModule: juliaparse
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..DocumentFileModule: new_document_seed
+natural_syntax_projection(::JuliaDocument) = JuliaToSyntax()
+natural_extension(::JuliaDocument) = ".jl"
+parse_natural(::Val{:jl}, text::AbstractString) = juliaparse(text)
+new_document_seed(::Val{:jl}) = JuliaInsertion()
+
 end # module

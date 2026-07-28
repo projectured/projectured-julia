@@ -80,6 +80,7 @@ const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 const DomainModule = ProjecturedBase.DomainModule
 const BoundedSyncModule = ProjecturedBase.BoundedSyncModule
 const DocumentReflectionModule = ProjecturedBase.DocumentReflectionModule
+const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const EventModule = ProjecturedKernel.EventModule
@@ -226,6 +227,14 @@ include("syntax/SyntaxToText.jl")
 include("syntax/ObjectToSyntax.jl")
 include("syntax/CollectionToSyntax.jl")
 include("syntax/PrimitiveToSyntax.jl")
+
+# ── Slice — fileformat (natural text I/O + the document-file entry point) ───
+# NaturalFormat renders a document to text via the domain's ToSyntax + the shared
+# SyntaxToText → TextToString tail (so it lives here, not base); DocumentFile
+# bridges it with base's binary serializer. Domains register the per-domain seams
+# (natural_syntax_projection / natural_extension / parse_natural / new_document_seed).
+include("fileformat/NaturalFormat.jl")
+include("fileformat/DocumentFile.jl")
 
 # ── Slice 8 — interaction decorators (clipboard / tooltip / inspector) ───
 # Domain-independent higher-order projections that decorate an arbitrary

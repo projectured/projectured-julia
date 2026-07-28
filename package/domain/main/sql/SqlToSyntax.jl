@@ -2027,4 +2027,15 @@ function SqlToSyntax()
     )
 end
 
+# ── Natural-format registration ─────────────────────────────────────────────
+# SQL's seams for import_document / export_document / read+write_document_file.
+import ..SqlParserModule: sqlparse
+import ..SqlDocumentModule: SqlDocument
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..DocumentFileModule: new_document_seed
+natural_syntax_projection(::SqlDocument) = SqlToSyntax()
+natural_extension(::SqlDocument) = ".sql"
+parse_natural(::Val{:sql}, text::AbstractString) = sqlparse(text)
+new_document_seed(::Val{:sql}) = SqlInsertion()
+
 end # module
