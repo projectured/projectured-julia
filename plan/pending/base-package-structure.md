@@ -247,7 +247,8 @@ Branch `base-concept-folders` (worktree `projectured-julia-base-restructure`).
 - [ ] **Step 3 — `fileformat/` seam refactor** (separate plan): invert
   `NaturalFormat`/`DocumentFile`'s hard-coded Json/Xml/Sql/Julia into the seam
   pattern, then move the framework skeleton to base `fileformat/`.
-- [ ] Rewrite `base/doc/architecture.md`'s "3 layers" section to the DAG.
+- [x] Rewrite `base/doc/architecture.md` from the 3-layer description to the
+  concept-folder DAG (also dropped the "moved down from …" history lines).
 
 ## Follow-ups this planning surfaced
 

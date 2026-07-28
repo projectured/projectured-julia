@@ -2,136 +2,116 @@
 
 Contributor-facing guide to the internal structure of the `ProjecturedBase`
 package. `ProjecturedBase` is the **domain-independent vocabulary and
-frameworks** — layered between the kernel engine and the concrete domain
+frameworks** — sitting between the kernel engine and the concrete domain
 slices (`kernel ← base ← visual ← domain`). Its membership rule is *"the
 type is generic enough that every domain reuses it, so it doesn't belong
 in any single slice"*.
 
-## Layers
+## Concept folders
 
-```
-Layer 1 — document       Collection, DocumentCore, Primitive, Dragging
-                         (concrete engine documents everything ships with)
-Layer 2 — projection     generic/ (Identity, Reversing, Constant, Focusing) +
-                         higherorder/ (Chaining, TypeDispatching, Recursive,
-                         Switching, PredicateDispatching, ReferenceDispatching,
-                         Nesting, WindowInputUnwrapping) + Sorting, Filtering,
-                         Searching, Copying, ReaderDefaults, DraggingProjection
-                         (the domain-independent projection algebra + reader
-                         defaults; the projection interface/engine stays in kernel)
-Layer 3 — serialization  BinarySerialization
-                         (domain-independent persistence framework)
-```
+base is an **acyclic DAG of concept folders** — sliced like the `domain`
+package, not stacked in ordered layers. Each folder is one cohesive concept and
+holds whatever kinds it needs: its documents *and* its projections *and* its
+operations, together. Dependencies flow one way (a lower concept never names a
+higher one), and the guard validates the DAG through the topological include
+order of `ProjecturedBase.jl` — no `layers` indices are declared (see
+[test/ProjecturedBaseTest.jl](../test/ProjecturedBaseTest.jl), `test_base_layering`).
 
-Depend downward-only: `serialization → projection → document → kernel`.
-Machine-enforced by the layered guard in
-[test/runtests.jl](../test/runtests.jl); LAYERS is
-`["document","projection","serialization"]`.
+**Membership rule:** a type belongs in base only if it is **shipped for reuse by
+every domain** and is **domain-independent** (no domain concept in its
+structure). `Collection`, `Primitive`, `Versioning` pass; `Json`, `Xml`, … don't
+— they are per-slice domain content.
 
-## What lives in each layer
+### domain/ — what a document domain *is*
 
-### document — the concrete engine documents
+- **`DocumentCore.jl`** — `DocumentBase`, `DocumentNothing`, `DocumentInsertion`,
+  `DocumentReference`: the empty document, the insertion placeholder, and a
+  reference-holding document. Kernel document/reference contracts only.
+- **`Domain.jl`** — the `@domain` macro (generates a domain's root / `*Nothing` /
+  `*Insertion` kit + Insert gesture + insertion traits from one line) and the
+  reflection-based insertion completion (`insertion_candidates`,
+  `complete_insertion`, `resolve_insertion`). `DocumentNothing` /
+  `DocumentInsertion` implement the traits it anchors.
 
-The how-to for the shipped collection containers (`CellVector`, `CellMatrix`,
-`CellTable`, `ListNode`) and the Primitive documents is the base
-document-layer guide, [collection.md](collection.md).
+### collection/ — the reactive containers and their projections
 
-**Membership test for this layer:** a document type belongs in base/document if
-it is **shipped for reuse** by every domain (not editor-loop machinery) and is
-**domain-independent** (no domain concept in its structure). Collection and
-Primitive pass; Json, Xml, etc. don't — they are per-slice domain content.
+The container how-to is [collection.md](collection.md).
 
-- **`Collection.jl`** — the `CollectionModule` aggregator; one fragment file
-  per shape under `collection/` (`CellVector`, `CellMatrix`, `CellTable`,
-  `ListNode`): the reactive sequence and grid containers every domain
-  reuses. Registers the seam method
-  `child_reference_steps(::CellVector)` onto the kernel's
-  `OperationModule` so the pre-order document walk driving
-  `SelectNextInsertionOperation` picks up CellVector elements without
-  the kernel referencing the concrete type.
+- **`Collection.jl`** + the flattened fragments `CellVector` / `CellMatrix` /
+  `CellTable` / `ListNode`: the reactive sequence and grid containers every domain
+  reuses. Registers `child_reference_steps(::CellVector)` onto the kernel's
+  `OperationModule` so the pre-order walk driving `SelectNextInsertionOperation`
+  picks up `CellVector` elements without the kernel naming the concrete type.
+- **`Sorting.jl`** (`SortingProjection`) and **`Filtering.jl`**
+  (`FilteringProjection`) — the collection-shaped projections (sort / keep by a
+  key or predicate); they dispatch on `CellVector`.
 
-- **`DocumentCore.jl`** — `DocumentBase`, `DocumentNothing`,
-  `DocumentInsertion`, `DocumentReference`: domain-independent document
-  vocabulary (the empty document, the insertion placeholder, a
-  reference-holding document). Depends only on the kernel document/reference
-  contracts. Moved down from the domain `core/` slice, which it emptied.
+### primitive/ — the scalar documents and their reader
 
-- **`Dragging.jl`** — `DraggingDocumentModule`: `DraggingState`, a
-  transparent wrapper marking a sub-tree as a drag-and-drop reorder region.
-  Kernel-only document contracts; the gesture interpretation lives in the
-  projection layer's `DraggingProjection`. Moved down from the domain
-  `dragging/` slice (nothing about reordering a `CellVector` is
-  domain-specific).
+- **`Primitive.jl`** — `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`,
+  `PrimitiveInsertion`: the editable scalar documents with selection + identity.
+  Owns `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` and registers
+  their `reroot_operation` methods onto the kernel's `OperationModule`.
+- **`ReaderDefaults.jl`** — the Primitive-op branches of the default `read_intent`
+  (`read_intent(::Projection, iomap, ::Replace…RangeOperation)`), more specific
+  than the kernel's catch-all via multiple dispatch. Primitive's reader half.
 
-- **`Primitive.jl`** — `PrimitiveBool`, `PrimitiveNumber`,
-  `PrimitiveString`, `PrimitiveInsertion`: the editable
-  domain-independent scalar documents with selection + identity. Owns
-  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, the two
-  splice-range operations, and registers their `reroot_operation`
-  methods onto the kernel's OperationModule.
+### projection/ — the domain-free projection algebra (no documents)
 
-`ScreenDocument.jl` does not live here — the couple `ScreenDocument ↔
-WindowManagingProjection` belongs in `visual/screen/` per the architecture
-rules (window things are visual; only the Display device and display-size
-seam stay in the kernel).
+The projection *machinery* (the four generic functions, IO maps, `@projection`,
+the template engine, gesture bindings) lives in the kernel; every **concrete**
+domain-independent projection lives here. None of these owns a document — they
+operate over *any* input by structure.
 
-### projection — the domain-independent projection algebra
-
-The projection *machinery* (the four generic functions, IO maps, the
-`@projection` macro, the projection-template engine, gesture bindings) lives in
-the kernel's projection layer. Every **concrete** projection is
-domain-independent framework and lives here.
-
-The generic + higher-order combinators lead the layer (they depend only on the
-kernel projection interface, and the document-shaped projections below build on
-them — Sorting uses `IdentityProjection`; the compound aggregates use
-`Recursive`/`ReferenceDispatching`/`Nesting`):
-
-- **`generic/`** — the generic (domain-independent-by-structure) projections:
-  `IdentityProjection`, `ReversingProjection`, `ConstantProjection`,
-  `FocusingProjection`.
-- **`higherorder/`** — the higher-order combinators: `ChainingProjection`,
+- **`generic/`** — `IdentityProjection`, `ReversingProjection`,
+  `ConstantProjection`, `FocusingProjection` (domain-independent by structure).
+- **`higherorder/`** — the combinators: `ChainingProjection`,
   `TypeDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`,
   `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`,
-  `NestingProjection`, `WindowInputUnwrappingProjection`. (Both folders moved down
-  from the kernel projection layer — they are domain-independent framework, not
-  engine. The two `RuleIoMap` disambiguations keyed on `RecursiveProjection`
-  live beside the reader defaults in `ReaderDefaults.jl`, since the kernel's
-  `ProjectionTemplate` cannot name a base projection.)
+  `NestingProjection`, `WindowInputUnwrappingProjection`. (The two `RuleIoMap`
+  disambiguations keyed on `RecursiveProjection` live in
+  `primitive/ReaderDefaults.jl`, since the kernel's `ProjectionTemplate` cannot
+  name a base projection.)
+- **`compound/`** — `HigherOrderCompound.jl` / `GenericCompound.jl`: the compound
+  projection aggregates (build on `Recursive` / `ReferenceDispatching` / `Nesting`).
+- **`Searching.jl`** (`SearchingProjection`, collects objects whose field matches a
+  `Regex`) and **`Copying.jl`** (`CopyingProjection`, domain-independent deep copy;
+  the workhorse most compound projections build on).
 
-The document-shaped projections consume/produce base document types (CellVector,
-Primitive) but are otherwise domain-agnostic:
+### dragging/, versioning/, reflection/ — optional feature slices
 
-- **`Sorting.jl`** — `SortingProjection`: sorts collection children by
-  a key.
-- **`Filtering.jl`** — `FilteringProjection`: keeps children matching a
-  predicate.
-- **`Searching.jl`** — `SearchingProjection`: collects objects whose
-  field matches a Regex.
-- **`Copying.jl`** — `CopyingProjection`: domain-independent deep copy
-  with iomaps; the workhorse most compound projections build on.
-- **`ReaderDefaults.jl`** — the Primitive-op branches of the
-  default `read_intent`. Adds more-specific
-  `read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods
-  that take precedence over the kernel's catch-all via multiple
-  dispatch.
-- **`DraggingProjection.jl`** — `DraggingProjection`: a higher-order
-  projection over `DraggingState` whose reader runs a press→drag→drop
-  state machine, emitting a `MoveRangeOperation` that relocates raw `Cell`s
-  within a `CellVector` (preserving element identity). Transparent printer.
-  Imports only kernel gesture/operation modules + the base document types;
-  moved down from the domain `dragging/` slice.
+Each is a domain-neutral overlay: a document paired with the projection that
+interprets or eliminates it.
 
-### serialization — the persistence frameworks
+- **`dragging/`** — `Dragging.jl` (`DraggingState`, a transparent reorder-region
+  wrapper) + `DraggingProjection.jl` (a press→drag→drop reader emitting a
+  `MoveRangeOperation` that relocates raw `Cell`s within a `CellVector`,
+  preserving identity; transparent printer).
+- **`versioning/`** — `Versioning.jl` (`VersionedObject` / `ObjectVersion` /
+  `VersionProperties` + the `VersionCriterion` hierarchy and `select_version`) +
+  `VersioningToAny.jl` (`VersioningToAnyProjection`: selects one version by
+  criterion and projects its value in place of the wrapper; a School-A reader
+  re-roots value edits under `versions[i].value`).
+- **`reflection/`** — `BoundedSync.jl` (the `UnsyncedDocument` marker document +
+  the `SyncPolicy` / `DepthPolicy` policies implementing the kernel's
+  policy-parameterised `sync_document!` seam) + `DocumentReflection.jl` (reflects
+  an arbitrary Julia object into a `ReflectedNode` tree, synced under the same
+  policy and marker). The rendering projection `ReflectionToWidget` lives in
+  `visual/widget/`, across the seam.
 
-- **`BinarySerialization.jl`** — exact, lossless binary persistence via
-  Julia's `Serialization` stdlib. The one customization: a `Cell`
-  serializes as **just its value**, pruning the reactive graph at every
-  cell boundary. Kernel-only imports.
+### serialization/ — exact binary persistence
 
-Planned additions to this layer: `NaturalFormat.jl` (framework +
-per-slice format registry) and `DocumentFile.jl` (extension-dispatched
-entry point). See the plan file for scope.
+- **`BinarySerialization.jl`** — exact, lossless binary persistence via Julia's
+  `Serialization` stdlib. The one customization: a `Cell` serializes as **just its
+  value**, pruning the reactive graph at every cell boundary. Kernel-only imports.
+
+A human-readable **`fileformat/`** folder (`NaturalFormat` + `DocumentFile`) is
+planned once those framework skeletons are inverted off their hard-coded
+per-domain wiring onto the seam pattern; see
+[the plan](../../../plan/pending/base-package-structure.md).
+
+`ScreenDocument` / `WindowManaging` do not live in base — window things are
+`visual/screen/`; only the Display device and display-size seam stay in the kernel.
 
 ## Alias preamble
 
@@ -144,11 +124,6 @@ even though `CellModule` is not defined by any base file.
 
 ## Downward edges
 
-- `..CellModule`, `..DocumentModule`, `..ReferenceModule`,
-  `..OperationModule` (kernel).
-- `..EventModule` (kernel — the mouse event + modifier types
-  `DraggingProjection`'s reader dispatches on).
-- `..BackendModule` (kernel — alias only; the `Backend` abstract a future
-  serialization framework might target, currently unused).
-
-That's the whole import surface. No visual, no domain.
+base imports only kernel contracts (through the `..XxxModule` aliases): the cell,
+document, reference, selection, operation, event, projection, iomap, gesture, and
+printer-context modules. That is the whole import surface — no visual, no domain.
