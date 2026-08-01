@@ -225,10 +225,13 @@ contents, and writes only when they differ (or the file is missing
 Printer/parser round-trips; DFS resolver with duplicate-error.
 25 tests in `kernel/test/reference/IdentityAndFileStepTest.jl`.
 
-**S2 — FileDocument + TextFile end-to-end**
+**S2 — FileDocument + TextFile end-to-end** ✅ done
 `abstract FileDocument`, `ReferenceStub`, driver in
-`base/serialization/`. `TextFile` concrete. One-file project
-round-trip.
+`base/serialization/`. `TextFile` concrete (lives alongside the
+driver in `base/serialization/`, not in `domain/filesystem/` — it's
+foundational and format-native `emit`/`load` mean no domain
+dependency). One-file project round-trip: 21 assertions in
+`base/test/serialization/FileProjectTest.jl`.
 
 **S3 — JsonFile round-trip**
 `JsonFile` + JSON marker walk + registration. Two-file project
