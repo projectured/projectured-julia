@@ -173,11 +173,14 @@ contents, and writes only when they differ (or the file is missing
 ### projectured-julia
 
 - `package/kernel/main/reference/FileReferenceStep.jl` — step +
-  printer/parser hooks.
+  printer/parser hooks. **Done (S1).**
 - `package/kernel/main/reference/IdentityReferenceStep.jl` — step
-  + DFS-pre-order resolver + duplicate detection.
-- `package/kernel/main/document/IdentityDocument.jl` — two-field
-  document type.
+  + DFS-pre-order resolver + duplicate detection. **Done (S1).**
+- `package/kernel/main/reference/IdentityDocument.jl` — two-field
+  document type. **Lives in the reference layer (not the document
+  layer) because `@document` auto-injects a `selection::Union{Nothing,
+  Reference}` field and `Reference` only exists starting at the
+  reference layer. Done (S1).**
 - `package/base/main/document/FileDocument.jl` — abstract
   `FileDocument <: Document` + interface (`filename`, `content`).
 - `package/base/main/document/ReferenceStub.jl` — stub type.
@@ -217,9 +220,10 @@ contents, and writes only when they differ (or the file is missing
 
 ## Stages
 
-**S1 — Reference-step additions in kernel**
+**S1 — Reference-step additions in kernel** ✅ done
 `FileReferenceStep`, `IdentityReferenceStep`, `IdentityDocument`.
 Printer/parser round-trips; DFS resolver with duplicate-error.
+25 tests in `kernel/test/reference/IdentityAndFileStepTest.jl`.
 
 **S2 — FileDocument + TextFile end-to-end**
 `abstract FileDocument`, `ReferenceStub`, driver in
