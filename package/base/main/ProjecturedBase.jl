@@ -133,4 +133,10 @@ include("projection/compound/GenericCompound.jl")
 # serialises as just its value, pruning the reactive graph at every cell boundary.
 include("serialization/BinarySerialization.jl")
 
+# persistence — natural-format save/load: every node marked as a file
+# document (`FileDocument`) becomes its own text file, with cross-file
+# references embedded as markers in the natural syntax of each format.
+include("serialization/FileProject.jl")
+include("serialization/TextFile.jl")   # the simplest concrete file document
+
 end # module ProjecturedBase
