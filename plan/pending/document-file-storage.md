@@ -273,8 +273,12 @@ inside a paragraph are out of scope for v1). Both wired into
 gained its natural-format registration (was missing before).
 28 assertions in `domain/test/serializer/JuliaAndMarkdownFileTest.jl`.
 
-**S7 — XmlFile**
-Marker walk using existing `xmlparse` + `XmlToSyntax`.
+**S7 — XmlFile** ✅ done
+Marker walk using existing `xmlparse` + `XmlToSyntax`. Marker
+element `<pred:ref>&lt;&lt;file("path")&gt;&gt;</pred:ref>` — the
+XML entity encoding preserves the marker's `<<`/`>>` cleanly. Small
+XML text-escape helper (three entities) added to the projection.
+16 assertions in `domain/test/serializer/XmlFileTest.jl`.
 
 **S8 — omnetpp-pred + omnetpp-julia integration**
 Coordinated `filename` + comment-preservation change in omnetpp-pred.
