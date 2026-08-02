@@ -26,8 +26,9 @@ import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
                      JsonObject, JsonObjectEntry
 import ..JsonParserModule: jsonparse
 import ..NaturalFormatModule: document_to_text
-import ..FileProjectModule: FileDocument, emit_text, load_file, content,
-                            parse_marker_text, ReferenceStub
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+                            parse_marker_text, ReferenceStub, LoaderContext,
+                            register_file_document_type!
 
 export JsonFile
 
@@ -50,46 +51,56 @@ emit_text(f::JsonFile) = document_to_text(content(f))
 
 # Load: parse the file with `jsonparse`, then substitute marker
 # strings with `ReferenceStub` values in the parsed tree in place.
-function load_file(::Type{JsonFile}, filename::AbstractString, base_dir::AbstractString)
-    text = read(joinpath(base_dir, filename), String)
+# The stubs carry `ctx` so `resolve!` later shares interned targets
+# with sibling stubs from the same load session.
+function populate_file!(f::JsonFile, filename::AbstractString, ctx::LoaderContext)
+    text = read(joinpath(ctx.base_dir, filename), String)
     ast = jsonparse(text)
-    ast = _substitute_markers(ast)
-    JsonFile(String(filename), ast)
+    ast = _substitute_markers(ast, ctx)
+    getfield(f, :content)[] = ast
+    f
 end
 
 # Descend the JSON AST replacing marker-shaped `JsonString` leaves in
-# place with `ReferenceStub` values. Reactive slot cells are
-# `Any`-typed at runtime, so a stub sits happily in a `JsonObjectEntry`
-# value slot declared `Document` or in a `JsonArray`'s CellVector
-# element. Non-marker JsonStrings and non-string leaves are untouched;
-# only the compound containers are traversed and their slot cells
-# rewritten. Returns the (possibly replaced) root node.
-_substitute_markers(node) = node
+# place with `ReferenceStub` values that carry `ctx`. Reactive slot
+# cells are `Any`-typed at runtime, so a stub sits happily in a
+# `JsonObjectEntry` value slot declared `Document` or in a
+# `JsonArray`'s CellVector element. Non-marker JsonStrings and
+# non-string leaves are untouched; only the compound containers are
+# traversed and their slot cells rewritten. Returns the (possibly
+# replaced) root node.
+_substitute_markers(node, ctx::LoaderContext) = node
 
-function _substitute_markers(node::JsonString)
+function _substitute_markers(node::JsonString, ctx::LoaderContext)
     ref = parse_marker_text(node.value)
-    ref === nothing ? node : ReferenceStub(ref)
+    ref === nothing ? node : ReferenceStub(ref, ctx)
 end
 
-function _substitute_markers(node::JsonArray)
+function _substitute_markers(node::JsonArray, ctx::LoaderContext)
     v = getfield(node, :elements)[]
     for i in eachindex(v)
-        v[i] = _substitute_markers(v[i])
+        v[i] = _substitute_markers(v[i], ctx)
     end
     node
 end
 
-function _substitute_markers(node::JsonObjectEntry)
-    getfield(node, :value)[] = _substitute_markers(node.value)
+function _substitute_markers(node::JsonObjectEntry, ctx::LoaderContext)
+    getfield(node, :value)[] = _substitute_markers(node.value, ctx)
     node
 end
 
-function _substitute_markers(node::JsonObject)
+function _substitute_markers(node::JsonObject, ctx::LoaderContext)
     v = getfield(node, :entries)[]
     for i in eachindex(v)
-        _substitute_markers(v[i])
+        _substitute_markers(v[i], ctx)
     end
     node
+end
+
+# Register `.json` so `resolve!` picks JsonFile for a `<<file("x.json")>>`
+# marker. Done in `__init__` so the mutation survives precompilation.
+function __init__()
+    register_file_document_type!(".json", JsonFile)
 end
 
 end # module

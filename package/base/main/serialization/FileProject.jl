@@ -20,21 +20,27 @@ This module carries the pieces every format hooks into:
   parsed leaf like `JsonFile` delegates to `document_to_text` from the
   visual layer, which is why this abstract lives free of any `visual/`
   dependency). Callers never pull in visual to save a plain text file.
-- `load_file(T, filename, base_dir)` — the format's text-to-tree.
-  Each concrete type overrides it with its parser call.
+- `populate_file!(f, filename, ctx)` — the format's text-to-tree
+  hook: reads a file, parses, wires cross-file markers to
+  `ReferenceStub`s sharing `ctx`, and sets `f`'s content. Each
+  concrete type overrides it. The driver pre-registers `f` in
+  `ctx.intern` before calling `populate_file!`, which is what
+  breaks cycles.
 - `save_project!(root, base_dir)` — write every reachable file
   document, skipping ones whose emitted bytes match the file already
   on disk (byte-equality dirty check, no op-log required).
 - `load_project(T, filename, base_dir)` — read a project rooted at
-  a single file document of concrete type `T`.
-- `ReferenceStub` — the placeholder for a cross-file reference before
-  the target is loaded. Introduced here so the driver has a name for
-  it; later stages (S3 / S4) wire the intern table and lazy content.
-
-S2 handles a **one-file project only** — no cross-file walk, no
-intern table. `save_project!` writes the root, `load_project` reads
-it. Cross-file traversal, marker rewriting, shared identity, and lazy
-loading are staged into S3–S5.
+  a single file document of concrete type `T`. Creates one
+  `LoaderContext` that all stubs from the load share.
+- `ReferenceStub` — a first-class `Document` node standing in for a
+  cross-file reference. `resolve!(stub)` fetches (or lazily loads)
+  the target through the intern table so two markers to the same
+  target share the same `===` object.
+- `LoaderContext` — the per-load intern table + base directory the
+  stubs consult.
+- `register_file_document_type!(ext, T)` — every concrete
+  `FileDocument` registers its extension so `resolve!` can pick the
+  right type for a marker's target.
 """
 module FileProjectModule
 
@@ -42,9 +48,11 @@ import ..CellModule: Cell, ReactiveCell, unwrap_cell
 import ..DocumentModule: Document, search_documents
 import ..ReferenceModule: ConcreteReference, EmptyReference, Reference, FileReferenceStep
 
-export FileDocument, filename, content, emit_text, load_file,
-       save_project!, load_project, ReferenceStub,
-       marker_text, parse_marker_text, marker_reference_of
+export FileDocument, filename, content, emit_text, populate_file!,
+       save_project!, load_project, ReferenceStub, resolve!, is_resolved,
+       LoaderContext,
+       register_file_document_type!, file_document_type,
+       marker_text, parse_marker_text
 
 # ── abstract FileDocument ──────────────────────────────────────────────────
 
@@ -90,39 +98,158 @@ emit_text(f::FileDocument) =
           " — every concrete FileDocument must contribute one")
 
 """
-    load_file(::Type{T}, filename::AbstractString, base_dir::AbstractString) -> T where T <: FileDocument
+    populate_file!(f::FileDocument, filename::AbstractString, ctx::LoaderContext)
 
-Read the file at `joinpath(base_dir, filename)` as text, parse it into
-`T`'s content AST, and return a fresh `T`. Concrete types override
+Per-format hook. Read `joinpath(ctx.base_dir, filename)` as text,
+parse it into the format-native content, wire any cross-file marker
+into `ReferenceStub`s carrying `ctx` so they can resolve later, and
+set `f`'s content field to the parsed value. Concrete types override
 this with their parser call — `TextFile` reads a raw string,
 `JsonFile` calls `jsonparse`, etc.
+
+The FileDocument `f` is pre-created empty by `_load_into_context` and
+already registered in `ctx.intern` before `populate_file!` runs, so a
+cycle (A refers into B refers back into A) terminates: the second
+`resolve!` hitting `A` finds the pre-registered placeholder.
 """
-load_file(::Type{T}, filename::AbstractString, base_dir::AbstractString) where {T<:FileDocument} =
-    error("load_file: no method defined for ", T,
+populate_file!(f::FileDocument, filename::AbstractString, ctx) =
+    error("populate_file!: no method defined for ", typeof(f),
           " — every concrete FileDocument must contribute one")
+
+# ── LoaderContext ─────────────────────────────────────────────────────────
+#
+# The shared state of one project-load session. All `ReferenceStub`s
+# produced by a single `load_project(...)` call share one context: the
+# intern table dedups two markers pointing at the same target, and
+# `_load_into_context` uses it to break cycles (pre-register a
+# placeholder before parsing so a mutual reference back to `A` while
+# loading `B` finds the placeholder rather than looping).
+
+"""
+    LoaderContext(base_dir::AbstractString)
+
+The bookkeeping one `load_project` call carries. `base_dir` is where
+every relative marker path resolves against; `intern` maps a fully
+qualified `ConcreteReference` to whatever it resolved to (a
+`FileDocument` for a whole-file reference; later stages extend this
+to fragment references into a loaded document).
+"""
+mutable struct LoaderContext
+    base_dir::String
+    # Keyed by `marker_text(ref)` (a String) rather than by the
+    # `ConcreteReference` itself, because `hash(::ConcreteReference)`
+    # is not `==`-consistent — dict lookups by a *fresh* ref that
+    # equals a stored one would miss. The marker text is unique per
+    # reference in the S3/S4 vocabulary, so it's a safe surrogate.
+    intern::Dict{String, Any}
+end
+
+LoaderContext(base_dir::AbstractString) =
+    LoaderContext(String(base_dir), Dict{String, Any}())
+
+# ── Registry: extension → concrete FileDocument type ──────────────────────
+
+const _FILE_DOCUMENT_TYPES = Dict{String, Type}()
+
+"""
+    register_file_document_type!(extension::AbstractString, T::Type{<:FileDocument})
+
+Wire an extension (e.g. `".json"`) to the concrete `FileDocument`
+subtype that owns it. The loader consults this registry when it
+resolves a marker whose path ends in that extension. Registering
+`""` is fine — the empty extension is the fallback (`TextFile` claims
+it so any path with no extension loads as plain text).
+"""
+function register_file_document_type!(extension::AbstractString, T::Type{<:FileDocument})
+    _FILE_DOCUMENT_TYPES[String(extension)] = T
+    T
+end
+
+"""
+    file_document_type(path::AbstractString) -> Type{<:FileDocument}
+
+Look up the concrete `FileDocument` type for `path` by its extension
+(case-insensitive). Errors if no format has claimed the extension —
+better a loud miss at resolve time than a silently-wrong parse.
+"""
+function file_document_type(path::AbstractString)
+    ext = lowercase(splitext(path)[2])
+    haskey(_FILE_DOCUMENT_TYPES, ext) && return _FILE_DOCUMENT_TYPES[ext]
+    error("file_document_type: no FileDocument registered for extension ",
+          repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
+end
 
 # ── ReferenceStub ──────────────────────────────────────────────────────────
 
 """
-    ReferenceStub(reference::ConcreteReference)
+    ReferenceStub(reference::ConcreteReference [, context::LoaderContext])
 
 Placeholder for a cross-file reference before its target is resolved.
-The `reference` starts with a `FileReferenceStep` and describes where
-the target lives; forcing `resolved` (in S4) will consult the loader's
-intern table to swap the stub for the actual node. In S2 the stub is
-just a first-class node type — no forcing wiring yet, its slot in a
-graph is what stays after a marker walk lands.
+`reference` starts with a `FileReferenceStep` and describes where the
+target lives; `context`, when present, is the `LoaderContext` this
+stub was born under — `resolve!(stub)` consults `context.intern` to
+share targets with sibling stubs and to break cycles.
+
+A stub with `context === nothing` is *unhosted* — a marker that was
+constructed in memory outside a load session (e.g. by a user
+composing a graph). Calling `resolve!` on it errors; the stub still
+serves as a first-class marker for save-time projection.
 """
 mutable struct ReferenceStub <: Document
     reference::ConcreteReference
+    context::Union{Nothing, LoaderContext}
     resolved::ReactiveCell{Any}
 end
 
-ReferenceStub(reference::ConcreteReference) = ReferenceStub(reference, ReactiveCell{Any}(nothing))
+ReferenceStub(reference::ConcreteReference) =
+    ReferenceStub(reference, nothing, ReactiveCell{Any}(nothing))
+ReferenceStub(reference::ConcreteReference, context::LoaderContext) =
+    ReferenceStub(reference, context, ReactiveCell{Any}(nothing))
 
 Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", s.reference, ")")
 
+# Two stubs are equal when their references are — the context and the
+# resolved cell are load-session state, not identity.
 Base.:(==)(a::ReferenceStub, b::ReferenceStub) = a.reference == b.reference
+
+"""
+    is_resolved(stub::ReferenceStub) -> Bool
+
+`true` when `resolve!` has been called on this stub (or a previous
+resolve in the same context session cached its target).
+"""
+is_resolved(stub::ReferenceStub) = getfield(stub, :resolved)[] !== nothing
+
+"""
+    resolve!(stub::ReferenceStub) -> Any
+
+Load-or-fetch the referent named by `stub.reference`. On first call,
+consults `stub.context.intern`; on a miss, loads the referenced file
+(pre-registering it in the intern table before parsing so a cycle
+back to the same file terminates), stores the result in the intern
+table, and populates `stub.resolved`. Subsequent calls hit the
+cached value in `stub.resolved` directly.
+
+S4 handles the **whole-file** marker only. A fragment reference
+(`file("x").identity("h")...`) is deferred to S5.
+"""
+function resolve!(stub::ReferenceStub)
+    cached = getfield(stub, :resolved)[]
+    cached === nothing || return cached
+    ctx = stub.context
+    ctx === nothing &&
+        error("resolve!: this ReferenceStub has no LoaderContext — resolve requires a load-session context")
+    ref = stub.reference
+    step = ref.head
+    step isa FileReferenceStep ||
+        error("resolve!: reference must start with a FileReferenceStep, got ", typeof(step))
+    ref.tail isa EmptyReference ||
+        error("resolve!: fragment references are not yet supported (S5) — got a chain of length > 1")
+    T = file_document_type(step.path)
+    target = _load_into_context(T, step.path, ctx; marker_key=marker_text(ref))
+    getfield(stub, :resolved)[] = target
+    target
+end
 
 # ── Marker syntax (whole-file only in S3) ──────────────────────────────────
 
@@ -252,13 +379,47 @@ end
     load_project(::Type{T}, filename::AbstractString, base_dir::AbstractString) -> T
 
 Load a project rooted at a single file document of concrete type `T`.
-Delegates to `load_file(T, filename, base_dir)` — the per-type parser
-call — and returns whatever it returns.
-
-S2 handles one file only. In S3 the loader consults an intern table
-and resolves cross-file marker stubs lazily.
+Creates a fresh `LoaderContext(base_dir)` and threads it through the
+per-type `populate_file!` hook so every `ReferenceStub` produced by
+the marker walk shares the same intern table: two markers pointing
+at the same file resolve to `===` objects, and cyclic reference
+graphs terminate.
 """
-load_project(::Type{T}, filename::AbstractString, base_dir::AbstractString) where {T<:FileDocument} =
-    load_file(T, filename, base_dir)
+function load_project(::Type{T}, filename::AbstractString, base_dir::AbstractString) where {T<:FileDocument}
+    ctx = LoaderContext(base_dir)
+    _load_into_context(T, filename, ctx)
+end
+
+"""
+    _load_into_context(T, filename, ctx) -> T
+
+The core load step: return the interned `FileDocument` for
+`filename`, loading it if this is its first sighting in `ctx`.
+
+The **placeholder pre-registration** — inserting a fresh empty
+`FileDocument` into the intern table *before* parsing — is what
+breaks cycles: while `populate_file!` is walking `B`'s content and
+substitutes markers, a marker back to `A` becomes a `ReferenceStub`;
+when someone later `resolve!`s that stub, the intern lookup finds
+the placeholder for `A` already there (populated by then, since `A`
+finished loading before its stubs are forced by user code).
+"""
+function _load_into_context(::Type{T}, filename::AbstractString, ctx::LoaderContext;
+                            marker_key::Union{Nothing, String}=nothing) where {T<:FileDocument}
+    key = marker_key === nothing ?
+          marker_text(ConcreteReference(FileReferenceStep(String(filename)), EmptyReference())) :
+          marker_key
+    haskey(ctx.intern, key) && return ctx.intern[key]::T
+    file = _make_empty_file(T, filename)
+    ctx.intern[key] = file
+    populate_file!(file, filename, ctx)
+    file
+end
+
+# Default: `T(filename)` using the @document keyword constructor with
+# the declared default for `content`. A type whose default doesn't fit
+# a placeholder shape overrides this.
+_make_empty_file(::Type{T}, filename::AbstractString) where {T<:FileDocument} =
+    T(String(filename))
 
 end # module

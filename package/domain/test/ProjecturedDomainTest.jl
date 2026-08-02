@@ -112,6 +112,7 @@ include("projection/WorkbenchTabClickTest.jl")
 include("projection/WorkbenchContentPaneTest.jl")
 include("serializer/SerializationTest.jl")
 include("serializer/JsonFileTest.jl")
+include("serializer/FileProjectS4Test.jl")
 include("editor/ConstructTest.jl")
 
 """
@@ -183,6 +184,7 @@ function test_domain()
         test_dragging()
         test_serialization()
         test_json_file()
+        test_file_project_s4()
         test_mcp_tools()
         test_conversation_serialization()
         test_parse_markdown_blocks()
@@ -234,6 +236,6 @@ export test_gesture_map, test_gesture_help, test_db_catalog_sql,
        test_document_insertion, test_julia_typein, test_conversation_editor,
        test_assistant_composer_panel, test_assistant_mvp, test_workbench_file_keys,
        test_table_navigation
-export test_json_file
+export test_json_file, test_file_project_s4
 
 end # module ProjecturedDomainTest
