@@ -20,10 +20,10 @@ import ..ProjectionModule: var"@projection"
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
                       JuliaNothing, JuliaSymbol, JuliaChar,
-                      JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaTernary,
+                      JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaMacroCall, JuliaTernary,
                       JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
                       JuliaTypeAnnotation,
-                      JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
+                      JuliaAssignment, JuliaConst, JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
                       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaInsertion, _julia_operator_string
 import ..TextModule: TextString
@@ -41,6 +41,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
        JuliaBinaryOpToSyntaxNode, JuliaUnaryOpToSyntaxNode, JuliaCallToSyntaxNode,
+       JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode,
        JuliaTernaryToSyntaxNode, JuliaIndexToSyntaxNode, JuliaFieldAccessToSyntaxNode,
        JuliaTupleToSyntaxNode, JuliaArrayToSyntaxNode, JuliaRangeToSyntaxNode,
        JuliaTypeAnnotationToSyntaxNode,
@@ -178,6 +179,35 @@ end
                                      open=TextString("(", p.delim),
                                      close=TextString(")", p.delim),
                                      sep=TextString(", ", p.delim)) ])
+
+# ── JuliaMacroCallToSyntaxNode ──────────────────────────────────────────────
+# Renders `@name arg1 arg2 …`. The name is a plain string leaf (it
+# already carries its leading `@`); arguments are space-separated,
+# each projected via its own type dispatch.
+
+@projection struct JuliaMacroCallToSyntaxNode
+    name_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    sep_style::ImmutableCell{DStyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaMacroCallToSyntaxNode JuliaMacroCall (p, m) ->
+    SyntaxConcatenation([ SyntaxLeaf(TextString(() -> m.name, p.name_style)),
+                          SyntaxNode(collection(:arguments);
+                                     open=TextString(" ", p.sep_style),
+                                     close=TextString("", p.sep_style),
+                                     sep=TextString(" ", p.sep_style)) ])
+
+# ── JuliaConstToSyntaxNode ─────────────────────────────────────────────────
+# `const NAME = value` — the `const` keyword in front of the inner
+# assignment. Keyword uses the JuliaKeyword palette color (magenta).
+
+@projection struct JuliaConstToSyntaxNode
+    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+end
+
+@projection_template JuliaConstToSyntaxNode JuliaConst (p, c) ->
+    SyntaxConcatenation([ SyntaxLeaf(TextString("const ", p.keyword_style)),
+                          project(:assignment) ])
 
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
@@ -502,6 +532,8 @@ function JuliaToSyntax()
         JuliaBinaryOp        => JuliaBinaryOpToSyntaxNode(),
         JuliaUnaryOp         => JuliaUnaryOpToSyntaxNode(),
         JuliaCall            => JuliaCallToSyntaxNode(),
+        JuliaMacroCall       => JuliaMacroCallToSyntaxNode(),
+        JuliaConst           => JuliaConstToSyntaxNode(),
         JuliaTernary         => JuliaTernaryToSyntaxNode(),
         JuliaIndex           => JuliaIndexToSyntaxNode(),
         JuliaFieldAccess     => JuliaFieldAccessToSyntaxNode(),

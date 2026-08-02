@@ -25,6 +25,7 @@ module JuliaParserModule
 
 import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
     JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOp, JuliaUnaryOp, JuliaCall,
+    JuliaMacroCall, JuliaConst,
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
@@ -147,6 +148,37 @@ function _convert_head(::Val{:call}, x::Expr)
     end
     return JuliaCall(convert_expr(callee), JuliaDocument[convert_expr(a) for a in args])
 end
+
+# ── Macrocall ────────────────────────────────────────────────────────────────
+# `Expr(:macrocall, name, lineinfo, args...)` — the name may be a bare
+# `Symbol` (`@show`), a `GlobalRef` (`Core.@doc`), or a dotted path
+# `Expr(:., mod, QuoteNode(:@name))`. `x.args[2]` is a LineNumberNode
+# the macro-expander uses; skip it and any interleaved LineNumberNodes
+# in the remainder.
+function _convert_head(::Val{:macrocall}, x::Expr)
+    name_expr = x.args[1]
+    name = _macro_name_string(name_expr)
+    rest = length(x.args) >= 2 ? x.args[3:end] : Any[]
+    args = JuliaDocument[convert_expr(a) for a in rest if !(a isa LineNumberNode)]
+    return JuliaMacroCall(name, args)
+end
+
+_macro_name_string(s::Symbol) = String(s)
+_macro_name_string(g::GlobalRef) = string(g.mod, ".", g.name)
+function _macro_name_string(x::Expr)
+    # A dotted macro name like `Core.@doc` parses as
+    # Expr(:., :Core, QuoteNode(:var"@doc")). Best-effort:
+    # concat the segments so the printer round-trips.
+    x.head === :. || error("unsupported macro name: $(repr(x))")
+    left  = _macro_name_string(x.args[1])
+    right = x.args[2] isa QuoteNode ? _macro_name_string(x.args[2].value) : string(x.args[2])
+    string(left, ".", right)
+end
+_macro_name_string(x) = string(x)
+
+# ── const ─────────────────────────────────────────────────────────────────────
+# `const NAME = VALUE` parses to `Expr(:const, Expr(:(=), NAME, VALUE))`.
+_convert_head(::Val{:const}, x::Expr) = JuliaConst(convert_expr(x.args[1]))
 
 # ── Assignment (plain and compound) ──────────────────────────────────────────
 

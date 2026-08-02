@@ -122,6 +122,18 @@ A function call expression.
 end
 
 """
+A macro call expression, e.g. `@doc "…" expr` or `@show x`. `name` is
+the macro name written in source (starts with `@`); `arguments` are
+the arguments after the macro name. Line-info nodes the native
+`Expr(:macrocall, …)` interleaves are stripped by the parser so
+arguments hold only real values.
+"""
+@document struct JuliaMacroCall <: JuliaDocument
+    name::String
+    arguments::CellVector
+end
+
+"""
 A ternary expression `cond ? a : b`.
 """
 @document struct JuliaTernary <: JuliaDocument
@@ -221,6 +233,14 @@ end
 
 # assignment defaulting the operator to `=`
 JuliaAssignment(target, value) = JuliaAssignment(:(=), target, value)
+
+"""
+A `const` declaration wrapping an assignment (`const X = value`).
+The inner `assignment` is typically a `JuliaAssignment`.
+"""
+@document struct JuliaConst <: JuliaDocument
+    assignment::Document
+end
 
 """
 One `var in iter` clause of a `for` loop. `JuliaFor` holds a `CellVector` of these.
