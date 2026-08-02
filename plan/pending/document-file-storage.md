@@ -233,9 +233,14 @@ foundational and format-native `emit`/`load` mean no domain
 dependency). One-file project round-trip: 21 assertions in
 `base/test/serialization/FileProjectTest.jl`.
 
-**S3 — JsonFile round-trip**
-`JsonFile` + JSON marker walk + registration. Two-file project
-round-trip (root.json + child.json).
+**S3 — JsonFile round-trip** ✅ done
+`JsonFile` + JSON marker walk (load) + JsonToSyntax dispatch on
+`ReferenceStub` and `FileDocument` (emit — defensive; no pre-save AST
+mutation). `save_project!` now walks reachable file documents via
+`search_documents` and dedups shared subtrees. Whole-file marker
+syntax only for now — fragment refs (`file(…).identity(…).body`)
+land with the intern table in S4/S5.
+16 assertions in `domain/test/serializer/JsonFileTest.jl`.
 
 **S4 — Intern table + shared identity + cycles**
 Loader intern table; `===` sharing test; A↔B cycle test.
