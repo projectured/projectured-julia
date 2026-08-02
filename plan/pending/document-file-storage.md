@@ -262,9 +262,16 @@ S5 pins it down with 11 assertions in
 `domain/test/serializer/FileProjectS5Test.jl` and clarifies
 `save_project!`'s docstring on loaded-only semantics.
 
-**S6 — JuliaFile + MarkdownFile**
-Marker walks using existing `juliaparse` / `markdownparse` +
-`document_to_text`.
+**S6 — JuliaFile + MarkdownFile** ✅ done
+JuliaFile marker syntax landed as `pred_ref("<<file(\"path\")>>")`
+— a plain call (the projectured Julia parser doesn't handle
+`@ref …` macros). MarkdownFile marker syntax landed as a fenced
+`pred-ref` code block (the markdown parser stops link URLs at
+the first `)`, so link-style markers aren't viable; inline stubs
+inside a paragraph are out of scope for v1). Both wired into
+`document_to_text` via `<Fmt>ToSyntax` extensions. MarkdownDocument
+gained its natural-format registration (was missing before).
+28 assertions in `domain/test/serializer/JuliaAndMarkdownFileTest.jl`.
 
 **S7 — XmlFile**
 Marker walk using existing `xmlparse` + `XmlToSyntax`.
