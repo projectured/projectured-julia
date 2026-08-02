@@ -56,6 +56,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
@@ -64,6 +65,7 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownStyledTextToSyntaxLeaf, MarkdownStyledInline, MarkdownStrongToStyledNode,
        MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
        MarkdownImageToStyledNode, MarkdownListToStyledNode,
+       ReferenceStubToMarkdownSyntaxLeaf, EmbeddedFileDocumentToMarkdownSyntaxLeaf,
        MarkdownToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
@@ -619,8 +621,42 @@ function MarkdownToSyntax(; style::Symbol = :source)
         MarkdownLink          => MarkdownLinkToSyntaxNode(),
         MarkdownImage         => MarkdownImageToSyntaxNode(),
         MarkdownRoot          => MarkdownRootToSyntaxNode(),
+        # A cross-file reference — either as a load-produced stub or
+        # as an embedded FileDocument child — renders as a fenced
+        # `pred-ref` code block so document_to_text emits the right
+        # thing without a pre-save AST mutation.
+        ReferenceStub         => ReferenceStubToMarkdownSyntaxLeaf(),
+        FileDocument          => EmbeddedFileDocumentToMarkdownSyntaxLeaf(),
         Vector{Cell}          => CopyingProjection(),
     )
 end
+
+# ── ReferenceStubToMarkdownSyntaxLeaf ───────────────────────────────────────
+# ReferenceStub → a fenced `pred-ref` code block whose body is the
+# marker text (`<<file(\"path\")>>`). Emitted as a single SyntaxLeaf
+# holding the whole block text so document_to_text writes it
+# verbatim.
+
+@projection struct ReferenceStubToMarkdownSyntaxLeaf
+    style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@projection_template ReferenceStubToMarkdownSyntaxLeaf ReferenceStub (p, s) ->
+    SyntaxLeaf(TextString(_stub_marker_fence(s), p.style))
+
+_stub_marker_fence(stub::ReferenceStub) =
+    "```pred-ref\n" * marker_text(stub) * "\n```"
+
+# ── EmbeddedFileDocumentToMarkdownSyntaxLeaf ────────────────────────────────
+
+@projection struct EmbeddedFileDocumentToMarkdownSyntaxLeaf
+    style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@projection_template EmbeddedFileDocumentToMarkdownSyntaxLeaf FileDocument (p, f) ->
+    SyntaxLeaf(TextString(_embedded_marker_fence(f), p.style))
+
+_embedded_marker_fence(f::FileDocument) =
+    "```pred-ref\n<<file(" * repr(filename(f)) * ")>>\n```"
 
 end # module

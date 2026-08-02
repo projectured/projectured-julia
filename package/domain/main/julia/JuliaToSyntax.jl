@@ -36,6 +36,7 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", project, collection
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
@@ -49,6 +50,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
        JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode,
+       ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
        JuliaToSyntax
 
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
@@ -521,7 +523,54 @@ function JuliaToSyntax()
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
         JuliaUsing           => JuliaUsingToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
+        # A cross-file reference — either as a load-produced stub or
+        # as an embedded FileDocument child — renders as a
+        # `pred_ref("<<file(\"path\")>>")` call so document_to_text
+        # emits the right thing without a pre-save AST mutation.
+        ReferenceStub        => ReferenceStubToJuliaSyntaxLeaf(),
+        FileDocument         => EmbeddedFileDocumentToJuliaSyntaxLeaf(),
     )
+end
+
+# ── ReferenceStubToJuliaSyntaxLeaf ──────────────────────────────────────────
+# ReferenceStub → the exact text `pred_ref("<<file(\"path\")>>")` as a
+# single SyntaxLeaf. Delegates escaping of the internal quotes to
+# `_julia_string_escape`; the wrapping quotes and parens are part of
+# the leaf text so the printer emits them literally.
+
+@projection struct ReferenceStubToJuliaSyntaxLeaf
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template ReferenceStubToJuliaSyntaxLeaf ReferenceStub (p, s) ->
+    SyntaxLeaf(TextString(_stub_marker_call(s), p.style))
+
+_stub_marker_call(stub::ReferenceStub) =
+    "pred_ref(\"" * _julia_string_escape(marker_text(stub)) * "\")"
+
+# ── EmbeddedFileDocumentToJuliaSyntaxLeaf ───────────────────────────────────
+
+@projection struct EmbeddedFileDocumentToJuliaSyntaxLeaf
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template EmbeddedFileDocumentToJuliaSyntaxLeaf FileDocument (p, f) ->
+    SyntaxLeaf(TextString(_embedded_marker_call(f), p.style))
+
+_embedded_marker_call(f::FileDocument) =
+    "pred_ref(\"" * _julia_string_escape("<<file(" * repr(filename(f)) * ")>>") * "\")"
+
+function _julia_string_escape(s::AbstractString)
+    buf = IOBuffer()
+    for ch in s
+        ch == '\\' ? write(buf, "\\\\") :
+        ch == '"'  ? write(buf, "\\\"") :
+        ch == '\n' ? write(buf, "\\n")  :
+        ch == '\r' ? write(buf, "\\r")  :
+        ch == '\t' ? write(buf, "\\t")  :
+                     write(buf, ch)
+    end
+    String(take!(buf))
 end
 
 # ── Natural-format registration ─────────────────────────────────────────────

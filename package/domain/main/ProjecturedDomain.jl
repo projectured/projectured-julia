@@ -192,10 +192,12 @@ include("gesturemap/GestureHelpDecorator.jl")
 include("insertion/InsertionToSyntax.jl")
 include("json/JsonToSyntax.jl")
 include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
+include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
 include("xml/XmlToSyntax.jl")
 include("markdown/MarkdownToSyntax.jl")
+include("markdown/MarkdownFile.jl") # FileDocument wrapping a MarkdownDocument
 include("filesystem/FileSystemToSyntax.jl")
 include("filesystem/FileSystemToWidget.jl")
 include("workbench/WorkspaceToFileSystem.jl")
