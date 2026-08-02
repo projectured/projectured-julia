@@ -12,6 +12,7 @@ import ..CellModule: Cell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -25,6 +26,7 @@ import ..PrimitiveModule: ReplaceNumberRangeOperation
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
        JsonObjectEntryToSyntaxNode,
+       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf,
        JsonToSyntax
 
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
@@ -145,9 +147,50 @@ function JsonToSyntax()
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
         JsonNothing     => InsertionNothingToSyntaxLeaf(),
         JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
+        # A cross-file reference — either as a resolved-later stub or as
+        # an embedded FileDocument child — renders as a marker string
+        # (`"<<file(\"path\")>>"`), so document_to_text emits the right
+        # thing without a pre-save AST mutation.
+        ReferenceStub   => ReferenceStubToJsonSyntaxLeaf(),
+        FileDocument    => EmbeddedFileDocumentToJsonSyntaxLeaf(),
         Vector{Cell}    => CopyingProjection(),
     )
 end
+
+# ── ReferenceStubToJsonSyntaxLeaf ────────────────────────────────────────────
+# A ReferenceStub sitting in a JSON AST slot renders as the marker
+# string `"<<file(\"path\")>>"` — a JsonString-shaped SyntaxLeaf with the
+# same quote-then-value-then-quote structure JsonStringToSyntaxLeaf produces.
+
+@projection struct ReferenceStubToJsonSyntaxLeaf
+    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template ReferenceStubToJsonSyntaxLeaf ReferenceStub (prj, stub) ->
+    SyntaxLeaf(TextString(_stub_marker_body(stub), prj.value_style);
+               open=TextString("\"", prj.quote_style),
+               close=TextString("\"", prj.quote_style))
+
+_stub_marker_body(stub::ReferenceStub) = json_escape(marker_text(stub))
+
+# ── EmbeddedFileDocumentToJsonSyntaxLeaf ─────────────────────────────────────
+# A FileDocument embedded directly in a JSON AST (as opposed to referenced
+# through a ReferenceStub) renders as the same marker string — the
+# embedded child gets its own file on save, and the parent's serialised
+# form only holds the reference.
+
+@projection struct EmbeddedFileDocumentToJsonSyntaxLeaf
+    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template EmbeddedFileDocumentToJsonSyntaxLeaf FileDocument (prj, file) ->
+    SyntaxLeaf(TextString(_embedded_marker_body(file), prj.value_style);
+               open=TextString("\"", prj.quote_style),
+               close=TextString("\"", prj.quote_style))
+
+_embedded_marker_body(file::FileDocument) = json_escape("<<file(" * repr(filename(file)) * ")>>")
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 

@@ -39,11 +39,12 @@ loading are staged into S3–S5.
 module FileProjectModule
 
 import ..CellModule: Cell, ReactiveCell, unwrap_cell
-import ..DocumentModule: Document
-import ..ReferenceModule: ConcreteReference
+import ..DocumentModule: Document, search_documents
+import ..ReferenceModule: ConcreteReference, EmptyReference, Reference, FileReferenceStep
 
 export FileDocument, filename, content, emit_text, load_file,
-       save_project!, load_project, ReferenceStub
+       save_project!, load_project, ReferenceStub,
+       marker_text, parse_marker_text, marker_reference_of
 
 # ── abstract FileDocument ──────────────────────────────────────────────────
 
@@ -123,6 +124,69 @@ Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", s.reference, "
 
 Base.:(==)(a::ReferenceStub, b::ReferenceStub) = a.reference == b.reference
 
+# ── Marker syntax (whole-file only in S3) ──────────────────────────────────
+
+"""
+    marker_text(reference::ConcreteReference) -> String
+
+Format a cross-file `ConcreteReference` as the marker text embedded in a
+natural file (`"<<REF>>"`). S3 handles the **whole-file** case only:
+a reference whose only step is a `FileReferenceStep` renders as
+`<<file("path")>>`. Longer chains (identity, field steps into a
+loaded file) land in later stages together with the intern table
+they need to resolve.
+"""
+function marker_text(reference::ConcreteReference)
+    step = reference.head
+    step isa FileReferenceStep ||
+        error("marker_text: reference must start with a FileReferenceStep, got ", typeof(step))
+    reference.tail isa EmptyReference ||
+        error("marker_text: S3 only supports whole-file markers; got a chain of length > 1")
+    "<<file(" * repr(step.path) * ")>>"
+end
+
+marker_text(stub::ReferenceStub) = marker_text(stub.reference)
+
+# `<<file("path")>>` matcher — deliberately strict so a JSON string that
+# happens to start with `<<file(` but isn't a valid marker fails cleanly
+# rather than being taken for one and losing its content on save.
+const _MARKER_RE = r"^<<file\(\"((?:[^\"\\]|\\.)*)\"\)>>$"
+
+"""
+    parse_marker_text(text::AbstractString) -> Union{Nothing, ConcreteReference}
+
+Recognise a marker string. Returns the ref chain the marker names, or
+`nothing` if `text` is not marker-shaped. S3 recognises only the
+whole-file form; a non-match is not an error — the caller (a per-format
+marker walk) uses `nothing` to leave the text as an ordinary value.
+"""
+function parse_marker_text(text::AbstractString)
+    m = match(_MARKER_RE, text)
+    m === nothing && return nothing
+    # Un-escape the JSON-ish backslash escapes we allow in the path.
+    raw = m.captures[1]
+    path = _unescape_marker_path(raw)
+    ConcreteReference(FileReferenceStep(path), EmptyReference())
+end
+
+function _unescape_marker_path(s::AbstractString)
+    buf = IOBuffer()
+    i = firstindex(s)
+    while i <= lastindex(s)
+        c = s[i]
+        if c == '\\' && i < lastindex(s)
+            n = s[i + 1]
+            n == '"'      && (write(buf, '"');  i = nextind(s, i, 2); continue)
+            n == '\\'     && (write(buf, '\\'); i = nextind(s, i, 2); continue)
+            # Fall through for any other escape (leave it literal — v1 keeps
+            # only the escapes the format needs to embed inside a JSON string).
+        end
+        write(buf, c)
+        i = nextind(s, i)
+    end
+    String(take!(buf))
+end
+
 # ── Driver: save + load ────────────────────────────────────────────────────
 
 """
@@ -141,12 +205,33 @@ turn) is added in S3.
 """
 function save_project!(root::FileDocument, base_dir::AbstractString)
     mkpath(base_dir)
-    path = joinpath(base_dir, filename(root))
+    written = String[]
+    seen    = IdDict{FileDocument, Bool}()
+    for file in _reachable_files(root)
+        haskey(seen, file) && continue
+        seen[file] = true
+        _save_one_file!(file, base_dir)
+        push!(written, filename(file))
+    end
+    root
+end
+
+# Enumerate every FileDocument reachable from `root` via structural
+# descent — including `root` itself. Uses `search_documents`, which
+# runs a `:once_per_object` DFS and dedups shared subtrees. Reference
+# stubs are *not* file documents (they're markers pointing at one), so
+# a stub does not add its target to the walk.
+function _reachable_files(root::FileDocument)
+    FileDocument[m for m in search_documents(root, x -> x isa FileDocument)]
+end
+
+function _save_one_file!(file::FileDocument, base_dir::AbstractString)
+    path = joinpath(base_dir, filename(file))
     parent = dirname(path)
     isempty(parent) || mkpath(parent)
-    text = emit_text(root)
+    text = emit_text(file)
     _write_if_changed(path, text)
-    root
+    file
 end
 
 # The byte-equality guard the plan calls out: skip the write when the

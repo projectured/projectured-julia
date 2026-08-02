@@ -85,6 +85,8 @@ const ReaderDefaultsModule = ProjecturedBase.ReaderDefaultsModule
 const HigherOrderCompoundModule = ProjecturedBase.HigherOrderCompoundModule
 const GenericCompoundModule = ProjecturedBase.GenericCompoundModule
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
+const FileProjectModule = ProjecturedBase.FileProjectModule
+const TextFileModule = ProjecturedBase.TextFileModule
 const TypeDispatchingProjectionModule = ProjecturedBase.TypeDispatchingProjectionModule
 
 # ── Visual submodule aliases ───────────────────────────────────────────────
@@ -189,6 +191,7 @@ include("gesturemap/GestureHelpDecorator.jl")
 # shared *Nothing placeholder leaf — and it depends on no domain projection.
 include("insertion/InsertionToSyntax.jl")
 include("json/JsonToSyntax.jl")
+include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
 include("xml/XmlToSyntax.jl")
