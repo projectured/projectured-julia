@@ -254,8 +254,13 @@ retired in favour of the in-place `populate_file!` hook so the
 driver owns the pre-registration step. 24 assertions in
 `domain/test/serializer/FileProjectS4Test.jl`.
 
-**S5 — Save discipline**
+**S5 — Save discipline** ✅ done
 Loaded-only iteration; byte-equality skip; recreate-on-deleted.
+The behaviour fell out of the search_documents walk (which never
+descends into unresolved stubs) + the S2 `_write_if_changed` guard;
+S5 pins it down with 11 assertions in
+`domain/test/serializer/FileProjectS5Test.jl` and clarifies
+`save_project!`'s docstring on loaded-only semantics.
 
 **S6 — JuliaFile + MarkdownFile**
 Marker walks using existing `juliaparse` / `markdownparse` +
