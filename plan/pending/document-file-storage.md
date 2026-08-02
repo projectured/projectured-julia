@@ -242,8 +242,17 @@ syntax only for now — fragment refs (`file(…).identity(…).body`)
 land with the intern table in S4/S5.
 16 assertions in `domain/test/serializer/JsonFileTest.jl`.
 
-**S4 — Intern table + shared identity + cycles**
-Loader intern table; `===` sharing test; A↔B cycle test.
+**S4 — Intern table + shared identity + cycles** ✅ done
+`LoaderContext` (base_dir + intern), keyed by `marker_text(ref)`
+(String) because `hash(::ConcreteReference)` isn't `==`-consistent.
+Extension → concrete `FileDocument` type registry (`.json`,
+`.txt`, `""` fallback), wired in `__init__` so registrations
+survive precompilation. `resolve!(stub)` returns cached target or
+loads through the intern. `_load_into_context` pre-registers a
+placeholder before parse so `A ↔ B` cycles terminate. `load_file`
+retired in favour of the in-place `populate_file!` hook so the
+driver owns the pre-registration step. 24 assertions in
+`domain/test/serializer/FileProjectS4Test.jl`.
 
 **S5 — Save discipline**
 Loaded-only iteration; byte-equality skip; recreate-on-deleted.
