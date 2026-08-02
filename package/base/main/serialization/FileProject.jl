@@ -319,16 +319,18 @@ end
 """
     save_project!(root::FileDocument, base_dir::AbstractString) -> root
 
-Write `root`'s emitted text to `joinpath(base_dir, filename(root))`.
+Write every **loaded** file document reachable from `root` — `root`
+itself, every embedded child `FileDocument`, and every `FileDocument`
+found through a `ReferenceStub` whose `resolve!` has already
+populated it. Unresolved stubs are markers, not loaded content: the
+files they name are left untouched on disk. This is what makes "load
+project, edit only the parts I touched, save" preserve the
+untouched files' `mtime` (and git clean status).
 
-The write is **content-equality-gated**: if a file already exists at
-that path and its bytes match `emit_text(root)`, nothing is written
-(so `mtime` and git's clean status are preserved). If the file is
-missing (never existed, or was deleted since load), it is recreated.
-
-S2 handles a single root file only. Cross-file traversal (walking
-child file documents reachable through the graph and writing each in
-turn) is added in S3.
+Each written file is **content-equality-gated**: if a file already
+exists at its path and its bytes match `emit_text(file)`, nothing is
+written. If the file is missing (never existed, or was deleted
+since load), it is recreated.
 """
 function save_project!(root::FileDocument, base_dir::AbstractString)
     mkpath(base_dir)
