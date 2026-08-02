@@ -280,10 +280,35 @@ XML entity encoding preserves the marker's `<<`/`>>` cleanly. Small
 XML text-escape helper (three entities) added to the projection.
 16 assertions in `domain/test/serializer/XmlFileTest.jl`.
 
-**S8 — omnetpp-pred + omnetpp-julia integration**
-Coordinated `filename` + comment-preservation change in omnetpp-pred.
-Register NedFile / IniFile in omnetpp-julia; marker walk via line
-comments. Round-trip test on a minimal omnetpp project.
+**S8 — omnetpp-pred integration** ✅ done
+Julia single-inheritance forbids `NedFile` / `IniFile` being both
+`<: NedDocument` / `<: IniDocument` **and** `<: FileDocument`. The
+initial S8 shipped wrappers (`NedFileDoc` / `IniFileDoc`), but a
+follow-up refactor introduced the `is_file_document` trait in
+`FileProject.jl` — every driver check goes through the trait, so a
+type opts in without changing its supertype. Wrappers deleted;
+`NedFile` and `IniFile` opt in directly.
+
+- `omnetpp-pred/program/src/document/Ini.jl`: `IniFile` gains a
+  `filename::String` field (`NedFile` already had one).
+- `omnetpp-pred/program/src/document/FileDocuments.jl`: adds
+  `is_file_document`, `filename`, `emit_text`, `populate_file!`,
+  `_make_empty_file` methods for `NedFile` and `IniFile`; registers
+  `natural_syntax_projection` / `natural_extension` /
+  `parse_natural` for `NedDocument` / `IniDocument` (these were
+  missing before). Extension registry: `.ned → NedFile`,
+  `.ini → IniFile`.
+- In-NED / in-INI markers (line comments) are deferred —
+  cross-file references to `.ned` / `.ini` files still work through
+  the outer JSON / Markdown parent's marker walk. No omnetpp-julia
+  change was needed (that repo doesn't consume omnetpp-pred yet).
+
+Integration test: `omnetpp-pred/test-filestorage/` — a mini project
+directory with `root.json + README.md + omnetpp.ini + model.ned`,
+round-tripped end-to-end. 13 assertions. Project.tomls in the
+omnetpp-pred worktree repoint at the
+`projectured-julia-document-file-storage` worktree so the
+FileProjectModule symbols resolve.
 
 ## Open questions
 

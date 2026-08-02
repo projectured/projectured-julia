@@ -3,16 +3,24 @@
 
 Save/load a ProjecturEd document graph as a set of text files that git
 can version the ordinary way. Every node that should live in its own
-file is a **file document** (`<: FileDocument`) carrying a `filename`;
-the driver walks the graph and each file document's content is emitted
-to its named file. Cross-file references (built on the reference layer's
-`FileReferenceStep`) survive save/load through a marker embedded in
-each format's natural syntax.
+file is a **file document**: a type carrying a `filename` field that
+either subtypes `FileDocument` (the ergonomic case for types that
+have no existing supertype) or opts in via the `is_file_document`
+trait (for types that already have one, e.g. omnetpp-pred's `NedFile
+<: NedDocument`). The driver walks the graph and each file
+document's content is emitted to its named file. Cross-file
+references (built on the reference layer's `FileReferenceStep`)
+survive save/load through a marker embedded in each format's natural
+syntax.
 
 This module carries the pieces every format hooks into:
 
-- `abstract FileDocument <: Document` — the interface every concrete
-  file document (`TextFile`, `JsonFile`, `NedFile`, …) subtypes.
+- `abstract FileDocument <: Document` — supertype for the ergonomic
+  case; concrete types (`TextFile`, `JsonFile`, …) inherit and get
+  the trait automatically.
+- `is_file_document(x) :: Bool` — the trait predicate every driver
+  check goes through. Default `false`; `true` for `FileDocument`
+  subtypes; external types opt in with their own method.
 - `filename(f)` / `content(f)` — the interface accessors. Both work off
   the two `@document`-generated cell fields.
 - `emit_text(f)` — the format's path-to-text. Concrete types override
@@ -48,44 +56,90 @@ import ..CellModule: Cell, ReactiveCell, unwrap_cell
 import ..DocumentModule: Document, search_documents
 import ..ReferenceModule: ConcreteReference, EmptyReference, Reference, FileReferenceStep
 
-export FileDocument, filename, content, emit_text, populate_file!,
+export FileDocument, is_file_document,
+       filename, content, emit_text, populate_file!,
        save_project!, load_project, ReferenceStub, resolve!, is_resolved,
        LoaderContext,
        register_file_document_type!, file_document_type,
        marker_text, parse_marker_text
 
-# ── abstract FileDocument ──────────────────────────────────────────────────
+# ── FileDocument: abstract type + is_file_document trait ──────────────────
+#
+# `FileDocument` is the *ergonomic* case: a domain that hasn't picked an
+# abstract supertype for its file-shaped node can just subtype it and
+# get `filename` / `content` / the projection dispatch for free.
+#
+# For a type that *already* has an abstract supertype (Julia's single
+# inheritance forbids a second one — cf. omnetpp-pred's `NedFile <:
+# NedDocument` and `IniFile <: IniDocument`), the **`is_file_document`
+# trait** is the opt-in: return `true` from `is_file_document(::MyFile)`
+# and provide the four per-type methods (`filename`, `emit_text`,
+# `populate_file!`, `_make_empty_file`). Every predicate the driver
+# uses (the `search_documents` walk, `save_project!` guard, resolve
+# lookups) goes through the trait, so an abstract-type file document
+# and a trait-only file document are interchangeable to the substrate.
 
 """
     FileDocument
 
-A document that owns a text file. Every concrete subtype declares two
-`@document` fields — `filename::String` and a format-native
-`content` — so `filename(f)` and `content(f)` work uniformly. Emit
-and load are per-format methods (`emit_text` / `load_file`).
+A document that owns a text file. Every direct subtype declares two
+`@document` fields — `filename::String` and a format-native `content`
+— so `filename(f)` and `content(f)` work uniformly.
+
+The abstract type is one of *two* ways to opt in to the FileProject
+substrate; the other is the `is_file_document` trait (see below), for
+types that already have an incompatible supertype in their own domain.
 """
 abstract type FileDocument <: Document end
 
 """
-    filename(f::FileDocument) -> String
+    is_file_document(x) -> Bool
+
+Predicate the FileProject driver uses everywhere: the
+`search_documents` walk (`save_project!` reachability), the
+`_reachable_files` iterator, and every "is this thing a file we should
+try to write" check.
+
+Defaults to `false`. Every `FileDocument` inherits `true` automatically.
+An external type (e.g. omnetpp-pred's `NedFile`, which is
+`<: NedDocument` and so can't also `<: FileDocument`) opts in with its
+own method:
+
+    is_file_document(::MyDomainFile) = true
+
+Plus the four per-type methods (`filename`, `emit_text`,
+`populate_file!`, `_make_empty_file`).
+"""
+is_file_document(::Any)          = false
+is_file_document(::FileDocument) = true
+
+"""
+    filename(f) -> String
 
 The relative path (from the project's base dir) this file document
-lives at on disk. Reads through the underlying reactive cell so a
-freshly-set filename is seen.
+lives at on disk. Default reads through the `filename` field's
+underlying reactive cell — works for any type that has one (both
+`FileDocument` subtypes and trait-based opt-ins).
 """
-filename(f::FileDocument) = unwrap_cell(getfield(f, :filename))
+filename(f) = unwrap_cell(getfield(f, :filename))
 
 """
-    content(f::FileDocument) -> Any
+    content(f) -> Any
 
 The format-native content of this file document — the parsed AST for
 a leaf like `JsonFile`, a raw `String` for a `TextFile`, or a
 `ReferenceStub` while the target hasn't been forced yet.
+
+Default reads through the `content` field. Types where the "content"
+is spread across multiple fields (e.g. omnetpp-pred's `NedFile` with
+its `children` + `version`) don't have a single `content` field and
+skip this method — their `emit_text` calls `document_to_text` on the
+whole node directly.
 """
-content(f::FileDocument) = unwrap_cell(getfield(f, :content))
+content(f) = unwrap_cell(getfield(f, :content))
 
 """
-    emit_text(f::FileDocument) -> String
+    emit_text(f) -> String
 
 Render a file document to the exact text that goes on disk. Concrete
 types override this: a raw-string leaf (`TextFile`) returns `content`,
@@ -93,12 +147,12 @@ a parsed leaf (`JsonFile`, `XmlFile`, `JuliaFile`, `MarkdownFile`)
 projects `content` through the visual layer's `document_to_text`. The
 default here just errors so a missing override fails loudly.
 """
-emit_text(f::FileDocument) =
+emit_text(f) =
     error("emit_text: no method defined for ", typeof(f),
-          " — every concrete FileDocument must contribute one")
+          " — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)")
 
 """
-    populate_file!(f::FileDocument, filename::AbstractString, ctx::LoaderContext)
+    populate_file!(f, filename::AbstractString, ctx::LoaderContext)
 
 Per-format hook. Read `joinpath(ctx.base_dir, filename)` as text,
 parse it into the format-native content, wire any cross-file marker
@@ -107,14 +161,14 @@ set `f`'s content field to the parsed value. Concrete types override
 this with their parser call — `TextFile` reads a raw string,
 `JsonFile` calls `jsonparse`, etc.
 
-The FileDocument `f` is pre-created empty by `_load_into_context` and
-already registered in `ctx.intern` before `populate_file!` runs, so a
-cycle (A refers into B refers back into A) terminates: the second
+`f` is pre-created empty by `_load_into_context` and already
+registered in `ctx.intern` before `populate_file!` runs, so a cycle
+(A refers into B refers back into A) terminates: the second
 `resolve!` hitting `A` finds the pre-registered placeholder.
 """
-populate_file!(f::FileDocument, filename::AbstractString, ctx) =
+populate_file!(f, filename::AbstractString, ctx) =
     error("populate_file!: no method defined for ", typeof(f),
-          " — every concrete FileDocument must contribute one")
+          " — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)")
 
 # ── LoaderContext ─────────────────────────────────────────────────────────
 #
@@ -152,30 +206,33 @@ LoaderContext(base_dir::AbstractString) =
 const _FILE_DOCUMENT_TYPES = Dict{String, Type}()
 
 """
-    register_file_document_type!(extension::AbstractString, T::Type{<:FileDocument})
+    register_file_document_type!(extension::AbstractString, T::Type)
 
-Wire an extension (e.g. `".json"`) to the concrete `FileDocument`
-subtype that owns it. The loader consults this registry when it
-resolves a marker whose path ends in that extension. Registering
-`""` is fine — the empty extension is the fallback (`TextFile` claims
-it so any path with no extension loads as plain text).
+Wire an extension (e.g. `".json"`) to the concrete type that owns it.
+The loader consults this registry when it resolves a marker whose
+path ends in that extension. `T` may be a `FileDocument` subtype or a
+trait-based opt-in; the registry doesn't restrict.
+
+Registering `""` is fine — the empty extension is the fallback
+(`TextFile` claims it so any path with no extension loads as plain
+text).
 """
-function register_file_document_type!(extension::AbstractString, T::Type{<:FileDocument})
+function register_file_document_type!(extension::AbstractString, T::Type)
     _FILE_DOCUMENT_TYPES[String(extension)] = T
     T
 end
 
 """
-    file_document_type(path::AbstractString) -> Type{<:FileDocument}
+    file_document_type(path::AbstractString) -> Type
 
-Look up the concrete `FileDocument` type for `path` by its extension
+Look up the concrete file-document type for `path` by its extension
 (case-insensitive). Errors if no format has claimed the extension —
 better a loud miss at resolve time than a silently-wrong parse.
 """
 function file_document_type(path::AbstractString)
     ext = lowercase(splitext(path)[2])
     haskey(_FILE_DOCUMENT_TYPES, ext) && return _FILE_DOCUMENT_TYPES[ext]
-    error("file_document_type: no FileDocument registered for extension ",
+    error("file_document_type: no file document registered for extension ",
           repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
 end
 
@@ -332,29 +389,28 @@ exists at its path and its bytes match `emit_text(file)`, nothing is
 written. If the file is missing (never existed, or was deleted
 since load), it is recreated.
 """
-function save_project!(root::FileDocument, base_dir::AbstractString)
+function save_project!(root, base_dir::AbstractString)
+    is_file_document(root) ||
+        error("save_project!: root is not a file document (", typeof(root),
+              ") — subtype FileDocument or add `is_file_document(::", typeof(root), ") = true`")
     mkpath(base_dir)
-    written = String[]
-    seen    = IdDict{FileDocument, Bool}()
+    seen = IdDict{Any, Bool}()
     for file in _reachable_files(root)
         haskey(seen, file) && continue
         seen[file] = true
         _save_one_file!(file, base_dir)
-        push!(written, filename(file))
     end
     root
 end
 
-# Enumerate every FileDocument reachable from `root` via structural
+# Enumerate every file document reachable from `root` via structural
 # descent — including `root` itself. Uses `search_documents`, which
 # runs a `:once_per_object` DFS and dedups shared subtrees. Reference
 # stubs are *not* file documents (they're markers pointing at one), so
 # a stub does not add its target to the walk.
-function _reachable_files(root::FileDocument)
-    FileDocument[m for m in search_documents(root, x -> x isa FileDocument)]
-end
+_reachable_files(root) = search_documents(root, is_file_document)
 
-function _save_one_file!(file::FileDocument, base_dir::AbstractString)
+function _save_one_file!(file, base_dir::AbstractString)
     path = joinpath(base_dir, filename(file))
     parent = dirname(path)
     isempty(parent) || mkpath(parent)
@@ -387,7 +443,7 @@ the marker walk shares the same intern table: two markers pointing
 at the same file resolve to `===` objects, and cyclic reference
 graphs terminate.
 """
-function load_project(::Type{T}, filename::AbstractString, base_dir::AbstractString) where {T<:FileDocument}
+function load_project(::Type{T}, filename::AbstractString, base_dir::AbstractString) where {T}
     ctx = LoaderContext(base_dir)
     _load_into_context(T, filename, ctx)
 end
@@ -407,7 +463,7 @@ the placeholder for `A` already there (populated by then, since `A`
 finished loading before its stubs are forced by user code).
 """
 function _load_into_context(::Type{T}, filename::AbstractString, ctx::LoaderContext;
-                            marker_key::Union{Nothing, String}=nothing) where {T<:FileDocument}
+                            marker_key::Union{Nothing, String}=nothing) where {T}
     key = marker_key === nothing ?
           marker_text(ConcreteReference(FileReferenceStep(String(filename)), EmptyReference())) :
           marker_key
@@ -421,7 +477,7 @@ end
 # Default: `T(filename)` using the @document keyword constructor with
 # the declared default for `content`. A type whose default doesn't fit
 # a placeholder shape overrides this.
-_make_empty_file(::Type{T}, filename::AbstractString) where {T<:FileDocument} =
+_make_empty_file(::Type{T}, filename::AbstractString) where {T} =
     T(String(filename))
 
 end # module
