@@ -302,17 +302,19 @@ the cell holds a thunk rather than a value).
 All three macros (`@document`, `@projection`, `@iomap`) share the same generated
 machinery, and with it the same three sharp edges:
 
-- **A macro-wrapped field can never hold a `Cell` — or a `Function` — as its
+- **A macro-wrapped field can never hold a `Cell` — or a `Computed` — as its
   logical value.** The auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)`
   on every argument, so a value that *is* a `Cell` is stored unwrapped and read back
   transparently — there is no way to have a field whose value is itself a `Cell`. A
-  `Function` is worse: `Cell(f)` builds a **computed thunk**, so the field would be
-  *called* (with no args) when read, not returned — a config field like
-  `marker_eligible::Any = some_predicate` silently breaks at runtime. (This is exactly
-  the trap that forced `SyntaxCompoundToText` to stay a plain `struct` instead of becoming
-  `@projection`.) If you genuinely need to store a cell or a callable *as a value*, box
-  it (e.g. in a one-element tuple or a wrapper struct), or keep it in a plain
-  hand-rolled struct instead.
+  `Computed` is consumed the same way: it becomes the field's *derivation*, making it a
+  computed cell, which is what `output = Computed(() -> …)` is for. If you genuinely
+  need to store either *as a value*, box it (e.g. in a one-element tuple or a wrapper
+  struct), or keep it in a plain hand-rolled struct instead.
+
+  A **`Function` is an ordinary value** and needs none of this: a field may hold a
+  callback, predicate, or factory, and reading it returns the function uncalled — so a
+  config field like `marker_eligible::Any = some_predicate` is fine. Computedness is
+  stated with `Computed`, never inferred from the value's type.
 - **The macro emits the *only inner* constructor.** Any convenience constructor
   you write must therefore be an **outer** constructor (`Foo(args...) = Foo(...)`
   outside the `@document struct` body); an inner one would collide with the
@@ -337,10 +339,11 @@ machinery, and with it the same three sharp edges:
 - Most projection structs use `@projection` (with the `<: Projection` defaulted
   in) — the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
   plain `struct ... <: Projection` is the exception, used when the macro can't
-  be: `SyntaxCompoundToText` stays plain because it stores a `Function` field (which
-  the auto-wrapping ctor would turn into a thunk — see "Gotchas"), and
-  `AlternativeProjection` stays plain even though it holds a reactive
+  be: `AlternativeProjection` stays plain because it holds a reactive
   `index::Cell`, reading the cell explicitly rather than through `@projection`.
+  (A `Function` field is no longer such a reason — `SyntaxCompoundToText`'s
+  `marker_eligible` predicate is an ordinary value — so plain structs that carry
+  one are free to move to the macro.)
   A plain struct gets no supertype defaulting, so it must write `<: Projection`.
 
 The result is that domain and projection code reads like Julia you'd write

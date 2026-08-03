@@ -114,7 +114,7 @@ selection forward through this projection's own mapper, so the path mapping is
 defined in exactly one place:
 
 ```julia
-output.selection = Cell(() -> map_reference_forward(p, iomap, input.selection))
+output.selection = ComputedCell(() -> map_reference_forward(p, iomap, input.selection))
 ```
 
 For a node projection the `iomap` does not exist yet when the cell is built; use
@@ -391,8 +391,8 @@ IoMap with no re-print. This is
 and `reconcile_child_iomaps` (iomap layer) is the shared way to keep child-IoMap
 identity across a structural edit. Note the split: `@iomap`/`@projection` give the
 transparent cell *fields*, but wiring those fields as **derivations** (a
-`Cell(() -> …)` thunk, not an eagerly-computed value) is what makes them reactive —
-`FocusingProjection` is the reference (`output = Cell(() -> evaluate_reference(input,
+`ComputedCell(() -> …)` thunk, not an eagerly-computed value) is what makes them reactive —
+`FocusingProjection` is the reference (`output = ComputedCell(() -> evaluate_reference(input,
 p.part))`).
 
 ## Projection categories
@@ -485,7 +485,7 @@ closures of its own cells. Global state silently leaks across unrelated document
 other's entries), is never evicted, and is unsafe under the editor's reuse of one
 process for many documents.
 
-**No side effects from inside a cell.** A reactive computation — a `Cell(() -> …)`
+**No side effects from inside a cell.** A reactive computation — a `ComputedCell(() -> …)`
 thunk, or the part of `print_document` that builds them — must be a pure
 function of its inputs *as observed by every other reactive node*. In particular
 it must never **write another cell** (`other_cell[] = v`) or mutate shared
@@ -516,7 +516,7 @@ recursively-projected input children. The extra requirements are:
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection.md)).
 3. **Project the selection reactively.** Canonically this is
-   `Cell(() -> map_reference_forward(p, iomap, node.selection))` with the
+   `ComputedCell(() -> map_reference_forward(p, iomap, node.selection))` with the
    deferred-iomap trick for the not-yet-built `iomap`. The inline form shown
    below reads the child IO maps directly; it is equivalent when the mapper
    would perform the same walk.
@@ -531,7 +531,7 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project children, store IO maps in a shared cell.
     # `print_child` re-enters the whole pipeline for each child;
     # `make_child_context` extends the reference path to child i.
-    child_iomaps = Cell(() -> [
+    child_iomaps = ComputedCell(() -> [
         print_child(recursion,
                                    getfield(node, :children)[][i][],
                                    make_child_context(ctx, ElementReferenceStep(i)))
@@ -539,10 +539,10 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     ])
 
     # Build the output children from the IO maps
-    out_children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
+    out_children = ComputedCell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
 
     # Step 3: project the selection reactively
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         path = node.selection
         @reference_case path begin
             children[i] + rest => begin

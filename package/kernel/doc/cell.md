@@ -18,11 +18,19 @@ A `Cell` is the only reactive primitive. It is either *primitive* (holds a value
 or *computed* (holds a zero-arg thunk):
 
 ```julia
-c = Cell(42)                      # primitive
-c = Cell(() -> upstream[] + 1)    # computed
-c = Cell(f; as_value=true)        # primitive holding f AS a value (a Function/Cell,
-                                  #   not a thunk — the bare Cell(f) would compute it)
+c = Cell(42)                            # primitive
+c = ComputedCell(() -> upstream[] + 1)  # computed
+c = Cell(f)                             # primitive holding the function f AS a value
+c = ReactiveCell{Int}(Computed(f))      # the typed computed form
 ```
+
+Which of the two a cell is depends on the *spelling*, never on what the value
+happens to be: `Computed(f)` — spelled `ComputedCell(f)` for the untyped case —
+is the only thing that makes a cell compute. Every other argument is stored,
+callables included, so a cell can hold a callback or a predicate as ordinary
+data. `Computed` is cell vocabulary rather than a value: it is consumed by the
+cell it is handed to, and the non-reactive kinds reject it (only a
+`ReactiveCell` has anything to run it with).
 
 The struct also tracks `valid`, the set of cells it reads from (`deps`), and the
 set of cells that read it (`dependents`).
@@ -118,7 +126,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
   through unchanged between domain and projection (e.g. `JsonString.selection`
   is the very same Cell as the produced `SyntaxLeaf.selection`), so a single
   write at the document level instantly invalidates the rendered cursor.
-- **`Cell(() -> ...)` for derived values** — projections wire a computed cell
+- **`ComputedCell(() -> ...)` for derived values** — projections wire a computed cell
   that reads upstream cells, often to translate a path from one domain to
   another (e.g. `map_reference_forward(p, nothing, j.selection)`).
 - **`Cell(Cell[...])` inside `CellVector`** — the outer cell tracks the
@@ -135,7 +143,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 - Use computed cells for derived state so the system can invalidate it.
 - Never side-effect inside a thunk — the thunk may run zero, one, or many times.
 - Don't read a cell during construction of a struct that hasn't finished its
-  iomap wiring — use `Cell(() -> ...)` to defer the read.
+  iomap wiring — use `ComputedCell(() -> ...)` to defer the read.
 
 ## Layer structure
 

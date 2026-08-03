@@ -239,7 +239,7 @@ Project a window onto data that never fully materializes.
 
 ```julia
 # infinite integers, projected to just the visible slice
-node = ListNode(value = 0, next = Cell(() -> succ(node)))
+node = ListNode(value = 0, next = ComputedCell(() -> succ(node)))
 ```
 
 <span class="muted">document/Collection.jl · projection/generic/Focusing.jl</span>

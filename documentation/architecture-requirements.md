@@ -173,7 +173,7 @@ requirement; the rule is its own lead sentence.
 ### AR-PURE-THUNK
 
 **Every reactive computation must be a pure function of the cells it reads.** A
-`Cell(() -> …)` thunk (and the parts of `print_document` that build them) must
+`ComputedCell(() -> …)` thunk (and the parts of `print_document` that build them) must
 have no side effects and must depend only on the cells it reads — no clocks,
 RNG, or external mutable state. A thunk may run zero, one, or many times per
 logical change and its cached result is reused until invalidation, so impurity
@@ -233,8 +233,9 @@ cell closure, observed by no other node) is the correct way to key reuse.
 **Use the reactive engine for derived state; do not read a cell before its
 wiring is complete.** Express derived values as computed cells so the system
 can invalidate them, rather than caching them by hand. During construction of a
-struct whose iomap wiring is not yet finished, defer the read with `Cell(() ->
-…)` (the deferred-iomap trick) instead of reading the cell eagerly.
+struct whose iomap wiring is not yet finished, defer the read with
+`ComputedCell(() -> …)` (the deferred-iomap trick) instead of reading the cell
+eagerly.
 
 ### AR-FINEST-GRANULARITY
 
@@ -284,16 +285,19 @@ assuming only fully-formed values ever occur (see AR-DOMAIN-OWNS-EDITS).
 
 ### AR-NO-NESTED-CELL
 
-**A macro-wrapped field may never hold a `Cell` or a `Function` as its logical
-value.** The auto-wrapping constructor stores a `Cell` unwrapped and turns a
-`Function` into a *computed thunk* (so the field would be called, not
-returned). To store a callable as a value, either box it (a one-element tuple
-or wrapper struct) or hand it a primitive cell built with `Cell(f; as_value =
-true)` — a valid cell holding `f` as its value — which the auto-wrapper passes
-through unwrapped (it only wraps non-`Cell` values). A plain hand-rolled
-`struct` (as `SyntaxCompoundToText` does) is the third option. Any convenience
-constructor must be an *outer* constructor — the macro emits the only inner
-one.
+**A macro-wrapped field may never hold a `Cell` or a `Computed` as its logical
+value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
+them rather than storing them: a `Cell` is passed through as the field's own
+cell (so the field's value becomes whatever that cell holds), and a `Computed`
+becomes the field's *derivation*, making it a computed cell. To hold either as
+data, box it (a one-element tuple or wrapper struct) or use a plain hand-rolled
+`struct` (as `SyntaxCompoundToText` does). Any convenience constructor must be
+an *outer* constructor — the macro emits the only inner one.
+
+A `Function`, by contrast, is an ordinary value and needs no ceremony: a field
+may hold a callback, predicate, or factory, and `field` reads it back
+uncalled. Computedness is stated, never inferred — `Computed(f)` is what makes
+a field a derivation, so a bare `f` is always data.
 
 ### AR-DOCUMENT-IDENTITY
 
@@ -455,7 +459,7 @@ does this — do not special-case nested editing.
 reactive cell and returns a `ChildrenIoMap`.** Store the per-child IoMaps in a
 single `child_iomaps::Cell` (not inline across two separate cells, which would
 instantiate different output objects and break the identity invariant), project
-the selection reactively (`Cell(() -> map_reference_forward(p, iomap,
+the selection reactively (`ComputedCell(() -> map_reference_forward(p, iomap,
 node.selection))` with the deferred-iomap trick), and use `ChildrenIoMap` so
 the reader and both mappers can locate the correct child IoMap when translating
 backward.
@@ -514,9 +518,12 @@ since they are tried in order.
 
 **Use `@projection` for projection structs with reactive fields, defaulting the
 supertype.** `@projection` supplies `<: Projection` when none is written; use a
-plain `struct … <: Projection` only when the macro can't be used (a `Function`
-field, or a `Cell` read explicitly). A projection with no reactive fields may
-be a plain struct, but must then spell out `<: Projection` itself.
+plain `struct … <: Projection` only when the macro can't be used (a `Cell` read
+explicitly). A projection with no reactive fields may be a plain struct, but
+must then spell out `<: Projection` itself. A `Function` field is no longer a
+reason to avoid the macro — a callable is an ordinary field value
+(AR-NO-NESTED-CELL) — so the plain-struct projections that carry one
+(`HoverProbeProjection`, `TooltipDecoratorProjection`) are free to move to it.
 
 ## References and selection
 
@@ -582,7 +589,7 @@ stored path still fits. Do not build checkpoint *steps* by hand — the
 ### AR-REACTIVE-OUTPUT-SELECTION
 
 **Wire the output selection reactively; focus is the selection.** In
-`print_document`, set `output.selection = Cell(() -> map_reference_forward(p,
+`print_document`, set `output.selection = ComputedCell(() -> map_reference_forward(p,
 iomap, input.selection))` so the mapping lives in one place (a compound
 projection that introduces structural nodes with no input counterpart wires
 those nodes' selection cells explicitly; a leaf-to-leaf projection with

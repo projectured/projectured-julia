@@ -187,7 +187,7 @@ A leaf printer illustrates the reactive wiring:
 # SyntaxLeafToText — excerpt. The printer is always 4-arg:
 # print_document(projection, recursion, input, ctx::PrinterContext)
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
         c < 0 ? nothing : ConcreteReference(PositionReferenceStep(c))
     end)
@@ -295,7 +295,7 @@ the input suffix directly:
 **Step 1 — Recurse first, collect child IO maps.**
 
 ```julia
-child_iomaps = Cell(() -> [print_child(recursion, child,
+child_iomaps = ComputedCell(() -> [print_child(recursion, child,
                                        make_child_context(ctx, ElementReferenceStep(i)))
                            for (i, child) in enumerate(elements)])
 ```
@@ -307,7 +307,7 @@ input selection designates. Strip the projection-owned prefix steps.
 **Step 3 — Extend the child's output selection.**
 
 ```julia
-sel = Cell(() -> begin
+sel = ComputedCell(() -> begin
     path = input.selection[]
     # strip projection-owned prefix steps → extract child index i
     iomaps = child_iomaps[]
@@ -322,7 +322,7 @@ end)
 projection's prefix and passes the remaining tail as the output selection:
 
 ```julia
-sel = Cell(() -> input.selection[].tail[])   # ← WRONG
+sel = ComputedCell(() -> input.selection[].tail[])   # ← WRONG
 ```
 
 This is incorrect because the tail is a path in the **input domain** (e.g. `{3}`

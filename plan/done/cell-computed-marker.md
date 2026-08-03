@@ -1,6 +1,7 @@
 # Eliminate the Cell thunk trap — explicit `Computed` marker
 
-**Status: pending.** Design (option 1 of the 2026-08-03 discussion) approved by the user.
+**Status: done.** Design (option 1 of the 2026-08-03 discussion) approved by the user; implemented
+2026-08-03 on `main` in projectured-julia and omnetpp-julia.
 
 ## Problem
 
@@ -308,21 +309,50 @@ and `o.objective` read back as the `ImmutableCell` wrapper, which is not callabl
 test uses a `Symbol` objective). Removing the box fixes it, and
 `package/simulator/test/runtests.jl` now covers the callable path (5164 → 5166).
 
-### Phase 6 — docs + verification [ ]
+### Phase 6 — docs + verification [x] **done**
 
-- [ ] `documentation/architecture-requirements.md` — **AR-NO-NESTED-CELL must be rewritten**:
-      it currently *states the trap as the rule* ("a macro-wrapped field may never hold a
-      `Cell` or a `Function` as its logical value … or hand it a primitive cell built with
-      `Cell(f; as_value = true)`"). After this change a `Function` is an ordinary field value
-      and only the `Cell` half of the rule survives.
-- [ ] Same file, spelling-only updates where `Cell(() -> …)` is quoted as the computed-cell
-      form: AR-PURE-THUNK, AR-DERIVED-CELLS, AR-SHARED-CHILDREN-IOMAP,
-      AR-REACTIVE-OUTPUT-SELECTION; and AR-USE-PROJECTION-MACRO's "a `Function` field" carve-out
-      for why `@projection` cannot be used (that reason dissolves).
-- [ ] `package/kernel/doc/cell.md` construction section; `macros.md` if it mentions thunk
-      defaults; grep all docs for `as_value`.
-- [ ] Run the micro-benchmarks from the runtime cost analysis; record results in this plan.
-- [ ] Move this plan to `plan/done/`.
+- [x] `documentation/architecture-requirements.md` — **AR-NO-NESTED-CELL rewritten**. It used
+      to state the trap *as the rule*; the ban now covers `Cell` and `Computed` (both are cell
+      vocabulary the constructor consumes), and it says explicitly that a `Function` is an
+      ordinary field value.
+- [x] Same file: `Cell(() -> …)` → `ComputedCell(() -> …)` in AR-PURE-THUNK,
+      AR-DERIVED-CELLS, AR-SHARED-CHILDREN-IOMAP, AR-REACTIVE-OUTPUT-SELECTION; and
+      AR-USE-PROJECTION-MACRO no longer gives "a `Function` field" as a reason the macro
+      can't be used.
+- [x] `package/kernel/doc/cell.md` — construction section rewritten around the marker;
+      `macros.md` — the "Gotchas" bullet and the plain-struct-projection rationale;
+      spelling swept through `projection-system.md`, `selection.md`,
+      `documentation/projectured-overview.md`, `documentation/tutorial-new-domain.md`.
+- [x] `as_value` no longer appears anywhere in the repo outside this plan's own history.
+- [x] Micro-benchmarks run; results recorded in the runtime cost analysis above (the marker
+      costs 0 bytes).
+- [x] Seal markers: `cell/CellModule.jl`, `cell/CellComputed.jl` (new), `cell/ReactiveCell.jl`,
+      `cell/CellDefaults.jl`, `iomap/IoMapDefaults.jl`, `iomap/IoMapReconcile.jl` are `⬜`,
+      **left unsealed for review** as agreed. No other sealed file was modified (checked by
+      diffing the full change set against the `🔒` list).
+- [x] Move this plan to `plan/done/`.
+
+## Final state
+
+All five suites at baseline, in both repos:
+
+| suite | result | vs. baseline |
+|---|---|---|
+| kernel | 496 pass / 3 fail / 2 error | +16 pass (new regression tests); fails are the pre-existing Rule C set |
+| base | 342 pass | unchanged |
+| visual | 49236 pass / 1 broken | unchanged |
+| domain | 111161 pass / 5 broken | unchanged |
+| omnetpp-julia | 5166 pass | +2 (new callable-objective test) |
+| inet-julia | 2297 pass | unchanged (no cell-thunk usage; load-checked) |
+
+Two latent bugs fixed on the way: `copy_cell_as` turning a function-valued cell into a thunk
+on every document copy, and omnetpp's callable `SimulationOptimization` objective, which could
+never have been called.
+
+Unrelated pre-existing failure, confirmed not caused by this work:
+`ProjecturedAdaptagramsExample` does not precompile because ODBC cannot load the PostgreSQL
+driver (a bare `ODBC.Connection` fails identically with no ProjecturEd code in the stack; that
+package last built on 2026-07-13).
 
 ## Follow-up found during implementation — `CellVector(f::Function)` (NOT in this plan)
 

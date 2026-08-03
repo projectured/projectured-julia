@@ -100,8 +100,8 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `iomap/IoMapLayer.jl`
   - 🔒 `iomap/IoMapModule.jl`
   - 🔒 `iomap/IoMapInterface.jl`
-  - 🔒 `iomap/IoMapDefaults.jl`
-  - 🔒 `iomap/IoMapReconcile.jl`
+  - ⬜ `iomap/IoMapDefaults.jl`
+  - ⬜ `iomap/IoMapReconcile.jl`
 - **Layer 13 — projection** (`projection/`)
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReferenceStep.jl`

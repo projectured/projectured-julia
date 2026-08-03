@@ -188,11 +188,11 @@ function print_document(p::BookmarkEntryToSyntaxNode,
     iomap_cell = Cell(nothing)
 
     # Each leaf's own (output-domain) selection — a cursor in its value span.
-    title_sel = Cell(() -> @reference_case entry.selection begin
+    title_sel = ComputedCell(() -> @reference_case entry.selection begin
         title{k} => @reference value{k}
         _        => nothing
     end)
-    url_sel = Cell(() -> @reference_case entry.selection begin
+    url_sel = ComputedCell(() -> @reference_case entry.selection begin
         url{k} => @reference value{k}
         _      => nothing
     end)
@@ -217,7 +217,7 @@ function print_document(p::BookmarkEntryToSyntaxNode,
         Cell(0),       # indentation
         Cell(false),   # collapsed
         # node selection is the input selection mapped forward by our own mapper
-        Cell(() -> let im = iomap_cell[]
+        ComputedCell(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, entry.selection)
         end),
     )
@@ -258,13 +258,13 @@ function print_document(p::BookmarkListToSyntaxNode,
     # re-enters the whole pipeline for the child; `make_child_context` extends the
     # reference path with the `entries` field step and the element step, so the
     # child knows it sits at `entries[i]` relative to this node.
-    child_iomaps = Cell(() ->
+    child_iomaps = ComputedCell(() ->
         [print_child(recursion, getfield(list, :entries)[][i][],
                                     make_child_context(ctx, FieldReferenceStep("entries"),
                                                   ElementReferenceStep(i)))
          for i in 1:length(list.entries)])
 
-    children = Cell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
+    children = ComputedCell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
 
     node = SyntaxNode(
         TextString("", _font, color_default),
@@ -274,7 +274,7 @@ function print_document(p::BookmarkListToSyntaxNode,
         Cell(0),
         Cell(false),
         # node selection: the input selection mapped forward by our own mapper
-        Cell(() -> let im = iomap_cell[]
+        ComputedCell(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, list.selection)
         end),
     )
@@ -330,7 +330,7 @@ end # module
 **Key points:**
 - `print_document` must return an `IoMap` (here `SimpleIoMap` or
   `ChildrenIoMap`), not just the output document.
-- The output selection is wired as a *computed cell* (`Cell(() -> ...)`) that
+- The output selection is wired as a *computed cell* (`ComputedCell(() -> ...)`) that
   maps the input selection forward through this projection's **own**
   `map_reference_forward` — the deferred-iomap trick (`iomap_cell = Cell(nothing)`,
   assigned after the IoMap is built) lets the thunk reach the not-yet-built iomap.
