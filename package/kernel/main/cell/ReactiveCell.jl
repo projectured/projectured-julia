@@ -54,14 +54,8 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         c.dependents = nothing
         return c
     end
-    # Transitional: refuse a bare function while the call sites are being moved onto
-    # `Computed`, so a site that still means "thunk" fails loudly instead of silently
-    # becoming a cell holding a function. Deleted once none remain, at which point a
-    # `Function` falls through to the value constructor above like any other argument.
-    ReactiveCell{T}(::Function) where {T} = error(
-        "a bare function argument is ambiguous: write ComputedCell(f) or " *
-        "ReactiveCell{T}(Computed(f)) for a computed cell — once this guard is " *
-        "removed, Cell(f) will store f AS the value")
+    # A `Function` needs no method of its own: it is a value like any other, and the
+    # constructor above stores it. Only a `Computed` argument makes a cell compute.
 end
 
 # Lazily allocate the edge containers on first use. A cell that never reads another
