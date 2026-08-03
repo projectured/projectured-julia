@@ -53,7 +53,7 @@ _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
                               print_document(p, p, chart, PrinterContext()))
 
 # The decimated pixel points of one series, as the renderer computes them.
-_line_points_of(g, index) = ChartPlotToGraphicsModule._line_points(g, g.chart.series[index])
+_line_points_of(g, index) = ChartPlotToGraphicsModule._series_points(g, index, g.chart.series[index])
 
 # A canvas point on the first series' geometry but more than a marker's reach
 # from any of its samples, so a click there means "the series", not "a point".

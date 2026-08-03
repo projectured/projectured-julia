@@ -501,11 +501,17 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     whole_selected = chart.selection isa EmptyReference
 
     measure_label = label -> p.measure(label, axis_font)
+    # Decimated series geometry is wanted by the printer once per repaint and by
+    # the reader on every pointer move, so it is memoized here — inside the
+    # layout, which already dies and is rebuilt whenever the data, the window or
+    # the size changes.
+    point_cache = Dict{Int,Vector{Tuple{Int,Int}}}()
 
     (; w, h, chart, style, view, series, legend,
        hovered_index, selected_index, selected_part, whole_selected,
        measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
+       point_cache,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, title_h,
        x_title, y_title, x_title_h, y_title_h)
@@ -663,7 +669,7 @@ end
 function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     style = g.style
     color = _draw_color(g, index, s.color)
-    pts = _line_points(g, s)
+    pts = _series_points(g, index, s)
     isempty(pts) && return out
 
     if s.draw_style === :pins
@@ -893,7 +899,7 @@ function _snap_point(g, lx::Int, ly::Int)
     best = nothing; best_d = _HIT_TOLERANCE^2 * 4
     for (index, s) in g.series
         chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
-        for (px, py) in _hit_points(g, s)
+        for (px, py) in _hit_points(g, index, s)
             d = (px - lx)^2 + (py - ly)^2
             d <= best_d && (best_d = d; best = (index, px, py))
         end
@@ -1327,7 +1333,7 @@ function _series_hit(g, x::Integer, y::Integer)
     best = nothing; best_d = _HIT_TOLERANCE^2
     for (index, s) in g.series
         chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
-        for (px, py) in _hit_points(g, s)
+        for (px, py) in _hit_points(g, index, s)
             d = (px - lx)^2 + (py - ly)^2
             d <= best_d && (best_d = d; best = index)
         end
@@ -1364,8 +1370,19 @@ end
 # what lets neighbouring cells of equal darkness merge into one band.
 const _DENSITY_LEVELS = 8
 
-_hit_points(g, s::ChartLineSeries) = _line_points(g, s)
-function _hit_points(g, s::ChartScatterSeries)
+"""
+    _series_points(g, index, series) -> Vector{Tuple{Int,Int}}
+
+The series' decimated pixel points, computed once per layout.
+"""
+_series_points(g, index::Int, s::ChartLineSeries) =
+    get!(() -> _line_points(g, s), g.point_cache, index)
+
+_hit_points(g, index::Int, s::ChartLineSeries) = _series_points(g, index, s)
+_hit_points(g, index::Int, s::ChartScatterSeries) =
+    get!(() -> _scatter_points(g, s), g.point_cache, index)
+
+function _scatter_points(g, s::ChartScatterSeries)
     out = Tuple{Int,Int}[]
     n = min(length(s.x), length(s.y))
     # A folded cloud draws no individual markers, so there is nothing to snap
@@ -1381,6 +1398,6 @@ function _hit_points(g, s::ChartScatterSeries)
     end
     out
 end
-_hit_points(g, ::Any) = Tuple{Int,Int}[]
+_hit_points(g, ::Int, ::Any) = Tuple{Int,Int}[]
 
 end # module
