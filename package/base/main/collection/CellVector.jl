@@ -42,11 +42,28 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 # that inner ctor wants; construct a 2-*element* vector with the bracket form
 # `CellVector([a, b])`.
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
+# A `Computed` derives the whole element list: the thunk returns the elements, and each is
+# wrapped in its own slot cell on every recompute.
+function CellVector(computed::Computed)
+    cv = CellVector(Cell(Cell[]), Cell(nothing))
+    f = computed.thunk
+    set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
+    cv
+end
 function CellVector(f::Function)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
     set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
+
+"""
+    ComputedCellVector(f) -> CellVector
+
+A `CellVector` whose elements are derived — `CellVector(Computed(f))`, with `f` a
+zero-argument thunk returning the element list. The counterpart of
+[`ComputedCell`](@ref) for a collection.
+"""
+ComputedCellVector(f::Function) = CellVector(Computed(f))
 
 # Value-vector conveniences for the non-reactive kinds (the macro-emitted 2-arg
 # kind ctors remain the general form).
