@@ -69,6 +69,7 @@ include("document/Assistant.jl")
 include("document/Conversation.jl")
 include("document/Table.jl")
 include("document/Graph.jl")
+include("document/Chart.jl")
 include("document/Math.jl")
 include("document/Julia.jl")
 include("document/Formula.jl")
@@ -83,6 +84,7 @@ include("projection/Json.jl")
 include("projection/Yaml.jl")
 include("projection/Table.jl")
 include("projection/Graph.jl")
+include("projection/Chart.jl")
 include("projection/Xml.jl")
 include("projection/Mixed.jl")
 include("projection/Natural.jl")
@@ -112,6 +114,8 @@ export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, bo
 export build_file_editor, clipboard_example, conversation_editor_example, conversation_example
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
+export chart_example, chart_line_example, chart_bar_example,
+       chart_histogram_example, chart_scatter_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
@@ -125,6 +129,12 @@ export make_dragging_projection_example, make_filesystem_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_focusing_document_example, make_focusing_projection_example
 export make_formula_document_example, make_formula_projection_example
+export make_chart_document_example, make_chart_projection_example,
+       make_chart_pipeline_example,
+       make_chart_line_document_example, make_chart_line_projection_example,
+       make_chart_bar_document_example, make_chart_bar_projection_example,
+       make_chart_histogram_document_example, make_chart_histogram_projection_example,
+       make_chart_scatter_document_example, make_chart_scatter_projection_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
 export make_graphics_image_projection_example, make_introspection_document
 export make_introspection_projection, make_json_console_projection_example

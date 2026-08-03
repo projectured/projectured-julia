@@ -735,11 +735,47 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
         eight levels and merging equally-dense neighbours within a row brings
         the same picture down to ~2 700 elements, and the banding actually reads
         more smoothly than the per-cell version.
-- [ ] **P6 — property editing + docs.** `ObjectToWidget` inspector split-pane
-      demo with the field-edit round-trip test; `chart.md`; screenshot dict.
-      Exit: inspector round-trip test green; zero unmarked Fail/Error in the
-      four umbrella sweeps (remaining gaps carry `@test_broken` + root-cause
-      comments).
+- [x] **P6 — examples, navigation, selection rendering, docs.** DONE except the
+      inspector demo (see P6b). Five registered examples (`chart_line`,
+      `chart_bar`, `chart_histogram`, `chart_scatter`, and a `chart` composite
+      of all four), full part navigation, selection drawn for every part, and
+      `package/domain/doc/chart.md`. Exit: the four standalone chart examples
+      pass printer, reader, repl, position-navigation and tree-navigation
+      sweeps with no `@test_broken` markers.
+
+      Decisions and discoveries:
+      - **Charts are navigable, and their selection is drawn.** The first
+        attempt put charts on the position-navigation skip list; that was
+        papering over a gap. `chart_parts` gives the ordered selectable parts
+        (title, x axis, y axis, legend, then each series), navigation walks
+        them, and the projection draws every one — a selection nothing renders
+        would be invisible.
+      - **Arrow keys belong to selection navigation**, as everywhere else in the
+        editor. Panning moved to Shift+arrow (matching Shift+wheel) and series
+        reordering to Ctrl+Shift+Up/Down, since Alt+arrows are tree navigation.
+      - `@gestures`' `when(expr)` is **block-level** — it gates every binding in
+        the block regardless of position, which silently disabled all sixteen
+        chart gestures. A per-rule `when(PATTERN, guard)` sees only the event,
+        not `doc`, so document-state conditions belong in the handler.
+      - `style` is deliberately not a navigable part: it has no region on the
+        canvas, so a selection there would be invisible. It is reached through
+        an inspector.
+      - Outlines are drawn as four `GraphicsLine` edges. A `GraphicsRect` with a
+        border paints the border colour across the whole shape and insets the
+        fill on top, so it cannot express "outline only" over live content.
+      - Found and fixed a real crash the printer sweep caught: stage 1's forward
+        map matched a `nothing` selection with its tail-binding pattern and
+        tried to splice it into a path. Both mappers now decline `nothing`.
+      - Only the `chart` **composite** is on the position-navigation skip list,
+        for the pre-existing `table` reason (a `WidgetTable` cannot seed a
+        selection from Ctrl+Home) — not for a chart reason.
+      - Pre-existing on clean `main`, unrelated to this work: `test_readers()`
+        has 2 failures in `filesystem`/`navigator` from
+        `FileSystemToSyntax.jl:189`.
+- [ ] **P6b — property inspector demo.** A split pane of a chart beside an
+      `ObjectToWidget` inspector, with a field-edit round-trip test (change a
+      series colour / the title / an axis minimum and assert the chart
+      repaints).
 - [ ] **P7 (stretch) — point-level selection.** Reference-step design for
       addressing sample *i* inside a column. Constraint to satisfy or amend
       with sign-off: AR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is

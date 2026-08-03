@@ -30,6 +30,7 @@ import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
+                      chart_parts, chart_part_index,
                       ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
                       ChartLineSeries, ChartScatterSeries, ChartBarSeries,
                       ChartHistogramSeries,
@@ -55,7 +56,7 @@ import ..EventModule: MousePress, MouseMove, MouseLeave, MouseDown, MouseUp,
                       MouseScroll, KeyDown, KeyPress
 import ..OperationModule: Operation, ReplaceSelectionOperation,
                           ReplaceReferencedValueOperation, CompoundOperation
-import ..ReferenceModule: get_reference_node_type
+import ..ReferenceModule: get_reference_node_type, EmptyReference
 import ..ReferenceBuilderModule: var"@reference"
 import ..ReferenceCaseModule: var"@reference_case"
 
@@ -71,6 +72,7 @@ const _AXIS = color_solarized_content_dark
 const _GRID = StyleColor(0.0, 0.0, 0.0, 0.10)
 const _TEXT = color_solarized_content_darker
 const _SELECTION = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x60 / 255)
+const _SELECTION_EDGE = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.9)
 const _HOVER = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x28 / 255)
 
 # Frame metrics, in logical pixels.
@@ -493,10 +495,13 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
 
     hovered_index = _reference_series_index(chart, plot.hovered)
     selected_index = _reference_series_index(chart, chart.selection)
+    selected_part = chart_part_index(chart, chart.selection)
+    whole_selected = chart.selection isa EmptyReference
 
     measure_label = label -> p.measure(label, axis_font)
 
-    (; w, h, chart, style, view, series, legend, hovered_index, selected_index,
+    (; w, h, chart, style, view, series, legend,
+       hovered_index, selected_index, selected_part, whole_selected,
        measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
@@ -556,6 +561,8 @@ function _frame_elements!(out, g)
                                 g.axis_font, text_color))
     end
 
+    _selection_elements!(out, g)
+
     isempty(g.title) ||
         push!(out, GraphicsText(g.title, px, _PAD, g.title_font, text_color))
     # No rotated text: the backends only honour the translate+scale subset of an
@@ -566,6 +573,43 @@ function _frame_elements!(out, g)
     isempty(g.x_title) ||
         push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2,
                                 g.axis_font, text_color))
+    out
+end
+
+# What a selection looks like. Every part of a chart is a document that can be
+# selected, so every part has a region the projection can call out — the title's
+# line, either axis' label strip, the legend's box, a series' legend row — and
+# the whole chart gets a frame of its own.
+function _selection_elements!(out, g)
+    px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
+    if g.whole_selected
+        _outline!(out, 1, 1, g.w - 2, g.h - 2)
+        return out
+    end
+    part = g.selected_part
+    if part == 1 && !isempty(g.title)
+        tw, th = g.measure_label(g.title)
+        push!(out, GraphicsRect(px - 3, _PAD - 2, tw + 6, g.title_h + 2, _SELECTION, 3))
+    elseif part == 2
+        push!(out, GraphicsRect(px, py + ph + _TICK, pw, g.h - (py + ph + _TICK) - _PAD ÷ 2,
+                                _SELECTION, 3))
+    elseif part == 3
+        push!(out, GraphicsRect(_PAD ÷ 2, py, px - _TICK - _PAD ÷ 2, ph, _SELECTION, 3))
+    elseif part == 4 && g.legend !== nothing
+        plan = g.legend
+        _outline!(out, plan.x - 3, plan.y - 3, plan.box_w + 6, plan.box_h + 6)
+    end
+    out
+end
+
+# An outline drawn as its four edges. A rect with a border paints the border
+# colour across the whole shape and insets the fill on top, so it cannot express
+# "outline only" over content that has to stay visible.
+function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer)
+    push!(out, GraphicsLine(x, y, x + w, y, _SELECTION_EDGE; width=2))
+    push!(out, GraphicsLine(x, y + h, x + w, y + h, _SELECTION_EDGE; width=2))
+    push!(out, GraphicsLine(x, y, x, y + h, _SELECTION_EDGE; width=2))
+    push!(out, GraphicsLine(x + w, y, x + w, y + h, _SELECTION_EDGE; width=2))
     out
 end
 
@@ -1192,6 +1236,9 @@ end
 # sees the chart.
 function _key_intent(g, plot::ChartPlot, event::KeyDown)
     event.key === :escape && return _cancel_drag(plot)
+    # Bare and Alt arrows belong to selection navigation, as everywhere else in
+    # the editor, so panning takes Shift and this reader declines the rest.
+    event.modifiers.shift || return nothing
     view = resolve_view(plot)
     w = view.x_max - view.x_min
     h = view.y_max - view.y_min

@@ -71,6 +71,9 @@ end
 # kind-parameterized struct, and the reference vocabulary is written in the bare
 # wrapper names.
 function map_reference_forward(::ChartToChartPlot, iomap, reference)
+    # No selection maps to no selection: the tail-binding pattern below would
+    # otherwise match `nothing` and try to splice it into a path.
+    reference === nothing && return nothing
     ct = get_reference_node_type(iomap.input)
     @reference_case reference begin
         ∅ => @reference ::ChartPlot
@@ -79,6 +82,7 @@ function map_reference_forward(::ChartToChartPlot, iomap, reference)
 end
 
 function map_reference_backward(::ChartToChartPlot, iomap, reference)
+    reference === nothing && return nothing
     @reference_case reference begin
         ∅ => @reference ::Chart
         ::ChartPlot.chart.rest... => (@reference ^(rest))

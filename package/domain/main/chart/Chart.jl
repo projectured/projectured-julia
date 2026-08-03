@@ -35,8 +35,9 @@ import ..ColorModule: StyleColor,
     color_solarized_orange, color_solarized_violet, color_solarized_cyan,
     color_solarized_magenta, color_solarized_yellow
 import ..ChartGeometryModule: bin_values
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
-                          EmptyReference, annotate_reference_types, concat_references,
+import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
+                          ElementReferenceStep, EmptyReference,
+                          annotate_reference_types, concat_references,
                           get_reference_node_type
 import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
@@ -45,7 +46,8 @@ import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
 export ChartSeries, chart_series_family, chart_axis_family,
        default_color_cycle, default_symbol_cycle,
        series_color, series_symbol,
-       selected_series_index, move_series
+       selected_series_index, move_series, remove_series,
+       chart_parts, chart_part_index
 
 @domain Chart
 
@@ -349,7 +351,62 @@ function series_symbol(symbol::Symbol, index::Integer, cycle)
     cycle[mod1(index, length(cycle))]
 end
 
-# ── Editing the series list ──────────────────────────────────────────────
+# ── Parts, selection and navigation ──────────────────────────────────────
+#
+# A chart is a document like any other, so its parts are selectable and the
+# selection moves with the editor's own navigation keys. The parts are the
+# things that are actually on screen — the title, the two axes, the legend and
+# each series — in the order they read: chrome first, then the data.
+#
+# `style` is deliberately not among them. It has no region on the canvas, so a
+# selection landing there would have nothing to show; it is reached through a
+# property inspector instead.
+
+_chart_field_reference(chart::Chart, field::AbstractString) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep(field), EmptyReference()))
+
+_chart_series_reference(chart::Chart, index::Integer) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("series"),
+            ConcreteReference(ElementReferenceStep(index), EmptyReference())))
+
+"""
+    chart_parts(chart) -> Vector{Reference}
+
+Every selectable part of a chart, in reading order: the title, the x axis, the
+y axis, the legend, then each series. Navigation walks this list, and the
+projection draws whichever entry is selected.
+"""
+function chart_parts(chart::Chart)
+    parts = Reference[_chart_field_reference(chart, "title"),
+                      _chart_field_reference(chart, "x_axis"),
+                      _chart_field_reference(chart, "y_axis"),
+                      _chart_field_reference(chart, "legend")]
+    for i in 1:length(chart.series)
+        push!(parts, _chart_series_reference(chart, i))
+    end
+    parts
+end
+
+"""
+    chart_part_index(chart, reference) -> Int
+
+Which part a reference points at (or into), or `0` for the whole chart and
+anything unrecognised.
+"""
+function chart_part_index(chart::Chart, reference)
+    reference === nothing && return 0
+    n = length(chart.series)
+    @reference_case reference begin
+        ::Chart.title.rest... => 1
+        ::Chart.x_axis.rest... => 2
+        ::Chart.y_axis.rest... => 3
+        ::Chart.legend.rest... => 4
+        ::Chart.series[i].rest... => (1 <= i <= n ? 4 + i : 0)
+        _ => 0
+    end
+end
 
 """
     selected_series_index(chart) -> Int
@@ -360,11 +417,34 @@ on.
 """
 function selected_series_index(chart::Chart)
     reference = chart.selection
+    reference === nothing && return 0
     @reference_case reference begin
         ::Chart.series[i].rest... => (1 <= i <= length(chart.series) ? i : 0)
         _ => 0
     end
 end
+
+# Step to another part by offset, clamping at both ends. Returns nothing when
+# there is nowhere to go, which declines the gesture rather than consuming it.
+function _step_part(chart::Chart, offset::Integer)
+    parts = chart_parts(chart)
+    isempty(parts) && return nothing
+    current = chart_part_index(chart, chart.selection)
+    # From the whole chart, a forward step enters the first part and a backward
+    # step stays put.
+    target = current == 0 ? (offset > 0 ? 1 : 0) : current + offset
+    (1 <= target <= length(parts)) || return nothing
+    target == current && return nothing
+    ReplaceSelectionOperation(parts[target])
+end
+
+_select_part(chart::Chart, index::Integer) = begin
+    parts = chart_parts(chart)
+    (1 <= index <= length(parts)) ? ReplaceSelectionOperation(parts[index]) : nothing
+end
+
+_select_whole(chart::Chart) =
+    ReplaceSelectionOperation(EmptyReference(get_reference_node_type(chart)))
 
 """
     move_series(chart, from, to) -> Operation | Nothing
@@ -380,8 +460,7 @@ function move_series(chart::Chart, from::Integer, to::Integer)
     n = length(chart.series)
     (1 <= from <= n && 1 <= to <= n && from != to) || return nothing
     moved = chart.series[from]
-    field_path = annotate_reference_types(chart,
-        ConcreteReference(FieldReferenceStep("series"), EmptyReference()))
+    field_path = _chart_field_reference(chart, "series")
     landing = concat_references(field_path,
         ConcreteReference(ElementReferenceStep(to),
                           EmptyReference(get_reference_node_type(moved))))
@@ -391,16 +470,48 @@ function move_series(chart::Chart, from::Integer, to::Integer)
         ReplaceSelectionOperation(landing)])
 end
 
+"""
+    remove_series(chart) -> Operation | Nothing
+
+Delete whichever series the selection points into, or nothing when it points
+somewhere else.
+"""
+function remove_series(chart::Chart)
+    index = selected_series_index(chart)
+    index == 0 && return nothing
+    delete_elements(_chart_field_reference(chart, "series"), index - 1; root=chart)
+end
+
+# Navigation owns the arrow keys, as it does everywhere else in the editor: the
+# plain arrows step between parts and Alt+arrows walk the tree. Panning and
+# zooming the view are the projection's, on Shift+arrow and the wheel, and
+# reordering takes Ctrl+Shift so it collides with neither.
 @gestures Chart begin
-    when(selected_series_index(doc) > 0)
-    KeyDown(:up; alt) => "Move the selected series earlier" =>
+    KeyDown(:home; ctrl) => "Select the first part" => _select_part(doc, 1)
+    KeyDown(:end; ctrl) => "Select the last part" => _select_part(doc, length(chart_parts(doc)))
+    KeyDown(:home;) => "Select the first part" => _select_part(doc, 1)
+    KeyDown(:end;) => "Select the last part" => _select_part(doc, length(chart_parts(doc)))
+    KeyDown(:left;) => "Select the previous part" => _step_part(doc, -1)
+    KeyDown(:up;) => "Select the previous part" => _step_part(doc, -1)
+    KeyDown(:right;) => "Select the next part" => _step_part(doc, 1)
+    KeyDown(:down;) => "Select the next part" => _step_part(doc, 1)
+
+    KeyDown(:home; ctrl, alt) => "Select the whole chart" => _select_whole(doc)
+    KeyDown(:left; alt) => "Select the whole chart" =>
+        (chart_part_index(doc, doc.selection) == 0 ? nothing : _select_whole(doc))
+    KeyDown(:right; alt) => "Select the first part" =>
+        (chart_part_index(doc, doc.selection) == 0 ? _select_part(doc, 1) : nothing)
+    KeyDown(:up; alt) => "Select the previous part" => _step_part(doc, -1)
+    KeyDown(:down; alt) => "Select the next part" => _step_part(doc, 1)
+
+    # The "is a series selected" test lives in the handlers rather than in a
+    # guard: a block-level `when` would gate the navigation rules above as well,
+    # and a per-rule guard sees only the event, not the document.
+    KeyDown(:up; ctrl, shift) => "Move the selected series earlier" =>
         move_series(doc, selected_series_index(doc), selected_series_index(doc) - 1)
-    KeyDown(:down; alt) => "Move the selected series later" =>
+    KeyDown(:down; ctrl, shift) => "Move the selected series later" =>
         move_series(doc, selected_series_index(doc), selected_series_index(doc) + 1)
-    KeyDown(:delete; alt) => "Remove the selected series" =>
-        delete_elements(annotate_reference_types(doc,
-            ConcreteReference(FieldReferenceStep("series"), EmptyReference())),
-            selected_series_index(doc) - 1; root=doc)
+    KeyDown(:delete; alt) => "Remove the selected series" => remove_series(doc)
 end
 
 end # module

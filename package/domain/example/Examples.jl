@@ -27,6 +27,11 @@ const focusing_example       = Example("focusing",       make_focusing_document_
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
 const graph_example          = Example("graph",          make_graph_document_example,          make_graph_projection_example)
+const chart_example          = Example("chart",          make_chart_document_example,          make_chart_projection_example)
+const chart_line_example     = Example("chart_line",     make_chart_line_document_example,     make_chart_line_projection_example)
+const chart_bar_example      = Example("chart_bar",      make_chart_bar_document_example,      make_chart_bar_projection_example)
+const chart_histogram_example = Example("chart_histogram", make_chart_histogram_document_example, make_chart_histogram_projection_example)
+const chart_scatter_example  = Example("chart_scatter",  make_chart_scatter_document_example,  make_chart_scatter_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
@@ -95,6 +100,11 @@ const domain_examples = Example[
     table_example,
     math_table_example,
     graph_example,
+    chart_example,
+    chart_line_example,
+    chart_bar_example,
+    chart_histogram_example,
+    chart_scatter_example,
     workbench_example,
     math_example,
     julia_example,

@@ -63,6 +63,8 @@ function _apply_to(chart, op)
 end
 
 const alt_modifier = ModifierKeys(; alt=true)
+const move_modifier = ModifierKeys(; ctrl=true, shift=true)
+const no_modifier = ModifierKeys()
 
 _line_chart() = Chart("Signal",
     [ChartLineSeries("sin", collect(0.0:0.05:10.0), sin.(0.0:0.05:10.0)),
@@ -507,12 +509,12 @@ function test_chart()
 
             # Nothing selected, nothing to move.
             @test selected_series_index(chart) == 0
-            @test read_gesture(chart, KeyDown(:down, alt_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:down, move_modifier)) === nothing
 
             chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
             @test selected_series_index(chart) == 1
 
-            op = read_gesture(chart, KeyDown(:down, alt_modifier))
+            op = read_gesture(chart, KeyDown(:down, move_modifier))
             @test op !== nothing
             _apply_to(chart, op)
             @test String(chart.series[1].label) == second_label
@@ -520,13 +522,13 @@ function test_chart()
             # The selection follows the series that moved.
             @test selected_series_index(chart) == 2
 
-            op = read_gesture(chart, KeyDown(:up, alt_modifier))
+            op = read_gesture(chart, KeyDown(:up, move_modifier))
             _apply_to(chart, op)
             @test String(chart.series[1].label) == first_label
 
             # Moving past either end is not an operation at all.
             chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
-            @test read_gesture(chart, KeyDown(:up, alt_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:up, move_modifier)) === nothing
 
             # Deleting removes exactly the selected series.
             op = read_gesture(chart, KeyDown(:delete, alt_modifier))
@@ -598,10 +600,15 @@ function test_chart()
             @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys())) === nothing
 
             # Keyboard: pan, zoom, and reset to auto-fit.
+            # Shift+arrow pans; the bare arrows belong to selection navigation.
             plot.view = nothing
-            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys()))
+            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true)))
+            @test op !== nothing
             evaluate_operation(nothing, op)
             @test resolve_view(plot).x_min > before.x_min
+            # A bare arrow falls past the view reader to the chart's own
+            # navigation, which is what moves the selection.
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys())) isa ReplaceSelectionOperation
             # '0' drops back to auto-fit, whatever the window had become.
             op = read_intent(proj, iomap, KeyPress('0'))
             @test op !== nothing
@@ -674,6 +681,87 @@ function test_chart()
             # Two dashed crosshair lines, and a readout naming the series.
             @test count(e -> e isa GraphicsLine && e.dash !== nothing, els) == 2
             @test any(e -> e isa GraphicsText && occursin("a", String(e.text)), els)
+        end
+
+        @testset "part navigation" begin
+            chart = _line_chart()
+            # Title, both axes, the legend, then one entry per series.
+            parts = chart_parts(chart)
+            @test length(parts) == 4 + length(chart.series)
+            @test chart_part_index(chart, parts[1]) == 1
+            @test chart_part_index(chart, parts[end]) == length(parts)
+
+            ed = (; document = chart)
+            # Ctrl+Home seeds a selection, which is what every navigation walk
+            # needs before it can start.
+            op = read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true)))
+            @test op isa ReplaceSelectionOperation
+            _apply_to(chart, op)
+            @test chart_part_index(chart, chart.selection) == 1
+
+            # Right walks forward through every part and stops at the end.
+            seen = Int[1]
+            for _ in 1:20
+                op = read_gesture(chart, KeyDown(:right, no_modifier))
+                op === nothing && break
+                _apply_to(chart, op)
+                push!(seen, chart_part_index(chart, chart.selection))
+            end
+            @test seen == collect(1:length(parts))
+            @test read_gesture(chart, KeyDown(:right, no_modifier)) === nothing
+
+            # And Left walks back.
+            op = read_gesture(chart, KeyDown(:left, no_modifier))
+            @test op !== nothing
+            _apply_to(chart, op)
+            @test chart_part_index(chart, chart.selection) == length(parts) - 1
+
+            _apply_to(chart, read_gesture(chart, KeyDown(:end, ModifierKeys(; ctrl=true))))
+            @test chart_part_index(chart, chart.selection) == length(parts)
+            _apply_to(chart, read_gesture(chart, KeyDown(:home, no_modifier)))
+            @test chart_part_index(chart, chart.selection) == 1
+
+            # Tree navigation: out to the whole chart, and back in.
+            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            @test chart.selection isa EmptyReference
+            @test chart_part_index(chart, chart.selection) == 0
+            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
+            @test chart_part_index(chart, chart.selection) == 1
+            # Alt+Down/Up move between siblings.
+            _apply_to(chart, read_gesture(chart, KeyDown(:down, alt_modifier)))
+            @test chart_part_index(chart, chart.selection) == 2
+
+            # Ctrl+Alt+Home selects the whole chart, wherever the cursor was.
+            _apply_to(chart, read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true, alt=true))))
+            @test chart.selection isa EmptyReference
+
+            # The view gestures do not take the arrows away from navigation.
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
+                              KeyDown(:right, no_modifier)) === nothing
+            @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
+                              KeyDown(:right, ModifierKeys(; shift=true))) !== nothing
+        end
+
+        @testset "selection is drawn" begin
+            chart = _line_chart()
+            parts = chart_parts(chart)
+            ed = (; document = chart)
+
+            plain = length(_flatten_elements(_chart_canvas(chart)))
+            renders = Int[]
+            for reference in parts
+                chart.selection = reference
+                push!(renders, length(_flatten_elements(_chart_canvas(chart))))
+            end
+            # Every part adds something to the output when it is selected —
+            # a selection nothing draws would be invisible to the user.
+            @test all(n -> n > plain, renders)
+
+            # The whole chart is called out with a frame of its own.
+            chart.selection = EmptyReference(get_reference_node_type(chart))
+            @test length(_flatten_elements(_chart_canvas(chart))) > plain
         end
 
         @testset "family mismatch" begin

@@ -164,7 +164,10 @@ function test_position_navigations()
             # examples below were already on this list for the same kind of
             # widget/graphics-keyboard-routing limitation.
             example.name in ("layout", "constraint_layout",
-                             "table", "math_table",
+                             # `chart` is a WidgetTable of charts, so it is on
+                             # this list for the table reason, not a chart one —
+                             # the four standalone chart examples navigate.
+                             "table", "math_table", "chart",
                              "workbench", "assistant",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin

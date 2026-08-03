@@ -13,6 +13,7 @@ Companion guides for individual domain slices live alongside this file:
 
 - [json.md](json.md) — the JSON domain
 - [xml.md](xml.md) — the XML domain
+- [chart.md](chart.md) — the chart domain
 - [workbench.md](workbench.md) — the workbench application slice
 - [versioning.md](versioning.md) — the versioning overlay
 
@@ -56,6 +57,8 @@ database/   Database.jl · DatabaseAdapters.jl
 tabular/    Tabular.jl · CellTableToTable.jl (→ json slice)
 graph/      Graph.jl · GraphLayout.jl · GraphLayoutEngine.jl ·
             GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
+chart/      ChartGeometry.jl · Chart.jl · ChartPlot.jl ·
+            ChartToChartPlot.jl · ChartPlotToGraphics.jl
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
