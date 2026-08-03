@@ -21,7 +21,7 @@ with `JuliaToSyntax`).
 module FormulaToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -41,7 +41,7 @@ import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionRefer
                           RangeReferenceStep, FieldReferenceStep,
                           Reference, EmptyReference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
@@ -144,7 +144,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
         map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             mode = f.display_mode
             if mode === :code
                 SyntaxDocument[code_iomap[].output]
@@ -230,7 +230,7 @@ function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formula
         map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
         sep=TextString("\n", p.font, color_default),
         selection=sel)
     iomap = ChildrenIoMap(p, e, node, child_iomaps)

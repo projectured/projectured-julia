@@ -25,7 +25,7 @@ module JuliaFileModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
                       JuliaString, JuliaBlock, JuliaArray, JuliaTuple, JuliaBinaryOp,
                       JuliaUnaryOp, JuliaIndex, JuliaFieldAccess, JuliaRange,

@@ -15,7 +15,7 @@ module SearchingProjectionModule
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, AbstractCell, set_cell_function!, unwrap_cell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
@@ -77,7 +77,7 @@ function print_document(p::SearchingProjection, recursion, input, ctx)
         _walk(p, input, EmptyReference(), acc, Base.IdSet{Any}())
         acc
     end)
-    output = CellVector(() -> [obj for (_, obj) in matches[]])
+    output = ComputedCellVector(() -> [obj for (_, obj) in matches[]])
     match_paths = ComputedCell(() -> Reference[path for (path, _) in matches[]])
     iomap = SearchingProjectionIoMap(p, input, output, match_paths)
 

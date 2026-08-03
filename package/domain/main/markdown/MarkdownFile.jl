@@ -27,7 +27,7 @@ module MarkdownFileModule
 import ..CellModule: Cell, ComputedCell, AbstractCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
                          MarkdownHeading, MarkdownCodeBlock, MarkdownQuote,
                          MarkdownList, MarkdownListItem, MarkdownEmphasis,

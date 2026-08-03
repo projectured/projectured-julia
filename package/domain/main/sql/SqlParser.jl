@@ -27,7 +27,7 @@ error rather than guessing, matching the other parsers in this directory.
 module SqlParserModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
                             SqlWhereFilterCondition,
                             SqlSelectItem, SqlAllColumns, SqlColumnReference,

@@ -18,7 +18,7 @@ the directory header node (the name line) and not on the indented body wrapper.
 module FileSystemToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
@@ -129,7 +129,7 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
         selection=d.selection)
 
     body_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
         indentation=2)
 
     # Wire the output selection canonically: map d.selection forward through this

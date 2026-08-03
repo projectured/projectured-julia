@@ -15,7 +15,7 @@ the full statement tree.
 module SqlToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..SqlDocumentModule: SqlNothing, SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
@@ -171,7 +171,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             docs = SyntaxDocument[paren_node]
             if doc.alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -262,7 +262,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             docs = SyntaxDocument[expr_im[].output]
             if doc.column_alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -338,7 +338,7 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             kws = SyntaxDocument[_kw("SELECT", p.keyword)]
             doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword))
             push!(kws, items_body)
@@ -429,7 +429,7 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             jt, fi, cond_im = projected[]
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
@@ -527,7 +527,7 @@ function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJo
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]);
+        ComputedCellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -603,7 +603,7 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             base, joins = projected[]
             isempty(joins) ? SyntaxDocument[base.output] :
                              SyntaxDocument[base.output, joins_body]
@@ -695,7 +695,7 @@ function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromCla
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]);
+        ComputedCellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -839,7 +839,7 @@ function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereC
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
+        ComputedCellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -961,7 +961,7 @@ function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompari
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
         end);
@@ -1049,7 +1049,7 @@ function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
         end);
@@ -1131,7 +1131,7 @@ function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     end)
 
     node = SyntaxNode(
-        CellVector(() ->
+        ComputedCellVector(() ->
             SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]);
         open=TextString("(", p.keyword.font, color_default),
         close=TextString(")", p.keyword.font, color_default),
@@ -1208,7 +1208,7 @@ function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlS
         wc !== nothing ? Any[sc, fc, wc] : Any[sc, fc]
     end)
 
-    children = CellVector(() -> begin
+    children = ComputedCellVector(() -> begin
         sc, fc, wc = projected[]
         docs = SyntaxDocument[sc.output, fc.output]
         wc !== nothing && push!(docs, wc.output)
@@ -1337,7 +1337,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             _, col_ims, _ = projected[]
             docs = SyntaxDocument[_kw("INSERT", p.keyword),
                                   _kw("INTO", p.keyword),
@@ -1465,7 +1465,7 @@ function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlU
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             col_im, val_im = projected[]
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
         end);
@@ -1570,7 +1570,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             table_im, _, where_im = projected[]
             docs = SyntaxDocument[_kw("UPDATE", p.keyword),
                                   table_im.output,
@@ -1689,7 +1689,7 @@ function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlC
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[
+        ComputedCellVector(() -> SyntaxDocument[
             col_im[].output,
             SyntaxLeaf(TextString(() -> doc.data_type, p.type))]);
         sep=TextString(" ", p.type.font, color_default),
@@ -1779,7 +1779,7 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
     end)
 
     node = SyntaxNode(
-        CellVector(() -> begin
+        ComputedCellVector(() -> begin
             table_im, _ = projected[]
             SyntaxDocument[_kw("CREATE", p.keyword),
                            _kw("TABLE", p.keyword),
@@ -1874,7 +1874,7 @@ function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[
+        ComputedCellVector(() -> SyntaxDocument[
             _kw("CREATE", p.keyword),
             _kw("SCHEMA", p.keyword),
             SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]);
@@ -1935,7 +1935,7 @@ function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStat
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in stmt_ims[]]);
+        ComputedCellVector(() -> SyntaxDocument[im.output for im in stmt_ims[]]);
         sep=TextString("\n\n", p.font, color_default),
         selection=sel)
 

@@ -52,7 +52,7 @@ import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
 import ..TextModule: TextBlock, TextString, text_selection_substring, text_insert_op
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, try_evaluate_reference, head, tail,

@@ -18,7 +18,7 @@ at construction time.
 module TextToGraphicsModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ListNode, CollectionDocument
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
                      SpanPath, _flat_cursor_coord, _flat_base, _flat_caret_ref, _is_structural_selection,
@@ -310,7 +310,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
     # so a caret move that keeps the same row count reuses the exact rects. Evict rows
     # that no longer exist so the cache cannot grow unbounded across selections.
-    highlight_elements = CellVector(function ()
+    highlight_elements = ComputedCellVector(function ()
         n = length(overlay[].highlight)
         out = Any[get_highlight_rect(k) for k in 1:n]
         for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
@@ -343,7 +343,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
             ComputedCell(() -> Int32(prev.y[] + prev.h[]))
         end
         cache = Dict{Any,Any}()
-        segs = CellVector(function ()
+        segs = ComputedCellVector(function ()
             pls = line_layout[].spans
             out = Any[]
             live = Set{Any}()
@@ -372,7 +372,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # no content is read here and the stack stays up to date across content edits.
     # `layout_vertical` + non-overlapping lets the dirty walk and renderer
     # early-stop past off-screen lines.
-    lines_stack_elements = CellVector(function ()
+    lines_stack_elements = ComputedCellVector(function ()
         n = length(lines_cell[])
         Any[get_line_cells(L).canvas for L in 1:n]
     end)

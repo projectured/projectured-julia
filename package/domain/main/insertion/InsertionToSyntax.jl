@@ -71,7 +71,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_ita
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
 import ..StyleTextModule: StyleText, DStyleText
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell
 

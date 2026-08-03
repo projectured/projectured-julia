@@ -23,7 +23,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          GraphicsCircle, GraphicsPolyline, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.CollectionModule: ListNode, CellVector, ComputedCellVector
 import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
 import ProjecturedDomain.FontModule: StyleFont, font_logical_size

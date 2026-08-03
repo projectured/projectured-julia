@@ -50,11 +50,13 @@ function CellVector(computed::Computed)
     set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
-function CellVector(f::Function)
-    cv = CellVector(Cell(Cell[]), Cell(nothing))
-    set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
-    cv
-end
+# Transitional: refuse a bare function while the call sites move onto `Computed`, so a
+# site that still means "derived elements" fails loudly instead of silently becoming a
+# one-element vector holding a function. Deleted once none remain.
+CellVector(::Function) = error(
+    "a bare function argument is ambiguous: write ComputedCellVector(f) or " *
+    "CellVector(Computed(f)) for derived elements — once this guard is removed, " *
+    "CellVector(f) will be a ONE-ELEMENT vector holding f")
 
 """
     ComputedCellVector(f) -> CellVector
@@ -261,6 +263,6 @@ end
 # importing a base document type.
 
 make_children_container(cells::Vector) = CellVector(cells)
-make_children_container(thunk::Function) = CellVector(thunk)
+make_children_container(thunk::Function) = ComputedCellVector(thunk)
 children_container_type() = CellVector
 

@@ -11,7 +11,7 @@ module VersioningModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 
 export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,

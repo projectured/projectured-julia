@@ -9,7 +9,7 @@ module FilteringProjectionModule
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 export FilteringProjection, FilteringProjectionIoMap
@@ -44,7 +44,7 @@ FilteringProjection(; predicate::Function=Returns(true)) =
 
 function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
     kept = ComputedCell(() -> Int[i for i in 1:length(input) if p.predicate(input[i])])
-    output = CellVector(() -> [input[i] for i in kept[]])
+    output = ComputedCellVector(() -> [input[i] for i in kept[]])
     set_cell_function!(getfield(output, :selection), () -> input.selection)
     FilteringProjectionIoMap(p, input, output, kept)
 end

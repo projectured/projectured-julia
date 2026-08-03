@@ -30,7 +30,7 @@ module SyntaxModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextModule: TextString
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, Reference,
@@ -349,7 +349,7 @@ SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
 # field directly. Coercing it into a `CellVector` would interpose a per-element
 # cell-wrapping thunk, and those markers would never be resolved. A hand-written
 # projection that wants reactive children says so explicitly:
-# `SyntaxConcatenation(CellVector(f))`.
+# `SyntaxConcatenation(ComputedCellVector(f))`.
 SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(ComputedCell(thunk), nothing)
 
 # A concatenation answers the compound contract with the defaults throughout: it
@@ -447,7 +447,7 @@ _text(::Nothing) = nothing
 _children(c::CellVector) = c
 _children(c::Vector{Cell}) = CellVector(c)
 _children(c::AbstractVector) = CellVector(Cell[Cell(x) for x in c])
-_children(f::Function) = CellVector(f)
+_children(f::Function) = ComputedCellVector(f)
 _children(c) = c
 
 # ── Leaf ─────────────────────────────────────────────────────────────────
@@ -586,7 +586,7 @@ SyntaxNode(open::TextString, close::TextString, sep::TextString;
 
 SyntaxNode(open::TextString, close::TextString, sep::TextString,
       f::Function; indentation::Int = 0) =
-    SyntaxNode(open, close, sep, CellVector(f), indentation, false, nothing)
+    SyntaxNode(open, close, sep, ComputedCellVector(f), indentation, false, nothing)
 
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
@@ -599,7 +599,7 @@ SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString;
 
 SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
       f::Function; indentation::Int = 0) =
-    SyntaxNode(_text(open), _text(close), _text(sep), CellVector(f), indentation, false, nothing)
+    SyntaxNode(_text(open), _text(close), _text(sep), ComputedCellVector(f), indentation, false, nothing)
 
 # Text-replace edits on a SyntaxLeaf (`open`/`value`/`close`) or SyntaxNode
 # (`open`/`close`/`sep`) are handled generically by `splice_value!`: each of

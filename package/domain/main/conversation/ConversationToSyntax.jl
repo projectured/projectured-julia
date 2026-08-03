@@ -19,7 +19,7 @@ is the widget-presentation work (`ConversationToWidget`, later stages).
 module ConversationToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationDocument, ConversationConversation,
@@ -81,7 +81,7 @@ _content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
 
 function print_document(p::ConversationConversationToSyntaxNode,
                           recursion, c::ConversationConversation, ctx)
-    children = CellVector(() -> SyntaxDocument[
+    children = ComputedCellVector(() -> SyntaxDocument[
         print_child(recursion, c.turns[i], ctx).output
         for i in eachindex(c.turns)
     ])
@@ -93,7 +93,7 @@ end
 
 function print_document(p::ConversationTurnToSyntaxNode,
                           recursion, t::ConversationTurn, ctx)
-    children = CellVector(() -> SyntaxDocument[
+    children = ComputedCellVector(() -> SyntaxDocument[
         print_child(recursion, t.parts[i], ctx).output
         for i in eachindex(t.parts)
     ])

@@ -28,7 +28,7 @@ module TextFirstLineModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..ReferenceBuilderModule: var"@reference"
@@ -65,7 +65,7 @@ end
 
 function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _first_line(text))
-    elements_cv = CellVector(() -> both[][1])
+    elements_cv = ComputedCellVector(() -> both[][1])
     info_cell = ComputedCell(() -> both[][2])
     out_selection = ComputedCell(() -> _forward(info_cell[], text.selection))
     output = TextBlock(elements_cv, out_selection)

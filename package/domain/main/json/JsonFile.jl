@@ -21,7 +21,7 @@ module JsonFileModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference, ConcreteReference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
                      JsonObject, JsonObjectEntry
 import ..JsonParserModule: jsonparse

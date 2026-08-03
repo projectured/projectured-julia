@@ -24,7 +24,7 @@ printer recurses" section of package/kernel/doc/projection-system.md.
 module BookToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ImageModule: ImageFile
 import ..BackendApiModule: decode_image
 import ..GraphicsModule: GraphicsDocument
@@ -149,7 +149,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         end
     end)
 
-    children_cv = CellVector(() -> begin
+    children_cv = ComputedCellVector(() -> begin
         author = b.author
         iomaps  = element_iomaps[]
         result  = SyntaxDocument[title_leaf]
@@ -327,7 +327,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         end
     end)
 
-    children_cv = CellVector(() -> begin
+    children_cv = ComputedCellVector(() -> begin
         iomaps = element_iomaps[]
         result = SyntaxDocument[title_leaf]
         for im in iomaps
@@ -494,7 +494,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
         end
     end)
 
-    children_cv = CellVector(() -> begin
+    children_cv = ComputedCellVector(() -> begin
         iomaps = element_iomaps[]
         SyntaxDocument[
             SyntaxDelimitation(im.output; opening_delimiter=TextString("• ", p.bullet))

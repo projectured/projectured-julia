@@ -42,7 +42,7 @@ using ProjecturedKernel.CellModule: unwrap_cell
 using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, ElementReferenceStep,
                                          try_evaluate_reference, PositionReferenceStep,
                                          annotate_reference_types
-using ProjecturedBase.CollectionModule: CellVector
+using ProjecturedBase.CollectionModule: CellVector, ComputedCellVector
 using ProjecturedDomain.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                                     JsonObject, JsonObjectEntry, JsonInsertion
 using ProjecturedDomain.YamlModule: YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence,

@@ -23,7 +23,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat, text_caret_flat
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
@@ -97,7 +97,7 @@ function print_document(p::TextFiltering, recursion, text::TextBlock, ctx)
     ci_cell = p.case_insensitive
     invert_cell = p.invert
     both = ComputedCell(() -> _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[]))   # (elements, kept)
-    elements_cv = CellVector(() -> both[][1])
+    elements_cv = ComputedCellVector(() -> both[][1])
     kept_cell = ComputedCell(() -> both[][2])
     out_selection = ComputedCell(() -> _forward_map(kept_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)

@@ -23,7 +23,7 @@ module ScreenDocumentModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 import ..OperationModule: Operation, evaluate_operation
 

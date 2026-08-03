@@ -51,7 +51,7 @@ import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!
 import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
                           VersionCriterion, VersionCriterionLatest, select_version
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           evaluate_reference, head, tail

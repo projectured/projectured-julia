@@ -49,7 +49,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        InvokeWidgetActionOperation,
                        Action, InvokeActionOperation, action_shortcut_matches,
                        first_focusable_path, last_focusable_path, _next_focusable_in
-import ..CollectionModule: CellVector, CollectionDocument
+import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
 import ..ImageModule: ImageDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
@@ -722,7 +722,7 @@ function _reactive_canvas_cell(x::Int, y::Int, build::Cell)
     GraphicsCanvas(Int32(x), Int32(y),
                    ComputedCell(() -> Int32(build[].width)),
                    ComputedCell(() -> Int32(build[].height)),
-                   CellVector(() -> build[].elements),
+                   ComputedCellVector(() -> build[].elements),
                    layout_none, true, Cell(nothing))
 end
 
@@ -734,7 +734,7 @@ _reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Compute
 # `elems_fn()` returns the (positioned) child element vector, re-derived reactively.
 function _reactive_canvas_auto(x::Int, y::Int, elems_fn)
     GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0),
-                   CellVector(elems_fn),
+                   ComputedCellVector(elems_fn),
                    layout_none, true, Cell(nothing))
 end
 
@@ -2258,7 +2258,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     # and child wrappers re-flow reactively when slot sizes change. The
     # splitter's cross-axis extent tracks `outer_cross` so it spans exactly
     # the pane's cross dimension instead of overflowing on a fixed length.
-    outer_elements = CellVector(function ()
+    outer_elements = ComputedCellVector(function ()
         result = Any[]
         for i in 1:n
             cim = inner_iomaps[i]
@@ -2597,7 +2597,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         i == 0 ? 1 : i
     end
 
-    selector_cv = CellVector(() -> begin
+    selector_cv = ComputedCellVector(() -> begin
         (_, _, sel_pad, sel_h, strip_w, tabs) = geom[]
         active = _active_idx(sel_cell[], length(tabs))
         result = Any[]
@@ -2641,7 +2641,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         () -> Any[pair.element for pair in w.selector_element_pairs],
         (i, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
 
-    content_cv = CellVector(() -> begin
+    content_cv = ComputedCellVector(() -> begin
         cims = all_cims[]
         sel_h = geom[][4]
         active = _active_idx(sel_cell[], length(cims))
@@ -3509,7 +3509,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            ComputedCell(() -> Int32(build[].w)),
                            ComputedCell(() -> Int32(build[].h)),
-                           CellVector(() -> build[].elements),
+                           ComputedCellVector(() -> build[].elements),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, w, outer, ComputedCell(() -> build[].child_iomaps))
 end
@@ -4841,7 +4841,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
-    elements = CellVector(() -> begin
+    elements = ComputedCellVector(() -> begin
         geom = geometry[]
         gim = grid_iomap[]
         result = Any[]
@@ -5465,7 +5465,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
     set_cell_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
 
-    elements = CellVector(() -> begin
+    elements = ComputedCellVector(() -> begin
         geom = geometry[]
         result = Any[]
         # 0. Invisible whole-canvas hit target (behind everything) so a nested tree

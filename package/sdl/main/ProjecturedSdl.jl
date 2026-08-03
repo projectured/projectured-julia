@@ -31,7 +31,7 @@ import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsR
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
-import ProjecturedDomain.CollectionModule: ListNode, CellVector
+import ProjecturedDomain.CollectionModule: ListNode, CellVector, ComputedCellVector
 import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 import ProjecturedDomain.ColorModule: StyleColor
 import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,

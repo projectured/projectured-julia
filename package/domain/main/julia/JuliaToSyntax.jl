@@ -14,7 +14,7 @@ tree with colorized tokens:
 module JuliaToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JuliaModule: JuliaDocument,

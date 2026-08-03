@@ -17,7 +17,7 @@ module LayoutModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 
 export LayoutDocument, FormLayout, LayoutExpr, anchor, constrain, allocate_axis, layout_min,

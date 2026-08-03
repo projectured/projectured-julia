@@ -26,7 +26,7 @@ The three levels correspond to: keyword_node → keyword_body → actual child.
 module DbCatalogToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
@@ -224,7 +224,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # The keyword group holds the projected items directly and is the lazy /
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
         open=TextString(" " * keyword, font_ubuntu_monospace_regular_20, color_default),
         indentation=-1,
         collapsed=Cell(!_children_realized(children)))

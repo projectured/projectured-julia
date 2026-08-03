@@ -17,7 +17,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, hit_element_at
 import ..ColorModule: StyleColor
 import ..FontModule: font_logical_size
-import ..CollectionModule: CellVector, ListNode
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap

@@ -315,7 +315,7 @@ end
 #
 # This is currently a MEASUREMENT, not a pass/fail assertion: the central
 # template engine rebuilds the whole children vector on any structural change
-# (`CellVector(() -> …)` recreates every slot cell; `child_iomaps` re-projects
+# (`ComputedCellVector(() -> …)` recreates every slot cell; `child_iomaps` re-projects
 # every sibling — see plan/pending/printer-locality.md Phase 4 / dimension C),
 # so most collections will report large `lost_objects` until that fix lands.
 # Phase 4 decides fix-vs-justified-exception; until then we report the numbers.

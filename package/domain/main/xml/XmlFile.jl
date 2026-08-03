@@ -22,7 +22,7 @@ module XmlFileModule
 import ..CellModule: Cell, ComputedCell, AbstractCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..XmlModule: XmlDocument, XmlElement, XmlText, XmlAttribute, XmlNothing
 import ..XmlParserModule: xmlparse
 import ..NaturalFormatModule: document_to_text

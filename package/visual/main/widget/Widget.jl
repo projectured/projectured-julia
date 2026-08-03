@@ -11,7 +11,7 @@ module WidgetModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings

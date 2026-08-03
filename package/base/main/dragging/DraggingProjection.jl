@@ -33,7 +33,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, get_cell_at
+import ..CollectionModule: CellVector, ComputedCellVector, get_cell_at
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           RangeReferenceStep, FieldReferenceStep, is_element_reference_step, evaluate_reference,
                           head, tail

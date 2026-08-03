@@ -10,7 +10,7 @@ module GraphModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 
 export GraphDocument

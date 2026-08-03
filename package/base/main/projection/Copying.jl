@@ -17,7 +17,7 @@ import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, is_element_reference_step, head, tail
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..CollectionModule: CellVector, ListNode
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
 
 export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
@@ -54,7 +54,7 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
-    output = CellVector(() -> [im.output for im in children[]])
+    output = ComputedCellVector(() -> [im.output for im in children[]])
     set_cell_function!(getfield(output, :selection), () -> input.selection)
     CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
 end

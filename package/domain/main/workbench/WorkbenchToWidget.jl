@@ -54,7 +54,7 @@ import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperati
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: read_gesture
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context

@@ -28,7 +28,7 @@ into the chooser does **not** auto-switch — ENTER commits it via the factory.
 module ConversationEditorModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -488,7 +488,7 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     # structural changes; per-part value/cursor edits re-render via the reactive
     # `TextString` thunks inside each card.
     body = VerticalLayout(
-        CellVector(() -> (n = length(d.parts);
+        ComputedCellVector(() -> (n = length(d.parts);
                           Any[_part_card(d.parts[i].content, i == n) for i in 1:n])),
         Cell(:left), Cell(_GAP), Cell(nothing))
     SimpleIoMap(p, d, body)

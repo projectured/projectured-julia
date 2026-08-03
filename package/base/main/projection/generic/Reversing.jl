@@ -8,7 +8,7 @@ module ReversingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: ChildrenIoMap, reconcile_child_iomaps
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
@@ -37,7 +37,7 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
             make_child_context(ctx, ElementReferenceStep(i))))
     # Output is the reversed child outputs, derived reactively into a persistent
     # CellVector: the IoMap keeps its identity while the output tracks input edits.
-    output = CellVector(() -> reverse([im.output for im in child_iomaps[]]))
+    output = ComputedCellVector(() -> reverse([im.output for im in child_iomaps[]]))
     ChildrenIoMap(p, input, output, child_iomaps)
 end
 

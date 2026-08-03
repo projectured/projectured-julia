@@ -378,7 +378,7 @@ end # module ConnectionPoolModule
 module SqlToCellTableModule
 
 import ProjecturedDomain.CellModule: Cell, ComputedCell
-import ProjecturedDomain.CollectionModule: CellVector, CellTable
+import ProjecturedDomain.CollectionModule: CellVector, ComputedCellVector, CellTable
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.SqlDocumentModule: SqlSelectStatement
@@ -410,7 +410,7 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
             db_execute_raw(adapter, sql, RawDatabaseResult)
         end
     end)
-    rows = CellVector(() -> begin
+    rows = ComputedCellVector(() -> begin
         r = raw[]
         header = CellVector(r.columns)               # row 1: column names
         data   = [CellVector(row) for row in r.rows]  # rows 2..n: data rows
@@ -427,7 +427,7 @@ end # module SqlToCellTableModule
 
 module DatabaseInstanceToDbCatalogModule
 
-import ProjecturedDomain.CollectionModule: CellVector
+import ProjecturedDomain.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstance
 import ProjecturedDomain.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
@@ -449,7 +449,7 @@ export DatabaseInstanceToDbCatalog
 # querying through the pool. The pool + instance are captured by closure.
 
 function _build_columns(pool, inst, schema_name::String, table_name::String)
-    CellVector(() -> begin
+    ComputedCellVector(() -> begin
         cols = with_connection(pool, inst) do adapter
             db_catalog_columns(adapter, schema_name, table_name)
         end
@@ -458,7 +458,7 @@ function _build_columns(pool, inst, schema_name::String, table_name::String)
 end
 
 function _build_tables(pool, inst, schema_name::String)
-    CellVector(() -> begin
+    ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
             db_catalog_tables(adapter, schema_name)
         end
@@ -468,7 +468,7 @@ function _build_tables(pool, inst, schema_name::String)
 end
 
 function _build_schemas(pool, inst, database_name::String)
-    CellVector(() -> begin
+    ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
             db_catalog_schemas(adapter, database_name)
         end
@@ -478,7 +478,7 @@ function _build_schemas(pool, inst, database_name::String)
 end
 
 function _build_databases(pool, inst)
-    CellVector(() -> begin
+    ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
             db_catalog_databases(adapter)
         end

@@ -42,7 +42,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.CellModule: Cell, ComputedCell
-using ProjecturedBase.CollectionModule: CellVector
+using ProjecturedBase.CollectionModule: CellVector, ComputedCellVector
 using ProjecturedVisual.FontModule: StyleFont
 using ProjecturedVisual.TextModule: TextString, TextBlock, TextDocument, TextGraphics
 using ProjecturedVisual.SyntaxModule: SyntaxNode, SyntaxLeaf

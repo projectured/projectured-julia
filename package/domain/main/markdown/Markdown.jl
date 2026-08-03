@@ -9,7 +9,7 @@ module MarkdownModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, @forward_vector_protocol
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 export MarkdownDocument, set_cell_function!
 

@@ -20,7 +20,7 @@ owns and delegate the tail through the same field unchanged).
 module GraphToGraphLayoutModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
@@ -98,7 +98,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         layout_graph(p.engine, graph, sizes, constraints)
     end)
 
-    vertex_layouts = CellVector(() -> begin
+    vertex_layouts = ComputedCellVector(() -> begin
         positions, _ = placed[]
         n = length(graph.vertices)
         out = Any[]
@@ -111,7 +111,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         out
     end)
 
-    edge_layouts = CellVector(() -> begin
+    edge_layouts = ComputedCellVector(() -> begin
         _, routes = placed[]
         n = length(graph.edges)
         out = Any[]

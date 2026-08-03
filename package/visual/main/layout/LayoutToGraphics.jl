@@ -27,7 +27,7 @@ import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
                        layout_min, layout_max, layout_preferred, layout_weight
 import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
                                  ConstraintSolver, FallbackConstraintSolver
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
 import ..IoMapModule: IoMap
@@ -567,7 +567,7 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           CellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> build[].wrapped),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -662,7 +662,7 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           CellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> build[].wrapped),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -1070,7 +1070,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           CellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> build[].wrapped),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -1212,7 +1212,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
          [_sl_child_y_cell(i, cims, outer_h, valign) for i in 1:n])
     end)
 
-    elements_cv = CellVector(() -> begin
+    elements_cv = ComputedCellVector(() -> begin
         (n, cims) = build[]
         (cx, cy) = positions[]
         out = Any[]
@@ -1418,7 +1418,7 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           CellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> build[].wrapped),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end

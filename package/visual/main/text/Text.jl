@@ -32,7 +32,7 @@ import ..DocumentModule: @document
 import ..DomainModule
 import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection, clear_selection!, set_selection!
-import ..CollectionModule: CellVector, ListNode, CollectionDocument
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
@@ -246,7 +246,7 @@ TextBlock(spans::Vector{<:TextDocument}) =
 TextBlock(spans::TextDocument...) =
     TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
-TextBlock(f::Function) = TextBlock(CellVector(f), Cell(nothing))
+TextBlock(f::Function) = TextBlock(ComputedCellVector(f), Cell(nothing))
 
 # ── TextLine ───────────────────────────────────────────────────────────
 
@@ -283,7 +283,7 @@ TextLine(spans::TextDocument...; indentation::Integer = 0) =
     TextLine(collect(TextDocument, spans); indentation)
 
 TextLine(f::Function; indentation::Integer = 0) =
-    TextLine(CellVector(f), Cell(Int(indentation)), Cell(nothing))
+    TextLine(ComputedCellVector(f), Cell(Int(indentation)), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no

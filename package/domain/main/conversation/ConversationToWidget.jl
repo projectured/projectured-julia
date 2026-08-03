@@ -38,7 +38,7 @@ import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ToggleCollapseOperation
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context
 
@@ -124,7 +124,7 @@ function print_document(::ConversationConversationToWidgetComposite,
         print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
         for i in eachindex(c.turns)
     ])
-    layout = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
+    layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
                             Cell(:left), Cell(_GAP), Cell(nothing))
     ChildrenIoMap(nothing, c, layout, ioms)
 end
@@ -138,7 +138,7 @@ function print_document(::ConversationTurnToWidgetComposite,
         print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
         for i in eachindex(t.parts)
     ])
-    body = VerticalLayout(CellVector(() -> Any[im.output for im in ioms[]]),
+    body = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
                           Cell(:left), Cell(_GAP), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),

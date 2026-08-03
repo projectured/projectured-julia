@@ -23,7 +23,7 @@ idiom); inline runs concatenate (a `SyntaxConcatenation`).
 module MarkdownToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward
 import ..ProjectionModule: var"@projection"
@@ -351,7 +351,7 @@ function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
         for (i, child) in enumerate(doc.content)])
-    items = CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    items = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
     sel = ComputedCell(() -> begin
         im = iomap_cell[]
@@ -506,7 +506,7 @@ function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownLis
     child_iomaps = ComputedCell(() -> [print_child(recursion, item,
                                    make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
                                for (i, item) in enumerate(lst.items)])
-    items = CellVector(() -> begin
+    items = ComputedCellVector(() -> begin
         ord = lst.ordered
         SyntaxDocument[
             SyntaxDelimitation(im.output;

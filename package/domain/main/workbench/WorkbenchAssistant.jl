@@ -32,7 +32,7 @@ import ..ProjectionApiModule: read_intent, print_document
 import ..CellModule: Cell, ComputedCell
 import ..TextModule: TextBlock, TextString
 import ..PrimitiveModule: PrimitiveString
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..JuliaModule: JuliaDocument
 import ..JsonModule: JsonDocument
 import ..XmlModule: XmlDocument

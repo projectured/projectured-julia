@@ -22,7 +22,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, text_flat_to_elem, tex
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_yellow
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
@@ -102,7 +102,7 @@ function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     ci_cell = p.case_insensitive
     color = p.color
     both = ComputedCell(() -> _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color))   # (elements, segs)
-    elements_cv = CellVector(() -> both[][1])
+    elements_cv = ComputedCellVector(() -> both[][1])
     segs_cell = ComputedCell(() -> both[][2])
     out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)

@@ -18,7 +18,7 @@ Read-only: no reference mapping or read support.
 module CellTableToWidgetTableModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, CellTable
+import ..CollectionModule: CellVector, ComputedCellVector, CellTable
 import ..WidgetModule: WidgetTable, Point2D
 import ..PrimitiveModule: PrimitiveBool, PrimitiveNumber, PrimitiveString
 import ..ProjectionApiModule: print_document, read_intent,
@@ -47,12 +47,12 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
     # CellVectors), never pre-wrapped Cells — pre-wrapping would double-wrap and
     # make `rows[r]` a `Cell` instead of the row `CellVector`.
     # Column headers = the first row of the CellTable (column names).
-    column_headers = CellVector(() -> begin
+    column_headers = ComputedCellVector(() -> begin
         nr2, nc2 = size(ct)
         nr2 == 0 ? Any[] : Any[_to_doc(ct[1, c]) for c in 1:nc2]
     end)
     # Data rows, Primitive-wrapped, each a CellVector of document cells.
-    rows = CellVector(() -> begin
+    rows = ComputedCellVector(() -> begin
         nr2, nc2 = size(ct)
         out = Any[]
         for r in 2:nr2

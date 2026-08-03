@@ -66,7 +66,7 @@ import ..ChainingProjectionModule: ChainingProjection
 import ..WidgetToGraphicsModule: WidgetToGraphics
 import ..LayoutToGraphicsModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
 import ..CollectionToLayoutModule: CellVectorToVerticalLayout
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextToGraphicsModule: TextToGraphics
 import ..WordWrappingModule: WordWrapping
 import ..SyntaxToTextModule: SyntaxToText

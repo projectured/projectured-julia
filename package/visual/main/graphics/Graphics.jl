@@ -18,7 +18,7 @@ module GraphicsModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ListNode, CollectionDocument
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference

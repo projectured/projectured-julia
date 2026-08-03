@@ -25,7 +25,7 @@ module DocumentReflectionModule
 import ..CellModule: Cell, ComputedCell, MutableCell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
                          HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AbstractUnsyncedDocument,

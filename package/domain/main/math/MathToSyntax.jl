@@ -12,7 +12,7 @@ syntax tree shape with colorized tokens:
 module MathToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string
@@ -161,7 +161,7 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
+        ComputedCellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
         sep=TextString(" ", p.op.font, color_default),
         selection=sel)
     ChildrenIoMap(p, m, node, ComputedCell(() -> [left_iomap[], right_iomap[]]))
@@ -227,7 +227,7 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[content_iomap[].output]);
+        ComputedCellVector(() -> SyntaxDocument[content_iomap[].output]);
         open=TextString("(", p.delim),
         close=TextString(")", p.delim),
         selection=sel)
@@ -323,7 +323,7 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
     end)
 
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
+        ComputedCellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
         sep=TextString(" ", p.eq.font, color_default),
         selection=sel)
     ChildrenIoMap(p, m, node, ComputedCell(() -> [target_iomap[], value_iomap[]]))

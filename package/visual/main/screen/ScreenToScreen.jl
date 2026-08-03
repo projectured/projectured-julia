@@ -26,7 +26,7 @@ import ..IntentModule: Intent
 import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument
 import ..EventModule: WindowInput
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
 import ..PointReferenceStepModule: PointReferenceStep

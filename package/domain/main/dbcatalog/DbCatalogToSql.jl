@@ -29,7 +29,7 @@ the catalog.
 module DbCatalogToSqlModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..DbCatalogDocumentModule: DbCatalogDocument, DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ..SqlDocumentModule: SqlColumnDefinition, SqlCreateTableStatement,

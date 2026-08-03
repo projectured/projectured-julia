@@ -29,7 +29,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, DStyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
@@ -100,7 +100,7 @@ end
 
 function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _invert(p, text))   # (elements, segs)
-    elements_cv = CellVector(() -> both[][1])
+    elements_cv = ComputedCellVector(() -> both[][1])
     segs_cell = ComputedCell(() -> both[][2])
     out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)

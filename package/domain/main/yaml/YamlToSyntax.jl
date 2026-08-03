@@ -21,7 +21,7 @@ block sequence is a hand-written projection (like `FileSystemDirectoryToSyntaxNo
 module YamlToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -178,7 +178,7 @@ function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSe
                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(seq.elements)])
 
-    items = CellVector(() -> SyntaxDocument[
+    items = ComputedCellVector(() -> SyntaxDocument[
         SyntaxDelimitation(im.output; opening_delimiter=TextString("- ", p.marker_style))
         for im in child_iomaps[]])
 

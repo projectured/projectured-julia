@@ -19,7 +19,7 @@ round-trips through the whole graph pipeline. Edges are decorations in v1
 module GraphLayoutToGraphicsModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
@@ -121,7 +121,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         out
     end)
 
-    elements = CellVector(() -> begin
+    elements = ComputedCellVector(() -> begin
         result = Any[]
         # Edges first (behind the nodes), each with its optional label centred on
         # the route midpoint.

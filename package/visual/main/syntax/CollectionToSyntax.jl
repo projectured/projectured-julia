@@ -11,7 +11,7 @@ as top-level collection documents, mapping each element through recursion.
 module CollectionToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ListNode
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..SyntaxModule: SyntaxDocument, SyntaxNode
@@ -89,7 +89,7 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
         map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
-        CellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
         open=TextString("[", p.delim),
         close=TextString("]", p.delim),
         sep=TextString(", ", p.sep),

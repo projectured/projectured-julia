@@ -18,7 +18,7 @@ truth reused by the printer's selection wiring and the generic reader.
 module FileSystemToWidgetModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
@@ -75,7 +75,7 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     end)
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
-    roots = CellVector(() -> Any[_fs_node(doc)])
+    roots = ComputedCellVector(() -> Any[_fs_node(doc)])
     tree = WidgetTree(Cell(p.position), roots, Cell(true), Cell(nothing), Cell(Set{Vector{Int}}()),
                       Cell(GestureBinding[]), sel)
     iomap = SimpleIoMap(p, doc, tree)

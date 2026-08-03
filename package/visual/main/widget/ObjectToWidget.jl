@@ -44,7 +44,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, WidgetCard, Point2D
 import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
@@ -226,11 +226,11 @@ end
 # `card.collapsed`, so the toggle re-renders without reprinting the projection.
 function _collapsible_card(p::ObjectToWidget, title::AbstractString, body)
     card = WidgetCard(Point2D(0, 0); width=_CARD_WIDTH)
-    header = HorizontalLayout(CellVector(() -> Any[
+    header = HorizontalLayout(ComputedCellVector(() -> Any[
         WidgetLabel(Point2D(0, 0),
                     (card.collapsed ? _COLLAPSED_MARKER : _EXPANDED_MARKER) * " " * title)
     ]), Cell(:top), Cell(_HEADER_GAP), Cell(nothing))
-    content = VerticalLayout(CellVector(() -> card.collapsed ? Any[] : Any[body]),
+    content = VerticalLayout(ComputedCellVector(() -> card.collapsed ? Any[] : Any[body]),
                              Cell(:left), Cell(0), Cell(nothing))
     card.title = header
     card.content = content

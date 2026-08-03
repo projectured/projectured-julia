@@ -12,7 +12,7 @@ IoMaps are recorded in the IoMap so the mappers and reader can peel the one
 module SyntaxToTextModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ListNode
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
@@ -148,7 +148,7 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
     end)
-    SimpleIoMap(p, leaf, TextBlock(CellVector(() -> _leaf_spans(leaf)), sel))
+    SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
 end
 
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -569,7 +569,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # forward-reference break, as in CollectionToSyntax/BookToSyntax).
     iomap_cell = Cell(nothing)
     output = TextBlock(
-        CellVector(() -> spans[].elements),
+        ComputedCellVector(() -> spans[].elements),
         ComputedCell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,

@@ -16,7 +16,7 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types
@@ -41,7 +41,7 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 # (delimited by TextNewline elements) a TextString prefix is inserted before
 # the first span on that line.
 function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
-    elements_cv = CellVector(() -> begin
+    elements_cv = ComputedCellVector(() -> begin
         elems = text.elements
         n_newlines = 0
         for e in elems
