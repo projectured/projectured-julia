@@ -23,7 +23,10 @@ import ..JuliaModule: JuliaDocument,
                       JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaMacroCall, JuliaTernary,
                       JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
                       JuliaTypeAnnotation,
-                      JuliaAssignment, JuliaConst, JuliaFor, JuliaForIterator, JuliaWhile,
+                      JuliaAssignment, JuliaConst, JuliaDocstring,
+                      JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly,
+                      JuliaAnonymousTypeAnnotation, JuliaEmpty,
+                      JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
                       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaInsertion, _julia_operator_string
 import ..TextModule: TextString
@@ -41,7 +44,10 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
        JuliaBinaryOpToSyntaxNode, JuliaUnaryOpToSyntaxNode, JuliaCallToSyntaxNode,
-       JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode,
+       JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode, JuliaDocstringToSyntaxNode,
+       JuliaAbstractTypeToSyntaxNode, JuliaStructToSyntaxNode,
+       JuliaSubtypeToSyntaxNode, JuliaCurlyToSyntaxNode,
+       JuliaAnonymousTypeAnnotationToSyntaxNode, JuliaEmptyToSyntaxLeaf,
        JuliaTernaryToSyntaxNode, JuliaIndexToSyntaxNode, JuliaFieldAccessToSyntaxNode,
        JuliaTupleToSyntaxNode, JuliaArrayToSyntaxNode, JuliaRangeToSyntaxNode,
        JuliaTypeAnnotationToSyntaxNode,
@@ -209,6 +215,89 @@ end
     SyntaxConcatenation([ SyntaxLeaf(TextString("const ", p.keyword_style)),
                           project(:assignment) ])
 
+# ── JuliaDocstringToSyntaxNode ─────────────────────────────────────────────
+# Renders the natural docstring form:
+#     \"\"\"
+#     <text>
+#     \"\"\"
+#     <subject>
+# The `SyntaxToText` stage carries per-leaf line breaks through, so the
+# triple-quote fences and the subject land on their own lines.
+
+@projection struct JuliaDocstringToSyntaxNode
+    doc_style::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    fence_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaDocstringToSyntaxNode JuliaDocstring (p, d) ->
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString("\"\"\"\n", p.fence_style)),
+        SyntaxLeaf(TextString(() -> d.text, p.doc_style)),
+        SyntaxLeaf(TextString("\n\"\"\"\n", p.fence_style)),
+        project(:subject),
+    ])
+
+# ── JuliaAbstractTypeToSyntaxNode ──────────────────────────────────────────
+
+@projection struct JuliaAbstractTypeToSyntaxNode
+    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaAbstractTypeToSyntaxNode JuliaAbstractType (p, a) ->
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString("abstract type ", p.keyword_style)),
+        project(:header),
+        SyntaxLeaf(TextString(" end", p.keyword_style)),
+    ])
+
+# ── JuliaStructToSyntaxNode ─────────────────────────────────────────────────
+
+@projection struct JuliaStructToSyntaxNode
+    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaStructToSyntaxNode JuliaStruct (p, s) ->
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString(() -> s.mutable ? "mutable struct " : "struct ", p.keyword_style)),
+        project(:header),
+        SyntaxLeaf(TextString("\n", p.sep_style)),
+        project(:body),
+        # `body` is a `JuliaBlock` whose own trailing chrome already
+        # emits a "\n" after the last field; no leading "\n" here or
+        # a blank line opens up before `end`.
+        SyntaxLeaf(TextString("end", p.keyword_style)),
+    ])
+
+# ── JuliaSubtypeToSyntaxNode ───────────────────────────────────────────────
+
+@projection struct JuliaSubtypeToSyntaxNode
+    op_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+end
+
+@projection_template JuliaSubtypeToSyntaxNode JuliaSubtype (p, s) ->
+    SyntaxConcatenation([
+        project(:lhs),
+        SyntaxLeaf(TextString(" <: ", p.op_style)),
+        project(:rhs),
+    ])
+
+# ── JuliaCurlyToSyntaxNode ─────────────────────────────────────────────────
+
+@projection struct JuliaCurlyToSyntaxNode
+    brace_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaCurlyToSyntaxNode JuliaCurly (p, c) ->
+    SyntaxConcatenation([
+        project(:callee),
+        SyntaxNode(collection(:params);
+                   open=TextString("{", p.brace_style),
+                   close=TextString("}", p.brace_style),
+                   sep=TextString(", ", p.brace_style)),
+    ])
+
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct JuliaTernaryToSyntaxNode
@@ -297,6 +386,26 @@ end
     SyntaxConcatenation([ project(:value),
                           SyntaxLeaf(TextString("::", p.op)),
                           project(:type) ])
+
+# The anonymous `::T` form — nothing before the `::`, just the type.
+
+@projection struct JuliaAnonymousTypeAnnotationToSyntaxNode
+    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+end
+
+@projection_template JuliaAnonymousTypeAnnotationToSyntaxNode JuliaAnonymousTypeAnnotation (p, t) ->
+    SyntaxConcatenation([ SyntaxLeaf(TextString("::", p.op)),
+                          project(:type) ])
+
+# ── JuliaEmptyToSyntaxLeaf ─────────────────────────────────────────────────
+# Renders JuliaEmpty as literally nothing — the empty concatenation is
+# the smallest span that satisfies the SyntaxDocument contract without
+# adding any character to the output.
+
+@projection struct JuliaEmptyToSyntaxLeaf end
+
+@projection_template JuliaEmptyToSyntaxLeaf JuliaEmpty (p, e) ->
+    SyntaxConcatenation(Any[])
 
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
@@ -466,14 +575,43 @@ end
     keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
+# `if cond … [else …] end`. The template renders every element
+# unconditionally; we make the surrounding whitespace + `else`
+# keyword thunks so an empty else-branch collapses to nothing, and
+# a `JuliaIf` else-branch renders as `elseif` (dropping the plain
+# `else` line — the nested if prints its own `if`).
 @projection_template JuliaIfToSyntaxNode JuliaIf (p, m) ->
-    SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("if", p.keyword);
-                                                           close=TextString(" ", p.keyword.font, color_default)),
-                                                project(:condition) ]),
-                          project(:then_branch),
-                          SyntaxLeaf(TextString("else", p.keyword)),
-                          project(:else_branch),
-                          SyntaxLeaf(TextString("end", p.keyword)) ])
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString("if ", p.keyword)),
+        project(:condition),
+        project(:then_branch),
+        SyntaxLeaf(TextString(() -> _if_else_prefix(m.else_branch), p.keyword)),
+        project(:else_branch),
+        SyntaxLeaf(TextString(() -> _if_end_line(m.else_branch), p.keyword)),
+    ])
+
+# The keyword that leads the else-branch. `JuliaBlock` already emits
+# both a leading AND a trailing "\n" (line-chrome around every
+# statement plus one before the close). So the prefix is a plain
+# `else` — the block on either side supplies the newlines, and any
+# extra "\n" here would double-space.
+#   empty   → ""     (no else clause)
+#   JuliaIf → "else" (nested child prints its own `if` → `elseif`)
+#   other   → "else"
+_if_else_prefix(else_branch) = _is_empty_else(else_branch) ? "" : "else"
+
+# The closing `end` line. The then/else block's own trailing chrome
+# supplies the leading newline. Nested JuliaIf else-branches print
+# their own `end`, so suppress ours.
+_if_end_line(else_branch) = else_branch isa JuliaIf ? "" : "end"
+
+# `if … end` with no explicit else parses to `JuliaEmpty`; also
+# treat `JuliaNothing` and empty blocks as absent so hand-crafted
+# ASTs land the same way.
+_is_empty_else(x) =
+    x isa JuliaEmpty ||
+    x isa JuliaNothing ||
+    (x isa JuliaBlock && isempty(getfield(x, :statements)[]))
 
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
@@ -534,6 +672,13 @@ function JuliaToSyntax()
         JuliaCall            => JuliaCallToSyntaxNode(),
         JuliaMacroCall       => JuliaMacroCallToSyntaxNode(),
         JuliaConst           => JuliaConstToSyntaxNode(),
+        JuliaDocstring       => JuliaDocstringToSyntaxNode(),
+        JuliaAbstractType    => JuliaAbstractTypeToSyntaxNode(),
+        JuliaStruct          => JuliaStructToSyntaxNode(),
+        JuliaSubtype         => JuliaSubtypeToSyntaxNode(),
+        JuliaCurly           => JuliaCurlyToSyntaxNode(),
+        JuliaAnonymousTypeAnnotation => JuliaAnonymousTypeAnnotationToSyntaxNode(),
+        JuliaEmpty                   => JuliaEmptyToSyntaxLeaf(),
         JuliaTernary         => JuliaTernaryToSyntaxNode(),
         JuliaIndex           => JuliaIndexToSyntaxNode(),
         JuliaFieldAccess     => JuliaFieldAccessToSyntaxNode(),

@@ -25,7 +25,9 @@ module JuliaParserModule
 
 import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
     JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOp, JuliaUnaryOp, JuliaCall,
-    JuliaMacroCall, JuliaConst,
+    JuliaMacroCall, JuliaConst, JuliaDocstring,
+    JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly,
+    JuliaAnonymousTypeAnnotation, JuliaEmpty,
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
@@ -38,7 +40,8 @@ export juliaparse, juliaparse_file
 # which is lossless for display.
 
 const BINARY_OPERATORS = Set{Symbol}([
-    :+, :-, :*, :/, :(==), :(!=), :(<), :(>), :(<=), :(>=)])
+    :+, :-, :*, :/, :(==), :(!=), :(<), :(>), :(<=), :(>=),
+    :(===), :(!==)])
 
 const UNARY_OPERATORS = Set{Symbol}([:-, :!, :~])
 
@@ -159,9 +162,23 @@ function _convert_head(::Val{:macrocall}, x::Expr)
     name_expr = x.args[1]
     name = _macro_name_string(name_expr)
     rest = length(x.args) >= 2 ? x.args[3:end] : Any[]
+    # Docstrings are the surface form of Julia; the parser desugars
+    # `"""text""" def` into `Core.@doc "text" def`. Lift it back to a
+    # `JuliaDocstring` so the render is a docstring, not a macrocall.
+    if _is_doc_macro(name)
+        real_args = Any[a for a in rest if !(a isa LineNumberNode)]
+        if length(real_args) == 2 && real_args[1] isa AbstractString
+            return JuliaDocstring(String(real_args[1]), convert_expr(real_args[2]))
+        end
+    end
     args = JuliaDocument[convert_expr(a) for a in rest if !(a isa LineNumberNode)]
     return JuliaMacroCall(name, args)
 end
+
+# `@doc` written directly, or the fully-qualified `Core.@doc` the
+# parser emits when it desugars a `"""..."""` docstring. Match both.
+_is_doc_macro(name::AbstractString) =
+    name == "@doc" || name == "Core.@doc" || endswith(name, ".@doc")
 
 _macro_name_string(s::Symbol) = String(s)
 _macro_name_string(g::GlobalRef) = string(g.mod, ".", g.name)
@@ -179,6 +196,43 @@ _macro_name_string(x) = string(x)
 # ── const ─────────────────────────────────────────────────────────────────────
 # `const NAME = VALUE` parses to `Expr(:const, Expr(:(=), NAME, VALUE))`.
 _convert_head(::Val{:const}, x::Expr) = JuliaConst(convert_expr(x.args[1]))
+
+# ── Type declarations ────────────────────────────────────────────────────────
+
+# `abstract type Name end` parses to `Expr(:abstract, Name)`.
+# `abstract type Name <: Super end` parses to
+# `Expr(:abstract, Expr(:<:, Name, Super))`.
+_convert_head(::Val{:abstract}, x::Expr) = JuliaAbstractType(convert_expr(x.args[1]))
+
+# `struct Name … end`         → `Expr(:struct, false, header, body)`.
+# `mutable struct Name … end` → `Expr(:struct, true,  header, body)`.
+function _convert_head(::Val{:struct}, x::Expr)
+    mutable = x.args[1]::Bool
+    header  = convert_expr(x.args[2])
+    body    = convert_expr(x.args[3])
+    JuliaStruct(mutable, header, body)
+end
+
+# `A <: B` — outside a type header this could be a runtime test, but
+# most sightings are in headers. Kept as a dedicated document type.
+_convert_head(::Val{:<:}, x::Expr) =
+    JuliaSubtype(convert_expr(x.args[1]), convert_expr(x.args[2]))
+
+# Short-circuit operators — Julia's parser emits `&&`/`||` as their
+# own heads rather than as `Expr(:call, :&&, …)`, so a generic binary
+# routing does not catch them. Both render as ordinary binary ops.
+_convert_head(::Val{:&&}, x::Expr) =
+    JuliaBinaryOp(:&&, convert_expr(x.args[1]), convert_expr(x.args[2]))
+_convert_head(::Val{:||}, x::Expr) =
+    JuliaBinaryOp(:||, convert_expr(x.args[1]), convert_expr(x.args[2]))
+
+# `Foo{T, S}` — parametric type. The head is `:curly`, args are the
+# callee (a `JuliaIdentifier`) followed by the parameter expressions.
+function _convert_head(::Val{:curly}, x::Expr)
+    callee = convert_expr(x.args[1])
+    params = JuliaDocument[convert_expr(a) for a in x.args[2:end]]
+    JuliaCurly(callee, params)
+end
 
 # ── Assignment (plain and compound) ──────────────────────────────────────────
 
@@ -253,8 +307,16 @@ _convert_head(::Val{:ref}, x::Expr) =
     JuliaIndex(convert_expr(x.args[1]),
                JuliaDocument[convert_expr(i) for i in x.args[2:end]])
 
-_convert_head(::Val{:(::)}, x::Expr) =
-    JuliaTypeAnnotation(convert_expr(x.args[1]), convert_expr(x.args[2]))
+function _convert_head(::Val{:(::)}, x::Expr)
+    # `x::T` parses as `Expr(:(::), x, T)` — the two-argument form.
+    # `::T` on its own (a dispatch pin like `foo(::Type{Bar}) = …`)
+    # parses as `Expr(:(::), T)` — no value, only the type.
+    if length(x.args) == 1
+        JuliaAnonymousTypeAnnotation(convert_expr(x.args[1]))
+    else
+        JuliaTypeAnnotation(convert_expr(x.args[1]), convert_expr(x.args[2]))
+    end
+end
 
 function _convert_head(::Val{:.}, x::Expr)
     field = x.args[2]
@@ -266,13 +328,46 @@ end
 
 function _convert_head(::Val{:if}, x::Expr)
     cond = convert_expr(x.args[1])
-    then_branch = convert_expr(x.args[2])
-    else_branch = length(x.args) >= 3 ? convert_expr(x.args[3]) : JuliaNothing()
+    # Julia's parser distinguishes `if x; y; end` (statement form,
+    # then/else are `:block` wrappers) from `x ? y : z` (ternary,
+    # then/else are the raw expressions). Route the ternary form to
+    # `JuliaTernary` so the printer keeps it on one line, and leave
+    # the statement form on `JuliaIf` for the block layout.
+    then_arg = x.args[2]
+    is_stmt_form = then_arg isa Expr && then_arg.head === :block
+    if !is_stmt_form && length(x.args) >= 3 &&
+       !(x.args[3] isa Expr && x.args[3].head === :block)
+        return JuliaTernary(cond, convert_expr(then_arg), convert_expr(x.args[3]))
+    end
+    then_branch = convert_expr(then_arg)
+    # An `if …end` with no else parses with 2 args. Use a
+    # `JuliaEmpty` placeholder — it renders to nothing at all, so
+    # neither the `nothing` literal (from `JuliaNothing`) nor a
+    # phantom blank line (from an empty `JuliaBlock`'s trailing
+    # line-chrome) appears before the closing `end`.
+    else_branch = length(x.args) >= 3 ? convert_expr(x.args[3]) : JuliaEmpty()
     return JuliaIf(cond, then_branch, else_branch)
 end
 
-# `elseif` shares the `if` shape.
-_convert_head(::Val{:elseif}, x::Expr) = _convert_head(Val(:if), x)
+# `elseif` shares the `if` SHAPE but Julia's parser wraps the
+# elseif's CONDITION in an `Expr(:block, LineNumberNode, cond)`
+# (mirroring the block-wrapping it does for the branch bodies).
+# Strip that wrapper so the condition renders as a normal expression
+# instead of a JuliaBlock.
+function _convert_head(::Val{:elseif}, x::Expr)
+    unwrapped = Expr(:if, _unwrap_elseif_cond(x.args[1]), x.args[2:end]...)
+    _convert_head(Val(:if), unwrapped)
+end
+
+# `Expr(:block, [LineNumberNode,] cond)` → `cond`. Anything else
+# (including a bare `Symbol` from a hand-crafted Expr) passes
+# through unchanged.
+function _unwrap_elseif_cond(cond)
+    cond isa Expr && cond.head === :block || return cond
+    real = [a for a in cond.args if !(a isa LineNumberNode)]
+    length(real) == 1 || return cond   # unexpected shape; hand back verbatim
+    real[1]
+end
 
 function _convert_head(::Val{:while}, x::Expr)
     return JuliaWhile(convert_expr(x.args[1]), convert_expr(x.args[2]))

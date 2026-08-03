@@ -192,6 +192,28 @@ A type annotation expression `value::type`.
     type::Document
 end
 
+"""
+The anonymous form of a type annotation — `::T` on its own, as
+in a dispatch pin `foo(::Type{Bar}) = …`. Distinct from
+`JuliaTypeAnnotation` because there is no value expression to
+project (a bare "nothing" would render literally); the printer emits
+only `::` followed by `type`.
+"""
+@document struct JuliaAnonymousTypeAnnotation <: JuliaDocument
+    type::Document
+end
+
+"""
+An empty placeholder that renders as no text at all. The parser
+uses it for the else-branch of an `if …end` with no else clause —
+distinct from `JuliaNothing` (which renders the literal
+`nothing`) and from an empty `JuliaBlock` (which still emits its
+trailing line-chrome, producing a stray blank line before the
+closing `end`).
+"""
+@document struct JuliaEmpty <: JuliaDocument
+end
+
 # ── Statements ────────────────────────────────────────────────────────────────
 
 """
@@ -240,6 +262,70 @@ The inner `assignment` is typically a `JuliaAssignment`.
 """
 @document struct JuliaConst <: JuliaDocument
     assignment::Document
+end
+
+"""
+A docstring attached to a definition — the natural surface form
+Julia writes as a triple-quoted string above a definition. `text` is
+the raw docstring content (no surrounding quotes); `subject` is the
+definition the docstring documents (a `JuliaFunction`, `JuliaConst`,
+`JuliaAssignment`, …). At the `Expr` level Julia desugars a
+docstring to `Core.@doc "text" subject`; the parser recognises that
+pattern and lifts it back to this form so the source renders as a
+docstring, not as a raw macrocall.
+"""
+@document struct JuliaDocstring <: JuliaDocument
+    text::String
+    subject::Document
+end
+
+"""
+An abstract type declaration — `abstract type Name <: Super end` or
+`abstract type Name end`. `header` is the name expression as written
+(a `JuliaIdentifier` for the simple case, a `JuliaSubtype` when a
+supertype is given, a `JuliaCurly` when type parameters appear).
+"""
+@document struct JuliaAbstractType <: JuliaDocument
+    header::Document
+end
+
+"""
+A struct declaration — `struct Name … end` or
+`mutable struct Name … end`. `mutable` is `true` for the mutable
+form; `header` is the name expression as written (same shapes as
+`JuliaAbstractType.header`); `body` is a `JuliaBlock` of field /
+constructor statements. Line-info nodes the parser interleaves in
+the body are stripped, mirroring `_convert_statements` for a plain
+block.
+"""
+@document struct JuliaStruct <: JuliaDocument
+    mutable::Bool
+    header::Document
+    body::Document
+end
+
+"""
+A subtype expression `lhs <: rhs`. Distinct from `JuliaBinaryOp`
+because `<:` is not a runtime operator — the parser emits it as
+`Expr(:<:, lhs, rhs)` and it appears in type headers, not in
+arithmetic. Keeping a dedicated document type lets the printer style
+it as a keyword-tinted operator and lets a future kind-checker
+reason about it without pattern-matching on operator strings.
+"""
+@document struct JuliaSubtype <: JuliaDocument
+    lhs::Document
+    rhs::Document
+end
+
+"""
+A parametric type expression `Foo{T, S, …}` — Julia's
+`Expr(:curly, callee, params…)`. `callee` is the base type
+(typically a `JuliaIdentifier`); `params` are the type arguments,
+which may be identifiers, other parametric types, or `<:` bounds.
+"""
+@document struct JuliaCurly <: JuliaDocument
+    callee::Document
+    params::CellVector
 end
 
 """
@@ -337,8 +423,12 @@ function _julia_operator_string(op::Symbol)
     op === :(>) && return ">"
     op === :(<=) && return "<="
     op === :(>=) && return ">="
+    op === :(===) && return "==="
+    op === :(!==) && return "!=="
     op === :! && return "!"
     op === :~ && return "~"
+    op === :&& && return "&&"
+    op === :|| && return "||"
     op === :(=) && return "="
     op === :(+=) && return "+="
     op === :(-=) && return "-="
