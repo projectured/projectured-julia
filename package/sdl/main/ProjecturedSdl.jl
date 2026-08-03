@@ -27,7 +27,7 @@ using SimpleDirectMediaLayer.LibSDL2
 using ProjecturedDomain.BackendApiModule
 using ProjecturedDomain.DeviceModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
-                         GraphicsPolyline, GraphicsSpline, GraphicsViewport, GraphicsImage,
+                         GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
@@ -896,6 +896,95 @@ function _fill_rounded!(renderer::Ptr{SDL_Renderer}, x::Int, y::Int, w::Int, h_p
     _fill_corner_band!(renderer, x, y + h_px, w, r_bl, r_br, bot_max, f, true)
 end
 
+# Fill one rounded corner band of a border *ring* — the outer shape minus the
+# one inset by `bw` — sampling device rows exactly as `_fill_corner_band!` does.
+# A row still inside the border thickness is solid across the outer span; below
+# that the row emits two spans (left/right), leaving the interior unpainted.
+function _fill_ring_band!(renderer::Ptr{SDL_Renderer}, x::Int, y_edge::Int, w::Int,
+                          r_left::Int, r_right::Int, band::Int, bw::Int,
+                          f::Float64, bottom::Bool)
+    band <= 0 && return
+    rl = r_left * f
+    rr = r_right * f
+    rl_in = max(0, r_left - bw) * f
+    rr_in = max(0, r_right - bw) * f
+    bw_dev = bw * f
+    n = max(0, round(Int, band * f))
+    for i in 0:(n - 1)
+        dydev = i + 0.5
+        il = _corner_inset_dev(rl, dydev) / f
+        ir = _corner_inset_dev(rr, dydev) / f
+        outer_l = x + il
+        outer_r = x + w - ir
+        outer_r <= outer_l && continue
+        ylog = bottom ? (y_edge - (i + 1) / f) : (y_edge + i / f)
+        hlog = 1.0 / f
+        dy_in = dydev - bw_dev
+        if dy_in <= 0
+            fr = Ref(SDL_FRect(Cfloat(outer_l), Cfloat(ylog),
+                               Cfloat(outer_r - outer_l), Cfloat(hlog)))
+            SDL_RenderFillRectF(renderer, fr)
+            continue
+        end
+        inner_l = x + bw + _corner_inset_dev(rl_in, dy_in) / f
+        inner_r = x + w - bw - _corner_inset_dev(rr_in, dy_in) / f
+        if inner_l - outer_l > 0
+            fr = Ref(SDL_FRect(Cfloat(outer_l), Cfloat(ylog),
+                               Cfloat(inner_l - outer_l), Cfloat(hlog)))
+            SDL_RenderFillRectF(renderer, fr)
+        end
+        if outer_r - inner_r > 0
+            fr = Ref(SDL_FRect(Cfloat(inner_r), Cfloat(ylog),
+                               Cfloat(outer_r - inner_r), Cfloat(hlog)))
+            SDL_RenderFillRectF(renderer, fr)
+        end
+    end
+end
+
+# Fill the border ring of a rounded rectangle (per-corner radii) of thickness
+# `bw` with the renderer's current draw color, leaving the interior untouched.
+function _stroke_rounded_ring!(renderer::Ptr{SDL_Renderer}, x::Int, y::Int, w::Int, h_px::Int,
+                               r_tl::Int, r_tr::Int, r_br::Int, r_bl::Int, bw::Int)
+    (w <= 0 || h_px <= 0 || bw <= 0) && return
+    max_r = min(w ÷ 2, h_px ÷ 2)
+    bw = min(bw, max_r)
+    bw <= 0 && return
+    r_tl = clamp(r_tl, 0, max_r); r_tr = clamp(r_tr, 0, max_r)
+    r_br = clamp(r_br, 0, max_r); r_bl = clamp(r_bl, 0, max_r)
+    if (r_tl | r_tr | r_br | r_bl) == 0
+        # Four edge rectangles that tile the ring without overlapping, so a
+        # translucent border color does not double-blend at the corners.
+        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x), Int32(y), Int32(w), Int32(bw))))
+        SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x), Int32(y + h_px - bw),
+                                                  Int32(w), Int32(bw))))
+        side_h = h_px - 2bw
+        if side_h > 0
+            SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x), Int32(y + bw),
+                                                      Int32(bw), Int32(side_h))))
+            SDL_RenderFillRect(renderer, Ref(SDL_Rect(Int32(x + w - bw), Int32(y + bw),
+                                                      Int32(bw), Int32(side_h))))
+        end
+        return
+    end
+    # The corner bands run to at least the border thickness, so a border wider
+    # than its radius still gets its straight part painted there rather than
+    # falling into the gap between the bands and the side spans.
+    top_band = max(max(r_tl, r_tr), bw)
+    bot_band = max(max(r_bl, r_br), bw)
+    mid_h = h_px - top_band - bot_band
+    if mid_h > 0
+        left = Ref(SDL_Rect(Int32(x), Int32(y + top_band), Int32(bw), Int32(mid_h)))
+        SDL_RenderFillRect(renderer, left)
+        right = Ref(SDL_Rect(Int32(x + w - bw), Int32(y + top_band), Int32(bw), Int32(mid_h)))
+        SDL_RenderFillRect(renderer, right)
+    end
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    f = Float64(fx[]); f <= 0 && (f = 1.0)
+    _fill_ring_band!(renderer, x, y,        w, r_tl, r_tr, top_band, bw, f, false)
+    _fill_ring_band!(renderer, x, y + h_px, w, r_bl, r_br, bot_band, bw, f, true)
+end
+
 function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int, oy::Int)
     x, y = Int(rect.x) + ox, Int(rect.y) + oy
     w, h_px = Int(rect.w), Int(rect.h)
@@ -903,15 +992,28 @@ function _render_rect!(renderer::Ptr{SDL_Renderer}, rect::GraphicsRect, ox::Int,
     r_br, r_bl = Int(rect.radius_br), Int(rect.radius_bl)
     bw = Int(rect.border_width)
     if bw > 0 && rect.border_color.alpha > 0
-        # Outer border-colored rounded rect, then the fill inset by the border
-        # width (radii shrink to stay concentric).
-        SDL_SetRenderDrawColor(renderer, _rgba8(rect.border_color)...)
-        _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
-        if rect.color.alpha > 0
+        if rect.color.alpha >= 1
+            # Opaque fill: outer border-colored rounded rect, then the fill inset
+            # by the border width (radii shrink to stay concentric), so the two
+            # shapes' anti-aliased seam blends fill over border.
+            SDL_SetRenderDrawColor(renderer, _rgba8(rect.border_color)...)
+            _fill_rounded!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl)
             SDL_SetRenderDrawColor(renderer, _rgba8(rect.color)...)
             _fill_rounded!(renderer, x + bw, y + bw, w - 2bw, h_px - 2bw,
                            max(0, r_tl - bw), max(0, r_tr - bw),
                            max(0, r_br - bw), max(0, r_bl - bw))
+        else
+            # Translucent (or absent) fill: the border has to be a true ring, or
+            # the fill would composite against the border color instead of
+            # against whatever is behind the rect.
+            if rect.color.alpha > 0
+                SDL_SetRenderDrawColor(renderer, _rgba8(rect.color)...)
+                _fill_rounded!(renderer, x + bw, y + bw, w - 2bw, h_px - 2bw,
+                               max(0, r_tl - bw), max(0, r_tr - bw),
+                               max(0, r_br - bw), max(0, r_bl - bw))
+            end
+            SDL_SetRenderDrawColor(renderer, _rgba8(rect.border_color)...)
+            _stroke_rounded_ring!(renderer, x, y, w, h_px, r_tl, r_tr, r_br, r_bl, bw)
         end
     else
         SDL_SetRenderDrawColor(renderer, _rgba8(rect.color)...)
@@ -1095,6 +1197,111 @@ function _render_polyline!(renderer::Ptr{SDL_Renderer}, pl::GraphicsPolyline, ox
     pts = [(Int(p[1]) + ox, Int(p[2]) + oy) for p in pl.points]
     _stroke_polyline!(renderer, pts, Int(pl.width), _rgba8(pl.color)...,
                       pl.start_arrow, pl.end_arrow, Int(pl.arrow_size), pl.dash)
+end
+
+# ── Render a GraphicsPolygon element ─────────────────────────────────
+
+# Twice the signed area of the polygon `pts` (the shoelace sum). Its sign is the
+# winding order.
+function _polygon_area2(pts)
+    n = length(pts)
+    a = 0.0
+    for i in 1:n
+        j = i == n ? 1 : i + 1
+        a += pts[i][1] * pts[j][2] - pts[j][1] * pts[i][2]
+    end
+    a
+end
+
+# Cross product of (b - a) × (c - a): positive when a→b→c turns the same way as
+# a polygon whose shoelace area is positive.
+_polygon_cross(a, b, c) =
+    (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1])
+
+# True when `p` is inside (or on) the triangle a-b-c, which must be wound so its
+# cross products are positive.
+function _point_in_triangle(p, a, b, c)
+    _polygon_cross(a, b, p) >= 0 && _polygon_cross(b, c, p) >= 0 &&
+        _polygon_cross(c, a, p) >= 0
+end
+
+# Triangulate the simple polygon `pts` by ear clipping, returning triangles as
+# 1-based index triples into `pts`. A triangle fan would only cover convex
+# outlines and a star marker is concave, so the ears are found the general way:
+# repeatedly clip a convex vertex whose triangle holds no other vertex. Either
+# winding order is accepted — the vertex order is reversed when needed so the
+# convexity test has one sign to look for.
+function _polygon_triangles(pts)
+    n = length(pts)
+    n < 3 && return Tuple{Int,Int,Int}[]
+    remaining = _polygon_area2(pts) < 0 ? collect(n:-1:1) : collect(1:n)
+    tris = Tuple{Int,Int,Int}[]
+    while length(remaining) > 3
+        m = length(remaining)
+        clipped = false
+        for k in 1:m
+            i0 = remaining[k == 1 ? m : k - 1]
+            i1 = remaining[k]
+            i2 = remaining[k == m ? 1 : k + 1]
+            a = pts[i0]; b = pts[i1]; c = pts[i2]
+            _polygon_cross(a, b, c) <= 0 && continue      # reflex or collinear
+            blocked = false
+            for q in remaining
+                (q == i0 || q == i1 || q == i2) && continue
+                if _point_in_triangle(pts[q], a, b, c)
+                    blocked = true
+                    break
+                end
+            end
+            blocked && continue
+            push!(tris, (i0, i1, i2))
+            deleteat!(remaining, k)
+            clipped = true
+            break
+        end
+        if !clipped
+            # No ear left: the outline self-intersects or is degenerate. Fan the
+            # rest so the shape still paints something instead of looping.
+            for k in 2:(length(remaining) - 1)
+                push!(tris, (remaining[1], remaining[k], remaining[k + 1]))
+            end
+            return tris
+        end
+    end
+    push!(tris, (remaining[1], remaining[2], remaining[3]))
+    tris
+end
+
+# Fill the closed polygon `pts` ((x,y) floats) as one SDL_RenderGeometry batch
+# over its ear-clipped triangles.
+function _fill_polygon!(renderer::Ptr{SDL_Renderer}, pts,
+                        r::UInt8, g::UInt8, b::UInt8, a::UInt8)
+    tris = _polygon_triangles(pts)
+    isempty(tris) && return
+    col = SDL_Color(r, g, b, a)
+    z = SDL_FPoint(0.0f0, 0.0f0)
+    verts = SDL_Vertex[SDL_Vertex(SDL_FPoint(Cfloat(p[1]), Cfloat(p[2])), col, z) for p in pts]
+    idx = Cint[]
+    for t in tris
+        push!(idx, Cint(t[1] - 1), Cint(t[2] - 1), Cint(t[3] - 1))
+    end
+    GC.@preserve verts idx begin
+        SDL_RenderGeometry(renderer, Ptr{SDL_Texture}(C_NULL),
+                           pointer(verts), Cint(length(verts)),
+                           pointer(idx), Cint(length(idx)))
+    end
+end
+
+function _render_polygon!(renderer::Ptr{SDL_Renderer}, pg::GraphicsPolygon, ox::Int, oy::Int)
+    pts = [(Float64(p[1]) + ox, Float64(p[2]) + oy) for p in pg.points]
+    length(pts) < 3 && return
+    pg.color.alpha > 0 && _fill_polygon!(renderer, pts, _rgba8(pg.color)...)
+    bw = Int(pg.border_width)
+    if bw > 0 && pg.border_color.alpha > 0
+        # Repeat the first vertex so the stroke closes the outline.
+        _stroke_polyline!(renderer, push!(copy(pts), pts[1]), bw,
+                          _rgba8(pg.border_color)..., false, false, 0)
+    end
 end
 
 function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::Int, oy::Int)
@@ -1298,6 +1505,8 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         _render_line!(renderer, elem, ox, oy)
     elseif elem isa GraphicsPolyline
         _render_polyline!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsPolygon
+        _render_polygon!(renderer, elem, ox, oy)
     elseif elem isa GraphicsSpline
         _render_spline!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCircle

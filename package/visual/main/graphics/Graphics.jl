@@ -25,7 +25,7 @@ import ..ReferenceModule: Reference
 import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_function!, hit_element_at, graphics_size, tessellate_spline, polyline_arrowhead,
-       point_near_polyline
+       point_near_polyline, point_in_polygon
 
 abstract type GraphicsDocument <: Document end
 
@@ -215,6 +215,38 @@ function GraphicsPolyline(points::AbstractVector,
                      Cell(Int32(width)), Cell(_norm_dash(dash)),
                      Cell(start_arrow), Cell(end_arrow),
                      Cell(Int32(arrow_size)), Cell(nothing))
+end
+
+# ── GraphicsPolygon ──────────────────────────────────────────────────────
+
+"""
+    GraphicsPolygon(points, color::StyleColor=color_black; border_width=0, border_color=nothing)
+
+A reactive closed filled shape through `points` (a `Vector{Tuple{Int,Int}}` of
+absolute `(x, y)` pixels) in `color` (a [`StyleColor`](@ref)) — the filled
+counterpart of [`GraphicsPolyline`](@ref). The outline closes on its own, so the
+last point need not repeat the first. An optional `border_width` (pixels) +
+`border_color` (a [`StyleColor`](@ref), or `nothing` for no border) strokes that
+outline over the fill.
+
+The outline may be concave — a star marker is — so backends must triangulate it
+rather than fan it. Self-intersecting outlines are not supported.
+"""
+@document struct GraphicsPolygon <: GraphicsDocument
+    points::Any            # Vector{Tuple{Int,Int}}
+    color::StyleColor
+    border_width::Int32
+    border_color::StyleColor
+end
+
+function GraphicsPolygon(points::AbstractVector,
+                         color::StyleColor=color_black;
+                         border_width::Integer=0, border_color=nothing)
+    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
+    GraphicsPolygon(Cell(pts), Cell(color),
+                    Cell(Int32(border_width)),
+                    Cell(_norm_border(border_color)),
+                    Cell(nothing))
 end
 
 # ── GraphicsSpline ───────────────────────────────────────────────────────
@@ -489,6 +521,31 @@ function point_near_polyline(points::AbstractVector, x::Real, y::Real, tolerance
 end
 
 """
+    point_in_polygon(points, x, y) -> Bool
+
+True when `(x, y)` lies inside the closed polygon `points` (a vector of
+`(x, y)`), by ray casting: a ray along `+x` crosses an odd number of edges.
+Concave outlines are handled; a point exactly on an edge may fall either way.
+Used for filled-shape hit-testing.
+"""
+function point_in_polygon(points::AbstractVector, x::Real, y::Real)
+    n = length(points)
+    n < 3 && return false
+    px = Float64(x); py = Float64(y)
+    inside = false
+    j = n
+    for i in 1:n
+        xi = Float64(points[i][1]); yi = Float64(points[i][2])
+        xj = Float64(points[j][1]); yj = Float64(points[j][2])
+        if (yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi
+            inside = !inside
+        end
+        j = i
+    end
+    inside
+end
+
+"""
     hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int) -> Int or nothing
 
 Returns the 1-based index of the first element in `canvas` whose bounding area
@@ -599,6 +656,10 @@ function _hit_test_element(elem, x::Int, y::Int)
         x >= lx - hw && x <= lx + lw + hw && y >= ly - hw && y <= ly + lh + hw
     elseif elem isa GraphicsPolyline
         point_near_polyline(elem.points, x, y, max(3, Int(elem.width) + 2))
+    elseif elem isa GraphicsPolygon
+        # A filled shape claims its whole interior, unlike the stroked polyline
+        # which only claims a tolerance band around its path.
+        point_in_polygon(elem.points, x, y)
     elseif elem isa GraphicsSpline
         pts = tessellate_spline(elem.points, elem.kind, elem.segments)
         point_near_polyline(pts, x, y, max(3, Int(elem.width) + 2))
@@ -679,6 +740,14 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
         _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
     elseif elem isa GraphicsPolyline || elem isa GraphicsSpline
         hw = max(1, Int(elem.width)) + Int(elem.arrow_size)
+        for p in elem.points
+            px = ox + Int(p[1]); py = oy + Int(p[2])
+            _bounds_extend!(minx, miny, maxx, maxy, px - hw, py - hw, px + hw, py + hw)
+        end
+    elseif elem isa GraphicsPolygon
+        # The outline is the extent; a stroked border straddles it by half its
+        # width, so pad by the whole width and stay conservative.
+        hw = Int(elem.border_width)
         for p in elem.points
             px = ox + Int(p[1]); py = oy + Int(p[2])
             _bounds_extend!(minx, miny, maxx, maxy, px - hw, py - hw, px + hw, py + hw)

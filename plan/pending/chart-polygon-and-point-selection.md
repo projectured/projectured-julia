@@ -24,9 +24,25 @@ one — rather than as a full fill under the interior:
 An opaque fill must come out pixel-identical to today, since that is what every
 existing widget uses.
 
-- [ ] SDL, PDF and web draw the border as a ring
-- [ ] A translucent fill shows the background, not the border colour
-- [ ] `test_visual()` has no new failures
+- [x] SDL, PDF and web draw the border as a ring
+- [x] A translucent fill shows the background, not the border colour
+- [x] `test_visual()` has no new failures
+
+Notes from implementing:
+- The *fill's* alpha selects the path: at `alpha >= 1` all three backends keep
+  the two-fill route verbatim, so an opaque rect issues the same drawing calls
+  as before (confirmed pixel-identical on the PDF output); below that the fill
+  is painted inset and the border becomes a ring.
+- The ring's spans tile without overlapping — four edge rectangles when the
+  radii are zero, a left and a right span per device row otherwise — so a
+  translucent *border* colour does not double-blend at the corners either. Each
+  corner band runs to at least the border width, so a border wider than its
+  radius still has its straight part painted by the band instead of falling into
+  the gap between the band and the side spans.
+- A fully transparent fill is the same case, and it exposed a live bug: the
+  widget focus ring (`_push_focus_ring!` — transparent fill plus a 2px border)
+  was painting a solid opaque rect over the focused control. It now renders as
+  the ring its own comment already claimed it was.
 
 ## 2. `GraphicsPolygon`
 
@@ -47,9 +63,20 @@ shape, the polygon counterpart of `GraphicsPolyline`.
 - `hit_element_at` needs a point-in-polygon branch, or the primitive is
   invisible to clicks; `graphics_size` needs its bounds.
 
-- [ ] The primitive, its constructor and its documentation
-- [ ] All three backends, plus hit-testing and bounds
+- [x] The primitive, its constructor and its documentation
+- [x] All three backends, plus hit-testing and bounds
 - [ ] Chart markers: diamond, triangle up/down/left/right, pentagon, star
+
+Notes from implementing:
+- Only SDL needs the triangulation. PDF's `f` and the canvas's `fill()` both use
+  the nonzero winding rule, which fills a concave outline directly, so ear
+  clipping stays a private SDL helper rather than a shared graphics one.
+- The ear clipper normalizes the vertex order by the sign of the shoelace area,
+  so either winding works; a self-intersecting outline (no ear left) falls back
+  to a fan over what remains instead of looping.
+- `point_in_polygon` is exported next to `point_near_polyline`: the filled shape
+  claims its whole interior, where the stroked polyline only claims a tolerance
+  band around its path.
 
 ## 3. Point selection
 
@@ -92,3 +119,6 @@ Notes from implementing:
 - Snapping the crosshair used to scan every scatter point on each pointer move;
   it now declines a folded cloud, which also removes an O(n)-per-mouse-move
   cost that was already there.
+- Decimated series points are memoized in the layout, which both the printer and
+  the reader now share. Before that every pointer move re-decimated the visible
+  range; forty moves over a million-sample chart now cost 0.1 ms in total.

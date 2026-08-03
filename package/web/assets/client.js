@@ -298,6 +298,7 @@
       case "rect":   return drawRect(ctx, e);
       case "line":   return drawLine(ctx, e);
       case "polyline": return drawPolyline(ctx, e);
+      case "polygon": return drawPolygon(ctx, e);
       case "circle": return drawCircle(ctx, e);
       case "group":  return drawGroup(ctx, e);
       case "clip":   return drawClip(ctx, e);
@@ -337,16 +338,35 @@
     ctx.fillStyle = c; ctx.fill();
   }
 
-  // Mirror Sdl's _render_rect!: optional outer border-colored rounded rect, then
-  // the fill inset by the border width (radii shrink to stay concentric).
+  function strokeRounded(ctx, x, y, w, h, rtl, rtr, rbr, rbl, bw, c) {
+    if (w <= 0 || h <= 0 || bw <= 0) return;
+    roundRectPath(ctx, x, y, w, h, rtl, rtr, rbr, rbl);
+    ctx.strokeStyle = c; ctx.lineWidth = bw; ctx.stroke();
+  }
+
+  // Mirror Sdl's _render_rect!: an opaque fill paints the border-colored rounded
+  // rect with the fill inset over it (radii shrink to stay concentric); a
+  // translucent fill paints only the inset and strokes the border as a ring, or
+  // the fill would composite against the border colour instead of against
+  // whatever is behind the rect.
   function drawRect(ctx, e) {
     const bw = e.bw | 0;
+    const inset = () => {
+      if (e.c[3] <= 0) return;
+      fillRounded(ctx, e.x + bw, e.y + bw, e.w - 2 * bw, e.h - 2 * bw,
+        Math.max(0, e.rtl - bw), Math.max(0, e.rtr - bw),
+        Math.max(0, e.rbr - bw), Math.max(0, e.rbl - bw), col(e.c));
+    };
     if (bw > 0 && e.bc[3] > 0) {
-      fillRounded(ctx, e.x, e.y, e.w, e.h, e.rtl, e.rtr, e.rbr, e.rbl, col(e.bc));
-      if (e.c[3] > 0) {
-        fillRounded(ctx, e.x + bw, e.y + bw, e.w - 2 * bw, e.h - 2 * bw,
-          Math.max(0, e.rtl - bw), Math.max(0, e.rtr - bw),
-          Math.max(0, e.rbr - bw), Math.max(0, e.rbl - bw), col(e.c));
+      if (e.c[3] >= 255) {
+        fillRounded(ctx, e.x, e.y, e.w, e.h, e.rtl, e.rtr, e.rbr, e.rbl, col(e.bc));
+        inset();
+      } else {
+        inset();
+        const hb = bw / 2;
+        strokeRounded(ctx, e.x + hb, e.y + hb, e.w - bw, e.h - bw,
+          Math.max(0, e.rtl - hb), Math.max(0, e.rtr - hb),
+          Math.max(0, e.rbr - hb), Math.max(0, e.rbl - hb), bw, col(e.bc));
       }
     } else {
       fillRounded(ctx, e.x, e.y, e.w, e.h, e.rtl, e.rtr, e.rbr, e.rbl, col(e.c));
@@ -422,6 +442,26 @@
     };
     if (e.ea) head(true);
     if (e.sa) head(false);
+  }
+
+  // A closed filled shape, the filled counterpart of drawPolyline. The canvas
+  // fill uses the nonzero winding rule, so a concave outline (a star marker)
+  // needs no triangulation here; the border strokes the same path.
+  function drawPolygon(ctx, e) {
+    const pts = e.pts || [];
+    if (pts.length < 3) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    if (e.c[3] > 0) { ctx.fillStyle = col(e.c); ctx.fill(); }
+    const bw = e.bw | 0;
+    if (bw > 0 && e.bc[3] > 0) {
+      ctx.strokeStyle = col(e.bc);
+      ctx.lineWidth = bw;
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    }
   }
 
   function drawCircle(ctx, e) {

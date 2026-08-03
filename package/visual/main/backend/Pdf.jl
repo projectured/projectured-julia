@@ -24,7 +24,7 @@ written.
 module PdfBackendModule
 
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsPolyline, GraphicsSpline,
+                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _canvas_content_bounds, tessellate_spline, polyline_arrowhead
 import ..ColorModule: StyleColor
@@ -182,6 +182,20 @@ function _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, r, g, b, a)
     print(ctx.buf, " f\n")
 end
 
+# Stroke the border of a rounded rect as a ring: the same path inset by half the
+# border width, stroked at that width, so the interior stays unpainted — the
+# rectangular equivalent of `_stroke_ring!`.
+function _stroke_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, bw, r, g, b, a)
+    (a == 0 || bw <= 0 || w <= bw || h <= bw) && return
+    hb = bw / 2
+    print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b), " RG ",
+          n2(bw), " w [] 0 d ")
+    _rrect_path!(ctx.buf, L + hb, B + hb, w - bw, h - bw,
+                 max(0, rtl - hb), max(0, rtr - hb),
+                 max(0, rbr - hb), max(0, rbl - hb))
+    print(ctx.buf, " S\n")
+end
+
 function paint_rect!(ctx, rect, ox, oy)
     x = ox + Int(rect.x); y = oy + Int(rect.y); w = Int(rect.w); h = Int(rect.h)
     (w <= 0 || h <= 0) && return
@@ -191,11 +205,24 @@ function paint_rect!(ctx, rect, ox, oy)
     rbr, rbl = Int(rect.radius_br), Int(rect.radius_bl)
     bw = Int(rect.border_width)
     if bw > 0 && rect.border_color.alpha > 0
-        _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, _rgba8(rect.border_color)...)
-        rect.color.alpha > 0 && _fill_rrect!(ctx, L + bw, B + bw, w - 2bw, h - 2bw,
-                                   max(0, rtl - bw), max(0, rtr - bw),
-                                   max(0, rbr - bw), max(0, rbl - bw),
-                                   _rgba8(rect.color)...)
+        if rect.color.alpha >= 1
+            # Opaque fill: the border-colored shape with the fill inset over it.
+            _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, _rgba8(rect.border_color)...)
+            _fill_rrect!(ctx, L + bw, B + bw, w - 2bw, h - 2bw,
+                         max(0, rtl - bw), max(0, rtr - bw),
+                         max(0, rbr - bw), max(0, rbl - bw),
+                         _rgba8(rect.color)...)
+        else
+            # Translucent (or absent) fill: the border has to be a true ring, or
+            # the fill would composite against the border color instead of
+            # against whatever is behind the rect.
+            rect.color.alpha > 0 && _fill_rrect!(ctx, L + bw, B + bw, w - 2bw, h - 2bw,
+                                       max(0, rtl - bw), max(0, rtr - bw),
+                                       max(0, rbr - bw), max(0, rbl - bw),
+                                       _rgba8(rect.color)...)
+            _stroke_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, bw,
+                           _rgba8(rect.border_color)...)
+        end
     else
         _fill_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, _rgba8(rect.color)...)
     end
@@ -310,6 +337,43 @@ function paint_polyline!(ctx, pl, ox, oy)
                             pl.start_arrow, pl.end_arrow, Int(pl.arrow_size), pl.dash)
 end
 
+# Fill a closed polygon, then stroke its outline when a border is asked for.
+# The nonzero winding rule of the `f` operator fills a concave outline (a star
+# marker) directly, so no triangulation is needed in vector output.
+function paint_polygon!(ctx, pg, ox, oy)
+    gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pg.points]
+    length(gpts) < 3 && return
+    bw = Int(pg.border_width)
+    bordered = bw > 0 && pg.border_color.alpha > 0
+    filled = pg.color.alpha > 0
+    (filled || bordered) || return
+    ys = [p[2] for p in gpts]
+    _on_page(ctx, minimum(ys) - bw, maximum(ys) + bw) || return
+    flip = [(p[1], _flip(ctx, p[2])) for p in gpts]
+    emit_path() = begin
+        print(ctx.buf, n2(flip[1][1]), " ", n2(flip[1][2]), " m ")
+        for i in 2:length(flip)
+            print(ctx.buf, n2(flip[i][1]), " ", n2(flip[i][2]), " l ")
+        end
+        print(ctx.buf, "h")
+    end
+    if filled
+        fr, fg, fb, fa = _rgba8(pg.color)
+        print(ctx.buf, "/", gs_for!(ctx, fa), " gs ", c01(fr), " ", c01(fg), " ", c01(fb), " rg ")
+        emit_path()
+        print(ctx.buf, " f\n")
+    end
+    if bordered
+        br, bg, bb, ba = _rgba8(pg.border_color)
+        # A separate stroke pass rather than `B`, so fill and border keep their
+        # own ExtGState alpha.
+        print(ctx.buf, "/", gs_for!(ctx, ba), " gs ", c01(br), " ", c01(bg), " ", c01(bb), " RG ",
+              n2(bw), " w 1 j [] 0 d ")
+        emit_path()
+        print(ctx.buf, " S\n")
+    end
+end
+
 function paint_spline!(ctx, sp, ox, oy)
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     gpts = [(ox + p[1], oy + p[2]) for p in tess]
@@ -397,6 +461,8 @@ function paint_elem!(ctx, elem, ox, oy)
         paint_line!(ctx, elem, ox, oy)
     elseif elem isa GraphicsPolyline
         paint_polyline!(ctx, elem, ox, oy)
+    elseif elem isa GraphicsPolygon
+        paint_polygon!(ctx, elem, ox, oy)
     elseif elem isa GraphicsSpline
         paint_spline!(ctx, elem, ox, oy)
     elseif elem isa GraphicsCircle

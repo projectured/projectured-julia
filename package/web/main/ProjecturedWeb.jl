@@ -20,7 +20,7 @@ using Base64: base64encode
 # name, so the extension sites read BackendModule.*.
 using ProjecturedDomain.BackendApiModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsPolyline, GraphicsSpline,
+                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ProjecturedDomain.CollectionModule: ListNode, CellVector, ComputedCellVector
@@ -230,6 +230,10 @@ function _serialize_node(elem)
                  "as" => Int(elem.arrow_size))
         elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
         return d
+    elseif elem isa GraphicsPolygon
+        pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
+        return Dict("t" => "polygon", "pts" => pts, "c" => _rgba(elem.color),
+                    "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
     elseif elem isa GraphicsSpline
         # Tessellate server-side so the browser only needs the polyline path.
         tess = tessellate_spline(elem.points, elem.kind, elem.segments)
