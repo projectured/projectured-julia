@@ -190,13 +190,76 @@ idempotent.
 
 ### Phase 3 — tripwire flip [ ]
 
-- [ ] Replace the `::Function` ctor body with
-      `error("Cell(f::Function) is ambiguous — ComputedCell(f)/Cell(Computed(f)) for a computed cell; after this migration a bare function argument will be stored as a value")`,
-      delete `as_value`.
-- [ ] Full baseline-diff suites in **both** repos (run under `systemd-run` MemoryMax; omnetpp
-      with `-t 4`; compare counts against a clean-main baseline — targeted tests are not
-      sufficient for a shared-seam refactor). Any tripwire hit is a missed sweep site: fix,
-      re-run.
+- [x] `ReactiveCell{T}(::Function)` now errors; `as_value` and the outer
+      `ReactiveCell(f::Function; as_value)` are deleted.
+- [x] `as_value`'s one real user (`ObjectToSyntax.jl`) moves to the interim
+      `c = Cell(nothing); set_cell_value!(c, filter)` idiom — the same dance Widget.jl already
+      does — because during this phase storing a function as a value has no constructor
+      spelling. Phase 5 collapses all seven of these together.
+- [x] **The tripwire immediately earned its keep: it found a whole class the grep could not
+      see.** A bare lambda passed as a *positional argument to a `@document` constructor*
+      relies on the autowrap (`$a isa Cell ? $a : Cell($a)`) turning it into a thunk — there
+      is no `Cell(` token at the call site at all. `ProjecturedVisualExample` failed to
+      precompile, which cascaded into the visual, domain **and** omnetpp suites (all three
+      depend on it), so three of five suites never started.
+- [x] Static audit for the whole class, since the tripwire only fires on executed code: for
+      every `() ->` in both repos, resolve its enclosing call by scanning backwards across
+      line breaks to the innermost unclosed `(` (a line-based grep misses multi-line calls —
+      the very site that broke was one). 357 lambdas are not in a known thunk API; of those,
+      only ones whose enclosing call is a **type constructor** can reach the autowrap.
+      Classification of those:
+    - **Safe — plain `struct`, so a `Function` is just a field value**: `SimulationModel`,
+      `EditorDomain`, `Resource`, `MCPResource`, `Example`, `HoverProbeProjection`.
+    - **Safe — `@document` with an explicit `::Function` constructor** that never reaches the
+      autowrap: `TextString` (93 sites), `SyntaxLeaf`, `TextBlock`, `SyntaxConcatenation`;
+      and `SyntaxNode`, whose keyword form routes through `_children(f::Function)` →
+      `CellVector(f)`.
+    - **Broken — `@document`, no `::Function` constructor → autowrap → thunk. 13 sites
+      fixed**: `GraphicsLine` ×6, `GraphicsCircle` ×3, `GraphicsPolyline` ×2 (all in
+      `visual/example/document/RotatingVector.jl` plus omnetpp's `Mm1kLive.jl`),
+      `JsonNumber` ×1 (`domain/test/document/JsonTest.jl`), `SyntaxNavigation` ×1
+      (`domain/main/sql/SqlToSyntax.jl`).
+- [x] Re-audit reports 0 remaining, and all 12 packages using `ComputedCell` can resolve it.
+- [x] **A third class, found by the next tripwire run: the internal forwarders.** A
+      constructor whose *own* `::Function` method makes it "safe" from the autowrap still had
+      to build the thunk somehow, and did it with `Cell(<variable>)` — invisible to any grep
+      for `Cell(() ->`. One line, `text/Text.jl:167`
+      (`TextString(content::Function, …) = TextString(Cell(content), …)`), accounted for
+      **692 failures in the domain suite and 115 in visual**, because `SyntaxLeaf(f)`,
+      `PrimitiveToText`, `PrimitiveToSyntax` and every `@projection_template` funnel through
+      it. Fixed sites:
+    - `visual/main/text/Text.jl:167` — the root.
+    - `visual/main/syntax/Syntax.jl:352` — `SyntaxConcatenation(thunk::Function)`.
+    - `domain/main/conversation/ConversationEditor.jl:465` and omnetpp
+      `presentation/…/VectorPlot.jl:257` — `Cell(name)` where `name` is a locally-defined
+      zero-arg function, so not even `::Function`-annotated.
+- [x] Full baseline-diff suites in **both** repos: **all five match baseline exactly with the
+      tripwire armed and zero hits** — kernel 480/3/2/485 (known Rule C), base 342,
+      visual 49236 + 1 broken, domain 111161 + 5 broken, omnetpp 5164.
+
+**Correction to a comment the fix touched.** `Syntax.jl`'s `SyntaxConcatenation(thunk::Function)`
+carried the claim that a bare `Function` is "stored AS IT IS … the engine recognises one by
+finding an unevaluated `Function` in the field". That is not what the code did: the `@document`
+autowrap built `Cell(thunk)`, a *computed* cell, so `_find_conditional`'s
+`getfield(out, f)[]` evaluates the thunk and gets the children vector, never a `Function`.
+The migration preserves the real behaviour (`ComputedCell(thunk)`) rather than the comment's
+description, and the comment now states what the code does. Worth noting: after this plan a
+field genuinely *can* hold a function unevaluated, so the mechanism the comment describes
+becomes implementable for the first time — but changing `_find_conditional` is a behaviour
+change and is not part of this plan.
+
+**Three classes, not one.** The sweep had to cover: (1) the explicit `Cell(() -> …)` spelling
+— greppable, 408 sites; (2) a bare lambda passed to a `@document` constructor, caught by the
+autowrap — needs a cross-line enclosing-call audit, 13 sites; (3) a forwarder building the
+thunk from a *variable*, `Cell(f)` — findable only by knowing `f` holds a function, 4 sites.
+The original survey counted class (1) exactly, guessed class (3) at one site, and missed class
+(2) entirely. Only the tripwire found (2) and (3); no amount of grepping would have.
+
+**Lesson for the plan's own premise.** The survey's "generic wrap seams are healed with zero
+edits" claim was right about the *seams* but hid this: the seams are healed, yet the call sites
+that were *feeding a function into* those seams still meant "thunk". The sweep had to cover
+both the explicit `Cell(f)` spelling and the implicit constructor-argument one, and only the
+second needed a real audit. A grep for `Cell(` can never find the second.
 
 ### Phase 4 — remove tripwire [ ]
 

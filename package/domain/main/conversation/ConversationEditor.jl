@@ -462,7 +462,7 @@ end
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
-    ts = TextString(Cell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
+    ts = TextString(ComputedCell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
     set_cell_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     _attach_caret!(TextBlock(ts), c, 1, () -> length(show()))

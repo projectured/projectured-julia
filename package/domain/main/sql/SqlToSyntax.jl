@@ -769,9 +769,9 @@ function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::
 
     # No delimiters, no separator, no indentation — the node exists only so the whole
     # condition has a level to select (`∅`). That is a navigation anchor, not a sequence.
-    # Positional (content, selection): SyntaxNavigation has no keyword constructor, and a
-    # `Function` content is wrapped as a computed cell so the child stays lazily projected.
-    node = SyntaxNavigation(() -> expr_im[].output, sel)
+    # Positional (content, selection): SyntaxNavigation has no keyword constructor. The
+    # content is a computed cell so the child stays lazily projected.
+    node = SyntaxNavigation(ComputedCell(() -> expr_im[].output), sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap

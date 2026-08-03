@@ -343,13 +343,14 @@ end
 SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
     SyntaxConcatenation(CellVector(Cell[Cell(c) for c in children]), nothing)
 
-# A bare `Function` is stored AS IT IS — it is a `@projection_template` children *thunk*
-# (a conditional-children node: `return` vs `return <value>`), and the engine recognises
-# one by finding an unevaluated `Function` in the field. Coercing it into a `CellVector`
-# would replace it with a cell-wrapping thunk, and the markers it returns would never be
-# resolved. A hand-written projection that wants reactive children says so explicitly:
+# A `Function` becomes the children field's own derivation: it is a
+# `@projection_template` children *thunk* (a conditional-children node: `return` vs
+# `return <value>`), and the markers in the vector it returns are resolved from that
+# field directly. Coercing it into a `CellVector` would interpose a per-element
+# cell-wrapping thunk, and those markers would never be resolved. A hand-written
+# projection that wants reactive children says so explicitly:
 # `SyntaxConcatenation(CellVector(f))`.
-SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(thunk, nothing)
+SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(ComputedCell(thunk), nothing)
 
 # A concatenation answers the compound contract with the defaults throughout: it
 # has children, and nothing else. Every `nothing` here is a span the printer does

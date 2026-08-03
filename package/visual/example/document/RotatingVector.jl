@@ -57,16 +57,16 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     cos_baseline = GraphicsLine(cx, y_top, cx, y_top + n, color_solarized_content_darker; width = 1)
     cos_axis     = GraphicsLine(cx - r, y_top, cx + r, y_top, color_solarized_content_darker; width = 1)
 
-    # The animated elements use the cell-level positional constructor, which
-    # wraps each argument in a `Cell` automatically: a function argument becomes
-    # a *computed* cell, a plain value a static one. So the reactive fields are
-    # just thunks passed in place — no `set_cell_function!` — and they re-evaluate
-    # each frame because they read `get_reactive_clock_time(clock)`.
+    # The animated elements use the cell-level positional constructor, which wraps
+    # each argument in a `Cell`: a `ComputedCell` stays one, a plain value becomes a
+    # static cell. So the reactive fields are derivations passed in place — no
+    # `set_cell_function!` — and they re-evaluate each frame because they read
+    # `get_reactive_clock_time(clock)`.
 
     # the rotating dot — its centre (cx, cy) SUBSCRIBES to time.
     dot = GraphicsCircle(
-        () -> round(Int32, cx + r * cos(angle(get_reactive_clock_time(clock)))),  # cx
-        () -> round(Int32, cy - r * sin(angle(get_reactive_clock_time(clock)))),  # cy
+        ComputedCell(() -> round(Int32, cx + r * cos(angle(get_reactive_clock_time(clock))))),  # cx
+        ComputedCell(() -> round(Int32, cy - r * sin(angle(get_reactive_clock_time(clock))))),  # cy
         7,                                          # radius
         color_solarized_magenta,                    # fill (magenta)
         0,                                          # border_width — filled, no outline
@@ -77,11 +77,11 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # sits at the chart's left edge at the dot's exact cy. `points` is the only
     # computed field.
     sin_chart = GraphicsPolyline(
-        () -> begin
+        ComputedCell(() -> begin
             t = get_reactive_clock_time(clock)          # SUBSCRIBE
             Tuple{Int,Int}[(x_left + i,
                             round(Int, cy - r * sin(angle(t) - i * dt))) for i in 0:n]
-        end,
+        end),
         color_solarized_blue,       # color (blue)
         2,                          # width
         false, false, 8,            # start_arrow, end_arrow, arrow_size
@@ -90,11 +90,11 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # cosine chart — aligned to the X axis, scrolling down. Newest sample (i = 0)
     # sits at the chart's top edge at the dot's exact cx.
     cos_chart = GraphicsPolyline(
-        () -> begin
+        ComputedCell(() -> begin
             t = get_reactive_clock_time(clock)          # SUBSCRIBE
             Tuple{Int,Int}[(round(Int, cx + r * cos(angle(t) - i * dt)),
                             y_top + i) for i in 0:n]
-        end,
+        end),
         color_solarized_green,      # color (green)
         2,                          # width
         false, false, 8,            # start_arrow, end_arrow, arrow_size
@@ -107,19 +107,19 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # dashes don't crawl as the dot moves.
     sin_link = GraphicsLine(
         x_left,                     # x1 — fixed chart edge
-        () -> dot.cy,               # y1
-        () -> dot.cx,               # x2
-        () -> dot.cy,               # y2
+        ComputedCell(() -> dot.cy), # y1
+        ComputedCell(() -> dot.cx), # x2
+        ComputedCell(() -> dot.cy), # y2
         color_solarized_content_lighter,  # color (base1)
         1,                          # width
         (5, 5),                     # dash (on, off)
         nothing)                    # selection
 
     cos_link = GraphicsLine(
-        () -> dot.cx,               # x1
+        ComputedCell(() -> dot.cx), # x1
         y_top,                      # y1 — fixed chart edge
-        () -> dot.cx,               # x2
-        () -> dot.cy,               # y2
+        ComputedCell(() -> dot.cx), # x2
+        ComputedCell(() -> dot.cy), # y2
         color_solarized_content_lighter,  # color (base1)
         1,                          # width
         (5, 5),                     # dash (on, off)

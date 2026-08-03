@@ -18,8 +18,6 @@ recompute on next read.
     ComputedCell(f)                   # untyped computed cell – f is the thunk (zero args)
     ReactiveCell{T}(value)            # typed primitive cell (type-stable reads)
     ReactiveCell{T}(Computed(f))      # typed computed cell (f is the thunk)
-    Cell(f::Function)                 # untyped computed cell – f is the thunk (zero args)
-    Cell(f::Function; as_value=true)  # primitive holding f AS a value, not a thunk
 
 # Reading and writing
 
@@ -56,20 +54,14 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
         c.dependents = nothing
         return c
     end
-    # A `Function` argument is the cell's *thunk* (a computed cell); pass
-    # `as_value = true` to instead store the function itself AS the value — a valid
-    # primitive holding `f` — since a bare `Cell(f)` reads `f` as a thunk.
-    function ReactiveCell{T}(f::Function; as_value::Bool = false) where {T}
-        if as_value
-            return new{T}(f, nothing, true, nothing, nothing)
-        end
-        c = new{T}()
-        c.thunk = f
-        c.valid = false
-        c.deps = nothing
-        c.dependents = nothing
-        return c
-    end
+    # Transitional: refuse a bare function while the call sites are being moved onto
+    # `Computed`, so a site that still means "thunk" fails loudly instead of silently
+    # becoming a cell holding a function. Deleted once none remain, at which point a
+    # `Function` falls through to the value constructor above like any other argument.
+    ReactiveCell{T}(::Function) where {T} = error(
+        "a bare function argument is ambiguous: write ComputedCell(f) or " *
+        "ReactiveCell{T}(Computed(f)) for a computed cell — once this guard is " *
+        "removed, Cell(f) will store f AS the value")
 end
 
 # Lazily allocate the edge containers on first use. A cell that never reads another
@@ -92,12 +84,6 @@ const Cell = ReactiveCell{Any}
 
 """Primitive untyped cell holding `value`."""
 ReactiveCell(value) = ReactiveCell{Any}(value)
-
-"""
-Untyped cell from a `Function`: by default `f` is the cell's thunk (a computed
-cell); with `as_value = true`, `f` is stored AS the cell's value (a primitive).
-"""
-ReactiveCell(f::Function; as_value::Bool = false) = ReactiveCell{Any}(f; as_value)
 
 """
     ComputedCell(f) -> Cell

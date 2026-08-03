@@ -50,7 +50,7 @@ delete!(obj, "email")
 
 # computed JsonNumber
 base = Cell(100)
-comp_num = JsonNumber(() -> base[] * 2)
+comp_num = JsonNumber(ComputedCell(() -> base[] * 2))
 @test comp_num.value == 200
 base[] = 50
 @test comp_num.value == 100

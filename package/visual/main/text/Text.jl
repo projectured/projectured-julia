@@ -164,7 +164,7 @@ TextString(content::AbstractString) =
     TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
-    TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(ComputedCell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 # StyleText bridge: a projection holding a merged (font, color) style value can
 # build a run without unpacking it. The document model itself is unchanged —
