@@ -189,8 +189,11 @@ Returns the two endpoints for a degenerate range.
 function nice_ticks(lo::Real, hi::Real, target::Integer=6)
     lo = Float64(lo); hi = Float64(hi)
     (isfinite(lo) && isfinite(hi) && hi > lo) && target >= 1 || return Float64[lo, hi]
-    span = nice_num(hi - lo, false)
-    step = nice_num(span / max(target - 1, 1), true)
+    # The interval comes straight from the range, not from Heckbert's rounded-up
+    # span: he expands the axis out to whole ticks, and we clip ticks to the
+    # range instead, so rounding the span first would leave the axis with a
+    # third of the ticks that were asked for.
+    step = nice_num((hi - lo) / max(target - 1, 1), true)
     step > 0 || return Float64[lo, hi]
     first_tick = ceil(lo / step) * step
     ticks = Float64[]

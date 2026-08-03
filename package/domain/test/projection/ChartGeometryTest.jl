@@ -71,6 +71,13 @@ function test_chart_geometry()
             @test first(ticks) >= 0.0 && last(ticks) <= 100.0
             @test 3 <= length(ticks) <= 12
 
+            # Ticks are clipped to the range rather than expanding it, so the
+            # count has to come out near the target instead of a third of it.
+            for (lo, hi, target) in ((-1.08, 1.08, 5), (0.0, 2.16, 5), (0.0, 3.0, 7))
+                ts = ChartGeometryModule.nice_ticks(lo, hi, target)
+                @test length(ts) >= target - 2
+            end
+
             # Every tick lands inside the requested range, whatever the range.
             for (lo, hi) in ((0.0, 1.0), (-5.0, 5.0), (1e-4, 3e-4), (0.0, 1e7))
                 ts = ChartGeometryModule.nice_ticks(lo, hi, 5)

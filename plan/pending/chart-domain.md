@@ -589,10 +589,47 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
         constructs as the sketch intended.
       - `series_symbol` treats `:cycle` (not `nothing`) as "take the cycle",
         since `symbol` is a `Symbol` field.
-- [ ] **P1 — line chart pipeline.** Both projection stages; axes/ticks/grid/
-      title, plot viewport, polyline + steps/pins draw styles, markers, color
-      cycle; `chart_line_example`; printer + reactivity tests. Exit:
-      `test_printer(chart_line_example)` green, visible in the SDL editor.
+- [x] **P1 — line chart pipeline.** DONE (example registration moves to P2 with
+      the other three types). Both projection stages; axes/ticks/grid/title,
+      plot viewport, polyline + steps/pins draw styles, markers, color cycle.
+      Exit: `test_chart()` 77/77 and `test_chart_scale()` 5/5 green; rendered to
+      PDF and visually verified.
+
+      Decisions and discoveries:
+      - `nice_ticks` does NOT use Heckbert's rounded-up span. Heckbert expands
+        the axis out to whole ticks; we clip ticks to the range instead, and
+        combining the two left a [-1.08, 1.08] axis with three ticks. The
+        interval now comes straight from `(hi-lo)/(target-1)`.
+      - Series types needed **hand-written mixed positional+keyword
+        constructors** (`ChartLineSeries(label, x, y; symbol=…)`, and the same
+        for the other three plus `Chart(title, series; …)`). The macro emits
+        all-positional or all-keyword, never the mix, so `label`/`x`/`y` would
+        otherwise have had to be passed as keywords. Typed arguments keep them
+        strictly more specific than the generated arity-3 form (the `GraphEdge`
+        precedent).
+      - **Every node of a reference must name its type, terminal included** —
+        `@reference ::Chart.title` is under-typed, `::Chart.title::String` is
+        not. Stage 1's forward map types the `chart` step from
+        `get_reference_node_type(iomap.input)` rather than a literal `::Chart`,
+        so a `ChartNothing` root maps correctly too. This is D8's risk showing
+        up on the first selection test; typing the step fixed it there and
+        should be applied the same way in stage 2.
+      - `ChainingProjectionIoMap`'s field is `step_iomaps::Vector{Cell}` — reach
+        a stage's iomap with `iomap.step_iomaps[i][]`.
+      - The renderer is a plain `struct … <: Projection` with a
+        `measure::Function` field, not `@projection`: a `Function` in a reactive
+        field is read as a thunk (`TextToGraphics` is the precedent).
+      - Canvas w/h are `ComputedCell`s over `ctx.available_width/height`, so a
+        resize reflows the same canvas object instead of replacing it.
+      - **Gap found:** `GraphicsPolyline` has no `dash` field (only
+        `GraphicsLine` does), so `line_style` cannot yet reach a series line.
+        Gridlines are dashed; series lines are solid. Faking dashes out of many
+        short polylines is against house rules, so this is scheduled as P1b —
+        add real `dash` support to `GraphicsPolyline` across the three backends.
+- [ ] **P1b — `GraphicsPolyline` dash support.** Add a `dash` field to
+      `GraphicsPolyline` (phase-continuous across segments) plus SDL, PDF and
+      web draw paths, then wire `ChartLineSeries.line_style`. Touches
+      `package/visual` + backends; benefits the graph domain too.
 - [ ] **P2 — scatter, bar, histogram printers.** All placements, histogram
       transforms + overflow cells, mismatch placeholder, remaining examples.
       Exit: printer tests for all four types incl. the placeholder assertion.

@@ -165,6 +165,19 @@ entry of the chart's color cycle.
     visible::Bool = true
 end
 
+# The columns positional, the styling by keyword — the shape anyone actually
+# writes. The macro generates either all-positional or all-keyword, never the
+# mix, so this is hand-written (as `GraphEdge` is); the typed arguments keep it
+# strictly more specific than the generated arity-3 form.
+function ChartLineSeries(label::AbstractString, x::AbstractVector, y::AbstractVector;
+                         sorted::Bool=issorted(x), draw_style::Symbol=:linear,
+                         line_style::Symbol=:solid, line_width::Integer=1,
+                         symbol::Symbol=:none, symbol_size::Integer=4,
+                         color=nothing, visible::Bool=true)
+    ChartLineSeries(String(label), x, y, sorted, draw_style, line_style,
+                    Int(line_width), symbol, Int(symbol_size), color, visible, nothing)
+end
+
 """
 A scatter series over paired `x`/`y` columns: markers only, no connecting line.
 Above the style's `scatter_fold_threshold` visible points the projection folds
@@ -178,6 +191,12 @@ the cloud into a density grid instead of drawing one marker per point.
     symbol_size::Int = 4
     color::Any = nothing
     visible::Bool = true
+end
+
+function ChartScatterSeries(label::AbstractString, x::AbstractVector, y::AbstractVector;
+                            symbol::Symbol=:circle, symbol_size::Integer=4,
+                            color=nothing, visible::Bool=true)
+    ChartScatterSeries(String(label), x, y, symbol, Int(symbol_size), color, visible, nothing)
 end
 
 """
@@ -215,8 +234,28 @@ edges (drawn as extra cells when `show_overflow`).
     visible::Bool = true
 end
 
-# Arity 2 with a keyword, so it never collides with the macro's arity-3
-# `ChartHistogramSeries(label, binedges, binvalues)`.
+function ChartBarSeries(label::AbstractString, values::AbstractVector;
+                        color=nothing, visible::Bool=true)
+    ChartBarSeries(String(label), values, color, visible, nothing)
+end
+
+function ChartHistogramSeries(label::AbstractString, binedges::AbstractVector,
+                              binvalues::AbstractVector;
+                              underflows::Real=0.0, overflows::Real=0.0,
+                              draw::Symbol=:solid, cumulative::Bool=false,
+                              density::Bool=false, show_overflow::Bool=false,
+                              color=nothing, visible::Bool=true)
+    ChartHistogramSeries(String(label), binedges, binvalues,
+                         Float64(underflows), Float64(overflows), draw,
+                         cumulative, density, show_overflow, color, visible, nothing)
+end
+
+"""
+    ChartHistogramSeries(label, values; nbins=20)
+
+Bin a raw sample column into `nbins` equal-width bins. Arity 2, so it never
+collides with the edges-and-values form above.
+"""
 function ChartHistogramSeries(label::AbstractString, values::AbstractVector; nbins::Integer=20)
     edges, counts = bin_values(values, nbins)
     ChartHistogramSeries(String(label), edges, counts)
@@ -243,6 +282,15 @@ each other from the baseline, and `:stacked` sums them.
     bar_placement::Symbol = :aligned
     bar_baseline::Float64 = 0.0
     bar_baseline_color::Any = nothing
+end
+
+function Chart(title::AbstractString, series::AbstractVector;
+               x_axis=ChartAxis(), y_axis=ChartAxis(),
+               legend=ChartLegend(), style=ChartStyle(),
+               bar_placement::Symbol=:aligned, bar_baseline::Real=0.0,
+               bar_baseline_color=nothing)
+    Chart(String(title), CellVector(series), x_axis, y_axis, legend, style,
+          bar_placement, Float64(bar_baseline), bar_baseline_color, nothing)
 end
 
 # ── Family traits ────────────────────────────────────────────────────────
