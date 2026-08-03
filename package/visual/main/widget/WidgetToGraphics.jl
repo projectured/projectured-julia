@@ -17,7 +17,7 @@ the content projection via the recursion argument.
 """
 module WidgetToGraphicsModule
 
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..ClockModule: get_clock_time, get_reactive_clock_time, get_wall_clock
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
@@ -716,18 +716,18 @@ end
 # Build the reactive canvas from an existing build cell (`build[] ->
 # (; width, height, elements)`). A leaf whose IoMap must also expose the extent
 # (e.g. a form control whose reader hit-tests `control_width`/`control_height`)
-# holds the same `build` cell and stores `Cell(() -> build[].width)` etc., so the
+# holds the same `build` cell and stores `ComputedCell(() -> build[].width)` etc., so the
 # canvas and the reader read one shared derivation.
 function _reactive_canvas_cell(x::Int, y::Int, build::Cell)
     GraphicsCanvas(Int32(x), Int32(y),
-                   Cell(() -> Int32(build[].width)),
-                   Cell(() -> Int32(build[].height)),
+                   ComputedCell(() -> Int32(build[].width)),
+                   ComputedCell(() -> Int32(build[].height)),
                    CellVector(() -> build[].elements),
                    layout_none, true, Cell(nothing))
 end
 
 # Convenience for leaves that need only the canvas: make the build cell from a thunk.
-_reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Cell(build_fn))
+_reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, ComputedCell(build_fn))
 
 # Auto-extent reactive canvas (w = h = 0, sized by its children) with reactive
 # membership — the container analogue of the 3-arg `_make_canvas(x, y, elems)`.
@@ -903,7 +903,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # Editable: reconcile the recursed content, and derive extent+membership
         # from the child canvas in a build cell (the field grows as text is typed).
         content_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-        build = Cell(() -> begin
+        build = ComputedCell(() -> begin
             radius = _sc(p.corner_radius)
             inner = content_iomap[].output::GraphicsCanvas
             iw, ih = Int(inner.w[]), Int(inner.h[])
@@ -1188,7 +1188,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
     pos = w.position::Point2D
     # The child is reconciled and forced only in the WidgetDocument branch.
     child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         tx, ty = _inset_total(w)
         # Use sensible default padding when the document specifies none, so the box
@@ -1220,7 +1220,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
         append!(elems, body)
         (width=vw, height=vh, elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), Cell(() -> build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), ComputedCell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference)
@@ -1261,7 +1261,7 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
     child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         inner = child_iomap[].output::GraphicsCanvas
         iw, ih = Int(inner.w[]), Int(inner.h[])
@@ -1496,7 +1496,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # The child (a recursed widget content) is reconciled and forced only in the
     # WidgetDocument branch.
     child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
@@ -1538,8 +1538,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # bar the leftmost item then swallows every crossing, so hover always lit the
     # first button. See `hit_element_at` in document/Graphics.jl.
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
-                                        Cell(() -> build[].child_iomaps), ctx.reference,
-                                        Cell(() -> build[].width), Cell(() -> build[].height))
+                                        ComputedCell(() -> build[].child_iomaps), ctx.reference,
+                                        ComputedCell(() -> build[].width), ComputedCell(() -> build[].height))
 end
 
 # Forward image (Step 2.0 leaf): the empty reference maps to the item's own
@@ -1623,7 +1623,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
             print_child(recursion, item,
                 make_child_context(ctx, FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))) :
             nothing)
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         horizontal = w.orientation === :horizontal
         _, item_h = p.measure("M", p.font)
@@ -1645,7 +1645,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
-                  Cell(() -> build[].child_iomaps))
+                  ComputedCell(() -> build[].child_iomaps))
 end
 
 # `elements[i]/…` routes to the i-th item's forward image, shifted by where this
@@ -1677,7 +1677,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     child_cells = reconcile_child_iomaps(
         () -> Any[c for c in w.elements if (c isa WidgetDocument || c isa LayoutDocument)],
         (i, c) -> print_child(recursion, c, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         cims = child_cells[]
         child_iomaps = Any[(cox, coy, cim) for cim in cims]
@@ -1685,7 +1685,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> build[].elements),
-                  Cell(() -> build[].child_iomaps))
+                  ComputedCell(() -> build[].child_iomaps))
 end
 
 # A composite addresses children by `elements[i]`, each wrapped at the content
@@ -1841,7 +1841,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, ctx))
     tt_cell = reconcile_child_iomap(() -> w.tooltip, c -> print_child(recursion, c, ctx))
     # Band offsets + status-bar height, reactive on which slots are present.
-    bands = Cell(() -> begin
+    bands = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         _, line_h = p.measure("M", p.font)
         content_y = coy
@@ -1852,13 +1852,13 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     end)
     # Seed available size on the content context so any layout/split descendant
     # re-flows on resize, from the shell's `size` cell + insets + band offsets.
-    avail_w_cell = Cell(() -> begin
+    avail_w_cell = ComputedCell(() -> begin
         sz = getfield(w, :size)[]
         sz isa Point2D || return 0
         tx, _ = _inset_total(w)
         max(0, Int(sz.x[]) - tx)
     end)
-    avail_h_cell = Cell(() -> begin
+    avail_h_cell = ComputedCell(() -> begin
         sz = getfield(w, :size)[]
         sz isa Point2D || return 0
         _, ty = _inset_total(w)
@@ -1867,7 +1867,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     end)
     content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
     content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         b = bands[]
         cox, coy = b.cox, b.coy
         elems = Any[]
@@ -1911,7 +1911,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
-                  Cell(() -> build[].child_iomaps))
+                  ComputedCell(() -> build[].child_iomaps))
 end
 
 # A shell renders several field-addressed children (`menu_bar`, `toolbar`,
@@ -2025,7 +2025,7 @@ end
 function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         elems = Any[]
         child_iomaps = Any[]
@@ -2045,7 +2045,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
-                  Cell(() -> build[].child_iomaps))
+                  ComputedCell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference)
@@ -2131,12 +2131,12 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     slot_main = Cell[]
     if avail_main !== nothing
         for i in 1:n
-            push!(slot_main, Cell(() -> begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
+            push!(slot_main, ComputedCell(() -> begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
         end
     else
         for i in 1:n
             elem = valid_elems[i]
-            push!(slot_main, Cell(() -> _split_intrinsic(elem, sizes, i, main_axis)))
+            push!(slot_main, ComputedCell(() -> _split_intrinsic(elem, sizes, i, main_axis)))
         end
     end
 
@@ -2197,7 +2197,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     child_y = Cell[]
     for i in 1:n
         if main_axis === :x
-            push!(child_x, Cell(function ()
+            push!(child_x, ComputedCell(function ()
                 x = cox
                 for j in 1:(i-1)
                     x += Int(slot_main[j][]) + splitter_thickness
@@ -2207,7 +2207,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
             push!(child_y, Cell(Int32(coy)))
         else
             push!(child_x, Cell(Int32(cox)))
-            push!(child_y, Cell(function ()
+            push!(child_y, ComputedCell(function ()
                 y = coy
                 for j in 1:(i-1)
                     y += Int(slot_main[j][]) + splitter_thickness
@@ -2221,7 +2221,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     # main axis; max of child cross extents on the cross axis. If the
     # parent gave us an available cross extent we report that instead so
     # the slot fills the parent's allocation.
-    outer_main = Cell(function ()
+    outer_main = ComputedCell(function ()
         total = 0
         for i in 1:n
             total += Int(slot_main[i][])
@@ -2230,7 +2230,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     end)
     outer_cross = if main_axis === :x
         avail_h === nothing ?
-            Cell(function ()
+            ComputedCell(function ()
                 h = 0
                 for cim in inner_iomaps
                     ch = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0
@@ -2238,10 +2238,10 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
                 end
                 Int32(h)
             end) :
-            Cell(() -> Int32(avail_h[]))
+            ComputedCell(() -> Int32(avail_h[]))
     else
         avail_w === nothing ?
-            Cell(function ()
+            ComputedCell(function ()
                 wmax = 0
                 for cim in inner_iomaps
                     cw = cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0
@@ -2249,7 +2249,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
                 end
                 Int32(wmax)
             end) :
-            Cell(() -> Int32(avail_w[]))
+            ComputedCell(() -> Int32(avail_w[]))
     end
     outer_w_cell = main_axis === :x ? outer_main : outer_cross
     outer_h_cell = main_axis === :x ? outer_cross : outer_main
@@ -2588,7 +2588,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     cox, coy = _content_offset(w)    # stable — independent of the tab count
     # Reactive tab-strip geometry: re-derives when a tab is added / removed, so the
     # strip and everything sized from it (`sel_h`, `strip_w`, the tab tuples) reflows.
-    geom = Cell(() -> _tab_strip_geometry(p, w))
+    geom = ComputedCell(() -> _tab_strip_geometry(p, w))
 
     sel_cell = getfield(w, :selection)
 
@@ -2630,9 +2630,9 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # local and clobber the selector viewport width.
     inset_x, inset_y = _inset_total(w)
     avail_w_inner = avail_w === nothing ? nothing :
-        Cell(() -> max(0, Int(avail_w[]) - inset_x))
+        ComputedCell(() -> max(0, Int(avail_w[]) - inset_x))
     avail_h_inner = avail_h === nothing ? nothing :
-        Cell(() -> max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
+        ComputedCell(() -> max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
     content_ctx = (avail_w === nothing && avail_h === nothing) ? ctx :
         with_available_size(ctx; width=avail_w_inner, height=avail_h_inner)
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
@@ -2656,20 +2656,20 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # distinctly-named `inset_x` (computed above); otherwise there is no constraint,
     # so the viewport is as wide as the strip and clips nothing.
     sel_view_w = if avail_w === nothing
-        Cell(() -> Int32(geom[][5]))       # strip_w — reactive on the tab count
+        ComputedCell(() -> Int32(geom[][5]))       # strip_w — reactive on the tab count
     else
-        Cell(() -> Int32(max(0, Int(avail_w[]) - inset_x)))
+        ComputedCell(() -> Int32(max(0, Int(avail_w[]) - inset_x)))
     end
     # Horizontal scroll: when the strip is wider than the viewport, shift its inner
     # canvas left by the clamped `tab_scroll` so overflow tabs scroll into view (a
     # wheel over the strip drives it — see read_intent). Reactive on both the
     # stored offset and the viewport width.
-    scroll_x = Cell(() -> Int32(-cox - _tab_scroll_offset(w, geom[][5], Int(sel_view_w[]))))
+    scroll_x = ComputedCell(() -> Int32(-cox - _tab_scroll_offset(w, geom[][5], Int(sel_view_w[]))))
     # The viewport sits at the content origin; its inner canvas is shifted back
     # by that origin (minus any scroll) so the strip elements keep their original
     # coordinates at scroll 0.
     selector_viewport = GraphicsViewport(
-        Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, Cell(() -> Int32(geom[][4])),   # sel_h reactive
+        Cell(Int32(cox)), Cell(Int32(coy)), sel_view_w, ComputedCell(() -> Int32(geom[][4])),   # sel_h reactive
         Cell(GraphicsCanvas(scroll_x, Cell(Int32(-coy)), Int32(0), Int32(0),
                             selector_cv, layout_none, true, Cell(nothing))),
         Cell(affine_identity),
@@ -2680,7 +2680,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         GraphicsCanvas(content_cv,  layout_none, true),
     ])
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
-    child_iomaps = Cell(() -> Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
+    child_iomaps = ComputedCell(() -> Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
     ChildrenIoMap(p, w, canvas, child_iomaps)
 end
 
@@ -2893,15 +2893,15 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     avail_w = ctx.available_width
     avail_h = ctx.available_height
     vw_cell = avail_w !== nothing ?
-              Cell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
+              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
               Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
     vh_cell = avail_h !== nothing ?
-              Cell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
+              ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
               Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     follow_cell = getfield(w, :follow_end)
-    inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
+    inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
@@ -2926,7 +2926,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # bottom of its content — offset by `viewport - content` (≤ 0), so newly
         # appended content (a streaming chat) stays in view as the content grows.
         content_h_cell = inner_canvas.h
-        inner_y = Cell(() -> begin
+        inner_y = ComputedCell(() -> begin
             if follow_cell[]
                 Int32(-max(0, Int(content_h_cell[]) - Int(vh_cell[])))
             else
@@ -2949,8 +2949,8 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # viewport draws past the parent's border. Split/tabbed parents allocate the
     # slot and ignore this size, so they are unaffected. `vw_cell`/`vh_cell` are
     # the inset-reduced viewport extents, so the full box adds the insets back.
-    outer_w = Cell(() -> Int32(Int(vw_cell[]) + tx))
-    outer_h = Cell(() -> Int32(Int(vh_cell[]) + ty))
+    outer_w = ComputedCell(() -> Int32(Int(vw_cell[]) + tx))
+    outer_h = ComputedCell(() -> Int32(Int(vh_cell[]) + ty))
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
@@ -3053,15 +3053,15 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     avail_w = ctx.available_width
     avail_h = ctx.available_height
     vw_cell = avail_w !== nothing ?
-              Cell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
+              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
               Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
     vh_cell = avail_h !== nothing ?
-              Cell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
+              ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
               Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
     # the viewport reactively.
-    transform_cell = Cell(() -> getfield(w, :transform)[]::AffineTransform)
+    transform_cell = ComputedCell(() -> getfield(w, :transform)[]::AffineTransform)
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
@@ -3089,8 +3089,8 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
                                       transform_cell,
                                       Cell(nothing)))
     end
-    outer_w = Cell(() -> Int32(Int(vw_cell[]) + tx))
-    outer_h = Cell(() -> Int32(Int(vh_cell[]) + ty))
+    outer_w = ComputedCell(() -> Int32(Int(vw_cell[]) + tx))
+    outer_h = ComputedCell(() -> Int32(Int(vh_cell[]) + ty))
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
@@ -3186,7 +3186,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     child_cells = reconcile_child_iomaps(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
         (i, item) -> print_child(recursion, item, ctx))
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         item_gap = p.item_gap
         child_iomaps = Any[]
@@ -3204,7 +3204,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
-                  Cell(() -> build[].child_iomaps))
+                  ComputedCell(() -> build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference)
@@ -3501,17 +3501,17 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     pad = _sc(p.padding)
     avail_w = ctx.available_width
     inner_w = avail_w === nothing ? nothing :
-              Cell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
+              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
     inner_ctx = with_available_size(ctx; width=inner_w, height=nothing)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
     cim = w.content isa Document ? print_child(recursion, w.content, inner_ctx) : nothing
-    build = Cell(() -> _card_build(p, w, ctx, tim, cim))
+    build = ComputedCell(() -> _card_build(p, w, ctx, tim, cim))
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
-                           Cell(() -> Int32(build[].w)),
-                           Cell(() -> Int32(build[].h)),
+                           ComputedCell(() -> Int32(build[].w)),
+                           ComputedCell(() -> Int32(build[].h)),
                            CellVector(() -> build[].elements),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, w, outer, Cell(() -> build[].child_iomaps))
+    ChildrenIoMap(p, w, outer, ComputedCell(() -> build[].child_iomaps))
 end
 
 # A click on the card's header (a Document title — its first child entry) is a
@@ -4144,7 +4144,7 @@ end
 function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         text = string(w.value)
         enabled = !(w.enabled === false)
         padding_x = _sc(Int(p.padding.left[]))
@@ -4169,7 +4169,7 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference,
-                                      Cell(() -> build[].width), Cell(() -> build[].height))
+                                      ComputedCell(() -> build[].width), ComputedCell(() -> build[].height))
 end
 
 # Forward image (Step 2.0): the select is a positioned leaf, so the empty
@@ -4290,7 +4290,7 @@ end
 function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
         text = string(w.value)
         pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
@@ -4318,7 +4318,7 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
-        Cell(() -> build[].width), Cell(() -> build[].height), Cell(() -> build[].stepper_w))
+        ComputedCell(() -> build[].width), ComputedCell(() -> build[].height), ComputedCell(() -> build[].stepper_w))
 end
 
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _self_point(reference)
@@ -4366,7 +4366,7 @@ end
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    build = Cell(() -> begin
+    build = ComputedCell(() -> begin
         pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
         items = collect(w.items)
         n = length(items)
@@ -4402,7 +4402,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
-        Cell(() -> build[].row_height), Cell(() -> build[].width))
+        ComputedCell(() -> build[].row_height), ComputedCell(() -> build[].width))
 end
 
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _self_point(reference)
@@ -4785,13 +4785,13 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     bw  = max(1, _sc(Int(w.border_width)))
     grid_off = bw + pad
 
-    layout_info = Cell(() -> _wt_grid_children(w))
+    layout_info = ComputedCell(() -> _wt_grid_children(w))
 
     # Build a GridLayout whose children are the recursed cell documents and
     # project it through `recursion` (which dispatches GridLayout → its renderer
     # and each cell document → its own projection). Gaps carry the per-cell
     # padding + rule so positioning matches the decoration overlay.
-    grid_iomap = Cell(() -> begin
+    grid_iomap = ComputedCell(() -> begin
         info = layout_info[]
         children, grid_rows, grid_cols = info[1], info[2], info[3]
         gap = 2 * pad + bw
@@ -4802,7 +4802,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         print_child(recursion, grid, ctx)
     end)
 
-    geometry = Cell(() -> begin
+    geometry = ComputedCell(() -> begin
         info = layout_info[]
         _, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh = info
         gim = grid_iomap[]
@@ -4816,7 +4816,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # Keeping the selection read OUT of the elements thunk means a caret move
     # invalidates only this rect's geometry, not the whole content vector
     # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
-    hl_bounds = Cell(() -> _wt_highlight_bounds(w.selection, geometry[]))
+    hl_bounds = ComputedCell(() -> _wt_highlight_bounds(w.selection, geometry[]))
     highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
     set_cell_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
     set_cell_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
@@ -4827,7 +4827,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # `w.hovered` (the row / column-header under the pointer) in the fainter hover
     # colour. Drawn behind the selection band so a selected+hovered row still reads
     # as selected.
-    hov_bounds = Cell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
+    hov_bounds = ComputedCell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
     hover_rect = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
     set_cell_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
     set_cell_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
@@ -4883,8 +4883,8 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(() -> Int32(geometry[].total_w)),
-                            Cell(() -> Int32(geometry[].total_h)),
+                            ComputedCell(() -> Int32(geometry[].total_w)),
+                            ComputedCell(() -> Int32(geometry[].total_h)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTableToGraphicsCanvasIoMap(p, w, canvas, grid_iomap, geometry)
 end
@@ -5405,7 +5405,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # element pass (drawing) read these rows, so they can never drift apart. Reading
     # `w.collapsed` here ties the flattened geometry to the collapse state, so a
     # chevron toggle re-runs the walk (hiding / revealing subtrees) reactively.
-    geometry = Cell(() -> begin
+    geometry = ComputedCell(() -> begin
         collapsed = w.collapsed
         rows = WTreeRow[]
         max_width = Ref(0)
@@ -5450,7 +5450,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # Keeping the selection read OUT of the elements thunk means a node move
     # invalidates only this rect's geometry, not the content vector (dimension A;
     # the focus-ring / text-cursor overlay pattern).
-    band_yh = Cell(() -> _wtree_highlight_band(w.selection, geometry[]))
+    band_yh = ComputedCell(() -> _wtree_highlight_band(w.selection, geometry[]))
     selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
     set_cell_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
     set_cell_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
@@ -5459,7 +5459,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # Persistent hover-band overlay, same pattern as the selection band but reading
     # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
     # selected+hovered row still reads as selected.
-    hover_yh = Cell(() -> _wtree_highlight_band(w.hovered, geometry[]))
+    hover_yh = ComputedCell(() -> _wtree_highlight_band(w.hovered, geometry[]))
     hover_band = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
     set_cell_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
     set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
@@ -5499,8 +5499,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(() -> Int32(geometry[].total_w)),
-                            Cell(() -> Int32(geometry[].total_h)),
+                            ComputedCell(() -> Int32(geometry[].total_w)),
+                            ComputedCell(() -> Int32(geometry[].total_h)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry)
 end
@@ -5815,19 +5815,19 @@ function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::Wid
     content_ctx = ctx === nothing ? ctx : with_available_size(ctx; width = Cell(vw))
     content_iomap = print_child(recursion, w.content, content_ctx)
     scroll_cell = getfield(w, :scroll_position)
-    inner_x = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
-    inner_y = Cell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
+    inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
+    inner_y = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
 
     # Re-read `content_iomap.output` inside cells (not a one-time snapshot into a local):
     # a reactive content projection recomputes its *whole* output GraphicsCanvas on a
     # document change, so the viewport must track the current one — mirroring how
-    # ScreenToScreen wraps a window's content as `Cell(() -> content_iomap.output)`.
+    # ScreenToScreen wraps a window's content as `ComputedCell(() -> content_iomap.output)`.
     # Capturing `content_iomap.output` once (or its unwrapped `.elements`) freezes the
     # viewport against a live document.
     inner_canvas = GraphicsCanvas(inner_x, inner_y, Cell(Int32(0)), Cell(Int32(0)),
-                                  Cell(() -> content_iomap.output.elements),
-                                  Cell(() -> content_iomap.output.layout),
-                                  Cell(() -> content_iomap.output.overlapping_elements),
+                                  ComputedCell(() -> content_iomap.output.elements),
+                                  ComputedCell(() -> content_iomap.output.layout),
+                                  ComputedCell(() -> content_iomap.output.overlapping_elements),
                                   Cell(nothing))
     viewport = GraphicsViewport(bx, by, vw, vh, inner_canvas)
     output = GraphicsCanvas([viewport])

@@ -18,7 +18,7 @@ or as a standalone top-level document.
 """
 module ComponentModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

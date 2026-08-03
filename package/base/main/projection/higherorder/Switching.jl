@@ -10,7 +10,7 @@ module SwitchingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
 export SwitchingProjection, SwitchingProjectionIoMap
 
@@ -68,7 +68,7 @@ function print_document(ap::SwitchingProjection, recursion, input, ctx)
     # same-index input change reuses the cached inner (which reacts on its own).
     inner = reconcile_child_iomap(() -> ap.index[],
                 i -> print_document(ap.projections[i], recursion, input, ctx))
-    output = Cell(() -> inner[].output)
+    output = ComputedCell(() -> inner[].output)
     return SwitchingProjectionIoMap(ap, input, output, ap.index, inner)
 end
 

@@ -18,7 +18,7 @@ round-trips through the whole graph pipeline. Edges are decorations in v1
 """
 module GraphLayoutToGraphicsModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -82,7 +82,7 @@ end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
     # Recurse each vertex's content into a canvas, tracking its placed origin.
-    child_iomaps = Cell(() -> begin
+    child_iomaps = ComputedCell(() -> begin
         n = length(layout.vertex_layouts)
         entries = Any[]
         for i in 1:n
@@ -105,7 +105,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
 
     # Recurse each edge's optional label into a canvas. A decoration, like the
     # edges themselves — not selectable in v1, so no per-label iomap delegation.
-    edge_label_iomaps = Cell(() -> begin
+    edge_label_iomaps = ComputedCell(() -> begin
         m = length(layout.edge_layouts)
         out = Any[]
         for i in 1:m

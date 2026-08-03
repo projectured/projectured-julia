@@ -14,7 +14,7 @@ the layout produces.
 """
 module LayoutModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

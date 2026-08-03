@@ -27,7 +27,7 @@ module TextFirstLineModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
@@ -64,10 +64,10 @@ end
 # ── Print ─────────────────────────────────────────────────────────────────────
 
 function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
-    both = Cell(() -> _first_line(text))
+    both = ComputedCell(() -> _first_line(text))
     elements_cv = CellVector(() -> both[][1])
-    info_cell = Cell(() -> both[][2])
-    out_selection = Cell(() -> _forward(info_cell[], text.selection))
+    info_cell = ComputedCell(() -> both[][2])
+    out_selection = ComputedCell(() -> _forward(info_cell[], text.selection))
     output = TextBlock(elements_cv, out_selection)
     TextFirstLineIoMap(p, text, output, info_cell)
 end

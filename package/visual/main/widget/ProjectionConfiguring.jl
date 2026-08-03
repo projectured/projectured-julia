@@ -32,7 +32,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
 import ..ObjectToWidgetModule: ObjectToWidget
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation

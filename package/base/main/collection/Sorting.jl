@@ -8,7 +8,7 @@ module SortingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type
 import ..ReferenceModule: var"@reference_case"
@@ -55,7 +55,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
-    index_map = Cell(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev))
+    index_map = ComputedCell(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev))
     output = CellVector(() -> begin
         cs = child_iomaps[]
         perm = index_map[]

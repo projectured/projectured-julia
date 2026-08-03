@@ -15,7 +15,7 @@ import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context

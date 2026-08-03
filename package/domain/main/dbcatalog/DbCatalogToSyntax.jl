@@ -25,7 +25,7 @@ The three levels correspond to: keyword_node → keyword_body → actual child.
 """
 module DbCatalogToSyntaxModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -58,7 +58,7 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaT
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         path = col.selection
         path === nothing && return nothing
         map_reference_forward(p, nothing, path)
@@ -216,7 +216,7 @@ end
 function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_style::StyleText,
                               keyword::String, label, children)
-    child_iomaps = Cell(() -> begin
+    child_iomaps = ComputedCell(() -> begin
         [print_child(recursion, elem, make_child_context(ctx, ElementReferenceStep(i)))
          for (i, elem) in enumerate(children)]
     end)
@@ -230,7 +230,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
         collapsed=Cell(!_children_realized(children)))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = input_doc.selection

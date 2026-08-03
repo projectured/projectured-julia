@@ -22,7 +22,7 @@ layout, so it is a *same-version* persistence format, not an interchange format.
 """
 module BinarySerializationModule
 
-import ..CellModule: Cell, ReactiveCell
+import ..CellModule: Cell, ComputedCell, ReactiveCell
 import ..DocumentModule: Document
 import ..OperationModule: Operation, evaluate_operation
 using Serialization

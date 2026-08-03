@@ -17,7 +17,7 @@ the directory header node (the name line) and not on the indented body wrapper.
 """
 module FileSystemToSyntaxModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -55,7 +55,7 @@ function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemF
     # trick, as in FileSystemDirectoryToSyntaxNode), unwrapping our introduced caret
     # back into the leaf's own `.value{k}` span.
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = f.selection
@@ -120,7 +120,7 @@ end
 
 
 function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
-    child_iomaps = Cell(() -> [print_child(recursion, elem,
+    child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(d.elements)])
 
@@ -137,7 +137,7 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
     # child_iomaps). The not-yet-built iomap is supplied via the deferred-iomap
     # trick (iomap_cell), as in JsonArrayToSyntaxNode / CopyingProjection.
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = d.selection

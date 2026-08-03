@@ -14,7 +14,7 @@ when the user expands directory nodes.
 """
 module WorkspaceToFileSystemModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
@@ -35,7 +35,7 @@ struct WorkspaceFolderToFileSystemDirectory <: Projection end
 function print_document(p::WorkspaceFolderToFileSystemDirectory,
                            recursion, folder::WorkspaceFolder, ctx)
     # Reactive output so a pathname change re-derives through the held iomap.
-    SimpleIoMap(p, folder, Cell(() -> make_filesystem_pathname(folder.pathname)))
+    SimpleIoMap(p, folder, ComputedCell(() -> make_filesystem_pathname(folder.pathname)))
 end
 
 function map_reference_forward(::WorkspaceFolderToFileSystemDirectory, iomap, reference)
@@ -71,7 +71,7 @@ function print_document(p::WorkspaceWorkspaceProjection,
             make_child_context(ctx, FieldReferenceStep("folders"), ElementReferenceStep(i))))
     # The output is the first folder's output for single-root workspaces.
     # Multi-root rendering can be refined later with a composite output.
-    output = Cell(() -> (ims = child_iomaps[]; isempty(ims) ? nothing : ims[1].output))
+    output = ComputedCell(() -> (ims = child_iomaps[]; isempty(ims) ? nothing : ims[1].output))
     ChildrenIoMap(p, w, output, child_iomaps)
 end
 

@@ -41,8 +41,8 @@ chk("scalar field synced (String)", shadow.label == "root")
 chk("scalar field synced (Int)",    shadow.count == 5)
 
 println("== D. sync drives reactivity with MINIMAL invalidation ==")
-watch_label = Cell(() -> shadow.label)
-watch_count = Cell(() -> shadow.count)
+watch_label = ComputedCell(() -> shadow.label)
+watch_count = ComputedCell(() -> shadow.count)
 watch_label[]; watch_count[]                       # force -> up to date
 chk("watchers up to date after force", is_cell_up_to_date(watch_label) && is_cell_up_to_date(watch_count))
 # change only count in the source, resync

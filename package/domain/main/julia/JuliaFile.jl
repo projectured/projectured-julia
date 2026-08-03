@@ -22,7 +22,7 @@ AST mutation is required.
 """
 module JuliaFileModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector

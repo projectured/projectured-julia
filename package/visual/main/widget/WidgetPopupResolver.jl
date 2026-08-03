@@ -24,7 +24,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
 
@@ -55,7 +55,7 @@ end
 
 function print_document(p::WidgetPopupResolverProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetPopupResolverProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
+    WidgetPopupResolverProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ Covers:
 
 using Test
 using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.CellModule: Cell, ImmutableCell, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, ComputedCell, ImmutableCell, is_cell_up_to_date
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.

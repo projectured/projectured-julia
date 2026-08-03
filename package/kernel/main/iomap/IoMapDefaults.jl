@@ -14,8 +14,9 @@ generated alongside the positional auto-wrapping one.
 This is `@cell_struct` plus one default: a struct without an explicit supertype
 gets `<: IoMap` (injected as `:IoMap`, resolved in the caller's `esc`'d scope).
 
-An IoMap's varying fields are meant to be *computed* cells: pass `output = Cell(()
--> …)` and it re-derives reactively while the IoMap keeps its identity, so
+An IoMap's varying fields are meant to be *computed* cells: pass
+`output = ComputedCell(() -> …)` and it re-derives reactively while the IoMap
+keeps its identity, so
 `iomap.output` reads the current value and a change propagates without re-printing.
 The transparent field is only the *vehicle* — the derivation (the thunk) is what
 makes it reactive; a cell field holding an eagerly-computed value does not
@@ -36,7 +37,7 @@ end
 # `projection` that produced it and the `input`/`output` it maps between under
 # those names. Every IoMap is an `@iomap` cell-struct, so these read through
 # property access and yield the *value* — `iomap.output` unwraps the field's `Cell`
-# (pass a computed `Cell(() -> …)` so it re-derives reactively; `getfield` reaches
+# (pass a `ComputedCell(() -> …)` so it re-derives reactively; `getfield` reaches
 # the raw cell). An IoMap whose derived correspondence lives under different field
 # names stores those as computed cells too (cf. `ChainingProjectionIoMap.output`).
 get_iomap_projection(iomap::IoMap) = iomap.projection

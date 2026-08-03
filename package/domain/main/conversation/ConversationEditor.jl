@@ -27,7 +27,7 @@ into the chooser does **not** auto-switch — ENTER commits it via the factory.
 """
 module ConversationEditorModule
 
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: print_document, read_intent,
@@ -433,7 +433,7 @@ function _editable_body(c::DocumentInsertion)
     # completion hint span — the same feedback the syntax-leaf insertion shows.
     # font_color is driven by `set_cell_function!` below, so it must be a reactive Cell,
     # not the immutable default — pass it explicitly. font stays immutable (authored).
-    value_span = TextString(Cell(() -> _value(c)), _FONT, Cell(color_default),
+    value_span = TextString(ComputedCell(() -> _value(c)), _FONT, Cell(color_default),
                             nothing, nothing, nothing)
     set_cell_function!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state

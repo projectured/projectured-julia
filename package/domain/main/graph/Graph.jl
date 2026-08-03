@@ -7,7 +7,7 @@ table, JSON, another graph) and edges connecting vertices by identity.
 """
 module GraphModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

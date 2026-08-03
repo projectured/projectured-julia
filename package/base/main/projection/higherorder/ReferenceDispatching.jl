@@ -13,7 +13,7 @@ module ReferenceDispatchingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
 
 """
@@ -80,7 +80,7 @@ end
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
     inner = print_document(proj, recursion, input, ctx)
-    ReferenceDispatchingProjectionIoMap(rdp, input, Cell(() -> inner.output), ctx.reference, inner)
+    ReferenceDispatchingProjectionIoMap(rdp, input, ComputedCell(() -> inner.output), ctx.reference, inner)
 end
 
 function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Intent, iomap::ReferenceDispatchingProjectionIoMap)

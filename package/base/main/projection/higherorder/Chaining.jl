@@ -15,7 +15,7 @@ import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
-import ..CellModule: Cell, AbstractCell, unwrap_cell
+import ..CellModule: Cell, ComputedCell, AbstractCell, unwrap_cell
 export ChainingProjection, ChainingProjectionIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
@@ -92,7 +92,7 @@ function print_document(seq::ChainingProjection, recursion, input, ctx)
     end
     foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
     return ChainingProjectionIoMap(seq, input, step_iomaps,
-                                   Cell(() -> step_iomaps[end][].output))
+                                   ComputedCell(() -> step_iomaps[end][].output))
 end
 
 # Pure: thread each stage's immutable output straight into the next stage — no
@@ -114,7 +114,7 @@ end
 # captures its own `p`/`prev`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
     iomap_cell = reconcile_child_iomap(() -> prev[], v -> print_document(p, recursion, v, ctx))
-    out_cell   = Cell(() -> unwrap_cell(iomap_cell[].output))
+    out_cell   = ComputedCell(() -> unwrap_cell(iomap_cell[].output))
     (iomap_cell, out_cell)
 end
 

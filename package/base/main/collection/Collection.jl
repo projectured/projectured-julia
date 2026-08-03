@@ -22,7 +22,7 @@ slot's dependents, not the entire collection.
 """
 module CollectionModule
 
-import ..CellModule: Cell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell, copy_cell_as
+import ..CellModule: Cell, ComputedCell, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell, copy_cell_as
 import ..DocumentModule: Document, copy_document,
        is_element_collection, is_collection_field_type, @document, @forward_protocol
 import ..ReferenceModule: Reference, RangeReferenceStep

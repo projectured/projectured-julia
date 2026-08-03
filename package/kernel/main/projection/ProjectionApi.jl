@@ -113,7 +113,7 @@ arbitrary projections purely via this dispatch.
    computed reactively, not threaded as a parameter. The canonical form maps
    the input selection forward through this projection's own mapper:
 
-       output.selection = Cell(() -> map_reference_forward(p, iomap, input.selection))
+       output.selection = ComputedCell(() -> map_reference_forward(p, iomap, input.selection))
 
    making `map_reference_forward` the one definition of the path mapping.
    Two practical wrinkles:

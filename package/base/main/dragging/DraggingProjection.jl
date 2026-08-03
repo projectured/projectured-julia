@@ -32,7 +32,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, get_cell_at
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           RangeReferenceStep, FieldReferenceStep, is_element_reference_step, evaluate_reference,
@@ -95,7 +95,7 @@ end
 
 function print_document(p::DraggingProjection, recursion, input::DraggingState, ctx)
     inner = reconcile_child_iomap(() -> input.content, c -> print_child(recursion, c, ctx))
-    output = Cell(() -> inner[].output)
+    output = ComputedCell(() -> inner[].output)
     DraggingProjectionIoMap(p, input, output, inner)
 end
 

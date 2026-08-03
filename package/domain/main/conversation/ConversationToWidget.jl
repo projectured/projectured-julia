@@ -37,7 +37,7 @@ import ..FontModule: font_ubuntu_bold_22
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..OperationModule: ToggleCollapseOperation
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context
@@ -120,7 +120,7 @@ function print_document(::ConversationConversationToWidgetComposite,
     # Cache the child turn iomaps (recomputed only when the turn list changes),
     # so the produced cards keep a stable identity that the toggle reader can
     # match against. The layout reads each iomap's `.output`.
-    ioms = Cell(() -> Any[
+    ioms = ComputedCell(() -> Any[
         print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
         for i in eachindex(c.turns)
     ])
@@ -134,7 +134,7 @@ end
 function print_document(::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec, ref = recursion, ctx.reference
-    ioms = Cell(() -> Any[
+    ioms = ComputedCell(() -> Any[
         print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
         for i in eachindex(t.parts)
     ])

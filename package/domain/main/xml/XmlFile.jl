@@ -19,7 +19,7 @@ symmetric via a projection extension (see `XmlToSyntax.jl`).
 """
 module XmlFileModule
 
-import ..CellModule: Cell, AbstractCell
+import ..CellModule: Cell, ComputedCell, AbstractCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector

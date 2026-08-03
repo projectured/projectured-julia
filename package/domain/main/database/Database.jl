@@ -7,7 +7,7 @@ the mutations the projection reader produces.
 """
 module DatabaseDocumentModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

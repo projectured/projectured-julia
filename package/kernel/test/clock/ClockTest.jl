@@ -12,7 +12,7 @@ Confirms:
 
 using Test
 using ProjecturedKernel.ClockModule
-using ProjecturedKernel.CellModule: Cell, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, ComputedCell, is_cell_up_to_date
 
 function test_clock()
 @testset "Clock" begin
@@ -25,7 +25,7 @@ function test_clock()
 
         # SUBSCRIBE: reading via get_reactive_clock_time makes the calling cell
         # a dependent, so the write invalidates it.
-        subscribed = Cell(() -> get_reactive_clock_time(clock) * 2)
+        subscribed = ComputedCell(() -> get_reactive_clock_time(clock) * 2)
         @test subscribed[] == 0.0
         set_clock_time!(clock, 1.5)
         @test !is_cell_up_to_date(subscribed)
@@ -33,7 +33,7 @@ function test_clock()
 
         # SAMPLE: reading via get_clock_time registers nothing, so the write
         # leaves the cell valid.
-        sampled = Cell(() -> get_clock_time(clock) + 10.0)
+        sampled = ComputedCell(() -> get_clock_time(clock) + 10.0)
         @test sampled[] == 11.5
         set_clock_time!(clock, 2.0)
         @test is_cell_up_to_date(sampled)
@@ -42,8 +42,8 @@ function test_clock()
 
     @testset "independence: setting one clock's time leaves others alone" begin
         a, b = Clock(), Clock()
-        sub_a = Cell(() -> get_reactive_clock_time(a) + 1)
-        sub_b = Cell(() -> get_reactive_clock_time(b) + 100)
+        sub_a = ComputedCell(() -> get_reactive_clock_time(a) + 1)
+        sub_b = ComputedCell(() -> get_reactive_clock_time(b) + 100)
         @test sub_a[] == 1.0
         @test sub_b[] == 100.0
 

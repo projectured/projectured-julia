@@ -12,7 +12,7 @@ import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, evaluate_reference, extend_reference, strip_reference_types
 import ..IoMapModule: SimpleIoMap
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
@@ -44,7 +44,7 @@ function print_document(p::FocusingProjection, recursion, input, ctx)
     # sit in a chain and have downstream stages wire to this iomap. The cursor rides
     # the `map_reference_forward` composition, so the sub-document's own selection is
     # left untouched.
-    SimpleIoMap(p, input, Cell(() -> evaluate_reference(input, p.part)))
+    SimpleIoMap(p, input, ComputedCell(() -> evaluate_reference(input, p.part)))
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)

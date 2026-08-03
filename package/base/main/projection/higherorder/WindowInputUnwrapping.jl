@@ -24,7 +24,7 @@ module WindowInputUnwrappingProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..EventModule: WindowInput
 export WindowInputUnwrappingProjection, WindowInputUnwrappingProjectionIoMap
 
@@ -53,7 +53,7 @@ WindowInputUnwrappingProjection(; inner) = WindowInputUnwrappingProjection(inner
 
 function print_document(p::WindowInputUnwrappingProjection, recursion, input, ctx)
     inner = print_document(p.inner, recursion, input, ctx)
-    WindowInputUnwrappingProjectionIoMap(p, input, Cell(() -> inner.output), inner)
+    WindowInputUnwrappingProjectionIoMap(p, input, ComputedCell(() -> inner.output), inner)
 end
 
 function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingProjectionIoMap)

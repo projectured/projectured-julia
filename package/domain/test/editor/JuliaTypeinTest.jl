@@ -16,7 +16,7 @@
 #      routes nested-hole input and reroots the resulting edits.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedDomainExample: make_julia_document_example
 
 const _JT_M      = DocumentInsertionToSyntaxModule

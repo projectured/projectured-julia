@@ -361,7 +361,7 @@ end
 # pass a proj-wrapped structural cursor through unchanged.
 function _key_leaf_sel(doc, in_field::Symbol)
     fname = String(in_field)
-    Cell(() -> begin
+    ComputedCell(() -> begin
         sel = doc.selection
         is_introduced_reference(sel) && return sel
         core = sel
@@ -411,9 +411,9 @@ function _atomic_print(p, doc, out)
     #                             `.value{k}` so the render stage's leaf-cursor logic
     #                             (which only knows `.value`/`.open`/`.close`) renders it.
     iomap_cell = Cell(nothing)
-    sel = wiring.bound_field === nothing ? Cell(() -> map_reference_forward(p, nothing, doc.selection)) :
+    sel = wiring.bound_field === nothing ? ComputedCell(() -> map_reference_forward(p, nothing, doc.selection)) :
           wiring.bound_field === :value  ? getfield(doc, :selection) :
-                                           Cell(() -> begin
+                                           ComputedCell(() -> begin
                                                im = iomap_cell[]
                                                im === nothing && return nothing
                                                map_reference_forward(p, im, doc.selection)
@@ -427,7 +427,7 @@ end
 # Reactive output of a reconciling delegated child: tracks the (possibly rebuilt)
 # child iomap's `output`. A free function so the closure captures *this* cell, not
 # a loop variable reassigned on the next iteration.
-_project_output_cell(child_cell) = Cell(() -> child_cell[].output)
+_project_output_cell(child_cell) = ComputedCell(() -> child_cell[].output)
 
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
 # node with the projected children and a deferred selection cell, and store the
@@ -448,7 +448,7 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
                 coll.element(x)))
     end
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
@@ -543,7 +543,7 @@ function _fixed_print(p, recursion, doc, ctx, out)
     # *output* path: forward-map the element's input selection through this node's
     # own wiring (deferred-iomap trick, as the top node does).
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(() -> begin
+    out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         sel = doc.selection
@@ -561,10 +561,10 @@ end
 # (slots, store) from it, and the output children double-track the state cell
 # (structure) and each output cell (child content / type-swap).
 function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
-    state = Cell(() -> _walk_markers(p, recursion, doc, ctx, thunk()))
+    state = ComputedCell(() -> _walk_markers(p, recursion, doc, ctx, thunk()))
     setproperty!(out, children_field, make_children_container(() -> [c[] for c in state[][3]]))
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(() -> begin
+    out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         sel = doc.selection
@@ -617,7 +617,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         end
     end
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
-    coll_iomaps = Cell(() -> [
+    coll_iomaps = ComputedCell(() -> [
         print_child(recursion, x,
             make_child_context(ctx, FieldReferenceStep(String(coll_field)), ElementReferenceStep(i)))
         for (i, x) in enumerate(getproperty(doc, coll_field))])
@@ -626,7 +626,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         [im.output for im in coll_iomaps[]]))
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(() -> begin
+    out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
         path = doc.selection; path === nothing && return nothing
         map_reference_forward(p, im, path)
@@ -674,7 +674,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
     end)
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(() -> begin
+    out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
         path = doc.selection; path === nothing && return nothing
         map_reference_forward(p, im, path)
@@ -692,7 +692,7 @@ end
 # section index is dynamic; `make_wrapper(entry_outputs)` is consumer code that
 # builds the (output-domain) wrapper node, keeping the engine output-neutral.
 function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
-    section_iomaps = Cell(() -> begin
+    section_iomaps = ComputedCell(() -> begin
         res = NamedTuple[]
         for (field, mk) in specs
             coll = getproperty(doc, field)
@@ -707,7 +707,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
     children = make_children_container(() -> [s.mk([im.output for im in s.entries]) for s in section_iomaps[]])
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(() -> begin
+    out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
         path = doc.selection; path === nothing && return nothing
         map_reference_forward(p, im, path)

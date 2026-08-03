@@ -23,7 +23,7 @@ module ScreenToScreenModule
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: ScreenDocument, WindowDocument
 import ..EventModule: WindowInput
 import ..CollectionModule: CellVector
@@ -65,8 +65,8 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         () -> input.windows,
         (i, x) -> print_document(p, recursion, x,
             make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i))))
-    out_windows = Cell(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
-    sel = Cell(() -> begin
+    out_windows = ComputedCell(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, input.selection)
@@ -91,7 +91,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     content_iomap = reconcile_child_iomap(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, input.selection)
@@ -104,7 +104,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                             getfield(input, :width), getfield(input, :height),
                             getfield(input, :bg), getfield(input, :style),
                             getfield(input, :auto_dismiss), getfield(input, :modal),
-                            Cell(() -> content_iomap[].output), sel)
+                            ComputedCell(() -> content_iomap[].output), sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap

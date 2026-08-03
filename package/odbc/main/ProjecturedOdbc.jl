@@ -377,7 +377,7 @@ end # module ConnectionPoolModule
 
 module SqlToCellTableModule
 
-import ProjecturedDomain.CellModule: Cell
+import ProjecturedDomain.CellModule: Cell, ComputedCell
 import ProjecturedDomain.CollectionModule: CellVector, CellTable
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -400,7 +400,7 @@ struct SqlToCellTable <: Projection
 end
 
 function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
-    raw = Cell(() -> begin
+    raw = ComputedCell(() -> begin
         pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),

@@ -19,7 +19,7 @@ the reactive dependency on the collection's structure is preserved.
 """
 function reconcile_child_iomaps(elements_fn, make_iomap)
     cache = Dict{Tuple{UInt64,Int},Any}()
-    Cell(() -> begin
+    ComputedCell(() -> begin
         elems = elements_fn()
         result = Vector{Any}(undef, length(elems))
         live = Set{Tuple{UInt64,Int}}()
@@ -53,7 +53,7 @@ makes the result react to the field changing.
 function reconcile_child_iomap(value_fn, make_iomap)
     cached_id = Ref{UInt64}(0)
     cached_im = Ref{Any}(nothing)
-    Cell(() -> begin
+    ComputedCell(() -> begin
         v = value_fn()
         id = objectid(v)
         if cached_im[] === nothing || cached_id[] != id

@@ -11,7 +11,7 @@ IoMaps are recorded in the IoMap so the mappers and reader can peel the one
 """
 module SyntaxToTextModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..PrinterContextModule: make_child_context
@@ -142,7 +142,7 @@ end
 #   PS(p).close[k] →  the close span
 #   anything else  →  no cursor
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         leaf_sel = strip_reference_types(leaf.selection)   # canonical → plain skeleton
         leaf_sel isa EmptyReference && return @reference()
         c = _leaf_cursor(leaf)
@@ -534,7 +534,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # output objects for downstream reuse (printer locality). A collapsed node
     # projects no children (its reactive subtree is pruned).
     child_cache = IdDict{Any, IoMap}()
-    child_iomaps = Cell(() -> begin
+    child_iomaps = ComputedCell(() -> begin
         syntax_collapsed(node) && return IoMap[]
         kids = syntax_children(node)
         result = IoMap[]
@@ -554,7 +554,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # syntax content and `child_iomaps` — never any selection cell — so the output
     # element vector is stable across caret moves (spans-stability property); the
     # separate selection cell below is what recomputes on a caret move.
-    spans = Cell(() -> begin
+    spans = ComputedCell(() -> begin
         empty!(deco.seen)
         res = _splice_compound(node, p, deco, child_iomaps[])
         for k in collect(keys(deco.spans))
@@ -570,15 +570,15 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     iomap_cell = Cell(nothing)
     output = TextBlock(
         CellVector(() -> spans[].elements),
-        Cell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
+        ComputedCell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
-        Cell(() -> spans[].child_elem_ranges),
-        Cell(() -> spans[].indent_indices),
-        Cell(() -> _active_marker(p, node) === nothing ? 0 : 1),
-        Cell(() -> spans[].own_spans),
-        Cell(() -> spans[].sep_indices))
+        ComputedCell(() -> spans[].child_elem_ranges),
+        ComputedCell(() -> spans[].indent_indices),
+        ComputedCell(() -> _active_marker(p, node) === nothing ? 0 : 1),
+        ComputedCell(() -> spans[].own_spans),
+        ComputedCell(() -> spans[].sep_indices))
     iomap_cell[] = iomap
     iomap
 end

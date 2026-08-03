@@ -24,7 +24,7 @@ import ProjecturedDomain.ProjectionApiModule: print_document, read_intent
 import ProjecturedDomain.OperationApiModule: evaluate_operation
 import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.CellModule: Cell
+import ProjecturedDomain.CellModule: Cell, ComputedCell
 import ProjecturedDomain.ClockModule: Clock, set_clock_time!
 import ProjecturedDomain.ReferenceModule: EmptyReference
 

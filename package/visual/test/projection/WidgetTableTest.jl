@@ -7,7 +7,7 @@
 # synthesises. Must also work when the table is nested in a layout / tabbed pane /
 # shell (routed via the container crossing routing + the table's 3-arg bridge).
 
-using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell, ComputedCell
 
 function test_widget_table()
 @testset "WidgetTable hover" begin

@@ -73,7 +73,7 @@ import ..ColorModule: color_solarized_gray, color_solarized_green, color_solariz
 import ..StyleTextModule: StyleText, DStyleText
 import ..CollectionModule: CellVector
 import ..IoMapModule: SimpleIoMap
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        JuliaInsertionToSyntaxLeaf, SqlInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf,
@@ -188,17 +188,17 @@ end
 # commitability feedback updates per keystroke with no re-print.
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
-    typed = TextString(Cell(() -> something(ins.value, "")),
+    typed = TextString(ComputedCell(() -> something(ins.value, "")),
                        Cell(p.value.font),
-                       Cell(() -> _typed_color(p, p.completion(ins).state)),
+                       ComputedCell(() -> _typed_color(p, p.completion(ins).state)),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    hint = TextString(Cell(() -> p.completion(ins).hint),
+    hint = TextString(ComputedCell(() -> p.completion(ins).hint),
                       Cell(p.hint.font), Cell(p.hint.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # The inner leaf's selection is the insertion's own (`value{k}` is the
     # leaf-local grammar too); the wrapper routes it through `.content`.
     leaf = SyntaxLeaf(typed; close=hint, selection=getfield(ins, :selection))
-    node_selection = Cell(() -> begin
+    node_selection = ComputedCell(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReference || return nothing
         is_introduced_reference(path) && return path
@@ -535,7 +535,7 @@ InsertionNothingToSyntaxLeaf() =
 function print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx)
     iomap_cell = Cell(nothing)
     leaf = SyntaxLeaf(TextString(_nothing_label(doc), p.style);
-        selection = Cell(() -> begin
+        selection = ComputedCell(() -> begin
             s = getfield(doc, :selection)[]
             s === nothing ? nothing : map_reference_forward(p, iomap_cell[], s)
         end))
@@ -619,9 +619,9 @@ _julia_typed_color(p::JuliaInsertionToSyntaxLeaf, value::AbstractString) = begin
 end
 
 function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
-    typed = TextString(Cell(() -> something(ins.value, "")),
+    typed = TextString(ComputedCell(() -> something(ins.value, "")),
                        Cell(p.value.font),
-                       Cell(() -> _julia_typed_color(p, something(ins.value, ""))),
+                       ComputedCell(() -> _julia_typed_color(p, something(ins.value, ""))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, ins, SyntaxLeaf(typed;
         close=TextString(() -> julia_completion(something(ins.value, "")), p.completion),

@@ -17,7 +17,7 @@ truth reused by the printer's selection wiring and the generic reader.
 """
 module FileSystemToWidgetModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
@@ -66,7 +66,7 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # Wire the tree's selection forward from the document selection through this
     # projection's own forward map (deferred-iomap trick, as in FileSystemToSyntax).
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection

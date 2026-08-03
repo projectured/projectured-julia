@@ -29,7 +29,7 @@ module WorkbenchAssistantModule
 
 import ..OperationApiModule: Operation, evaluate_operation
 import ..ProjectionApiModule: read_intent, print_document
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..TextModule: TextBlock, TextString
 import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector

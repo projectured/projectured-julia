@@ -12,7 +12,7 @@ child iomaps so that map_reference_backward can delegate through them
 module CopyingProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, is_element_reference_step, head, tail
@@ -119,7 +119,7 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
     for nm in all_names
         fv = getfield(input, nm)
         if nm == :selection
-            push!(field_vals, Cell(() -> begin
+            push!(field_vals, ComputedCell(() -> begin
                 im = iomap_cell[]
                 im === nothing && return nothing
                 sel = hasproperty(input, :selection) ? input.selection : nothing

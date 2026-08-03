@@ -18,7 +18,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsVie
 import ..ColorModule: StyleColor
 import ..FontModule: font_logical_size
 import ..CollectionModule: CellVector, ListNode
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CopyingProjectionModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection

@@ -8,7 +8,7 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

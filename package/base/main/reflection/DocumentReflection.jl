@@ -22,7 +22,7 @@ the projection's business.
 """
 module DocumentReflectionModule
 
-import ..CellModule: Cell, MutableCell
+import ..CellModule: Cell, ComputedCell, MutableCell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector

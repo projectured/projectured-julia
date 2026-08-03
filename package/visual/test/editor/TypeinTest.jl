@@ -41,7 +41,7 @@
 # pending the text-selection representation refactor (see `_typein_broken_reason`).
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedBase.CollectionModule: CellVector
 using ProjecturedVisual.FontModule: StyleFont
 using ProjecturedVisual.TextModule: TextString, TextBlock, TextDocument, TextGraphics

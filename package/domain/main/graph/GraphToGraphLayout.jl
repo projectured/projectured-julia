@@ -19,7 +19,7 @@ owns and delegate the tail through the same field unchanged).
 """
 module GraphToGraphLayoutModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -65,7 +65,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
 
     # Recurse each vertex's content to measure its intrinsic size. Reactive: a
     # content edit that changes w/h re-runs the layout cell below.
-    child_iomaps = Cell(() -> begin
+    child_iomaps = ComputedCell(() -> begin
         n = length(graph.vertices)
         ims = Any[]
         for i in 1:n
@@ -86,7 +86,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
 
     # Run the engine (keyed on the live sizes + topology). Held in one cell so it
     # re-runs only when a size or the vertex/edge list changes.
-    placed = Cell(() -> begin
+    placed = ComputedCell(() -> begin
         ims = child_iomaps[]
         n = length(graph.vertices)
         sizes = Dict{UInt,Tuple{Int,Int}}()
@@ -125,7 +125,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
     end)
 
     layout = GraphLayout(vertex_layouts, edge_layouts, Cell(:tb), Cell(40), Cell(60),
-        Cell(() -> let im = iomap_cell[]
+        ComputedCell(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
         end))
 

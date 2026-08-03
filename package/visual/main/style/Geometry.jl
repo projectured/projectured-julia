@@ -7,7 +7,7 @@ Reactive geometry primitives shared across document domains. Provides
 """
 module GeometryModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 export Inset, Point2D, inset_default,
        inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,

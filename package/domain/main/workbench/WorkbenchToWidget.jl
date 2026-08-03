@@ -44,7 +44,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap,
                       reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..IoMapModule: IoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
@@ -224,8 +224,8 @@ function print_document(::WorkbenchWorkbenchToWidgetShell,
     # back to a sensible default when run outside a window.
     aw, ah = ctx.available_width, ctx.available_height
     shell_size = Point2D(
-        Cell(() -> aw === nothing ? _SHELL_FALLBACK_WIDTH  : Int(aw[])),
-        Cell(() -> ah === nothing ? _SHELL_FALLBACK_HEIGHT : Int(ah[])),
+        ComputedCell(() -> aw === nothing ? _SHELL_FALLBACK_WIDTH  : Int(aw[])),
+        ComputedCell(() -> ah === nothing ? _SHELL_FALLBACK_HEIGHT : Int(ah[])),
     )
     shell = WidgetShell(main_split;
                         size=shell_size)

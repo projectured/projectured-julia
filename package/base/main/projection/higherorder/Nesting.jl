@@ -16,7 +16,7 @@ module NestingProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 export NestingProjection, NestingProjectionIoMap
@@ -57,10 +57,10 @@ function print_document(np::NestingProjection, recursion, input, ctx)
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
         child = print_document(np.elements[1], inner, input, ctx)
-        NestingProjectionIoMap(np, input, Cell(() -> child.output), child)
+        NestingProjectionIoMap(np, input, ComputedCell(() -> child.output), child)
     else
         child = print_document(effective, recursion, input, ctx)
-        NestingProjectionIoMap(np, input, Cell(() -> child.output), child)
+        NestingProjectionIoMap(np, input, ComputedCell(() -> child.output), child)
     end
 end
 

@@ -27,7 +27,7 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 """
 module SyntaxModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

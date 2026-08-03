@@ -24,7 +24,7 @@ into a `ReferenceStub`. Emit is symmetric via a projection extension
 """
 module MarkdownFileModule
 
-import ..CellModule: Cell, AbstractCell
+import ..CellModule: Cell, ComputedCell, AbstractCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector

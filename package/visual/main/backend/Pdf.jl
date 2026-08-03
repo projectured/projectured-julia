@@ -40,7 +40,7 @@ import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: EmptyReference
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 
 export write_pdf, GraphicsCanvasToPdfFile
 

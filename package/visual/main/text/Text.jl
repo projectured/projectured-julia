@@ -26,7 +26,7 @@ Each span has reactive styling fields:
 """
 module TextModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..DomainModule
@@ -176,9 +176,9 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 # and colour are reactive, so the hint disappears the moment the user types.
 function hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
     TextString(
-        Cell(() -> empty_thunk() ? placeholder : content_thunk()),
+        ComputedCell(() -> empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
-        Cell(() -> empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
+        ComputedCell(() -> empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 

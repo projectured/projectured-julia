@@ -52,7 +52,7 @@ This module carries the pieces every format hooks into:
 """
 module FileProjectModule
 
-import ..CellModule: Cell, ReactiveCell, unwrap_cell
+import ..CellModule: Cell, ComputedCell, ReactiveCell, unwrap_cell
 import ..DocumentModule: Document, search_documents
 import ..ReferenceModule: ConcreteReference, EmptyReference, Reference, FileReferenceStep
 

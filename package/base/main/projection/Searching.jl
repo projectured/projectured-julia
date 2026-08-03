@@ -14,7 +14,7 @@ module SearchingProjectionModule
 
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, AbstractCell, set_cell_function!, unwrap_cell
+import ..CellModule: Cell, ComputedCell, AbstractCell, set_cell_function!, unwrap_cell
 import ..CollectionModule: CellVector
 import ..DocumentModule: Document
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
@@ -72,13 +72,13 @@ SearchingProjection(pattern::AbstractString; kw...) =
 function print_document(p::SearchingProjection, recursion, input, ctx)
     # One reactive walk feeds both output and match_paths: reading the tree's
     # cells inside the closure makes the match set track structural edits.
-    matches = Cell(() -> begin
+    matches = ComputedCell(() -> begin
         acc = Tuple{Reference,Any}[]
         _walk(p, input, EmptyReference(), acc, Base.IdSet{Any}())
         acc
     end)
     output = CellVector(() -> [obj for (_, obj) in matches[]])
-    match_paths = Cell(() -> Reference[path for (path, _) in matches[]])
+    match_paths = ComputedCell(() -> Reference[path for (path, _) in matches[]])
     iomap = SearchingProjectionIoMap(p, input, output, match_paths)
 
     # Forward-project the input selection so the cursor lands on the matching

@@ -44,10 +44,10 @@ shadow = SimSnapshot(0, 0, false, zeros(Int, NMOD), zeros(UInt128, NMOD))  # rea
 
 # Instrument recomputation: each view cell bumps a counter when it actually runs.
 recompute = Dict(:clock=>Ref(0), :status=>Ref(0), :counts=>Ref(0), :total=>Ref(0))
-view_clock  = Cell(() -> (recompute[:clock][]  += 1; "t=$(shadow.time)"))
-view_status = Cell(() -> (recompute[:status][] += 1; shadow.stopped ? "STOPPED" : "running"))
-view_counts = Cell(() -> (recompute[:counts][] += 1; copy(shadow.event_counts)))
-view_total  = Cell(() -> (recompute[:total][]  += 1; shadow.global_event_count))
+view_clock  = ComputedCell(() -> (recompute[:clock][]  += 1; "t=$(shadow.time)"))
+view_status = ComputedCell(() -> (recompute[:status][] += 1; shadow.stopped ? "STOPPED" : "running"))
+view_counts = ComputedCell(() -> (recompute[:counts][] += 1; copy(shadow.event_counts)))
+view_total  = ComputedCell(() -> (recompute[:total][]  += 1; shadow.global_event_count))
 force_all() = (view_clock[]; view_status[]; view_counts[]; view_total[])
 
 pass = Ref(0); fail = Ref(0)

@@ -13,7 +13,7 @@ but dimmed.
 """
 module GestureMapToSyntaxModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap

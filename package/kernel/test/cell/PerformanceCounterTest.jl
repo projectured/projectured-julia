@@ -6,7 +6,7 @@ The active counter store is a task-local binding established by
 
 using Test
 using ProjecturedKernel.PerformanceCounterModule
-using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.CellModule: Cell, ComputedCell
 
 function test_performance_counter()
 @testset "PerformanceCounter" begin
@@ -18,7 +18,7 @@ function test_performance_counter()
         # `with_performance_counters` runs the body and returns its value, the
         # recording verbs are no-ops, and `@performance_time` yields its expression.
         counts = with_performance_counters() do
-            a = Cell(1); b = Cell(() -> a[] + 1)
+            a = Cell(1); b = ComputedCell(() -> a[] + 1)
             _ = b[]; a[] = 2; _ = b[]
             record_performance!(:my_stage_ns, 100)
             @test (@performance_time :timed_expr (1 + 2)) == 3
@@ -33,7 +33,7 @@ function test_performance_counter()
     # engine-internal detail and would over-specify the test.
     counts = with_performance_counters() do
         a = Cell(1)
-        b = Cell(() -> a[] + 1)
+        b = ComputedCell(() -> a[] + 1)
         _ = b[]           # first read: 1 compute + at least 2 reads (a, b)
         a[] = 2           # write + invalidation
         _ = b[]           # recompute

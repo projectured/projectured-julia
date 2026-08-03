@@ -10,7 +10,7 @@ AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 """
 module ObjectToSyntaxModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: is_element_collection
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -134,7 +134,7 @@ function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     # the cell, so a `sync_document!`/`setproperty!` write repaints without rebuilding
     # the whole projection.
     inner = reconcile_child_iomap(() -> cell[], v -> print_child(recursion, v, ctx))
-    SimpleIoMap(p, cell, Cell(() -> inner[].output))
+    SimpleIoMap(p, cell, ComputedCell(() -> inner[].output))
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -228,7 +228,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         elem_ims = reconcile_child_iomaps(
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
-        output = Cell(() -> SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
+        output = ComputedCell(() -> SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
             SyntaxDocument[im.output for im in elem_ims[]]; indentation = ind))
         return SimpleIoMap(p, obj, output)
     end
@@ -246,7 +246,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # Field structure (which fields) is stable; build each field's entry once, then
     # assemble the node in a computed cell that reads each field's (reactive) value.
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
-    output = Cell(() -> begin
+    output = ComputedCell(() -> begin
         field_nodes = SyntaxDocument[
             SyntaxNode("", "", " ", SyntaxDocument[nl, _field_value(p, fim)]; indentation = 0)
             for (nl, fim) in entries]

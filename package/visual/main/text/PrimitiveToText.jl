@@ -9,7 +9,7 @@ want a primitive value to land in the text domain directly.
 """
 module PrimitiveToTextModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -108,7 +108,7 @@ map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.style)
     out = TextBlock(CellVector(() -> TextDocument[span]),
-                   Cell(() -> _value_selection_to_text(b)))
+                   ComputedCell(() -> _value_selection_to_text(b)))
     SimpleIoMap(p, b, out)
 end
 
@@ -132,7 +132,7 @@ map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.style)
     out = TextBlock(CellVector(() -> TextDocument[span]),
-                   Cell(() -> _value_selection_to_text(n)))
+                   ComputedCell(() -> _value_selection_to_text(n)))
     SimpleIoMap(p, n, out)
 end
 
@@ -169,7 +169,7 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     placeholder_span = TextString(p.placeholder, p.placeholder_style)
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
     out = TextBlock(CellVector(() -> TextDocument[show_placeholder() ? placeholder_span : value_span]),
-                   Cell(() -> _value_selection_to_text(s)))
+                   ComputedCell(() -> _value_selection_to_text(s)))
     SimpleIoMap(p, s, out)
 end
 

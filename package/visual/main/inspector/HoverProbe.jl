@@ -38,7 +38,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..EventModule: MouseMove, MousePress
 import ..OperationModule: ReplaceSelectionOperation
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
@@ -90,7 +90,7 @@ end
 
 function print_document(p::HoverProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    HoverProbeProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
+    HoverProbeProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ unchanged and is mapped later by the layout renderer's own child IO maps.
 """
 module CollectionToLayoutModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..LayoutModule: VerticalLayout
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
@@ -40,7 +40,7 @@ function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector
     # Reuse the input's element cells (no transform here — the layout renderer
     # recurses them). The deferred-iomap trick wires the output selection.
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, cv.selection)

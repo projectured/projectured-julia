@@ -10,7 +10,7 @@ as top-level collection documents, mapping each element through recursion.
 """
 module CollectionToSyntaxModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
@@ -73,7 +73,7 @@ function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference
 end
 
 function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
-    child_iomaps = Cell(() -> [print_child(recursion, x,
+    child_iomaps = ComputedCell(() -> [print_child(recursion, x,
                                    make_child_context(ctx, ElementReferenceStep(i)))
                                for (i, x) in enumerate(cv)])
     # Wire the output SyntaxNode's selection cell to forward-project the input
@@ -81,7 +81,7 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
     # avoids a forward reference: we build the iomap after the node, then fill in
     # the cell so the lazy sel thunk closes over a valid iomap.
     iomap_cell = Cell(nothing)
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = cv.selection

@@ -25,7 +25,7 @@ module GestureHelpDecoratorProjectionModule
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
@@ -105,7 +105,7 @@ end
 
 function print_document(p::GestureHelpProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    GestureHelpProjectionIoMap(p, input, Cell(() -> inner_iomap.output), inner_iomap)
+    GestureHelpProjectionIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────

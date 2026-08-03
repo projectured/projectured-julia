@@ -21,7 +21,7 @@ module TooltipDecoratorProjectionModule
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
@@ -78,7 +78,7 @@ TooltipDecoratorProjection(; trigger::Function,
 
 function print_document(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
     child_iomap = print_child(recursion, input.child, ctx)
-    TooltipDecoratorProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
+    TooltipDecoratorProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

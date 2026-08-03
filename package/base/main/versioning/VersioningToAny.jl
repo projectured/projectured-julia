@@ -44,7 +44,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
@@ -98,7 +98,7 @@ end
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function print_document(p::VersioningToAnyProjection, recursion, input::VersionedObject, ctx)
-    selection_cell = Cell(() -> begin
+    selection_cell = ComputedCell(() -> begin
         selected = select_version(input)
         selected === nothing && return nothing
         idx, version = selected
@@ -107,12 +107,12 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
                                         ElementReferenceStep(idx), FieldReferenceStep("value")))
         (idx, value_iomap)
     end)
-    output = Cell(() -> begin
+    output = ComputedCell(() -> begin
         sel = selection_cell[]
         sel === nothing ? DocumentNothing() : sel[2].output
     end)
-    index = Cell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[1]))
-    value_iomap = Cell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[2]))
+    index = ComputedCell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[1]))
+    value_iomap = ComputedCell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[2]))
     VersioningToAnyProjectionIoMap(p, input, selection_cell, output, index, value_iomap)
 end
 

@@ -33,7 +33,7 @@ module ReflectionToWidgetModule
 
 import ..ProjectionApiModule: print_document, read_intent, Projection
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep

@@ -157,15 +157,36 @@ Decisions made during implementation:
   (`CellComputed.jl` is included before them). Its header now states that as its remit.
 - `Computed` and `ComputedCell` collide with no existing name in any of the three repos.
 
-### Phase 2 — spelling sweep [ ]
+### Phase 2 — spelling sweep [x] **done**
 
-- [ ] projectured-julia: 388 literal sites (`Cell(() -> …)`, `Cell(function … end)`; zero
+- [x] projectured-julia: 388 literal sites (`Cell(() -> …)`, `Cell(function … end)`; zero
       do-block forms exist) plus the one variable-thunk site
       `visual/main/widget/WidgetToGraphics.jl:730` (`Cell(build_fn)`) → `ComputedCell(...)`.
-- [ ] omnetpp-julia: 20 literal sites (presentation widgets). inet-julia: zero sites.
-- [ ] Mechanical — delegate per-repo to Sonnet subagents; verify by grep (no thunk-style
-      spellings remain outside `ReactiveCell.jl`) and targeted suites (`test_kernel()`,
-      `test_visual()`, one full domain example; omnetpp suite with `-t 4`, memory-capped).
+- [x] omnetpp-julia: 20 literal sites (presentation widgets). inet-julia: zero sites.
+- [x] The one typed site, `package/kernel/test/cell/CellTest.jl:129` →
+      `ReactiveCell{Int}(Computed(…))`.
+- [x] `iomap/IoMapDefaults.jl`: two prose mentions (one wrapped across lines, so the sed
+      missed it).
+- [x] **Import fallout — the real work of this phase.** `ComputedCell` had to be added to
+      every explicit `using/import …CellModule: …Cell…` symbol list: **142 files** in two
+      passes. The first pass (58 files) only touched files that themselves say
+      `ComputedCell`, which missed the case that actually bites — a **module aggregator**
+      importing `Cell` by list while a *fragment* file of that module is the one using
+      `ComputedCell` (`OmnetppPresentation.jl` vs `OmnetppWorkbenchToWidget.jl`). The second
+      pass (84 files) therefore adds `ComputedCell` to *every* such list unconditionally,
+      whether or not that file uses it. Unused imports are harmless; a missing one is a
+      runtime `UndefVarError` on a path tests may not reach.
+- [x] The umbrella `Projectured` needs no edit: it re-exports mechanically via `names()`.
+
+Verification: omnetpp-julia **5164 pass / 0 fail / 0 error** (the 6 errors the first import
+pass left are fixed). Sweep is semantics-preserving, so suite counts are expected to match
+the pre-change baseline.
+
+Method note: the sweep was two `sed` expressions, not a subagent — the codebase had exactly
+two textual forms (`Cell(() ->`, `Cell(function`), no `do`-block or multi-line or qualified
+(`X.Cell(`) variants, and no occurrences inside string literals. `\bCell\(` cannot match
+inside `MutableCell(`/`ImmutableCell(`/`ComputedCell(`, so the substitution is safe and
+idempotent.
 
 ### Phase 3 — tripwire flip [ ]
 
@@ -212,6 +233,38 @@ Decisions made during implementation:
       defaults; grep all docs for `as_value`.
 - [ ] Run the micro-benchmarks from the runtime cost analysis; record results in this plan.
 - [ ] Move this plan to `plan/done/`.
+
+## Follow-up found during implementation — `CellVector(f::Function)` (NOT in this plan)
+
+`base/main/collection/CellVector.jl:45` has the *same* defect in a second place:
+
+```julia
+CellVector(items...)      = CellVector(Cell[Cell(x) for x in items])   # 1 arg → 1 ELEMENT
+CellVector(f::Function)   = …set_cell_function!(…)                     # 1 arg → COMPUTED elements
+```
+
+so `CellVector(callback)` cannot mean "a one-element vector holding a callback" — computedness
+is again inferred from the argument's runtime type. Its forwarders inherit it:
+`make_children_container(thunk::Function)`, `Syntax._children(f::Function)`,
+`TextBlock(f::Function)`, `TextLine(f::Function)`, `SyntaxNode(…, f, …)`. Roughly **92**
+`CellVector(() -> …)` call sites plus ~7 forwarders.
+
+**Deliberately left alone.** It is a separate ambiguous constructor in another package, this
+plan's goal holds without it (`CellVector([f])` already stores `f` as a value, because the
+element path goes through `Cell(x)`, which this plan fixes), and after Phase 4 nothing
+regresses — `CellVector`'s behaviour is simply unchanged. Sweeping it is a scope decision for
+the user, not a consequence of this one.
+
+The fix, if wanted, is the same shape: `CellVector(::Computed)` replaces
+`CellVector(f::Function)`, the forwarders pass `Computed(f)` down while keeping their own
+unambiguous `::Function` signatures, and `CellVector(f)` then falls through to the variadic
+as a one-element vector.
+
+Not a defect, by contrast, and correctly out of scope: constructors like
+`TextString(content::Function, …)`, `SyntaxLeaf(f::Function)`, `WidgetLabel`'s
+`set_cell_function!` methods. There the field's value type (a `String`, a syntax node) admits
+no callable, so a `Function` argument has exactly one possible meaning. Ambiguity — not the
+`::Function` dispatch itself — is what makes a trap.
 
 ## Survey data (2026-08-03, for sizing)
 

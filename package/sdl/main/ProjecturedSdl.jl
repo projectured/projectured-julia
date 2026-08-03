@@ -49,7 +49,7 @@ import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
 import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.CellModule: Cell, is_cell_up_to_date
+import ProjecturedDomain.CellModule: Cell, ComputedCell, is_cell_up_to_date
 import ProjecturedDomain.ReferenceModule: EmptyReference
 import ProjecturedDomain.IoMapModule: SimpleIoMap
 

@@ -20,7 +20,7 @@ b = Cell(2)
 @test is_cell_up_to_date(b)
 
 # computed cell
-c = Cell(() -> a[] + b[])
+c = ComputedCell(() -> a[] + b[])
 @test !is_cell_up_to_date(c)
 @test c[] == 3
 @test is_cell_up_to_date(c)
@@ -32,7 +32,7 @@ a[] = 10
 @test c[] == 12
 
 # deep chain
-d = Cell(() -> c[] * 2)
+d = ComputedCell(() -> c[] * 2)
 @test d[] == 24
 b[] = 3
 @test !is_cell_up_to_date(c)
@@ -61,7 +61,7 @@ a[] = 2
 flag = Cell(true)
 x = Cell(10)
 y = Cell(20)
-cond = Cell(() -> flag[] ? x[] : y[])
+cond = ComputedCell(() -> flag[] ? x[] : y[])
 @test cond[] == 10
 flag[] = false
 @test cond[] == 20
@@ -94,7 +94,7 @@ x[] = 999          # x is no longer a dep after last eval
     # edge containers are now allocated lazily, so a build allocates less and GC fires
     # at different points). A `WeakRef` to the first one lets us later ask whether it
     # was collected once every strong reference is dropped.
-    cells = [(c = Cell(() -> source[] + 1); c[]; c) for _ in 1:100]
+    cells = [(c = ComputedCell(() -> source[] + 1); c[]; c) for _ in 1:100]
     @test live(source) == 100                     # all 100 registered
     discarded = WeakRef(cells[1])
     empty!(cells); cells = nothing                # drop every strong reference to them
@@ -107,7 +107,7 @@ x[] = 999          # x is no longer a dep after last eval
 
     # The emptied slots are pruned by the next scan, which registration is doing anyway,
     # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.
-    keep = Cell(() -> source[] + 1)
+    keep = ComputedCell(() -> source[] + 1)
     keep[]
     @test length(getfield(source, :dependents)) == live(source)
 
@@ -126,7 +126,7 @@ end
     t[] = 2.0                             # converts to the field type
     @test t[] === 2
     @test_throws InexactError t[] = 2.5
-    tc = ReactiveCell{Int}(() -> t[] + 1) # computed: value starts undefined
+    tc = ReactiveCell{Int}(Computed(() -> t[] + 1)) # computed: value starts undefined
     @test !is_cell_up_to_date(tc)
     @test (@inferred tc[]) == 3
     t[] = 10
@@ -147,7 +147,7 @@ end
     @test peek(m) == 2
     # no reactive bookkeeping: a thunk reading a MutableCell registers nothing,
     # so a later write does NOT invalidate the computed cell (by design)
-    obs = Cell(() -> m[] * 10)
+    obs = ComputedCell(() -> m[] * 10)
     @test obs[] == 20
     m[] = 5
     @test is_cell_up_to_date(obs)                 # unaware of the write

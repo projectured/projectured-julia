@@ -45,7 +45,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
@@ -144,7 +144,7 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     # ChainingProjection re-pulls this through its own per-stage cells, so
     # flipping `display_slice` switches the exposed child with no `editor.iomap`
     # drop — only the downstream stages re-print.
-    output = Cell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
+    output = ComputedCell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
                             slice_iomap.output : content_iomap.output)
     ClipboardSliceToAnyProjectionIoMap(p, input, output, content_iomap, slice_iomap)
 end
@@ -160,7 +160,7 @@ function print_document(p::ClipboardCollectionToAnyProjection, recursion, input:
             make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
     # Reactive output (see the slice printer): a derived cell over the display flag,
     # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
-    output = Cell(() -> p.display_collection[] ?
+    output = ComputedCell(() -> p.display_collection[] ?
         CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
         content_iomap.output)
     ClipboardCollectionToAnyProjectionIoMap(p, input, output, content_iomap, element_iomaps)

@@ -7,7 +7,7 @@ anchor. The `TooltipDecoratorProjection` reader watches events on it and emits
 """
 module TooltipDocumentModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

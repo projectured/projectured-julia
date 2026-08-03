@@ -17,7 +17,7 @@ Read-only: no reference mapping or read support.
 """
 module CellTableToWidgetTableModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, CellTable
 import ..WidgetModule: WidgetTable, Point2D
 import ..PrimitiveModule: PrimitiveBool, PrimitiveNumber, PrimitiveString

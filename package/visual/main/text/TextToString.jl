@@ -12,7 +12,7 @@ module TextToStringModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..IoMapModule: SimpleIoMap
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, extend_reference
@@ -32,7 +32,7 @@ function map_reference_backward(::TextStringToString, iomap, reference)
 end
 
 function print_document(p::TextStringToString, recursion, ts::TextString, ctx)
-    SimpleIoMap(p, ts, Cell(() -> ts.content::AbstractString))
+    SimpleIoMap(p, ts, ComputedCell(() -> ts.content::AbstractString))
 end
 
 function read_intent(::TextStringToString, iomap::SimpleIoMap, op)
@@ -75,10 +75,10 @@ end
 # a separator between elements, so the enclosing block emits it (see
 # `text_flat_offsets`, the same rule).
 function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
-    child_iomaps = Cell(() -> [print_child(recursion, elem,
+    child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(line.elements)])
-    output = Cell(() -> begin
+    output = ComputedCell(() -> begin
         buf = IOBuffer()
         print(buf, ' '^line.indentation)
         for iomap in child_iomaps[]
@@ -109,10 +109,10 @@ end
 # Projection print: builds one child IoMap per element via recursion, then
 # combines their output cells into a single reactive Cell{String}.
 function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx)
-    child_iomaps = Cell(() -> [print_child(recursion, elem,
+    child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(text.elements)])
-    output = Cell(() -> begin
+    output = ComputedCell(() -> begin
         buf = IOBuffer()
         elements = text.elements
         for (i, iomap) in enumerate(child_iomaps[])

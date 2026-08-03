@@ -50,7 +50,7 @@ internals, which the module boundary forbids. The hooks are the honest shape.
 """
 module BoundedSyncModule
 
-import ..CellModule: AbstractCell, Cell
+import ..CellModule: AbstractCell, Cell, ComputedCell
 import ..DocumentModule: Document, @document, sync_document!, copy_document,
                          is_element_collection,
                          should_descend_sync, sync_element_limit, unsynced_placeholder

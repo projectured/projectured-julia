@@ -14,7 +14,7 @@ sdlt.text = "changed"
 off = Cell(5)
 sdlt2 = GraphicsText(
     Cell("hi"),
-    Cell(() -> Int32(off[] * 10)),
+    ComputedCell(() -> Int32(off[] * 10)),
     Cell(Int32(0)),
     Cell(font_ubuntu_monospace_regular_20),
     Cell(color_black),

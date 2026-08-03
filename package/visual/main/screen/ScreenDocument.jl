@@ -20,7 +20,7 @@ translates one into a document mutation — typically removing the matching
 """
 module ScreenDocumentModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector

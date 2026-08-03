@@ -17,7 +17,7 @@ at construction time.
 """
 module TextToGraphicsModule
 
-import ..CellModule: Cell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
@@ -277,8 +277,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block's prevailing font sizes a blank line that has no font of its own
     # (an empty `TextLine`). It lives in its own cell because only such a line
     # reads it: a font edit still re-lays out just the lines that render glyphs.
-    block_font = Cell(() -> _block_font(styled))
-    overlay = Cell(() -> _layout_overlay(p, styled, styled.selection, block_font))
+    block_font = ComputedCell(() -> _block_font(styled))
+    overlay = ComputedCell(() -> _layout_overlay(p, styled, styled.selection, block_font))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
@@ -322,7 +322,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block resolved into visual lines (see `_line_groups`). Reads only the
     # element structure, the element types and a line's indentation — never a span's
     # `.content` — so it is invariant under content edits.
-    lines_cell = Cell(() -> _line_groups(styled))
+    lines_cell = ComputedCell(() -> _line_groups(styled))
 
     # Per-line reactive cells, built once per line index and reused. A line's
     # `layout` reads only that line's spans' content; its `y` chains off the
@@ -334,13 +334,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     line_cells = Dict{Int,NamedTuple}()
     function get_line_cells(L::Int)
         haskey(line_cells, L) && return line_cells[L]
-        line_layout = Cell(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
-        line_h = Cell(() -> Int32(line_layout[].height))
+        line_layout = ComputedCell(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
+        line_h = ComputedCell(() -> Int32(line_layout[].height))
         line_y = if L == 1
             Cell(Int32(0))
         else
             prev = get_line_cells(L - 1)
-            Cell(() -> Int32(prev.y[] + prev.h[]))
+            ComputedCell(() -> Int32(prev.y[] + prev.h[]))
         end
         cache = Dict{Any,Any}()
         segs = CellVector(function ()
@@ -388,7 +388,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
     # and key-navigation see exactly the same SegCoords as before.
-    char_to_coord = Cell(function ()
+    char_to_coord = ComputedCell(function ()
         out = SegCoord[]
         n = length(lines_cell[])
         for L in 1:n
@@ -409,14 +409,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # and line sub-canvases), so the bare text examples use the MousePress/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
-    canvas_w = Cell(function ()
+    canvas_w = ComputedCell(function ()
         w = 0
         for L in 1:length(lines_cell[])
             w = max(w, get_line_cells(L).layout[].width)
         end
         Int32(w)
     end)
-    canvas_h = Cell(function ()
+    canvas_h = ComputedCell(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
     end)

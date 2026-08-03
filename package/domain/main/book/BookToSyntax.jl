@@ -23,7 +23,7 @@ printer recurses" section of package/kernel/doc/projection-system.md.
 """
 module BookToSyntaxModule
 
-import ..CellModule: Cell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..ImageModule: ImageFile
 import ..BackendApiModule: decode_image
@@ -96,17 +96,17 @@ end
 
 
 function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
-    element_iomaps = Cell(() -> [print_child(recursion, e,
+    element_iomaps = ComputedCell(() -> [print_child(recursion, e,
                                      make_child_context(ctx, b, (@reference_step elements), (@reference_step [i])))
                                  for (i, e) in enumerate(b.elements)])
 
-    title_sel = Cell(() -> begin
+    title_sel = ComputedCell(() -> begin
         @reference_case b.selection begin
             ::BookBook.title.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
     end)
 
-    author_sel = Cell(() -> begin
+    author_sel = ComputedCell(() -> begin
         @reference_case b.selection begin
             ::BookBook.author.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
@@ -114,7 +114,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
 
     title_leaf = SyntaxLeaf(TextString(() -> b.title, p.title); selection=title_sel)
 
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         path = b.selection
         path isa ConcreteReference || return nothing
         h = path.head
@@ -271,14 +271,14 @@ end
 
 
 function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, ctx)
-    element_iomaps = Cell(() -> [print_child(recursion, e,
+    element_iomaps = ComputedCell(() -> [print_child(recursion, e,
                                      make_child_context(ctx, b, (@reference_step elements), (@reference_step {i})))
                                  for (i, e) in enumerate(b.elements)])
 
     # The title leaf renders "numbering  title" (when numbering is present), so a
     # `.title[k]` cursor shifts right by length(numbering)+2 while a
     # `.numbering[k]` cursor maps straight onto the value span's leading region.
-    title_sel = Cell(() -> begin
+    title_sel = ComputedCell(() -> begin
         @reference_case b.selection begin
             ::BookChapter.title{s:_}.tail... => begin
                 offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
@@ -297,7 +297,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         end, p.title);
         selection=title_sel)
 
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         path = b.selection
         path isa ConcreteReference || return nothing
         h = path.head
@@ -475,11 +475,11 @@ end
 
 
 function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
-    element_iomaps = Cell(() -> [print_child(recursion, e,
+    element_iomaps = ComputedCell(() -> [print_child(recursion, e,
                                      make_child_context(ctx, b, (@reference_step elements), (@reference_step {i})))
                                  for (i, e) in enumerate(b.elements)])
 
-    sel = Cell(() -> begin
+    sel = ComputedCell(() -> begin
         path = b.selection
         is_introduced_reference(path) && return b.selection
         @reference_case path begin
@@ -584,8 +584,8 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         # live, exactly like an image span but WITHOUT rasterizing — TextToGraphics
         # splices the canvas in as a nested, real graphics element. Sized to the
         # canvas's own `w`/`h` (a `GraphicsCanvas` carries them; else zero).
-        gw = Cell(() -> Int32(hasproperty(content, :w) ? Int(content.w) : 0))
-        gh = Cell(() -> Int32(hasproperty(content, :h) ? Int(content.h) : 0))
+        gw = ComputedCell(() -> Int32(hasproperty(content, :w) ? Int(content.w) : 0))
+        gh = ComputedCell(() -> Int32(hasproperty(content, :h) ? Int(content.h) : 0))
         return TextGraphics(Cell(content), gw, gh, Cell(style.font), Cell(""),
                             Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
@@ -595,8 +595,8 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         raw  = getfield(img, :raw)
         set_cell_function!(raw, () -> (try decode_image(path) catch; nothing end))
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
-        dw = Cell(() -> Int32(min(_nat(2, 720), max_w)))
-        dh = Cell(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
+        dw = ComputedCell(() -> Int32(min(_nat(2, 720), max_w)))
+        dh = ComputedCell(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
                             Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end

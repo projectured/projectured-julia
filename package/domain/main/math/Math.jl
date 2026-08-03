@@ -7,7 +7,7 @@ The math document domain: arithmetic formulas as `Document`s.
 """
 module MathModule
 
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference

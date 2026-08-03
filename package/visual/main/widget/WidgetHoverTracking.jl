@@ -40,7 +40,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               Projection
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell
+import ..CellModule: Cell, ComputedCell
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
@@ -79,7 +79,7 @@ end
 
 function print_document(p::WidgetHoverTrackingProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetHoverTrackingProjectionIoMap(p, input, Cell(() -> child_iomap.output), child_iomap)
+    WidgetHoverTrackingProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
