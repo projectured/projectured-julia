@@ -21,22 +21,22 @@ adapter is out of scope here.
 
 ## Requirements
 
-- [ ] Four chart types: line, bar, histogram, scatter — each a real document type
+- [x] Four chart types: line, bar, histogram, scatter — each a real document type
       rendering natively from `Graphics` primitives (no plotting library, no raster).
-- [ ] Highly customizable: title, axes (range/log/grid/labels), legend
+- [x] Highly customizable: title, axes (range/log/grid/labels), legend
       (position/anchor/border/visibility), per-series style (color, line style/width,
       draw style, markers), series ordering, style cycles — all as document fields,
       editable projectionally with a working edit surface (not just selectable).
-- [ ] Interactive: wheel/rubber-band/keyboard zoom, pan, zoom-to-fit, per-axis zoom,
+- [x] Interactive: wheel/rubber-band/keyboard zoom, pan, zoom-to-fit, per-axis zoom,
       hover crosshair with value readout, legend click to hide/show series,
       click-to-select chart parts and series, series reordering.
-- [ ] Scalable: rendering cost bounded by *pixels*, not points — binary-search
+- [x] Scalable: rendering cost bounded by *pixels*, not points — binary-search
       viewport clipping + per-pixel min/max decimation for lines; density folding for
       large scatter sets; bin folding for dense bars/histograms; label decimation
       for dense category axes.
-- [ ] Reactive: replacing a series' data column (one cell write) repaints the chart;
+- [x] Reactive: replacing a series' data column (one cell write) repaints the chart;
       stable output-object identity so only computed geometry cells re-derive.
-- [ ] Registered as a full domain slice: examples, tests, docs, layering guard clean.
+- [x] Registered as a full domain slice: examples, tests, docs, layering guard clean.
 
 ## Where the code goes
 
@@ -799,19 +799,6 @@ Whole-repository sweeps, all with the chart examples registered:
 No chart example carries a `@test_broken` marker. The two reader/repl failures
 reproduce on clean `main` without any of this work.
 
-- [ ] **P7 (stretch) — point-level selection.** Reference-step design for
-      addressing sample *i* inside a column. Constraint to satisfy or amend
-      with sign-off: AR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is
-      selection-opaque; candidate design: a windowed Document view over the
-      column, or a new typed reference step — new step types need no sealed
-      kernel edit, `PointReferenceStep` is the precedent).
-- [ ] **P8 (optional, separate scope) — `GraphicsPolygon` primitive.** Real
-      filled-polygon support: document type + `hit_element_at` branch
-      (point-in-polygon) + `graphics_size` bounds in
-      `package/visual/main/graphics/Graphics.jl`, and draw paths in all three
-      backends (SDL geometry fill, PDF path fill, web canvas path) — unlocking
-      diamond/triangle/star markers and area fills. Touches `package/visual` +
-      backends, not the chart slice — only do with explicit sign-off.
 
 ## Risks
 
@@ -831,6 +818,26 @@ reproduce on clean `main` without any of this work.
 - **Backend feature unevenness** — no rotation on SDL/PDF (category labels wrap
   + decimate instead), no filled polygon (marker set restricted), no working
   canvas rasterization (not needed under D5).
+
+## Follow-ups
+
+Neither was in the delivered scope: P7 was a stretch goal and P8 was gated on
+explicit sign-off, since it changes a shared primitive across three backends.
+
+- [ ] **P7 (stretch) — point-level selection.** Reference-step design for
+      addressing sample *i* inside a column. Constraint to satisfy or amend
+      with sign-off: AR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is
+      selection-opaque; candidate design: a windowed Document view over the
+      column, or a new typed reference step — new step types need no sealed
+      kernel edit, `PointReferenceStep` is the precedent).
+- [ ] **P8 (optional, separate scope) — `GraphicsPolygon` primitive.** Real
+      filled-polygon support: document type + `hit_element_at` branch
+      (point-in-polygon) + `graphics_size` bounds in
+      `package/visual/main/graphics/Graphics.jl`, and draw paths in all three
+      backends (SDL geometry fill, PDF path fill, web canvas path) — unlocking
+      diamond/triangle/star markers and area fills. Touches `package/visual` +
+      backends, not the chart slice — only do with explicit sign-off.
+
 
 ## Out of scope (follow-ups elsewhere)
 
