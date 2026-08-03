@@ -2,6 +2,12 @@
 
 Three follow-ups to the chart domain, two of which were deferred there.
 
+Sweep status at the end: `test_domain()` 139 842 pass / 0 fail, `test_visual()`
+49 287 pass / 0 fail, `test_printers()` 176 284 / 0 fail, `test_readers()` and
+`test_repls()` at their pre-existing 2 `filesystem`/`navigator` failures,
+`test_tree_navigations()` 56 / 0 fail, `test_position_navigations()` 7 210 /
+0 fail.
+
 ## 1. A bordered rect must not tint its own interior
 
 Both the SDL and PDF backends draw a bordered `GraphicsRect` as *a fill in the
