@@ -150,5 +150,27 @@ end # @testset "ReactiveCollection"
         @test length(v) == 1
     end
 
+    @testset "a function is an element" begin
+        # `CellVector(f)` used to call `f` and splat the result: a callback returning a
+        # String became a vector of its characters, silently.
+        callback() = "I am a callback"
+        one = CellVector(callback)
+        @test length(one) == 1
+        @test one[1] === callback
+
+        # every other way of putting one in agrees
+        @test CellVector([callback])[1] === callback
+        @test CellVector(1, 2, callback)[3] === callback   # 2-arg is (elements, selection)
+        @test last(push!(CellVector([1]), callback)) === callback
+
+        # deriving the element list is what the marker is for
+        src = Cell(2)
+        derived = ComputedCellVector(() -> [10i for i in 1:src[]])
+        @test [x for x in derived] == [10, 20]
+        src[] = 3
+        @test [x for x in derived] == [10, 20, 30]   # re-derives on upstream change
+        @test [x for x in CellVector(Computed(() -> [1, 2]))] == [1, 2]
+    end
+
 end # @testset "CellVector protocol"
 end # test_collection

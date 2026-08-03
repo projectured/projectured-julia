@@ -50,13 +50,8 @@ function CellVector(computed::Computed)
     set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
-# Transitional: refuse a bare function while the call sites move onto `Computed`, so a
-# site that still means "derived elements" fails loudly instead of silently becoming a
-# one-element vector holding a function. Deleted once none remain.
-CellVector(::Function) = error(
-    "a bare function argument is ambiguous: write ComputedCellVector(f) or " *
-    "CellVector(Computed(f)) for derived elements — once this guard is removed, " *
-    "CellVector(f) will be a ONE-ELEMENT vector holding f")
+# A `Function` needs no method of its own: it is an element like any other value, and the
+# variadic above makes it a one-element vector. Only a `Computed` derives the element list.
 
 """
     ComputedCellVector(f) -> CellVector
