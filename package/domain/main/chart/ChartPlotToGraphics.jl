@@ -39,7 +39,8 @@ import ..ChartPlotModule: ChartPlot, ChartView
 import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
                               column_bounds, merge_bounds, pad_range,
                               nice_ticks, log_ticks, format_tick,
-                              visible_range, decimate_minmax, step_points, pins_segments
+                              visible_range, decimate_minmax, step_points, pins_segments,
+                              fold_scatter, fold_bins, label_step, histogram_values
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsViewport,
                          layout_none
@@ -50,7 +51,7 @@ import ..ColorModule: StyleColor,
 import ..FontModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
 import ..IoMapModule: IoMap, var"@iomap"
 
-export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap
+export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -116,20 +117,75 @@ end
 
 _series_x_bounds(s::ChartLineSeries) = column_bounds(s.x)
 _series_x_bounds(s::ChartScatterSeries) = column_bounds(s.x)
+# A histogram spans its outermost edges, whatever the values do.
+_series_x_bounds(s::ChartHistogramSeries) = column_bounds(s.binedges)
 _series_x_bounds(::Any) = nothing
 
 _series_y_bounds(s::ChartLineSeries) = column_bounds(s.y)
 _series_y_bounds(s::ChartScatterSeries) = column_bounds(s.y)
 _series_y_bounds(::Any) = nothing
 
-# The data extent of everything drawn, before padding or axis overrides.
-function _data_bounds(series)
+# Histogram bars grow from zero, and the value shown is the transformed one, so
+# the y extent has to be taken after the cumulative/density transform.
+function _series_y_bounds(s::ChartHistogramSeries)
+    vals = _histogram_shown_values(s)
+    b = column_bounds(vals)
+    b === nothing ? nothing : (min(b[1], 0.0), max(b[2], 0.0))
+end
+
+"""
+    _histogram_shown_values(series) -> Vector{Float64}
+
+The bin values as drawn: the raw counts put through whichever of the four
+cumulative/density transforms the series selects, with the under/overflow weight
+folded into the normalizing total so a CDF really reaches 1.
+"""
+function _histogram_shown_values(s::ChartHistogramSeries)
+    values = s.binvalues
+    total = sum(Float64(v) for v in values; init=0.0) + s.underflows + s.overflows
+    histogram_values(s.binedges, values, s.cumulative, s.density, total)
+end
+
+# The data extent of everything drawn, before padding or axis overrides. Bar
+# series live on a category axis, where x is the category index and y has to
+# include the baseline the bars grow from.
+function _data_bounds(series, chart::Chart)
+    if chart_axis_family(chart.x_axis) === :category
+        n = length(chart.x_axis.categories)
+        yb = (chart.bar_baseline, chart.bar_baseline)
+        if chart.bar_placement === :stacked
+            yb = merge_bounds(yb, _stacked_bounds(series, n))
+        else
+            for (_, s) in series
+                s isa ChartBarSeries || continue
+                yb = merge_bounds(yb, column_bounds(s.values))
+            end
+        end
+        return ((0.5, n + 0.5), yb)
+    end
     xb = nothing; yb = nothing
     for (_, s) in series
         xb = merge_bounds(xb, _series_x_bounds(s))
         yb = merge_bounds(yb, _series_y_bounds(s))
     end
     (xb, yb)
+end
+
+# Stacked bars reach as high as the running sum in the tallest category, not as
+# high as the tallest single series.
+function _stacked_bounds(series, n::Integer)
+    lo = 0.0; hi = 0.0
+    for c in 1:n
+        acc = 0.0
+        for (_, s) in series
+            s isa ChartBarSeries || continue
+            c <= length(s.values) || continue
+            v = Float64(s.values[c])
+            isfinite(v) && (acc += abs(v))
+        end
+        hi = max(hi, acc)
+    end
+    (lo, hi)
 end
 
 # Fit the data, then let an explicitly pinned axis end override that end only.
@@ -158,8 +214,11 @@ function resolve_view(plot::ChartPlot)
     chart = plot.chart
     chart isa Chart || return ChartView(0.0, 1.0, 0.0, 1.0)
     series = _visible_series(chart)
-    xb, yb = _data_bounds(series)
-    x0, x1 = _fit_range(xb, chart.x_axis, 0.02)
+    xb, yb = _data_bounds(series, chart)
+    # A category axis is already exactly as wide as its slots; padding it would
+    # push half a category of empty space in at each end.
+    x0, x1 = chart_axis_family(chart.x_axis) === :category ?
+        (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02)
     y0, y1 = _fit_range(yb, chart.y_axis, 0.08)
     ChartView(x0, x1, y0, y1)
 end
@@ -178,7 +237,29 @@ _tick_step(ticks) = length(ticks) >= 2 ? abs(ticks[2] - ticks[1]) : 0.0
 _axis_title(axis) = axis isa ChartAxis || axis isa ChartCategoryAxis ? axis.title : ""
 _axis_shows_title(axis) = (axis isa ChartAxis || axis isa ChartCategoryAxis) && axis.show_title
 _axis_shows_labels(axis) = (axis isa ChartAxis || axis isa ChartCategoryAxis) && axis.show_labels
-_axis_grid(axis) = axis isa ChartAxis ? axis.grid : :major
+# Vertical gridlines through a category axis would just outline the slots the
+# bars already fill, so a category axis carries no grid of its own.
+_axis_grid(axis) = axis isa ChartAxis ? axis.grid : :none
+
+# Ticks and their labels for the x axis. A numeric axis picks round numbers; a
+# category axis puts one tick per slot and thins the labels to whatever fits,
+# which is what keeps a ten-thousand-category axis from emitting ten thousand
+# text elements.
+function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font)
+    if axis isa ChartCategoryAxis
+        cats = axis.categories
+        n = length(cats)
+        (n == 0 || !axis.show_labels) && return (Float64[], String[])
+        widest = maximum((p.measure(String(c), font)[1] for c in cats); init=0)
+        k = label_step(n, span_px, widest + _PAD)
+        idx = [i for i in 1:k:n if view.x_min <= i <= view.x_max]
+        (Float64.(idx), String[String(cats[i]) for i in idx])
+    else
+        ticks = _axis_ticks(axis, view.x_min, view.x_max, span_px)
+        step = _tick_step(ticks)
+        (ticks, _axis_shows_labels(axis) ? [format_tick(t, step) for t in ticks] : String[])
+    end
+end
 
 # The whole frame in one pass: ranges, then ticks, then the margins the measured
 # tick labels imply, then the plot rectangle and the two scales.
@@ -207,11 +288,9 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     prov_h = max(h - 2 * _PAD - title_h - y_title_h - x_title_h - 24, 40)
 
     yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h)
-    xticks = _axis_ticks(x_axis, view.x_min, view.x_max, prov_w)
-    ystep, xstep = _tick_step(yticks), _tick_step(xticks)
-
-    ylabels = _axis_shows_labels(y_axis) ? [format_tick(t, ystep) for t in yticks] : String[]
-    xlabels = _axis_shows_labels(x_axis) ? [format_tick(t, xstep) for t in xticks] : String[]
+    ylabels = _axis_shows_labels(y_axis) ?
+        [format_tick(t, _tick_step(yticks)) for t in yticks] : String[]
+    xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font)
 
     # Measure each label once, here, and carry the sizes forward — the frame
     # needs them again when it places the text.
@@ -374,7 +453,204 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     out
 end
 
+# ── Scatter ──────────────────────────────────────────────────────────────
+
+# Two ways to draw a cloud, chosen by how crowded it is. Below the fold
+# threshold each point gets a marker, deduplicated per pixel so overlapping
+# samples do not each cost an element. Above it the individual points stopped
+# being distinguishable anyway, so the cloud folds into a density grid: one
+# shaded cell per occupied bin, alpha carrying the count.
+function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
+    style = g.style
+    color = series_color(s.color, index, style.color_cycle)
+    n = min(length(s.x), length(s.y))
+    n == 0 && return out
+    ox, oy = g.plot_x, g.plot_y
+
+    if n > style.scatter_fold_threshold
+        cell = max(style.bin_fold_px + 1, 3)
+        cells = fold_scatter(s.x, s.y, g.xs, g.ys, cell, 1, n)
+        isempty(cells) && return out
+        peak = maximum(c[3] for c in cells)
+        for (px, py, count) in cells
+            # Square-root shading: a linear ramp leaves everything but the
+            # densest handful invisible once one cell holds thousands.
+            a = 0.15 + 0.85 * sqrt(count / peak)
+            shade = StyleColor(color.red, color.green, color.blue, color.alpha * a)
+            push!(out, GraphicsRect(px - ox, py - oy, cell, cell, shade))
+        end
+        return out
+    end
+
+    shape = series_symbol(s.symbol, index, style.symbol_cycle)
+    shape === :none && return out
+    seen = Set{Tuple{Int,Int}}()
+    @inbounds for i in 1:n
+        xv = Float64(s.x[i]); yv = Float64(s.y[i])
+        (isfinite(xv) && isfinite(yv)) || continue
+        px = round(Int, to_pixel(g.xs, xv)) - ox
+        py = round(Int, to_pixel(g.ys, yv)) - oy
+        (px, py) in seen && continue
+        push!(seen, (px, py))
+        _marker!(out, shape, px, py, s.symbol_size, color)
+    end
+    out
+end
+
+# ── Bars ─────────────────────────────────────────────────────────────────
+
+# Where each series' bar sits within a category slot, per placement mode:
+# `:aligned` splits the slot into one sub-slot per series, `:overlap` steps them
+# by half a bar so each stays partly visible, and `:infront`/`:stacked` give
+# every series the full slot (they are separated by draw order and by height).
+function _bar_geometry(placement::Symbol, slot_w::Float64, count::Int, j::Int)
+    usable = slot_w * 0.8
+    if placement === :aligned
+        w = usable / max(count, 1)
+        (-usable / 2 + (j - 1) * w, w)
+    elseif placement === :overlap
+        w = usable / (1 + (count - 1) * 0.5)
+        (-usable / 2 + (j - 1) * w * 0.5, w)
+    else
+        (-usable / 2, usable)
+    end
+end
+
+function _bar_elements!(out, g, bar_series)
+    chart = g.chart
+    style = g.style
+    axis = chart.x_axis
+    n = length(axis.categories)
+    (n == 0 || isempty(bar_series)) && return out
+    ox, oy = g.plot_x, g.plot_y
+    baseline = to_pixel(g.ys, chart.bar_baseline) - oy
+    slot_w = abs(to_pixel(g.xs, 2.0) - to_pixel(g.xs, 1.0))
+    placement = chart.bar_placement
+    count = length(bar_series)
+
+    # Sub-pixel slots: the individual bars are no longer resolvable, so each
+    # series collapses to an envelope over the categories that share a column.
+    if slot_w < style.bin_fold_px
+        for (index, s) in bar_series
+            color = series_color(s.color, index, style.color_cycle)
+            lefts = Int[round(Int, to_pixel(g.xs, c - 0.5)) - ox for c in 1:n]
+            rights = Int[round(Int, to_pixel(g.xs, c + 0.5)) - ox for c in 1:n]
+            vals = Float64[c <= length(s.values) ? Float64(s.values[c]) : 0.0 for c in 1:n]
+            for (l, r, lo, hi) in fold_bins(lefts, rights, vals, style.bin_fold_px)
+                ylo = to_pixel(g.ys, hi) - oy
+                yhi = to_pixel(g.ys, lo) - oy
+                push!(out, GraphicsRect(l, round(Int, min(ylo, yhi)), max(r - l, 1),
+                                        max(round(Int, abs(yhi - ylo)), 1), color))
+            end
+        end
+        return out
+    end
+
+    # Later series are drawn first so the earlier ones end up in front, which is
+    # what makes the overlap and in-front placements read correctly.
+    order = placement in (:overlap, :infront) ? reverse(1:count) : (1:count)
+    stack = zeros(Float64, n)
+    for j in order
+        index, s = bar_series[j]
+        color = series_color(s.color, index, style.color_cycle)
+        dx, bw = _bar_geometry(placement, slot_w, count, j)
+        for c in 1:n
+            c <= length(s.values) || continue
+            v = Float64(s.values[c])
+            isfinite(v) || continue
+            centre = to_pixel(g.xs, Float64(c)) - ox
+            if placement === :stacked
+                base = to_pixel(g.ys, chart.bar_baseline + stack[c]) - oy
+                stack[c] += abs(v)
+                top = to_pixel(g.ys, chart.bar_baseline + stack[c]) - oy
+            else
+                base = baseline
+                top = to_pixel(g.ys, v) - oy
+            end
+            x = round(Int, centre + dx)
+            y0, y1 = min(base, top), max(base, top)
+            push!(out, GraphicsRect(x, round(Int, y0), max(round(Int, bw), 1),
+                                    max(round(Int, y1 - y0), 1), color))
+        end
+    end
+
+    # The reference line bars grow from, drawn over them so it stays readable.
+    bl = round(Int, baseline)
+    if 0 <= bl <= g.plot_h
+        push!(out, GraphicsLine(0, bl, g.plot_w, bl,
+                                _or(chart.bar_baseline_color, _AXIS)))
+    end
+    out
+end
+
+# ── Histograms ───────────────────────────────────────────────────────────
+
+function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
+    style = g.style
+    color = series_color(s.color, index, style.color_cycle)
+    edges = s.binedges
+    values = _histogram_shown_values(s)
+    n = min(length(values), length(edges) - 1)
+    n >= 1 || return out
+    ox, oy = g.plot_x, g.plot_y
+    baseline = round(Int, to_pixel(g.ys, 0.0) - oy)
+
+    lefts = Int[round(Int, to_pixel(g.xs, Float64(edges[i]))) - ox for i in 1:n]
+    rights = Int[round(Int, to_pixel(g.xs, Float64(edges[i+1]))) - ox for i in 1:n]
+    bars = fold_bins(lefts, rights, Float64.(values[1:n]), style.bin_fold_px)
+
+    if s.draw === :outline
+        # A silhouette instead of filled cells: several overlaid histograms stay
+        # readable, which is the whole point of the outline mode.
+        pts = Tuple{Int,Int}[]
+        for (l, r, _, hi) in bars
+            y = round(Int, to_pixel(g.ys, hi) - oy)
+            push!(pts, (l, y)); push!(pts, (r, y))
+        end
+        if !isempty(pts)
+            pushfirst!(pts, (first(bars)[1], baseline))
+            push!(pts, (last(bars)[2], baseline))
+            push!(out, GraphicsPolyline(pts, color; width=2))
+        end
+    else
+        for (l, r, lo, hi) in bars
+            ytop = to_pixel(g.ys, hi) - oy
+            ybot = to_pixel(g.ys, lo == hi ? 0.0 : lo) - oy
+            y0, y1 = min(ytop, ybot, baseline), max(ytop, ybot, baseline)
+            push!(out, GraphicsRect(l, round(Int, y0), max(r - l, 1),
+                                    max(round(Int, y1 - y0), 1), color;
+                                    border_width=1, border_color=_AXIS))
+        end
+    end
+
+    # Under/overflow cells span from the axis edge to the outermost bin, drawn
+    # translucent so they read as "everything beyond here" rather than as data.
+    if s.show_overflow
+        faint = StyleColor(color.red, color.green, color.blue, color.alpha * 0.5)
+        if s.underflows > 0
+            l = round(Int, to_pixel(g.xs, g.view.x_min)) - ox
+            r = first(lefts)
+            y = round(Int, to_pixel(g.ys, s.underflows) - oy)
+            r > l && push!(out, GraphicsRect(l, min(y, baseline), r - l,
+                                             max(abs(baseline - y), 1), faint))
+        end
+        if s.overflows > 0
+            l = last(rights)
+            r = round(Int, to_pixel(g.xs, g.view.x_max)) - ox
+            y = round(Int, to_pixel(g.ys, s.overflows) - oy)
+            r > l && push!(out, GraphicsRect(l, min(y, baseline), r - l,
+                                             max(abs(baseline - y), 1), faint))
+        end
+    end
+    out
+end
+
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
+_series_elements!(out, g, index::Int, s::ChartScatterSeries) = _scatter_elements!(out, g, index, s)
+_series_elements!(out, g, index::Int, s::ChartHistogramSeries) = _histogram_elements!(out, g, index, s)
+# Bar series are drawn as a group rather than one at a time: how wide a bar is
+# and where in its slot it sits both depend on how many other bar series there
+# are, so `_bar_elements!` takes the whole set.
 _series_elements!(out, g, ::Int, ::Any) = out
 
 # ── Printer ──────────────────────────────────────────────────────────────
@@ -402,9 +678,15 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         out = Any[]
         _frame_elements!(out, g)
 
+        # A series whose family does not match the x axis is a configuration
+        # error, not a crash: it is left out and the frame still draws.
+        family = chart_axis_family(g.chart.x_axis)
+        drawable = [(i, s) for (i, s) in g.series if chart_series_family(s) === family]
         series_out = Any[]
-        for (index, s) in g.series
-            if chart_series_family(s) === chart_axis_family(g.chart.x_axis)
+        if family === :category
+            _bar_elements!(series_out, g, drawable)
+        else
+            for (index, s) in drawable
                 _series_elements!(series_out, g, index, s)
             end
         end

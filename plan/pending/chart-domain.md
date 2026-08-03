@@ -630,9 +630,31 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
       `GraphicsPolyline` (phase-continuous across segments) plus SDL, PDF and
       web draw paths, then wire `ChartLineSeries.line_style`. Touches
       `package/visual` + backends; benefits the graph domain too.
-- [ ] **P2 — scatter, bar, histogram printers.** All placements, histogram
-      transforms + overflow cells, mismatch placeholder, remaining examples.
-      Exit: printer tests for all four types incl. the placeholder assertion.
+- [x] **P2 — scatter, bar, histogram printers.** DONE (example registration
+      deferred to P3 so all the examples land with the legend that makes them
+      readable). All four placements, histogram transforms + overflow cells,
+      mismatch handling. Exit: `test_chart()` 102/102; all four types rendered
+      to PDF and visually verified, including both folding paths.
+
+      Decisions and discoveries:
+      - A category axis carries **no vertical grid** (`_axis_grid` returns
+        `:none` for it) — gridlines would just outline the slots the bars fill.
+      - Its range is exactly `(0.5, n+0.5)` with **no padding**: padding a
+        category axis pushes half an empty slot in at each end.
+      - Bar series are rendered **as a group**, not one at a time, because bar
+        width and slot offset both depend on how many bar series there are.
+        `:overlap`/`:infront` draw in reverse order so earlier series end up in
+        front.
+      - Histogram y bounds must be taken **after** the value transform (a CDF
+        tops out at 1, raw counts at the tallest bin), and the normalizing total
+        includes under/overflow weight so a CDF really reaches 1.
+      - Scatter has two regimes: below `scatter_fold_threshold` one marker per
+        point, deduplicated per pixel; above it a density grid with
+        **square-root** alpha shading (a linear ramp leaves everything but the
+        densest handful invisible once a cell holds thousands).
+      - Verified folding end to end: a 10 000-category bar chart renders 248
+        series elements and 13 tick labels; a 200 000-point scatter renders
+        6 801 density cells.
 - [ ] **P3 — legend, selection, structural edits.** Legend layout (positions/
       anchors/multi-column/overflow), legend click-to-toggle + hover-veil
       wiring, series/axis/legend/title selection with typed reference maps,

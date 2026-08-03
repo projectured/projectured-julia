@@ -45,6 +45,10 @@ _count_kind(els, T) = count(e -> e isa T, els)
 _viewport_of(canvas) = first(e for e in canvas.elements if e isa GraphicsViewport)
 _series_elements(canvas) = collect(_viewport_of(canvas).content.elements)
 
+# How high a chart's y axis has to reach to show what it draws — the cheapest
+# way to see which histogram value transform is in effect.
+_chart_y_max(chart) = resolve_view(ChartPlot(chart)).y_max
+
 _line_chart() = Chart("Signal",
     [ChartLineSeries("sin", collect(0.0:0.05:10.0), sin.(0.0:0.05:10.0)),
      ChartLineSeries("cos", collect(0.0:0.05:10.0), cos.(0.0:0.05:10.0); line_width=2)];
@@ -269,6 +273,94 @@ function test_chart()
             # A chart with no series at all is legal and still draws its frame.
             canvas = _chart_canvas(Chart("nothing yet"))
             @test "nothing yet" in [String(e.text) for e in collect(canvas.elements) if e isa GraphicsText]
+        end
+
+        @testset "bar placement" begin
+            cats = ["a", "b", "c"]
+            mk(placement) = Chart("bars",
+                [ChartBarSeries("one", [3.0, 5.0, 1.0]),
+                 ChartBarSeries("two", [2.0, 1.0, 4.0])];
+                x_axis=ChartCategoryAxis(; categories=cats), bar_placement=placement)
+
+            for placement in (:aligned, :overlap, :infront, :stacked)
+                els = _series_elements(_chart_canvas(mk(placement)))
+                rects = [e for e in els if e isa GraphicsRect]
+                @test length(rects) == 6            # two series over three categories
+                @test _count_kind(els, GraphicsLine) == 1   # the baseline
+            end
+
+            # Aligned bars share a slot side by side, so each is narrower than an
+            # in-front bar, which takes the whole slot.
+            aligned = [e for e in _series_elements(_chart_canvas(mk(:aligned))) if e isa GraphicsRect]
+            infront = [e for e in _series_elements(_chart_canvas(mk(:infront))) if e isa GraphicsRect]
+            @test Int(aligned[1].w) < Int(infront[1].w)
+
+            # Stacking sums the series, so the axis has to reach the total.
+            stacked_canvas = _chart_canvas(mk(:stacked))
+            ylabels = [String(e.text) for e in collect(stacked_canvas.elements) if e isa GraphicsText]
+            @test any(l -> tryparse(Float64, l) !== nothing && tryparse(Float64, l) >= 6.0, ylabels)
+
+            # One label per category, and the categories are the labels.
+            labels = [String(e.text) for e in collect(_chart_canvas(mk(:aligned)).elements)
+                      if e isa GraphicsText]
+            @test all(c -> c in labels, cats)
+        end
+
+        @testset "histogram" begin
+            edges = collect(0.0:1.0:10.0)
+            values = Float64[1, 3, 5, 8, 12, 10, 6, 4, 2, 1]
+            solid = Chart("h", [ChartHistogramSeries("a", edges, values)])
+            els = _series_elements(_chart_canvas(solid))
+            @test _count_kind(els, GraphicsRect) == 10
+            @test isempty([e for e in els if e isa GraphicsPolyline])
+
+            # Outline mode draws a silhouette instead of filled cells, so several
+            # overlaid histograms stay readable.
+            outline = Chart("h", [ChartHistogramSeries("a", edges, values; draw=:outline)])
+            els = _series_elements(_chart_canvas(outline))
+            @test isempty([e for e in els if e isa GraphicsRect])
+            @test length([e for e in els if e isa GraphicsPolyline]) == 1
+
+            # The four value transforms.
+            raw_top = _chart_y_max(Chart("h", [ChartHistogramSeries("a", edges, values)]))
+            @test 12.0 <= raw_top <= 15.0                 # the tallest bin, plus margin
+            cum = Chart("h", [ChartHistogramSeries("a", edges, values; cumulative=true)])
+            @test _chart_y_max(cum) > 4 * raw_top         # a running sum reaches the total
+            cdf = Chart("h", [ChartHistogramSeries("a", edges, values;
+                                                   cumulative=true, density=true)])
+            @test _chart_y_max(cdf) ≈ 1.0 atol=0.2        # a CDF reaches 1
+            pdf = Chart("h", [ChartHistogramSeries("a", edges, values; density=true)])
+            @test _chart_y_max(pdf) < 1.0                 # a density over unit-wide bins
+
+            # Overflow cells appear only when asked for.
+            without = length(_series_elements(_chart_canvas(
+                Chart("h", [ChartHistogramSeries("a", edges, values; underflows=4.0, overflows=3.0)]))))
+            with = length(_series_elements(_chart_canvas(
+                Chart("h", [ChartHistogramSeries("a", edges, values;
+                                                 underflows=4.0, overflows=3.0,
+                                                 show_overflow=true)]))))
+            @test with == without + 2
+
+            # Binning a raw column.
+            binned = ChartHistogramSeries("a", randn(5_000); nbins=25)
+            @test length(binned.binedges) == 26 && length(binned.binvalues) == 25
+            @test sum(binned.binvalues) == 5_000
+        end
+
+        @testset "scatter" begin
+            n = 500
+            c = Chart("s", [ChartScatterSeries("a", collect(1.0:n), collect(1.0:n))])
+            els = _series_elements(_chart_canvas(c))
+            @test _count_kind(els, GraphicsCircle) > 0
+            # Markers are deduplicated per pixel, so overlapping samples do not
+            # each cost an element.
+            dup = Chart("s", [ChartScatterSeries("a", fill(1.0, n), fill(1.0, n))])
+            @test _count_kind(_series_elements(_chart_canvas(dup)), GraphicsCircle) == 1
+
+            # Marker shapes carry over from line series.
+            c = Chart("s", [ChartScatterSeries("a", collect(1.0:10.0), collect(1.0:10.0);
+                                               symbol=:square)])
+            @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsRect) == 10
         end
 
         @testset "family mismatch" begin
