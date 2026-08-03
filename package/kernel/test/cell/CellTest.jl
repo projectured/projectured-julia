@@ -167,5 +167,36 @@ end
     @test isbitstype(typeof(ImmutableCell(1)).types[1]) # zero-cost wrapper: field inlines
 end
 
+@testset "a function is a value" begin
+    f() = 42
+    c = Cell(f)
+    @test c[] === f                      # stored, not called
+    @test c[]() == 42                    # still callable through the cell
+    @test is_cell_up_to_date(c)          # a value cell, not an invalid computed one
+
+    cc = ComputedCell(f)                 # the marker is what makes a cell compute
+    @test cc[] == 42
+    @test !is_cell_up_to_date(ComputedCell(f))
+
+    @test ReactiveCell{Function}(f)[] === f
+    @test ReactiveCell{Int}(Computed(f))[] == 42
+
+    # copy_cell_as re-boxes through the constructor, so a function-valued cell used to
+    # come back as a thunk — and a copied document would call its own callbacks.
+    @test copy_cell_as(c, c[])[] === f
+
+    w = Cell(1)                          # the write side agrees with construction
+    w[] = f
+    @test w[] === f
+    w[] = Computed(f)
+    @test w[] == 42
+
+    # a computation belongs to the one kind that can run it
+    @test_throws ErrorException ImmutableCell(Computed(f))
+    @test_throws ErrorException MutableCell(Computed(f))
+    @test ImmutableCell(f)[] === f       # but a plain callable is fine in any kind
+    @test MutableCell(f)[] === f
+end
+
 end # @testset "Cell"
 end # test_cell

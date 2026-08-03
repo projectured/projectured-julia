@@ -82,5 +82,14 @@ function test_document_contract()
         @test clone.child.label == "leaf"
     end
 
+    @testset "copy_document preserves a function-valued field" begin
+        # Copying re-boxes each field through its cell's constructor, which used to turn
+        # a callback into a thunk — so a copied document called its own callbacks on read.
+        callback() = "called"
+        node = ToyNode(callback, nothing, nothing)
+        @test copy_document(node).label === callback
+        @test copy_document(ImmutableCell, node).label === callback
+    end
+
 end
 end # test_document_contract

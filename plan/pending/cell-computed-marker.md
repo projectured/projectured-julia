@@ -98,11 +98,22 @@ simpler as a pure spelling substitution.
 6. **`copy_document` gets cheaper as well as correct** for function-valued cells: a plain value
    copy instead of constructing an invalid computed cell that recomputes (i.e. *calls the
    callback*) on next read.
-7. **Verification (Phase 6):** `@allocated` micro-benchmarks before/after — `Cell(1)`,
-   baseline `Cell(() -> 1)` vs `ComputedCell(() -> 1)`. Acceptance: value path identical;
-   computed path within ≤16 B of baseline. Plus: PerformanceCounter totals across
-   `test_printer(json_example)` unchanged, and full-suite test-count parity (a pass-count shift
-   with no Fail/Error change usually means a field-count change — there must be none here).
+7. **Verification (Phase 6): measured, and the marker is free.** `@allocated` per constructed
+   cell, with the cells pushed into a sink so nothing is elided for not escaping (measuring
+   without that reports 0 B for every path and proves nothing):
+
+   | construction | bytes/cell |
+   |---|---|
+   | `Cell(1)` | 48 |
+   | `Cell(f)` — function as a value | 48 |
+   | `ComputedCell(f)` | 48 |
+   | `Cell(nothing)` + `set_cell_function!` (marker-free equivalent) | 48 |
+
+   The `Computed` wrapper costs **0 bytes**, better than the predicted ≤16 B worst case: it is
+   consumed by the inner constructor and never escapes, so SROA removes it entirely. All four
+   paths allocate exactly the `ReactiveCell` itself.
+
+   Full-suite test-count parity also held at every phase (no field-count drift).
 
 ## Seal permissions
 
@@ -261,25 +272,41 @@ that were *feeding a function into* those seams still meant "thunk". The sweep h
 both the explicit `Cell(f)` spelling and the implicit constructor-argument one, and only the
 second needed a real audit. A grep for `Cell(` can never find the second.
 
-### Phase 4 — remove tripwire [ ]
+### Phase 4 — remove tripwire [x] **done**
 
-- [ ] Delete the error method. `Function` now flows into the generic value path: `Cell(f)`
-      stores `f`. The `copy_cell_as` bug is dead as of this commit.
+- [x] Deleted the error method. `Function` now flows into the generic value path: `Cell(f)`
+      stores `f`, verified together with `copy_cell_as` keeping it a value (the bug is dead as
+      of this commit) and `ReactiveCell{Function}(f)`.
 
-### Phase 5 — simplify workarounds + regression tests [ ]
+### Phase 5 — simplify workarounds + regression tests [x] **done**
 
-- [ ] `visual/main/widget/Widget.jl` — six `Cell(nothing); set_cell_value!(…)` dances
-      (lines ~128, 185, 375, 380, 655, 1755) become plain field values; their trap-explaining
-      comments come out with them (no-history-comments rule).
-- [ ] `visual/main/syntax/ObjectToSyntax.jl:290` — drop `as_value`.
-- [ ] omnetpp-julia `simulator/main/src/lifecycle/Optimization.jl:72` — drop the
-      `ImmutableCell` double-box (check the readers/`unwrap_cell` sites for the objective
-      field before and after).
-- [ ] omnetpp-julia `presentation/main/src/project/OmnetppProject.jl:36-48` — fix the stale
-      comment describing `as_value` protection that the code never had.
-- [ ] Regression tests (kernel test package): (a) `Cell(f)` holds `f` as a value and
-      `ComputedCell(f)` computes; (b) `copy_document` preserves a function-valued cell as a
-      value; (c) `ImmutableCell(Computed(f))` errors.
+- [x] `visual/main/widget/Widget.jl` — all six `Cell(nothing); set_cell_value!(…)` dances
+      (`validator` ×2, `action` ×2, `gestures`, `callback`) are now plain `Cell(x)` field
+      values; their trap-explaining comments came out with them.
+- [x] `visual/main/syntax/ObjectToSyntax.jl` — the `filter` predicate is passed straight
+      through (`filter = filter`); the `as_value` ternary and the now-unused `set_cell_value!`
+      import are gone.
+- [x] omnetpp-julia `simulator/main/src/lifecycle/Optimization.jl` — dropped the
+      `ImmutableCell` double-box and the paragraph explaining it.
+- [x] omnetpp-julia `simulator/main/src/engine/SequentialSimulator.jl` — the
+      `@document ImmutableCell` header no longer justifies itself by the thunk trap (the kind
+      is still right: a heap entry never changes, and the wrapper is zero-cost).
+- [x] omnetpp-julia `presentation/main/src/project/OmnetppProject.jl` — removed the stale
+      comment describing `as_value` protection the code never had.
+- [x] Regression tests: kernel `CellTest.jl` gains a "a function is a value" testset
+      (`Cell(f)` stores/`ComputedCell(f)` computes, both write forms, both guards, and
+      `copy_cell_as` keeping a function a value) — 57 → 71 assertions;
+      `DocumentContractTest.jl` gains "copy_document preserves a function-valued field" for
+      both the same-kind and kind-converting copies.
+
+**A second latent bug this fixes, found while simplifying.** omnetpp's *callable objective*
+(`SimulationOptimization(cfg; objective = r -> …)`) was **broken**, not merely clumsy. The
+`ImmutableCell` box only helps if the macro passes it through, but the reactive autowrap is
+`$a isa Cell ? $a : Cell($a)` and an `ImmutableCell` is not a `Cell` — so it was wrapped again
+and `o.objective` read back as the `ImmutableCell` wrapper, which is not callable;
+`score_simulation`'s `objective(result)` would have thrown. No test covered it (every existing
+test uses a `Symbol` objective). Removing the box fixes it, and
+`package/simulator/test/runtests.jl` now covers the callable path (5164 → 5166).
 
 ### Phase 6 — docs + verification [ ]
 

@@ -8,7 +8,7 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
@@ -123,10 +123,8 @@ function WidgetText(position::Point2D, content;
                     border_color=nothing,
                     padding::Inset=inset_default,
                     padding_color=nothing)
-    # `validator` (optional) is a callable consulted before an edit commits
-    # (Stage 6). Stored as a primitive cell value, like an action callback.
-    validator_cell = Cell(nothing); set_cell_value!(validator_cell, validator)
-    WidgetText(Cell(position), Cell(content), Cell(content_fill_color), validator_cell,
+    # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
+    WidgetText(Cell(position), Cell(content), Cell(content_fill_color), Cell(validator),
                Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),
@@ -182,9 +180,8 @@ function WidgetSpinBox(position::Point2D, value;
                        min=nothing, max=nothing, step=1, width::Integer=120,
                        validator=numeric_validator(),
                        visible::Bool=true, enabled::Bool=true)
-    validator_cell = Cell(nothing); set_cell_value!(validator_cell, validator)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
-                  Cell(Int(width)), validator_cell, Cell(visible), Cell(enabled), Cell(nothing))
+                  Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled), Cell(nothing))
 end
 
 # ── WidgetList ───────────────────────────────────────────────────────────────
@@ -369,19 +366,14 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       border_color=nothing,
                       padding::Inset=inset_default,
                       padding_color=nothing)
-    # `action` is a callback, not reactive content. `Cell(f::Function)` builds a
-    # *computed* cell (thunk called with 0 args), so wrapping the callback as
-    # `Cell(action)` would invoke it on read. Store it as a primitive cell value.
-    action_cell = Cell(nothing); set_cell_value!(action_cell, action)
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
-    # suppress (map to `DoNothingOperation()`) a default. Stored as a plain primitive cell.
-    gestures_cell = Cell(nothing); set_cell_value!(gestures_cell, gestures)
+    # suppress (map to `DoNothingOperation()`) a default.
     # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
     # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child
     # `WidgetDialog` opened modally on click.
-    WidgetButton(Cell(position), Cell(size), Cell(content), action_cell, gestures_cell,
+    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(action), Cell(gestures),
                  Cell(command), Cell(icon), Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
@@ -650,10 +642,7 @@ function WidgetMenuItem(content;
                         border_color=nothing,
                         padding::Inset=inset_default,
                         padding_color=nothing)
-    # `action` is a callback, not reactive content — store it as a primitive cell
-    # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
-    action_cell = Cell(nothing); set_cell_value!(action_cell, action)
-    WidgetMenuItem(Cell(content), action_cell, Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
+    WidgetMenuItem(Cell(content), Cell(action), Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
@@ -1750,10 +1739,7 @@ function Action(label;
                enabled::Bool=true,
                shortcut=nothing,
                callback=nothing)
-    # `callback` is a callable, not reactive content — store it as a primitive cell
-    # value (a computed `Cell(f)` would invoke it on read). Mirrors WidgetButton.
-    callback_cell = Cell(nothing); set_cell_value!(callback_cell, callback)
-    Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), callback_cell)
+    Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), Cell(callback))
 end
 
 """
