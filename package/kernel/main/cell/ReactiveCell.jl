@@ -15,16 +15,17 @@ recompute on next read.
 # Construction
 
     Cell(value)                       # untyped primitive cell (T = Any)
+    ComputedCell(f)                   # untyped computed cell – f is the thunk (zero args)
+    ReactiveCell{T}(value)            # typed primitive cell (type-stable reads)
+    ReactiveCell{T}(Computed(f))      # typed computed cell (f is the thunk)
     Cell(f::Function)                 # untyped computed cell – f is the thunk (zero args)
     Cell(f::Function; as_value=true)  # primitive holding f AS a value, not a thunk
-    ReactiveCell{T}(value)            # typed primitive cell (type-stable reads)
-    ReactiveCell{T}(f::Function)      # typed computed cell (f is the thunk)
-    ReactiveCell{T}(f::Function; as_value=true) # typed primitive holding f as a value
 
 # Reading and writing
 
     c[]           # read (triggers computation if invalid)
     c[] = v       # set a primitive value, invalidating dependents
+    c[] = Computed(f)         # switch to a computed cell with thunk `f`
     set_cell_function!(c, f)  # switch to a computed cell with thunk `f`
     set_cell_value!(c, v) # switch to a primitive cell with value `v`
 """
@@ -44,12 +45,20 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
-    # A `Function` argument is the cell's *thunk* (a computed cell): `value` starts
-    # *undefined* (a typed field cannot hold a placeholder) and `valid = false`
-    # guarantees `recompute!` assigns it before any read returns. Pass
+    # A `Computed` argument carries the cell's *thunk*: `value` starts *undefined* (a
+    # typed field cannot hold a placeholder) and `valid = false` guarantees
+    # `recompute!` assigns it before any read returns.
+    function ReactiveCell{T}(computed::Computed) where {T}
+        c = new{T}()
+        c.thunk = computed.thunk
+        c.valid = false
+        c.deps = nothing
+        c.dependents = nothing
+        return c
+    end
+    # A `Function` argument is the cell's *thunk* (a computed cell); pass
     # `as_value = true` to instead store the function itself AS the value — a valid
-    # primitive holding `f` — the clean way to hold a callable as a value, since a
-    # bare `Cell(f)` reads `f` as a thunk.
+    # primitive holding `f` — since a bare `Cell(f)` reads `f` as a thunk.
     function ReactiveCell{T}(f::Function; as_value::Bool = false) where {T}
         if as_value
             return new{T}(f, nothing, true, nothing, nothing)
@@ -89,6 +98,14 @@ Untyped cell from a `Function`: by default `f` is the cell's thunk (a computed
 cell); with `as_value = true`, `f` is stored AS the cell's value (a primitive).
 """
 ReactiveCell(f::Function; as_value::Bool = false) = ReactiveCell{Any}(f; as_value)
+
+"""
+    ComputedCell(f) -> Cell
+
+The untyped computed cell — `ReactiveCell{Any}(Computed(f))`, with `f` the
+zero-argument thunk. A typed one is spelled `ReactiveCell{T}(Computed(f))`.
+"""
+ComputedCell(f::Function) = ReactiveCell{Any}(Computed(f))
 
 # ── per-task tracking stack ────────────────────────────────────────────────
 # While a ReactiveCell's thunk is running, that cell sits on the current task's
@@ -223,6 +240,17 @@ function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
     c.valid = false
     _invalidate_dependents!(c)
     return c
+end
+
+"""
+    c[] = Computed(f)
+
+Write syntax for [`set_cell_function!`](@ref) — the counterpart of `c[] = value`,
+so a single write path reaches both a value and a computation.
+"""
+function Base.setindex!(c::ReactiveCell, computed::Computed)
+    set_cell_function!(c, computed.thunk)
+    return computed
 end
 
 """Return `true` if the cached value is up to date."""
