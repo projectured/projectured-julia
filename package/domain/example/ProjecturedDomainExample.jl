@@ -115,7 +115,7 @@ export build_file_editor, clipboard_example, conversation_editor_example, conver
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
 export chart_example, chart_line_example, chart_bar_example,
-       chart_histogram_example, chart_scatter_example
+       chart_histogram_example, chart_scatter_example, chart_inspector_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
@@ -134,7 +134,8 @@ export make_chart_document_example, make_chart_projection_example,
        make_chart_line_document_example, make_chart_line_projection_example,
        make_chart_bar_document_example, make_chart_bar_projection_example,
        make_chart_histogram_document_example, make_chart_histogram_projection_example,
-       make_chart_scatter_document_example, make_chart_scatter_projection_example
+       make_chart_scatter_document_example, make_chart_scatter_projection_example,
+       make_chart_inspector_document_example, make_chart_inspector_projection_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
 export make_graphics_image_projection_example, make_introspection_document
 export make_introspection_projection, make_json_console_projection_example

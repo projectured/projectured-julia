@@ -772,10 +772,33 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
       - Pre-existing on clean `main`, unrelated to this work: `test_readers()`
         has 2 failures in `filesystem`/`navigator` from
         `FileSystemToSyntax.jl:189`.
-- [ ] **P6b — property inspector demo.** A split pane of a chart beside an
-      `ObjectToWidget` inspector, with a field-edit round-trip test (change a
-      series colour / the title / an axis minimum and assert the chart
-      repaints).
+- [x] **P6b — property inspector demo.** DONE. `chart_inspector_example`: a
+      chart beside an `ObjectToWidget` form over one of its own series — the
+      same document, two projections. Exit: the round-trip test edits `visible`
+      and `line_width` through the form, asserts the operation targets the
+      series' own cell, and asserts the chart repaints.
+
+      Decision: the form is given an **explicit field list** rather than
+      reflecting over everything. `ObjectToWidget` would otherwise expand a data
+      column into one row per sample — useless at 240 samples and unusable at a
+      million. The data columns are not properties.
+### Sweep status at the end of P6b
+
+Whole-repository sweeps, all with the chart examples registered:
+
+| Sweep | Result |
+|---|---|
+| `test_printers()` | 176 284 pass, 0 fail |
+| `test_readers()` | 21 145 pass, **2 pre-existing fails** (`filesystem`/`navigator`, `FileSystemToSyntax.jl:189`), 3 broken |
+| `test_repls()` | 20 686 pass, the same 2 pre-existing fails, 14 broken |
+| `test_position_navigations()` | 7 210 pass, 0 fail, 8 broken |
+| `test_tree_navigations()` | 56 pass, 0 fail |
+| `test_domain()` | 139 811 pass, 0 fail |
+| `test_visual()` | 49 273 pass, 0 fail |
+
+No chart example carries a `@test_broken` marker. The two reader/repl failures
+reproduce on clean `main` without any of this work.
+
 - [ ] **P7 (stretch) — point-level selection.** Reference-step design for
       addressing sample *i* inside a column. Constraint to satisfy or amend
       with sign-off: AR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is

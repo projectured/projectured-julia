@@ -764,6 +764,51 @@ function test_chart()
             @test length(_flatten_elements(_chart_canvas(chart))) > plain
         end
 
+        @testset "property inspector" begin
+            # A chart beside a reflection-driven form over one of its own
+            # series: the same document, two projections. This is what makes a
+            # chart property editable without writing a property editor.
+            chart = make_chart_line_document_example()
+            series = chart.series[1]
+            inspector = ObjectToWidget(fields=[:label, :line_width, :visible])
+            form = print_document(inspector, series)
+
+            names = [String(path.head.name) for (_, path) in form.controls]
+            @test names == ["label", "line_width", "visible"]
+            # The data columns are not properties: a form row per sample would be
+            # useless, and unusable at a million of them.
+            @test !("x" in names) && !("y" in names)
+
+            # A checkbox edit in the form writes the series' own cell.
+            checkbox = form.controls[3][1]
+            op = read_intent(inspector, form,
+                ReplaceReferencedValueOperation(checkbox,
+                    ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                    false))
+            @test op isa ReplaceReferencedValueOperation
+            @test op.document === series
+            @test String(op.reference.head.name) == "visible"
+
+            # And that write repaints the chart, because it is the very cell the
+            # chart draws from.
+            before = length([e for e in _series_elements(_chart_canvas(chart))
+                             if e isa GraphicsPolyline])
+            evaluate_operation(nothing, op)
+            after = length([e for e in _series_elements(_chart_canvas(chart))
+                            if e isa GraphicsPolyline])
+            @test after == before - 1
+
+            # A text edit round-trips the same way.
+            op = read_intent(inspector, form,
+                ReplaceReferencedValueOperation(form.controls[2][1],
+                    ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                    "4"))
+            @test op isa ReplaceReferencedValueOperation
+            @test String(op.reference.head.name) == "line_width"
+            evaluate_operation(nothing, op)
+            @test series.line_width == 4
+        end
+
         @testset "family mismatch" begin
             # A bar series on a numeric axis is a configuration error, not a
             # crash: the chart draws its frame and leaves the series out.

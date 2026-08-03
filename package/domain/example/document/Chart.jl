@@ -100,3 +100,15 @@ function make_chart_document_example()
         2;
         padding=6)
 end
+
+"""
+    make_chart_inspector_document_example() -> WidgetSplitPane
+
+A chart beside a property form over one of its own series — the same document
+shown two ways. Editing a field in the form writes the series' cell, which is
+the cell the chart draws from, so the chart repaints.
+"""
+function make_chart_inspector_document_example()
+    chart = make_chart_line_document_example()
+    WidgetSplitPane(:horizontal, Any[chart, chart.series[1]]; sizes=[540, 320])
+end
