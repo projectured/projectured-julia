@@ -565,10 +565,30 @@ auto-screenshot.
 Implement in a dedicated worktree; one commit per phase; keep this plan updated
 (check boxes, record decisions) as work lands.
 
-- [ ] **P0 — skeleton + documents + geometry.** Slice files, `@domain Chart` kit,
+- [x] **P0 — skeleton + documents + geometry.** DONE. Slice files, `@domain Chart` kit,
       `@document` types (semantic + `ChartPlot`), `ChartGeometry` with unit
-      tests, the five `ProjecturedDomain.jl` includes, layering guard green.
-      Exit: `test_domain_layering()` + `test_chart_geometry()` pass.
+      tests, the `ProjecturedDomain.jl` includes, layering guard green.
+      Exit: `test_domain_layering()` (6/6) + `test_chart_geometry()` (81/81) pass.
+
+      Decisions made while implementing:
+      - `ChartGeometry.jl` is included **before** `Chart.jl` (Chart's
+        `ChartHistogramSeries(label, values; nbins)` ctor calls `bin_values`).
+      - `AxisScale(lo, hi, p0, p1; log)` needs no flip flag: a y axis passes the
+        plot bottom as `p0` and the top as `p1`.
+      - Geometry takes plain vectors, never documents, so it stays
+        document-free and headless-testable; the projection assembles ranges.
+      - `ChartPlot.jl` must `import ..ReferenceModule: Reference` — `@document`
+        injects `selection::Union{Nothing,Reference}` and the name must resolve
+        in the defining module.
+      - Confirmed free from Rule Y, so NOT hand-written:
+        `ChartLineSeries(label, x, y)`, `ChartPlot(chart)`, `Chart(title)`.
+        Rule C additionally gives `Chart(title, series::AbstractVector)`; the
+        planned `Chart(series::Vector; kw...)` is therefore dropped as redundant
+        (and would have shadowed the generated method).
+      - `ChartStyle` grew `title_color`; every field defaults, so `ChartStyle()`
+        constructs as the sketch intended.
+      - `series_symbol` treats `:cycle` (not `nothing`) as "take the cycle",
+        since `symbol` is a `Symbol` field.
 - [ ] **P1 — line chart pipeline.** Both projection stages; axes/ticks/grid/
       title, plot viewport, polyline + steps/pins draw styles, markers, color
       cycle; `chart_line_example`; printer + reactivity tests. Exit:
