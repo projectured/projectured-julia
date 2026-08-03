@@ -385,15 +385,21 @@
     if (pts.length < 1) return;
     const wdt = Math.max(1, e.w | 0);
     const c = col(e.c);
+    const dash = e.dash;
     if (pts.length >= 2) {
       ctx.strokeStyle = c;
       ctx.lineWidth = wdt;
-      ctx.lineCap = "round";
+      ctx.lineCap = dash ? "butt" : "round";
       ctx.lineJoin = "round";
+      // Same setLineDash dance as drawLine; the path below is one moveTo plus a
+      // run of lineTo calls stroked in a single call, so the dash phase carries
+      // continuously across vertices with no extra bookkeeping.
+      if (dash) ctx.setLineDash(dash);
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
       ctx.stroke();
+      if (dash) ctx.setLineDash([]);
     }
     const sz = e.as | 0;
     const head = (atEnd) => {

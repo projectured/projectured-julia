@@ -626,10 +626,18 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
         Gridlines are dashed; series lines are solid. Faking dashes out of many
         short polylines is against house rules, so this is scheduled as P1b —
         add real `dash` support to `GraphicsPolyline` across the three backends.
-- [ ] **P1b — `GraphicsPolyline` dash support.** Add a `dash` field to
-      `GraphicsPolyline` (phase-continuous across segments) plus SDL, PDF and
-      web draw paths, then wire `ChartLineSeries.line_style`. Touches
-      `package/visual` + backends; benefits the graph domain too.
+- [x] **P1b — `GraphicsPolyline` dash support.** DONE. `dash::Any` added to
+      `GraphicsPolyline` *and* `GraphicsSpline` (both tessellate through the same
+      stroke path in every backend, so the second was mechanical), with SDL, PDF
+      and web/canvas draw paths and `ChartLineSeries.line_style` wired through.
+      The SDL path carries the on/off phase **across** segments so corners have
+      no seam; PDF and canvas get that for free since each strokes one path.
+      Arrowheads stay solid. `test_visual()` 49273 pass / 0 fail (+37 pass vs
+      baseline, exactly the two new reactive cells).
+      Scope note: `:dashdot` needs a four-element pattern the primitive does not
+      carry, so the offered styles are `:solid`, `:dotted`, `:dashed`, and the
+      OMNeT++ DashDot property is recorded as not implemented rather than
+      approximated.
 - [x] **P2 — scatter, bar, histogram printers.** DONE (example registration
       deferred to P3 so all the examples land with the legend that makes them
       readable). All four placements, histogram transforms + overflow cells,
@@ -655,12 +663,37 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
       - Verified folding end to end: a 10 000-category bar chart renders 248
         series elements and 13 tick labels; a 200 000-point scatter renders
         6 801 density cells.
-- [ ] **P3 — legend, selection, structural edits.** Legend layout (positions/
-      anchors/multi-column/overflow), legend click-to-toggle + hover-veil
-      wiring, series/axis/legend/title selection with typed reference maps,
-      series insert/delete/reorder operations + Alt+Up/Down gesture (with
-      reroot_operation AND default-read_intent registration). Exit: selection
-      round-trip + legend toggle + reorder tests green.
+- [x] **P3 — legend, selection, structural edits.** DONE. Legend with all five
+      positions, eight anchors, border, dictionary sort, multi-column packing
+      and an "… and N more" overflow line; legend click toggles a series'
+      visibility and hover veils the others; clicks select the title, either
+      axis, the legend or a series; Alt+Up/Down reorder and Alt+Delete remove
+      the selected series. Exit: `test_chart()` 143/143; `test_visual()` and
+      `test_domain()` both 0 fail / 0 error.
+
+      Decisions and discoveries:
+      - **No new operation types were needed.** Everything is
+        `ReplaceReferencedValueOperation` /
+        `ReplaceSelectionOperation` / `CompoundOperation` plus the kernel's
+        `insert_elements`/`delete_elements` splices, so nothing had to be
+        registered in `reroot_operation` or the default `read_intent`.
+        Reordering is delete+insert+select as one `CompoundOperation`.
+      - `ChainingProjection` routes an operation produced by stage 2 back
+        through stage 1, whose default `read_intent` re-targets a
+        `ReplaceSelectionOperation` via `map_reference_backward`. So the reader
+        emits `ChartPlot`-domain references and the document receives
+        `Chart`-domain ones with no extra code.
+      - **`@iomap` unwraps cell fields**, so it is `iomap.geometry`, not
+        `iomap.geometry[]`. The reader had the double-deref and the tests caught
+        it.
+      - More under-typed references (D8 again): an axis/legend/series terminal
+        needs its type read off the object with `get_reference_node_type`,
+        because the same field can hold several document types.
+      - `legend_item_rects` is shared by the printer and the reader, so where an
+        item is drawn and where it is clickable can never disagree.
+      - Hover veil and selection highlight both key on a series index resolved
+        from a reference, which accepts either a `ChartPlot`- or `Chart`-rooted
+        path (the reader produces one, the document holds the other).
 - [ ] **P4 — view interaction.** Wheel/per-axis/keyboard zoom, pan, rubber-band
       drag (incl. cancel), zoom-to-fit, crosshair + readout — all as
       `ReplaceReferencedValueOperation` writes on `ChartPlot`. Exit: reader

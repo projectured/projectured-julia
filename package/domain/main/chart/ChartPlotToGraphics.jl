@@ -40,7 +40,8 @@ import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
                               column_bounds, merge_bounds, pad_range,
                               nice_ticks, log_ticks, format_tick,
                               visible_range, decimate_minmax, step_points, pins_segments,
-                              fold_scatter, fold_bins, label_step, histogram_values
+                              fold_scatter, fold_bins, label_step, histogram_values,
+                              legend_layout, anchor_offset
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsViewport,
                          layout_none
@@ -50,8 +51,15 @@ import ..ColorModule: StyleColor,
                       color_solarized_blue
 import ..FontModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
 import ..IoMapModule: IoMap, var"@iomap"
+import ..EventModule: MousePress, MouseMove, MouseLeave
+import ..OperationModule: Operation, ReplaceSelectionOperation,
+                          ReplaceReferencedValueOperation, CompoundOperation
+import ..ReferenceModule: get_reference_node_type
+import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceCaseModule: var"@reference_case"
 
-export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view
+export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
+       legend_item_rects, chart_part_reference, chart_series_reference
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -61,6 +69,8 @@ const _PLOT_BACKGROUND = StyleColor(1.0, 1.0, 1.0, 1.0)
 const _AXIS = color_solarized_content_dark
 const _GRID = StyleColor(0.0, 0.0, 0.0, 0.10)
 const _TEXT = color_solarized_content_darker
+const _SELECTION = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x60 / 255)
+const _HOVER = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x28 / 255)
 
 # Frame metrics, in logical pixels.
 const _PAD = 8            # breathing room around the whole chart
@@ -69,6 +79,20 @@ const _LABEL_GAP = 3      # between a tick mark and its label
 const _TICK_TARGET_PX = 70   # aim for roughly one tick per this many pixels
 
 _or(value, fallback) = value === nothing ? fallback : value
+
+# Hovering one series fades the others, so the one under the pointer reads
+# clearly without anything being hidden.
+const _VEIL = 0.25
+
+_veiled(color::StyleColor, on::Bool) =
+    on ? StyleColor(color.red, color.green, color.blue, color.alpha * _VEIL) : color
+
+# The colour a series draws in: its own or the cycle's, faded when some *other*
+# series is being hovered.
+function _draw_color(g, index::Int, own)
+    color = series_color(own, index, g.style.color_cycle)
+    _veiled(color, g.hovered_index != 0 && g.hovered_index != index)
+end
 
 """
     ChartPlotToGraphicsCanvas(; measure, width=760, height=460)
@@ -261,6 +285,144 @@ function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font
     end
 end
 
+# Which series a reference points into, or 0. Used for both the hover veil and
+# the selection highlight; a `ChartPlot`-rooted reference (what the reader
+# produces) and a `Chart`-rooted one (what the document holds) both resolve.
+function _reference_series_index(chart::Chart, reference)
+    reference === nothing && return 0
+    n = length(chart.series)
+    @reference_case reference begin
+        ::ChartPlot.chart.series[i].rest... => (1 <= i <= n ? i : 0)
+        ::Chart.series[i].rest... => (1 <= i <= n ? i : 0)
+        _ => 0
+    end
+end
+
+# ── Legend ───────────────────────────────────────────────────────────────
+
+const _SWATCH = 14        # width of a legend item's colour sample
+const _LEGEND_GAP = 6     # between swatch and label, and between columns
+
+_series_label(s) = hasproperty(s, :label) ? String(s.label) : ""
+
+# The legend's items and the box that holds them, before it is positioned. The
+# items are the visible series, in series order unless the legend asks for a
+# dictionary sort; each carries the series' position in the list so a click can
+# name the series it stands for.
+function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
+                      font::StyleFont, w::Int, h::Int)
+    legend = chart.legend
+    legend isa ChartLegend || return nothing
+    legend.visible || return nothing
+    items = [(index, _series_label(s)) for (index, s) in series]
+    isempty(items) && return nothing
+    legend.sort && sort!(items; by = it -> it[2])
+
+    sizes = Tuple{Int,Int}[p.measure(label, font) for (_, label) in items]
+    horizontal = legend.position in (:above, :below) ||
+                 (legend.position === :inside && legend.anchor in (:north, :south))
+    area_w = horizontal ? w - 2 * _PAD : w ÷ 3
+    area_h = horizontal ? h ÷ 3 : h - 2 * _PAD
+    box = legend_layout(sizes, horizontal, area_w, area_h;
+                        swatch=_SWATCH, gap=_LEGEND_GAP)
+    (; position = legend.position, anchor = legend.anchor, border = legend.border,
+       font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
+       x = 0, y = 0)
+end
+
+# Put the box where `position` and `anchor` say. An outside legend is anchored
+# within the strip already reserved for it; an inside one within the plot
+# rectangle itself.
+function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right)
+    plan === nothing && return nothing
+    bw, bh = plan.box_w, plan.box_h
+    if plan.position === :inside
+        dx, dy = anchor_offset(plan.anchor, plot_w - 2 * _PAD, plot_h - 2 * _PAD, bw, bh)
+        x, y = plot_x + _PAD + dx, plot_y + _PAD + dy
+    elseif plan.position === :above
+        dx, _ = anchor_offset(plan.anchor, plot_w, bh, bw, bh)
+        x, y = plot_x + dx, top - bh - _PAD
+    elseif plan.position === :below
+        dx, _ = anchor_offset(plan.anchor, plot_w, bh, bw, bh)
+        x, y = plot_x + dx, h - bottom + _PAD
+    elseif plan.position === :left
+        _, dy = anchor_offset(plan.anchor, bw, plot_h, bw, bh)
+        x, y = _PAD, plot_y + dy
+    else
+        _, dy = anchor_offset(plan.anchor, bw, plot_h, bw, bh)
+        x, y = w - right + _PAD, plot_y + dy
+    end
+    merge(plan, (; x, y))
+end
+
+"""
+    legend_item_rects(legend) -> Vector{Tuple{Int,Int,Int,Int,Int}}
+
+Each drawn legend item as `(series_index, x, y, w, h)` in canvas coordinates —
+what the printer draws into and what the reader hit-tests against, so the two
+can never disagree about where an item is.
+"""
+function legend_item_rects(plan)
+    out = Tuple{Int,Int,Int,Int,Int}[]
+    plan === nothing && return out
+    box = plan.box
+    pad = 6
+    for k in 1:min(box.shown, length(plan.items))
+        col = (k - 1) ÷ box.rows
+        row = (k - 1) % box.rows
+        x = plan.x + pad + col * (box.col_w + _LEGEND_GAP)
+        y = plan.y + pad + row * box.row_h
+        push!(out, (plan.items[k][1], x, y, box.col_w, box.row_h))
+    end
+    out
+end
+
+function _legend_elements!(out, g)
+    plan = g.legend
+    plan === nothing && return out
+    style = g.style
+    text_color = _or(style.title_color, _TEXT)
+    box = plan.box
+
+    push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h,
+                            StyleColor(1.0, 1.0, 1.0, 0.75), 3;
+                            border_width = plan.border ? 1 : 0,
+                            border_color = plan.border ? _AXIS : nothing))
+
+    rects = legend_item_rects(plan)
+    for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
+        s = g.chart.series[index]
+        color = series_color(s.color, index, style.color_cycle)
+        cy = y + row_h ÷ 2
+        # The legend is where a selected or hovered series is called out: it is
+        # the one place every series has a fixed, findable spot.
+        if index == g.selected_index
+            push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _SELECTION, 3))
+        elseif index == g.hovered_index
+            push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _HOVER, 3))
+        end
+        # A hidden series keeps its legend row but loses its swatch colour, so
+        # clicking it back on is obvious.
+        s.visible || (color = StyleColor(color.red, color.green, color.blue, 0.25))
+        push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8, color, 2))
+        label = plan.items[k][2]
+        th = plan.sizes[k][2]
+        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2,
+                                plan.font, text_color))
+    end
+
+    # Whatever did not fit is accounted for rather than silently dropped.
+    if box.truncated
+        hidden = length(plan.items) - box.shown
+        col = box.shown ÷ box.rows
+        row = box.shown % box.rows
+        x = plan.x + 6 + col * (box.col_w + _LEGEND_GAP)
+        y = plan.y + 6 + row * box.row_h
+        push!(out, GraphicsText("… and $hidden more", x, y, plan.font, text_color))
+    end
+    out
+end
+
 # The whole frame in one pass: ranges, then ticks, then the margins the measured
 # tick labels imply, then the plot rectangle and the two scales.
 function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
@@ -305,17 +467,31 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     top = _PAD + title_h + y_title_h
     bottom = _PAD + x_title_h + (isempty(xlabels) ? 0 : label_h + _LABEL_GAP) + _TICK
 
+    # An outside legend reserves a strip, shrinking the plot; an inside one
+    # overlays it and takes nothing.
+    legend = _legend_plan(p, chart, series, axis_font, w, h)
+    if legend !== nothing && legend.position !== :inside
+        legend.position === :above && (top += legend.box_h + _PAD)
+        legend.position === :below && (bottom += legend.box_h + _PAD)
+        legend.position === :left && (left += legend.box_w + _PAD)
+        legend.position === :right && (right += legend.box_w + _PAD)
+    end
+
     plot_x = left
     plot_y = top
     plot_w = max(w - left - right, 20)
     plot_h = max(h - top - bottom, 20)
+    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right)
 
     xlog = x_axis isa ChartAxis && x_axis.log
     ylog = y_axis isa ChartAxis && y_axis.log
     xs = AxisScale(view.x_min, view.x_max, plot_x, plot_x + plot_w; log=xlog)
     ys = AxisScale(view.y_min, view.y_max, plot_y + plot_h, plot_y; log=ylog)
 
-    (; w, h, chart, style, view, series,
+    hovered_index = _reference_series_index(chart, plot.hovered)
+    selected_index = _reference_series_index(chart, chart.selection)
+
+    (; w, h, chart, style, view, series, legend, hovered_index, selected_index,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, title_h,
@@ -389,6 +565,13 @@ end
 
 # ── Series elements ──────────────────────────────────────────────────────
 
+# A line style as the primitive's (on, off) pixel pattern. `:dashdot` would need
+# a four-element pattern, which the primitive does not carry, so it is not among
+# the styles offered; anything unrecognised draws solid.
+_dash_pattern(style::Symbol) =
+    style === :dotted ? (1, 3) :
+    style === :dashed ? (6, 4) : nothing
+
 # Marker shapes we can draw exactly with the primitives that exist. A filled
 # polygon primitive does not exist yet, so diamonds/triangles/stars are absent
 # rather than approximated out of line segments.
@@ -427,19 +610,21 @@ end
 
 function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     style = g.style
-    color = series_color(s.color, index, style.color_cycle)
+    color = _draw_color(g, index, s.color)
     pts = _line_points(g, s)
     isempty(pts) && return out
 
     if s.draw_style === :pins
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
         for (x, ytop, ybot) in pins_segments(pts, baseline)
-            push!(out, GraphicsLine(x, ytop, x, ybot, color; width=max(s.line_width, 1)))
+            push!(out, GraphicsLine(x, ytop, x, ybot, color; width=max(s.line_width, 1),
+                                    dash=_dash_pattern(s.line_style)))
         end
     elseif s.draw_style !== :none
         shaped = s.draw_style === :linear ? pts : step_points(pts, s.draw_style)
         length(shaped) >= 2 &&
-            push!(out, GraphicsPolyline(shaped, color; width=max(s.line_width, 1)))
+            push!(out, GraphicsPolyline(shaped, color; width=max(s.line_width, 1),
+                                        dash=_dash_pattern(s.line_style)))
     end
 
     shape = series_symbol(s.symbol, index, style.symbol_cycle)
@@ -462,7 +647,7 @@ end
 # shaded cell per occupied bin, alpha carrying the count.
 function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
     style = g.style
-    color = series_color(s.color, index, style.color_cycle)
+    color = _draw_color(g, index, s.color)
     n = min(length(s.x), length(s.y))
     n == 0 && return out
     ox, oy = g.plot_x, g.plot_y
@@ -532,7 +717,7 @@ function _bar_elements!(out, g, bar_series)
     # series collapses to an envelope over the categories that share a column.
     if slot_w < style.bin_fold_px
         for (index, s) in bar_series
-            color = series_color(s.color, index, style.color_cycle)
+            color = _draw_color(g, index, s.color)
             lefts = Int[round(Int, to_pixel(g.xs, c - 0.5)) - ox for c in 1:n]
             rights = Int[round(Int, to_pixel(g.xs, c + 0.5)) - ox for c in 1:n]
             vals = Float64[c <= length(s.values) ? Float64(s.values[c]) : 0.0 for c in 1:n]
@@ -552,7 +737,7 @@ function _bar_elements!(out, g, bar_series)
     stack = zeros(Float64, n)
     for j in order
         index, s = bar_series[j]
-        color = series_color(s.color, index, style.color_cycle)
+        color = _draw_color(g, index, s.color)
         dx, bw = _bar_geometry(placement, slot_w, count, j)
         for c in 1:n
             c <= length(s.values) || continue
@@ -587,7 +772,7 @@ end
 
 function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
     style = g.style
-    color = series_color(s.color, index, style.color_cycle)
+    color = _draw_color(g, index, s.color)
     edges = s.binedges
     values = _histogram_shown_values(s)
     n = min(length(values), length(edges) - 1)
@@ -694,6 +879,8 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                                  CellVector(Cell[Cell(e) for e in series_out]),
                                  layout_none, true)
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
+        # Last, so an inside legend sits over the series rather than under them.
+        _legend_elements!(out, g)
         out
     end)
 
@@ -719,9 +906,156 @@ function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx)
         GraphicsText("empty chart", _PAD * 2, h ÷ 2, font_ubuntu_regular_14, _TEXT)]
 end
 
-# Selection mapping is added with the selectable chart parts; until then a
-# selection has nowhere in the canvas to land.
+# A chart part is not a cursor position: there is nowhere in the canvas for a
+# selection to land, and no output element a reference should follow. Selection
+# is instead expressed by what the reader selects and what the frame highlights,
+# so both mappers decline.
 map_reference_forward(::ChartPlotToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference) = nothing
+
+# ── Reader ───────────────────────────────────────────────────────────────
+
+_in_rect(x, y, rx, ry, rw, rh) = rx <= x < rx + rw && ry <= y < ry + rh
+
+# Which legend item, if any, is under a point.
+function _legend_hit(g, x::Integer, y::Integer)
+    plan = g.legend
+    plan === nothing && return nothing
+    _in_rect(x, y, plan.x, plan.y, plan.box_w, plan.box_h) || return nothing
+    for (index, ix, iy, iw, ih) in legend_item_rects(plan)
+        _in_rect(x, y, ix, iy, iw, ih) && return index
+    end
+    0    # inside the box but between items: consumed, but names no series
+end
+
+# Which part of the chart frame a point falls on. The plot area itself is not a
+# part — clicks there belong to the view interactions.
+function _part_hit(g, x::Integer, y::Integer)
+    px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
+    y < py - g.title_h && return :title
+    _in_rect(x, y, px, py + ph, pw, g.h - py - ph) && return :x_axis
+    _in_rect(x, y, 0, py, px, ph) && return :y_axis
+    nothing
+end
+
+"""
+    chart_part_reference(part, plot) -> Reference
+
+The whole-element reference naming one part of the chart, in the reader's own
+(`ChartPlot`) domain. Stage 1 peels the `chart` step off on the way back, so
+what reaches the document is a plain `Chart` reference.
+"""
+function chart_part_reference(part::Symbol, plot::ChartPlot)
+    chart = plot.chart
+    ct = get_reference_node_type(chart)
+    part === :title && return @reference ::ChartPlot.chart::ct.title::String
+    # Every node of a reference names the type it reaches, terminal included, and
+    # an axis or legend can be any of several document types — so the terminal
+    # type is read off the object rather than written literally.
+    if part === :x_axis
+        at = get_reference_node_type(chart.x_axis)
+        return @reference ::ChartPlot.chart::ct.x_axis::at
+    elseif part === :y_axis
+        at = get_reference_node_type(chart.y_axis)
+        return @reference ::ChartPlot.chart::ct.y_axis::at
+    elseif part === :legend
+        lt = get_reference_node_type(chart.legend)
+        return @reference ::ChartPlot.chart::ct.legend::lt
+    end
+    @reference ::ChartPlot
+end
+
+function chart_series_reference(index::Integer, plot::ChartPlot)
+    chart = plot.chart
+    ct = get_reference_node_type(chart)
+    st = get_reference_node_type(chart.series[index])
+    @reference ::ChartPlot.chart::ct.series::CellVector[index]::st
+end
+
+function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCanvasIoMap, event)
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot = iomap.input
+
+    if event isa MouseMove
+        return _hover_intent(g, plot, event.x, event.y)
+    elseif event isa MouseLeave
+        return _clear_hover(plot)
+    elseif event isa MousePress && event.button === :left
+        index = _legend_hit(g, event.x, event.y)
+        if index isa Int && index > 0
+            # Clicking a legend item hides or shows the series it stands for —
+            # a content edit, unlike everything else the legend does.
+            s = g.chart.series[index]
+            return ReplaceReferencedValueOperation(s, "visible", !s.visible)
+        elseif index isa Int
+            return ReplaceSelectionOperation(chart_part_reference(:legend, plot))
+        end
+        part = _part_hit(g, event.x, event.y)
+        part === nothing || return ReplaceSelectionOperation(chart_part_reference(part, plot))
+        index = _series_hit(g, event.x, event.y)
+        index === nothing || return ReplaceSelectionOperation(chart_series_reference(index, plot))
+    end
+    nothing
+end
+
+# Hovering sets two fields: the pointer in data coordinates (the crosshair reads
+# it) and a reference to whatever is under it (the frame veils everything else).
+function _hover_intent(g, plot::ChartPlot, x::Integer, y::Integer)
+    ops = Operation[]
+    index = _legend_hit(g, x, y)
+    hovered = index isa Int && index > 0 ? chart_series_reference(index, plot) : nothing
+    isequal(plot.hovered, hovered) ||
+        push!(ops, ReplaceReferencedValueOperation(plot, "hovered", hovered))
+
+    inside = _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
+    cursor = inside ? (to_data(g.xs, x), to_data(g.ys, y)) : nothing
+    isequal(plot.cursor, cursor) ||
+        push!(ops, ReplaceReferencedValueOperation(plot, "cursor", cursor))
+
+    isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops)
+end
+
+function _clear_hover(plot::ChartPlot)
+    (plot.hovered === nothing && plot.cursor === nothing) && return nothing
+    CompoundOperation(Operation[
+        ReplaceReferencedValueOperation(plot, "hovered", nothing),
+        ReplaceReferencedValueOperation(plot, "cursor", nothing)])
+end
+
+# The series nearest a click inside the plot area. Line and scatter series are
+# matched against their already-decimated geometry rather than their raw
+# columns, so the search is over pixels and not over samples.
+function _series_hit(g, x::Integer, y::Integer)
+    _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
+    lx, ly = x - g.plot_x, y - g.plot_y
+    best = nothing; best_d = _HIT_TOLERANCE^2
+    for (index, s) in g.series
+        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        for (px, py) in _hit_points(g, s)
+            d = (px - lx)^2 + (py - ly)^2
+            d <= best_d && (best_d = d; best = index)
+        end
+    end
+    best
+end
+
+const _HIT_TOLERANCE = 8
+
+_hit_points(g, s::ChartLineSeries) = _line_points(g, s)
+function _hit_points(g, s::ChartScatterSeries)
+    out = Tuple{Int,Int}[]
+    n = min(length(s.x), length(s.y))
+    ox, oy = g.plot_x, g.plot_y
+    seen = Set{Tuple{Int,Int}}()
+    @inbounds for i in 1:n
+        xv = Float64(s.x[i]); yv = Float64(s.y[i])
+        (isfinite(xv) && isfinite(yv)) || continue
+        pt = (round(Int, to_pixel(g.xs, xv)) - ox, round(Int, to_pixel(g.ys, yv)) - oy)
+        pt in seen || (push!(seen, pt); push!(out, pt))
+    end
+    out
+end
+_hit_points(g, ::Any) = Tuple{Int,Int}[]
 
 end # module

@@ -28,7 +28,8 @@ export AxisScale, to_pixel, to_data, axis_span,
        nice_num, nice_ticks, log_ticks, format_tick,
        visible_range, decimate_minmax, step_points, pins_segments,
        fold_scatter, fold_bins, label_step,
-       bin_values, histogram_values
+       bin_values, histogram_values,
+       legend_layout, anchor_offset
 
 # Smallest positive value a log axis will map; below it the scale saturates
 # rather than diverging to -Inf.
@@ -459,6 +460,74 @@ function label_step(count::Integer, span_px::Real, label_px::Real)
     per = Float64(span_px) / count
     per <= 0 && return count
     max(1, ceil(Int, Float64(label_px) / per))
+end
+
+# ── Legend ───────────────────────────────────────────────────────────────
+
+"""
+    legend_layout(sizes, horizontal, area_w, area_h; swatch, gap, line_gap, pad)
+      -> (; cols, rows, col_w, row_h, box_w, box_h, shown, truncated)
+
+Pack legend entries of the given measured `(width, height)` text sizes into a
+box that fits `area_w × area_h`.
+
+A `horizontal` legend (one above or below the plot) spreads into as many equal
+columns as fit and wraps; a vertical one (beside the plot) is a single column.
+When the entries do not all fit, `shown` is how many are drawn and `truncated`
+says the caller should replace the last slot with an "and N more" line — which
+is why `shown` leaves room for it rather than filling the box.
+"""
+function legend_layout(sizes::AbstractVector, horizontal::Bool,
+                       area_w::Real, area_h::Real;
+                       swatch::Integer=14, gap::Integer=6,
+                       line_gap::Integer=4, pad::Integer=6)
+    n = length(sizes)
+    n == 0 && return (; cols=0, rows=0, col_w=0, row_h=0, box_w=0, box_h=0,
+                        shown=0, truncated=false)
+    text_w = maximum(sz[1] for sz in sizes)
+    row_h = maximum(sz[2] for sz in sizes) + line_gap
+    col_w = swatch + gap + text_w
+
+    inner_w = max(Float64(area_w) - 2pad, Float64(col_w))
+    inner_h = max(Float64(area_h) - 2pad, Float64(row_h))
+
+    cols = horizontal ? clamp(floor(Int, (inner_w + gap) / (col_w + gap)), 1, n) : 1
+    rows = cld(n, cols)
+
+    max_rows = max(floor(Int, inner_h / row_h), 1)
+    truncated = rows > max_rows
+    if truncated
+        rows = max_rows
+        # One slot goes to the "and N more" line, so it is never itself hidden.
+        shown = max(cols * rows - 1, 1)
+    else
+        shown = n
+    end
+
+    (; cols, rows, col_w, row_h,
+       box_w = 2pad + cols * col_w + (cols - 1) * gap,
+       box_h = 2pad + rows * row_h,
+       shown, truncated)
+end
+
+"""
+    anchor_offset(anchor, outer_w, outer_h, box_w, box_h) -> (dx, dy)
+
+Where a box of `box_w × box_h` sits inside an `outer_w × outer_h` area for one
+of the eight compass anchors. `:north` centres horizontally and pins to the top,
+`:northeast` pins to both, and so on.
+"""
+function anchor_offset(anchor::Symbol, outer_w::Real, outer_h::Real,
+                       box_w::Real, box_h::Real)
+    free_w = max(Float64(outer_w) - box_w, 0.0)
+    free_h = max(Float64(outer_h) - box_h, 0.0)
+    west = anchor in (:northwest, :west, :southwest)
+    east = anchor in (:northeast, :east, :southeast)
+    north = anchor in (:northwest, :north, :northeast)
+    south = anchor in (:southwest, :south, :southeast)
+    dx = west ? 0.0 : east ? free_w : free_w / 2
+    dy = north ? 0.0 : south ? free_h : free_h / 2
+    (round(Int, dx), round(Int, dy))
 end
 
 # ── Histograms ───────────────────────────────────────────────────────────

@@ -35,10 +35,17 @@ import ..ColorModule: StyleColor,
     color_solarized_orange, color_solarized_violet, color_solarized_cyan,
     color_solarized_magenta, color_solarized_yellow
 import ..ChartGeometryModule: bin_values
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
+                          EmptyReference, annotate_reference_types, concat_references,
+                          get_reference_node_type
+import ..ReferenceCaseModule: var"@reference_case"
+import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
+                          insert_elements, delete_elements
 
 export ChartSeries, chart_series_family, chart_axis_family,
        default_color_cycle, default_symbol_cycle,
-       series_color, series_symbol
+       series_color, series_symbol,
+       selected_series_index, move_series
 
 @domain Chart
 
@@ -148,8 +155,8 @@ A line series over paired `x`/`y` columns.
 `sorted` records that `x` ascends, which lets the projection binary-search the
 visible index range instead of scanning the column. `draw_style` is `:none`,
 `:linear`, `:pins`, `:steps_post`, `:steps_pre` or `:steps_mid`; `line_style` is
-`:solid`, `:dotted`, `:dashed` or `:dashdot`. A `nothing` `color` takes the next
-entry of the chart's color cycle.
+`:solid`, `:dotted` or `:dashed`. A `nothing` `color` takes the next entry of the
+chart's color cycle.
 """
 @document struct ChartLineSeries <: ChartSeries
     label::String
@@ -340,6 +347,60 @@ function series_symbol(symbol::Symbol, index::Integer, cycle)
     symbol === :cycle || return symbol
     isempty(cycle) && return :circle
     cycle[mod1(index, length(cycle))]
+end
+
+# ── Editing the series list ──────────────────────────────────────────────
+
+"""
+    selected_series_index(chart) -> Int
+
+Which series the chart's selection points into, or `0`. The series list is both
+the draw order and the legend order, so this is what the reorder gestures act
+on.
+"""
+function selected_series_index(chart::Chart)
+    reference = chart.selection
+    @reference_case reference begin
+        ::Chart.series[i].rest... => (1 <= i <= length(chart.series) ? i : 0)
+        _ => 0
+    end
+end
+
+"""
+    move_series(chart, from, to) -> Operation | Nothing
+
+Move a series within the list, as a delete paired with an insert. The selection
+follows the series to its new position, so a run of reorder gestures keeps
+acting on the same one.
+
+Reordering *is* the ordering feature: the list order decides both which series
+draws on top and the order the legend lists them in.
+"""
+function move_series(chart::Chart, from::Integer, to::Integer)
+    n = length(chart.series)
+    (1 <= from <= n && 1 <= to <= n && from != to) || return nothing
+    moved = chart.series[from]
+    field_path = annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("series"), EmptyReference()))
+    landing = concat_references(field_path,
+        ConcreteReference(ElementReferenceStep(to),
+                          EmptyReference(get_reference_node_type(moved))))
+    CompoundOperation(Any[
+        delete_elements(field_path, from - 1; root=chart),
+        insert_elements(field_path, to - 1, Any[moved]; root=chart),
+        ReplaceSelectionOperation(landing)])
+end
+
+@gestures Chart begin
+    when(selected_series_index(doc) > 0)
+    KeyDown(:up; alt) => "Move the selected series earlier" =>
+        move_series(doc, selected_series_index(doc), selected_series_index(doc) - 1)
+    KeyDown(:down; alt) => "Move the selected series later" =>
+        move_series(doc, selected_series_index(doc), selected_series_index(doc) + 1)
+    KeyDown(:delete; alt) => "Remove the selected series" =>
+        delete_elements(annotate_reference_types(doc,
+            ConcreteReference(FieldReferenceStep("series"), EmptyReference())),
+            selected_series_index(doc) - 1; root=doc)
 end
 
 end # module

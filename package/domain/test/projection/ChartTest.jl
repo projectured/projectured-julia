@@ -49,6 +49,21 @@ _series_elements(canvas) = collect(_viewport_of(canvas).content.elements)
 # way to see which histogram value transform is in effect.
 _chart_y_max(chart) = resolve_view(ChartPlot(chart)).y_max
 
+_chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
+                              print_document(p, p, chart, PrinterContext()))
+
+# The decimated pixel points of one series, as the renderer computes them.
+_line_points_of(g, index) = ChartPlotToGraphicsModule._line_points(g, g.chart.series[index])
+
+# Apply an operation against a chart that is not inside an editor: the chart is
+# the root, so a document-rooted reference resolves against it directly.
+function _apply_to(chart, op)
+    editor = (; document = chart)
+    evaluate_operation(editor, op)
+end
+
+const alt_modifier = ModifierKeys(; alt=true)
+
 _line_chart() = Chart("Signal",
     [ChartLineSeries("sin", collect(0.0:0.05:10.0), sin.(0.0:0.05:10.0)),
      ChartLineSeries("cos", collect(0.0:0.05:10.0), cos.(0.0:0.05:10.0); line_width=2)];
@@ -156,11 +171,12 @@ function test_chart()
             @test "50" in ylabels
             @test !("100" in ylabels)
 
-            # Hidden labels remove the tick text but keep the frame. (The chart
-            # title is not a tick label, so this chart is deliberately untitled.)
+            # Hidden labels remove the tick text but keep the frame. (The title
+            # and the legend are not tick labels, so both are off here.)
             c = Chart("", [ChartLineSeries("a", x, x)];
                       x_axis=ChartAxis(; show_labels=false),
-                      y_axis=ChartAxis(; show_labels=false))
+                      y_axis=ChartAxis(; show_labels=false),
+                      legend=ChartLegend(; visible=false))
             els = collect(_chart_canvas(c).elements)
             @test isempty([e for e in els if e isa GraphicsText])
             @test _count_kind(els, GraphicsLine) >= 2
@@ -361,6 +377,163 @@ function test_chart()
             c = Chart("s", [ChartScatterSeries("a", collect(1.0:10.0), collect(1.0:10.0);
                                                symbol=:square)])
             @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsRect) == 10
+        end
+
+        @testset "line style" begin
+            x = collect(0.0:1.0:10.0)
+            mk(style) = Chart("s", [ChartLineSeries("a", x, x; line_style=style)])
+            solid = first(e for e in _series_elements(_chart_canvas(mk(:solid)))
+                          if e isa GraphicsPolyline)
+            @test solid.dash === nothing
+            for style in (:dotted, :dashed)
+                pl = first(e for e in _series_elements(_chart_canvas(mk(style)))
+                           if e isa GraphicsPolyline)
+                @test pl.dash isa Tuple && pl.dash[1] > 0 && pl.dash[2] > 0
+            end
+            @test first(e for e in _series_elements(_chart_canvas(mk(:dotted)))
+                        if e isa GraphicsPolyline).dash !=
+                  first(e for e in _series_elements(_chart_canvas(mk(:dashed)))
+                        if e isa GraphicsPolyline).dash
+        end
+
+        @testset "legend" begin
+            c = _line_chart()
+            canvas = _chart_canvas(c)
+            labels = [String(e.text) for e in collect(canvas.elements) if e isa GraphicsText]
+            @test "sin" in labels && "cos" in labels
+
+            # Hiding the legend removes its items but nothing else.
+            c.legend.visible = false
+            labels = [String(e.text) for e in collect(_chart_canvas(c).elements) if e isa GraphicsText]
+            @test !("sin" in labels)
+            @test "Signal" in labels
+
+            # An outside legend takes space from the plot; an inside one overlays.
+            inside_w = Int(_viewport_of(_chart_canvas(_line_chart())).w)
+            right = _line_chart(); right.legend.position = :right
+            @test Int(_viewport_of(_chart_canvas(right)).w) < inside_w
+            below = _line_chart(); below.legend.position = :below
+            @test Int(_viewport_of(_chart_canvas(below)).h) <
+                  Int(_viewport_of(_chart_canvas(_line_chart())).h)
+
+            # Anchors move the box without resizing it.
+            boxes = map((:northwest, :northeast, :southeast)) do anchor
+                ch = _line_chart(); ch.legend.anchor = anchor
+                plan = _chart_iomap(ch).step_iomaps[2][].geometry.legend
+                (plan.x, plan.y, plan.box_w, plan.box_h)
+            end
+            @test allunique([(b[1], b[2]) for b in boxes])
+            @test all(b -> (b[3], b[4]) == (boxes[1][3], boxes[1][4]), boxes)
+
+            # Sorting reorders the items without touching the series list.
+            sorted = _line_chart(); sorted.legend.sort = true
+            plan = _chart_iomap(sorted).step_iomaps[2][].geometry.legend
+            @test [it[2] for it in plan.items] == ["cos", "sin"]
+            @test String(sorted.series[1].label) == "sin"
+
+            # Everything that does not fit is accounted for rather than dropped.
+            many = Chart("many",
+                [ChartLineSeries("series number \$i", [0.0, 1.0], [0.0, 1.0]) for i in 1:60];
+                legend=ChartLegend(; position=:right))
+            labels = [String(e.text) for e in collect(_chart_canvas(many).elements)
+                      if e isa GraphicsText]
+            @test any(l -> occursin("more", l), labels)
+        end
+
+        @testset "legend interaction" begin
+            chart = _line_chart()
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            plan = iomap.step_iomaps[2][].geometry.legend
+            index, ix, iy, iw, ih = first(legend_item_rects(plan))
+
+            # Clicking a legend item hides the series it stands for.
+            op = read_intent(proj, iomap, MousePress(:left, ix + 2, iy + ih ÷ 2))
+            @test op isa ReplaceReferencedValueOperation
+            @test op.document === chart.series[index]
+            @test op.value == false
+
+            # Hovering one names it, so the frame can veil the others.
+            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, :none, ModifierKeys()))
+            @test op !== nothing
+            evaluate_operation(nothing, op)
+            @test plot.hovered !== nothing
+            veiled = [e for e in _series_elements(iomap.output) if e isa GraphicsPolyline]
+            @test veiled[1].color.alpha != veiled[2].color.alpha
+
+            # Leaving clears both hover fields.
+            op = read_intent(proj, iomap, MouseLeave(0, 0, :none, ModifierKeys()))
+            @test op !== nothing
+            evaluate_operation(nothing, op)
+            @test plot.hovered === nothing && plot.cursor === nothing
+        end
+
+        @testset "part selection" begin
+            chart = _line_chart()
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            g = iomap.step_iomaps[2][].geometry
+
+            # A click on the title strip selects the title, on an axis strip the
+            # axis — and the reference that comes back is in the chart's own
+            # domain, not the plot's, because stage 1 peels its step off.
+            op = read_intent(proj, iomap, MousePress(:left, g.plot_x + 10, 2))
+            @test op isa ReplaceSelectionOperation
+            @test is_reference_equal(strip_reference_types(op.path),
+                                     strip_reference_types(@reference ::Chart.title::String))
+
+            op = read_intent(proj, iomap,
+                             MousePress(:left, 4, g.plot_y + g.plot_h ÷ 2))
+            @test op isa ReplaceSelectionOperation
+            @test is_reference_equal(strip_reference_types(op.path),
+                                     strip_reference_types(@reference ::Chart.y_axis::ChartAxis))
+
+            # And a click on a series' own geometry selects that series.
+            pts = _line_points_of(g, 1)
+            @test !isempty(pts)
+            px, py = pts[length(pts) ÷ 2]
+            op = read_intent(proj, iomap,
+                             MousePress(:left, px + g.plot_x, py + g.plot_y))
+            @test op isa ReplaceSelectionOperation
+            @test is_reference_equal(strip_reference_types(op.path),
+                strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
+        end
+
+        @testset "series reordering" begin
+            chart = _line_chart()
+            first_label = String(chart.series[1].label)
+            second_label = String(chart.series[2].label)
+
+            # Nothing selected, nothing to move.
+            @test selected_series_index(chart) == 0
+            @test read_gesture(chart, KeyDown(:down, alt_modifier)) === nothing
+
+            chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
+            @test selected_series_index(chart) == 1
+
+            op = read_gesture(chart, KeyDown(:down, alt_modifier))
+            @test op !== nothing
+            _apply_to(chart, op)
+            @test String(chart.series[1].label) == second_label
+            @test String(chart.series[2].label) == first_label
+            # The selection follows the series that moved.
+            @test selected_series_index(chart) == 2
+
+            op = read_gesture(chart, KeyDown(:up, alt_modifier))
+            _apply_to(chart, op)
+            @test String(chart.series[1].label) == first_label
+
+            # Moving past either end is not an operation at all.
+            chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
+            @test read_gesture(chart, KeyDown(:up, alt_modifier)) === nothing
+
+            # Deleting removes exactly the selected series.
+            op = read_gesture(chart, KeyDown(:delete, alt_modifier))
+            @test op !== nothing
+            _apply_to(chart, op)
+            @test length(chart.series) == 1
+            @test String(chart.series[1].label) == second_label
         end
 
         @testset "family mismatch" begin

@@ -266,17 +266,25 @@ function paint_line!(ctx, line, ox, oy)
 end
 
 # Stroke a polyline of absolute (gx, gy) points (page-top coordinates) with
-# width `wdt`, plus optional filled-triangle arrowheads. Splines tessellate to
-# a polyline first, so this serves both edge primitives — native vector output.
+# width `wdt`, plus optional filled-triangle arrowheads and an optional
+# (on, off) dash pattern. Splines tessellate to a polyline first, so this
+# serves both edge primitives — native vector output.
 function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
-                                 start_arrow::Bool, end_arrow::Bool, arrow_size::Int)
+                                 start_arrow::Bool, end_arrow::Bool, arrow_size::Int,
+                                 dash=nothing)
     (a == 0 || isempty(gpts)) && return
     ys = [p[2] for p in gpts]
     _on_page(ctx, minimum(ys) - wdt, maximum(ys) + wdt) || return
     flip = [(p[1], _flip(ctx, p[2])) for p in gpts]
     if length(flip) >= 2
+        # Dash array via the PDF `d` operator; always emitted (`[] 0 d` = solid) so
+        # a dashed stroke never leaks its pattern onto a later solid stroke. The
+        # path is a single `m`/`l ` chain stroked once, so the dash phase runs
+        # continuously across vertices with no extra bookkeeping (unlike Sdl,
+        # which draws each segment as its own quad).
+        dashop = dash === nothing ? "[] 0 d " : string("[", Int(dash[1]), " ", Int(dash[2]), "] 0 d ")
         print(ctx.buf, "/", gs_for!(ctx, a), " gs ",
-              c01(r), " ", c01(g), " ", c01(b), " RG ", n2(wdt), " w 1 J 1 j [] 0 d ")
+              c01(r), " ", c01(g), " ", c01(b), " RG ", n2(wdt), " w 1 J 1 j ", dashop)
         print(ctx.buf, n2(flip[1][1]), " ", n2(flip[1][2]), " m ")
         for i in 2:length(flip)
             print(ctx.buf, n2(flip[i][1]), " ", n2(flip[i][2]), " l ")
@@ -299,14 +307,14 @@ end
 function paint_polyline!(ctx, pl, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pl.points]
     _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), _rgba8(pl.color)...,
-                            pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
+                            pl.start_arrow, pl.end_arrow, Int(pl.arrow_size), pl.dash)
 end
 
 function paint_spline!(ctx, sp, ox, oy)
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     gpts = [(ox + p[1], oy + p[2]) for p in tess]
     _paint_polyline_points!(ctx, gpts, max(1, Int(sp.width)), _rgba8(sp.color)...,
-                            sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
+                            sp.start_arrow, sp.end_arrow, Int(sp.arrow_size), sp.dash)
 end
 
 function paint_text!(ctx, t, ox, oy)

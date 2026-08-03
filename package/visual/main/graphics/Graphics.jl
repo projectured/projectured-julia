@@ -183,19 +183,24 @@ end
 # ── GraphicsPolyline ─────────────────────────────────────────────────────
 
 """
-    GraphicsPolyline(points, color::StyleColor=color_black; width=1, start_arrow=false, end_arrow=false, arrow_size=8)
+    GraphicsPolyline(points, color::StyleColor=color_black; width=1, dash=nothing,
+                     start_arrow=false, end_arrow=false, arrow_size=8)
 
 A reactive connected sequence of straight segments through `points` (a
 `Vector{Tuple{Int,Int}}` of absolute `(x, y)` pixels) in `color` (a
 [`StyleColor`](@ref)) with stroke `width`. This is the canonical edge primitive
-for a routed connector — a libavoid-style polyline route. Optional
-filled-triangle arrowheads at the start and/or end, sized `arrow_size` pixels,
-oriented along the adjacent segment.
+for a routed connector — a libavoid-style polyline route. `dash` selects a
+dashed stroke, same values as [`GraphicsLine`](@ref); backends carry the
+on/off phase across segments so it stays continuous through the route's
+corners instead of restarting at each vertex. Optional filled-triangle
+arrowheads at the start and/or end, sized `arrow_size` pixels, oriented along
+the adjacent segment.
 """
 @document struct GraphicsPolyline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
     color::StyleColor
     width::Int32
+    dash::Any              # nothing | (on::Int, off::Int) — dash pattern in pixels
     start_arrow::Bool
     end_arrow::Bool
     arrow_size::Int32
@@ -203,11 +208,12 @@ end
 
 function GraphicsPolyline(points::AbstractVector,
                           color::StyleColor=color_black;
-                          width::Integer=1, start_arrow::Bool=false,
+                          width::Integer=1, dash=nothing, start_arrow::Bool=false,
                           end_arrow::Bool=false, arrow_size::Integer=8)
     pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
     GraphicsPolyline(Cell(pts), Cell(color),
-                     Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
+                     Cell(Int32(width)), Cell(_norm_dash(dash)),
+                     Cell(start_arrow), Cell(end_arrow),
                      Cell(Int32(arrow_size)), Cell(nothing))
 end
 
@@ -215,21 +221,23 @@ end
 
 """
     GraphicsSpline(points, color::StyleColor=color_black; kind=:catmullrom, width=1,
-                   start_arrow=false, end_arrow=false, arrow_size=8, segments=12)
+                   dash=nothing, start_arrow=false, end_arrow=false, arrow_size=8,
+                   segments=12)
 
 A reactive smooth curve through/along `points` (a `Vector{Tuple{Int,Int}}`) in
 `color` (a [`StyleColor`](@ref)).
 `kind` is `:catmullrom` (curve passes through the points) or `:bezier` (the
 points are control points of a cubic Bézier chain). Backends tessellate to a
 polyline at render time via [`tessellate_spline`](@ref) (`segments` samples per
-span), so curve quality is one shared knob. Arrowhead flags as on
-`GraphicsPolyline`.
+span), so curve quality is one shared knob. `dash` and the arrowhead flags
+behave as on `GraphicsPolyline`.
 """
 @document struct GraphicsSpline <: GraphicsDocument
     points::Any            # Vector{Tuple{Int,Int}}
     kind::Symbol
     color::StyleColor
     width::Int32
+    dash::Any              # nothing | (on::Int, off::Int) — dash pattern in pixels
     start_arrow::Bool
     end_arrow::Bool
     arrow_size::Int32
@@ -238,12 +246,13 @@ end
 
 function GraphicsSpline(points::AbstractVector,
                         color::StyleColor=color_black;
-                        kind::Symbol=:catmullrom, width::Integer=1,
+                        kind::Symbol=:catmullrom, width::Integer=1, dash=nothing,
                         start_arrow::Bool=false, end_arrow::Bool=false,
                         arrow_size::Integer=8, segments::Integer=12)
     pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
     GraphicsSpline(Cell(pts), Cell(kind), Cell(color),
-                   Cell(Int32(width)), Cell(start_arrow), Cell(end_arrow),
+                   Cell(Int32(width)), Cell(_norm_dash(dash)),
+                   Cell(start_arrow), Cell(end_arrow),
                    Cell(Int32(arrow_size)), Cell(Int32(segments)), Cell(nothing))
 end
 

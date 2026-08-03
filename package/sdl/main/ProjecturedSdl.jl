@@ -1022,20 +1022,63 @@ function _fill_triangle!(renderer::Ptr{SDL_Renderer}, verts3,
     end
 end
 
+# Draw a connected polyline of (x,y) floats with stroke width `wdt`, honouring
+# an (on, off) dash pattern. The on/off cycle is stepped once across the whole
+# path — `remaining` carries over from one segment to the next — so a corner
+# falls wherever the cycle happens to land rather than restarting the pattern
+# at each vertex.
+function _stroke_polyline_dashed!(renderer::Ptr{SDL_Renderer}, pts, wdt::Float64,
+                                  r::UInt8, g::UInt8, b::UInt8, a::UInt8,
+                                  on::Int, off::Int)
+    n = length(pts)
+    on_run = true
+    remaining = Float64(on)
+    for i in 1:(n-1)
+        x1, y1 = Float64(pts[i][1]), Float64(pts[i][2])
+        x2, y2 = Float64(pts[i+1][1]), Float64(pts[i+1][2])
+        dx, dy = x2 - x1, y2 - y1
+        seglen = sqrt(dx * dx + dy * dy)
+        seglen == 0 && continue
+        ux, uy = dx / seglen, dy / seglen
+        pos = 0.0
+        while pos < seglen
+            if remaining <= 0
+                on_run = !on_run
+                remaining = on_run ? Float64(on) : Float64(off)
+            end
+            step = min(remaining, seglen - pos)
+            if on_run
+                sx = x1 + ux * pos;          sy = y1 + uy * pos
+                ex = x1 + ux * (pos + step); ey = y1 + uy * (pos + step)
+                _fill_thick_line!(renderer, sx, sy, ex, ey, wdt, r, g, b, a)
+            end
+            pos += step
+            remaining -= step
+        end
+    end
+end
+
 # Draw a connected polyline of (x,y) floats with stroke width `wdt`, plus
-# optional arrowheads. Each segment is a filled quad (anti-aliased by the
-# supersample downsample), matching the diagonal-GraphicsLine path.
+# optional arrowheads and an optional (on, off) dash pattern. Each solid
+# segment is a filled quad (anti-aliased by the supersample downsample),
+# matching the diagonal-GraphicsLine path. Arrowheads are always solid.
 function _stroke_polyline!(renderer::Ptr{SDL_Renderer}, pts, wdt::Int,
                            r::UInt8, g::UInt8, b::UInt8, a::UInt8,
-                           start_arrow::Bool, end_arrow::Bool, arrow_size::Int)
+                           start_arrow::Bool, end_arrow::Bool, arrow_size::Int,
+                           dash=nothing)
     n = length(pts)
     n == 0 && return
     SDL_SetRenderDrawColor(renderer, r, g, b, a)
     w = Float64(max(1, wdt))
-    for i in 1:(n-1)
-        x1, y1 = Float64(pts[i][1]), Float64(pts[i][2])
-        x2, y2 = Float64(pts[i+1][1]), Float64(pts[i+1][2])
-        _fill_thick_line!(renderer, x1, y1, x2, y2, w, r, g, b, a)
+    if dash === nothing
+        for i in 1:(n-1)
+            x1, y1 = Float64(pts[i][1]), Float64(pts[i][2])
+            x2, y2 = Float64(pts[i+1][1]), Float64(pts[i+1][2])
+            _fill_thick_line!(renderer, x1, y1, x2, y2, w, r, g, b, a)
+        end
+    else
+        on, off = max(1, Int(dash[1])), max(1, Int(dash[2]))
+        _stroke_polyline_dashed!(renderer, pts, w, r, g, b, a, on, off)
     end
     if end_arrow
         tri = polyline_arrowhead(pts, arrow_size; at_end=true)
@@ -1051,7 +1094,7 @@ function _render_polyline!(renderer::Ptr{SDL_Renderer}, pl::GraphicsPolyline, ox
     pl.color.alpha == 0 && return
     pts = [(Int(p[1]) + ox, Int(p[2]) + oy) for p in pl.points]
     _stroke_polyline!(renderer, pts, Int(pl.width), _rgba8(pl.color)...,
-                      pl.start_arrow, pl.end_arrow, Int(pl.arrow_size))
+                      pl.start_arrow, pl.end_arrow, Int(pl.arrow_size), pl.dash)
 end
 
 function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::Int, oy::Int)
@@ -1059,7 +1102,7 @@ function _render_spline!(renderer::Ptr{SDL_Renderer}, sp::GraphicsSpline, ox::In
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     pts = [(p[1] + ox, p[2] + oy) for p in tess]
     _stroke_polyline!(renderer, pts, Int(sp.width), _rgba8(sp.color)...,
-                      sp.start_arrow, sp.end_arrow, Int(sp.arrow_size))
+                      sp.start_arrow, sp.end_arrow, Int(sp.arrow_size), sp.dash)
 end
 
 # ── Render a GraphicsCircle element ──────────────────────────────────

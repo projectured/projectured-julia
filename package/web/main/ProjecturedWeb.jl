@@ -224,18 +224,22 @@ function _serialize_node(elem)
                     "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
     elseif elem isa GraphicsPolyline
         pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
-        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
-                    "w" => Int(elem.width),
-                    "sa" => elem.start_arrow, "ea" => elem.end_arrow,
-                    "as" => Int(elem.arrow_size))
+        d = Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
+                 "w" => Int(elem.width),
+                 "sa" => elem.start_arrow, "ea" => elem.end_arrow,
+                 "as" => Int(elem.arrow_size))
+        elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
+        return d
     elseif elem isa GraphicsSpline
         # Tessellate server-side so the browser only needs the polyline path.
         tess = tessellate_spline(elem.points, elem.kind, elem.segments)
         pts = [[round(Int, p[1]), round(Int, p[2])] for p in tess]
-        return Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
-                    "w" => Int(elem.width),
-                    "sa" => elem.start_arrow, "ea" => elem.end_arrow,
-                    "as" => Int(elem.arrow_size))
+        d = Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),
+                 "w" => Int(elem.width),
+                 "sa" => elem.start_arrow, "ea" => elem.end_arrow,
+                 "as" => Int(elem.arrow_size))
+        elem.dash === nothing || (d["dash"] = [Int(elem.dash[1]), Int(elem.dash[2])])
+        return d
     elseif elem isa GraphicsViewport
         content = elem.content::GraphicsCanvas
         d = Dict("t" => "clip", "x" => Int(elem.x), "y" => Int(elem.y),
