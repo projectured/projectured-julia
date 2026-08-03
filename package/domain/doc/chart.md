@@ -95,9 +95,22 @@ type it reaches:
 @reference ::Chart.series::CellVector[1]::ChartLineSeries.color
 ```
 
-A column is *not* addressable below itself: `series[1].y` names the whole
-column, and there is no path to sample *i* inside it. Element indices are
-1-based, as everywhere else in the repository.
+A column is not addressable below itself — `series[1].y` names the whole column
+— but an individual **sample** is, through a reference step rather than a child:
+
+```julia
+chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)::Tuple
+```
+
+`ChartSampleReferenceStep` is a `:structural` step naming a position inside an
+otherwise opaque leaf, exactly as `PointReferenceStep` names a pixel offset
+inside a rendered element. It evaluates to what that sample *is*: the `(x, y)`
+pair of a line or scatter point, the `(lower, upper, value)` of a histogram bin,
+the value of a bar. The selection still terminates at a real `Document`, the
+series, which is what keeps `AR-EVERY-DOCUMENT-HAS-SELECTION` satisfied without
+a cell per sample.
+
+Element indices are 1-based, as everywhere else in the repository.
 
 ## Selection
 
@@ -115,6 +128,20 @@ Clicking a part selects it. The reader produces `ChartPlot`-domain references
 and the first stage peels its own step off on the way back, so what reaches the
 document is a plain `Chart` reference.
 
+Clicking a **data point** selects that sample, and the projection rings it. A
+selected sample still counts as its series for everything coarser — navigation,
+the hover veil, the legend highlight — so nothing that acts on a series stops
+working when a point inside it is selected.
+
+Samples are reached by pointing, not by walking: the arrow keys stay at part
+granularity. The navigation sweeps enumerate every reachable selection by
+breadth-first search, so letting the keyboard step into samples would make a
+chart's state space its sample count — hundreds of reprints for these examples,
+and unbounded in principle. Picking a point out of an ascending column is a
+binary search, so it costs the same on a million samples as on a hundred; a
+folded scatter cloud has no individually drawn points, so a click there selects
+the series.
+
 ## Interaction
 
 | Gesture | Effect |
@@ -131,6 +158,7 @@ document is a plain `Chart` reference.
 | double-click, `0` | refit to the data |
 | `+` / `-` | zoom about the centre |
 | pointer in the plot | crosshair snapped to the nearest sample, with a value readout |
+| click a data point | select that sample |
 | Ctrl+Shift+Up/Down | move the selected series within the list |
 | Alt+Delete | remove the selected series |
 

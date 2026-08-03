@@ -55,6 +55,19 @@ _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
 # The decimated pixel points of one series, as the renderer computes them.
 _line_points_of(g, index) = ChartPlotToGraphicsModule._line_points(g, g.chart.series[index])
 
+# A canvas point on the first series' geometry but more than a marker's reach
+# from any of its samples, so a click there means "the series", not "a point".
+function _series_hit_away_from_samples(g, pts)
+    for k in 2:length(pts)
+        x0, y0 = pts[k-1]; x1, y1 = pts[k]
+        mx, my = (x0 + x1) ÷ 2, (y0 + y1) ÷ 2
+        ChartPlotToGraphicsModule._sample_hit(g, mx + g.plot_x, my + g.plot_y) === nothing &&
+            ChartPlotToGraphicsModule._series_hit(g, mx + g.plot_x, my + g.plot_y) !== nothing &&
+            return (mx + g.plot_x, my + g.plot_y)
+    end
+    nothing
+end
+
 # Apply an operation against a chart that is not inside an editor: the chart is
 # the root, so a document-rooted reference resolves against it directly.
 function _apply_to(chart, op)
@@ -491,15 +504,86 @@ function test_chart()
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.y_axis::ChartAxis))
 
-            # And a click on a series' own geometry selects that series.
+            # A click right on a data point selects the point.
             pts = _line_points_of(g, 1)
             @test !isempty(pts)
             px, py = pts[length(pts) ÷ 2]
             op = read_intent(proj, iomap,
                              MousePress(:left, px + g.plot_x, py + g.plot_y))
             @test op isa ReplaceSelectionOperation
-            @test is_reference_equal(strip_reference_types(op.path),
-                strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
+            chart.selection = op.path
+            @test selected_sample(chart) !== nothing
+            # A sample still counts as its series for everything coarser —
+            # navigation, the hover veil, the legend highlight.
+            @test selected_series_index(chart) == 1
+            @test chart_part_index(chart, op.path) == 5
+
+            # A click on the series' geometry but away from any sample selects
+            # the whole series instead.
+            far = _series_hit_away_from_samples(g, pts)
+            if far !== nothing
+                op = read_intent(proj, iomap, MousePress(:left, far[1], far[2]))
+                @test op isa ReplaceSelectionOperation
+                @test is_reference_equal(strip_reference_types(op.path),
+                    strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
+            end
+        end
+
+        @testset "point selection" begin
+            x = collect(0.0:1.0:20.0)
+            chart = Chart("p", [ChartLineSeries("a", x, x .^ 2)])
+
+            # A sample is named by a step on the series, not by descending into
+            # the column: there is no per-sample document for a path to reach.
+            reference = chart_sample_reference(chart, 1, 5)
+            @test is_fully_typed_reference(reference)
+            @test evaluate_reference(chart, reference) == (4.0, 16.0)
+            chart.selection = reference
+            @test selected_sample(chart) == (1, 5)
+            @test selected_series_index(chart) == 1
+
+            # Out of range names nothing rather than throwing.
+            @test chart_sample(chart.series[1], 999) === nothing
+            @test chart_sample(chart.series[1], 0) === nothing
+
+            # Each series kind says what one of its samples is.
+            hist = ChartHistogramSeries("h", [0.0, 1.0, 2.0], [3.0, 4.0])
+            @test chart_sample(hist, 2) == (1.0, 2.0, 4.0)
+            @test chart_sample(ChartBarSeries("b", [7.0, 8.0]), 2) == 8.0
+
+            # The selected sample is drawn.
+            plain = length(_series_elements(_chart_canvas(Chart("p", [ChartLineSeries("a", x, x .^ 2)]))))
+            @test length(_series_elements(_chart_canvas(chart))) > plain
+
+            # Picking a point out of a huge sorted series is a binary search, not
+            # a scan — so it stays interactive at a million samples.
+            big_x = collect(range(0.0, 1000.0; length=1_000_000))
+            big = Chart("big", [ChartLineSeries("a", big_x, sin.(big_x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, big, PrinterContext())
+            g = iomap.step_iomaps[2][].geometry
+            target = ChartGeometryModule.to_pixel(g.xs, 500.0)
+            elapsed = @elapsed op = read_intent(proj, iomap,
+                MousePress(:left, round(Int, target),
+                           round(Int, ChartGeometryModule.to_pixel(g.ys, sin(500.0)))))
+            @test op isa ReplaceSelectionOperation
+            @test elapsed < 0.5
+            big.selection = op.path
+            picked = selected_sample(big)
+            @test picked !== nothing
+            @test abs(big_x[picked[2]] - 500.0) < 1.0
+
+            # A folded scatter draws no individual points, so there is none to
+            # click: the click falls through to the series.
+            cloud = Chart("c", [ChartScatterSeries("a", rand(50_000), rand(50_000))];
+                          style=ChartStyle(; scatter_fold_threshold=1_000))
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, cloud, PrinterContext())
+            g = iomap.step_iomaps[2][].geometry
+            op = read_intent(proj, iomap,
+                MousePress(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2))
+            cloud.selection = op === nothing ? nothing : op.path
+            @test selected_sample(cloud) === nothing
         end
 
         @testset "series reordering" begin

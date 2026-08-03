@@ -31,6 +31,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
                       chart_parts, chart_part_index,
+                      chart_sample, chart_sample_reference, selected_sample,
                       ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
                       ChartLineSeries, ChartScatterSeries, ChartBarSeries,
                       ChartHistogramSeries,
@@ -42,6 +43,7 @@ import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
                               nice_ticks, log_ticks, format_tick,
                               visible_range, decimate_minmax, step_points, pins_segments,
                               fold_scatter, fold_bins, label_step, histogram_values,
+                              nearest_sample,
                               legend_layout, anchor_offset
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsViewport,
@@ -910,6 +912,21 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                                 _BAND_FILL))
     end
 
+    # The selected sample, called out whether or not the pointer is near it.
+    sample = selected_sample(g.chart)
+    if sample !== nothing
+        series = g.chart.series[sample[1]]
+        point = chart_sample(series, sample[2])
+        if point isa Tuple && length(point) == 2
+            sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
+            sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
+            color = series_color(series.color, sample[1], g.style.color_cycle)
+            push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
+                                      border_width=2, border_color=_SELECTION_EDGE))
+            push!(out, GraphicsCircle(sx, sy, 3, color))
+        end
+    end
+
     cursor = plot.cursor
     cursor === nothing && return out
     cx = round(Int, to_pixel(g.xs, cursor[1])) - g.plot_x
@@ -1084,6 +1101,16 @@ function chart_series_reference(index::Integer, plot::ChartPlot)
     @reference ::ChartPlot.chart::ct.series::CellVector[index]::st
 end
 
+# The reader speaks the plot's vocabulary — stage 1 peels the `chart` step off
+# on the way back — so a chart-rooted sample path is prefixed rather than
+# rebuilt.
+function chart_plot_sample_reference(plot::ChartPlot, series_index::Integer, sample_index::Integer)
+    chart = plot.chart
+    ct = get_reference_node_type(chart)
+    inner = chart_sample_reference(chart, series_index, sample_index)
+    @reference ::ChartPlot.chart::ct.^(inner)
+end
+
 function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCanvasIoMap, event)
     g = iomap.geometry
     g === nothing && return nothing
@@ -1119,6 +1146,11 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         end
         part = _part_hit(g, event.x, event.y)
         part === nothing || return ReplaceSelectionOperation(chart_part_reference(part, plot))
+        # A click on a data point selects the point; anywhere else on a series'
+        # geometry selects the series.
+        hit = _sample_hit(g, event.x, event.y)
+        hit === nothing ||
+            return ReplaceSelectionOperation(chart_plot_sample_reference(plot, hit[1], hit[2]))
         index = _series_hit(g, event.x, event.y)
         index === nothing || return ReplaceSelectionOperation(chart_series_reference(index, plot))
     end
@@ -1305,6 +1337,29 @@ end
 
 const _HIT_TOLERANCE = 8
 
+# The sample nearest a click, as `(series_index, sample_index)`.
+#
+# Sorted line series are binary-searched, so this costs the same on a million
+# samples as on a hundred. A folded scatter cloud is excluded: its individual
+# points are not drawn, so there is nothing there to have clicked on.
+function _sample_hit(g, x::Integer, y::Integer)
+    _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
+    best = nothing; best_d = Inf
+    for (index, s) in g.series
+        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        (s isa ChartLineSeries || s isa ChartScatterSeries) || continue
+        sorted = s isa ChartLineSeries && s.sorted
+        n = min(length(s.x), length(s.y))
+        s isa ChartScatterSeries && n > g.style.scatter_fold_threshold && continue
+        i0, i1 = sorted ? visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
+        found = nearest_sample(s.x, s.y, g.xs, g.ys, x, y, i0, i1;
+                               sorted=sorted, tolerance=_HIT_TOLERANCE)
+        found === nothing && continue
+        found[2] < best_d && (best_d = found[2]; best = (index, found[1]))
+    end
+    best
+end
+
 # How many shades a folded scatter cloud is drawn in. Quantizing the density is
 # what lets neighbouring cells of equal darkness merge into one band.
 const _DENSITY_LEVELS = 8
@@ -1313,6 +1368,9 @@ _hit_points(g, s::ChartLineSeries) = _line_points(g, s)
 function _hit_points(g, s::ChartScatterSeries)
     out = Tuple{Int,Int}[]
     n = min(length(s.x), length(s.y))
+    # A folded cloud draws no individual markers, so there is nothing to snap
+    # to — and scanning a million points on every pointer move would not do.
+    n > g.style.scatter_fold_threshold && return out
     ox, oy = g.plot_x, g.plot_y
     seen = Set{Tuple{Int,Int}}()
     @inbounds for i in 1:n

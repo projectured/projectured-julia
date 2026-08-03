@@ -70,6 +70,7 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CellModule = ProjecturedKernel.CellModule
+const CellStructModule = ProjecturedKernel.CellStructModule
 const RecursiveProjectionModule = ProjecturedBase.RecursiveProjectionModule
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
@@ -173,6 +174,7 @@ include("graph/Graph.jl")
 include("graph/GraphLayout.jl")
 include("graph/GraphLayoutEngine.jl")
 include("chart/ChartGeometry.jl")
+include("chart/ChartSampleReferenceStep.jl")
 include("chart/Chart.jl")
 include("chart/ChartPlot.jl")
 include("book/Book.jl")

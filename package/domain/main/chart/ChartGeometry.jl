@@ -27,7 +27,7 @@ export AxisScale, to_pixel, to_data, axis_span,
        column_bounds, merge_bounds, pad_range,
        nice_num, nice_ticks, log_ticks, format_tick,
        visible_range, decimate_minmax, step_points, pins_segments,
-       fold_scatter, fold_bins, label_step,
+       fold_scatter, fold_bins, label_step, nearest_sample,
        bin_values, histogram_values,
        legend_layout, anchor_offset
 
@@ -378,6 +378,49 @@ function pins_segments(points::AbstractVector, baseline::Integer)
         push!(segs, (x, min(y, baseline), max(y, baseline)))
     end
     segs
+end
+
+"""
+    nearest_sample(x, y, xs, ys, px, py, i0, i1; sorted=true, tolerance=8)
+      -> (index, distance) | nothing
+
+The sample nearest a pixel, or `nothing` when none is within `tolerance` pixels.
+
+On an ascending column this is a binary search plus a look at the few
+neighbours around the insertion point, so picking a point out of a
+million-sample series costs the same as picking one out of a hundred. An
+unsorted column has no such shortcut and is scanned over the given index range,
+which the caller is expected to have bounded.
+"""
+function nearest_sample(x, y, xs::AxisScale, ys::AxisScale, px::Real, py::Real,
+                        i0::Integer, i1::Integer; sorted::Bool=true, tolerance::Real=8)
+    n = min(length(x), length(y))
+    i0 = max(i0, 1); i1 = min(i1, n)
+    i1 >= i0 || return nothing
+    limit = Float64(tolerance)^2
+    best = 0; best_d = limit
+
+    check(i) = begin
+        xv = Float64(x[i]); yv = Float64(y[i])
+        (isfinite(xv) && isfinite(yv)) || return
+        d = (to_pixel(xs, xv) - px)^2 + (to_pixel(ys, yv) - py)^2
+        d <= best_d && (best_d = d; best = i)
+    end
+
+    if sorted
+        # The insertion point brackets the click in x; a marker is only ever a
+        # few samples wide, so a short window around it holds the candidates.
+        target = to_data(xs, px)
+        k = searchsortedfirst(view(x, i0:i1), target) + i0 - 1
+        for i in max(i0, k - 4):min(i1, k + 4)
+            check(i)
+        end
+    else
+        for i in i0:i1
+            check(i)
+        end
+    end
+    best == 0 ? nothing : (best, sqrt(best_d))
 end
 
 # ── Folding ──────────────────────────────────────────────────────────────

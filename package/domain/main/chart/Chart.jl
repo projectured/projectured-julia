@@ -35,11 +35,14 @@ import ..ColorModule: StyleColor,
     color_solarized_orange, color_solarized_violet, color_solarized_cyan,
     color_solarized_magenta, color_solarized_yellow
 import ..ChartGeometryModule: bin_values
+import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
+import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           ElementReferenceStep, EmptyReference,
                           annotate_reference_types, concat_references,
                           get_reference_node_type
 import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
                           insert_elements, delete_elements
 
@@ -47,7 +50,8 @@ export ChartSeries, chart_series_family, chart_axis_family,
        default_color_cycle, default_symbol_cycle,
        series_color, series_symbol,
        selected_series_index, move_series, remove_series,
-       chart_parts, chart_part_index
+       chart_parts, chart_part_index,
+       chart_sample, chart_sample_reference, selected_sample
 
 @domain Chart
 
@@ -349,6 +353,74 @@ function series_symbol(symbol::Symbol, index::Integer, cycle)
     symbol === :cycle || return symbol
     isempty(cycle) && return :circle
     cycle[mod1(index, length(cycle))]
+end
+
+# ── Samples ──────────────────────────────────────────────────────────────
+
+"""
+    chart_sample(series, index) -> value | nothing
+
+What the `index`-th sample of a series is: the `(x, y)` pair of a line or
+scatter point, the `(lower, upper, value)` of a histogram bin, the value of a
+bar. `nothing` when the index is out of range.
+
+This is what a `ChartSampleReferenceStep` evaluates to — every reference in the
+tree descends to a value, and this is a sample's.
+"""
+chart_sample(::Any, ::Integer) = nothing
+
+function chart_sample(s::Union{ChartLineSeries, ChartScatterSeries}, index::Integer)
+    n = min(length(s.x), length(s.y))
+    (1 <= index <= n) || return nothing
+    (Float64(s.x[index]), Float64(s.y[index]))
+end
+
+function chart_sample(s::ChartBarSeries, index::Integer)
+    (1 <= index <= length(s.values)) || return nothing
+    Float64(s.values[index])
+end
+
+function chart_sample(s::ChartHistogramSeries, index::Integer)
+    (1 <= index <= min(length(s.binvalues), length(s.binedges) - 1)) || return nothing
+    (Float64(s.binedges[index]), Float64(s.binedges[index+1]), Float64(s.binvalues[index]))
+end
+
+# The step type is domain-agnostic; what a sample *is* depends on the series
+# holding it, so the evaluation lives here rather than in the step's own file.
+ReferenceModule.evaluate_reference_step(step::ChartSampleReferenceStep, document) =
+    chart_sample(document, step.index)
+
+"""
+    chart_sample_reference(chart, series_index, sample_index) -> Reference
+
+The reference naming one sample of one series, fully typed.
+"""
+function chart_sample_reference(chart::Chart, series_index::Integer, sample_index::Integer)
+    # Built structurally rather than through the `@reference` DSL: the DSL reads
+    # a lowercase `::t` as a runtime type and cannot then continue into an
+    # extension step. Annotating against the chart fills in every node's type,
+    # including the sample's own, which is whatever `chart_sample` returns.
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("series"),
+            ConcreteReference(ElementReferenceStep(series_index),
+                ConcreteReference(ChartSampleReferenceStep(sample_index),
+                                  EmptyReference()))))
+end
+
+"""
+    selected_sample(chart) -> (series_index, sample_index) | nothing
+
+Which sample the chart's selection names, or `nothing` when it names something
+coarser.
+"""
+function selected_sample(chart::Chart)
+    reference = chart.selection
+    reference === nothing && return nothing
+    n = length(chart.series)
+    @reference_case reference begin
+        ::Chart.series[i].sample(k) => (1 <= i <= n ? (i, k) : nothing)
+        _ => nothing
+    end
 end
 
 # ── Parts, selection and navigation ──────────────────────────────────────
