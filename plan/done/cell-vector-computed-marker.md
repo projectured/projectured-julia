@@ -1,6 +1,7 @@
 # Eliminate the CellVector thunk trap
 
-**Status: pending.** Follow-up to [cell-computed-marker.md](../done/cell-computed-marker.md),
+**Status: done.** Implemented 2026-08-03 on `main` in projectured-julia and
+omnetpp-julia. Follow-up to [cell-computed-marker.md](../done/cell-computed-marker.md),
 which fixed the same defect in the `Cell` constructor. Approved 2026-08-03.
 
 ## Problem
@@ -96,39 +97,52 @@ Implemented on `main` in both repos, as the user directed for the predecessor pl
 - [x] `ComputedCellVector(f) = CellVector(Computed(f))`, exported from `CollectionModule`.
 - [x] Test: `test_base()` 342; a direct check that both spellings build a computed elements vector.
 
-### Phase 2 — spelling sweep [ ]
+### Phases 2–3 — spelling sweep + tripwire [x] **done** (one commit)
 
-- [ ] 88 `CellVector(() -> …)` sites → `ComputedCellVector(() -> …)` (sed; verify no
-      multi-line, `do`-block, qualified or in-string variants first, as in the predecessor).
-- [ ] The six forwarders pass `Computed(f)` down, keeping their own `::Function` signatures.
-- [ ] Add `ComputedCellVector` to every explicit `using …CollectionModule:` list that names
-      `CellVector` — **unconditionally**, including module aggregators whose *fragment* files
-      are the actual users. That miss cost a whole verification round last time.
-- [ ] Static audit: every package using `ComputedCellVector` can resolve it.
+Committed together: the sweep was verified *with* the guard armed, so separating them would
+have meant a commit nobody ran the suites against.
 
-### Phase 3 — tripwire [ ]
+- [x] **92** `CellVector(() -> …)` sites → `ComputedCellVector(…)` (86 in projectured-julia,
+      6 in omnetpp-julia). Checked first for the variants that bit last time: no `do`-block,
+      no qualified `X.CellVector(`, no in-string occurrences. The one multi-line
+      `CellVector(` (`visual/example/document/Collection.jl:2`) is a variadic *element* list,
+      not a thunk, and was correctly left alone.
+- [x] **Eight** forwarders pass `Computed(f)` down, keeping their `::Function` signatures:
+      `make_children_container`, `Syntax._children`, `SyntaxNode` ×2, `TextBlock`, `TextLine`,
+      `WidgetToGraphics._reactive_canvas_auto`, plus a prose mention in `Syntax.jl`.
+- [x] `ComputedCellVector` added to **89** files' `using …CollectionModule:` lists,
+      unconditionally — the aggregator-vs-fragment gap that cost a verification round on the
+      predecessor.
+- [x] Static audit: 0 packages use `ComputedCellVector` without a provider.
+- [x] `CellVector(::Function)` errors, naming `ComputedCellVector`.
+- [x] Full suites in both repos **at baseline with the guard armed, zero hits**.
 
-- [ ] `CellVector(::Function)` errors, naming `ComputedCellVector`.
-- [ ] Full suites in both repos. **Expect the tripwire to find sites the grep cannot** — the
-      predecessor's grep found one of three classes. The two it missed were (a) a bare lambda
-      reaching the container through a `@document` constructor argument, and (b) a forwarder
-      building the thunk from a *variable*. Audit for both by resolving each `() ->`'s
-      enclosing call across line breaks, and by finding `CellVector(<name>)` where `<name>` is
-      a locally-defined function.
+The two classes the predecessor's grep missed were audited for explicitly and both came back
+empty: no `CellVector(<locally-defined function>)` anywhere, and every bare lambda reaching a
+*type constructor* belongs to the already-classified safe set (`TextString`, `SyntaxNode`,
+`SyntaxLeaf`, `TextBlock`, `SyntaxConcatenation` — all with explicit `::Function` methods —
+or the plain structs `SimulationModel`, `EditorDomain`, `Resource`, `MCPResource`, `Example`,
+`HoverProbeProjection`). Unlike the `Cell` migration, this sweep was clean on the first pass.
 
-### Phase 4 — remove tripwire [ ]
+### Phase 4 — remove tripwire [x] **done**
 
-- [ ] Delete the error method; `CellVector(f)` is now a one-element vector holding `f`.
-- [ ] Regression test: `CellVector(f)` holds the function, `length == 1`;
-      `ComputedCellVector(f)` derives its elements and re-derives on upstream change.
+- [x] Deleted the error method; `CellVector(f)` is a one-element vector holding `f`.
+- [x] Regression test in `base/test/document/CollectionTest.jl` ("a function is an element"):
+      the one-element case, agreement across `CellVector([f])` / the variadic / `push!`, and
+      `ComputedCellVector(f)` deriving *and re-deriving* on upstream change. base 342 → 350.
 
-### Phase 5 — docs [ ]
+      The test caught a real quirk while being written: `CellVector(1, f)` is **not** two
+      elements — a bare 2-arg call resolves to the macro's `(elements, selection)` inner
+      constructor, as the source comment documents. The assertion uses three arguments.
 
-- [ ] `package/base/doc/collection.md` — the construction section.
-- [ ] `package/kernel/doc/cell.md` idiom list and `macros.md` if either shows
-      `CellVector(f::Function)`.
-- [ ] Grep the guides for `CellVector(() ->`.
-- [ ] Move this plan to `plan/done/`.
+### Phase 5 — docs [x] **done**
+
+- [x] `package/base/doc/collection.md` — construction table, the lazy-children example, and
+      the "computed collection" note; states that a single argument is always one *element*.
+- [x] `package/kernel/doc/cell.md` idiom list. `macros.md` and
+      `architecture-requirements.md` needed no change — their `CellVector` mentions are about
+      per-slot granularity, not the constructor.
+- [x] Move this plan to `plan/done/`.
 
 ## Baselines to hold
 

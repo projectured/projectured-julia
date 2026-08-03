@@ -66,17 +66,22 @@ CellVector(cells::Vector{Cell})    # adopt these cells
 CellVector(items::AbstractVector)  # wrap each item in a Cell
 CellVector(undef, n::Integer)      # n empty slots
 CellVector(items...)               # wrap each positional arg in a Cell
-CellVector(f::Function)            # computed slots — thunk returns Vector
+ComputedCellVector(f)              # computed slots — thunk returns the element Vector
+CellVector(Computed(f))            # the same thing spelled out
 ```
 
-The last form is what enables lazy children:
+A single argument is always one *element*, whatever its type — `CellVector(f)` is a
+one-element vector holding the function `f`. Deriving the element list is a different
+request and says so, with `Computed`; the marker is the same one `ComputedCell` uses.
+
+The computed form is what enables lazy children:
 
 ```julia
 SyntaxNode("[", "]", ", ",
-    CellVector(() -> [project_child(c) for c in input.children]))
+    ComputedCellVector(() -> [project_child(c) for c in input.children]))
 ```
 
-The function is wrapped via `set_cell_function!` and re-runs whenever its reactive
+The thunk is wrapped via `set_cell_function!` and re-runs whenever its reactive
 dependencies invalidate.
 
 ### Access patterns
@@ -172,5 +177,5 @@ finite-area widget.
    *shape* of the vector (e.g. layout code reading `length(cv)`), while
    leaving per-slot readers alone unless the slot they observe was
    actually moved.
-3. **`CellVector(f::Function)`** is the way to make a computed collection
+3. **`ComputedCellVector(f)`** is the way to make a computed collection
    — recreate the whole thing reactively from upstream cells.
