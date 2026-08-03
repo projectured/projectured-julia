@@ -26,7 +26,7 @@ zooming in re-derives ticks and decimation instead of magnifying pixels.
 module ChartPlotToGraphicsModule
 
 import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
+import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
@@ -968,7 +968,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         _layout(p, plot, w, h)
     end)
 
-    elements = CellVector(() -> begin
+    elements = ComputedCellVector(() -> begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
         out = Any[]
