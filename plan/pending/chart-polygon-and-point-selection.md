@@ -65,7 +65,19 @@ shape, the polygon counterpart of `GraphicsPolyline`.
 
 - [x] The primitive, its constructor and its documentation
 - [x] All three backends, plus hit-testing and bounds
-- [ ] Chart markers: diamond, triangle up/down/left/right, pentagon, star
+- [x] Chart markers: diamond, triangle up/down/left/right, pentagon, hexagon, star
+
+Notes from implementing:
+- Fixing the rect border repaired a widget as a side effect. `_push_focus_ring!`
+  builds its rect with a transparent fill and an opaque border, and its comment
+  says "Transparent fill so only the ring-coloured border shows" — which is what
+  it does now. Under the old code a focused control was covered by a solid rect
+  in the ring colour.
+- SDL keeps the old two-fill route whenever the fill is opaque, so every
+  existing widget issues identical draw calls; only a translucent fill takes the
+  ring path.
+- The star is the shape that justifies ear clipping: a triangle fan would fill
+  its notches.
 
 Notes from implementing:
 - Only SDL needs the triangulation. PDF's `f` and the canvas's `fill()` both use

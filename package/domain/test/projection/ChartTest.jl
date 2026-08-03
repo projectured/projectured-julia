@@ -163,10 +163,32 @@ function test_chart()
             for (shape, T, n) in ((:circle, GraphicsCircle, 10), (:dot, GraphicsCircle, 10),
                                   (:square, GraphicsRect, 10), (:plus, GraphicsLine, 20),
                                   (:cross, GraphicsLine, 20), (:hline, GraphicsLine, 10),
-                                  (:vline, GraphicsLine, 10))
+                                  (:vline, GraphicsLine, 10),
+                                  # The straight-edged shapes are filled polygons.
+                                  (:diamond, GraphicsPolygon, 10),
+                                  (:triangle_up, GraphicsPolygon, 10),
+                                  (:triangle_down, GraphicsPolygon, 10),
+                                  (:triangle_left, GraphicsPolygon, 10),
+                                  (:triangle_right, GraphicsPolygon, 10),
+                                  (:pentagon, GraphicsPolygon, 10),
+                                  (:hexagon, GraphicsPolygon, 10),
+                                  (:star, GraphicsPolygon, 10))
                 c = Chart("s", [ChartLineSeries("a", x, x; draw_style=:none, symbol=shape)])
                 @test _count_kind(_series_elements(_chart_canvas(c)), T) == n
             end
+
+            # Each polygon marker has the vertex count its shape implies, and a
+            # star is concave — which is the shape that needs a real polygon.
+            @test length(marker_polygon(:diamond, 0, 0, 4)) == 4
+            @test length(marker_polygon(:triangle_up, 0, 0, 4)) == 3
+            @test length(marker_polygon(:pentagon, 0, 0, 4)) == 5
+            @test length(marker_polygon(:hexagon, 0, 0, 4)) == 6
+            @test length(marker_polygon(:star, 0, 0, 8)) == 10
+            @test marker_polygon(:circle, 0, 0, 4) === nothing
+            # The four triangles point four different ways.
+            tips = [first(sort(marker_polygon(t, 0, 0, 6); by = p -> (p[2], p[1])))
+                    for t in (:triangle_up, :triangle_down, :triangle_left, :triangle_right)]
+            @test length(unique(tips)) >= 3
             # Past the marker limit the individual points stop being distinct, so
             # they are dropped rather than smeared into a solid band.
             big = collect(1.0:1.0:500.0)

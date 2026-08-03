@@ -76,11 +76,16 @@ default_color_cycle() = StyleColor[
 """
     default_symbol_cycle() -> Vector{Symbol}
 
-The per-series marker cycle. Only shapes the existing graphics primitives can
-draw exactly appear here — a filled polygon primitive (diamond, triangle, star)
-does not exist yet, and faking one out of line segments is not worth it.
+The per-series marker cycle, ordered so that consecutive series stay
+distinguishable at a glance rather than by shape family.
+
+The full set is `:circle`, `:square`, `:diamond`, `:triangle_up`,
+`:triangle_down`, `:triangle_left`, `:triangle_right`, `:pentagon`,
+`:hexagon`, `:star`, `:plus`, `:cross`, `:dot`, `:hline`, `:vline` and
+`:none`.
 """
-default_symbol_cycle() = Symbol[:circle, :square, :plus, :cross, :dot, :hline, :vline]
+default_symbol_cycle() = Symbol[:circle, :square, :triangle_up, :diamond, :plus,
+                                :star, :cross, :triangle_down, :pentagon, :dot]
 
 """
 Chart-wide visual style. Every field defaults, so `ChartStyle()` constructs and a

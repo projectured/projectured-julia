@@ -212,14 +212,16 @@ line draw styles, line style and width, seven marker shapes, the four bar
 placements with baseline, the four histogram value transforms with solid and
 outline modes and overflow cells, and the colour and marker cycles.
 
+Marker shapes: `:circle`, `:square`, `:diamond`, `:triangle_up`,
+`:triangle_down`, `:triangle_left`, `:triangle_right`, `:pentagon`,
+`:hexagon`, `:star`, `:plus`, `:cross`, `:dot`, `:hline`, `:vline`, `:none`.
+The straight-edged ones are `GraphicsPolygon`s.
+
 Not covered, and why:
 
 - `Line.Style = DashDot` needs a four-element dash pattern; the graphics
   primitive carries a single on/off pair, so the styles offered are `:solid`,
   `:dotted` and `:dashed`.
-- Diamond, triangle, pentagon and star markers need a filled-polygon primitive,
-  which does not exist; the seven shapes offered are the ones the existing
-  primitives draw exactly.
 - Rotated category labels need affine rotation, which the SDL and PDF backends
   drop; labels are thinned instead.
 
