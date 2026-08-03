@@ -536,6 +536,146 @@ function test_chart()
             @test String(chart.series[1].label) == second_label
         end
 
+        @testset "zoom and pan" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            mid_x = g.plot_x + g.plot_w ÷ 2
+            mid_y = g.plot_y + g.plot_h ÷ 2
+
+            before = resolve_view(plot)
+            # The wheel zooms about the cursor: the window narrows, and the data
+            # point that was under the pointer is still under it.
+            under = ChartGeometryModule.to_data(g.xs, mid_x)
+            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys()))
+            @test op !== nothing
+            evaluate_operation(nothing, op)
+            after = resolve_view(plot)
+            @test (after.x_max - after.x_min) < (before.x_max - before.x_min)
+            @test (after.y_max - after.y_min) < (before.y_max - before.y_min)
+            # The point under the cursor stays under it — to within a couple of
+            # pixels, since a narrower window means different tick labels and so
+            # a slightly different left margin.
+            g2 = iomap.step_iomaps[2][].geometry
+            pixel = (after.x_max - after.x_min) / g2.plot_w
+            @test ChartGeometryModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
+
+            # Wheeling out again widens it back.
+            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys()))
+            evaluate_operation(nothing, op)
+            back = resolve_view(plot)
+            @test (back.x_max - back.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
+
+            # Over the x-axis strip only x zooms; over the y strip only y.
+            op = read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ModifierKeys()))
+            evaluate_operation(nothing, op)
+            v = resolve_view(plot)
+            @test (v.x_max - v.x_min) < (before.x_max - before.x_min)
+            @test (v.y_max - v.y_min) ≈ (before.y_max - before.y_min) atol=1e-6
+
+            plot.view = nothing
+            op = read_intent(proj, iomap,
+                MouseScroll(0, 1, g.plot_x - 4, mid_y, ModifierKeys()))
+            evaluate_operation(nothing, op)
+            v = resolve_view(plot)
+            @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
+            @test (v.y_max - v.y_min) < (before.y_max - before.y_min)
+
+            # Shift+wheel pans without changing the window width.
+            plot.view = nothing
+            op = read_intent(proj, iomap,
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true)))
+            evaluate_operation(nothing, op)
+            v = resolve_view(plot)
+            @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
+            @test v.x_min > before.x_min
+
+            # A wheel outside the plot and its axis strips is not ours.
+            @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys())) === nothing
+
+            # Keyboard: pan, zoom, and reset to auto-fit.
+            plot.view = nothing
+            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys()))
+            evaluate_operation(nothing, op)
+            @test resolve_view(plot).x_min > before.x_min
+            # '0' drops back to auto-fit, whatever the window had become.
+            op = read_intent(proj, iomap, KeyPress('0'))
+            @test op !== nothing
+            evaluate_operation(nothing, op)
+            @test plot.view === nothing
+        end
+
+        @testset "rubber band" begin
+            x = collect(0.0:0.1:100.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x))])
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+            x0, y0 = g.plot_x + 30, g.plot_y + 30
+            x1, y1 = g.plot_x + 160, g.plot_y + 140
+
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
+            @test plot.drag_anchor !== nothing
+
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, :left, ModifierKeys())))
+            @test plot.drag_rect !== nothing
+            # While the band is up it is drawn over the series.
+            @test _count_kind(_series_elements(iomap.output), GraphicsRect) >= 1
+
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1, y1, ModifierKeys())))
+            @test plot.drag_anchor === nothing && plot.drag_rect === nothing
+            v = resolve_view(plot)
+            # The committed window is what the band enclosed.
+            @test v.x_min ≈ ChartGeometryModule.to_data(g.xs, x0) atol=0.5
+            @test v.x_max ≈ ChartGeometryModule.to_data(g.xs, x1) atol=0.5
+
+            # A band that never grew is a click, not a zoom.
+            plot.view = nothing
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x0 + 2, y0 + 2, ModifierKeys())))
+            @test plot.view === nothing
+
+            # Leaving mid-drag abandons it rather than committing halfway.
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, :left, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, :none, ModifierKeys())))
+            @test plot.drag_anchor === nothing && plot.drag_rect === nothing
+            @test plot.view === nothing
+
+            # Shift-dragging pans instead of banding.
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseDown(:left, x1, y1, ModifierKeys(; shift=true))))
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseMove(x1 - 40, y1, :left, ModifierKeys(; shift=true))))
+            @test plot.drag_rect === nothing
+            @test plot.view !== nothing
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys())))
+        end
+
+        @testset "crosshair" begin
+            x = collect(0.0:1.0:20.0)
+            chart = Chart("c", [ChartLineSeries("a", x, x)])
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            g = iomap.step_iomaps[2][].geometry
+
+            plain = length(_series_elements(iomap.output))
+            evaluate_operation(nothing, read_intent(proj, iomap,
+                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, :none, ModifierKeys())))
+            @test plot.cursor !== nothing
+            els = _series_elements(iomap.output)
+            @test length(els) > plain
+            # Two dashed crosshair lines, and a readout naming the series.
+            @test count(e -> e isa GraphicsLine && e.dash !== nothing, els) == 2
+            @test any(e -> e isa GraphicsText && occursin("a", String(e.text)), els)
+        end
+
         @testset "family mismatch" begin
             # A bar series on a numeric axis is a configuration error, not a
             # crash: the chart draws its frame and leaves the series out.

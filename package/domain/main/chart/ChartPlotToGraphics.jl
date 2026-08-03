@@ -51,7 +51,8 @@ import ..ColorModule: StyleColor,
                       color_solarized_blue
 import ..FontModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
 import ..IoMapModule: IoMap, var"@iomap"
-import ..EventModule: MousePress, MouseMove, MouseLeave
+import ..EventModule: MousePress, MouseMove, MouseLeave, MouseDown, MouseUp,
+                      MouseScroll, KeyDown, KeyPress
 import ..OperationModule: Operation, ReplaceSelectionOperation,
                           ReplaceReferencedValueOperation, CompoundOperation
 import ..ReferenceModule: get_reference_node_type
@@ -384,8 +385,10 @@ function _legend_elements!(out, g)
     text_color = _or(style.title_color, _TEXT)
     box = plan.box
 
+    # Opaque, because a bordered rect paints the border colour underneath its
+    # fill: a translucent legend background would take on the border's colour.
     push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h,
-                            StyleColor(1.0, 1.0, 1.0, 0.75), 3;
+                            _PLOT_BACKGROUND, 3;
                             border_width = plan.border ? 1 : 0,
                             border_color = plan.border ? _AXIS : nothing))
 
@@ -491,7 +494,10 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     hovered_index = _reference_series_index(chart, plot.hovered)
     selected_index = _reference_series_index(chart, chart.selection)
 
+    measure_label = label -> p.measure(label, axis_font)
+
     (; w, h, chart, style, view, series, legend, hovered_index, selected_index,
+       measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, title_h,
@@ -830,6 +836,71 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
     out
 end
 
+# ── Overlay ──────────────────────────────────────────────────────────────
+#
+# What is drawn over the series inside the plot viewport: the crosshair with its
+# value readout, and the rubber band while a zoom drag is in progress.
+
+const _CROSSHAIR = StyleColor(0xdc / 255, 0x32 / 255, 0x2f / 255, 0.7)
+const _BAND_FILL = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x30 / 255)
+
+# The data point nearest the cursor, within a small halo, so the readout snaps to
+# real samples instead of reporting wherever the pointer happens to be. The
+# search is over already-decimated geometry, so it costs pixels, not samples.
+function _snap_point(g, lx::Int, ly::Int)
+    best = nothing; best_d = _HIT_TOLERANCE^2 * 4
+    for (index, s) in g.series
+        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        for (px, py) in _hit_points(g, s)
+            d = (px - lx)^2 + (py - ly)^2
+            d <= best_d && (best_d = d; best = (index, px, py))
+        end
+    end
+    best
+end
+
+function _overlay_elements!(out, g, plot::ChartPlot)
+    rect = plot.drag_rect
+    if rect !== nothing
+        rx, ry, rw, rh = rect
+        # Fill only, no border: a bordered rect is drawn as the border colour
+        # with the fill inset on top of it, so a translucent fill would show the
+        # border colour through the whole band rather than around it.
+        push!(out, GraphicsRect(rx - g.plot_x, ry - g.plot_y, max(rw, 1), max(rh, 1),
+                                _BAND_FILL))
+    end
+
+    cursor = plot.cursor
+    cursor === nothing && return out
+    cx = round(Int, to_pixel(g.xs, cursor[1])) - g.plot_x
+    cy = round(Int, to_pixel(g.ys, cursor[2])) - g.plot_y
+    push!(out, GraphicsLine(cx, 0, cx, g.plot_h, _CROSSHAIR; dash=(3, 3)))
+    push!(out, GraphicsLine(0, cy, g.plot_w, cy, _CROSSHAIR; dash=(3, 3)))
+
+    snapped = _snap_point(g, cx, cy)
+    text_color = _or(g.style.title_color, _TEXT)
+    if snapped === nothing
+        label = string(format_tick(cursor[1]), ", ", format_tick(cursor[2]))
+        push!(out, GraphicsText(label, cx + 6, cy - 18, g.axis_font, text_color))
+        return out
+    end
+
+    index, px, py = snapped
+    color = series_color(g.chart.series[index].color, index, g.style.color_cycle)
+    push!(out, GraphicsCircle(px, py, 4, color; border_width=1, border_color=_PLOT_BACKGROUND))
+    label = string(_series_label(g.chart.series[index]), "  ",
+                   format_tick(to_data(g.xs, px + g.plot_x)), ", ",
+                   format_tick(to_data(g.ys, py + g.plot_y)))
+    # Flip the readout to the other side of the cursor near the right edge so it
+    # is never clipped away by the viewport.
+    tw, th = g.measure_label(label)
+    lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
+    push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6,
+                            _PLOT_BACKGROUND, 3; border_width=1, border_color=_AXIS))
+    push!(out, GraphicsText(label, lx, py - th - 5, g.axis_font, text_color))
+    out
+end
+
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartScatterSeries) = _scatter_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartHistogramSeries) = _histogram_elements!(out, g, index, s)
@@ -875,6 +946,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                 _series_elements!(series_out, g, index, s)
             end
         end
+        _overlay_elements!(series_out, g, plot)
         content = GraphicsCanvas(0, 0, g.plot_w, g.plot_h,
                                  CellVector(Cell[Cell(e) for e in series_out]),
                                  layout_none, true)
@@ -977,11 +1049,25 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     g === nothing && return nothing
     plot = iomap.input
 
-    if event isa MouseMove
+    if event isa MouseScroll
+        return _scroll_intent(g, plot, event)
+    elseif event isa MouseDown && event.button === :left
+        return _drag_start(g, plot, event)
+    elseif event isa MouseUp && event.button === :left
+        return _drag_end(g, plot, event)
+    elseif event isa Union{KeyDown, KeyPress}
+        return _key_intent(g, plot, event)
+    elseif event isa MouseMove
+        plot.drag_anchor === nothing || return _drag_move(g, plot, event)
         return _hover_intent(g, plot, event.x, event.y)
     elseif event isa MouseLeave
-        return _clear_hover(plot)
+        # A drag that leaves the chart is abandoned, not committed halfway.
+        return _compound(_cancel_drag(plot), _clear_hover(plot))
     elseif event isa MousePress && event.button === :left
+        # A double click anywhere in the plot means "show me everything again".
+        if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
+            return _set_view(plot, nothing)
+        end
         index = _legend_hit(g, event.x, event.y)
         if index isa Int && index > 0
             # Clicking a legend item hides or shows the series it stands for —
@@ -996,6 +1082,140 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         index = _series_hit(g, event.x, event.y)
         index === nothing || return ReplaceSelectionOperation(chart_series_reference(index, plot))
     end
+    nothing
+end
+
+# ── View interaction ─────────────────────────────────────────────────────
+#
+# Zooming a chart is not zooming a picture. Every gesture here rewrites the data
+# window on the plot, and the frame re-derives ticks, labels and decimation from
+# it — so zooming in reveals more detail rather than magnifying pixels.
+
+const _ZOOM_STEP = 1.15      # per wheel notch
+const _PAN_STEP = 0.1        # fraction of the window per keyboard pan
+const _DRAG_MIN = 6          # a rubber band smaller than this is a click, not a zoom
+
+_compound(a, b) = a === nothing ? b : b === nothing ? a :
+                  CompoundOperation(Operation[a, b])
+
+_set_view(plot::ChartPlot, view) =
+    ReplaceReferencedValueOperation(plot, "view", view)
+
+# Scale a window about a fixed data point, so whatever is under the cursor stays
+# under the cursor.
+function _zoom_about(view::ChartView, fx::Real, fy::Real, kx::Real, ky::Real)
+    ChartView(fx - (fx - view.x_min) * kx, fx + (view.x_max - fx) * kx,
+              fy - (fy - view.y_min) * ky, fy + (view.y_max - fy) * ky)
+end
+
+_pan_by(view::ChartView, dx::Real, dy::Real) =
+    ChartView(view.x_min + dx, view.x_max + dx, view.y_min + dy, view.y_max + dy)
+
+# The wheel zooms; over an axis strip it zooms only that axis, which is how a
+# chart offers per-axis zoom without a separate control. Shift turns it into a
+# pan, matching the scroll convention everywhere else in the editor.
+function _scroll_intent(g, plot::ChartPlot, event::MouseScroll)
+    view = resolve_view(plot)
+    notches = event.dy != 0 ? event.dy : event.dx
+    notches == 0 && return nothing
+
+    over_plot = _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
+    over_x = event.y >= g.plot_y + g.plot_h && g.plot_x <= event.x <= g.plot_x + g.plot_w
+    over_y = event.x <= g.plot_x && g.plot_y <= event.y <= g.plot_y + g.plot_h
+    (over_plot || over_x || over_y) || return nothing
+
+    if event.modifiers.shift
+        frac = _PAN_STEP * notches
+        return _set_view(plot, over_y ?
+            _pan_by(view, 0.0, (view.y_max - view.y_min) * frac) :
+            _pan_by(view, (view.x_max - view.x_min) * frac, 0.0))
+    end
+
+    k = _ZOOM_STEP^(-notches)
+    fx = to_data(g.xs, clamp(event.x, g.plot_x, g.plot_x + g.plot_w))
+    fy = to_data(g.ys, clamp(event.y, g.plot_y, g.plot_y + g.plot_h))
+    kx = over_y ? 1.0 : k
+    ky = over_x ? 1.0 : k
+    _set_view(plot, _zoom_about(view, fx, fy, kx, ky))
+end
+
+# Dragging in the plot draws a rubber band and commits it as the new window;
+# with Shift it pans instead. There is no precedent for a rubber band in this
+# codebase, so the lifecycle mirrors the splitter drag: the anchor goes down on
+# press, the rectangle grows on move, and the release either commits or — if the
+# band never grew past a few pixels — leaves the window alone.
+function _drag_start(g, plot::ChartPlot, event::MouseDown)
+    _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
+    mode = event.modifiers.shift ? :pan : :zoom
+    ReplaceReferencedValueOperation(plot, "drag_anchor",
+                                    (event.x, event.y, mode, resolve_view(plot)))
+end
+
+function _drag_move(g, plot::ChartPlot, event::MouseMove)
+    anchor = plot.drag_anchor
+    anchor === nothing && return nothing
+    ax, ay, mode, start_view = anchor
+    if mode === :pan
+        # Pan against the window the drag started from, so a slow drag does not
+        # accumulate rounding.
+        dx = (to_data(g.xs, ax) - to_data(g.xs, event.x))
+        dy = (to_data(g.ys, ay) - to_data(g.ys, event.y))
+        return _set_view(plot, _pan_by(start_view, dx, dy))
+    end
+    _rect_op(plot, (min(ax, event.x), min(ay, event.y),
+                    abs(event.x - ax), abs(event.y - ay)))
+end
+
+function _drag_end(g, plot::ChartPlot, event::MouseUp)
+    anchor = plot.drag_anchor
+    anchor === nothing && return nothing
+    ax, ay, mode, _ = anchor
+    clear = CompoundOperation(Operation[
+        ReplaceReferencedValueOperation(plot, "drag_anchor", nothing),
+        ReplaceReferencedValueOperation(plot, "drag_rect", nothing)])
+    (mode === :zoom && abs(event.x - ax) >= _DRAG_MIN && abs(event.y - ay) >= _DRAG_MIN) || return clear
+
+    x0, x1 = minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
+    y0, y1 = minmax(to_data(g.ys, ay), to_data(g.ys, event.y))
+    _compound(_set_view(plot, ChartView(x0, x1, y0, y1)), clear)
+end
+
+_rect_op(plot::ChartPlot, rect) =
+    isequal(plot.drag_rect, rect) ? nothing :
+    ReplaceReferencedValueOperation(plot, "drag_rect", rect)
+
+function _cancel_drag(plot::ChartPlot)
+    (plot.drag_anchor === nothing && plot.drag_rect === nothing) && return nothing
+    CompoundOperation(Operation[
+        ReplaceReferencedValueOperation(plot, "drag_anchor", nothing),
+        ReplaceReferencedValueOperation(plot, "drag_rect", nothing)])
+end
+
+# Keyboard view control. This lives in the reader rather than in a `@gestures`
+# block because the window belongs to the plot, and a document gesture only ever
+# sees the chart.
+function _key_intent(g, plot::ChartPlot, event::KeyDown)
+    event.key === :escape && return _cancel_drag(plot)
+    view = resolve_view(plot)
+    w = view.x_max - view.x_min
+    h = view.y_max - view.y_min
+    event.key === :left && return _set_view(plot, _pan_by(view, -w * _PAN_STEP, 0.0))
+    event.key === :right && return _set_view(plot, _pan_by(view, w * _PAN_STEP, 0.0))
+    event.key === :up && return _set_view(plot, _pan_by(view, 0.0, h * _PAN_STEP))
+    event.key === :down && return _set_view(plot, _pan_by(view, 0.0, -h * _PAN_STEP))
+    nothing
+end
+
+# Zoom and reset arrive as characters rather than named keys.
+function _key_intent(g, plot::ChartPlot, event::KeyPress)
+    event.char == '0' && return _set_view(plot, nothing)
+    view = resolve_view(plot)
+    cx = (view.x_min + view.x_max) / 2
+    cy = (view.y_min + view.y_max) / 2
+    event.char in ('+', '=') &&
+        return _set_view(plot, _zoom_about(view, cx, cy, 1 / _ZOOM_STEP, 1 / _ZOOM_STEP))
+    event.char == '-' &&
+        return _set_view(plot, _zoom_about(view, cx, cy, _ZOOM_STEP, _ZOOM_STEP))
     nothing
 end
 

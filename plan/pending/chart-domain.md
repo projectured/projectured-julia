@@ -694,10 +694,33 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
       - Hover veil and selection highlight both key on a series index resolved
         from a reference, which accepts either a `ChartPlot`- or `Chart`-rooted
         path (the reader produces one, the document holds the other).
-- [ ] **P4 — view interaction.** Wheel/per-axis/keyboard zoom, pan, rubber-band
-      drag (incl. cancel), zoom-to-fit, crosshair + readout — all as
-      `ReplaceReferencedValueOperation` writes on `ChartPlot`. Exit: reader
-      tests green; interactions verified live in the SDL editor.
+- [x] **P4 — view interaction.** DONE. Wheel zoom about the cursor, per-axis
+      zoom over the axis strips, Shift+wheel pan, rubber-band drag with cancel,
+      Shift+drag pan, double-click and `0` to refit, arrow-key pan, `+`/`-`
+      zoom, and a crosshair that snaps to the nearest sample with a value
+      readout. Every write is a `ReplaceReferencedValueOperation` on the
+      `ChartPlot`. Exit: `test_chart()` 173/173, `test_domain()` 0 fail /
+      0 error; rendered and visually verified.
+
+      Decisions and discoveries:
+      - **Keyboard view control lives in the reader, not in `@gestures`.** The
+        plan put it in a document gesture, but the window belongs to the
+        `ChartPlot` and a `@gestures Chart` handler only ever sees the chart.
+        (`@gestures ChartPlot` would need `resolve_view`, which lives in the
+        later projection module — a cycle.)
+      - `KeyDown.key` is always a `Symbol`; printable keys arrive as `KeyPress`,
+        so zoom/reset are handled on `KeyPress` and pan on `KeyDown`.
+      - Zoom-about-cursor holds the point under the pointer to within a couple
+        of pixels, not exactly: a narrower window means different tick labels,
+        which means a slightly different left margin. The test asserts a
+        pixel-scaled tolerance and says why.
+      - **Found a shared-primitive constraint** (pre-existing, reproduced on
+        clean `main`): both the SDL and PDF backends draw a bordered
+        `GraphicsRect` as a *fill in the border colour* with the fill inset on
+        top, so a translucent fill takes on the border's colour across the whole
+        rect. Not changed from here — it is a cross-backend behaviour with 49k
+        tests over it — but the chart avoids the combination: the rubber band is
+        a fill with no border, and the legend and readout boxes are opaque.
 - [ ] **P5 — scalability.** Decimation/folding wired for all types (incl.
       category-label decimation), thresholds as `ChartStyle` fields
       (`marker_limit`/`scatter_fold_threshold`/`bin_fold_px`). Exit:
