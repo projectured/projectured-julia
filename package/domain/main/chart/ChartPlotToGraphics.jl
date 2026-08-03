@@ -660,15 +660,11 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
 
     if n > style.scatter_fold_threshold
         cell = max(style.bin_fold_px + 1, 3)
-        cells = fold_scatter(s.x, s.y, g.xs, g.ys, cell, 1, n)
-        isempty(cells) && return out
-        peak = maximum(c[3] for c in cells)
-        for (px, py, count) in cells
-            # Square-root shading: a linear ramp leaves everything but the
-            # densest handful invisible once one cell holds thousands.
-            a = 0.15 + 0.85 * sqrt(count / peak)
+        bands = fold_scatter(s.x, s.y, g.xs, g.ys, cell, 1, n; levels=_DENSITY_LEVELS)
+        for (px, py, bw, bh, level) in bands
+            a = 0.15 + 0.85 * level / _DENSITY_LEVELS
             shade = StyleColor(color.red, color.green, color.blue, color.alpha * a)
-            push!(out, GraphicsRect(px - ox, py - oy, cell, cell, shade))
+            push!(out, GraphicsRect(px - ox, py - oy, bw, bh, shade))
         end
         return out
     end
@@ -1261,6 +1257,10 @@ function _series_hit(g, x::Integer, y::Integer)
 end
 
 const _HIT_TOLERANCE = 8
+
+# How many shades a folded scatter cloud is drawn in. Quantizing the density is
+# what lets neighbouring cells of equal darkness merge into one band.
+const _DENSITY_LEVELS = 8
 
 _hit_points(g, s::ChartLineSeries) = _line_points(g, s)
 function _hit_points(g, s::ChartScatterSeries)

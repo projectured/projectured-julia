@@ -695,29 +695,82 @@ are the assertions behind the scalability claim.
 """
 function test_chart_scale()
     @testset "chart scale" begin
-        n = 1_000_000
-        x = collect(range(0.0, 100.0; length=n))
-        y = sin.(range(0.0, 400π; length=n))
-        chart = Chart("big", [ChartLineSeries("a", x, y)])
+        # The ceiling every case is held to: a chart may not emit more elements
+        # than a few per pixel column of its plot rectangle, whatever it is
+        # showing. 760x460 is the default canvas.
+        ceiling = 4_000
 
-        canvas = _chart_canvas(chart; width=760, height=460)
-        els = _flatten_elements(canvas)
-        @test length(els) < 200
-        pl = first(e for e in _series_elements(canvas) if e isa GraphicsPolyline)
-        # At most four points per pixel column of the plot rectangle.
-        @test length(pl.points) <= 4 * (Int(_viewport_of(canvas).w) + 2)
-        @test length(pl.points) < n ÷ 100
+        @testset "million-sample line" begin
+            n = 1_000_000
+            x = collect(range(0.0, 100.0; length=n))
+            y = sin.(range(0.0, 400π; length=n))
+            chart = Chart("big", [ChartLineSeries("a", x, y)])
 
-        # A ten-times-longer column does not make a bigger picture.
-        short = Chart("small", [ChartLineSeries("a", x[1:100_000], y[1:100_000])])
-        short_pl = first(e for e in _series_elements(_chart_canvas(short)) if e isa GraphicsPolyline)
-        @test abs(length(short_pl.points) - length(pl.points)) < length(pl.points)
+            canvas = _chart_canvas(chart)
+            @test length(_flatten_elements(canvas)) < 200
+            pl = first(e for e in _series_elements(canvas) if e isa GraphicsPolyline)
+            # At most four points per pixel column of the plot rectangle.
+            @test length(pl.points) <= 4 * (Int(_viewport_of(canvas).w) + 2)
+            @test length(pl.points) < n ÷ 100
 
-        # Reprinting a million samples stays interactive.
-        elapsed = @elapsed begin
-            c2 = _chart_canvas(chart)
-            length(_series_elements(c2))
+            # A ten-times-shorter column does not make a smaller picture: the
+            # cost is the plot rectangle, not the data.
+            short = Chart("small", [ChartLineSeries("a", x[1:100_000], y[1:100_000])])
+            short_pl = first(e for e in _series_elements(_chart_canvas(short))
+                             if e isa GraphicsPolyline)
+            @test abs(length(short_pl.points) - length(pl.points)) < length(pl.points)
+
+            elapsed = @elapsed length(_series_elements(_chart_canvas(chart)))
+            @test elapsed < 5.0
         end
-        @test elapsed < 5.0
+
+        @testset "million-point scatter" begin
+            n = 1_000_000
+            chart = Chart("cloud", [ChartScatterSeries("a", randn(n), randn(n))])
+            canvas = _chart_canvas(chart)
+            els = _series_elements(canvas)
+            # Folded into a density grid: one shaded cell per occupied bin, so
+            # the count is bounded by the plot area rather than by the points.
+            @test !isempty(els)
+            @test length(els) < ceiling
+            @test all(e -> e isa GraphicsRect, els)
+            # Density is carried by alpha, so the cells cannot all be identical.
+            @test length(unique(e.color.alpha for e in els)) > 1
+        end
+
+        @testset "ten-thousand-category bar" begin
+            cats = ["c$i" for i in 1:10_000]
+            chart = Chart("many", [ChartBarSeries("v", collect(1.0:10_000.0))];
+                          x_axis=ChartCategoryAxis(; categories=cats),
+                          legend=ChartLegend(; visible=false))
+            canvas = _chart_canvas(chart)
+            @test length(_series_elements(canvas)) < ceiling
+            # And the labels are thinned to what fits rather than one per slot.
+            labels = [e for e in collect(canvas.elements) if e isa GraphicsText]
+            @test 0 < length(labels) < 40
+        end
+
+        @testset "ten-thousand-bin histogram" begin
+            edges = collect(0.0:1.0:10_000.0)
+            values = Float64.(1:10_000)
+            chart = Chart("h", [ChartHistogramSeries("a", edges, values)];
+                          legend=ChartLegend(; visible=false))
+            els = _series_elements(_chart_canvas(chart))
+            @test !isempty(els)
+            @test length(els) < ceiling
+        end
+
+        @testset "zoomed in stays exact" begin
+            # Once the window holds few enough samples that each has its own
+            # pixel column, decimation drops nothing.
+            x = collect(0.0:1.0:100_000.0)
+            chart = Chart("z", [ChartLineSeries("a", x, sin.(x ./ 500))])
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plot = iomap.step_iomaps[1][].output
+            plot.view = ChartView(0.0, 100.0, -1.0, 1.0)
+            pl = first(e for e in _series_elements(iomap.output) if e isa GraphicsPolyline)
+            @test 100 <= length(pl.points) <= 110
+        end
     end
 end

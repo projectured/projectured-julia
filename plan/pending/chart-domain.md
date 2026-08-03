@@ -721,11 +721,20 @@ Implement in a dedicated worktree; one commit per phase; keep this plan updated
         rect. Not changed from here — it is a cross-backend behaviour with 49k
         tests over it — but the chart avoids the combination: the rubber band is
         a fill with no border, and the legend and readout boxes are opaque.
-- [ ] **P5 — scalability.** Decimation/folding wired for all types (incl.
-      category-label decimation), thresholds as `ChartStyle` fields
-      (`marker_limit`/`scatter_fold_threshold`/`bin_fold_px`). Exit:
-      `test_chart_scale()` green — 1M-point line/scatter and 10k-category bar
-      each under the element ceiling and time bound; zoom-in exactness holds.
+- [x] **P5 — scalability.** DONE. Decimation and folding wired for all four
+      types with the thresholds as `ChartStyle` fields. Exit:
+      `test_chart_scale()` 14/14 — a million-sample line, a million-point
+      scatter, a ten-thousand-category bar chart and a ten-thousand-bin
+      histogram each stay under 4 000 graphics elements, and a zoomed-in window
+      keeps every sample.
+
+      Decision made while implementing:
+      - `fold_scatter` returns **density bands, not cells**. One rect per
+        occupied grid cell put 12 281 elements on screen for a million points —
+        past the ceiling and no more informative. Quantizing the density to
+        eight levels and merging equally-dense neighbours within a row brings
+        the same picture down to ~2 700 elements, and the banding actually reads
+        more smoothly than the per-cell version.
 - [ ] **P6 — property editing + docs.** `ObjectToWidget` inspector split-pane
       demo with the field-edit round-trip test; `chart.md`; screenshot dict.
       Exit: inspector round-trip test green; zero unmarked Fail/Error in the

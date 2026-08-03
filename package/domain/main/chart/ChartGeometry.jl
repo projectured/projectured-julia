@@ -383,34 +383,60 @@ end
 # ── Folding ──────────────────────────────────────────────────────────────
 
 """
-    fold_scatter(x, y, xs, ys, cell_px, i0, i1) -> Vector{Tuple{Int,Int,Int}}
+    fold_scatter(x, y, xs, ys, cell_px, i0, i1; levels=8) -> Vector{Tuple{Int,Int,Int,Int,Int}}
 
-Bin an overplotted point cloud into a `cell_px`-sized pixel grid, returning
-`(px, py, count)` per occupied cell.
+Fold an overplotted point cloud into a density map, returning
+`(x, y, width, height, level)` bands where `level` runs from 1 to `levels`.
 
-Past a few thousand markers the individual points are no longer distinguishable
-anyway, so drawing one shaded cell per occupied bin shows the same density with
-a bounded number of elements — this is the folding a zoomed-out or very large
-scatter series falls back to.
+Past a few thousand markers the individual points are no longer
+distinguishable, so what matters is where the cloud is dense — which one shaded
+band per run of equally-dense cells conveys just as well as a marker per point,
+with a bounded number of elements.
+
+Two things bound the output. Points are binned into a `cell_px` grid, so the
+count is limited by the plot area rather than by the data; and the density is
+quantized to `levels` before neighbouring cells in a row are merged into a
+single band, so a dense region costs a handful of wide bands instead of
+hundreds of little squares.
 """
 function fold_scatter(x, y, xs::AxisScale, ys::AxisScale, cell_px::Integer,
-                      i0::Integer, i1::Integer)
+                      i0::Integer, i1::Integer; levels::Integer=8)
     cell = max(Int(cell_px), 1)
+    nlev = max(Int(levels), 1)
     counts = Dict{Tuple{Int,Int},Int}()
     n = min(length(x), length(y))
     i0 = max(i0, 1); i1 = min(i1, n)
+    peak = 0
     @inbounds for i in i0:i1
         xv = Float64(x[i]); yv = Float64(y[i])
         (isfinite(xv) && isfinite(yv)) || continue
         px = round(Int, to_pixel(xs, xv)) ÷ cell
         py = round(Int, to_pixel(ys, yv)) ÷ cell
-        counts[(px, py)] = get(counts, (px, py), 0) + 1
+        c = get(counts, (px, py), 0) + 1
+        counts[(px, py)] = c
+        c > peak && (peak = c)
     end
-    out = Tuple{Int,Int,Int}[]
-    for ((px, py), c) in counts
-        push!(out, (px * cell, py * cell, c))
+    isempty(counts) && return Tuple{Int,Int,Int,Int,Int}[]
+
+    # Square-root scaling: a linear ramp leaves everything but the densest
+    # handful in the lowest band once one cell holds thousands.
+    level_of(c) = clamp(ceil(Int, nlev * sqrt(c / peak)), 1, nlev)
+
+    cells = sort!([(py, px, level_of(c)) for ((px, py), c) in counts])
+    out = Tuple{Int,Int,Int,Int,Int}[]
+    row, start_col, prev_col, level = cells[1][1], cells[1][2], cells[1][2], cells[1][3]
+    flush!() = push!(out, (start_col * cell, row * cell,
+                           (prev_col - start_col + 1) * cell, cell, level))
+    @inbounds for k in 2:length(cells)
+        r, c, l = cells[k]
+        if r == row && l == level && c == prev_col + 1
+            prev_col = c
+        else
+            flush!()
+            row, start_col, prev_col, level = r, c, c, l
+        end
     end
-    sort!(out)
+    flush!()
     out
 end
 

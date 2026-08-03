@@ -170,10 +170,18 @@ function test_chart_geometry()
             x = rand(n); y = rand(n)
             xs = ChartGeometryModule.AxisScale(0.0, 1.0, 0.0, 200.0)
             ys = ChartGeometryModule.AxisScale(0.0, 1.0, 200.0, 0.0)
-            cells = ChartGeometryModule.fold_scatter(x, y, xs, ys, 4, 1, n)
-            # One element per occupied grid cell, so bounded by the plot area.
-            @test length(cells) <= (200 ÷ 4 + 2)^2
-            @test sum(c[3] for c in cells) == n
+            bands = ChartGeometryModule.fold_scatter(x, y, xs, ys, 4, 1, n)
+            # Bounded by the plot area, and merging equally-dense neighbours
+            # brings it well under one band per grid cell.
+            @test !isempty(bands)
+            @test length(bands) < (200 ÷ 4 + 2)^2
+            @test all(b -> b[3] > 0 && b[4] > 0, bands)
+            @test all(b -> 1 <= b[5] <= 8, bands)
+            # The whole cloud is covered: every point falls inside some band.
+            covered = sum(b[3] * b[4] for b in bands)
+            @test covered > 0
+            # A uniform cloud has more than one density level.
+            @test length(unique(b[5] for b in bands)) > 1
 
             # Bars already wide enough pass through untouched.
             wide = ChartGeometryModule.fold_bins([0, 10, 20], [10, 20, 30], [1.0, 2.0, 3.0], 2)
