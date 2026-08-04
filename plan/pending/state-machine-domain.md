@@ -597,13 +597,14 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
 
-### Status: P0–P7 landed on main; only the PLCA data machine (P7b) remains
+### Status: every phase landed on main
 
 Everything through P5 is implemented, verified and merged into `main` in all
-three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5–P7 in
-inet-julia). In the shipping 10BASE-T1S model both the MAC and the PLCA control
-machine are generated code, and the machine the MAC is generated from can be
-watched running.
+three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5–P7b in
+inet-julia). In the shipping 10BASE-T1S model **all three state machines** — the
+MAC, and PLCA's control and data machines — are generated from documents, with
+every golden hash unchanged, and the machine the MAC is generated from can be
+watched running. Every requirement R1–R15 is exercised by real protocol code.
 
 **The one thing that had to happen first was landing, not design.** While the
 work sat on worktree branches, inet-julia could not see the runtime at all:
@@ -747,12 +748,37 @@ the timer — which is what entry actions are for.
         name (`:curID`). Generated code shares a namespace with the hand-written code
         beside it; a rename is not free.
 
-- [ ] **P7b — PLCA data (inet-julia), the remaining half.** The 9-state event-driven
-  data machine as a second machine in the same component, which is what would prove
-  **R10** (two machines sharing variables, injecting events into each other through
-  the per-machine deferred queues) and exercise R9 across machines. `PlcaState`
-  already carries `ds` as an ordinary variable, so the split point is clean. Same
-  acceptance: both hashes unchanged. Move this plan to `plan/done/` after it.
+- [x] **P7b — PLCA data, and R10.** DONE. The 9-state event-driven data machine is
+  generated too, and both machines are declared in **one component**. Exit: both
+  hashes exact — `:notraffic` `0x429fe1b7…` / 299 events, `:bestcase`
+  `0x6f8ce88a…` / 480 — link layer 430/430, inet-julia 2325/2325, watch self-test
+  unchanged. **Acceptance for R9 and R10.**
+
+      Decisions and discoveries:
+      - **One component is what lets the two machines share state.** `fsm_control`
+        and `fsm_data` are both fields of `PlcaState`, and so are the variables they
+        pass between them. That *removed* a real hack: the hand-written data FSM
+        kept its state in a module-level `IdDict` keyed by `PlcaState`, because the
+        struct had nowhere to put it. The abstraction deleted a workaround rather
+        than adding one.
+      - **Where the deferral goes is a real design choice, and only one arrangement
+        reproduces the port.** Deferring the data machine's calls back into control
+        worked and was faithful to the C++ in spirit, but shifted one event and
+        changed the `:bestcase` hash. Putting it where the C++ actually puts it —
+        the control machine's `CS_COMMIT` entry defers its injection *into* the data
+        machine, while the data machine's calls back into control stay synchronous,
+        safe behind control's own `in_fsm` guard — reproduces the port exactly. The
+        per-machine queues make both expressible; that is the point of them.
+      - **A printer bug made generated code silently mean something else, and the
+        golden hash did not catch it.** A control guard
+        `… && (rx_cmd === CMD_BEACON || (!crs && …))` was printed without its
+        parentheses, regrouping around the `||`. It survived because for a
+        coordinator the wrong disjunct can only be true when `!crs`, and an earlier
+        transition already fires there — ordering masked it. Fixed in the julia
+        domain (precedence-aware parenthesization, respecting associativity so
+        nothing else churned) with a round-trip regression test. **The lesson is
+        about codegen generally: a hash proves the paths you exercise agree, not
+        that the code says what you meant.**
 
 ## 10. Deferred / future work (recorded, deliberately out of v1)
 
