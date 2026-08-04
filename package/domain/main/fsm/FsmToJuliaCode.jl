@@ -413,14 +413,20 @@ end
 # ── The whole module ─────────────────────────────────────────────────────────
 
 """
-    generate_component(component::FsmComponent) -> JuliaDocument
+    generate_component(component::FsmComponent; wrap_module = true) -> JuliaDocument
 
-The complete generated module, as a Julia document. Everything the component
+The complete generated code, as a Julia document. Everything the component
 declares is present: its `usings`, the state and event constants, the host
 struct and its constructor, one dispatch function per machine, the timer
 expiry callbacks, and the author's own helpers spliced verbatim at the end.
+
+`wrap_module = false` returns the bare `JuliaBlock` of top-level statements
+instead of a module. That is what a host package needs when the generated file
+is `include`d into an existing module rather than standing alone as a file —
+the 10BASE-T1S slice, where nine files make up one module, is the case that
+asked for it.
 """
-function generate_component(component::FsmComponent)
+function generate_component(component::FsmComponent; wrap_module::Bool = true)
     statements = JuliaDocument[]
     for using_item in component.usings
         push!(statements, using_item)
@@ -438,26 +444,29 @@ function generate_component(component::FsmComponent)
     for helper in component.helpers
         push!(statements, helper)
     end
-    JuliaModuleDef(module_name(component), JuliaBlock(statements))
+    body = JuliaBlock(statements)
+    wrap_module ? JuliaModuleDef(module_name(component), body) : body
 end
 
 """
-    generate_component_text(component::FsmComponent) -> String
+    generate_component_text(component::FsmComponent; wrap_module = true) -> String
 
-The generated module as Julia source, through the ordinary
-`document_to_text` path, with a header naming the document it came from.
+The generated code as Julia source, through the ordinary `document_to_text`
+path, with a header naming the machine it came from.
 """
-generate_component_text(component::FsmComponent) =
-    "# Generated from the state machine `" * component.name * "` — edit the .fsm, not this file.\n\n" *
-    document_to_text(generate_component(component)) * "\n"
+generate_component_text(component::FsmComponent; wrap_module::Bool = true) =
+    "# Generated from the state machine `" * component.name *
+    "` — edit the machine, not this file.\n\n" *
+    document_to_text(generate_component(component; wrap_module = wrap_module)) * "\n"
 
 """
-    export_component(component::FsmComponent, path::AbstractString)
+    export_component(component::FsmComponent, path::AbstractString; wrap_module = true)
 
-Write the generated module to `path`.
+Write the generated code to `path`.
 """
-function export_component(component::FsmComponent, path::AbstractString)
-    write(path, generate_component_text(component))
+function export_component(component::FsmComponent, path::AbstractString;
+                          wrap_module::Bool = true)
+    write(path, generate_component_text(component; wrap_module = wrap_module))
     path
 end
 

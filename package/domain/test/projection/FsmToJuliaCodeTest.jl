@@ -29,6 +29,14 @@ function test_fsm_to_julia_code()
 
     # It is real Julia.
     @test (Meta.parseall(text); true)
+
+    # `wrap_module = false` emits the same statements without the module, for
+    # a host package whose file is `include`d into an existing module.
+    bare = generate_component_text(make_fsm_toggle_document_example(); wrap_module = false)
+    @test !occursin("module ToggleFsm", bare)
+    @test occursin("mutable struct ToggleState", bare)
+    @test occursin("function toggle_dispatch!", bare)
+    @test (Meta.parseall(bare); true)
 end
 
 @testset "helpers and usings come along" begin
