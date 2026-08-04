@@ -14,8 +14,8 @@ chart repaint. Any `AbstractVector{<:Real}` works, so a data-frame column can be
 handed straight to a series without this package depending on DataFrames.
 
 Two axis families:
-- **XY** (`ChartAxis` on x) carries `ChartLineSeries`, `ChartScatterSeries` and
-  `ChartHistogramSeries`, which may be mixed on one chart.
+- **XY** (`ChartAxis` on x) carries `ChartLineSeries`, `ChartScatterSeries`,
+  `ChartHistogramSeries` and `ChartStripSeries`, which may be mixed on one chart.
 - **Category** (`ChartCategoryAxis` on x) carries `ChartBarSeries`.
 """
 module ChartModule
@@ -279,6 +279,108 @@ function ChartHistogramSeries(label::AbstractString, values::AbstractVector; nbi
     ChartHistogramSeries(String(label), edges, counts)
 end
 
+"""
+A strip series: a column of enumerated values — usually the states of a machine
+— over an ascending time column, drawn as a band of colored segments. Segment
+`i` spans `[x[i], x[i+1])`, so a value holds until the next sample replaces it.
+
+`values` holds 1-based codes into the `states` name table; a code outside the
+table is drawn and labelled as its own number. `x_end` ends the last segment,
+which otherwise runs to the edge of the view — a state persists until something
+ends it. `state_colors`, when given, replaces the color a code would take from
+the chart's cycle.
+
+`x` must ascend, non-strictly: equal adjacent times are legal (a machine can
+pass through a state within one dispatch) and fold away. Nothing recovers a
+column that does not ascend — the clipping and the hit-testing both binary-search
+it — so the convenience constructors check, and a series built through the
+generated all-positional form is the caller's responsibility.
+"""
+@document struct ChartStripSeries <: ChartSeries
+    label::String
+    x::Any
+    values::Any
+    states::Any = String[]
+    x_end::Any = nothing
+    state_colors::Any = nothing
+    show_labels::Bool = true
+    draw_edges::Bool = false
+    color::Any = nothing
+    visible::Bool = true
+end
+
+"""
+    ChartStripSeries(label, x, values; states, x_end, …)
+
+`values` may be the codes themselves, or the state names: a column of strings or
+symbols is pooled into codes and a `states` table in order of first appearance,
+the same convenience `ChartHistogramSeries(label, values; nbins)` offers over
+raw samples.
+"""
+function ChartStripSeries(label::AbstractString, x::AbstractVector, values::AbstractVector;
+                          states=nothing, x_end=nothing, state_colors=nothing,
+                          show_labels::Bool=true, draw_edges::Bool=false,
+                          color=nothing, visible::Bool=true)
+    issorted(x) || throw(ArgumentError("ChartStripSeries needs an ascending x column"))
+    if x_end !== nothing && !isempty(x) && x_end < last(x)
+        throw(ArgumentError("ChartStripSeries x_end must not precede the last sample"))
+    end
+    codes, pooled = _strip_codes(values)
+    ChartStripSeries(String(label), x, codes,
+                     states === nothing ? pooled : states,
+                     x_end, state_colors, show_labels, draw_edges,
+                     color, visible, nothing)
+end
+
+# A named column pools; a code column is handed through untouched, so a
+# million-sample trace is not copied to be wrapped in a series.
+_strip_named_column(values::AbstractVector) =
+    eltype(values) <: Union{AbstractString, Symbol} ||
+    (!isempty(values) && !(eltype(values) <: Integer) &&
+     first(values) isa Union{AbstractString, Symbol})
+
+function _strip_codes(values::AbstractVector)
+    _strip_named_column(values) || return (values, String[])
+    table = String[]
+    index = Dict{String, Int}()
+    codes = Vector{Int}(undef, length(values))
+    for (i, value) in enumerate(values)
+        name = String(string(value))
+        codes[i] = get!(index, name) do
+            push!(table, name)
+            length(table)
+        end
+    end
+    (codes, table)
+end
+
+"""
+    strip_state_name(series, code) -> String
+
+What a code is called: its entry in the series' `states`, or its own number when
+the table does not reach it — a truncated table degrades visibly instead of
+erroring.
+"""
+function strip_state_name(series::ChartStripSeries, code)
+    states = series.states
+    c = Int(code)
+    (1 <= c <= length(states)) ? String(states[c]) : string(c)
+end
+
+"""
+    strip_state_color(series, code, cycle) -> StyleColor
+
+The color of a state: the series' own `state_colors` entry, else the cycle
+entry for that code. Colors follow the code rather than the series, so the same
+state reads the same across every strip on the chart.
+"""
+function strip_state_color(series::ChartStripSeries, code, cycle)
+    c = Int(code)
+    own = series.state_colors
+    own !== nothing && 1 <= c <= length(own) && return own[c]
+    series_color(nothing, c, cycle)
+end
+
 # ── Chart ────────────────────────────────────────────────────────────────
 
 """
@@ -324,6 +426,7 @@ chart_series_family(::Any) = :unknown
 chart_series_family(::ChartLineSeries) = :xy
 chart_series_family(::ChartScatterSeries) = :xy
 chart_series_family(::ChartHistogramSeries) = :xy
+chart_series_family(::ChartStripSeries) = :xy
 chart_series_family(::ChartBarSeries) = :category
 
 """
@@ -388,6 +491,18 @@ end
 function chart_sample(s::ChartHistogramSeries, index::Integer)
     (1 <= index <= min(length(s.binvalues), length(s.binedges) - 1)) || return nothing
     (Float64(s.binedges[index]), Float64(s.binedges[index+1]), Float64(s.binvalues[index]))
+end
+
+# The extent evaluated here is the one in the data, not the one on screen: the
+# last segment is drawn out to the end of the view, but a reference must not
+# evaluate differently as someone zooms.
+function chart_sample(s::ChartStripSeries, index::Integer)
+    n = min(length(s.x), length(s.values))
+    (1 <= index <= n) || return nothing
+    lower = Float64(s.x[index])
+    upper = index < n ? Float64(s.x[index + 1]) :
+            (s.x_end === nothing ? lower : Float64(s.x_end))
+    (lower, upper, strip_state_name(s, s.values[index]))
 end
 
 # The step type is domain-agnostic; what a sample *is* depends on the series

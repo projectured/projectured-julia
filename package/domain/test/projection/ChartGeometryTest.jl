@@ -200,6 +200,57 @@ function test_chart_geometry()
             @test ChartGeometryModule.label_step(0, 100, 10) == 1
         end
 
+        @testset "strips" begin
+            # Equal adjacent values coalesce; the window bounds the result.
+            codes = [1, 1, 1, 2, 2, 3, 1]
+            @test ChartGeometryModule.strip_runs(codes, 1, 7) ==
+                  [(1, 3), (4, 5), (6, 6), (7, 7)]
+            @test ChartGeometryModule.strip_runs(codes, 3, 5) == [(3, 3), (4, 5)]
+            @test ChartGeometryModule.strip_runs([7, 7, 7], 1, 3) == [(1, 3)]
+            @test ChartGeometryModule.strip_runs(Int[], 1, 0) == Tuple{Int,Int}[]
+            # Out-of-range windows clamp rather than throw.
+            @test ChartGeometryModule.strip_runs(codes, 0, 100) ==
+                  [(1, 3), (4, 5), (6, 6), (7, 7)]
+
+            # Segments already wide enough pass through with their own code.
+            wide = ChartGeometryModule.fold_strips([0, 10, 20], [10, 20, 30], [1, 2, 3], 2)
+            @test wide == [(0, 10, 1), (10, 20, 2), (20, 30, 3)]
+
+            # Sub-pixel segments fold, and the fold takes the state that holds
+            # it longest rather than the first or last one in the run.
+            folded = ChartGeometryModule.fold_strips([0.0, 0.1, 0.8], [0.1, 0.8, 1.0],
+                                                     [1, 2, 1], 1)
+            @test length(folded) == 1
+            @test folded[1][3] == 2
+
+            # A wide segment never inherits the sliver in front of it: the
+            # accumulating group closes before it, so it keeps its own left
+            # edge and its own code (where fold_bins would have absorbed it).
+            mixed = ChartGeometryModule.fold_strips([0.0, 0.4, 50.0], [0.4, 50.0, 90.0],
+                                                    [1, 2, 3], 1)
+            @test length(mixed) == 3
+            @test mixed[2] == (0, 50, 2)
+            @test mixed[3] == (50, 90, 3)
+
+            # A dense toggle stays bounded by the pixel width and dithers the
+            # two states instead of collapsing to one.
+            n = 10_000
+            lefts = collect(range(0.0; step = 800 / n, length = n))
+            rights = lefts .+ (800 / n)
+            dither = ChartGeometryModule.fold_strips(lefts, rights,
+                                                     [isodd(i) ? 1 : 2 for i in 1:n], 1)
+            @test length(dither) <= 801
+            @test length(unique(s[3] for s in dither)) == 2
+            # Every span is at least one pixel wide and they tile in order.
+            @test all(s -> s[2] > s[1], dither)
+            @test issorted([s[1] for s in dither])
+
+            # A zero-width segment still yields a drawable span.
+            @test ChartGeometryModule.fold_strips([5.0], [5.0], [4], 1) == [(5, 6, 4)]
+            @test ChartGeometryModule.fold_strips(Float64[], Float64[], Int[], 1) ==
+                  Tuple{Int,Int,Int}[]
+        end
+
         @testset "histograms" begin
             edges, counts = ChartGeometryModule.bin_values([0.0, 1.0, 2.0, 3.0, 4.0], 4)
             @test length(edges) == 5 && length(counts) == 4

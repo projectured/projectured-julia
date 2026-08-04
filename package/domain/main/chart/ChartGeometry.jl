@@ -27,7 +27,7 @@ export AxisScale, to_pixel, to_data, axis_span,
        column_bounds, merge_bounds, pad_range,
        nice_num, nice_ticks, log_ticks, format_tick,
        visible_range, decimate_minmax, step_points, pins_segments,
-       fold_scatter, fold_bins, label_step, nearest_sample,
+       fold_scatter, fold_bins, strip_runs, fold_strips, label_step, nearest_sample,
        bin_values, histogram_values,
        legend_layout, anchor_offset
 
@@ -515,6 +515,100 @@ function fold_bins(lefts::AbstractVector, rights::AbstractVector,
         i = j + 1
     end
     out
+end
+
+"""
+    strip_runs(values, i0, i1) -> Vector{Tuple{Int,Int}}
+
+Coalesce runs of equal adjacent values over `values[i0:i1]` into `(first, last)`
+index pairs.
+
+A state trace re-records the state it is already in, so the raw column holds far
+more samples than it holds distinct segments; coalescing first is what keeps
+everything downstream proportional to the segments actually drawn.
+"""
+function strip_runs(values, i0::Integer, i1::Integer)
+    out = Tuple{Int,Int}[]
+    n = length(values)
+    lo = max(1, Int(i0)); hi = min(n, Int(i1))
+    lo > hi && return out
+    start = lo
+    @inbounds for k in (lo + 1):hi
+        if values[k] != values[start]
+            push!(out, (start, k - 1))
+            start = k
+        end
+    end
+    push!(out, (start, hi))
+    out
+end
+
+"""
+    fold_strips(lefts, rights, codes, min_px) -> Vector{Tuple{Int,Int,Int}}
+
+Merge adjacent strip segments narrower than `min_px` pixels into single spans,
+returning `(left, right, code)` per surviving span.
+
+The edges are taken unrounded so that a merged span's winner is decided by real
+duration: a folded span takes the code holding it longest, which makes a fast
+toggle render as a per-pixel dither of the states involved rather than as one
+neutral blur. Ties go to the earlier code, so panning does not reshuffle colors.
+
+Unlike [`fold_bins`](@ref), an accumulating group closes *before* a segment that
+is itself at least `min_px` wide: a wide segment always draws at its own left
+edge with its own code, and never inherits the sliver in front of it.
+"""
+function fold_strips(lefts::AbstractVector, rights::AbstractVector,
+                     codes::AbstractVector, min_px::Real)
+    out = Tuple{Int,Int,Int}[]
+    n = min(length(lefts), length(rights), length(codes))
+    n == 0 && return out
+    w = max(Float64(min_px), 1.0)
+    widths = Tuple{Int,Float64}[]
+    i = 1
+    @inbounds while i <= n
+        l = Float64(lefts[i])
+        r = Float64(rights[i])
+        if (r - l) >= w
+            push!(out, (round(Int, l), max(round(Int, r), round(Int, l) + 1), Int(codes[i])))
+            i += 1
+            continue
+        end
+        empty!(widths)
+        j = i
+        while true
+            _accumulate_width!(widths, Int(codes[j]), Float64(rights[j]) - Float64(lefts[j]))
+            r = Float64(rights[j])
+            (r - l) >= w && break
+            j == n && break
+            (Float64(rights[j + 1]) - Float64(lefts[j + 1])) >= w && break
+            j += 1
+        end
+        push!(out, (round(Int, l), max(round(Int, r), round(Int, l) + 1), _dominant_code(widths)))
+        i = j + 1
+    end
+    out
+end
+
+# A fold spans a handful of distinct codes, so a linear scan beats a dictionary
+# and allocates nothing per span.
+function _accumulate_width!(widths::Vector{Tuple{Int,Float64}}, code::Int, width::Float64)
+    @inbounds for k in eachindex(widths)
+        if widths[k][1] == code
+            widths[k] = (code, widths[k][2] + width)
+            return widths
+        end
+    end
+    push!(widths, (code, width))
+end
+
+function _dominant_code(widths::Vector{Tuple{Int,Float64}})
+    best, best_width = widths[1]
+    @inbounds for k in 2:length(widths)
+        code, width = widths[k]
+        width > best_width && ((best, best_width) = (code, width))
+    end
+    best
 end
 
 """
