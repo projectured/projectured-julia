@@ -597,12 +597,13 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
 
-### Status: P0–P6 landed on main; P7 (PLCA) is what remains
+### Status: P0–P7 landed on main; only the PLCA data machine (P7b) remains
 
 Everything through P5 is implemented, verified and merged into `main` in all
-three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5–P6 in
-inet-julia). The MAC in the shipping 10BASE-T1S model is generated code, and the
-machine it is generated from can be watched running.
+three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5–P7 in
+inet-julia). In the shipping 10BASE-T1S model both the MAC and the PLCA control
+machine are generated code, and the machine the MAC is generated from can be
+watched running.
 
 **The one thing that had to happen first was landing, not design.** While the
 work sat on worktree branches, inet-julia could not see the runtime at all:
@@ -715,12 +716,43 @@ the timer — which is what entry actions are for.
       - The watch env is standalone (like omnetpp-julia's), so its self-test is run
         directly rather than from `test/runtests.jl`, whose root env has no
         Projectured.
-- [ ] **P7 — PLCA (inet-julia, proves the rest).** `PlcaControl` + `PlcaData` as one
-  two-machine component: condition-only tables with `is_scheduled` guard polling and
-  the §3 expiry routing, cross-machine injection via the per-machine deferred queues,
-  shared variables, edge-detection helper at the boundary; the `:notraffic` golden
-  hash (genuinely PLCA-covering, INET-cross-compared) plus the P5-pinned traffic hash
-  green. Acceptance for R3/R4/R9/R10. Move this plan to `plan/done/`.
+- [x] **P7 — PLCA control (inet-julia).** DONE for the **control** machine; the data
+  machine stays hand-written (see below). The 14-state condition-driven table is
+  generated. Exit: both pinned hashes unchanged — `:notraffic` `0x429fe1b7…` at 299
+  events (the scenario that genuinely exercises PLCA control, and the one
+  cross-compared against INET) and `:bestcase` `0x6f8ce88a…` at 480 — link layer
+  417/417, inet-julia 2311/2311, watch self-test unchanged. **Acceptance for R3 and
+  R4**, the two requirements the MAC could not reach.
+
+      Decisions and discoveries:
+      - **This is the machine the MAC was not.** All 27 transitions are
+        condition-only — no event dimension at all — and five of the nine timers are
+        **polled in guards** through `is_scheduled` rather than triggering anything,
+        because a timer expiring is only half a condition
+        (`!is_scheduled(to_timer) && !crs`). The abstraction expressed both without
+        extension.
+      - **The re-entrancy guard stayed outside the machine**, in
+        `handle_with_control_fsm!`, returning silently exactly as the port did. That
+        is why the downlink calls could stay synchronous here, where the MAC needed
+        its outgoing calls deferred: the MAC had no such guard. Two different, both
+        faithful, resolutions of the same hazard.
+      - `plca_start!` installs `CS_RESYNC` **directly** rather than dispatching to
+        it, so no entry action runs — the machine's startup rule, and what the
+        hand-written assignment did.
+      - The component is named `Plca` (not `PlcaControl`) so the generated struct is
+        `PlcaState`: the name `PlcaControlState` was already taken by the enum being
+        replaced.
+      - Two regressions were self-inflicted and worth remembering: renaming a helper
+        the *other* machine calls (`_bits_to_time`), and mistyping a recorded signal
+        name (`:curID`). Generated code shares a namespace with the hand-written code
+        beside it; a rename is not free.
+
+- [ ] **P7b — PLCA data (inet-julia), the remaining half.** The 9-state event-driven
+  data machine as a second machine in the same component, which is what would prove
+  **R10** (two machines sharing variables, injecting events into each other through
+  the per-machine deferred queues) and exercise R9 across machines. `PlcaState`
+  already carries `ds` as an ordinary variable, so the split point is clean. Same
+  acceptance: both hashes unchanged. Move this plan to `plan/done/` after it.
 
 ## 10. Deferred / future work (recorded, deliberately out of v1)
 
