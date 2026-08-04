@@ -82,6 +82,7 @@ include("projection/GraphTest.jl")
 include("projection/ChartGeometryTest.jl")
 include("projection/ChartTest.jl")
 include("projection/SequenceChartGeometryTest.jl")
+include("projection/SequenceChartTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableSelectionTest.jl")
 
@@ -173,6 +174,8 @@ function test_domain()
         test_chart()
         test_chart_scale()
         test_sequencechart_geometry()
+        test_sequencechart()
+        test_sequencechart_selection()
         test_syntax_tree_selection()
         test_table_selection()
         # backends / references / clicks on domain fixtures
@@ -237,7 +240,7 @@ export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collec
        test_sql_insert_update_selection, test_sql_ddl, test_sql_ddl_selection,
        test_formula_to_syntax, test_filesystem_to_syntax, test_graph
 export test_chart_geometry, test_chart, test_chart_scale
-export test_sequencechart_geometry
+export test_sequencechart_geometry, test_sequencechart, test_sequencechart_selection
 export test_syntax_tree_selection,
        test_table_selection
 export test_console_backend, test_write_pdf, test_type_reference

@@ -562,11 +562,31 @@ here as they land.
     printer test surfaced, since nothing in the smoke test drew an arc.
   - `SequenceChartPlot` must import `Reference` — the `@document` macro's
     injected `selection` field names it at the call site.
-- [ ] **Phase 2 — selection + reader.** `SequenceChartRowReferenceStep`, part/row
-  references, stage-1 mappers, hit-testing, click/hover/zoom/pan/rubber-band/
-  follow-end reader, cursor + range readouts, event/arrow label rendering,
-  `@gestures` navigation incl. cause/consequence; `test_reader` /
-  `test_position_navigation` / `test_repl` for the example; live-editor verification.
+- [x] **Phase 2 — selection + reader. DONE.** `SequenceChartRowReferenceStep`
+  (`.row(k)`, `:structural`, evaluated per table), part/row/lane/band references,
+  the whole selection vocabulary, hit testing against the laid-out frame, the
+  click/hover/wheel-zoom/pan/double-click reader, and the `@gestures` block
+  including causality navigation. `test_sequencechart()` 88,
+  `test_sequencechart_selection()` 37, geometry 111; reader / position-navigation
+  / repl sweeps green on all three examples.
+
+  Decisions made while implementing:
+  - **`delete_events` takes a `lane_map`.** `delete_axis` originally issued the
+    row deletion and the lane renumbering as two operations on the same column;
+    the second was built from the column as it stood *before* the first, so it
+    silently put the deleted rows back. Both edits now ride in one rewrite. The
+    index-consistency test caught it.
+  - `@iomap` property access already dereferences the cell, so the reader reads
+    `iomap.geometry`, not `iomap.geometry[]`.
+  - Events carry `x`/`y` directly (not a `position`), and a double click is a
+    `MousePress` with `count >= 2` — there is no separate event type.
+  - The plain arrow keys walk **parts** until an occurrence is selected, then
+    walk the trace; `Shift` walks one lane and `Ctrl` follows causality. The
+    test lives in each handler rather than in a block guard, which would gate
+    the part navigation too.
+  - Rubber-band drag zoom is not wired (the `drag_anchor`/`drag_rect` fields are
+    there for it); wheel-zoom-about-the-pointer plus double-click-to-reset covers
+    the same ground, so it moved to §8.
 - [ ] **Phase 3 — full arrow vocabulary + vertical.** Same-lane arcs, split arrows,
   elided zigzag marker, endpoint-override lanes, kind visibility; extend the example
   with this content; `FlowFrame`-driven `:vertical` orientation + vertical example;

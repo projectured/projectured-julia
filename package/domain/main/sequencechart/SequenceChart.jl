@@ -39,10 +39,16 @@ using ..OperationModule
 using ..SelectionModule
 using ..DomainModule
 
+using ..EventPatternModule
+using ..GestureBindingModule
+
 import ..ChartModule: default_color_cycle
+import ..SequenceChartRowReferenceStepModule: SequenceChartRowReferenceStep
+import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           ElementReferenceStep, EmptyReference,
                           annotate_reference_types, get_reference_node_type
+import ..ReferenceCaseModule: var"@reference_case"
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
                           ReplaceSelectionOperation
 
@@ -52,7 +58,12 @@ export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
        event_count, arrow_count, axis_display_order, event_axis, event_kind,
        arrow_kind, arrow_source_axis, arrow_target_axis,
        event_label, arrow_label, band_state_name,
-       insert_events, delete_events, delete_axis, move_axis
+       insert_events, delete_events, delete_axis, move_axis,
+       sequence_chart_parts, sequence_chart_part_index,
+       event_reference, arrow_reference, band_reference, axis_reference,
+       selected_event, selected_arrow, selected_axis_index,
+       event_row, arrow_row, band_row,
+       next_event_on_lane, arrow_from_event, arrow_into_event
 
 @domain SequenceChart
 
@@ -492,17 +503,22 @@ function insert_events(chart::SequenceChart, at::Integer, times, axes;
 end
 
 """
-    delete_events(chart, rows) -> Operation
+    delete_events(chart, rows; lane_map=identity) -> Operation
 
 Delete event rows, and with them every arrow that ended at one — an arrow whose
 cause or consequence is gone has nothing left to mean. Surviving indices are
 renumbered.
+
+`lane_map` renumbers the surviving rows' lane column in the *same* rewrite. It
+exists because a caller deleting a lane needs both edits, and issuing them as
+two operations would mean the second one was built from the column as it was
+before the first — silently putting the deleted rows back.
 """
-function delete_events(chart::SequenceChart, rows)
+function delete_events(chart::SequenceChart, rows; lane_map=identity)
     events = chart.events
     n = event_count(events)
     doomed = Set{Int}(Int(r) for r in rows if 1 <= Int(r) <= n)
-    isempty(doomed) && return nothing
+    (isempty(doomed) && lane_map === identity) && return nothing
     keep = [i for i in 1:n if !(i in doomed)]
 
     # New index of a surviving row; 0 for a deleted one.
@@ -514,7 +530,8 @@ function delete_events(chart::SequenceChart, rows)
 
     operations = Any[
         ReplaceReferencedValueOperation(events, "times", _select(events.times, keep)),
-        ReplaceReferencedValueOperation(events, "axes", _select(events.axes, keep)),
+        ReplaceReferencedValueOperation(events, "axes",
+            _narrow(Any[lane_map(Int(events.axes[i])) for i in keep if i <= length(events.axes)])),
         ReplaceReferencedValueOperation(events, "kinds", _select(events.kinds, keep))]
     events.labels === nothing || push!(operations,
         ReplaceReferencedValueOperation(events, "labels", _select(events.labels, keep)))
@@ -543,11 +560,12 @@ function delete_axis(chart::SequenceChart, index::Integer)
     doomed = [i for i in 1:event_count(events) if event_axis(events, i) == index]
     renumber_axis(lane) = lane > index ? lane - 1 : (lane == index ? 0 : lane)
 
+    # The lane renumbering rides along with the row deletion rather than
+    # following it: a second write to the same column would be built from the
+    # column as it was *before* the deletion, and would put the deleted rows back.
     operations = Any[]
-    deletion = delete_events(chart, doomed)
+    deletion = delete_events(chart, doomed; lane_map=renumber_axis)
     deletion === nothing || append!(operations, deletion.operations)
-    push!(operations, ReplaceReferencedValueOperation(events, "axes",
-        [renumber_axis(Int(v)) for v in events.axes]))
     arrows = chart.arrows
     for field in ("source_axes", "target_axes")
         column = getproperty(arrows, Symbol(field))
@@ -655,6 +673,373 @@ function _narrow(values)
     all(v -> v isa Real, values) && return Float64[Float64(v) for v in values]
     all(v -> v isa AbstractString, values) && return String[String(v) for v in values]
     values
+end
+
+# ── What a row is ────────────────────────────────────────────────────────
+#
+# A row of a columnar table has no document of its own, so a reference reaching
+# one terminates at the table with a `row(k)` step. What that step evaluates to
+# is the row itself, gathered from the columns — which is what makes a selected
+# event or arrow something an inspector can show.
+
+"""
+    event_row(events, i) -> (time, axis, kind, label) | nothing
+
+The `i`-th occurrence, gathered from the columns. `nothing` out of range.
+"""
+function event_row(e::SequenceChartEvents, i::Integer)
+    (1 <= i <= event_count(e)) || return nothing
+    (Float64(e.times[i]), event_axis(e, i), event_kind(e, i), event_label(e, i))
+end
+
+"""
+    arrow_row(arrows, k) -> (source, target, kind, label) | nothing
+
+The `k`-th arrow, gathered from the columns. `nothing` out of range.
+"""
+function arrow_row(a::SequenceChartArrows, k::Integer)
+    (1 <= k <= arrow_count(a)) || return nothing
+    (Int(a.sources[k]), Int(a.targets[k]), arrow_kind(a, k), arrow_label(a, k))
+end
+
+"""
+    band_row(band, i) -> (time, value) | nothing
+
+The `i`-th sample of a state band.
+"""
+function band_row(b::SequenceChartBandSeries, i::Integer)
+    n = min(length(b.times), length(b.values))
+    (1 <= i <= n) || return nothing
+    (Float64(b.times[i]), Float64(b.values[i]))
+end
+
+# The step type is domain-agnostic; what a row *is* depends on the table holding
+# it, so the evaluation lives here rather than in the step's own file.
+ReferenceModule.evaluate_reference_step(step::SequenceChartRowReferenceStep,
+                                        document::SequenceChartEvents) =
+    event_row(document, step.index)
+
+ReferenceModule.evaluate_reference_step(step::SequenceChartRowReferenceStep,
+                                        document::SequenceChartArrows) =
+    arrow_row(document, step.index)
+
+ReferenceModule.evaluate_reference_step(step::SequenceChartRowReferenceStep,
+                                        document::SequenceChartBandSeries) =
+    band_row(document, step.index)
+
+# ── References ───────────────────────────────────────────────────────────
+#
+# Built structurally rather than through the `@reference` DSL: the DSL reads a
+# lowercase `::t` as a runtime type and cannot then continue into an extension
+# step. Annotating against the chart fills in every node's type, including the
+# row's own.
+
+"""
+    event_reference(chart, row) -> Reference
+
+The reference naming one occurrence, fully typed.
+"""
+event_reference(chart::SequenceChart, row::Integer) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("events"),
+            ConcreteReference(SequenceChartRowReferenceStep(Int(row)), EmptyReference())))
+
+"""
+    arrow_reference(chart, row) -> Reference
+
+The reference naming one arrow, fully typed.
+"""
+arrow_reference(chart::SequenceChart, row::Integer) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("arrows"),
+            ConcreteReference(SequenceChartRowReferenceStep(Int(row)), EmptyReference())))
+
+"""
+    axis_reference(chart, index) -> Reference
+
+The reference naming one lane.
+"""
+axis_reference(chart::SequenceChart, index::Integer) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("axes"),
+            ConcreteReference(ElementReferenceStep(Int(index)), EmptyReference())))
+
+"""
+    band_reference(chart, axis, band, row) -> Reference
+
+The reference naming one sample of one lane's state band.
+"""
+band_reference(chart::SequenceChart, axis::Integer, band::Integer, row::Integer) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep("axes"),
+            ConcreteReference(ElementReferenceStep(Int(axis)),
+                ConcreteReference(FieldReferenceStep("bands"),
+                    ConcreteReference(ElementReferenceStep(Int(band)),
+                        ConcreteReference(SequenceChartRowReferenceStep(Int(row)),
+                                          EmptyReference()))))))
+
+_chart_field_reference(chart::SequenceChart, field::AbstractString) =
+    annotate_reference_types(chart,
+        ConcreteReference(FieldReferenceStep(field), EmptyReference()))
+
+"""
+    selected_event(chart) -> Int
+
+Which occurrence the selection names, or `0` when it names something else.
+"""
+function selected_event(chart::SequenceChart)
+    reference = chart.selection
+    reference === nothing && return 0
+    n = event_count(chart.events)
+    @reference_case reference begin
+        ::SequenceChart.events.row(k) => (1 <= k <= n ? k : 0)
+        _ => 0
+    end
+end
+
+"""
+    selected_arrow(chart) -> Int
+
+Which arrow the selection names, or `0`.
+"""
+function selected_arrow(chart::SequenceChart)
+    reference = chart.selection
+    reference === nothing && return 0
+    n = arrow_count(chart.arrows)
+    @reference_case reference begin
+        ::SequenceChart.arrows.row(k) => (1 <= k <= n ? k : 0)
+        _ => 0
+    end
+end
+
+"""
+    selected_axis_index(chart) -> Int
+
+Which lane the selection points into, or `0`. This is what the reorder gestures
+act on.
+"""
+function selected_axis_index(chart::SequenceChart)
+    reference = chart.selection
+    reference === nothing && return 0
+    @reference_case reference begin
+        ::SequenceChart.axes[i].rest... => (1 <= i <= length(chart.axes) ? i : 0)
+        _ => 0
+    end
+end
+
+# ── Parts, selection and navigation ──────────────────────────────────────
+#
+# A sequence chart is a document like any other, so its parts are selectable and
+# the selection moves with the editor's own navigation keys. The parts are the
+# things actually on screen — the title, each lane, and the two tables — in the
+# order they read.
+#
+# `style`, `gutter` and `timeline` are deliberately not among them: they have no
+# region on the canvas, so a selection landing there would have nothing to show.
+# They are reached through a property inspector instead.
+
+"""
+    sequence_chart_parts(chart) -> Vector{Reference}
+
+Every selectable part of a chart, in reading order: the title, each lane in
+display order, then the event and arrow tables.
+"""
+function sequence_chart_parts(chart::SequenceChart)
+    parts = Reference[_chart_field_reference(chart, "title")]
+    for i in axis_display_order(chart)
+        push!(parts, axis_reference(chart, i))
+    end
+    push!(parts, _chart_field_reference(chart, "events"))
+    push!(parts, _chart_field_reference(chart, "arrows"))
+    parts
+end
+
+"""
+    sequence_chart_part_index(chart, reference) -> Int
+
+Which part a reference points at (or into), or `0` for the whole chart and
+anything unrecognised.
+"""
+function sequence_chart_part_index(chart::SequenceChart, reference)
+    reference === nothing && return 0
+    order = axis_display_order(chart)
+    n = length(order)
+    @reference_case reference begin
+        ::SequenceChart.title.rest... => 1
+        ::SequenceChart.axes[i].rest... => begin
+            position = findfirst(==(i), order)
+            position === nothing ? 0 : 1 + position
+        end
+        ::SequenceChart.events.rest... => 1 + n + 1
+        ::SequenceChart.arrows.rest... => 1 + n + 2
+        _ => 0
+    end
+end
+
+# ── Causality navigation ─────────────────────────────────────────────────
+#
+# A sequence chart is a graph, not a picture: the interesting move is not "the
+# next thing to the right" but "where did this come from" and "what did it cause".
+# These are the lookups behind those gestures.
+
+"""
+    next_event_on_lane(chart, row, direction) -> Int
+
+The next occurrence on the same lane as `row`, in time order. `0` when there is
+none — which declines the gesture rather than consuming it.
+"""
+function next_event_on_lane(chart::SequenceChart, row::Integer, direction::Integer)
+    events = chart.events
+    n = event_count(events)
+    (1 <= row <= n) || return 0
+    lane = event_axis(events, row)
+    i = Int(row) + (direction > 0 ? 1 : -1)
+    while 1 <= i <= n
+        event_axis(events, i) == lane && return i
+        i += (direction > 0 ? 1 : -1)
+    end
+    0
+end
+
+"""
+    arrow_from_event(chart, row) -> Int
+
+The first arrow leaving an occurrence — what it caused. `0` when it caused
+nothing recorded.
+"""
+function arrow_from_event(chart::SequenceChart, row::Integer)
+    arrows = chart.arrows
+    for k in 1:arrow_count(arrows)
+        Int(arrows.sources[k]) == Int(row) && return k
+    end
+    0
+end
+
+"""
+    arrow_into_event(chart, row) -> Int
+
+The first arrow arriving at an occurrence — what caused it.
+"""
+function arrow_into_event(chart::SequenceChart, row::Integer)
+    arrows = chart.arrows
+    for k in 1:arrow_count(arrows)
+        Int(arrows.targets[k]) == Int(row) && return k
+    end
+    0
+end
+
+# Step to another part by offset, clamping at both ends. Returns nothing when
+# there is nowhere to go, which declines the gesture rather than consuming it.
+function _step_part(chart::SequenceChart, offset::Integer)
+    parts = sequence_chart_parts(chart)
+    isempty(parts) && return nothing
+    current = sequence_chart_part_index(chart, chart.selection)
+    # From the whole chart, a forward step enters the first part and a backward
+    # step stays put.
+    target = current == 0 ? (offset > 0 ? 1 : 0) : current + offset
+    (1 <= target <= length(parts)) || return nothing
+    target == current && return nothing
+    ReplaceSelectionOperation(parts[target])
+end
+
+_select_part(chart::SequenceChart, index::Integer) = begin
+    parts = sequence_chart_parts(chart)
+    (1 <= index <= length(parts)) ? ReplaceSelectionOperation(parts[index]) : nothing
+end
+
+_select_whole(chart::SequenceChart) =
+    ReplaceSelectionOperation(EmptyReference(get_reference_node_type(chart)))
+
+# Step between occurrences in time order, or between lanes when an event is
+# selected and Shift is held.
+function _step_event(chart::SequenceChart, offset::Integer)
+    row = selected_event(chart)
+    n = event_count(chart.events)
+    n == 0 && return nothing
+    target = row == 0 ? (offset > 0 ? 1 : n) : row + offset
+    (1 <= target <= n) || return nothing
+    ReplaceSelectionOperation(event_reference(chart, target))
+end
+
+function _step_event_on_lane(chart::SequenceChart, direction::Integer)
+    row = selected_event(chart)
+    row == 0 && return nothing
+    target = next_event_on_lane(chart, row, direction)
+    target == 0 && return nothing
+    ReplaceSelectionOperation(event_reference(chart, target))
+end
+
+# Follow causality: to what caused this occurrence, or to what it caused.
+function _follow_cause(chart::SequenceChart)
+    row = selected_event(chart)
+    row == 0 && return nothing
+    k = arrow_into_event(chart, row)
+    k == 0 && return nothing
+    ReplaceSelectionOperation(event_reference(chart, Int(chart.arrows.sources[k])))
+end
+
+function _follow_consequence(chart::SequenceChart)
+    row = selected_event(chart)
+    row == 0 && return nothing
+    k = arrow_from_event(chart, row)
+    k == 0 && return nothing
+    ReplaceSelectionOperation(event_reference(chart, Int(chart.arrows.targets[k])))
+end
+
+_move_selected_axis(chart::SequenceChart, offset::Integer) = begin
+    index = selected_axis_index(chart)
+    index == 0 && return nothing
+    order = axis_display_order(chart)
+    position = findfirst(==(index), order)
+    position === nothing ? nothing : move_axis(chart, position, position + offset)
+end
+
+# Navigation owns the arrow keys, as it does everywhere else in the editor: the
+# plain arrows step between parts and Alt+arrows walk the tree. With an
+# occurrence selected the arrows follow the trace instead — which is the whole
+# point of the chart, since reading one means asking what caused what. Panning
+# and zooming the view are the projection's, and reordering lanes takes
+# Ctrl+Shift so it collides with neither.
+@gestures SequenceChart begin
+    KeyDown(:home; ctrl) => "Select the first part" => _select_part(doc, 1)
+    KeyDown(:end; ctrl) => "Select the last part" =>
+        _select_part(doc, length(sequence_chart_parts(doc)))
+    KeyDown(:home;) => "Select the first part" => _select_part(doc, 1)
+    KeyDown(:end;) => "Select the last part" =>
+        _select_part(doc, length(sequence_chart_parts(doc)))
+
+    # With an occurrence selected the arrows walk the trace; otherwise they walk
+    # the parts. The test lives in the handler rather than in a block guard,
+    # which would gate every rule here.
+    KeyDown(:left;) => "Select the previous event, or part" =>
+        (selected_event(doc) == 0 ? _step_part(doc, -1) : _step_event(doc, -1))
+    KeyDown(:right;) => "Select the next event, or part" =>
+        (selected_event(doc) == 0 ? _step_part(doc, 1) : _step_event(doc, 1))
+    KeyDown(:up;) => "Select the previous part" => _step_part(doc, -1)
+    KeyDown(:down;) => "Select the next part" => _step_part(doc, 1)
+
+    KeyDown(:left; shift) => "Select the previous event on this lane" =>
+        _step_event_on_lane(doc, -1)
+    KeyDown(:right; shift) => "Select the next event on this lane" =>
+        _step_event_on_lane(doc, 1)
+    KeyDown(:left; ctrl) => "Follow the arrow back to the cause" => _follow_cause(doc)
+    KeyDown(:right; ctrl) => "Follow the arrow on to the consequence" =>
+        _follow_consequence(doc)
+
+    KeyDown(:home; ctrl, alt) => "Select the whole chart" => _select_whole(doc)
+    KeyDown(:left; alt) => "Select the whole chart" =>
+        (sequence_chart_part_index(doc, doc.selection) == 0 ? nothing : _select_whole(doc))
+    KeyDown(:right; alt) => "Select the first part" =>
+        (sequence_chart_part_index(doc, doc.selection) == 0 ? _select_part(doc, 1) : nothing)
+    KeyDown(:up; alt) => "Select the previous part" => _step_part(doc, -1)
+    KeyDown(:down; alt) => "Select the next part" => _step_part(doc, 1)
+
+    KeyDown(:up; ctrl, shift) => "Move the selected lane earlier" =>
+        _move_selected_axis(doc, -1)
+    KeyDown(:down; ctrl, shift) => "Move the selected lane later" =>
+        _move_selected_axis(doc, 1)
+    KeyDown(:delete; alt) => "Remove the selected lane" =>
+        (selected_axis_index(doc) == 0 ? nothing : delete_axis(doc, selected_axis_index(doc)))
 end
 
 end # module

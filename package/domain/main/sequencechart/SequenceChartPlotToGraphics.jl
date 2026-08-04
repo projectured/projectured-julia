@@ -48,7 +48,9 @@ import ..SequenceChartModule: SequenceChart, SequenceChartNothing, SequenceChart
                               event_axis, event_kind, event_label,
                               arrow_kind, arrow_label,
                               arrow_source_axis, arrow_target_axis,
-                              band_state_name
+                              band_state_name,
+                              event_reference, arrow_reference, band_reference,
+                              axis_reference, selected_event, selected_arrow
 import ..SequenceChartPlotModule: SequenceChartPlot, SequenceChartView
 import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
                                       frame_flow_span, frame_cross_span,
@@ -71,9 +73,15 @@ import ..ColorModule: StyleColor,
                       color_solarized_blue
 import ..FontModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
 import ..IoMapModule: IoMap, var"@iomap"
+import ..EventModule: MousePress, MouseMove, MouseLeave, MouseScroll
+import ..OperationModule: Operation, ReplaceSelectionOperation,
+                          ReplaceReferencedValueOperation, CompoundOperation
+import ..ReferenceModule: get_reference_node_type
+import ..ReferenceBuilderModule: var"@reference"
 
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
-       resolve_window, lane_cross_position
+       resolve_window, lane_cross_position,
+       event_hit, arrow_hit, band_hit, lane_hit, sequence_chart_reference
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -818,5 +826,287 @@ lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), nothin
 # highlights, so both mappers decline.
 map_reference_forward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
+
+# ── Hit testing ──────────────────────────────────────────────────────────
+#
+# Against the same laid-out frame the printer drew, so the two can never
+# disagree about where anything is. Canvas coordinates come in; the body's
+# origin and the cross scroll come off first.
+
+_in_rect(x, y, rx, ry, rw, rh) = rx <= x < rx + rw && ry <= y < ry + rh
+
+# Canvas point → body-local (flow, cross).
+function _local_flow_cross(g, plot, x::Real, y::Real)
+    lx = Float64(x) - g.body_x
+    ly = Float64(y) - g.body_y
+    offset = Float64(plot.cross_offset)
+    g.vertical ? (ly, lx + offset) : (lx, ly + offset)
+end
+
+_in_body(g, x::Real, y::Real) = _in_rect(x, y, g.body_x, g.body_y, g.body_w, g.body_h)
+
+"""
+    event_hit(geometry, plot, x, y) -> row | nothing
+
+Which occurrence is under a canvas point, within a few pixels. Only the events
+actually drawn are candidates, so a click can never select something that
+decimation left out.
+"""
+function event_hit(g, plot, x::Real, y::Real)
+    flow, cross = _local_flow_cross(g, plot, x, y)
+    events = g.chart.events
+    tolerance = g.style.event_radius + 3
+    best = nothing
+    best_distance = Inf
+    for i in g.visible_events
+        lane = event_axis(events, i)
+        position = get(g.lane_of, lane, nothing)
+        position === nothing && continue
+        ef = to_pixel(g.scale, g.coordinates[i])
+        distance = hypot(ef - flow, position - cross)
+        (distance <= tolerance && distance < best_distance) || continue
+        best = i; best_distance = distance
+    end
+    best
+end
+
+"""
+    arrow_hit(geometry, plot, x, y) -> row | nothing
+
+Which arrow is under a canvas point. Distance to the segment for a direct
+arrow, and to the chord for an arc — close enough at the tolerance a pointer
+works at, and far cheaper than sampling the curve.
+"""
+function arrow_hit(g, plot, x::Real, y::Real)
+    flow, cross = _local_flow_cross(g, plot, x, y)
+    best = nothing
+    best_distance = Inf
+    for shape in g.shapes
+        distance = if shape.route === :arc
+            # An arc leaves its lane and comes back; measuring to its apex band
+            # rather than to the lane keeps a click on the curve from selecting
+            # the lane underneath instead.
+            hypot((shape.f0 + shape.f1) / 2 - flow,
+                  (shape.c0 - shape.height) - cross)
+        else
+            _segment_distance(flow, cross, shape.f0, shape.c0, shape.f1, shape.c1)
+        end
+        (distance <= 5 && distance < best_distance) || continue
+        best = shape.index; best_distance = distance
+    end
+    best
+end
+
+function _segment_distance(px, py, x0, y0, x1, y1)
+    dx = x1 - x0; dy = y1 - y0
+    length_squared = dx * dx + dy * dy
+    length_squared == 0 && return hypot(px - x0, py - y0)
+    t = clamp(((px - x0) * dx + (py - y0) * dy) / length_squared, 0.0, 1.0)
+    hypot(px - (x0 + t * dx), py - (y0 + t * dy))
+end
+
+"""
+    band_hit(geometry, plot, x, y) -> (axis, band, row) | nothing
+
+Which state-band sample is under a canvas point.
+"""
+function band_hit(g, plot, x::Real, y::Real)
+    flow, cross = _local_flow_cross(g, plot, x, y)
+    for band in g.bands
+        top = band.cross - _BAND_HEIGHT - 2
+        (top <= cross <= top + _BAND_HEIGHT) || continue
+        for (c0, c1, _, index) in band.intervals
+            f0 = to_pixel(g.scale, c0); f1 = to_pixel(g.scale, c1)
+            (f0 <= flow <= f1) || continue
+            return (band.axis, band.band, index)
+        end
+    end
+    nothing
+end
+
+"""
+    lane_hit(geometry, plot, x, y) -> identity | nothing
+
+Which lane a canvas point falls nearest, counting the label strip as part of the
+lane so a click on a name selects it.
+"""
+function lane_hit(g, plot, x::Real, y::Real)
+    _, cross = _local_flow_cross(g, plot, x, y)
+    best = nothing
+    best_distance = Inf
+    for (position, identity) in enumerate(g.order)
+        position <= length(g.lanes) || break
+        distance = abs(g.lanes[position] - cross)
+        (distance <= 8 && distance < best_distance) || continue
+        best = identity; best_distance = distance
+    end
+    best
+end
+
+# In the label strip beside (or above) the body, a lane is picked by proximity
+# alone, since there is no line there to be near.
+function _label_strip_lane(g, x::Real, y::Real)
+    if g.vertical
+        (g.body_y - g.label_h - _LABEL_GAP <= y < g.body_y) || return nothing
+        cross = Float64(x) - g.body_x
+    else
+        (g.body_x - g.label_w - _LABEL_GAP <= x < g.body_x) || return nothing
+        cross = Float64(y) - g.body_y
+    end
+    best = nothing; best_distance = Inf
+    for (position, identity) in enumerate(g.order)
+        position <= length(g.lanes) || break
+        distance = abs(g.lanes[position] - cross)
+        distance < best_distance && (best = identity; best_distance = distance)
+    end
+    best_distance <= 20 ? best : nothing
+end
+
+# ── Reader ───────────────────────────────────────────────────────────────
+
+"""
+    sequence_chart_reference(plot, inner) -> Reference
+
+Lift a chart-rooted reference into the plot's own vocabulary, which is what the
+first stage then peels back off.
+"""
+function sequence_chart_reference(plot::SequenceChartPlot, inner)
+    inner === nothing && return nothing
+    ct = get_reference_node_type(plot.chart)
+    @reference ::SequenceChartPlot.chart::ct.^(inner)
+end
+
+_select(plot, inner) = begin
+    reference = sequence_chart_reference(plot, inner)
+    reference === nothing ? nothing : ReplaceSelectionOperation(reference)
+end
+
+# Clicking picks the most specific thing under the pointer. The order is the one
+# OMNeT++ settled on and for the same reason: an occurrence is a point and an
+# arrow is a line, so where both are within reach the point was almost certainly
+# what was aimed at.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
+                     gesture::MousePress)
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot = iomap.input
+    chart = plot.chart
+    x, y = gesture.x, gesture.y
+
+    # Double-click returns to the whole trace: the reliable way out of a zoom,
+    # and the one people reach for without being told.
+    if gesture.count >= 2 && _in_body(g, x, y)
+        plot.view === nothing && return nothing
+        return ReplaceReferencedValueOperation(plot, "view", nothing)
+    end
+
+    if _in_body(g, x, y)
+        row = event_hit(g, plot, x, y)
+        row === nothing || return _select(plot, event_reference(chart, row))
+        arrow = arrow_hit(g, plot, x, y)
+        arrow === nothing || return _select(plot, arrow_reference(chart, arrow))
+        band = band_hit(g, plot, x, y)
+        band === nothing || return _select(plot, band_reference(chart, band...))
+        lane = lane_hit(g, plot, x, y)
+        lane === nothing || return _select(plot, axis_reference(chart, lane))
+        return nothing
+    end
+
+    lane = _label_strip_lane(g, x, y)
+    lane === nothing || return _select(plot, axis_reference(chart, lane))
+    nothing
+end
+
+# Hovering names what is under the pointer and reads the time there. Both are
+# overlay state: they are written to the plot, and only the element pass reads
+# them, so a pointer move never re-runs the layout.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
+                     gesture::MouseMove)
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot = iomap.input
+    chart = plot.chart
+    x, y = gesture.x, gesture.y
+
+    hovered = nothing
+    if _in_body(g, x, y)
+        row = event_hit(g, plot, x, y)
+        if row !== nothing
+            hovered = sequence_chart_reference(plot, event_reference(chart, row))
+        else
+            arrow = arrow_hit(g, plot, x, y)
+            arrow === nothing ||
+                (hovered = sequence_chart_reference(plot, arrow_reference(chart, arrow)))
+        end
+    end
+
+    cursor = nothing
+    if _in_body(g, x, y) && chart.gutter.cursor_readout
+        flow, _ = _local_flow_cross(g, plot, x, y)
+        cursor = coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
+    end
+
+    operations = Any[]
+    isequal(plot.hovered, hovered) ||
+        push!(operations, ReplaceReferencedValueOperation(plot, "hovered", hovered))
+    isequal(plot.cursor, cursor) ||
+        push!(operations, ReplaceReferencedValueOperation(plot, "cursor", cursor))
+    isempty(operations) && return nothing
+    length(operations) == 1 ? operations[1] : CompoundOperation(operations)
+end
+
+# Leaving clears both, so a stale readout never outlives the pointer.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseLeave)
+    plot = iomap.input
+    (plot.hovered === nothing && plot.cursor === nothing) && return nothing
+    CompoundOperation(Any[
+        ReplaceReferencedValueOperation(plot, "hovered", nothing),
+        ReplaceReferencedValueOperation(plot, "cursor", nothing)])
+end
+
+# The wheel zooms about the pointer, so whatever is under it stays under it —
+# the only zoom that lets someone drive toward a detail rather than hunt for it
+# again afterwards. Shift makes it pan instead. Over the lane labels it scrolls
+# the lanes, which is the one thing the cross axis can do.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseScroll)
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot = iomap.input
+    x, y = gesture.x, gesture.y
+    steps = gesture.dy != 0 ? gesture.dy : gesture.dx
+    steps == 0 && return nothing
+
+    if _label_strip_lane(g, x, y) !== nothing
+        return ReplaceReferencedValueOperation(plot, "cross_offset",
+                                               max(plot.cross_offset - 20 * steps, 0))
+    end
+    _in_body(g, x, y) || return nothing
+
+    span = g.hi - g.lo
+    if gesture.modifiers.shift
+        return _window_operation(g, plot, g.lo + span * 0.15 * -steps, span)
+    end
+    flow, _ = _local_flow_cross(g, plot, x, y)
+    focus = to_data(g.scale, flow)
+    factor = steps > 0 ? (0.85 ^ steps) : (1 / 0.85) ^ (-steps)
+    new_span = span * factor
+    # Keep the coordinate under the pointer where it was.
+    fraction = span == 0 ? 0.5 : (focus - g.lo) / span
+    _window_operation(g, plot, focus - fraction * new_span, new_span)
+end
+
+# A window is stored relative to an event, so committing one means choosing the
+# anchor: the first event at or after the window's start, falling back to the
+# last event. Anchoring to an occurrence is what keeps the view still when the
+# trace grows behind it.
+function _window_operation(g, plot::SequenceChartPlot, lo::Real, span::Real)
+    coordinates = g.coordinates
+    n = length(coordinates)
+    n == 0 && return nothing
+    span > 0 || return nothing
+    anchor = clamp(searchsortedfirst(coordinates, Float64(lo)), 1, n)
+    view = SequenceChartView(anchor, Float64(lo) - coordinates[anchor], Float64(span))
+    ReplaceReferencedValueOperation(plot, "view", view)
+end
 
 end # module
