@@ -36,7 +36,8 @@ import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, Mo
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+    evaluate_reference
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -1484,10 +1485,15 @@ function _al_rect_of(node)
     node isa GraphicsCanvas &&
         return (Int(node.x[]), Int(node.y[]), Int(node.w[]), Int(node.h[]))
     node isa GraphicsDocument || return nothing
-    w, h = graphics_size(node)
     x = hasproperty(node, :x) ? Int(node.x) : 0
     y = hasproperty(node, :y) ? Int(node.y) : 0
-    (x, y, Int(w), Int(h))
+    # A node that states its own size says it exactly; for anything else
+    # `graphics_size` gives the extent measured *from the origin*, so the node's
+    # own size is what is left of that after its offset.
+    (hasproperty(node, :w) && hasproperty(node, :h)) &&
+        return (x, y, Int(node.w), Int(node.h))
+    ex, ey = graphics_size(node)
+    (x, y, max(0, Int(ex) - x), max(0, Int(ey) - y))
 end
 
 function _al_build(recursion, doc::AnchoredLayout, ctx)

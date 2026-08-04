@@ -16,9 +16,15 @@ using ProjecturedVisual.LayoutModule: AnchoredLayout, AnchoredEntry, VerticalLay
 using ProjecturedVisual.LayoutToGraphicsModule: LayoutToGraphics
 using ProjecturedVisual.WidgetModule: WidgetLabel, Point2D
 using ProjecturedVisual.WidgetToGraphicsModule: WidgetToGraphics
-using ProjecturedVisual.GraphicsModule: GraphicsCanvas
+using ProjecturedVisual.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
+using ProjecturedVisual.ColorModule: color_black
+using ProjecturedVisual.CollectionModule: CellVector
 using ProjecturedVisual.FontModule: font_ubuntu_monospace_regular_20
-using ProjecturedVisual.ProjectionApiModule: print_document
+import ProjecturedVisual.ProjectionApiModule: print_document, map_reference_forward
+using ProjecturedVisual.ProjectionApiModule: Projection
+using ProjecturedVisual.IoMapModule: SimpleIoMap
+using ProjecturedVisual.ReferenceBuilderModule: var"@reference"
+using ProjecturedVisual.ReferenceCaseModule: var"@reference_case"
 using ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedBase.TypeDispatchingProjectionModule: TypeDispatchingProjection
 
@@ -29,6 +35,24 @@ _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = _al_measure).dispatch)))
 
 _al_label(text) = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), text)]; gap = 0)
+
+# A content projection that draws a box per child and can say *where* it drew
+# each one. That second half is the contract a reference-named target rests on:
+# an anchor asks the content's own projection where something it holds ended up.
+struct _AlBoxes <: Projection end
+
+function print_document(p::_AlBoxes, recursion, doc::VerticalLayout, ctx)
+    boxes = Any[GraphicsRect(0, (i - 1) * 30, 40, 20, color_black)
+                for i in 1:length(doc.children)]
+    canvas = GraphicsCanvas(CellVector(Cell[Cell(b) for b in boxes]), layout_none)
+    SimpleIoMap(p, doc, canvas)
+end
+
+map_reference_forward(p::_AlBoxes, iomap, reference) =
+    @reference_case reference begin
+        ::VerticalLayout.children[i] => (@reference iomap.output elements[i])
+        _ => nothing
+    end
 
 # The (x, y) of each element of a rendered anchored layout.
 function _al_positions(output)
@@ -99,6 +123,38 @@ function test_anchored_layout()
         @test length(positions) == 2
         @test positions[1] == (0, 0)
         @test positions[2] == (116, 0)      # past the content's right edge, plus the offset
+    end
+
+    @testset "a target named by reference is resolved through the content" begin
+        # The other way to name a target, and the one a live diagram uses: the
+        # annotation names *what it annotates* in the content's own terms and the
+        # content's projection says where that ended up. Nothing here reads a
+        # graphics document directly.
+        content = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "a"),
+                                     WidgetLabel(Point2D(0, 0), "b")]; gap = 0)
+        note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "note");
+                             reference = @reference(content, children[2]),
+                             placement = :right)
+        renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[VerticalLayout => _AlBoxes()],
+            LayoutToGraphics().dispatch,
+            WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                             measure = _al_measure).dispatch)))
+        output = print_document(renderer, AnchoredLayout(content, Any[note])).output
+
+        # Beside the *second* box — at the origin is what an unresolved target
+        # looks like, and it is indistinguishable from a real placement unless
+        # the assertion says which box.
+        positions = _al_positions(output)
+        @test length(positions) == 2
+        @test positions[2] == (40, 30)
+
+        # A reference the content cannot place is still not an error.
+        stray = AnchoredEntry(WidgetLabel(Point2D(0, 0), "note");
+                              reference = @reference(content, children[9]),
+                              placement = :right)
+        strayed = print_document(renderer, AnchoredLayout(content, Any[stray])).output
+        @test _al_positions(strayed)[2] == (0, 0)
     end
 
     @testset "a bounded region is what placement respects" begin

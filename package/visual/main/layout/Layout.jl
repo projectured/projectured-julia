@@ -525,8 +525,14 @@ _anchored_opposite(side::Symbol) =
 _anchored_perpendicular(side::Symbol) =
     (side === :left || side === :right) ? (:below, :above) : (:right, :left)
 
+# Whether a candidate position is inside the region, per axis. An axis with no
+# bound has no wall on either side — including at the origin, because content
+# may legitimately extend to negative coordinates (a diagram whose node boxes
+# are padded outward from the layout origin does), and an annotation refusing
+# the side it was asked for merely because that side is negative would put it
+# somewhere the reader has no reason to expect.
 _anchored_fits(x::Int, y::Int, w::Int, h::Int, bw::Int, bh::Int) =
-    x >= 0 && y >= 0 && (bw <= 0 || x + w <= bw) && (bh <= 0 || y + h <= bh)
+    (bw <= 0 || (x >= 0 && x + w <= bw)) && (bh <= 0 || (y >= 0 && y + h <= bh))
 
 function _anchored_place(target, w::Int, h::Int, placement::Symbol,
                          bounding_w::Int, bounding_h::Int)
