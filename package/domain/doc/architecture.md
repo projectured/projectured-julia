@@ -15,6 +15,7 @@ Companion guides for individual domain slices live alongside this file:
 - [xml.md](xml.md) — the XML domain
 - [chart.md](chart.md) — the chart domain
 - [sequencechart.md](sequencechart.md) — the sequence chart domain
+- [fsm.md](fsm.md) — the state machine domain
 - [workbench.md](workbench.md) — the workbench application slice
 - [versioning.md](versioning.md) — the versioning overlay
 
@@ -65,6 +66,10 @@ sequencechart/
             SequenceChart.jl · SequenceChartPlot.jl ·
             SequenceChartToSequenceChartPlot.jl ·
             SequenceChartPlotToGraphics.jl        (→ chart slice)
+fsm/        Fsm.jl · FsmToSyntax.jl · FsmDiagram.jl · FsmToFsmDiagram.jl ·
+            FsmDiagramToGraph.jl · FsmToJuliaCode.jl
+                                  (→ julia slice for embedded code and
+                                   codegen, → graph slice for the diagram)
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
@@ -95,7 +100,7 @@ land elsewhere:
 
 ## Slice DAG (cross-slice edges within the source layer)
 
-Only four cross-slice edges exist and they form a DAG:
+The cross-slice edges form a DAG:
 
 - `formula → julia` — Formula uses JuliaModule types for its expressions
 - `dbcatalog → sql` — DbCatalog renders through SqlToSyntax
@@ -106,6 +111,9 @@ Only four cross-slice edges exist and they form a DAG:
   scaling and tick selection (`ChartGeometryModule`), its colour cycle
   (`ChartModule`) and its marker shapes (`ChartPlotToGraphicsModule`),
   so the two read as one family rather than duplicating the arithmetic
+- `fsm → julia` — guards/actions/entry code are JuliaDocument subtrees, and
+  the code generator builds a JuliaDocument module
+- `fsm → graph` — the state diagram prints into the graph slice
 
 Everything else is within-slice or points at a lower package
 (kernel/base/visual). The guard checks acyclicity statically.

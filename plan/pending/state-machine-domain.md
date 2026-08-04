@@ -491,9 +491,30 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
 `[sources]` against the **live** projectured-julia checkout — coordinate landings
 (the drifting-baseline rule).
 
-- [ ] **P0 — documents + semantics doc.** Slice folder, `@domain Fsm`, all `@document`
-  types, insertion kit, document tests, includes + layering guard green, `fsm.md`
-  skeleton with the §3 contract.
+- [x] **P0 — documents + semantics doc.** DONE. Slice folder, `@domain Fsm`, all
+  `@document` types, insertion kit, document tests, includes + layering guard green,
+  `fsm.md` carrying the §3 contract. Exit: `test_domain_layering()` 6/6,
+  `test_fsm()` 56/56.
+
+      Decisions made while implementing:
+      - **Mixed positional+keyword constructors are hand-written** (`FsmState("IDLE";
+        entry=…)`, likewise variable/machine/component). The macro emits
+        all-positional or all-keyword, never the mix — the same constraint the chart
+        plan hit with its series types. Typed `::AbstractString` first arguments keep
+        them strictly more specific than the generated `::Any` forms, so no generated
+        method is shadowed (the `GraphEdge` precedent).
+      - A local `_fsm_cellvector` helper accepts a plain `Vector`, a `CellVector` or
+        pre-wrapped `Cell`s for every collection field. `FsmComponent`'s six
+        `CellVector`s get no Rule C sugar (it fires only for a *single* collection
+        field), so this is the one conversion point.
+      - `machine_transitions` defines the **flattened transition order** (states in
+        document order, each state's transitions in order). That order is the shared
+        index vocabulary for the generated `last_transition` recording and the
+        diagram's live edge highlight, so it belongs to the domain, not to codegen.
+      - The document layer holds embedded code as opaque `Document` values, so
+        `Fsm.jl` needs **no julia import**: the `fsm → julia` edge starts at the
+        notation and codegen files, which keeps the document include early in the
+        topological order (right after the chart documents).
 - [ ] **P1 — natural notation.** `FsmToSyntax` via `@projection_template` (julia
   subtrees through the shared dispatch table), the flat-offset reader, trigger/target
   name-resolution on commit, TCP + toggle examples registered in both registries,
