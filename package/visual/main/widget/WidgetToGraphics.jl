@@ -3004,15 +3004,48 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     # No content: nothing can refuse the wheel, so fall through to scrolling
     # ourselves rather than dropping the event.
     content_iomap === nothing && return _self_scroll(p, iomap, canvas, evt)
+    # Every coordinate-bearing pointer event needs the same translation, not just
+    # the press. Translating only the press left motion and the hover crossings
+    # arriving in the pane's own frame: a scrolled list highlighted the row that
+    # WOULD be under the pointer if it had never been scrolled, while a click on
+    # the same pixel correctly selected the row that was actually there. The
+    # viewport variant of this projection already translates the whole set.
+    _local(x, y) = begin
+        w = iomap.input
+        cox, coy = _content_offset(w)
+        sp = getfield(w, :scroll_position)[]::Point2D
+        (x - cox + Int(sp.x[]), y - coy + Int(sp.y[]))
+    end
     op = @event_case evt begin
         MousePress(button, x, y) => begin
-            w = iomap.input
-            cox, coy = _content_offset(w)
-            sp = getfield(w, :scroll_position)[]::Point2D
-            sx, sy = Int(sp.x[]), Int(sp.y[])
-            lx, ly = x - cox + sx, y - coy + sy
+            lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
                              MousePress(button, lx, ly, evt.modifiers))
+        end
+        MouseDown(button, x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseDown(button, lx, ly, evt.modifiers))
+        end
+        MouseUp(button, x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseUp(button, lx, ly, evt.modifiers))
+        end
+        MouseMove(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseMove(lx, ly, evt.buttons, evt.modifiers))
+        end
+        MouseEnter(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseEnter(lx, ly, evt.buttons, evt.modifiers))
+        end
+        MouseLeave(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                             MouseLeave(lx, ly, evt.buttons, evt.modifiers))
         end
         # The wheel goes to the innermost pane under the pointer, so translate
         # it like a press and let the content refuse first; see the viewport

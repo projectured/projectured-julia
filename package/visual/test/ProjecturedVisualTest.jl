@@ -118,6 +118,7 @@ include("projection/TooltipTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
 include("projection/SplitPaneDragTest.jl")
+include("projection/ScrollPaneHoverTest.jl")
 include("projection/WidgetPopupExampleTest.jl")
 
 # ── visual-level generic drivers ─────────────────────────────────────────────
@@ -210,6 +211,7 @@ function test_visual()
         test_clipboard_to_any()
         test_tooltip()
         test_split_pane_drag()
+        test_scroll_pane_hover()
         test_widget_popup_example()
         # generic drivers over visual examples
         test_collapse_roundtrip()
@@ -248,7 +250,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
-export test_clipboard_to_any, test_tooltip, test_split_pane_drag,
+export test_clipboard_to_any, test_tooltip, test_split_pane_drag, test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip
 export POSITION_NAV_KEYS, POSITION_SEED_GESTURE, TREE_NAV_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,
