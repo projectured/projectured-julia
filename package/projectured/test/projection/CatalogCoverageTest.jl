@@ -131,12 +131,16 @@ screen, or the workload is compiling less than it appears to.
 function test_natural_renders_every_atom()
     @testset "every atom renders naturally" begin
         atoms = ProjecturedExample.atomic_documents()
-        @test precompile_atoms(atoms) == length(atoms)
-        # Name the ones that failed: a bare count sends the reader back to a loop
-        # with a `catch` in it and nothing to go on.
-        for atom in atoms
-            precompile_atoms([atom]) == 1 && continue
-            @info "atom does not render through NaturalToGraphics" atom.domain atom.name
+        rendered = precompile_atoms(atoms)
+        @test rendered == length(atoms)
+        # Name the ones that failed — a bare count sends the reader back to a
+        # loop with a `catch` in it and nothing to go on. Only on failure: the
+        # re-run costs as much again as the pass it would be repeating.
+        if rendered != length(atoms)
+            for atom in atoms
+                precompile_atoms([atom]) == 1 && continue
+                @info "atom does not render through NaturalToGraphics" atom.domain atom.name
+            end
         end
     end
 end
