@@ -605,9 +605,15 @@ function test_chart()
                                    _series_elements(iomap.output)))
             @test before == 1
             # Replacing the column repaints from the same projection output.
+            # The spans live on the layout, so this is also what proves the
+            # layout re-derives: strips contribute no y bounds, so `values` is
+            # read nowhere else in it.
             chart.series[1].values = [1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 2]
             after = length(filter(e -> e isa GraphicsRect, _series_elements(iomap.output)))
             @test after > before
+            # And again, so a second write is not serving the first one's spans.
+            chart.series[1].values = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1]
+            @test length(filter(e -> e isa GraphicsRect, _series_elements(iomap.output))) == 11
         end
 
         @testset "line style" begin
@@ -1175,6 +1181,15 @@ function test_chart_scale()
 
             elapsed = @elapsed _series_elements(_chart_canvas(chart))
             @test elapsed < 5.0
+
+            # Spans come off the layout rather than being recomputed: the
+            # printer and the overlay both want them on every repaint, which is
+            # every pointer move.
+            g = _chart_layout(chart)
+            @test haskey(g.strip_spans, 1)
+            @test ChartPlotToGraphicsModule._strip_spans(g, 1) === g.strip_spans[1]
+            # A series with no row contributes none, and asking is not an error.
+            @test ChartPlotToGraphicsModule._strip_spans(g, 99) == Tuple{Int,Int,Int}[]
 
             # Zoomed in far enough that every segment is a pixel or more, each
             # one draws exactly — the fold is only what sub-pixel spans need.

@@ -550,12 +550,16 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     # layout, which already dies and is rebuilt whenever the data, the window or
     # the size changes.
     point_cache = Dict{Int,Vector{Tuple{Int,Int}}}()
+    # Strip spans, computed here rather than on demand: see `_strip_spans`.
+    strip_spans = Dict{Int,Vector{Tuple{Int,Int,Int}}}(
+        i => _compute_strip_spans(xs, view, s)
+        for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
 
     (; w, h, chart, style, view, series, legend,
        hovered_index, selected_index, selected_part, whole_selected,
        measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
-       point_cache, strip_rows, strip_count, strip_only,
+       point_cache, strip_spans, strip_rows, strip_count, strip_only,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, title_h,
        x_title, y_title, x_title_h, y_title_h)
@@ -993,29 +997,46 @@ _strip_end(s::ChartStripSeries, view) =
     s.x_end === nothing ? view.x_max : Float64(s.x_end)
 
 """
-    _strip_spans(g, series) -> Vector{Tuple{Int,Int,Int}}
+    _strip_spans(g, index) -> Vector{Tuple{Int,Int,Int}}
 
 The `(left, right, code)` pixel spans a strip draws over the visible window:
 clipped to the window, runs of equal values coalesced, and sub-pixel runs folded
 to whichever state holds them longest. Absolute pixels, bounded by the plot
 width no matter how long the columns are.
+
+Computed once in the layout rather than on demand. Walking the visible index
+range is the whole column when the chart is zoomed out, and both the printer and
+the overlay want the result on every repaint — which is every pointer move,
+since the crosshair reads the cursor. Doing it in the layout is also what makes
+the reactivity right: the layout reads the value column, so replacing that
+column rebuilds the layout, where a cache filled on demand would have gone stale
+behind an unchanged one. (Strips contribute no y bounds, so nothing else in the
+layout reads `values`.)
 """
-function _strip_spans(g, s::ChartStripSeries)
+_strip_spans(g, index::Int) = get(g.strip_spans, index, _NO_SPANS)
+
+const _NO_SPANS = Tuple{Int,Int,Int}[]
+
+function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
     x, values = s.x, s.values
     n = min(length(x), length(values))
-    n >= 1 || return Tuple{Int,Int,Int}[]
-    i0, i1 = visible_range(x, g.view.x_min, g.view.x_max)
+    n >= 1 && return _strip_spans_of(xs, view, s, x, values, n)
+    _NO_SPANS
+end
+
+function _strip_spans_of(xs::AxisScale, view, s::ChartStripSeries, x, values, n::Int)
+    i0, i1 = visible_range(x, view.x_min, view.x_max)
     i1 = min(i1, n)
     i0 > i1 && return Tuple{Int,Int,Int}[]
     runs = strip_runs(values, i0, i1)
     isempty(runs) && return Tuple{Int,Int,Int}[]
-    drawn_end = _strip_end(s, g.view)
+    drawn_end = _strip_end(s, view)
     lefts = Vector{Float64}(undef, length(runs))
     rights = Vector{Float64}(undef, length(runs))
     codes = Vector{Int}(undef, length(runs))
     for (k, (a, b)) in enumerate(runs)
-        lefts[k] = to_pixel(g.xs, Float64(x[a]))
-        rights[k] = b < n ? to_pixel(g.xs, Float64(x[b + 1])) : to_pixel(g.xs, drawn_end)
+        lefts[k] = to_pixel(xs, Float64(x[a]))
+        rights[k] = b < n ? to_pixel(xs, Float64(x[b + 1])) : to_pixel(xs, drawn_end)
         codes[k] = Int(values[a])
     end
     fold_strips(lefts, rights, codes, 1)
@@ -1032,7 +1053,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     top, bottom = band
     ox, oy = g.plot_x, g.plot_y
     height = max(bottom - top, 1)
-    spans = _strip_spans(g, s)
+    spans = _strip_spans(g, index)
     cycle = g.style.color_cycle
     veiled = g.hovered_index != 0 && g.hovered_index != index
 
@@ -1164,7 +1185,7 @@ function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
     left = round(Int, to_pixel(g.xs, Float64(s.x[k])))
     right = round(Int, k < n ? to_pixel(g.xs, Float64(s.x[k + 1])) :
                        to_pixel(g.xs, _strip_end(s, g.view)))
-    for (sl, sr, _) in _strip_spans(g, s)
+    for (sl, sr, _) in _strip_spans(g, index)
         if sl <= left < sr
             left, right = sl, sr
             break
