@@ -3,7 +3,7 @@ ProjecturedExecutable
 
 The compiled-app entry module. It is **generic over a baked configuration**: the
 editor it runs (domain, workbench, file-backed) and the backend(s) compiled in are
-fixed at build time by `build_executable` (see `../Builder.jl`), which writes the
+fixed at build time by `build_executable` (see `../builder/`), which writes the
 `AppConfig.jl` this module includes. `julia_main` then parses the runtime arguments
 (a file to edit, and `--backend` when the build exposed it) and opens the editor.
 """
@@ -19,7 +19,7 @@ include(joinpath(@__DIR__,
                  isfile(joinpath(@__DIR__, "AppConfig.jl")) ? "AppConfig.jl" :
                                                               "AppConfig.default.jl"))
 
-export julia_main, main, print_help, print_version, precompile_warmup
+export julia_main, print_help, print_version, precompile_warmup
 
 # ── Help / version ─────────────────────────────────────────────────────────
 
@@ -179,14 +179,10 @@ function julia_main(args::Vector{String})::Cint
     return 0
 end
 
-# PackageCompiler entry point.
+# PackageCompiler entry point — `create_app` resolves the binary's entry by this
+# name and requires the `Cint` return. It is the argv/exit-code adapter and
+# nothing else; to open an editor from a session, call `run_file_editor` (or
+# `run_example`) directly.
 julia_main()::Cint = julia_main(copy(ARGS))
-
-# Convenience for running this file directly with `julia ProjecturedExecutable.jl`.
-main() = julia_main(copy(ARGS))
-
-if abspath(PROGRAM_FILE) == @__FILE__
-    exit(main())
-end
 
 end # module
