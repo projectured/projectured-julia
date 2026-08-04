@@ -597,11 +597,12 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
 
-### Status: P0–P5 landed on main; P6–P7 are next
+### Status: P0–P6 landed on main; P7 (PLCA) is what remains
 
 Everything through P5 is implemented, verified and merged into `main` in all
-three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5 in
-inet-julia). The MAC in the shipping 10BASE-T1S model is generated code.
+three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5–P6 in
+inet-julia). The MAC in the shipping 10BASE-T1S model is generated code, and the
+machine it is generated from can be watched running.
 
 **The one thing that had to happen first was landing, not design.** While the
 work sat on worktree branches, inet-julia could not see the runtime at all:
@@ -684,11 +685,36 @@ the timer — which is what entry actions are for.
         t1s slice is nine files making up one module, so a generated file
         wrapped in its own module would not drop in where the hand-written one
         sat.
-- [ ] **P6 — live view.** Watch example in inet-julia under a new `watch/` env
-  carrying the presentation-stack deps (§7): editor with the diagram over the pilot
-  machine, sliced driver + monitor task refreshing `FsmDiagram`, current state ring,
-  last-transition re-stroke, counter badge; stepped mode showing individual
-  transitions.
+- [x] **P6 — live view.** DONE. `watch/mac_fsm.jl` (headless self-test) and
+  `watch/mac_fsm_sdl.jl` (the editor), under a `watch/` env carrying the
+  presentation-stack deps. Exit: the self-test steps a real 10BASE-T1S run until the
+  MAC first moves, asserts the ring appeared and the overlay agrees, then drives to
+  completion and asserts it still does — 22 transitions, 7 frames sent; inet-julia
+  2311/2311.
+
+      Decisions and discoveries:
+      - **The diagram projects the same document the code was generated from**, so
+        the picture cannot drift from the implementation. That is the whole point of
+        the pilot arrangement and it costs nothing: the watch example includes the
+        generator for the machine, and the generator was made include-safe
+        (it regenerates only when run as a script).
+      - The live seam really is three integers written when changed. Nothing else
+        crosses from the simulation to the editor, and the layout engine never
+        re-runs on a transition.
+      - `live_state` is 1-based (an index into the machine's states) while the
+        generated state constants are 0-based, because those had to match the enum
+        they replaced. `last_transition` needs no adjustment: the generator numbers
+        transitions in the machine's flattened order, which is exactly the order the
+        diagram's edge highlight indexes — the two were designed against the same
+        vocabulary in P0.
+      - **Stepped mode is what makes transitions watchable.** At full speed a slice
+        collapses many transitions into one repaint; the SDL entry point advances one
+        event per frame by default.
+      - The umbrella re-exports the editor/screen/projection names flatly, so the
+        example needs no sub-package imports — only `ProjecturedSdl` for the backend.
+      - The watch env is standalone (like omnetpp-julia's), so its self-test is run
+        directly rather than from `test/runtests.jl`, whose root env has no
+        Projectured.
 - [ ] **P7 — PLCA (inet-julia, proves the rest).** `PlcaControl` + `PlcaData` as one
   two-machine component: condition-only tables with `is_scheduled` guard polling and
   the §3 expiry routing, cross-machine injection via the per-machine deferred queues,
