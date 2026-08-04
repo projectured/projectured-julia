@@ -19,6 +19,11 @@ string (`<<file(\"path\")>>`). Load walks the AST for
 each such call slot with a `ReferenceStub`. Emit is symmetric via
 the projection extension (see `JuliaToSyntax.jl`), so no pre-save
 AST mutation is required.
+
+**The `definition` marker function.** This module also registers the
+Julia domain's entry in the marker vocabulary:
+`definition(document, "name")` returns the one top-level definition of
+that name — see [`julia_definition`](@ref).
 """
 module JuliaFileModule
 
@@ -31,14 +36,17 @@ import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
                       JuliaUnaryOp, JuliaIndex, JuliaFieldAccess, JuliaRange,
                       JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator,
                       JuliaWhile, JuliaReturn, JuliaTry, JuliaBegin, JuliaIf,
-                      JuliaFunction, JuliaLambda, JuliaTernary
+                      JuliaFunction, JuliaLambda, JuliaTernary, JuliaConst,
+                      JuliaDocstring, JuliaMacroCall, JuliaStruct, JuliaAbstractType,
+                      JuliaSubtype, JuliaCurly
 import ..JuliaParserModule: juliaparse
 import ..NaturalFormatModule: document_to_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!
+                            register_file_document_type!, register_marker_function!,
+                            is_file_document
 
-export JuliaFile, PRED_REF_FUNCTION_NAME
+export JuliaFile, PRED_REF_FUNCTION_NAME, julia_definition, julia_definition_name
 
 """
 The identifier used to encode a cross-file marker as a Julia call
@@ -142,8 +150,84 @@ _substitute_markers(n::JuliaIf, ctx::LoaderContext)             = _substitute_ch
 _substitute_markers(n::JuliaFunction, ctx::LoaderContext)       = _substitute_children!(n, ctx, (:name, :body),           (:params,))
 _substitute_markers(n::JuliaLambda, ctx::LoaderContext)         = _substitute_children!(n, ctx, (:body,),                 (:parameters,))
 
+# ── The `definition` vocabulary function ───────────────────────────────────
+#
+# `<<definition(file("steps.jl"), "packet_queue_step")>>` embeds one
+# top-level definition of a source file. Addressing by the name a
+# definition already carries is what makes the marker survive editing
+# and reordering the file around it.
+
+"""
+    julia_definition_name(node) -> String or nothing
+
+The name a top-level Julia definition introduces, or `nothing` for a
+statement that introduces none (a `using`, a bare call, …).
+
+A docstring is named by what it documents, and a macro call by its
+first argument — so `@document struct Foo … end` is found under
+`"Foo"`, and asking for a documented definition yields the docstring
+with it rather than the bare definition.
+"""
+julia_definition_name(::Any) = nothing
+julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
+julia_definition_name(n::JuliaStruct)       = _julia_header_name(n.header)
+julia_definition_name(n::JuliaAbstractType) = _julia_header_name(n.header)
+julia_definition_name(n::JuliaAssignment)   = _julia_header_name(n.target)
+julia_definition_name(n::JuliaConst)        = julia_definition_name(n.assignment)
+julia_definition_name(n::JuliaDocstring)    = julia_definition_name(n.subject)
+
+function julia_definition_name(n::JuliaMacroCall)
+    args = getfield(n, :arguments)[]
+    isempty(args) && return nothing
+    julia_definition_name(args[1] isa Cell ? args[1][] : args[1])
+end
+
+# The name inside a definition header: a plain identifier, the callee of
+# a short-form `f(x) = …`, the left side of a `<:`, the base of a
+# parametric `Foo{T}`.
+_julia_header_name(::Any) = nothing
+_julia_header_name(n::JuliaIdentifier) = n.name
+_julia_header_name(n::JuliaCall)       = _julia_header_name(n.callee)
+_julia_header_name(n::JuliaSubtype)    = _julia_header_name(n.lhs)
+_julia_header_name(n::JuliaCurly)      = _julia_header_name(n.callee)
+
+"""
+    julia_definition(document, name) -> JuliaDocument
+
+The top-level definition called `name` in `document` (a `JuliaFile` or
+a parsed `JuliaDocument`). Errors when there is no such definition, and
+when there is more than one — an ambiguous embed would silently show
+the wrong half of a file, so it is not allowed. Method overloads of one
+function are the common case of that and must be embedded by wrapping
+them, not by name.
+"""
+function julia_definition(document, name::AbstractString)
+    doc = is_file_document(document) ? content(document) : document
+    doc isa JuliaDocument ||
+        error("definition(…): expected a Julia document, got ", typeof(document))
+    matches = Any[s for s in _julia_toplevel_statements(doc)
+                    if julia_definition_name(s) == String(name)]
+    isempty(matches) &&
+        error("definition(…): no top-level definition named ", repr(String(name)),
+              " — the file defines (", join(_julia_definition_names(doc), ", "), ")")
+    length(matches) > 1 &&
+        error("definition(…): ", repr(String(name)), " is defined ", length(matches),
+              " times at top level — a marker must name exactly one definition")
+    matches[1]
+end
+
+_julia_toplevel_statements(doc::JuliaBlock) =
+    Any[s isa Cell ? s[] : s for s in getfield(doc, :statements)[]]
+_julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
+
+_julia_definition_names(doc) =
+    String[n for n in (julia_definition_name(s) for s in _julia_toplevel_statements(doc))
+             if n !== nothing]
+
 function __init__()
     register_file_document_type!(".jl", JuliaFile)
+    register_marker_function!(:definition,
+                              (ctx, document, name) -> julia_definition(document, name))
 end
 
 end # module
