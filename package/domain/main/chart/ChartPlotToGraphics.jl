@@ -1013,18 +1013,14 @@ column rebuilds the layout, where a cache filled on demand would have gone stale
 behind an unchanged one. (Strips contribute no y bounds, so nothing else in the
 layout reads `values`.)
 """
-_strip_spans(g, index::Int) = get(g.strip_spans, index, _NO_SPANS)
-
 const _NO_SPANS = Tuple{Int,Int,Int}[]
+
+_strip_spans(g, index::Int) = get(g.strip_spans, index, _NO_SPANS)
 
 function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
     x, values = s.x, s.values
     n = min(length(x), length(values))
-    n >= 1 && return _strip_spans_of(xs, view, s, x, values, n)
-    _NO_SPANS
-end
-
-function _strip_spans_of(xs::AxisScale, view, s::ChartStripSeries, x, values, n::Int)
+    n >= 1 || return Tuple{Int,Int,Int}[]
     i0, i1 = visible_range(x, view.x_min, view.x_max)
     i1 = min(i1, n)
     i0 > i1 && return Tuple{Int,Int,Int}[]
