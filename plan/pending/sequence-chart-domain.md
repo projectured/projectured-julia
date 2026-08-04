@@ -529,12 +529,39 @@ here as they land.
   - `axis_display_order` ignores a stale permutation (wrong length, or a repeated
     lane) rather than obeying it, so a half-finished edit degrades to the listed
     order instead of dropping lanes off the picture.
-- [ ] **Phase 1 — pipeline, horizontal.** `SequenceChartPlot`, stage-1 projection,
-  renderer printing lanes + events + direct arrows + gutter/ticks/hairlines for
-  `:horizontal`, with the tolerance rule and the three-level cell structure;
-  basic document example + pipeline example registered (full registration list of
-  §6); `test_printer(sequencechart_example)` green; screenshot via
-  `write_example_image` for the doc.
+- [x] **Phase 1 — pipeline, horizontal. DONE (and more).** `SequenceChartPlot`,
+  stage-1 projection, renderer, three-level cell structure, tolerance rule; the
+  three examples registered end to end (both example packages, both `Examples.jl`,
+  the umbrella vector and the guide-screenshot map); `test_printer` green on all
+  three (888/821/786), geometry and layering still green.
+
+  **The renderer landed further than the phase asked**, because the geometry was
+  already there and splitting the drawing code would have been artificial: arcs,
+  split arrows, the elided zigzag, state bands and the `:vertical` orientation
+  all render now. Phases 3 and 4 keep only what is genuinely left — selection of
+  those parts, the scale suite, and the guide.
+
+  Decisions made while implementing:
+  - **The body frame is local, not absolute.** Body elements are drawn inside a
+    `GraphicsViewport` at `(body_x, body_y)`, which adds that origin back, so
+    computing them in absolute coordinates offsets everything twice. Caught by
+    rendering an image: lane labels sat ~45 px above their own lines. The frame
+    is now `FlowFrame(orientation, 0, 0, body_w, body_h)` and the chrome outside
+    the viewport adds the origin itself.
+  - `axis_cross_positions` divides the room by the number of **gaps**, not of
+    lanes; dividing by the lane count leaves a whole lane's worth of space unused
+    at the far end (visible as an empty strip below the last lane).
+  - Tick labels are drawn in **both** gutters, as OMNeT++ does: following an
+    arrow across the chart should not mean travelling back to one edge to find
+    out when it happened.
+  - Arrow labels are clamped into the body. An arrow can sit against an edge
+    while its label does not fit there, and the viewport would otherwise cut the
+    text in half.
+  - `GraphicsSpline`/`GraphicsPolyline` take their styling by **keyword**; the
+    positional forms in the first draft threw a `MethodError` that only the
+    printer test surfaced, since nothing in the smoke test drew an arc.
+  - `SequenceChartPlot` must import `Reference` — the `@document` macro's
+    injected `selection` field names it at the call site.
 - [ ] **Phase 2 — selection + reader.** `SequenceChartRowReferenceStep`, part/row
   references, stage-1 mappers, hit-testing, click/hover/zoom/pan/rubber-band/
   follow-end reader, cursor + range readouts, event/arrow label rendering,

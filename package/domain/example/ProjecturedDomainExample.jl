@@ -70,6 +70,7 @@ include("document/Conversation.jl")
 include("document/Table.jl")
 include("document/Graph.jl")
 include("document/Chart.jl")
+include("document/SequenceChart.jl")
 include("document/Math.jl")
 include("document/Julia.jl")
 include("document/Formula.jl")
@@ -85,6 +86,7 @@ include("projection/Yaml.jl")
 include("projection/Table.jl")
 include("projection/Graph.jl")
 include("projection/Chart.jl")
+include("projection/SequenceChart.jl")
 include("projection/Xml.jl")
 include("projection/Mixed.jl")
 include("projection/Natural.jl")
@@ -116,6 +118,8 @@ export conversation_widget_example, domain_for_path, dragging_example, editor_do
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
 export chart_example, chart_line_example, chart_bar_example,
        chart_histogram_example, chart_scatter_example, chart_inspector_example
+export sequencechart_example, sequencechart_vertical_example,
+       sequencechart_linear_example, sequencechart_large_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
@@ -136,6 +140,11 @@ export make_chart_document_example, make_chart_projection_example,
        make_chart_histogram_document_example, make_chart_histogram_projection_example,
        make_chart_scatter_document_example, make_chart_scatter_projection_example,
        make_chart_inspector_document_example, make_chart_inspector_projection_example
+export make_sequencechart_document_example, make_sequencechart_projection_example,
+       make_sequencechart_pipeline_example,
+       make_sequencechart_vertical_document_example, make_sequencechart_vertical_projection_example,
+       make_sequencechart_linear_document_example, make_sequencechart_linear_projection_example,
+       make_sequencechart_large_document_example, make_sequencechart_large_projection_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
 export make_graphics_image_projection_example, make_introspection_document
 export make_introspection_projection, make_json_console_projection_example

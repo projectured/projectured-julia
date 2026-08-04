@@ -471,8 +471,12 @@ function axis_cross_positions(count::Integer, band_heights, cross_lo::Real, cros
     for i in 1:count
         total_bands += _band_height(band_heights, i)
     end
+    # Dividing by the number of *gaps* rather than of lanes is what makes the
+    # outermost lanes land on the edges of the room they were given; dividing by
+    # the lane count leaves a lane's worth of space unused at the far end.
     gap = if spacing === nothing
-        max(Float64(minimum_spacing), (available - total_bands) / max(count, 1))
+        count == 1 ? 0.0 :
+            max(Float64(minimum_spacing), (available - total_bands) / (count - 1))
     else
         max(Float64(minimum_spacing), Float64(spacing))
     end
