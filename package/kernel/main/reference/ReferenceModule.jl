@@ -77,9 +77,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        search_references,
        get_reference_step_kind, evaluate_reference_step,
        build_reference_step, match_reference_step, get_reference_step_subpath_args,
-       @reference_case, @reference, @reference_step,
-       IdentityDocument, FileReferenceStep, IdentityReferenceStep,
-       IdentityDocumentNotFound, DuplicateIdentityDocument
+       @reference_case, @reference, @reference_step
 
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")
@@ -89,8 +87,5 @@ include("ReferenceSearch.jl")
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")
 include("ReferenceBuilder.jl")
-include("IdentityDocument.jl")
-include("FileReferenceStep.jl")
-include("IdentityReferenceStep.jl")
 
 end # module
