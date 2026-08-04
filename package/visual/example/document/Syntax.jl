@@ -22,3 +22,8 @@ function make_syntax_document_example()
         ]; open="(", close=")", sep=" "),
     ]; open="(", close=")", sep=" ", indentation=1)
 end
+
+# A bare leaf, standing alone rather than nested inside the tree above: an
+# open/close-delimited value, the smallest thing `SyntaxLeaf`'s own printer
+# renders.
+make_syntax_leaf_document_example() = SyntaxLeaf("value"; open="\"", close="\"")

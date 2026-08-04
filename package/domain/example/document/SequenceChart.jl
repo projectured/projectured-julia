@@ -151,6 +151,9 @@ function make_sequencechart_inspector_document_example()
     WidgetSplitPane(:horizontal, Any[chart, chart.axes[3]]; sizes=[620, 300])
 end
 
+"Atomic document for the catalog: a sequence chart plot viewing the service trace."
+make_sequence_chart_plot_document_example() = SequenceChartPlot(make_sequencechart_document_example())
+
 """
     make_sequencechart_pair_document_example() -> WidgetTable
 

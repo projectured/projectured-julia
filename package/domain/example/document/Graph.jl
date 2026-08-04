@@ -38,3 +38,14 @@ function make_graph_document_example()
 
     graph
 end
+
+"Atomic document for the catalog: the same three-vertex, cross-domain graph as `graph_example`."
+make_graph_graph_document_example() = make_graph_document_example()
+
+"Atomic document for the catalog: the placed layout of the three-vertex graph."
+function make_graph_layout_document_example()
+    graph = make_graph_document_example()
+    v, e = graph.vertices[1], graph.edges[1]
+    GraphLayout(; vertex_layouts = CellVector([VertexLayout(v, 0, 0, 120, 60)]),
+                  edge_layouts   = CellVector([EdgeLayout(e)]))
+end

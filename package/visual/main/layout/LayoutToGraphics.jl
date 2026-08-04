@@ -365,7 +365,7 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
     inner = recursion === nothing ?
             SimpleIoMap(nothing, child, child) :
             print_child(recursion, child,
-                             make_child_context(ctx, @reference ^(ctx.reference).child))
+                             make_child_context(ctx, doc, (@reference_step child)))
     output = inner.output isa GraphicsDocument ? inner.output : _empty_canvas()
     ContentIoMap(p, doc, output, inner)
 end

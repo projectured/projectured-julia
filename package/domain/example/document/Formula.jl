@@ -21,3 +21,9 @@ function make_formula_document_example()
     env = FormulaEnvironment([a1, b1, a2, tax])
     with_selection(env, @reference(env, formulas[1]))
 end
+
+# Atomic documents for the catalog.
+make_formula_formula_document_example()     = FormulaFormula("A1", juliaparse("10"))
+make_formula_environment_document_example() = FormulaEnvironment([make_formula_formula_document_example()])
+make_formula_insertion_document_example()   = FormulaInsertion(value = "42")
+make_formula_reference_document_example()   = FormulaReference(make_formula_formula_document_example())

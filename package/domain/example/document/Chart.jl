@@ -157,3 +157,6 @@ function make_chart_inspector_document_example()
     chart = make_chart_line_document_example()
     WidgetSplitPane(:horizontal, Any[chart, chart.series[1]]; sizes=[540, 320])
 end
+
+"Atomic document for the catalog: a chart plot viewing the line-series chart."
+make_chart_plot_document_example() = ChartPlot(make_chart_line_document_example())

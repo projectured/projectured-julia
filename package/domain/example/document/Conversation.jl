@@ -33,3 +33,10 @@ end
 # isolation (`run_example(conversation_editor_example)`).
 make_conversation_editor_document_example() =
     ConversationDraft([ConversationPart(PrimitiveString(""))])
+
+# Atomic documents for the catalog.
+make_conversation_part_document_example()  = ConversationPart("Can you write a factorial function in Julia?")
+make_conversation_turn_document_example()  = ConversationTurn(:user, [make_conversation_part_document_example()])
+make_conversation_conversation_document_example() =
+    ConversationConversation([make_conversation_turn_document_example()])
+make_conversation_draft_document_example() = make_conversation_editor_document_example()

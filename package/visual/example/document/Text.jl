@@ -99,3 +99,17 @@ make_text_line_document_example() =
         TextLine(TextString("alpha", _atom_font(), color_default); indentation=2),
         TextLine(TextString("beta",  _atom_font(), color_default); indentation=4),
     )
+
+# ── Bare span documents ─────────────────────────────────────────────────────
+# `TextString`/`TextNewline`/`TextLine` each have their own printer
+# (`TextStringToString`, `TextNewlineToString`, `TextLineToString`) that takes
+# the span directly, not wrapped in a `TextBlock`. The atoms above exercise a
+# span as one element of a block; these stand alone as the span itself.
+# `_atom` disambiguates the factory name from the block-wrapped one above.
+
+make_text_string_atom_document_example() = TextString("Hello")
+
+make_text_newline_atom_document_example() = TextNewline(font=_atom_font())
+
+make_text_line_atom_document_example() =
+    TextLine(TextString("alpha", _atom_font(), color_default); indentation=2)

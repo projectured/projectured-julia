@@ -10,6 +10,8 @@ make_sql_all_columns_document_example()  = SqlAllColumns()
 make_sql_column_name_document_example()  = SqlColumnName("age")
 make_sql_table_name_document_example()   = SqlTableName("persons")
 make_sql_scalar_value_document_example() = SqlScalarValue(36)
+make_sql_column_reference_document_example() = SqlColumnReference("age")
+make_sql_table_expression_document_example() = SqlTableExpression("persons")
 
 # Minimal non-empty compound (node) documents — for the catalog.
 make_sql_comparison_document_example()       = SqlComparison(SqlColumnReference("a"), "=", SqlScalarValue(1))

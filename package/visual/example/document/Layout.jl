@@ -101,3 +101,40 @@ function make_constraint_layout_document_example(; width=560, height=560)
 
     ConstraintLayout(children, relations; bounding_width=width, bounding_height=height)
 end
+
+# ── Atomic layout documents ────────────────────────────────────────────────
+# One bare instance per remaining layout type: `make_layout_document_example`
+# above nests several layouts inside an outer `VerticalLayout`, so none of
+# them stands alone as its own root there.
+
+function make_anchored_layout_document_example()
+    content = VerticalLayout(Any[
+        WidgetLabel(Point2D(0, 0), "Node A"),
+        WidgetLabel(Point2D(0, 40), "Node B"),
+    ]; gap=8)
+    note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "3 hops");
+                         reference=Reference(FieldReferenceStep("children"), ElementReferenceStep(1)),
+                         placement=:right)
+    AnchoredLayout(content, Any[note])
+end
+
+make_flow_layout_document_example() =
+    FlowLayout(Any[WidgetLabel(Point2D(0, 0), t) for t in ("alpha", "beta", "gamma", "delta", "epsilon")];
+              max_width=200, horizontal_gap=6, vertical_gap=6)
+
+make_grid_layout_document_example() =
+    GridLayout(Any[WidgetLabel(Point2D(0, 0), "R$(r)C$(c)") for r in 1:2 for c in 1:2], 2;
+              horizontal_gap=8, vertical_gap=8)
+
+make_horizontal_layout_document_example() =
+    HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Left"), WidgetLabel(Point2D(0, 0), "Right")]; gap=12)
+
+make_stack_layout_document_example() =
+    StackLayout(Any[WidgetLabel(Point2D(0, 0), "Background"), WidgetLabel(Point2D(0, 0), "Foreground")])
+
+make_vertical_layout_document_example() =
+    VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Top"), WidgetLabel(Point2D(0, 0), "Bottom")]; gap=12)
+
+make_layout_constraint_document_example() =
+    LayoutConstraint(WidgetLabel(Point2D(0, 0), "Constrained");
+                     min_width=80, preferred_width=160, max_width=320)

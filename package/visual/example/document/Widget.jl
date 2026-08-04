@@ -546,3 +546,108 @@ function make_widget_focus_document_example()
     sel === nothing || set_selection!(layout, sel)
     layout
 end
+
+# ── Atomic-registry widgets ────────────────────────────────────────────────
+# One bare instance per widget/screen type with a printer but no atom above:
+# each is either a type nothing above constructs standing alone, or one whose
+# `_atom` suffix disambiguates it from an existing same-named factory above
+# that shows the type as a small multi-state showcase (several variants in a
+# `VerticalLayout`, or wrapped in a `WidgetShell`) rather than the type by
+# itself.
+
+make_widget_context_menu_document_example() =
+    WidgetContextMenu(WidgetLabel(Point2D(40, 40), "Right-click for options"),
+                      WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")]))
+
+make_widget_dialog_document_example() =
+    WidgetMessageBox("Confirm", "Proceed with the action?")
+
+make_widget_insertion_document_example() = WidgetInsertion()
+
+make_widget_list_document_example() =
+    WidgetList(Point2D(40, 40), ["Apples", "Bananas", "Cherries"]; selected=2, width=200)
+
+function make_widget_option_document_example()
+    select = WidgetSelect(Point2D(40, 40), "Apple"; options=["Apple", "Banana"], width=200)
+    WidgetOption(Point2D(40, 84), select, "Banana")
+end
+
+make_widget_spin_box_document_example() =
+    WidgetSpinBox(Point2D(40, 40), 3; min=0, max=10, step=1)
+
+make_widget_status_bar_document_example() =
+    WidgetStatusBar(["Ready", "Ln 1, Col 1"])
+
+make_tooltip_source_document_example() =
+    TooltipSource(; child=WidgetLabel(Point2D(40, 40), "Hover me"),
+                    content=WidgetLabel(Point2D(0, 0), "A helpful tip"),
+                    id=:tooltip_source_example)
+
+make_clipboard_collection_document_example() =
+    ClipboardCollection(WidgetLabel(Point2D(0, 0), "Copied selection"),
+                        Any[WidgetLabel(Point2D(0, 0), "Row 1"), WidgetLabel(Point2D(0, 0), "Row 2")])
+
+function make_clipboard_slice_document_example()
+    content = WidgetLabel(Point2D(0, 0), "Copied label")
+    ClipboardSlice(; content=content, slice=Reference(FieldReferenceStep("content")))
+end
+
+function make_reference_inspector_document_example()
+    target = WidgetLabel(Point2D(0, 0), "Hello")
+    ReferenceInspector(; reference=Reference(FieldReferenceStep("content")), target=target)
+end
+
+make_graphics_canvas_document_example() =
+    GraphicsCanvas(Any[
+        GraphicsRect(0, 0, 120, 40, color_solarized_blue),
+        GraphicsRect(0, 60, 120, 40, color_solarized_gray),
+    ]; w=120, h=100)
+
+function make_screen_document_document_example()
+    content = WidgetLabel(Point2D(40, 40), "A window on screen")
+    ScreenDocument([WindowDocument(; id=:screen_example, title="Example window",
+                                   width=400, height=300, content=content)])
+end
+
+make_window_document_document_example() =
+    WindowDocument(; id=:window_example, title="Example window",
+                  width=400, height=300,
+                  content=WidgetLabel(Point2D(40, 40), "Inside a window"))
+
+# WidgetAlert — a single alert, distinct from `make_widget_alert_document_example`
+# above (which stacks the default and destructive variants).
+make_widget_alert_atom_document_example() =
+    WidgetAlert(Point2D(40, 40), "Heads up!", "You can add components using the CLI.")
+
+# WidgetBadge — a single badge, distinct from `make_widget_badge_document_example`
+# above (which stacks all four variants).
+make_widget_badge_atom_document_example() =
+    WidgetBadge(Point2D(40, 40), "Default")
+
+# WidgetSeparator — a single rule, distinct from `make_widget_separator_document_example`
+# above (which frames it between two labels).
+make_widget_separator_atom_document_example() =
+    WidgetSeparator(Point2D(40, 40); length=260)
+
+# WidgetSkeleton — a single placeholder block, distinct from
+# `make_widget_skeleton_document_example` above (which stacks three).
+make_widget_skeleton_atom_document_example() =
+    WidgetSkeleton(Point2D(40, 40); width=260, height=20)
+
+# WidgetSwitch — a single switch, distinct from `make_widget_switch_document_example`
+# above (which stacks on/off/instant variants).
+make_widget_switch_atom_document_example() =
+    WidgetSwitch(Point2D(40, 40), true)
+
+# WidgetTabbedPane — bare (no `WidgetShell` chrome), distinct from
+# `make_widget_tabbed_pane_document_example` above.
+make_widget_tabbed_pane_atom_document_example() =
+    WidgetTabbedPane([
+        ("Alpha", WidgetLabel(Point2D(16, 16), "Content A")),
+        ("Beta",  WidgetLabel(Point2D(16, 16), "Content B")),
+    ])
+
+# WidgetToggle — a single toggle, distinct from `make_widget_toggle_document_example`
+# above (which stacks pressed and unpressed).
+make_widget_toggle_atom_document_example() =
+    WidgetToggle(Point2D(40, 40), "Bold"; pressed=true)

@@ -73,48 +73,12 @@ _coverage_covered() = begin
 end
 
 # ── The standing debt ──────────────────────────────────────────────────────
-# Document types that have a printer and no atom, as of the sweep that first
-# ran this check. Each entry is a document nobody can print on its own — the
-# visible TODO list, exactly as `_CATALOG_EDIT_BROKEN` is for failing atoms.
-# Adding the atom means deleting the name here; the test asserts the list has no
-# stale entries, so it cannot silently outlive the gap it records.
-#
-# A printer added later with no atom is NOT in this list, so it fails as an
-# unmarked `Fail` — which is the point of the check.
-const _NO_ATOM = Set{String}([
-    # ProjecturedBase
-    "CellTable", "CellVector", "DraggingState", "ListNode", "ReferenceStub",
-    "VersionedObject",
-    # ProjecturedDomain
-    "ChartPlot", "ConversationConversation", "ConversationDraft",
-    "ConversationPart", "ConversationTurn", "DatabaseInstance",
-    "DbCatalogColumn", "DbCatalogDatabase",
-    "DbCatalogRdbms", "DbCatalogSchema", "DbCatalogTable", "FormulaEnvironment",
-    "FormulaFormula", "FormulaInsertion", "FormulaReference", "FsmComponent",
-    "FsmEvent", "FsmMachine", "FsmState", "FsmTimer", "FsmTransition",
-    "FsmVariable", "GestureMap", "GraphGraph", "GraphLayout", "SequenceChartPlot",
-    "SqlColumnReference", "SqlTableExpression", "WorkbenchAssistant",
-    "WorkbenchConsole", "WorkbenchDescriptor", "WorkbenchEditor",
-    "WorkbenchEvaluator", "WorkbenchNavigator", "WorkbenchOperator",
-    "WorkbenchPage", "WorkbenchSearcher", "WorkbenchWorkbench", "Workspace",
-    "WorkspaceFolder",
-    # ProjecturedVisual — layouts and the widget set
-    "AnchoredLayout", "ClipboardCollection", "ClipboardSlice", "ConstraintLayout",
-    "FlowLayout", "GraphicsCanvas", "GridLayout", "HorizontalLayout",
-    "LayoutConstraint", "ReferenceInspector", "ScreenDocument", "StackLayout",
-    "SyntaxLeaf", "TextLine", "TextNewline", "TextString", "TooltipSource",
-    "VerticalLayout", "WidgetAccordion", "WidgetAlert", "WidgetAvatar",
-    "WidgetBadge", "WidgetButton", "WidgetCard", "WidgetCheckbox",
-    "WidgetComposite", "WidgetContextMenu", "WidgetDialog", "WidgetInsertion",
-    "WidgetLabel", "WidgetList", "WidgetMenu", "WidgetMenuItem", "WidgetOption",
-    "WidgetProgress", "WidgetRadioGroup", "WidgetScrollBar", "WidgetScrollPane",
-    "WidgetSelect", "WidgetSeparator", "WidgetShell", "WidgetSkeleton",
-    "WidgetSlider", "WidgetSpinBox", "WidgetSplitPane", "WidgetStatusBar",
-    "WidgetSwitch", "WidgetTabbedPane", "WidgetTable", "WidgetText",
-    "WidgetTextarea", "WidgetTitlePane", "WidgetToggle", "WidgetToggleGroup",
-    "WidgetToolbar", "WidgetTooltip", "WidgetTransformPane", "WidgetTree",
-    "WindowDocument",
-])
+# Empty, and asserted empty below: every document type with a printer has an
+# atom. Kept as a set rather than deleted, because it is where a type goes when
+# a printer lands before its atom does — with the reason, the way
+# `_CATALOG_EDIT_BROKEN` records a failing one.
+const _NO_ATOM = Set{String}()
+
 
 """
     catalog_coverage_gap() -> Vector{String}
@@ -127,6 +91,17 @@ catalog_coverage_gap() =
     sort(String[string(nameof(T isa UnionAll ? Base.unwrap_unionall(T) : T))
                 for T in setdiff(_coverage_wanted(), _coverage_covered())])
 
+# ── Atoms the natural renderer cannot take ─────────────────────────────────
+# `NaturalToGraphics` sends text through `WordWrapping → TextToGraphics`, and
+# wrapping is a block-level operation: `WordWrapping` has a method for a
+# `TextBlock` and none for a bare span. These three atoms are the span itself,
+# which is exactly what makes them worth having — `TextStringToString` and its
+# siblings print a span directly — so they are rendered by their own printer in
+# the catalog and skipped here rather than being called a defect.
+const _NO_NATURAL_RENDER = Set{String}([
+    "text/bare_string", "text/bare_newline", "text/bare_line",
+])
+
 """
     test_natural_renders_every_atom()
 
@@ -134,21 +109,17 @@ The precompile workload swallows a failing atom, because a workload must not
 fail a build. This is where that failure is meant to surface instead: every atom
 has to survive `NaturalToGraphics`, the renderer an editor actually puts on
 screen, or the workload is compiling less than it appears to.
+
+`_NO_NATURAL_RENDER` names the ones the natural renderer legitimately has no
+route for; anything else that fails, fails here.
 """
 function test_natural_renders_every_atom()
     @testset "every atom renders naturally" begin
         atoms = ProjecturedExample.atomic_documents()
-        rendered = precompile_atoms(atoms)
-        @test rendered == length(atoms)
-        # Name the ones that failed — a bare count sends the reader back to a
-        # loop with a `catch` in it and nothing to go on. Only on failure: the
-        # re-run costs as much again as the pass it would be repeating.
-        if rendered != length(atoms)
-            for atom in atoms
-                precompile_atoms([atom]) == 1 && continue
-                @info "atom does not render through NaturalToGraphics" atom.domain atom.name
-            end
-        end
+        renders(a) = precompile_atoms([a]) == 1
+        failed = Set(_round_trip_name(a) for a in atoms if !renders(a))
+        @test sort(collect(setdiff(failed, _NO_NATURAL_RENDER))) == String[]
+        @test sort(collect(setdiff(_NO_NATURAL_RENDER, failed))) == String[]
     end
 end
 
@@ -182,6 +153,7 @@ const _NO_ROUND_TRIP = Set{String}([
     "sql/where_filter_condition", "sql/where_clause", "sql/from_item",
     "sql/from_clause", "sql/join_on_condition", "sql/joined_from_item",
     "sql/subquery_from_item", "sql/column_definition", "sql/update_assignment",
+    "sql/column_reference", "sql/table_expression",
     # These two are whole statements and still do not re-parse — the SQL parser
     # reads SELECT and rejects INSERT/UPDATE with "not a parseable statement".
     # A parser gap rather than a fragment, and the only entry here that names a
@@ -246,10 +218,7 @@ function test_catalog_coverage()
         stale = sort(collect(setdiff(_NO_ATOM, gap)))
         @test stale == String[]
 
-        # The debt itself, as one visible Broken. Delete names from `_NO_ATOM` as
-        # atoms are written; when the set empties this becomes a plain pass and
-        # the marker can go.
-        # @broken 105 document types have a printer and no atom — see `_NO_ATOM`.
-        @test_broken isempty(gap)
+        # And the whole point: nothing is owed.
+        @test isempty(gap)
     end
 end

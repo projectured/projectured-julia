@@ -151,4 +151,80 @@ const visual_atomic_documents = AtomicDocument[
     AtomicDocument(:text, "spacing",  make_text_spacing_document_example),
     AtomicDocument(:text, "graphics", make_text_graphics_document_example),
     AtomicDocument(:text, "line",     make_text_line_document_example),
+    # Bare span documents — the type on its own, not wrapped in a `TextBlock`
+    # (the entries above wrap it as one element of a block instead). Named
+    # `bare_*` rather than reusing the name above: an atom's `domain/name` is
+    # what the catalog filters on and what the known-broken registries match by
+    # prefix, so two atoms answering to one name would make both ambiguous.
+    AtomicDocument(:text, "bare_string",  make_text_string_atom_document_example),
+    AtomicDocument(:text, "bare_newline", make_text_newline_atom_document_example),
+    AtomicDocument(:text, "bare_line",    make_text_line_atom_document_example),
+    # Widget atoms: one bare instance per widget type with a printer and no
+    # atom above. Reuses whichever `make_widget_*_document_example` already
+    # returns the bare type; `_atom` names the ones disambiguated from an
+    # existing same-named multi-state showcase (see document/Widget.jl).
+    AtomicDocument(:widget, "accordion",            make_widget_accordion_document_example),
+    AtomicDocument(:widget, "alert",                make_widget_alert_atom_document_example),
+    AtomicDocument(:widget, "avatar",                make_widget_avatar_document_example),
+    AtomicDocument(:widget, "badge",                make_widget_badge_atom_document_example),
+    AtomicDocument(:widget, "button",                make_widget_button_document_example),
+    AtomicDocument(:widget, "card",                  make_widget_card_document_example),
+    AtomicDocument(:widget, "checkbox",              make_widget_checkbox_document_example),
+    AtomicDocument(:widget, "composite",             make_widget_composite_document_example),
+    AtomicDocument(:widget, "context_menu",          make_widget_context_menu_document_example),
+    AtomicDocument(:widget, "dialog",                make_widget_dialog_document_example),
+    AtomicDocument(:widget, "insertion",             make_widget_insertion_document_example),
+    AtomicDocument(:widget, "label",                 make_widget_label_document_example),
+    AtomicDocument(:widget, "list",                  make_widget_list_document_example),
+    AtomicDocument(:widget, "menu",                  make_widget_menu_document_example),
+    AtomicDocument(:widget, "menu_item",             make_widget_menu_item_document_example),
+    AtomicDocument(:widget, "option",                make_widget_option_document_example),
+    AtomicDocument(:widget, "progress",              make_widget_progress_document_example),
+    AtomicDocument(:widget, "radio_group",           make_widget_radio_group_document_example),
+    AtomicDocument(:widget, "scroll_bar",            make_widget_scroll_bar_document_example),
+    AtomicDocument(:widget, "scroll_pane",           make_widget_scroll_pane_document_example),
+    AtomicDocument(:widget, "select",                make_widget_select_document_example),
+    AtomicDocument(:widget, "separator",             make_widget_separator_atom_document_example),
+    AtomicDocument(:widget, "shell",                 make_widget_shell_document_example),
+    AtomicDocument(:widget, "skeleton",              make_widget_skeleton_atom_document_example),
+    AtomicDocument(:widget, "slider",                make_widget_slider_document_example),
+    AtomicDocument(:widget, "spin_box",              make_widget_spin_box_document_example),
+    AtomicDocument(:widget, "split_pane",            make_widget_split_pane_document_example),
+    AtomicDocument(:widget, "status_bar",            make_widget_status_bar_document_example),
+    AtomicDocument(:widget, "switch",                make_widget_switch_atom_document_example),
+    AtomicDocument(:widget, "tabbed_pane",           make_widget_tabbed_pane_atom_document_example),
+    AtomicDocument(:widget, "table",                 make_widget_table_document_example),
+    AtomicDocument(:widget, "text",                  make_widget_text_document_example),
+    AtomicDocument(:widget, "textarea",              make_widget_textarea_document_example),
+    AtomicDocument(:widget, "title_pane",            make_widget_title_pane_document_example),
+    AtomicDocument(:widget, "toggle",                make_widget_toggle_atom_document_example),
+    AtomicDocument(:widget, "toggle_group",          make_widget_toggle_group_document_example),
+    AtomicDocument(:widget, "toolbar",               make_widget_toolbar_document_example),
+    AtomicDocument(:widget, "tooltip",               make_widget_tooltip_document_example),
+    AtomicDocument(:widget, "transform_pane",        make_widget_transform_pane_document_example),
+    AtomicDocument(:widget, "tree",                  make_widget_tree_document_example),
+    AtomicDocument(:widget, "tooltip_source",        make_tooltip_source_document_example),
+    AtomicDocument(:widget, "clipboard_collection",  make_clipboard_collection_document_example),
+    AtomicDocument(:widget, "clipboard_slice",       make_clipboard_slice_document_example),
+    AtomicDocument(:widget, "reference_inspector",   make_reference_inspector_document_example),
+    AtomicDocument(:widget, "screen_document",       make_screen_document_document_example),
+    AtomicDocument(:widget, "window_document",       make_window_document_document_example),
+    AtomicDocument(:graphics, "canvas", make_graphics_canvas_document_example),
+    # Layout atoms.
+    AtomicDocument(:layout, "anchored",          make_anchored_layout_document_example),
+    AtomicDocument(:layout, "constraint",        make_constraint_layout_document_example),
+    AtomicDocument(:layout, "flow",              make_flow_layout_document_example),
+    AtomicDocument(:layout, "grid",              make_grid_layout_document_example),
+    AtomicDocument(:layout, "horizontal",        make_horizontal_layout_document_example),
+    AtomicDocument(:layout, "stack",             make_stack_layout_document_example),
+    AtomicDocument(:layout, "vertical",          make_vertical_layout_document_example),
+    AtomicDocument(:layout, "layout_constraint", make_layout_constraint_document_example),
+    # Syntax atom.
+    AtomicDocument(:syntax, "leaf", make_syntax_leaf_document_example),
+    # Base-tier collections. They live in this slice because the example-package
+    # DAG is kernel ← visual ← domain with no base tier of its own, and this is
+    # the lowest one that can name them.
+    AtomicDocument(:collection, "vector",    make_collection_document_example),
+    AtomicDocument(:collection, "table",     make_cell_table_document_example),
+    AtomicDocument(:collection, "list_node", make_list_node_document_example),
 ]

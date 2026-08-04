@@ -18,6 +18,19 @@ make_fsm_state_document_example()      = FsmState("IDLE")
 make_fsm_transition_document_example() = FsmTransition()
 make_fsm_insertion_document_example()  = FsmInsertion()
 
+function make_fsm_machine_document_example()
+    idle = make_fsm_state_document_example()
+    on = FsmState("ON")
+    push!(idle.transitions, FsmTransition(trigger = make_fsm_event_document_example(), target = on))
+    FsmMachine("Toggle"; initial = idle, states = [idle, on])
+end
+
+make_fsm_component_document_example() =
+    FsmComponent("Toggle";
+        variables = [make_fsm_variable_document_example()],
+        events    = [make_fsm_event_document_example()],
+        machines  = [make_fsm_machine_document_example()])
+
 """
 A two-state toggle: the smallest complete component — one variable, one timer,
 one event, one machine with an entry action, a guard, a stay and a timeout.

@@ -64,6 +64,7 @@ include("document/Markdown.jl")
 include("document/FileSystem.jl")
 include("document/Navigator.jl")
 include("document/Focusing.jl")
+include("document/GestureMap.jl")
 include("document/Workbench.jl")
 include("document/Assistant.jl")
 include("document/Conversation.jl")
@@ -76,7 +77,9 @@ include("document/Math.jl")
 include("document/Julia.jl")
 include("document/Formula.jl")
 include("document/Wrapper.jl")
+include("document/Embed.jl")
 include("document/DatabaseInstance.jl")
+include("document/DbCatalog.jl")
 include("document/Sql.jl")
 include("document/Clipboard.jl")
 include("document/Versioning.jl")
@@ -133,6 +136,7 @@ export make_fsm_document_example, make_fsm_projection_example,
        make_fsm_event_document_example, make_fsm_state_document_example,
        make_fsm_transition_document_example, make_fsm_insertion_document_example,
        make_fsm_diagram_document_example, make_fsm_diagram_projection_example
+export make_fsm_machine_document_example, make_fsm_component_document_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
@@ -141,11 +145,19 @@ export make_clipboard_document_example, make_clipboard_projection
 export make_clipboard_projection_example, make_conversation_document_example
 export make_conversation_editor_document_example, make_conversation_editor_projection_example
 export make_conversation_projection_example, make_conversation_widget_projection_example
+export make_conversation_conversation_document_example, make_conversation_draft_document_example
+export make_conversation_part_document_example, make_conversation_turn_document_example
 export make_database_instance_document_example, make_dragging_document_example
+export make_reference_stub_document_example
+export make_db_catalog_column_document_example, make_db_catalog_table_document_example
+export make_db_catalog_schema_document_example, make_db_catalog_database_document_example
+export make_db_catalog_rdbms_document_example
 export make_dragging_projection_example, make_filesystem_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 export make_focusing_document_example, make_focusing_projection_example
 export make_formula_document_example, make_formula_projection_example
+export make_formula_environment_document_example, make_formula_formula_document_example
+export make_formula_insertion_document_example, make_formula_reference_document_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,
@@ -154,6 +166,7 @@ export make_chart_document_example, make_chart_projection_example,
        make_chart_scatter_document_example, make_chart_scatter_projection_example,
        make_chart_strip_document_example, make_chart_strip_projection_example,
        make_chart_inspector_document_example, make_chart_inspector_projection_example
+export make_chart_plot_document_example
 export make_sequencechart_document_example, make_sequencechart_projection_example,
        make_sequencechart_pipeline_example,
        make_sequencechart_vertical_document_example, make_sequencechart_vertical_projection_example,
@@ -162,7 +175,9 @@ export make_sequencechart_document_example, make_sequencechart_projection_exampl
        make_sequencechart_inspector_document_example, make_sequencechart_inspector_projection_example,
        make_sequencechart_pair_document_example, make_sequencechart_pair_projection_example,
        make_sequencechart_composite_projection_example
+export make_sequence_chart_plot_document_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
+export make_graph_graph_document_example, make_graph_layout_document_example
 export make_graphics_image_projection_example, make_introspection_document
 export make_introspection_projection, make_json_console_projection_example
 export make_json_document_example, make_json_insertion_document_example
@@ -190,14 +205,22 @@ export make_math_table_projection_example, make_mixed_document_example
 export make_mixed_projection_example, make_natural_document_example
 export make_natural_projection_example, make_navigator_document_example
 export make_navigator_projection_example, make_scrolling_document, make_scrolling_projection
+export make_workspace_document_example, make_workspace_folder_document_example
 export make_sql_document_example, make_sql_insert_document_example
 export make_sql_insert_syntax_projection_example, make_sql_nested_document_example
 export make_sql_nested_syntax_projection_example, make_sql_syntax_projection_example
 export make_sql_update_document_example, make_sql_update_syntax_projection_example
+export make_sql_column_reference_document_example, make_sql_table_expression_document_example
 export make_table_document_example, make_table_projection_example
 export make_text_configuring_projection, make_versioning_document_example
 export make_versioning_projection_example, make_workbench_document
 export make_workbench_document_example, make_workbench_projection
+export make_workbench_assistant_document_example, make_workbench_console_document_example
+export make_workbench_descriptor_document_example, make_workbench_editor_document_example
+export make_workbench_evaluator_document_example, make_workbench_navigator_document_example
+export make_workbench_operator_document_example, make_workbench_page_document_example
+export make_workbench_searcher_document_example, make_workbench_workbench_document_example
+export make_gesture_map_document_example
 export make_workbench_projection_example, make_xml_document_example
 export make_xml_projection_example, make_yaml_document_example, make_yaml_projection_example
 export markdown_example, markdown_rendered_example, math_example, math_table_example

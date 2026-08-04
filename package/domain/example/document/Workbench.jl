@@ -77,3 +77,24 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
     set_cell_function!(editor_document_view, () -> EditorIntrospection(workbench))
     workbench
 end
+
+# Atomic documents for the catalog.
+make_workbench_operator_document_example()   = WorkbenchOperator()
+make_workbench_searcher_document_example()   = WorkbenchSearcher()
+make_workbench_evaluator_document_example()  = WorkbenchEvaluator()
+make_workbench_descriptor_document_example() = WorkbenchDescriptor(EmptyReference())
+make_workbench_console_document_example()    = WorkbenchConsole(TextBlock(TextString("Welcome to ProjecturEd!")))
+make_workbench_navigator_document_example()  = WorkbenchNavigator(make_navigator_document_example())
+make_workbench_page_document_example()       = WorkbenchPage([make_workbench_operator_document_example()])
+make_workbench_editor_document_example() =
+    WorkbenchEditor(make_text_document_example(); title="readme.txt", filename="readme.txt")
+make_workbench_assistant_document_example() = WorkbenchAssistant(; llm = FakeLlm())
+
+function make_workbench_workbench_document_example()
+    nav_page     = WorkbenchPage([make_workbench_navigator_document_example()])
+    editing_page = WorkbenchPage([make_workbench_editor_document_example()])
+    info_page    = WorkbenchPage([make_workbench_console_document_example(),
+                                   make_workbench_descriptor_document_example()])
+    control_page = WorkbenchPage([])
+    WorkbenchWorkbench(nav_page, editing_page, info_page, control_page)
+end
