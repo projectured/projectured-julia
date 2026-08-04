@@ -597,27 +597,24 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
 
-### Status: P5–P7 are blocked on landing P0–P4
+### Status: P0–P4 landed on main; P5–P7 are next and unblocked
 
-Everything through P4 is implemented and verified on three branches:
-`projectured-julia` **`fsm-domain`** (P0–P2, P4), `omnetpp-julia`
-**`fsm-runtime`** (P3), `inet-julia` **`fsm-mac`** (the P5 prep step below).
+Everything through P4 is implemented, verified and merged into `main` in all
+three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, the P5
+prep step below in inet-julia).
 
-**The blocker is dependency resolution, not design.** inet-julia's packages
-resolve `OmnetppSimulator` through a committed `[sources]` path that points at
-the *main* omnetpp-julia checkout, so a worktree branch is invisible to them:
-`isdefined(OmnetppSimulator, :FsmModule)` is `false` from inet-julia's test
-environment even with the branch checked out next door. There is no
-non-invasive local override — `Manifest.toml` is gitignored, but `[sources]`
-lives in `Project.toml`, which is committed and shared, and a scratch
-environment cannot override a path-dependency's own `[sources]` either.
+**The one thing that had to happen first was landing, not design.** While the
+work sat on worktree branches, inet-julia could not see the runtime at all:
+its packages resolve `OmnetppSimulator` through a committed `[sources]` path
+pointing at the *main* omnetpp-julia checkout, and there is no non-invasive
+local override — `Manifest.toml` is gitignored, but `[sources]` lives in the
+committed `Project.toml`, and a scratch environment cannot override a
+path-dependency's own `[sources]` either. Since the merge,
+`isdefined(OmnetppSimulator, :FsmModule)` is `true` from inet-julia's
+link-layer test environment (after a `Pkg.instantiate()`, since manifests are
+per-environment and gitignored). P5–P7 proceed as written.
 
-To unblock, merge the two upstream branches into their main checkouts
-(`git -C omnetpp-julia merge --ff-only fsm-runtime`, likewise
-`projectured-julia` / `fsm-domain` for the editor side P6 needs). After that
-P5–P7 proceed as written, with the notes below already established.
-
-**Done for P5 already** (on `fsm-mac`, and valuable on its own): the traffic
+**Done for P5 already** (and valuable on its own): the traffic
 golden hash is pinned. The review's finding was correct — `:notraffic`, the
 only pinned scenario, never takes a MAC out of `MAC_IDLE`, and `:bestcase`
 asserted only `event_count > 0`, so a MAC swap would have passed vacuously.
