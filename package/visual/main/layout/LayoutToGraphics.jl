@@ -23,6 +23,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..DocumentApiModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
                        LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
+                       AnchoredLayout, AnchoredEntry, compute_anchored_positions,
                        allocate_axis,
                        layout_min, layout_max, layout_preferred, layout_weight
 import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
@@ -48,7 +49,7 @@ import ..PrinterContextModule: make_child_context, with_available_size
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
-       ConstraintLayoutToGraphicsCanvas,
+       ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
        LayoutToGraphics, GridLayoutIoMap
 
 # ── Projection structs ─────────────────────────────────────────────────────
@@ -1437,6 +1438,144 @@ function read_intent(::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, e
     _route_stack_event(iomap, evt)
 end
 
+# ── AnchoredLayoutToGraphicsCanvas ─────────────────────────────────────────
+#
+# The content is projected exactly as it would be on its own, and each anchored
+# child is placed beside a target *inside* it and drawn afterwards. The content
+# never sees the anchored children, which is the property the whole type exists
+# for: annotating a diagram must not move it.
+
+"""
+    AnchoredLayoutToGraphicsCanvas()
+
+Project an [`AnchoredLayout`](@ref): the content, with each anchored child
+composited over it beside its target.
+"""
+struct AnchoredLayoutToGraphicsCanvas <: Projection end
+
+# Where a target sits, as `(x, y, w, h)` in the content's own coordinates.
+#
+# A target given directly is read from its position cells. A target named by
+# reference is resolved through the content's IoMap — `map_reference_forward`
+# takes a reference in the content's input domain to one in the graphics it
+# produced, and the node it lands on carries the coordinates. Unresolvable is
+# `nothing` rather than an error: a target may legitimately be hidden, and an
+# annotation with nowhere to go is better dropped at the origin than fatal.
+function _al_target_rect(entry, content_iomap)
+    direct = entry.target
+    direct === nothing || return _al_rect_of(direct)
+    reference = entry.reference
+    reference === nothing && return nothing
+    projected = try
+        map_reference_forward(content_iomap.projection, content_iomap, reference)
+    catch
+        nothing
+    end
+    projected === nothing && return nothing
+    node = try
+        evaluate_reference(content_iomap.output, projected)
+    catch
+        nothing
+    end
+    node === nothing ? nothing : _al_rect_of(node)
+end
+
+function _al_rect_of(node)
+    node isa GraphicsCanvas &&
+        return (Int(node.x[]), Int(node.y[]), Int(node.w[]), Int(node.h[]))
+    node isa GraphicsDocument || return nothing
+    w, h = graphics_size(node)
+    x = hasproperty(node, :x) ? Int(node.x) : 0
+    y = hasproperty(node, :y) ? Int(node.y) : 0
+    (x, y, Int(w), Int(h))
+end
+
+function _al_build(recursion, doc::AnchoredLayout, ctx)
+    content_iomap = _recurse_child(recursion, doc.content,
+                                   make_child_context(ctx, doc, (@reference_step content)))
+    n = length(doc.children)
+    child_iomaps = Any[]
+    for i in 1:n
+        entry = doc.children[i]
+        cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]),
+                                  (@reference_step child))
+        push!(child_iomaps, _recurse_child(recursion, entry.child, cctx))
+    end
+
+    # One cell over the whole placement: it re-runs when a target moves, a child
+    # resizes, or the region changes — and NOT when the content merely redraws,
+    # because the content's geometry is not a function of these children.
+    placed = ComputedCell(function ()
+        entries = Tuple{Int,Int,Symbol,Int,Int}[]
+        targets = Any[]
+        for i in 1:n
+            entry = doc.children[i]
+            cim = child_iomaps[i]
+            push!(entries, (_child_w(cim), _child_h(cim), entry.placement,
+                            Int(entry.offset_x), Int(entry.offset_y)))
+            push!(targets, _al_target_rect(entry, content_iomap))
+        end
+        compute_anchored_positions(entries, targets,
+                                   Int(doc.bounding_width), Int(doc.bounding_height),
+                                   Int(doc.stacking_gap))
+    end)
+
+    child_x = Cell[ComputedCell(() -> Int32(placed[][i][1])) for i in 1:n]
+    child_y = Cell[ComputedCell(() -> Int32(placed[][i][2])) for i in 1:n]
+
+    # The content first, the anchored children over it, in the order given.
+    wrapped = Any[]
+    content_output = content_iomap.output
+    content_output isa GraphicsDocument && push!(wrapped, content_output)
+    for i in 1:n
+        c = child_iomaps[i].output
+        c isa GraphicsDocument || continue
+        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+    end
+
+    # The region is what was asked for, else what the content needs — an
+    # annotation hanging off the edge does not grow the diagram.
+    outer_w = ComputedCell(function ()
+        bw = Int(doc.bounding_width)
+        bw > 0 ? bw : _child_w(content_iomap)
+    end)
+    outer_h = ComputedCell(function ()
+        bh = Int(doc.bounding_height)
+        bh > 0 ? bh : _child_h(content_iomap)
+    end)
+
+    entries = Tuple{Cell,Cell,Any}[]
+    push!(entries, (Cell(Int32(0)), Cell(Int32(0)), content_iomap))
+    for i in 1:n
+        push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
+    end
+    (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
+end
+
+function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
+                        doc::AnchoredLayout, ctx)
+    build = ComputedCell(() -> _al_build(recursion, doc, ctx))
+    outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                           ComputedCell(() -> Int32(build[].w[])),
+                           ComputedCell(() -> Int32(build[].h[])),
+                           ComputedCellVector(() -> build[].wrapped),
+                           layout_none, true, Cell(nothing))
+    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+end
+
+# Child 1 of the IoMap is the content; the anchored children follow it, so a
+# reference into the content keeps working and `children[i]` lands on entry i.
+function map_reference_forward(::AnchoredLayoutToGraphicsCanvas, iomap, reference)
+    return _children_forward(iomap, reference)
+end
+
+map_reference_backward(::AnchoredLayoutToGraphicsCanvas, iomap, reference) = nothing
+
+# Anchored children are drawn over the content, so a click must reach them
+# first — the same topmost-first rule the stack and constraint layouts follow.
+read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
+    _route_stack_event(iomap, evt)
+
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
@@ -1455,6 +1594,7 @@ function LayoutToGraphics()
         StackLayout      => StackLayoutToGraphicsCanvas(),
         LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
         ConstraintLayout => ConstraintLayoutToGraphicsCanvas(),
+        AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(),
     )
 end
 

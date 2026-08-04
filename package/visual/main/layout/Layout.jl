@@ -21,7 +21,8 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 
 export LayoutDocument, FormLayout, LayoutExpr, anchor, constrain, allocate_axis, layout_min,
-       layout_max, layout_preferred, layout_weight
+       layout_max, layout_preferred, layout_weight,
+       AnchoredEntry, AnchoredLayout, compute_anchored_positions
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 
@@ -394,6 +395,174 @@ function allocate_axis(available::Int, mins::Vector{Int}, maxs::Vector{Int},
         end
     end
     actual
+end
+
+# ── AnchoredLayout ───────────────────────────────────────────────────────────
+#
+# Everything else here positions children *with* one another. This one positions
+# them **relative to something already placed**, and composites them over it: the
+# content is laid out as it would be anyway, and each anchored child is put beside
+# a target inside it.
+#
+# The distinction is the whole point. An annotation on a diagram — a count beside
+# a node, a rate along a link — must not change what it annotates. Because an
+# anchored child never enters the content's own layout, the content's geometry
+# does not depend on it, and a diagram whose annotations change every frame keeps
+# its nodes exactly where they were.
+
+"""
+    AnchoredEntry(child, target; placement, offset_x, offset_y)
+
+One anchored child and what it is anchored to.
+
+`target` names the element to sit beside, either directly (a graphics document
+whose position cells are read) or as a `reference` into the content, resolved
+through the content's own IoMap. `placement` is the preferred side — `:above`,
+`:below`, `:left` or `:right` — which the placement algorithm may overrule to
+stay inside the bounding region. `offset_x`/`offset_y` are applied afterwards.
+
+Follows `LayoutConstraint`'s pattern: a wrapper that attaches positioning policy
+to a child without the child having to know about it.
+"""
+@document struct AnchoredEntry <: Document
+    child::Document
+    target::Any = nothing          # a graphics document, or nothing
+    reference::Any = nothing       # a Reference into the content, or nothing
+    placement::Symbol = :right
+    offset_x::Int = 0
+    offset_y::Int = 0
+end
+
+# Typed first argument, so this is a NEW method rather than an overwrite of the
+# macro's one-positional-argument form (which is `(::Any)`) — the same trick
+# `GraphEdge` uses for its mixed positional/keyword constructor.
+AnchoredEntry(child::Document; target = nothing, reference = nothing,
+              placement::Symbol = :right, offset_x::Integer = 0, offset_y::Integer = 0) =
+    AnchoredEntry(Cell(child), Cell(target), Cell(reference), Cell(placement),
+                  Cell(Int(offset_x)), Cell(Int(offset_y)), Cell(nothing))
+
+"""
+    AnchoredLayout(content, children; bounding_width, bounding_height, stacking_gap)
+
+`content` laid out as usual, with each [`AnchoredEntry`](@ref) in `children`
+placed beside its target and drawn on top.
+
+`bounding_width`/`bounding_height` bound the region placement may use (zero
+means the content's own extent). `stacking_gap` is the space left between
+entries that would otherwise overlap.
+"""
+@document struct AnchoredLayout <: LayoutDocument
+    content::Document
+    children::CellVector = CellVector()
+    bounding_width::Int = 0
+    bounding_height::Int = 0
+    stacking_gap::Int = 4
+end
+
+function AnchoredLayout(content::Document, children::Vector;
+                        bounding_width::Integer = 0, bounding_height::Integer = 0,
+                        stacking_gap::Integer = 4)
+    AnchoredLayout(Cell(content),
+                   CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
+                   Cell(Int(bounding_width)), Cell(Int(bounding_height)),
+                   Cell(Int(stacking_gap)), Cell(nothing))
+end
+
+"""
+    compute_anchored_positions(entries, targets, bounding_w, bounding_h, stacking_gap)
+        -> Vector{Tuple{Int,Int}}
+
+Where each anchored child goes. Pure — no cells, no documents — so it can be
+tested on numbers alone, the way `allocate_axis` is.
+
+`entries` is one `(w, h, placement, offset_x, offset_y)` per child and `targets`
+one `(x, y, w, h)` or `nothing`. An entry whose target could not be resolved is
+placed at the origin and left out of the stacking pass: it is anchored to
+nothing, so it can crowd nothing.
+
+Placement tries the preferred side, then the opposite, then the two
+perpendicular ones, and finally clamps — a child that fits nowhere is still
+drawn, inside the region, rather than off the edge where nobody would see it.
+Entries that still overlap are stacked downward in `stacking_gap` steps, first
+one placed first.
+"""
+function compute_anchored_positions(entries, targets,
+                                    bounding_w::Int, bounding_h::Int,
+                                    stacking_gap::Int)
+    n = length(entries)
+    positions = Vector{Tuple{Int,Int}}(undef, n)
+    anchored = Int[]
+    for i in 1:n
+        w, h, placement, dx, dy = entries[i]
+        target = targets[i]
+        if target === nothing
+            positions[i] = (0, 0)
+            continue
+        end
+        x, y = _anchored_place(target, w, h, placement, bounding_w, bounding_h)
+        positions[i] = (x + dx, y + dy)
+        push!(anchored, i)
+    end
+    _anchored_stack!(positions, entries, anchored, stacking_gap)
+    positions
+end
+
+# The candidate position on one side of the target, with the child centred on
+# the other axis.
+function _anchored_side(target, w::Int, h::Int, side::Symbol)
+    tx, ty, tw, th = target
+    side === :right  && return (tx + tw, ty + (th - h) ÷ 2)
+    side === :left   && return (tx - w,  ty + (th - h) ÷ 2)
+    side === :below  && return (tx + (tw - w) ÷ 2, ty + th)
+    side === :above  && return (tx + (tw - w) ÷ 2, ty - h)
+    (tx + tw, ty)
+end
+
+_anchored_opposite(side::Symbol) =
+    side === :right ? :left : side === :left ? :right :
+    side === :below ? :above : :below
+
+_anchored_perpendicular(side::Symbol) =
+    (side === :left || side === :right) ? (:below, :above) : (:right, :left)
+
+_anchored_fits(x::Int, y::Int, w::Int, h::Int, bw::Int, bh::Int) =
+    x >= 0 && y >= 0 && (bw <= 0 || x + w <= bw) && (bh <= 0 || y + h <= bh)
+
+function _anchored_place(target, w::Int, h::Int, placement::Symbol,
+                         bounding_w::Int, bounding_h::Int)
+    for side in (placement, _anchored_opposite(placement),
+                 _anchored_perpendicular(placement)...)
+        x, y = _anchored_side(target, w, h, side)
+        _anchored_fits(x, y, w, h, bounding_w, bounding_h) && return (x, y)
+    end
+    x, y = _anchored_side(target, w, h, placement)
+    (_anchored_clamp(x, w, bounding_w), _anchored_clamp(y, h, bounding_h))
+end
+
+_anchored_clamp(v::Int, extent::Int, bound::Int) =
+    bound <= 0 ? max(v, 0) : clamp(v, 0, max(bound - extent, 0))
+
+# Two anchored children that landed on top of one another are both unreadable;
+# the later one moves down. Earlier entries keep their place, so the order the
+# caller gave is the order on screen.
+function _anchored_stack!(positions, entries, anchored::Vector{Int}, gap::Int)
+    for a in 1:length(anchored)
+        i = anchored[a]
+        for b in 1:(a - 1)
+            j = anchored[b]
+            _anchored_overlaps(positions[i], entries[i], positions[j], entries[j]) || continue
+            positions[i] = (positions[i][1],
+                            positions[j][2] + entries[j][2] + gap)
+        end
+    end
+    positions
+end
+
+function _anchored_overlaps(pi, ei, pj, ej)
+    (xi, yi), (xj, yj) = pi, pj
+    wi, hi = ei[1], ei[2]
+    wj, hj = ej[1], ej[2]
+    xi < xj + wj && xj < xi + wi && yi < yj + hj && yj < yi + hi
 end
 
 # ── ConstraintLayout ─────────────────────────────────────────────────────────

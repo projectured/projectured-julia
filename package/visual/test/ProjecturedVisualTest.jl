@@ -106,6 +106,7 @@ include("projection/WidgetTransformPaneTest.jl")
 include("projection/LayoutCloseoutTest.jl")
 include("projection/WidgetFormsTest.jl")
 include("projection/AnchorPointTest.jl")
+include("projection/AnchoredLayoutTest.jl")
 
 # ── interaction decorators (clipboard / tooltip) ─────────────────────────────
 # The clipboard copy/cut/paste projection and the tooltip decorator's
@@ -204,6 +205,7 @@ function test_visual()
         test_layout_closeout()
         test_widget_forms()
         test_anchor_point()
+        test_anchored_layout()
         # interaction decorators
         test_clipboard_to_any()
         test_tooltip()
@@ -245,7 +247,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_transform_pane,
-       test_layout_closeout, test_widget_forms, test_anchor_point
+       test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard_to_any, test_tooltip, test_split_pane_drag,
        test_widget_popup_example, test_collapse_roundtrip
 export POSITION_NAV_KEYS, POSITION_SEED_GESTURE, TREE_NAV_KEYS, TREE_SEED_GESTURE,
