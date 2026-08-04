@@ -438,6 +438,88 @@ function test_sequencechart()
                               MousePress(:left, 2, 2, _sc_no_modifier)) === nothing
         end
 
+        @testset "long arrows split" begin
+            # An arrow far longer than the window says nothing its two ends do
+            # not: its angle carries no information and its middle is off
+            # screen. Each end keeps a stub instead.
+            chart = SequenceChart("long",
+                Any[SequenceChartAxis("a"), SequenceChartAxis("b")];
+                events=SequenceChartEvents(collect(0.0:1.0:200.0),
+                                           [1 + (i % 2) for i in 0:200]),
+                arrows=SequenceChartArrows([1], [201]),
+                timeline=SequenceChartTimeline(; mode=:step))
+            iomap = _sequencechart_iomap(chart)
+            plot = _plot_of(iomap)
+            # Zoom in until the arrow's ends are far outside the window.
+            plot.view = SequenceChartView(1, 0.0, 4.0)
+            g = _geometry_of(iomap)
+            shape = only(g.shapes)
+            @test shape.split !== nothing
+            near, far = shape.split
+            @test abs(near[2] - near[1]) ≈ chart.style.split_stub_px
+            @test abs(far[2] - far[1]) ≈ chart.style.split_stub_px
+
+            # Zoomed back out to the whole trace it is drawn whole again.
+            plot.view = nothing
+            @test only(_geometry_of(iomap).shapes).split === nothing
+        end
+
+        @testset "the overlay marks what is selected and hovered" begin
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            plot = _plot_of(iomap)
+            before = length(_sc_flatten(_sequencechart_canvas(_sc_chart())))
+
+            # A selected occurrence gets a ring rather than a recolour: the
+            # mark's own colour carries its kind, and overwriting it would cost
+            # the reader the thing they selected it to see.
+            plot.selection = sequence_chart_reference(plot, event_reference(chart, 2))
+            with_selection = _sc_flatten(iomap.output)
+            rings = [e for e in with_selection
+                     if e isa GraphicsCircle && Int(e.border_width) > 0]
+            @test length(rings) == 1
+            @test Int(rings[1].radius) > chart.style.event_radius
+
+            # Hovering an arrow re-strokes it thicker.
+            plot.selection = nothing
+            plot.hovered = sequence_chart_reference(plot, arrow_reference(chart, 1))
+            hovered = _sc_flatten(iomap.output)
+            @test any(e -> e isa GraphicsPolyline && Int(e.width) == 3, hovered)
+        end
+
+        @testset "selecting the document marks the picture" begin
+            # The path the editor actually takes: nothing writes to the plot.
+            # The *document's* selection changes, the plot's is computed from it
+            # through the stage-one forward map, and the overlay follows —
+            # setting the plot's selection by hand, as the test above does,
+            # would pass even if that chain were broken.
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            _ring_count(canvas) = count(e -> e isa GraphicsCircle && Int(e.border_width) > 0,
+                                        _sc_flatten(canvas))
+            @test _ring_count(iomap.output) == 0
+
+            chart.selection = event_reference(chart, 2)
+            @test _plot_of(iomap).selection !== nothing
+            @test _ring_count(iomap.output) == 1
+        end
+
+        @testset "the gutter reads out the pointer and the window" begin
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            plot = _plot_of(iomap)
+
+            # The window's extent is always shown.
+            texts = _sc_texts(_sc_flatten(iomap.output))
+            @test any(t -> occursin("Δ", t), texts)
+
+            # The pointer's time appears once it has one, with a line carrying
+            # that moment across every lane.
+            plot.cursor = 3.0
+            with_cursor = _sc_flatten(iomap.output)
+            @test any(e -> e isa GraphicsLine && e.dash == (3, 3), with_cursor)
+        end
+
         @testset "an empty chart still draws" begin
             canvas = _sequencechart_canvas(SequenceChart("empty", Any[]))
             @test canvas isa GraphicsCanvas

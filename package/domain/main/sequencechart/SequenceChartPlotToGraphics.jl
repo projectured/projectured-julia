@@ -78,6 +78,7 @@ import ..OperationModule: Operation, ReplaceSelectionOperation,
                           ReplaceReferencedValueOperation, CompoundOperation
 import ..ReferenceModule: get_reference_node_type
 import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceCaseModule: var"@reference_case"
 
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
        resolve_window, lane_cross_position,
@@ -745,6 +746,155 @@ function _mark!(out, symbol::Symbol, x::Int, y::Int, radius::Int, color)
     out
 end
 
+# ── Overlay ──────────────────────────────────────────────────────────────
+#
+# What is selected and what is under the pointer. Kept out of the layout on
+# purpose: these change at pointer-move frequency, and re-deriving a frame over
+# a long trace that often is the difference between a chart that follows the
+# mouse and one that trails it.
+
+const _SELECTION = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.9)
+const _HOVER = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.45)
+
+# Which occurrence and arrow a reference names, once the plot's own `chart` step
+# is off. Selection arrives already in the plot's vocabulary, so both are peeled
+# the same way.
+function _overlay_rows(g, plot)
+    chart = g.chart
+    chart isa SequenceChart || return (0, 0, 0, 0)
+    (_row_of(plot.hovered, :events), _row_of(plot.hovered, :arrows),
+     _row_of(plot.selection, :events), _row_of(plot.selection, :arrows))
+end
+
+function _row_of(reference, table::Symbol)
+    reference === nothing && return 0
+    @reference_case reference begin
+        ::SequenceChartPlot.chart.events.row(k) => (table === :events ? k : 0)
+        ::SequenceChartPlot.chart.arrows.row(k) => (table === :arrows ? k : 0)
+        _ => 0
+    end
+end
+
+function _overlay_elements!(out, g, plot)
+    hovered_event, hovered_arrow, selected_event_row, selected_arrow_row =
+        _overlay_rows(g, plot)
+
+    # A selected occurrence gets a ring around it rather than a different fill:
+    # the mark's own colour carries its kind, and overwriting that to say
+    # "selected" would cost the reader the very thing they selected it to see.
+    for (row, color) in ((selected_event_row, _SELECTION), (hovered_event, _HOVER))
+        row == 0 && continue
+        _event_ring!(out, g, row, color)
+    end
+    for (row, color) in ((selected_arrow_row, _SELECTION), (hovered_arrow, _HOVER))
+        row == 0 && continue
+        _arrow_highlight!(out, g, row, color)
+    end
+    _cursor_elements!(out, g, plot)
+    out
+end
+
+function _event_ring!(out, g, row::Integer, color)
+    (1 <= row <= length(g.coordinates)) || return out
+    lane = event_axis(g.chart.events, row)
+    position = get(g.lane_of, lane, nothing)
+    position === nothing && return out
+    flow = to_pixel(g.scale, g.coordinates[row])
+    x, y = flow_point(g.frame, flow, position)
+    radius = g.style.event_radius + 4
+    # Transparent fill, so the mark underneath still shows through the ring.
+    push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius,
+                              StyleColor(0.0, 0.0, 0.0, 0.0);
+                              border_width=2, border_color=color))
+    out
+end
+
+function _arrow_highlight!(out, g, row::Integer, color)
+    for shape in g.shapes
+        shape.index == row || continue
+        if shape.route === :arc
+            points = arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
+            placed = [(round(Int, x), round(Int, y))
+                      for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
+            push!(out, GraphicsSpline(placed, color; kind=:bezier, width=3))
+        else
+            x0, y0 = flow_point(g.frame, shape.f0, shape.c0)
+            x1, y1 = flow_point(g.frame, shape.f1, shape.c1)
+            push!(out, GraphicsPolyline([(round(Int, x0), round(Int, y0)),
+                                         (round(Int, x1), round(Int, y1))],
+                                        color; width=3))
+        end
+        break
+    end
+    out
+end
+
+# The pointer's own line through the chart, so the eye can carry a moment across
+# every lane at once — the same job the tick hairlines do, for a time that has no
+# tick.
+function _cursor_elements!(out, g, plot)
+    cursor = plot.cursor
+    cursor === nothing && return out
+    g.chart.gutter.cursor_readout || return out
+    coordinate = time_to_coordinate(g.times, g.coordinates, cursor)
+    flow = to_pixel(g.scale, coordinate)
+    cross_lo, cross_hi = frame_cross_span(g.frame)
+    x0, y0 = flow_point(g.frame, flow, cross_lo)
+    x1, y1 = flow_point(g.frame, flow, cross_hi)
+    push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
+                            round(Int, x1), round(Int, y1), _SELECTION, 1, (3, 3)))
+    out
+end
+
+# The two readouts in the gutter: the time under the pointer, and the extent of
+# the window. Both are chrome, so they go in the outer canvas where the body's
+# clipping cannot reach them.
+function _readout_elements!(out, g, plot)
+    gutter = g.chart.gutter
+    gutter.visible || return out
+    text_color = _or(g.style.tick_color, _TEXT)
+
+    if gutter.cursor_readout && plot.cursor !== nothing
+        text = honest_tick_label(plot.cursor, _cursor_neighbourhood(g))
+        size = g.measure(text, g.axis_font)
+        flow = to_pixel(g.scale, time_to_coordinate(g.times, g.coordinates, plot.cursor))
+        if g.vertical
+            y = round(Int, flow + g.body_y - size[2] / 2)
+            push!(out, GraphicsRect(round(Int, g.body_x - size[1] - _LABEL_GAP - 2), y - 1,
+                                    size[1] + 4, size[2] + 2, _SELECTION))
+            push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
+                                    y, g.axis_font, _BODY_BACKGROUND))
+        else
+            x = round(Int, flow + g.body_x - size[1] / 2)
+            y = round(Int, g.body_y - g.gutter_h + _GUTTER_PAD)
+            push!(out, GraphicsRect(x - 2, y - 1, size[1] + 4, size[2] + 2, _SELECTION))
+            push!(out, GraphicsText(text, x, y, g.axis_font, _BODY_BACKGROUND))
+        end
+    end
+
+    if gutter.range_readout
+        span = coordinate_to_time(g.times, g.coordinates, g.hi) -
+               coordinate_to_time(g.times, g.coordinates, g.lo)
+        text = string(honest_tick_label(coordinate_to_time(g.times, g.coordinates, g.lo),
+                                        _cursor_neighbourhood(g)),
+                      " … Δ", honest_tick_label(span, _cursor_neighbourhood(g)))
+        size = g.measure(text, g.axis_font)
+        push!(out, GraphicsText(text, round(Int, g.w - size[1] - _PAD),
+                                _PAD, g.axis_font, text_color))
+    end
+    out
+end
+
+# How much time one pixel stands for — the bound on how many digits a readout
+# may honestly show.
+function _cursor_neighbourhood(g)
+    pixels = abs(g.scale.p1 - g.scale.p0)
+    pixels > 0 || return 0.0
+    t_lo = coordinate_to_time(g.times, g.coordinates, g.lo)
+    t_hi = coordinate_to_time(g.times, g.coordinates, g.hi)
+    abs(t_hi - t_lo) / pixels / 2
+end
+
 # ── Printer ──────────────────────────────────────────────────────────────
 
 # Canvas size: whatever a parent layout allocated, else the projection's own
@@ -777,6 +927,12 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
 
         body = Any[]
         _body_elements!(body, g)
+        # Hover and selection are read *here* rather than in the layout, so
+        # moving the pointer over a dense chart rebuilds this list and nothing
+        # else. They draw last, over everything they call out.
+        _overlay_elements!(body, g, plot)
+        _readout_elements!(out, g, plot)
+
         # Cross scrolling is a translation of the body, not a relayout: which
         # lanes are in view changes nothing about the flow axis, the decimation
         # or the shapes.

@@ -587,10 +587,23 @@ here as they land.
   - Rubber-band drag zoom is not wired (the `drag_anchor`/`drag_rect` fields are
     there for it); wheel-zoom-about-the-pointer plus double-click-to-reset covers
     the same ground, so it moved to §8.
-- [ ] **Phase 3 — full arrow vocabulary + vertical.** Same-lane arcs, split arrows,
-  elided zigzag marker, endpoint-override lanes, kind visibility; extend the example
-  with this content; `FlowFrame`-driven `:vertical` orientation + vertical example;
-  zero-time shading.
+- [x] **Phase 3 — full arrow vocabulary, vertical, overlay. DONE.** Arcs, split
+  arrows, the elided zigzag, kind visibility, `:vertical`, and zero-time shading
+  all landed with Phase 1; this phase added the **overlay** — selection rings,
+  hover re-strokes, the pointer's cross-chart line, and the gutter's cursor and
+  window readouts — plus the tests for split arrows and for the overlay.
+  `test_sequencechart()` 100.
+
+  Decisions made while implementing:
+  - A selected occurrence gets a **ring**, not a recolour: the mark's own colour
+    carries its kind, and overwriting it to say "selected" would cost the reader
+    the very thing they selected it to see.
+  - Hover, selection and cursor are read in the **element** pass, never in the
+    layout — which is what the `hover does not re-run the layout` test pins.
+  - The overlay test that matters sets **`chart.selection`**, not
+    `plot.selection`: the plot's is a computed cell forward-mapped from the
+    document's, and writing the plot's by hand would pass even with that chain
+    broken. Verified the real path end to end.
 - [ ] **Phase 4 — bands + scale + doc.** `SequenceChartBandSeries` rendering with
   event-anchored edges and value labels, band selection; extend the example with the
   band; inspector example; `test_sequencechart_scale()`;
