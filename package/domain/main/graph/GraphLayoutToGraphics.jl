@@ -85,6 +85,7 @@ struct GraphLayoutToGraphicsCanvas <: Projection end
     input::Any
     output::Any
     child_iomaps::Cell      # vector of (x, y, content_iomap) per vertex layout
+    node_elements::Cell     # index into `output.elements` of each vertex's box
 end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
@@ -128,12 +129,19 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         out
     end)
 
-    elements = ComputedCellVector(() -> begin
+    # The drawing, and where each vertex's box ended up in it. The two are built
+    # together because the second is a fact about the first: element order
+    # depends on how many edges and edge labels came before the nodes, and a
+    # second pass that recomputed it would be the same code twice.
+    drawn = ComputedCell(() -> begin
         result = Any[]
         # Read the highlights once per repaint. They are compared by identity
         # against the vertex/edge each layout holds.
         highlight_vertex = layout.highlight_vertex
         highlight_edge = layout.highlight_edge
+        # Where each vertex's node box lands in `result` — the reference target
+        # for "beside node i", which is what an annotation anchors to.
+        node_at = Union{Int,Nothing}[nothing for _ in 1:length(layout.vertex_layouts)]
         # Edges first (behind the nodes), each with its optional label centred on
         # the route midpoint.
         labels = edge_label_iomaps[]
@@ -181,6 +189,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             push!(result, GraphicsRect(bx, by, bw, bh,
                 _FILL, _RADIUS;
                 border_width=_BORDER_W, border_color=_BORDER))
+            node_at[i] = length(result)
             entry = i <= length(entries) ? entries[i] : nothing
             if entry !== nothing && entry[3] !== nothing
                 cim = entry[3]
@@ -188,11 +197,14 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                     CellVector(Cell[Cell(cim.output)]), layout_none, true))
             end
         end
-        result
+        (result, node_at)
     end)
 
+    elements = ComputedCellVector(() -> drawn[][1])
+    node_elements = ComputedCell(() -> drawn[][2])
+
     canvas = GraphicsCanvas(elements, layout_none)
-    GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps)
+    GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps, node_elements)
 end
 
 # A GraphicsCanvas is not a selectable container, so we never forward a selection
@@ -200,6 +212,16 @@ end
 # sub-pipeline (the node-box selection band is drawn in place if added later).
 function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, reference)
     @reference_case reference begin
+        # A whole vertex is its node box in the drawing. Nothing selects a
+        # vertex — the cursor lives in its content — but something has to be
+        # able to *point at* one: an annotation anchored beside a node asks the
+        # projection where that node was drawn, and this is the answer.
+        ::GraphLayout.vertex_layouts[i].vertex => begin
+            indices = iomap.node_elements
+            (i < 1 || i > length(indices)) && return nothing
+            k = indices[i]
+            k === nothing ? nothing : (@reference iomap.output elements[k])
+        end
         ::GraphLayout.vertex_layouts[i].vertex.content.rest... => begin
             entries = iomap.child_iomaps
             (i < 1 || i > length(entries)) && return nothing

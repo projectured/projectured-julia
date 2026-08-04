@@ -142,6 +142,32 @@ end
     @test is_reference_equal(strip_reference_types(back), strip_reference_types(@reference(g, vertices[1])))
 end
 
+@testset "a whole vertex maps forward to the box it was drawn as" begin
+    # Nothing *selects* a vertex — the cursor lives in its content — but
+    # something has to be able to point at one, because that is what an
+    # annotation anchored beside a node asks for.
+    g = make_graph_document_example()
+    proj = make_graph_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    iomap = print_document(proj, g)
+
+    for i in 1:length(g.vertices)
+        fwd = map_reference_forward(iomap.projection, iomap, @reference(g, vertices[i]))
+        @test fwd !== nothing
+        # The reference is into the drawing's own elements, so it evaluates
+        # against the output — a reference relative to anything else would be
+        # unusable by whoever asked.
+        node = evaluate_reference(iomap.output, fwd)
+        @test node isa GraphicsRect
+    end
+
+    # Distinct vertices are distinct boxes: the index really is per vertex.
+    boxes = [evaluate_reference(iomap.output,
+                                map_reference_forward(iomap.projection, iomap,
+                                                      @reference(g, vertices[i])))
+             for i in 1:length(g.vertices)]
+    @test length(unique(objectid.(boxes))) == length(boxes)
+end
+
 @testset "the natural renderer draws a graph as a diagram" begin
     # A diagram is one of the things "almost any document" has to cover, and the
     # vertex content is where it matters: the graph stages take the natural
