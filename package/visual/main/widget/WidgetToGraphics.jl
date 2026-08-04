@@ -11,9 +11,10 @@ emit text and rect elements; container widgets recurse via the `recursion`
 argument and nest child canvases. Event routing (e.g. MouseScroll) is
 delegated through containers to the appropriate child via hit-testing.
 
-Also contains `WidgetScrollPaneToGraphicsViewport`, a composable projection
-that converts a single `WidgetScrollPane` into a `GraphicsViewport`, delegating
-the content projection via the recursion argument.
+`WidgetScrollPaneToGraphicsCanvas` is the one scroll pane projection: a sized
+`GraphicsCanvas` wrapping the `GraphicsViewport` that clips, with the content
+delegated through the recursion argument. Compose it with `NestingProjection`
+to give that content a different recursion table than the surrounding tree.
 """
 module WidgetToGraphicsModule
 
@@ -92,7 +93,6 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
-       WidgetScrollPaneToGraphicsViewport, WidgetScrollPaneToGraphicsViewportIoMap,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
@@ -489,10 +489,22 @@ end
     inactive_foreground::StyleColor
 end
 
+# The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
+# pane's real width and height — a parent that MEASURES its child (a WidgetCard
+# sizing its body) needs them, or it under-sizes and the clipped viewport draws
+# past its border — wrapping a `GraphicsViewport` that does the clipping.
+#
+# `chrome = false` omits the background fill, for a caller that paints its own
+# or wants the pane to disappear into its surroundings. That is the only thing
+# the retired `WidgetScrollPaneToGraphicsViewport` did differently; it was a
+# second copy of the same viewport and the same coordinate arithmetic, and the
+# copies drifted — one translated every pointer event and the other only the
+# press, so a scrolled list's hover lagged the pointer by the scroll offset.
 @projection struct WidgetScrollPaneToGraphicsCanvas
     measure::Function
     font::StyleFont                  # measures the scroll step
-    background_color::StyleColor      # default viewport fill
+    background_color::StyleColor = color_white   # viewport fill, when chrome
+    chrome::Bool = true                          # paint the background fill
 end
 
 @projection struct WidgetTransformPaneToGraphicsCanvas
@@ -2906,7 +2918,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
     # Cell-backed rect so it tracks the viewport extent.
-    push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
+    p.chrome && push!(elems, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), vw_cell, vh_cell,
                               Cell(bgc),
                               Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                               Cell(Int32(0)),
@@ -5757,7 +5769,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
         WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(measurer, theme.font, 4, theme.radius,
             theme.muted, theme.background, theme.foreground, theme.muted_foreground),
-        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(measurer, theme.font, theme.background),
+        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(; measure = measurer, font = theme.font,
+                                           background_color = theme.background),
         WidgetTransformPane => WidgetTransformPaneToGraphicsCanvas(measurer, theme.font, theme.background),
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(measurer, theme.caption_text, theme.muted, theme.gap),
@@ -5837,118 +5850,6 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             22, 18, 20, 4,
             StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
     )
-end
-
-# ── WidgetScrollPaneToGraphicsViewport ─────────────────────────────────────
-
-@iomap struct WidgetScrollPaneToGraphicsViewportIoMap
-    projection::Any
-    input::WidgetScrollPane
-    output::GraphicsCanvas
-    content_iomap::Any
-end
-
-"""
-    WidgetScrollPaneToGraphicsViewport(font, measure)
-
-Projects a `WidgetScrollPane` to a `GraphicsViewport`. The content inside
-the scroll pane is projected via the recursion argument. `measure` is
-used to determine the scroll delta for mouse scroll events.
-"""
-struct WidgetScrollPaneToGraphicsViewport <: Projection
-    font::StyleFont
-    measure::Function
-end
-
-function print_document(p::WidgetScrollPaneToGraphicsViewport, recursion, w::WidgetScrollPane, ctx)
-    pos = w.position
-    sz  = w.size
-    bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
-    by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    vw = sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH
-    vh = sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT
-
-    # The content is allocated the VIEWPORT's width, not the pane's own parent
-    # allocation: a width-filling child (`_resolve_width`) would otherwise size
-    # itself to a parent the pane then clips, losing its right edge. Content that
-    # genuinely needs more still gets it — `_resolve_width` never goes below
-    # `content_min` — and scrolls, which is what the pane is for.
-    content_ctx = ctx === nothing ? ctx : with_available_size(ctx; width = Cell(vw))
-    content_iomap = print_child(recursion, w.content, content_ctx)
-    scroll_cell = getfield(w, :scroll_position)
-    inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
-    inner_y = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.y[])) end)
-
-    # Re-read `content_iomap.output` inside cells (not a one-time snapshot into a local):
-    # a reactive content projection recomputes its *whole* output GraphicsCanvas on a
-    # document change, so the viewport must track the current one — mirroring how
-    # ScreenToScreen wraps a window's content as `ComputedCell(() -> content_iomap.output)`.
-    # Capturing `content_iomap.output` once (or its unwrapped `.elements`) freezes the
-    # viewport against a live document.
-    inner_canvas = GraphicsCanvas(inner_x, inner_y, Cell(Int32(0)), Cell(Int32(0)),
-                                  ComputedCell(() -> content_iomap.output.elements),
-                                  ComputedCell(() -> content_iomap.output.layout),
-                                  ComputedCell(() -> content_iomap.output.overlapping_elements),
-                                  Cell(nothing))
-    viewport = GraphicsViewport(bx, by, vw, vh, inner_canvas)
-    output = GraphicsCanvas([viewport])
-
-    WidgetScrollPaneToGraphicsViewportIoMap(p, w, output, content_iomap)
-end
-
-function read_intent(p::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, evt)
-    content_iomap = iomap.content_iomap
-    # Translate pointer coordinates into the scrolled content's frame for any
-    # event carrying coords. The viewport is drawn at (bx, by); the inner
-    # canvas inside it is offset by (-scroll_x, -scroll_y), so an element at
-    # content (cx, cy) renders at viewport (bx + cx - sx, by + cy - sy). To
-    # invert: content_x = (evt.x - bx) + sx, content_y = (evt.y - by) + sy.
-    w = iomap.input
-    pos = w.position
-    bx = pos isa Point2D ? _sc(Int(pos.x[])) : 0
-    by = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    sp = getfield(w, :scroll_position)[]::Point2D
-    sx, sy = Int(sp.x[]), Int(sp.y[])
-    translated = @event_case evt begin
-        MousePress(button, x, y) => MousePress(button, x - bx + sx, y - by + sy, evt.count, evt.modifiers)
-        MouseDown(button, x, y)  => MouseDown(button, x - bx + sx, y - by + sy, evt.modifiers)
-        MouseUp(button, x, y)    => MouseUp(button, x - bx + sx, y - by + sy, evt.modifiers)
-        MouseMove(x, y)          => MouseMove(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
-        MouseEnter(x, y)         => MouseEnter(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
-        MouseLeave(x, y)         => MouseLeave(x - bx + sx, y - by + sy, evt.buttons, evt.modifiers)
-        MouseScroll(dx, dy, x, y) => MouseScroll(dx, dy, x - bx + sx, y - by + sy, evt.modifiers)
-        _ => evt
-    end
-    # A wheel turn belongs to the INNERMOST pane under the pointer, so the
-    # content gets first refusal: routing is by POSITION, not by selection. Only
-    # when nothing inside takes it does this pane scroll itself. Handling the
-    # wheel here first is what made a nested pane unscrollable — the outer pane
-    # hit-tests true for every point inside it, so the inner one never saw it.
-    if content_iomap !== nothing
-        op = read_intent(content_iomap.projection, content_iomap, translated)
-        op === nothing || return _retarget_op(p, iomap, op)
-    end
-    if evt isa MouseScroll
-        hit_element_at(iomap.output, evt.x, evt.y) === nothing && return nothing
-        _, scroll_step = p.measure("M", p.font)
-        return evt.dx != 0 && evt.dy == 0 ?
-            _scroll_by(w, -evt.dx * scroll_step, 0) :
-            _scroll_by(w, 0, -evt.dy * scroll_step)
-    end
-    nothing
-end
-
-function map_reference_forward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)
-    return nothing
-end
-
-function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap::WidgetScrollPaneToGraphicsViewportIoMap, reference)
-    reference === nothing && return nothing
-    ConcreteReference(FieldReferenceStep("content"), reference)
-end
-
-function map_reference_backward(::WidgetScrollPaneToGraphicsViewport, iomap, reference)
-    return nothing
 end
 
 end # module

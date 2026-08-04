@@ -5,7 +5,7 @@ end
 function make_scrolling_projection(projection; measure=truetype_measure_text,
                                     font=font_ubuntu_monospace_regular_20)
     NestingProjection(
-        WidgetScrollPaneToGraphicsViewport(font, measure);
+        WidgetScrollPaneToGraphicsCanvas(; measure = measure, font = font, chrome = false);
         recursion=projection,
     )
 end
