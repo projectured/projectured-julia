@@ -216,7 +216,15 @@ for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
         inner = iomap.inner_iomap
         inner === nothing && return nothing
         op = read_intent(inner.projection, inner, evt)
-        op === nothing ? nothing : read_intent(p, iomap, op)
+        op === nothing && return nothing
+        # Re-root only what carries a reference into the embedded document, and
+        # name those types explicitly. Handing the result back to `read_intent`
+        # for dispatch re-enters THIS method for any type without a specific one,
+        # which is an infinite recursion — a mouse crossing the embed blew the
+        # stack after 29k frames.
+        op isa ReplaceSelectionOperation   && return read_intent(p, iomap, op)
+        op isa ReplaceStringRangeOperation && return read_intent(p, iomap, op)
+        op   # anything else carries its own target and travels up unchanged
     end
 end
 
