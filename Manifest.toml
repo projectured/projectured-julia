@@ -793,7 +793,7 @@ uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 version = "0.1.0"
 
 [[deps.ProjecturedDomainExample]]
-deps = ["Profile", "ProjecturedBase", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+deps = ["PrecompileTools", "Profile", "ProjecturedBase", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
 entryfile = "ProjecturedDomainExample.jl"
 path = "package/domain/example"
 uuid = "5393e5bd-6135-44b9-9645-408b92f5eb98"

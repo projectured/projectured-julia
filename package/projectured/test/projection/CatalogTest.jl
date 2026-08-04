@@ -52,8 +52,15 @@ _catalog_edit_broken(name) =
 # @catalog-broken yaml/sequence: graphics Ctrl+Home seed returns nothing (0 states).
 # @catalog-broken filesystem/directory, sql/statement_list: under-typed @reference on the walk.
 # @catalog-broken sql/where_filter_condition: TypeError (SyntaxNavigation) on the walk.
+# @catalog-broken julia/empty: renders to nothing, so there is no caret to seed (0 states).
+#   Arguably not a bug — `JuliaEmpty` is the absent return type of a function that
+#   declares none, and absent is what it should draw. It is marked rather than
+#   skipped because the atom still has to be printed and read like any other, and
+#   because "a document that renders empty" is a case the navigator may one day
+#   want an answer for.
 const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
-                             "sql/statement_list/", "sql/where_filter_condition/")
+                             "sql/statement_list/", "sql/where_filter_condition/",
+                             "julia/empty/")
 _catalog_seed_broken(name)   = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_errs -> true) : nothing
 _catalog_throws_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_msg -> true) : nothing
 # a per-state caret step whose selection can't re-apply (same broken entries).

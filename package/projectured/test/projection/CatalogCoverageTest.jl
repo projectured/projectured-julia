@@ -78,14 +78,7 @@ const _NO_ATOM = Set{String}([
     # ProjecturedBase
     "CellTable", "CellVector", "DraggingState", "ListNode", "ReferenceStub",
     "VersionedObject",
-    # ProjecturedDomain — Julia AST nodes the parser produces but no atom names
-    "JuliaAbstractType", "JuliaAnonymousTypeAnnotation", "JuliaBroadcast",
-    "JuliaComprehension", "JuliaConst", "JuliaCurly", "JuliaDo", "JuliaDocstring",
-    "JuliaEmpty", "JuliaFunctionDeclaration", "JuliaInterpolation", "JuliaLet",
-    "JuliaMacroCall", "JuliaModuleDef", "JuliaNamedTuple", "JuliaSplat",
-    "JuliaStringChunk", "JuliaStringInterpolation", "JuliaStruct", "JuliaSubtype",
-    "JuliaWhere", "JuliaWhereParameters",
-    # ProjecturedDomain — everything else
+    # ProjecturedDomain
     "ChartPlot", "ConversationConversation", "ConversationDraft",
     "ConversationPart", "ConversationTurn", "DatabaseInstance",
     "DbCatalogColumn", "DbCatalogDatabase",
@@ -147,7 +140,7 @@ function test_catalog_coverage()
         # The debt itself, as one visible Broken. Delete names from `_NO_ATOM` as
         # atoms are written; when the set empties this becomes a plain pass and
         # the marker can go.
-        # @broken 130 document types have a printer and no atom — see `_NO_ATOM`.
+        # @broken 108 document types have a printer and no atom — see `_NO_ATOM`.
         @test_broken isempty(gap)
     end
 end
