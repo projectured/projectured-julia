@@ -189,8 +189,11 @@ end
 # Which row each visible strip occupies, as the y coordinate of its centre. The
 # first strip in the series list sits on top — the order the legend reads in —
 # so k strips fill the integer rows k down to 1.
-function _strip_rows(series)
+function _strip_rows(series, chart::Chart)
     rows = Dict{Int,Int}()
+    # A strip on a category chart is never drawn, so it gets no row either —
+    # otherwise its band would still be clickable with nothing in it.
+    chart_axis_family(chart.x_axis) === :xy || return (rows, 0)
     indices = Int[i for (i, s) in series if s isa ChartStripSeries]
     k = length(indices)
     for (r, i) in enumerate(indices)
@@ -489,7 +492,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     # Row-label mode: when the chart is nothing but strips, the y axis is the
     # list of strips, so it carries their labels instead of numbers. Any other
     # series visible — or none at all — and the numeric path runs untouched.
-    strip_rows, strip_count = _strip_rows(series)
+    strip_rows, strip_count = _strip_rows(series, chart)
     strip_only = strip_count >= 1 && all(s -> s isa ChartStripSeries, (s for (_, s) in series))
 
     if strip_only
@@ -1094,17 +1097,23 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     end
 
     # The selected sample, called out whether or not the pointer is near it.
+    # Which callout is the series type's business, not the sample value's: a
+    # histogram bin is a triple too, and rings nothing.
     sample = selected_sample(g.chart)
     if sample !== nothing
         series = g.chart.series[sample[1]]
-        point = chart_sample(series, sample[2])
-        if point isa Tuple && length(point) == 2
-            sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
-            sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
-            color = series_color(series.color, sample[1], g.style.color_cycle)
-            push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
-                                      border_width=2, border_color=_SELECTION_EDGE))
-            push!(out, GraphicsCircle(sx, sy, 3, color))
+        if series isa ChartStripSeries
+            _selected_strip!(out, g, sample[1], series, sample[2])
+        else
+            point = chart_sample(series, sample[2])
+            if point isa Tuple && length(point) == 2
+                sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
+                sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
+                color = series_color(series.color, sample[1], g.style.color_cycle)
+                push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
+                                          border_width=2, border_color=_SELECTION_EDGE))
+                push!(out, GraphicsCircle(sx, sy, 3, color))
+            end
         end
     end
 
@@ -1118,7 +1127,11 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     snapped = _snap_point(g, cx, cy)
     text_color = _or(g.style.title_color, _TEXT)
     if snapped === nothing
-        label = string(format_tick(cursor[1]), ", ", format_tick(cursor[2]))
+        # Inside a band, the y coordinate is a row number and reading it back as
+        # a value would be meaningless — the state holding there is the answer.
+        strip = _strip_readout(g, cursor[1], cy + g.plot_y)
+        label = strip === nothing ?
+            string(format_tick(cursor[1]), ", ", format_tick(cursor[2])) : strip
         push!(out, GraphicsText(label, cx + 6, cy - 18, g.axis_font, text_color))
         return out
     end
@@ -1137,6 +1150,44 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                             _PLOT_BACKGROUND, 3; border_width=1, border_color=_AXIS))
     push!(out, GraphicsText(label, lx, py - th - 5, g.axis_font, text_color))
     out
+end
+
+# The selected segment, outlined where it is actually drawn: the span it folded
+# into if it folded, and out to the drawn end if it is the last one.
+# `chart_sample` keeps reporting the extent in the data, which does not move
+# with the zoom, so the two deliberately differ.
+function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
+    band = _strip_band(g, index)
+    band === nothing && return out
+    n = min(length(s.x), length(s.values))
+    (1 <= k <= n) || return out
+    left = round(Int, to_pixel(g.xs, Float64(s.x[k])))
+    right = round(Int, k < n ? to_pixel(g.xs, Float64(s.x[k + 1])) :
+                       to_pixel(g.xs, _strip_end(s, g.view)))
+    for (sl, sr, _) in _strip_spans(g, s)
+        if sl <= left < sr
+            left, right = sl, sr
+            break
+        end
+    end
+    _outline!(out, left - g.plot_x, band[1] - g.plot_y,
+              max(right - left, 1), max(band[2] - band[1], 1))
+end
+
+# What the pointer is over inside a band: the strip and the state holding at
+# that moment, which is what a strip is read for.
+function _strip_readout(g, at::Real, y::Integer)
+    for (index, s) in g.series
+        s isa ChartStripSeries || continue
+        band = _strip_band(g, index)
+        band === nothing && continue
+        (band[1] <= y <= band[2]) || continue
+        k = _strip_sample_at(g, s, at)
+        k === nothing && continue
+        return string(_series_label(s), "  ", strip_state_name(s, s.values[k]),
+                      " @ ", format_tick(Float64(at)))
+    end
+    nothing
 end
 
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
@@ -1514,7 +1565,22 @@ function _series_hit(g, x::Integer, y::Integer)
             d <= best_d && (best_d = d; best = index)
         end
     end
-    best
+    best === nothing || return best
+    # A strip claims its whole band, so the empty space before its first sample
+    # or past where it ends still means that series.
+    _strip_band_hit(g, y)
+end
+
+# The strip whose band a pixel row falls in. Bands do not overlap, so the first
+# match is the only one.
+function _strip_band_hit(g, y::Integer)
+    for (index, s) in g.series
+        s isa ChartStripSeries || continue
+        band = _strip_band(g, index)
+        band === nothing && continue
+        band[1] <= y <= band[2] && return index
+    end
+    nothing
 end
 
 const _HIT_TOLERANCE = 8
@@ -1539,7 +1605,37 @@ function _sample_hit(g, x::Integer, y::Integer)
         found === nothing && continue
         found[2] < best_d && (best_d = found[2]; best = (index, found[1]))
     end
-    best
+    # A point within reach wins: it is a smaller target than a whole band, so
+    # the click that could have meant either meant the point.
+    best === nothing || return best
+    _strip_sample_hit(g, x, y)
+end
+
+# The segment a click lands on, as `(series_index, sample_index)`. The index is
+# the raw sample's, not the coalesced run's, so a reference to it survives the
+# zoom that changes how the runs fold.
+function _strip_sample_hit(g, x::Integer, y::Integer)
+    for (index, s) in g.series
+        s isa ChartStripSeries || continue
+        band = _strip_band(g, index)
+        band === nothing && continue
+        (band[1] <= y <= band[2]) || continue
+        k = _strip_sample_at(g, s, to_data(g.xs, x))
+        k === nothing || return (index, k)
+    end
+    nothing
+end
+
+# Which sample holds at a time, bounded at the drawn end so a click only counts
+# where something is actually painted — past an explicit `x_end` the band is
+# empty, and the click means the series instead.
+function _strip_sample_at(g, s::ChartStripSeries, at::Real)
+    x = s.x
+    n = min(length(x), length(s.values))
+    n >= 1 || return nothing
+    (Float64(at) < Float64(x[1]) || Float64(at) > _strip_end(s, g.view)) && return nothing
+    k = searchsortedlast(x, at)
+    k < 1 ? nothing : min(k, n)
 end
 
 # How many shades a folded scatter cloud is drawn in. Quantizing the density is
