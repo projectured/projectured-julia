@@ -224,11 +224,11 @@ A sequence of statements/expressions.
 end
 
 """
-A `using`/`import` statement. `keyword` is `:using` or `:import`; `path` is the
-rendered module spec exactly as written, e.g. `"Main.OmnetppPredExample"`,
-`"A, B"`, or `"A: x, y"`. Kept as a flat string (the spec is a path, not a nested
-expression), so the projection renders the keyword highlighted and the path
-verbatim.
+A `using`/`import`/`export` statement. `keyword` is `:using`, `:import`,
+`:export` or `:public`; `path` is the rendered spec exactly as written, e.g.
+`"Main.OmnetppPredExample"`, `"A, B"`, or `"A: x, y"`. Kept as a flat string
+(the spec is a path or a name list, not a nested expression), so the projection
+renders the keyword highlighted and the rest verbatim.
 """
 @document struct JuliaUsing <: JuliaDocument
     keyword::Symbol

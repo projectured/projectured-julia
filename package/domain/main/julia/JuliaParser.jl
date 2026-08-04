@@ -258,10 +258,13 @@ end
 _convert_head(::Val{:kw}, x::Expr) =
     JuliaAssignment(:(=), convert_expr(x.args[1]), convert_expr(x.args[2]))
 
-# ── using / import ───────────────────────────────────────────────────────────
+# ── using / import / export ──────────────────────────────────────────────────
 # `using A.B`        → Expr(:using, Expr(:., :A, :B))
 # `using A, B`       → Expr(:using, Expr(:., :A), Expr(:., :B))
 # `import A: x, y`   → Expr(:import, Expr(:(:), Expr(:., :A), Expr(:., :x), …))
+# `export a, b`      → Expr(:export, :a, :b)
+# All three are a keyword followed by a flat spec, which is why one node type
+# carries them.
 # The spec is a module *path*, so render it straight to a string rather than a
 # nested expression tree.
 function _module_path_string(e)
@@ -280,6 +283,10 @@ _convert_head(::Val{:using}, x::Expr) =
     JuliaUsing(:using, join((_module_path_string(a) for a in x.args), ", "))
 _convert_head(::Val{:import}, x::Expr) =
     JuliaUsing(:import, join((_module_path_string(a) for a in x.args), ", "))
+_convert_head(::Val{:export}, x::Expr) =
+    JuliaUsing(:export, join((_module_path_string(a) for a in x.args), ", "))
+_convert_head(::Val{:public}, x::Expr) =
+    JuliaUsing(:public, join((_module_path_string(a) for a in x.args), ", "))
 
 # Anonymous function `args -> body`. `args` is a single symbol (`x -> …`), a
 # tuple (`(x, y) -> …`, `() -> …`), and the body is usually a `:block` wrapping
