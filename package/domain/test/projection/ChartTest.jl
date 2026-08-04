@@ -52,6 +52,10 @@ _chart_y_max(chart) = resolve_view(ChartPlot(chart)).y_max
 _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
                               print_document(p, p, chart, PrinterContext()))
 
+# The laid-out frame the renderer works from, as the printer and the reader both
+# see it.
+_chart_layout(chart; kw...) = _chart_iomap(chart; kw...).step_iomaps[2][].geometry
+
 # The decimated pixel points of one series, as the renderer computes them.
 _line_points_of(g, index) = ChartPlotToGraphicsModule._series_points(g, index, g.chart.series[index])
 
@@ -414,6 +418,196 @@ function test_chart()
             c = Chart("s", [ChartScatterSeries("a", collect(1.0:10.0), collect(1.0:10.0);
                                                symbol=:square)])
             @test _count_kind(_series_elements(_chart_canvas(c)), GraphicsRect) == 10
+        end
+
+        @testset "strips" begin
+            states = ["IDLE", "BUSY", "DONE"]
+            t = collect(0.0:1.0:10.0)
+            codes = [1, 1, 2, 2, 2, 3, 1, 2, 3, 3, 1]
+            mk(; kw...) = Chart("m", [ChartStripSeries("a", t, codes; states=states, kw...)])
+
+            # One rect per run of equal values, not one per sample.
+            els = _series_elements(_chart_canvas(mk()))
+            rects = filter(e -> e isa GraphicsRect, els)
+            @test length(rects) == 7
+            # The band is a single row, so every segment shares its top and height.
+            @test length(unique(r.y for r in rects)) == 1
+            @test length(unique(r.h for r in rects)) == 1
+            # The segments tile left to right without gaps or overlaps.
+            @test issorted([r.x for r in rects])
+            @test all(k -> rects[k].x + rects[k].w == rects[k+1].x, 1:length(rects)-1)
+            # Equal states take equal colours, distinct states distinct ones.
+            @test rects[1].color == rects[4].color   # both IDLE
+            @test rects[1].color != rects[2].color
+
+            # Names are drawn inside the segments that can hold them.
+            texts = [e.text for e in els if e isa GraphicsText]
+            @test "IDLE" in texts && "BUSY" in texts
+            @test isempty([e for e in _series_elements(_chart_canvas(mk(; show_labels=false)))
+                           if e isa GraphicsText])
+
+            # Edges are opt-in, as they are in OMNeT++.
+            @test all(r -> r.border_width == 0, rects)
+            edged = filter(e -> e isa GraphicsRect,
+                           _series_elements(_chart_canvas(mk(; draw_edges=true))))
+            @test all(r -> r.border_width == 1, edged)
+
+            # A per-state override replaces what the cycle would have given.
+            own = filter(e -> e isa GraphicsRect,
+                         _series_elements(_chart_canvas(
+                             mk(; state_colors=[color_solarized_red, color_solarized_green,
+                                                color_solarized_blue]))))
+            @test own[1].color == color_solarized_red
+            @test own[2].color == color_solarized_green
+
+            # A code the table does not reach still draws, and names itself.
+            short = Chart("m", [ChartStripSeries("a", t, codes; states=["ONLY"])])
+            @test !isempty(filter(e -> e isa GraphicsRect, _series_elements(_chart_canvas(short))))
+            @test ChartModule.strip_state_name(short.series[1], 3) == "3"
+            @test ChartModule.strip_state_name(short.series[1], 1) == "ONLY"
+
+            # A column of names pools into codes and a table, in order of first
+            # appearance.
+            pooled = ChartStripSeries("a", t, ["on", "on", "off", "on", "off",
+                                               "on", "off", "on", "off", "on", "off"])
+            @test pooled.states == ["on", "off"]
+            @test pooled.values[1] == 1 && pooled.values[3] == 2
+
+            # Rows: the first strip in the list is on top, and the window spans
+            # them all. `_data_bounds` owns the extent, so `resolve_view` — which
+            # the gesture readers use too — agrees with what is drawn.
+            three = Chart("m", [ChartStripSeries("a", t, codes; states=states),
+                                ChartStripSeries("b", t, codes; states=states),
+                                ChartStripSeries("c", t, codes; states=states)])
+            g = _chart_layout(three)
+            @test g.strip_count == 3
+            @test g.strip_rows == Dict(1 => 3, 2 => 2, 3 => 1)
+            view = resolve_view(ChartPlot(three))
+            @test view.y_min < 0.6 && view.y_max > 3.4
+            bands = [ChartPlotToGraphicsModule._strip_band(g, i) for i in 1:3]
+            @test issorted([b[1] for b in bands])          # series 1 highest on screen
+            @test all(k -> bands[k][2] < bands[k+1][1], 1:2)   # and they do not overlap
+
+            # The y axis carries the series labels, and drops the gridlines that
+            # would only underline the bands.
+            @test g.strip_only
+            @test g.ylabels == ["a", "b", "c"]
+            # The x gridlines stay; only the horizontal ones through the rows go.
+            frame = _chart_canvas(three).elements
+            dashed = [e for e in frame if e isa GraphicsLine && e.dash !== nothing]
+            @test !isempty(dashed)
+            @test all(e -> e.x1 == e.x2, dashed)
+
+            # One non-strip series and the numeric y axis is back, untouched.
+            mixed = Chart("m", [ChartLineSeries("v", t, t), ChartStripSeries("a", t, codes)])
+            gm = _chart_layout(mixed)
+            @test !gm.strip_only
+            @test all(l -> tryparse(Float64, l) !== nothing, gm.ylabels)
+            # A hidden strip gives up its row.
+            hidden = Chart("m", [ChartStripSeries("a", t, codes; visible=false),
+                                 ChartStripSeries("b", t, codes)])
+            gh = _chart_layout(hidden)
+            @test gh.strip_count == 1 && gh.strip_rows == Dict(2 => 1)
+
+            @test chart_series_family(three.series[1]) === :xy
+        end
+
+        @testset "strip samples" begin
+            states = ["IDLE", "BUSY", "DONE"]
+            t = collect(0.0:1.0:10.0)
+            codes = [1, 1, 2, 2, 2, 3, 1, 2, 3, 3, 1]
+            chart = Chart("m", [ChartStripSeries("a", t, codes; states=states)])
+            g = _chart_layout(chart)
+            at(v) = round(Int, ChartPlotToGraphicsModule.to_pixel(g.xs, v))
+            band = ChartPlotToGraphicsModule._strip_band(g, 1)
+            row = (band[1] + band[2]) ÷ 2
+
+            # A sample evaluates to its extent in the data and its state's name.
+            @test chart_sample(chart.series[1], 3) == (2.0, 3.0, "BUSY")
+            @test chart_sample(chart.series[1], 12) === nothing
+            # The last segment reports the data end, not the view edge: a
+            # reference must not evaluate differently as someone zooms.
+            @test chart_sample(chart.series[1], 11) == (10.0, 10.0, "IDLE")
+
+            # A click picks the segment holding at that time, by raw index.
+            @test ChartPlotToGraphicsModule._sample_hit(g, at(2.5), row) == (1, 3)
+            @test ChartPlotToGraphicsModule._sample_hit(g, at(0.5), row) == (1, 1)
+            # Drawn past the last sample, so clickable there too.
+            @test ChartPlotToGraphicsModule._sample_hit(g, at(10.1), row) == (1, 11)
+            # Before the first sample nothing is drawn: that means the series.
+            @test ChartPlotToGraphicsModule._sample_hit(g, at(-0.2), row) === nothing
+            @test ChartPlotToGraphicsModule._series_hit(g, at(-0.2), row) == 1
+
+            # An explicit end closes the strip early, and the empty band past it
+            # means the series rather than its last sample.
+            pair = Chart("m", [ChartStripSeries("long", collect(0.0:1.0:20.0),
+                                                [mod1(i, 3) for i in 1:21]; states=states),
+                               ChartStripSeries("short", t, codes; states=states, x_end=10.0)])
+            gp = _chart_layout(pair)
+            bandp = ChartPlotToGraphicsModule._strip_band(gp, 2)
+            rowp = (bandp[1] + bandp[2]) ÷ 2
+            atp(v) = round(Int, ChartPlotToGraphicsModule.to_pixel(gp.xs, v))
+            @test ChartPlotToGraphicsModule._sample_hit(gp, atp(15.0), rowp) === nothing
+            @test ChartPlotToGraphicsModule._series_hit(gp, atp(15.0), rowp) == 2
+            @test ChartPlotToGraphicsModule._sample_hit(gp, atp(9.5), rowp) == (2, 10)
+
+            # A click round-trips through both stages to a chart-rooted sample
+            # reference: stage 1 peels its own step off on the way back.
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            gg = iomap.step_iomaps[2][].geometry
+            band2 = ChartPlotToGraphicsModule._strip_band(gg, 1)
+            op = read_intent(proj, iomap,
+                             MousePress(:left,
+                                        round(Int, ChartPlotToGraphicsModule.to_pixel(gg.xs, 2.5)),
+                                        (band2[1] + band2[2]) ÷ 2))
+            @test op isa ReplaceSelectionOperation
+            chart.selection = op.path
+            @test selected_sample(chart) == (1, 3)
+            # A sample still counts as its series for everything coarser.
+            @test selected_series_index(chart) == 1
+            @test evaluate_reference(chart, op.path) == (2.0, 3.0, "BUSY")
+            chart.selection = nothing
+
+            # The selected segment is outlined where it is drawn.
+            chart.selection = chart_sample_reference(chart, 1, 3)
+            els = _series_elements(_chart_canvas(chart))
+            @test count(e -> e isa GraphicsLine, els) >= 4
+            # Hiding the series after selecting a sample draws nothing rather
+            # than failing to look its row up.
+            chart.series[1].visible = false
+            @test _chart_canvas(chart) isa GraphicsCanvas
+            chart.series[1].visible = true
+            chart.selection = nothing
+
+            # A point within tolerance beats band containment on a mixed chart.
+            lt = collect(0.0:0.5:10.0)
+            mixed = Chart("m", [ChartLineSeries("v", lt, fill(5.0, length(lt))),
+                                ChartStripSeries("a", t, codes; states=states)])
+            gm = _chart_layout(mixed)
+            pts = _line_points_of(gm, 1)
+            @test ChartPlotToGraphicsModule._sample_hit(gm, pts[5][1] + gm.plot_x,
+                                                        pts[5][2] + gm.plot_y)[1] == 1
+
+            # The readout names the state under the pointer instead of reading
+            # the row number back as a value.
+            @test occursin("BUSY", ChartPlotToGraphicsModule._strip_readout(g, 2.5, row))
+            @test occursin("a", ChartPlotToGraphicsModule._strip_readout(g, 2.5, row))
+            @test ChartPlotToGraphicsModule._strip_readout(g, 2.5, g.plot_y + 1) === nothing
+        end
+
+        @testset "strip reactivity" begin
+            states = ["IDLE", "BUSY"]
+            t = collect(0.0:1.0:10.0)
+            chart = Chart("m", [ChartStripSeries("a", t, fill(1, 11); states=states)])
+            iomap = _chart_iomap(chart)
+            before = length(filter(e -> e isa GraphicsRect,
+                                   _series_elements(iomap.output)))
+            @test before == 1
+            # Replacing the column repaints from the same projection output.
+            chart.series[1].values = [1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 2]
+            after = length(filter(e -> e isa GraphicsRect, _series_elements(iomap.output)))
+            @test after > before
         end
 
         @testset "line style" begin
@@ -961,6 +1155,40 @@ function test_chart_scale()
 
             elapsed = @elapsed length(_series_elements(_chart_canvas(chart)))
             @test elapsed < 5.0
+        end
+
+        @testset "million-sample strip" begin
+            n = 1_000_000
+            x = collect(range(0.0, 1000.0; length=n))
+            # A state per sample: nothing coalesces, so every segment is far
+            # narrower than a pixel and the fold is what has to hold the line.
+            codes = [isodd(i) ? 1 : 2 for i in 1:n]
+            chart = Chart("trace", [ChartStripSeries("a", x, codes; states=["off", "on"])])
+
+            canvas = _chart_canvas(chart)
+            els = _series_elements(canvas)
+            @test !isempty(els)
+            @test length(els) < ceiling
+            @test all(e -> e isa GraphicsRect, els)
+            # A sub-pixel toggle dithers rather than collapsing to one colour.
+            @test length(unique(e.color for e in els)) == 2
+
+            elapsed = @elapsed _series_elements(_chart_canvas(chart))
+            @test elapsed < 5.0
+
+            # Zoomed in far enough that every segment is a pixel or more, each
+            # one draws exactly — the fold is only what sub-pixel spans need.
+            plot = ChartPlot(chart)
+            plot.view = ChartView(0.0, 0.1, 0.5, 1.5)
+            p = ChartPlotToGraphicsCanvas(measure=truetype_measure_text)
+            zoomed = print_document(p, p, plot, PrinterContext()).output
+            spans = filter(e -> e isa GraphicsRect, _series_elements(zoomed))
+            visible = count(v -> 0.0 <= v <= 0.1, x)
+            # Every visible segment draws as its own rect — nothing folded away.
+            # The clipping keeps one extra index each side so a segment
+            # straddling an edge still draws, which is the only slack here.
+            @test visible <= length(spans) <= visible + 2
+            @test all(e -> e.w >= 1, spans)
         end
 
         @testset "million-point scatter" begin

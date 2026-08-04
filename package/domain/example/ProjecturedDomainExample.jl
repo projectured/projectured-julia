@@ -119,7 +119,8 @@ export build_file_editor, clipboard_example, conversation_editor_example, conver
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
 export chart_example, chart_line_example, chart_bar_example,
-       chart_histogram_example, chart_scatter_example, chart_inspector_example
+       chart_histogram_example, chart_scatter_example, chart_strip_example,
+       chart_inspector_example
 export sequencechart_example, sequencechart_vertical_example,
        sequencechart_linear_example, sequencechart_large_example,
        sequencechart_inspector_example, sequencechart_pair_example
@@ -149,6 +150,7 @@ export make_chart_document_example, make_chart_projection_example,
        make_chart_bar_document_example, make_chart_bar_projection_example,
        make_chart_histogram_document_example, make_chart_histogram_projection_example,
        make_chart_scatter_document_example, make_chart_scatter_projection_example,
+       make_chart_strip_document_example, make_chart_strip_projection_example,
        make_chart_inspector_document_example, make_chart_inspector_projection_example
 export make_sequencechart_document_example, make_sequencechart_projection_example,
        make_sequencechart_pipeline_example,

@@ -15,6 +15,22 @@ _chart_ramp(n, lo, hi) = collect(range(lo, hi; length=n))
 # reaching for a random seed.
 _chart_wobble(x, k) = sin.(x .* k) .* cos.(x .* (k / 3 + 0.7))
 
+# Runs of a repeated code, cycling through `1:nstates`, with a run length that
+# varies by a small deterministic recipe — a stand-in for a state machine's
+# dispatch trace without reaching for a random seed.
+function _chart_state_trace(n::Integer, nstates::Integer, offset::Integer)
+    codes = Int[]
+    state = 1
+    k = 0
+    while length(codes) < n
+        run_len = 3 + (k + offset) % 9
+        append!(codes, fill(state, run_len))
+        state = state % nstates + 1
+        k += 1
+    end
+    codes[1:n]
+end
+
 """
     make_chart_line_document_example() -> Chart
 
@@ -82,6 +98,30 @@ function make_chart_scatter_document_example()
         x_axis=ChartAxis(; title="offered load (%)"),
         y_axis=ChartAxis(; title="latency (ms)"),
         legend=ChartLegend(; position=:inside, anchor=:northwest, border=true))
+end
+
+"""
+    make_chart_strip_document_example() -> Chart
+
+Three strip series tracking a MAC layer's state machine: two hosts sharing a
+time base and a four-state table, and a channel series with its own shorter
+time base, a two-state table, and an explicit `x_end` that closes its last
+segment before the chart's edge.
+"""
+function make_chart_strip_document_example()
+    mac_states = ["IDLE", "BACKOFF", "TRANSMIT", "COLLISION"]
+    times = _chart_ramp(200, 0.0, 20.0)
+    host_a_codes = _chart_state_trace(200, 4, 0)
+    host_b_codes = _chart_state_trace(200, 4, 5)
+    channel_times = _chart_ramp(150, 0.0, 14.0)
+    channel_codes = _chart_state_trace(150, 2, 2)
+    Chart("MAC state trace",
+        [ChartStripSeries("host A", times, host_a_codes; states=mac_states),
+         ChartStripSeries("host B", times, host_b_codes; states=mac_states),
+         ChartStripSeries("channel", channel_times, channel_codes;
+                          states=["idle", "busy"], x_end=15.0)];
+        x_axis=ChartAxis(; title="time (s)"),
+        legend=ChartLegend(; position=:inside, anchor=:northeast, border=true))
 end
 
 """

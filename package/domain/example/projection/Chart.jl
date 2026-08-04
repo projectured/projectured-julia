@@ -20,6 +20,8 @@ make_chart_histogram_projection_example(; measure=truetype_measure_text) =
     make_chart_pipeline_example(; measure=measure)
 make_chart_scatter_projection_example(; measure=truetype_measure_text) =
     make_chart_pipeline_example(; measure=measure)
+make_chart_strip_projection_example(; measure=truetype_measure_text) =
+    make_chart_pipeline_example(; measure=measure)
 
 # The composite is a WidgetTable whose cells happen to be charts, so it renders
 # through the natural projection with one extra dispatch entry. That entry is

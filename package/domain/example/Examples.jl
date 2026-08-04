@@ -32,6 +32,7 @@ const chart_line_example     = Example("chart_line",     make_chart_line_documen
 const chart_bar_example      = Example("chart_bar",      make_chart_bar_document_example,      make_chart_bar_projection_example)
 const chart_histogram_example = Example("chart_histogram", make_chart_histogram_document_example, make_chart_histogram_projection_example)
 const chart_scatter_example  = Example("chart_scatter",  make_chart_scatter_document_example,  make_chart_scatter_projection_example)
+const chart_strip_example    = Example("chart_strip",    make_chart_strip_document_example,    make_chart_strip_projection_example)
 const chart_inspector_example = Example("chart_inspector", make_chart_inspector_document_example, make_chart_inspector_projection_example)
 const sequencechart_example  = Example("sequencechart",  make_sequencechart_document_example,  make_sequencechart_projection_example)
 const sequencechart_vertical_example = Example("sequencechart_vertical", make_sequencechart_vertical_document_example, make_sequencechart_vertical_projection_example)
@@ -114,6 +115,7 @@ const domain_examples = Example[
     chart_bar_example,
     chart_histogram_example,
     chart_scatter_example,
+    chart_strip_example,
     chart_inspector_example,
     sequencechart_example,
     sequencechart_vertical_example,
