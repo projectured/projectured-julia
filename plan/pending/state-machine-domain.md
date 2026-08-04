@@ -515,20 +515,87 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         `Fsm.jl` needs **no julia import**: the `fsm → julia` edge starts at the
         notation and codegen files, which keeps the document include early in the
         topological order (right after the chart documents).
-- [ ] **P1 — natural notation.** `FsmToSyntax` via `@projection_template` (julia
-  subtrees through the shared dispatch table), the flat-offset reader, trigger/target
-  name-resolution on commit, TCP + toggle examples registered in both registries,
-  printer/reader/nav/repl green (`test_printer(fsm_example)` first).
-- [ ] **P2 — diagram.** `highlight_vertex`/`highlight_edge` on `GraphGraph` **and**
-  `GraphLayout` with pass-through derived cells + ring/re-stroke rendering (small,
-  general graph-slice extension); `FsmToFsmDiagram` (identity-preserving stage 1) +
-  `FsmDiagramToGraph`, state-click selection round-trip, split-pane example.
-- [ ] **P3 — runtime (omnetpp-julia).** `Fsm.jl` in the simulator package: struct,
-  `fsm_goto!`, deferral queue, cap error, `on_transition` hook; unit tests.
-- [ ] **P4 — codegen.** `JuliaModuleDef` in the julia domain (printer + parser +
-  tests); `generate_component`/`export_component`; toy component generated,
-  `include`d and semantics-tested (cascades, stays, ignores, unhandled policies,
-  deferral, timers via a stub context); read-only generated-code preview pane demo.
+- [x] **P1 — natural notation.** DONE. `FsmToSyntax` via `@projection_template`,
+  julia subtrees through the merged dispatch table, the flat-offset reader on every
+  compound rule, TCP + toggle examples registered in both registries. Exit:
+  `test_fsm_to_syntax()` 27/27; printer (3159 / 30501 cells), reader, repl and — for
+  the toggle — position navigation all green.
+
+      Decisions and discoveries:
+      - **The transition's ending precedes its action**: `on E when G -> T / action`,
+        not `… / action -> T`. An action can be several statements, and a
+        multi-statement block renders as an indented run of lines; anything printed
+        after it is stranded at the bottom of that block, away from its own line.
+      - **Empty sections must contribute no node.** An indented node with no
+        children still prints its line break, so a component that declares no
+        timers used to get a blank line for the timer section. Every section (and
+        the state's transition list) is conditional.
+      - A `JuliaParser` gap surfaced immediately and was fixed: `a; b` written on
+        ONE line parses to a `:toplevel` nested inside the outer one, which the
+        parser rejected outright. Transition actions are written that way
+        constantly. It means what a `:block` means.
+      - **`JuliaModuleDef` was not needed here** but `hinted_text`, `bound` and the
+        conditional-children thunk shape (`SyntaxConcatenation(() -> …)`, the
+        `JuliaReturnToSyntaxNode` idiom) all were.
+      - A caret literal ends `{0}::Position` — the strict-typing check counts the
+        terminal too. And `map_reference_forward` must be called with the *rule*
+        projection (`iomap.projection`), not the `RecursiveProjection` wrapper,
+        whose own mapper is ambiguous against the template engine's.
+      - **The TCP example is on the position-navigation skip list.** It navigates
+        correctly; the exhaustive caret walk simply takes tens of minutes on a
+        twelve-state machine with embedded Julia, where every other example is
+        seconds. `fsm_toggle` covers the notation in that sweep. Reader and repl on
+        the TCP machine are fast (13 s / 27 s) and stay in.
+      - Lookup helpers filter their collections by type: a machine legally holds an
+        `FsmInsertion` in `states` mid-edit, and the repl sweep found it.
+- [x] **P2 — diagram.** DONE. `highlight_vertex`/`highlight_edge` on `GraphGraph`
+  **and** `GraphLayout` with pass-through derived cells and ring/re-stroke
+  rendering; `FsmToFsmDiagram` (identity-preserving stage 1) + `FsmDiagramToGraph`;
+  `fsm_diagram` example. Exit: `test_fsm_diagram()` 25/25.
+
+      Decisions and discoveries:
+      - **The load-bearing property is asserted directly**: writing the diagram's
+        three live integers adds/removes exactly the ring and the edge re-stroke,
+        and every node box stays where it was. A highlight that moved the picture
+        would mean it had reached the layout engine's inputs.
+      - A vertex's content is the `FsmState` itself (by identity, so a click selects
+        the real state), rendered by a compact `FsmStateToSyntaxLabel` — the name
+        alone. Projecting a state through the full notation would inline its whole
+        transition list into the node box, and for a self-loop would not terminate.
+      - The highlight fields hold a `GraphVertex`/`GraphEdge`, never a
+        `VertexLayout`: layouts are rebuilt on every recompute.
+      - A stay contributes no edge, and a self-loop's edge routes to a zero-length
+        line the fallback engine does not draw. Both are recorded limits (§10), not
+        surprises.
+- [x] **P3 — runtime (omnetpp-julia).** DONE. `FsmModule` beside `TimerModule`:
+  the state cell and its history, the per-machine deferred queue with a
+  snapshot drain, the re-entrancy guard, the cascade cap, the `on_transition`
+  hook. Exit: 26/26 new tests, simulator suite unchanged.
+
+      The sibling-drain test is the one that matters: a closure drained from one
+      machine dispatches its sibling, and the sibling drains its *own* fresh queue
+      without consuming what is still pending on the first — the PLCA shape.
+- [x] **P4 — codegen.** DONE. `JuliaModuleDef` in the julia domain (document type,
+  parser case, printer, dispatch entry — round-trips stably);
+  `generate_component` / `generate_component_text` / `export_component`; a probe
+  component generated, loaded and run against the §3 contract. Exit:
+  `test_fsm_to_julia_code()` 35/35, `test_domain()` 174909 pass / 0 fail / 0 error,
+  julia example unchanged.
+
+      Decisions and discoveries:
+      - **The cascade loop breaks on "nothing fired", not on "nothing moved".**
+        That makes a stay behave exactly like a move for re-evaluation purposes,
+        which is what the contract says, and it is safe: the event is spent after
+        the first firing, so only condition transitions can fire again.
+      - `&&` is a `JuliaBinaryOp` in this domain, not a call — generated
+        `&&(a, b)` is not valid Julia at all. Same for `!`, which is a
+        `JuliaUnaryOp`.
+      - The generated module gets the runtime from the component's own `usings`,
+        so the test's probe names a stand-in runtime module the same way a real
+        component names the simulator's.
+      - Julia 1.12's world-age rules apply to *reading* a binding from a
+        just-evaluated module, not only to calling it; the test fetches every
+        binding through `invokelatest`.
 - [ ] **P5 — pilot: t1s MAC (inet-julia).** `FsmFile`/`FsmParser` land first (§8).
   **Acceptance fix from review**: the only pinned golden hash today is `:notraffic`,
   which never takes the MAC out of `MAC_IDLE` — a MAC swap would pass vacuously. So:
