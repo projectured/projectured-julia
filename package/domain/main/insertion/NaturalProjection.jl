@@ -101,7 +101,7 @@ import ..GraphModule: GraphGraph
 import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
 import ..GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas
 
-export NaturalToGraphics, natural_to_syntax_dispatch
+export NaturalToGraphics, natural_to_syntax_dispatch, register_natural_syntax!
 
 """
     natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
@@ -112,8 +112,35 @@ reflection table as the tail (so plain `Bool`/`Number`/`String`/… render as
 leaves and any unknown value as a reflected node). Exposed so callers can splice
 or extend it the way `WidgetToGraphics(…).dispatch` is spliced.
 """
+# Domains that live downstream of this package — a NED file, an INI config —
+# cannot be named in the table below, and the natural renderer is supposed to
+# render *any* document. So they register themselves, the way a file extension
+# or a marker verb does, and their entries go in FRONT of the built-ins so a
+# downstream domain can also override one.
+const _NATURAL_SYNTAX_EXTRA = Pair{Type,Any}[]
+
+"""
+    register_natural_syntax!(pairs::Pair{Type,Any}...) -> nothing
+
+Teach the natural renderer how a downstream domain becomes syntax. Call it from
+the registering package's `__init__` (the table is runtime state, not something
+to bake into a precompiled image); a type registered twice keeps the first
+entry, so a reload does not stack duplicates.
+
+Without this a document from a package this one cannot see falls through to the
+reflection tail and renders as its field names instead of as itself.
+"""
+function register_natural_syntax!(pairs::Pair{Type,Any}...)
+    for pr in pairs
+        any(e -> first(e) === first(pr), _NATURAL_SYNTAX_EXTRA) && continue
+        push!(_NATURAL_SYNTAX_EXTRA, pr)
+    end
+    nothing
+end
+
 function natural_to_syntax_dispatch()
     vcat(
+        Pair{Type,Any}[e for e in _NATURAL_SYNTAX_EXTRA],
         Pair{Type,Any}[
             JsonDocument       => JsonToSyntax(),
             XmlDocument        => XmlToSyntax(),
