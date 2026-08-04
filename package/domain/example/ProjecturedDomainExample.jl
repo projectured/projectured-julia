@@ -119,7 +119,8 @@ export filesystem_example, filesystem_widget_example, focusing_example, formula_
 export chart_example, chart_line_example, chart_bar_example,
        chart_histogram_example, chart_scatter_example, chart_inspector_example
 export sequencechart_example, sequencechart_vertical_example,
-       sequencechart_linear_example, sequencechart_large_example
+       sequencechart_linear_example, sequencechart_large_example,
+       sequencechart_inspector_example, sequencechart_pair_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
@@ -144,7 +145,10 @@ export make_sequencechart_document_example, make_sequencechart_projection_exampl
        make_sequencechart_pipeline_example,
        make_sequencechart_vertical_document_example, make_sequencechart_vertical_projection_example,
        make_sequencechart_linear_document_example, make_sequencechart_linear_projection_example,
-       make_sequencechart_large_document_example, make_sequencechart_large_projection_example
+       make_sequencechart_large_document_example, make_sequencechart_large_projection_example,
+       make_sequencechart_inspector_document_example, make_sequencechart_inspector_projection_example,
+       make_sequencechart_pair_document_example, make_sequencechart_pair_projection_example,
+       make_sequencechart_composite_projection_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
 export make_graphics_image_projection_example, make_introspection_document
 export make_introspection_projection, make_json_console_projection_example

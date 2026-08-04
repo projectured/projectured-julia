@@ -529,6 +529,110 @@ function test_sequencechart()
 end
 
 """
+    test_sequencechart_scale()
+
+The claim that makes the domain usable on a real trace: the amount of output is
+bounded by the size of the chart, not by the length of what it shows.
+
+If these stop holding, a chart of a long trace is no longer a drawing of it — it
+is an attempt to put one graphics element on screen per event, which no backend
+survives. The bounds are asserted against **spread** data as well as clustered,
+because a bundle of arrows all landing on one pixel is the easy case; arrows
+spread evenly across the window are the one that can defeat a dedup keyed on
+position.
+"""
+function test_sequencechart_scale()
+    @testset "sequencechart scale" begin
+        # Twenty thousand events over eight lanes, with bursts and quiet gaps.
+        big = make_sequencechart_large_document_example()
+
+        @testset "a long trace draws in bounded output" begin
+            iomap = _sequencechart_iomap(big; width=900, height=520)
+            g = _geometry_of(iomap)
+            @test event_count(big.events) == 20_000
+
+            # At most one mark per lane, per kind, per mark-radius of the
+            # flow axis — the bound the decimation promises.
+            @test length(g.visible_events) <=
+                  8 * (g.body_w ÷ big.style.event_radius + 2)
+            @test length(g.visible_events) < event_count(big.events) ÷ 4
+
+            elements = _sc_flatten(iomap.output)
+            @test length(elements) < 6_000
+
+            # And it is not empty: bounding the output must not mean dropping it.
+            @test !isempty(g.visible_events)
+            @test !isempty(g.shapes)
+        end
+
+        @testset "spread arrows stay bounded" begin
+            # The hard case for a position-keyed dedup: every arrow on its own
+            # pixel column, between alternating lanes.
+            n = 20_000
+            times = collect(range(0.0, 1000.0; length=n))
+            lanes = [1 + (i % 4) for i in 1:n]
+            chart = SequenceChart("spread",
+                Any[SequenceChartAxis("l$i") for i in 1:4];
+                events=SequenceChartEvents(times, lanes),
+                arrows=SequenceChartArrows(collect(1:(n-1)), collect(2:n)),
+                timeline=SequenceChartTimeline(; mode=:time))
+            iomap = _sequencechart_iomap(chart; width=900, height=520)
+            g = _geometry_of(iomap)
+            # Every arrow is a candidate — they all touch the window — but only
+            # the ones that add pixels are drawn.
+            @test length(g.shapes) < 4_000
+            @test length(_sc_flatten(iomap.output)) < 8_000
+        end
+
+        @testset "zooming in is exact" begin
+            # Bounding the output is a claim about crowding, not about accuracy:
+            # once no two events share a pixel, every one of them is drawn.
+            iomap = _sequencechart_iomap(big; width=900, height=520)
+            plot = _plot_of(iomap)
+            g = _geometry_of(iomap)
+            # A window over ten consecutive events.
+            span = g.coordinates[11] - g.coordinates[1]
+            plot.view = SequenceChartView(1, 0.0, span)
+            zoomed = _geometry_of(iomap)
+            i0, i1 = visible_event_range(zoomed.coordinates, zoomed.lo, zoomed.hi)
+            @test length(zoomed.visible_events) == i1 - i0 + 1
+        end
+
+        @testset "the timeline pass is not redone for a repaint" begin
+            # The O(n) pass over twenty thousand events must survive panning,
+            # hovering and resizing — that is why it has a cell of its own.
+            iomap = _sequencechart_iomap(big)
+            stage2 = _stage2_iomap(iomap)
+            before = stage2.timeline
+            plot = _plot_of(iomap)
+            plot.view = SequenceChartView(1, 0.0, 5.0)
+            plot.hovered = event_reference(big, 5)
+            @test stage2.timeline === before
+
+            # Changing the data does redo it, since that is what it derives.
+            big.events.times = collect(range(0.0, 1.0; length=20_000))
+            @test stage2.timeline !== before
+        end
+
+        @testset "hit testing a long trace is quick" begin
+            iomap = _sequencechart_iomap(big)
+            g = _geometry_of(iomap)
+            plot = _plot_of(iomap)
+            x = round(Int, g.body_x + g.body_w / 2)
+            y = round(Int, g.body_y + g.body_h / 2)
+            SCT.event_hit(g, plot, x, y)          # warm up
+            elapsed = @elapsed for _ in 1:200
+                SCT.event_hit(g, plot, x, y)
+                SCT.arrow_hit(g, plot, x, y)
+            end
+            # Hit testing walks what is drawn, not what exists, so pointer
+            # tracking stays interactive however long the trace is.
+            @test elapsed < 2.0
+        end
+    end
+end
+
+"""
     test_sequencechart_selection()
 
 Part navigation, causality navigation and lane reordering — the gestures that

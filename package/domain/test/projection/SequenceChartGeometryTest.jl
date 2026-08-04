@@ -316,6 +316,21 @@ function test_sequencechart_geometry()
             @test length(kept) < n
             @test issorted(kept)
 
+            # A mark is a disc, so where events are packed closer than it is
+            # wide, drawing every one of them paints the same ground twice.
+            # Separating by the mark's radius keeps the run unbroken and cuts
+            # the count by the width of a mark.
+            sparse = SCG.decimate_events(coordinates, axes, scale, 1, n; separation=3)
+            @test length(sparse) < length(kept)
+            @test length(sparse) <= 2 * (201 ÷ 3 + 2)
+
+            # But a different kind is never collapsed away: a crowded stretch
+            # must still show that something unusual happened in it.
+            kinds = [i == 500 ? 2 : 1 for i in 1:n]
+            with_kinds = SCG.decimate_events(coordinates, axes, scale, 1, n;
+                                             kinds=kinds, separation=3)
+            @test 500 in with_kinds
+
             # Zoomed in far enough that no two events share a pixel, everything
             # survives — decimation is exact, not sampling.
             fine = SCG.AxisScale(0.0, 1.0, 0.0, 4000.0)

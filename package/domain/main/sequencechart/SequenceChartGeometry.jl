@@ -564,26 +564,39 @@ end
 # ── Decimation ───────────────────────────────────────────────────────────
 
 """
-    decimate_events(coordinates, axes, scale, i0, i1) -> Vector{Int}
+    decimate_events(coordinates, axes, scale, i0, i1; kinds=nothing, separation=1) -> Vector{Int}
 
-The rows worth drawing in the window: at most one per lane per pixel.
+The rows worth drawing in the window: at most one per lane, per kind, per
+`separation` pixels.
 
-Two events a lane apart that land on the same pixel paint the same disc twice.
-Dropping the duplicate is exact at this zoom, not an approximation, and it is
-what bounds a chart's output by its lane count times its width however many
-events the trace holds.
+A mark is a disc, not a pixel. Where events are packed closer together than the
+disc is wide, every one of them paints ground the one before it already covered,
+and the reader sees a solid run either way. So `separation` is the mark's own
+radius: consecutive drawn marks still overlap heavily, the run stays unbroken,
+and the count drops by the width of a mark instead of standing at one per pixel.
+
+Keyed by **kind** as well as by lane, because collapsing marks of different
+kinds would lose the thing they were drawn to distinguish — a crowded stretch
+must still show that a timeout happened among the ordinary receives.
+
+Zoomed in far enough that marks no longer touch, nothing is dropped at all.
 """
-function decimate_events(coordinates, axes, scale::AxisScale, i0::Integer, i1::Integer)
+function decimate_events(coordinates, axes, scale::AxisScale, i0::Integer, i1::Integer;
+                         kinds=nothing, separation::Integer=1)
     out = Int[]
     i1 >= i0 || return out
     n = min(length(coordinates), length(axes))
     i0 = max(Int(i0), 1); i1 = min(Int(i1), n)
-    last_pixel = Dict{Int,Int}()
+    gap = max(Int(separation), 1)
+    last_pixel = Dict{Tuple{Int,Int},Int}()
     @inbounds for i in i0:i1
         lane = Int(axes[i])
+        kind = (kinds === nothing || i > length(kinds)) ? 0 : Int(kinds[i])
         pixel = round(Int, to_pixel(scale, coordinates[i]))
-        get(last_pixel, lane, typemin(Int)) == pixel && continue
-        last_pixel[lane] = pixel
+        key = (lane, kind)
+        previous = get(last_pixel, key, nothing)
+        (previous !== nothing && abs(pixel - previous) < gap) && continue
+        last_pixel[key] = pixel
         push!(out, i)
     end
     out
@@ -616,11 +629,54 @@ function arrow_coverage_dedup(candidates, flows, crosses; tolerance::Real=1.0)
         column = round(Int, (f0 + f1) / 2)
         lo = round(Int, min(c0, c1)); hi = round(Int, max(c0, c1))
         spans = get!(() -> Tuple{Int,Int}[], covered, column)
-        any(s -> s[1] <= lo && hi <= s[2], spans) && continue
-        push!(spans, (lo, hi))
+        _span_covered(spans, lo, hi) && continue
+        _span_insert!(spans, lo, hi)
         push!(out, k)
     end
     out
+end
+
+# Coverage is against the **union** of what the column already holds, not
+# against any one interval of it: two arrows that each add nothing beyond what
+# a third pair already painted still add nothing together, and testing them one
+# at a time would draw them both.
+function _span_covered(spans, lo::Int, hi::Int)
+    for (a, b) in spans
+        a <= lo && hi <= b && return true
+    end
+    # Walk the merged cover from `lo` upward, extending through every span that
+    # touches what is reached so far.
+    reach = lo
+    progressed = true
+    while progressed && reach < hi
+        progressed = false
+        for (a, b) in spans
+            if a <= reach && b > reach
+                reach = b
+                progressed = true
+            end
+        end
+    end
+    reach >= hi
+end
+
+# Insert and coalesce, so the column's cover stays a short list of disjoint
+# intervals however many arrows land on it.
+function _span_insert!(spans, lo::Int, hi::Int)
+    merged_lo = lo; merged_hi = hi
+    keep = Tuple{Int,Int}[]
+    for (a, b) in spans
+        if b < merged_lo || a > merged_hi
+            push!(keep, (a, b))
+        else
+            merged_lo = min(merged_lo, a)
+            merged_hi = max(merged_hi, b)
+        end
+    end
+    push!(keep, (merged_lo, merged_hi))
+    resize!(spans, length(keep))
+    copyto!(spans, keep)
+    spans
 end
 
 """

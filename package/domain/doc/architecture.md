@@ -14,6 +14,7 @@ Companion guides for individual domain slices live alongside this file:
 - [json.md](json.md) — the JSON domain
 - [xml.md](xml.md) — the XML domain
 - [chart.md](chart.md) — the chart domain
+- [sequencechart.md](sequencechart.md) — the sequence chart domain
 - [workbench.md](workbench.md) — the workbench application slice
 - [versioning.md](versioning.md) — the versioning overlay
 
@@ -59,6 +60,11 @@ graph/      Graph.jl · GraphLayout.jl · GraphLayoutEngine.jl ·
             GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
 chart/      ChartGeometry.jl · Chart.jl · ChartPlot.jl ·
             ChartToChartPlot.jl · ChartPlotToGraphics.jl
+sequencechart/
+            SequenceChartGeometry.jl · SequenceChartRowReferenceStep.jl ·
+            SequenceChart.jl · SequenceChartPlot.jl ·
+            SequenceChartToSequenceChartPlot.jl ·
+            SequenceChartPlotToGraphics.jl        (→ chart slice)
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
@@ -89,13 +95,17 @@ land elsewhere:
 
 ## Slice DAG (cross-slice edges within the source layer)
 
-Only three cross-slice edges exist and they form a DAG:
+Only four cross-slice edges exist and they form a DAG:
 
 - `formula → julia` — Formula uses JuliaModule types for its expressions
 - `dbcatalog → sql` — DbCatalog renders through SqlToSyntax
 - `tabular → json` — CellTableToTable renders json values in cells
   (kept; removing would require a shared primitive-cell
   type, larger surgery than the edge)
+- `sequencechart → chart` — the sequence chart reuses the chart's axis
+  scaling and tick selection (`ChartGeometryModule`), its colour cycle
+  (`ChartModule`) and its marker shapes (`ChartPlotToGraphicsModule`),
+  so the two read as one family rather than duplicating the arithmetic
 
 Everything else is within-slice or points at a lower package
 (kernel/base/visual). The guard checks acyclicity statically.

@@ -134,3 +134,35 @@ function make_sequencechart_large_document_example()
         arrows=SequenceChartArrows(sources, targets),
         timeline=SequenceChartTimeline(; mode=:nonlinear))
 end
+
+"""
+    make_sequencechart_inspector_document_example() -> WidgetSplitPane
+
+A sequence chart beside a property form over one of its own lanes — the same
+document shown two ways. Editing the lane's label in the form writes the cell
+the chart draws from, so the chart repaints.
+
+This is also what composability looks like from the outside: the chart is not
+embedded by a bespoke pane, it is a document among documents, and the split pane
+neither knows nor cares which of its children is which.
+"""
+function make_sequencechart_inspector_document_example()
+    chart = make_sequencechart_document_example()
+    WidgetSplitPane(:horizontal, Any[chart, chart.axes[3]]; sizes=[620, 300])
+end
+
+"""
+    make_sequencechart_pair_document_example() -> WidgetTable
+
+The same trace drawn twice — once along a nonlinear timeline and once
+proportionally — so the two mappings can be read side by side.
+
+The proportional one is the argument for the other: a five-second timeout pushes
+everything that happened in the first two milliseconds into a single column.
+"""
+function make_sequencechart_pair_document_example()
+    WidgetTable(Point2D(0, 0), Any[], Any[],
+        Any[Any[make_sequencechart_document_example()],
+            Any[make_sequencechart_linear_document_example()]],
+        1; padding=6)
+end

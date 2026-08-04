@@ -21,6 +21,7 @@ const examples = [
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example,
     chart_example, chart_line_example, chart_bar_example, chart_histogram_example, chart_scatter_example, chart_inspector_example,
     sequencechart_example, sequencechart_vertical_example, sequencechart_linear_example,
+    sequencechart_inspector_example, sequencechart_pair_example,
     workbench_example,
     math_example,
     julia_example,

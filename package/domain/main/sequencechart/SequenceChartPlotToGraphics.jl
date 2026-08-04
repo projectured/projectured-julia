@@ -270,7 +270,9 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     events = chart.events
     arrows = chart.arrows
     i0, i1 = visible_event_range(coordinates, lo, hi)
-    visible_events = decimate_events(coordinates, events.axes, scale, i0, i1)
+    visible_events = decimate_events(coordinates, events.axes, scale, i0, i1;
+                                     kinds=events.kinds,
+                                     separation=max(style.event_radius, 1))
     # Only events whose kind is switched on, and whose lane exists.
     visible_events = Int[i for i in visible_events
                          if _event_visible(chart, events, i) && haskey(lane_of, event_axis(events, i))]

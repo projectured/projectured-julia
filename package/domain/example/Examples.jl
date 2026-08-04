@@ -36,6 +36,8 @@ const chart_inspector_example = Example("chart_inspector", make_chart_inspector_
 const sequencechart_example  = Example("sequencechart",  make_sequencechart_document_example,  make_sequencechart_projection_example)
 const sequencechart_vertical_example = Example("sequencechart_vertical", make_sequencechart_vertical_document_example, make_sequencechart_vertical_projection_example)
 const sequencechart_linear_example = Example("sequencechart_linear", make_sequencechart_linear_document_example, make_sequencechart_linear_projection_example)
+const sequencechart_inspector_example = Example("sequencechart_inspector", make_sequencechart_inspector_document_example, make_sequencechart_inspector_projection_example)
+const sequencechart_pair_example = Example("sequencechart_pair", make_sequencechart_pair_document_example, make_sequencechart_pair_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
@@ -113,6 +115,8 @@ const domain_examples = Example[
     sequencechart_example,
     sequencechart_vertical_example,
     sequencechart_linear_example,
+    sequencechart_inspector_example,
+    sequencechart_pair_example,
     workbench_example,
     math_example,
     julia_example,

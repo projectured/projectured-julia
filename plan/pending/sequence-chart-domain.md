@@ -604,10 +604,48 @@ here as they land.
     `plot.selection`: the plot's is a computed cell forward-mapped from the
     document's, and writing the plot's by hand would pass even with that chain
     broken. Verified the real path end to end.
-- [ ] **Phase 4 — bands + scale + doc.** `SequenceChartBandSeries` rendering with
-  event-anchored edges and value labels, band selection; extend the example with the
-  band; inspector example; `test_sequencechart_scale()`;
-  `package/domain/doc/sequencechart.md`; move this plan to `plan/done/`.
+- [x] **Phase 4 — bands, scale, composition, doc. DONE.** Band rendering with
+  event-anchored edges and value labels, band hit testing;
+  `test_sequencechart_scale()` (12); the inspector and pair composites;
+  `package/domain/doc/sequencechart.md` with generated screenshots; the slice and
+  its DAG edge recorded in `package/domain/doc/architecture.md`.
+
+  Decisions made while implementing:
+  - **Event decimation is radius-aware and kind-keyed.** One mark per lane per
+    *pixel* left 6,704 marks on a 20k-event trace: a mark is a disc three pixels
+    across, so adjacent-pixel marks paint ground already covered. Separating by
+    the mark's radius cut that to 2,240 for a visually identical picture. Keyed
+    by kind as well as lane, so a crowded stretch still shows that a timeout
+    happened among the ordinary receives.
+  - **Arrow coverage dedup tests the union, not one span.** The first version
+    asked whether any single recorded interval contained the new one, which let
+    through arrows that added nothing beyond what several together already
+    covered — 4,162 polylines where 2,646 suffice. It now walks the merged cover,
+    which is the VLineBuffer semantics the plan described.
+  - Net: a 20,000-event / 20,000-arrow trace draws in **4,936** graphics
+    elements at 900 px wide.
+  - The example set grew to five: the base trace, vertical, linear (the
+    comparison that argues for the nonlinear mapping), an inspector split pane,
+    and a stacked pair. The inspector is what demonstrates composability — the
+    chart is a document among documents, embedded with one `NaturalToGraphics`
+    dispatch entry, with a reflection-driven property form over one of its lanes.
+  - `update_guide_screenshots()` also rewrites unrelated guides that had drifted
+    (a missing image line in `chart.md`, a re-derived width in `workbench.md`,
+    `README.md`, the examples tour). Those were reverted — they are not this
+    change's business.
+
+## Result
+
+All five phases landed. Final state:
+
+- **Slice**: `package/domain/main/sequencechart/` — 6 files (geometry, row
+  reference step, document, plot, two projections).
+- **Tests**: `test_sequencechart_geometry()` 114, `test_sequencechart()` 100,
+  `test_sequencechart_selection()` 37, `test_sequencechart_scale()` 12, all
+  registered in `test_domain()`; five examples in the sweeps.
+- **Regression**: `test_domain()` — 142,963 pass, 0 fail, 0 error, 5 pre-existing
+  broken. Layering guard 6/6.
+- **Docs**: `package/domain/doc/sequencechart.md` + three generated screenshots.
 
 ## 8. Deferred / future work (recorded, deliberately out of v1)
 

@@ -24,3 +24,38 @@ make_sequencechart_linear_projection_example(; measure=truetype_measure_text) =
 
 make_sequencechart_large_projection_example(; measure=truetype_measure_text) =
     make_sequencechart_pipeline_example(; measure=measure)
+
+# Embedding a sequence chart in anything that recurses its children takes one
+# dispatch entry — which is also all it takes to open one as a workbench tab.
+function make_sequencechart_composite_projection_example(; measure=truetype_measure_text,
+                                                         width::Integer=880,
+                                                         height::Integer=330)
+    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+        extra=Pair{Type,Any}[
+            SequenceChart => make_sequencechart_pipeline_example(; measure=measure,
+                                                                width=width, height=height)])
+end
+
+make_sequencechart_pair_projection_example(; measure=truetype_measure_text) =
+    make_sequencechart_composite_projection_example(; measure=measure)
+
+# The inspector: the chart renders through its own pipeline, and the lane through
+# ObjectToWidget's reflection-driven form, whose controls write back to the
+# lane's own cells. Two projections over one document, which is what makes a
+# chart's properties editable without a bespoke property editor.
+function make_sequencechart_inspector_projection_example(; measure=truetype_measure_text)
+    font = font_ubuntu_monospace_regular_20
+    w2g = WidgetToGraphics(font; measure=measure)
+    form = ChainingProjection(
+        ObjectToWidget(fields=[:label, :visible],
+                       style=StyleText(font, color_default)),
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch,
+            w2g.dispatch,
+            Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)]))))
+    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+        extra=Pair{Type,Any}[
+            SequenceChart => make_sequencechart_pipeline_example(; measure=measure,
+                                                                width=600, height=420),
+            SequenceChartAxis => form])
+end
