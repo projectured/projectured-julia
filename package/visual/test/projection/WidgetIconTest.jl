@@ -80,6 +80,19 @@ end
     @test !isempty(_prims_of(iconed, GraphicsPolyline))    # the :folder tab icon
 end
 
+@testset "media-transport icons render as filled polygons" begin
+    for name in (:play, :pause, :stop, :step_forward, :step, :finish)
+        @test !isempty(_prims_of(_btn(icon = name), GraphicsPolygon))
+    end
+    @test length(_prims_of(_btn(icon = :play),  GraphicsPolygon)) == 1   # one triangle
+    @test length(_prims_of(_btn(icon = :pause), GraphicsPolygon)) == 2   # two bars
+    # The fill tints like a stroke: a disabled button mutes it.
+    en = _prims_of(_btn(icon = :play), GraphicsPolygon)
+    di = _prims_of(_btn(icon = :play, enabled = false), GraphicsPolygon)
+    ec, dc = en[1].color, di[1].color
+    @test (ec.red, ec.green, ec.blue) != (dc.red, dc.green, dc.blue)
+end
+
 @testset "a tree node draws its registered icon (chevrons are lines, not polylines)" begin
     tr = WidgetTree(Point2D(0, 0), Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),

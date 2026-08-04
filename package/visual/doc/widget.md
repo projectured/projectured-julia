@@ -426,12 +426,15 @@ three backings coexist:
 
 | Backing | Emits | Tints / scales |
 |---|---|---|
-| **Vector** (built-in set) | `GraphicsPolyline` / `Circle` | ✅ — generalises the chevron drawer |
+| **Vector** (built-in set) | `GraphicsPolyline` / `Circle` / `Polygon` | ✅ — generalises the chevron drawer |
 | **Glyph-font** (`glyph_icon(font, codepoint)`) | `GraphicsText` | ✅ — needs a bundled icon font |
 | **Raster** (`image_icon(image)`) | `GraphicsImage` | ❌ — for brand art |
 
 - **Built-in vector names** (v1): `:save :folder :file :check :x/:close :plus
   :minus :chevron_down :chevron_right :menu :pencil/:edit :trash/:delete :search`.
+- **Media-transport names** (filled shapes, for playback/simulation control):
+  `:play :pause :stop :step_forward/:step :finish` — play triangle, pause bars,
+  stop square, step triangle + bar, checkered finish flag.
 - **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
   or `glyph_icon` / `image_icon`. An unknown name draws nothing (zero width).
 - **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,

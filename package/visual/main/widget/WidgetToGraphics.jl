@@ -51,7 +51,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        first_focusable_path, last_focusable_path, _next_focusable_in
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
+import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
@@ -3910,8 +3910,8 @@ end
 # renderer with the uniform signature `(elems, x, y, size, color) -> nothing`; the
 # widget printers ask the registry to draw an icon at the label's color + size
 # (tinting like text), never branching on the backing. v1 ships a built-in vector
-# set (tinted `GraphicsPolyline`/`Line`/`Circle`); a glyph-font or raster icon drops
-# in by name via `glyph_icon` / `image_icon` with no widget-code change.
+# set (tinted `GraphicsPolyline`/`Line`/`Circle`/`Polygon`); a glyph-font or raster
+# icon drops in by name via `glyph_icon` / `image_icon` with no widget-code change.
 
 const ICON_REGISTRY = Dict{Symbol,Function}()
 
@@ -3962,6 +3962,15 @@ function _icon_path!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor
     push!(elems, GraphicsPolyline(P, color; width=w))
 end
 
+# Push a filled vector glyph: `_icon_path!`'s solid counterpart (a `GraphicsPolygon`
+# through the normalized points). Media-transport glyphs are conventionally solid —
+# a stroked triangle stops reading as "play" at 16 px.
+function _icon_fill!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor,
+                     pts::Vector{<:Tuple})
+    P = Tuple{Int,Int}[(x + round(Int, px * size), y + round(Int, py * size)) for (px, py) in pts]
+    push!(elems, GraphicsPolygon(P, color))
+end
+
 # ── Built-in vector icon set ────────────────────────────────────────────────
 # Each draws inside a unit box (insets keep strokes off the very edge), tinted by
 # the caller's color. Generalises the chevron / checkmark drawers.
@@ -3996,12 +4005,31 @@ _icon_search(e, x, y, s, c) = begin
     _icon_path!(e, x, y, s, c, [(0.60, 0.60), (0.84, 0.84)])
 end
 
+# Media-transport set (filled, no circle enclosures — the widget provides the
+# enclosure). The universal vocabulary: play = triangle, pause = two bars,
+# stop = square, step = triangle + bar, finish = checkered flag.
+_icon_play(e, x, y, s, c) = _icon_fill!(e, x, y, s, c, [(0.28, 0.20), (0.80, 0.50), (0.28, 0.80)])
+_icon_pause(e, x, y, s, c) = (_icon_fill!(e, x, y, s, c, [(0.26, 0.20), (0.42, 0.20), (0.42, 0.80), (0.26, 0.80)]);
+                              _icon_fill!(e, x, y, s, c, [(0.58, 0.20), (0.74, 0.20), (0.74, 0.80), (0.58, 0.80)]))
+_icon_stop(e, x, y, s, c) = _icon_fill!(e, x, y, s, c, [(0.24, 0.24), (0.76, 0.24), (0.76, 0.76), (0.24, 0.76)])
+_icon_step_forward(e, x, y, s, c) = (_icon_fill!(e, x, y, s, c, [(0.22, 0.22), (0.64, 0.50), (0.22, 0.78)]);
+                                     _icon_fill!(e, x, y, s, c, [(0.68, 0.22), (0.80, 0.22), (0.80, 0.78), (0.68, 0.78)]))
+_icon_finish(e, x, y, s, c) = begin
+    _icon_path!(e, x, y, s, c, [(0.24, 0.15), (0.24, 0.85)])                                          # pole
+    _icon_path!(e, x, y, s, c, [(0.24, 0.15), (0.80, 0.15), (0.80, 0.51), (0.24, 0.51)]; closed=true) # flag
+    _icon_fill!(e, x, y, s, c, [(0.24, 0.15), (0.52, 0.15), (0.52, 0.33), (0.24, 0.33)])              # checker ▚
+    _icon_fill!(e, x, y, s, c, [(0.52, 0.33), (0.80, 0.33), (0.80, 0.51), (0.52, 0.51)])
+end
+
 for (name, fn) in (:chevron_down => _icon_chevron_down, :chevron_right => _icon_chevron_right,
                    :check => _icon_check, :x => _icon_x, :close => _icon_x,
                    :plus => _icon_plus, :minus => _icon_minus, :menu => _icon_menu,
                    :file => _icon_file, :folder => _icon_folder, :save => _icon_save,
                    :pencil => _icon_pencil, :edit => _icon_pencil, :trash => _icon_trash,
-                   :delete => _icon_trash, :search => _icon_search)
+                   :delete => _icon_trash, :search => _icon_search,
+                   :play => _icon_play, :pause => _icon_pause, :stop => _icon_stop,
+                   :step_forward => _icon_step_forward, :step => _icon_step_forward,
+                   :finish => _icon_finish)
     register_icon!(name, fn)
 end
 
