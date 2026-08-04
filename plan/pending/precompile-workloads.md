@@ -99,10 +99,30 @@ The directive exists; nothing checks it against the method table.
       reason the catalog plan gives — the atom is still printed and read like any
       other.
 
-- [ ] **Close the remaining 108.** 59 are the widget set and layouts
-      (`ProjecturedVisual`), 39 the application documents (workbench,
-      conversation, fsm, dbcatalog, graph), 6 `ProjecturedBase`, 3
-      `ProjecturedKernel`. `catalog_coverage_gap()` prints the worklist.
+- [x] **Close the remaining gap.** 105 atoms: 59 visual (the widget set, the
+      layouts, the bare text spans, a syntax leaf), 40 domain (workbench,
+      conversation, fsm, dbcatalog, formula, graph, chart, the sql fragments,
+      workspace), 6 base collections and wrappers. `catalog_coverage_gap()`
+      returns empty and `test_catalog_coverage`'s `@test_broken` is now a plain
+      assertion.
+
+      **108 became 105**: `ConcreteReference`, `EmptyReference` and `ReactiveCell`
+      have printers but are not `<: Document` — a reference is an address into a
+      document, a cell is where a document's field is kept, and neither is
+      something an `AtomicDocument` can hold. The check now decides that by
+      subtyping instead of by a list of names.
+
+      Several atoms turned out to be written already and merely unregistered —
+      five Fsm factories, dragging, versioning, the collection vector. The check
+      earned its keep on that alone.
+
+      Where an atom would take a name an existing curated example answers to, the
+      factory gets an `_atom` suffix rather than overwriting it (the existing ones
+      are multi-state showcases, and `ProjecturedExample` re-exports those names).
+      The three bare text spans are registered `bare_*` rather than reusing
+      `string`/`newline`/`line`: an atom's `domain/name` is what the catalog
+      filters on and what the known-broken registries match by prefix, so two
+      atoms under one name would make both ambiguous.
 
 - [x] **One `@compile_workload`, driven by the registry** —
       `package/domain/example/Precompile.jl`, walking every atom through
@@ -225,33 +245,71 @@ nothing it compiles survives the process.
 In a fresh session, rendering through `NaturalToGraphics`. The baseline column is
 the same worktree with the workload body removed, so nothing else differs.
 
-| | no workload | atoms only | + Julia atoms | + parsers |
-|---|---|---|---|---|
-| render a real Julia source file | 12.57 s | 3.48 s | 0.92 s | 0.93 s |
-| parse that file (`juliaparse_file`) | 0.77 s | 0.74 s | 0.74 s | **0.39 s** |
-| render a markdown page | 1.86 s | 0.10 s | 0.10 s | 0.10 s |
-| render a json atom | 2.33 s | 0.55 s | 0.54 s | 0.55 s |
+| | no workload | atoms only | + Julia atoms | + parsers | all 237 atoms |
+|---|---|---|---|---|---|
+| render a real Julia source file | 12.57 s | 3.48 s | 0.92 s | 0.93 s | **0.84 s** |
+| parse that file (`juliaparse_file`) | 0.77 s | 0.74 s | 0.74 s | 0.39 s | **0.36 s** |
+| render a markdown page | 1.86 s | 0.10 s | 0.10 s | 0.10 s | **0.10 s** |
+| render a json atom | 2.33 s | 0.55 s | 0.54 s | 0.55 s | **0.49 s** |
 
-Cost, `ProjecturedDomainExample`: precompile **7.7 s → 44 s**, package image
-**→ 74 MB**, `using` **0.81 s**. Paid once per source change, not per session.
+Cost, `ProjecturedDomainExample`: precompile **7.7 s → 58 s**, package image
+**→ 97 MB**, `using` **0.82 s**. Paid once per source change, not per session.
 
 The Julia-atoms column is the point of the exercise: the workload alone left a
 source file at 3.48 s, because 22 of the node types in it had no atom to be
 compiled from. Coverage is what makes a workload worth having, which is why the
 exhaustiveness check came first.
 
+## What the atoms found
+
+Adding an atom for every document type made 2133 assertions fail across 17
+catalog entries — every one of them a projection nothing had ever exercised
+standalone, and none of them a regression:
+
+- **layouts, the widget composite, the graph layout** — printed through their own
+  single-step projection there is no `recursion`, so a child cannot be printed
+  and the child's type has no `print_document` method. Nested under a parent,
+  which is how they are always used, they are fine.
+- **the bare text spans** — `WordWrapping` is block-level and has no method for a
+  lone span, so the derived `:graphics` variant cannot be forced. The `:text`
+  variant, which is what those atoms exist for, prints fine.
+- **`embed/stub`** — `ReferenceStub` is a plain `mutable struct <: Document`
+  rather than a `@document`, so it has no `selection` field for a reader to write.
+
+Each is registered with its reason. That left 19 in `test_printer`, the one
+tester with no broken hatch; it now takes the same message predicate
+`test_reader` and `test_repl` take.
+
+Two real bugs fixed on the way. `LayoutConstraintToGraphicsCanvas` built its
+child context by splicing `ctx.reference` into an `@reference` literal, which is
+under-typed whenever the root reference is — and it always is, including from a
+bare `PrinterContext()`; every other layout in that file uses the
+document-carrying `make_child_context`, and now so does this one. And the shared
+forcing walk referred to `ProjecturedKernel.CellModule.AbstractCell` in a module
+that binds `CellModule` flat and never binds `ProjecturedKernel`, so every call
+threw — invisible, because both callers guard the walk with a `catch`.
+
+### One fix attempted and backed out
+
+The catalog derives a `:graphics` variant for the bare text spans that cannot be
+forced, because `_step` accepts a bridge on the strength of its `output` alone —
+and printing is lazy, so a bridge that cannot render the document at all still
+returns an output and only throws when read. Forcing before accepting looked like
+the general fix for that class. It is not: it collapsed the catalog from 427
+entries to 81, because legitimate bridges fail that walk too. Reverted. The
+laziness gap in `_step` is real and still open.
+
 ## Verification
 
-- [x] `test_catalog_coverage` — 3 pass, 1 broken (the 108 standing gaps)
-- [x] `test_natural_renders_every_atom` — 132 of 132
-- [x] `test_natural_round_trips_every_atom` — 80 of 105 eligible, the other 25
-      named in `_NO_ROUND_TRIP`
-- [x] `test_catalog(; domain = :julia)` — 101456 pass, 1 broken (`julia/empty`
-      navigation), 0 fail
-- [x] `test_catalog()` over every domain — **238841 pass, 33 broken, 0 fail, 0
-      error**. 32 of the 33 are the registries that were already there
-      (`sql/*`, `yaml/sequence`, `filesystem/directory`), which nothing in this
-      branch touches; the 33rd is `julia/empty`.
+- [x] `test_catalog_coverage` — 4 pass, nothing owed
+- [x] `test_natural_renders_every_atom` — every atom but the three bare text
+      spans, which are named in `_NO_NATURAL_RENDER` with the reason
+- [x] `test_natural_round_trips_every_atom` — the eligible set round-trips
+      except the 27 named in `_NO_ROUND_TRIP`, nearly all of them atoms smaller
+      than a file
+- [x] `test_catalog()` over every domain — **254267 pass, 2166 broken, 0 fail, 0
+      error**, against 238841 / 33 before the atoms landed. Every one of the new
+      broken entries is registered with its cause.
 - [ ] `test_demo_catalog()` in omnetpp-julia, once this lands on `main` — it
       cannot see a worktree
 - [ ] startup and first click re-measured against the 5.4 s / 12.9 s baseline,
@@ -259,4 +317,9 @@ exhaustiveness check came first.
 
 ## Status
 
-Not started. Measurements and design from the investigation on 2026-08-04.
+The projectured-julia half is implemented on branch
+`projectured-julia-precompile`. What remains is in omnetpp-julia and cannot be
+done from a worktree: `OmnetppPresentationExample`'s own 13 pairs, and the
+end-to-end re-measurement of the 13 s click that started this. The file-type
+round trip (`emit_text` / `populate_file!` over `_FILE_DOCUMENT_TYPES`) is also
+still open, and so is the laziness gap in the catalog's `_step`.
