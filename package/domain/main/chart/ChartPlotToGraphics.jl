@@ -34,15 +34,17 @@ import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
                       chart_sample, chart_sample_reference, selected_sample,
                       ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
                       ChartLineSeries, ChartScatterSeries, ChartBarSeries,
-                      ChartHistogramSeries,
+                      ChartHistogramSeries, ChartStripSeries,
                       chart_series_family, chart_axis_family,
-                      series_color, series_symbol
+                      series_color, series_symbol,
+                      strip_state_name, strip_state_color
 import ..ChartPlotModule: ChartPlot, ChartView
 import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
                               column_bounds, merge_bounds, pad_range,
                               nice_ticks, log_ticks, format_tick,
                               visible_range, decimate_minmax, step_points, pins_segments,
-                              fold_scatter, fold_bins, label_step, histogram_values,
+                              fold_scatter, fold_bins, strip_runs, fold_strips,
+                              label_step, histogram_values,
                               nearest_sample,
                               legend_layout, anchor_offset
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
@@ -149,10 +151,18 @@ _series_x_bounds(s::ChartLineSeries) = column_bounds(s.x)
 _series_x_bounds(s::ChartScatterSeries) = column_bounds(s.x)
 # A histogram spans its outermost edges, whatever the values do.
 _series_x_bounds(s::ChartHistogramSeries) = column_bounds(s.binedges)
+# A strip reaches past its last sample when it is told where the trace ends.
+function _series_x_bounds(s::ChartStripSeries)
+    b = column_bounds(s.x)
+    (b === nothing || s.x_end === nothing) && return b
+    (b[1], max(b[2], Float64(s.x_end)))
+end
 _series_x_bounds(::Any) = nothing
 
 _series_y_bounds(s::ChartLineSeries) = column_bounds(s.y)
 _series_y_bounds(s::ChartScatterSeries) = column_bounds(s.y)
+# A strip has no y data of its own: which row it occupies depends on the other
+# strips, so the extent is contributed by `_data_bounds` over the whole set.
 _series_y_bounds(::Any) = nothing
 
 # Histogram bars grow from zero, and the value shown is the transformed one, so
@@ -174,6 +184,19 @@ function _histogram_shown_values(s::ChartHistogramSeries)
     values = s.binvalues
     total = sum(Float64(v) for v in values; init=0.0) + s.underflows + s.overflows
     histogram_values(s.binedges, values, s.cumulative, s.density, total)
+end
+
+# Which row each visible strip occupies, as the y coordinate of its centre. The
+# first strip in the series list sits on top — the order the legend reads in —
+# so k strips fill the integer rows k down to 1.
+function _strip_rows(series)
+    rows = Dict{Int,Int}()
+    indices = Int[i for (i, s) in series if s isa ChartStripSeries]
+    k = length(indices)
+    for (r, i) in enumerate(indices)
+        rows[i] = k - r + 1
+    end
+    (rows, k)
 end
 
 # The data extent of everything drawn, before padding or axis overrides. Bar
@@ -198,6 +221,12 @@ function _data_bounds(series, chart::Chart)
         xb = merge_bounds(xb, _series_x_bounds(s))
         yb = merge_bounds(yb, _series_y_bounds(s))
     end
+    # Strips claim integer rows rather than data values. The claim belongs here
+    # rather than in the layout because the gesture readers resolve the window
+    # through `resolve_view` as well, and a window the printer and the readers
+    # disagreed about would jump under the first zoom.
+    k = count(s -> s isa ChartStripSeries, (s for (_, s) in series))
+    k > 0 && (yb = merge_bounds(yb, (0.5, k + 0.5)))
     (xb, yb)
 end
 
@@ -457,9 +486,20 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     prov_w = max(w - 2 * _PAD - 60, 40)
     prov_h = max(h - 2 * _PAD - title_h - y_title_h - x_title_h - 24, 40)
 
-    yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h)
-    ylabels = _axis_shows_labels(y_axis) ?
-        [format_tick(t, _tick_step(yticks)) for t in yticks] : String[]
+    # Row-label mode: when the chart is nothing but strips, the y axis is the
+    # list of strips, so it carries their labels instead of numbers. Any other
+    # series visible — or none at all — and the numeric path runs untouched.
+    strip_rows, strip_count = _strip_rows(series)
+    strip_only = strip_count >= 1 && all(s -> s isa ChartStripSeries, (s for (_, s) in series))
+
+    if strip_only
+        yticks = Float64[Float64(strip_rows[i]) for (i, _) in series]
+        ylabels = _axis_shows_labels(y_axis) ? [_series_label(s) for (_, s) in series] : String[]
+    else
+        yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h)
+        ylabels = _axis_shows_labels(y_axis) ?
+            [format_tick(t, _tick_step(yticks)) for t in yticks] : String[]
+    end
     xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font)
 
     # Measure each label once, here, and carry the sizes forward — the frame
@@ -512,7 +552,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
        hovered_index, selected_index, selected_part, whole_selected,
        measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
-       point_cache,
+       point_cache, strip_rows, strip_count, strip_only,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, title_h,
        x_title, y_title, x_title_h, y_title_h)
@@ -533,7 +573,9 @@ function _frame_elements!(out, g)
     grid_x = _axis_grid(chart.x_axis)
     grid_y = _axis_grid(chart.y_axis)
 
-    if grid_y !== :none
+    # In row-label mode the y ticks name the strips rather than measuring
+    # anything, so a gridline through each would just underline the bands.
+    if grid_y !== :none && !g.strip_only
         for t in g.yticks
             y = round(Int, to_pixel(g.ys, t))
             (py <= y <= py + ph) || continue
@@ -919,6 +961,104 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
     out
 end
 
+# ── Strips ───────────────────────────────────────────────────────────────
+#
+# A strip draws one filled rect per run of equal values, from each sample's time
+# to the next one's — a value holds until something replaces it. The band, its
+# drawn right edge and the pixel spans are all computed here and used by both the
+# printer and the hit-testing, so what is drawn and what is clickable cannot
+# drift apart.
+
+# Half the height of a band, in rows. Bands are placed in data coordinates so
+# they scale with a y zoom like everything else.
+const _STRIP_HALF = 0.4
+const _STRIP_EDGE = StyleColor(0.0, 0.0, 0.0, 0.10)
+
+# The band a strip occupies, in absolute pixels, or `nothing` when the series
+# has no row — hidden, or not a strip at all.
+function _strip_band(g, index::Int)
+    center = get(g.strip_rows, index, 0)
+    center == 0 && return nothing
+    a = to_pixel(g.ys, center + _STRIP_HALF)
+    b = to_pixel(g.ys, center - _STRIP_HALF)
+    (round(Int, min(a, b)), round(Int, max(a, b)))
+end
+
+# Where the last segment stops: the trace's own end when it has one, otherwise
+# the edge of the view — a state with nothing after it is still in effect.
+_strip_end(s::ChartStripSeries, view) =
+    s.x_end === nothing ? view.x_max : Float64(s.x_end)
+
+"""
+    _strip_spans(g, series) -> Vector{Tuple{Int,Int,Int}}
+
+The `(left, right, code)` pixel spans a strip draws over the visible window:
+clipped to the window, runs of equal values coalesced, and sub-pixel runs folded
+to whichever state holds them longest. Absolute pixels, bounded by the plot
+width no matter how long the columns are.
+"""
+function _strip_spans(g, s::ChartStripSeries)
+    x, values = s.x, s.values
+    n = min(length(x), length(values))
+    n >= 1 || return Tuple{Int,Int,Int}[]
+    i0, i1 = visible_range(x, g.view.x_min, g.view.x_max)
+    i1 = min(i1, n)
+    i0 > i1 && return Tuple{Int,Int,Int}[]
+    runs = strip_runs(values, i0, i1)
+    isempty(runs) && return Tuple{Int,Int,Int}[]
+    drawn_end = _strip_end(s, g.view)
+    lefts = Vector{Float64}(undef, length(runs))
+    rights = Vector{Float64}(undef, length(runs))
+    codes = Vector{Int}(undef, length(runs))
+    for (k, (a, b)) in enumerate(runs)
+        lefts[k] = to_pixel(g.xs, Float64(x[a]))
+        rights[k] = b < n ? to_pixel(g.xs, Float64(x[b + 1])) : to_pixel(g.xs, drawn_end)
+        codes[k] = Int(values[a])
+    end
+    fold_strips(lefts, rights, codes, 1)
+end
+
+# Enough contrast to read a state name against whatever colour that state took.
+_strip_label_color(color::StyleColor) =
+    (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) > 0.55 ?
+    _TEXT : StyleColor(1.0, 1.0, 1.0, 1.0)
+
+function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
+    band = _strip_band(g, index)
+    band === nothing && return out
+    top, bottom = band
+    ox, oy = g.plot_x, g.plot_y
+    height = max(bottom - top, 1)
+    spans = _strip_spans(g, s)
+    cycle = g.style.color_cycle
+    veiled = g.hovered_index != 0 && g.hovered_index != index
+
+    for (l, r, code) in spans
+        color = _veiled(strip_state_color(s, code, cycle), veiled)
+        push!(out, s.draw_edges ?
+            GraphicsRect(l - ox, top - oy, max(r - l, 1), height, color;
+                         border_width=1, border_color=_STRIP_EDGE) :
+            GraphicsRect(l - ox, top - oy, max(r - l, 1), height, color))
+    end
+
+    # A state names itself inside its own segment when the name fits. No
+    # rotation: the backends only honour the translate+scale subset of an affine
+    # transform, so a name that does not fit is left out rather than turned.
+    if s.show_labels
+        for (l, r, code) in spans
+            name = strip_state_name(s, code)
+            isempty(name) && continue
+            tw, th = g.measure_label(name)
+            (tw + 6 <= r - l && th + 2 <= height) || continue
+            color = strip_state_color(s, code, cycle)
+            push!(out, GraphicsText(name, l - ox + (r - l - tw) ÷ 2,
+                                    top - oy + (height - th) ÷ 2,
+                                    g.axis_font, _strip_label_color(color)))
+        end
+    end
+    out
+end
+
 # ── Overlay ──────────────────────────────────────────────────────────────
 #
 # What is drawn over the series inside the plot viewport: the crosshair with its
@@ -1002,6 +1142,7 @@ end
 _series_elements!(out, g, index::Int, s::ChartLineSeries) = _line_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartScatterSeries) = _scatter_elements!(out, g, index, s)
 _series_elements!(out, g, index::Int, s::ChartHistogramSeries) = _histogram_elements!(out, g, index, s)
+_series_elements!(out, g, index::Int, s::ChartStripSeries) = _strip_elements!(out, g, index, s)
 # Bar series are drawn as a group rather than one at a time: how wide a bar is
 # and where in its slot it sits both depend on how many other bar series there
 # are, so `_bar_elements!` takes the whole set.
