@@ -106,6 +106,7 @@ include("editor/PrinterLocalityTest.jl")
 include("editor/RecursionContractTest.jl")
 include("editor/MouseClickTest.jl")
 include("projection/CatalogTest.jl")
+include("projection/CatalogCoverageTest.jl")
 
 """
     test_documents()
@@ -177,6 +178,8 @@ function test_all()
     # The generated atomic-example catalog: printer/reader/repl/position-navigation
     # over every discovered `domain/name/variant` pair, routed by terminal.
     test_catalog()
+    # Is the catalog exhaustive? The printers are the list of what it owes.
+    test_catalog_coverage()
     test_printers()
     test_readers()
     test_position_navigations()
@@ -239,6 +242,7 @@ export test_recursion_contract, test_recursion_contracts, walk_recursion_contrac
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_catalog, test_catalog_typeins
+export test_catalog_coverage, catalog_coverage_gap
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
