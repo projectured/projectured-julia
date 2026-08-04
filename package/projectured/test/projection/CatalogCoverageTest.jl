@@ -37,6 +37,14 @@ end
 # friends belong to Base, and an abstract type is a dispatch target rather than
 # a thing to instantiate. Both are printed through some concrete document that
 # is itself in the set, so nothing is lost by leaving them out.
+#
+# The third exclusion is the interesting one. A printer's argument is not
+# necessarily a *document*: `ReferenceToText` renders a `ConcreteReference` and
+# `CellToSyntax` renders a `ReactiveCell`, but a reference is an address into a
+# document and a cell is where a document's field is kept. Neither is a thing an
+# `AtomicDocument` can hold — the catalog's testers print, read and navigate
+# documents — so the set is documents, by subtyping rather than by a list of
+# names somebody has to maintain.
 function _coverage_wanted()
     want = Set{Any}()
     for m in methods(Projectured.ProjectionApiModule.print_document)
@@ -49,6 +57,7 @@ function _coverage_wanted()
         (T === nothing || !_coverage_ours(T)) && continue
         body = T isa UnionAll ? Base.unwrap_unionall(T) : T
         (body isa DataType && isabstracttype(body)) && continue
+        body <: Projectured.DocumentModule.Document || continue
         push!(want, T)
     end
     want
@@ -73,8 +82,6 @@ end
 # A printer added later with no atom is NOT in this list, so it fails as an
 # unmarked `Fail` — which is the point of the check.
 const _NO_ATOM = Set{String}([
-    # ProjecturedKernel
-    "ConcreteReference", "EmptyReference", "ReactiveCell",
     # ProjecturedBase
     "CellTable", "CellVector", "DraggingState", "ListNode", "ReferenceStub",
     "VersionedObject",
@@ -242,7 +249,7 @@ function test_catalog_coverage()
         # The debt itself, as one visible Broken. Delete names from `_NO_ATOM` as
         # atoms are written; when the set empties this becomes a plain pass and
         # the marker can go.
-        # @broken 108 document types have a printer and no atom — see `_NO_ATOM`.
+        # @broken 105 document types have a printer and no atom — see `_NO_ATOM`.
         @test_broken isempty(gap)
     end
 end
