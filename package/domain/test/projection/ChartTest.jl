@@ -596,6 +596,88 @@ function test_chart()
             @test ChartPlotToGraphicsModule._strip_readout(g, 2.5, g.plot_y + 1) === nothing
         end
 
+        @testset "strip legend" begin
+            states = ["IDLE", "BUSY", "DONE"]
+            t = collect(0.0:1.0:10.0)
+            codes = [1, 1, 2, 2, 2, 3, 1, 2, 3, 3, 1]
+            chart = Chart("m", [ChartStripSeries("a", t, codes; states=states),
+                                ChartStripSeries("b", t, codes; states=states),
+                                ChartStripSeries("c", t, codes; states=["ON", "OFF", "END"])])
+            items = _chart_layout(chart).legend.items
+
+            # A strip's own entry takes a neutral swatch: the band is many
+            # colours and any one of them would misname the rest.
+            own = filter(it -> it[1] != 0, items)
+            @test [it[2] for it in own] == ["a", "b", "c"]
+            @test all(it -> it[3] == ChartPlotToGraphicsModule._STRIP_SWATCH, own)
+            # ...and specifically not the colour the series cycle would give it.
+            @test own[1][3] != series_color(nothing, 1, ChartStyle().color_cycle)
+
+            # The states are listed instead, in their own colours, and two
+            # strips sharing a table share the entries rather than repeating.
+            values = filter(it -> it[1] == 0, items)
+            @test [it[2] for it in values] == ["IDLE", "BUSY", "DONE", "ON", "OFF", "END"]
+            # Series first, then the states — not each strip's states after it,
+            # which would read as though a shared table belonged to the first.
+            @test [it[1] != 0 for it in items] ==
+                  [true, true, true, false, false, false, false, false, false]
+            @test values[1][3] == series_color(nothing, 1, ChartStyle().color_cycle)
+            @test values[1][3] != values[2][3]
+            # Colour follows the code, so the first state of each table shares
+            # one — which is exactly why a table of its own wants state_colors.
+            @test values[1][3] == values[4][3]
+
+            # A per-state override reaches the legend too.
+            recolored = Chart("m", [ChartStripSeries("a", t, codes; states=states,
+                                                     state_colors=[color_solarized_violet,
+                                                                   color_solarized_cyan,
+                                                                   color_solarized_magenta])])
+            rv = filter(it -> it[1] == 0, _chart_layout(recolored).legend.items)
+            @test rv[1][3] == color_solarized_violet
+
+            # A strip with no state table has no vocabulary to list, and still
+            # takes the neutral swatch.
+            bare = Chart("m", [ChartStripSeries("a", t, codes)])
+            bare_items = _chart_layout(bare).legend.items
+            @test length(bare_items) == 1
+            @test bare_items[1][3] == ChartPlotToGraphicsModule._STRIP_SWATCH
+
+            # A state entry names no series, so it neither toggles nor hovers —
+            # a click on one means the legend, the way empty space in the box
+            # already does. The strip's own row still toggles.
+            proj = _chart_projection()
+            iomap = print_document(proj, proj, chart, PrinterContext())
+            plan = iomap.step_iomaps[2][].geometry.legend
+            rects = legend_item_rects(plan)
+            series_row = first(r for r in rects if r[1] != 0)
+            value_row = first(r for r in rects if r[1] == 0)
+
+            op = read_intent(proj, iomap,
+                             MousePress(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2))
+            @test op isa ReplaceSelectionOperation
+            @test is_reference_equal(strip_reference_types(op.path),
+                                     strip_reference_types(@reference ::Chart.legend::ChartLegend))
+            # Hovering one still moves the crosshair — an inside legend sits over
+            # the plot — but it names no series, so nothing gets veiled.
+            plot = iomap.step_iomaps[1][].output
+            hover = read_intent(proj, iomap,
+                                MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
+                                          :none, ModifierKeys()))
+            hover === nothing || evaluate_operation(nothing, hover)
+            @test plot.hovered === nothing
+
+            op = read_intent(proj, iomap,
+                             MousePress(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2))
+            @test op isa ReplaceReferencedValueOperation
+            @test op.value == false
+
+            # Every other series kind keeps its own colour, unchanged.
+            line = Chart("m", [ChartLineSeries("v", t, t)])
+            line_items = _chart_layout(line).legend.items
+            @test length(line_items) == 1
+            @test line_items[1][3] == series_color(nothing, 1, ChartStyle().color_cycle)
+        end
+
         @testset "strip reactivity" begin
             states = ["IDLE", "BUSY"]
             t = collect(0.0:1.0:10.0)

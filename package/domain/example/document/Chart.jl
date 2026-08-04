@@ -107,6 +107,10 @@ Three strip series tracking a MAC layer's state machine: two hosts sharing a
 time base and a four-state table, and a channel series with its own shorter
 time base, a two-state table, and an explicit `x_end` that closes its last
 segment before the chart's edge.
+
+The channel names its own colours. Colour follows the state *code*, so a table
+of its own would otherwise have drawn "idle" in the same blue as the hosts'
+"IDLE" — `state_colors` is how a second vocabulary keeps itself apart.
 """
 function make_chart_strip_document_example()
     mac_states = ["IDLE", "BACKOFF", "TRANSMIT", "COLLISION"]
@@ -119,7 +123,8 @@ function make_chart_strip_document_example()
         [ChartStripSeries("host A", times, host_a_codes; states=mac_states),
          ChartStripSeries("host B", times, host_b_codes; states=mac_states),
          ChartStripSeries("channel", channel_times, channel_codes;
-                          states=["idle", "busy"], x_end=15.0)];
+                          states=["idle", "busy"], x_end=15.0,
+                          state_colors=[color_solarized_cyan, color_solarized_violet])];
         x_axis=ChartAxis(; title="time (s)"),
         legend=ChartLegend(; position=:inside, anchor=:northeast, border=true))
 end

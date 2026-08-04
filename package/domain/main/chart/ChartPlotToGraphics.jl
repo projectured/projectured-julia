@@ -340,23 +340,64 @@ end
 
 const _SWATCH = 14        # width of a legend item's colour sample
 const _LEGEND_GAP = 6     # between swatch and label, and between columns
+# A strip's own swatch: neutral, because the band is many colours and any one of
+# them would misname the rest.
+const _STRIP_SWATCH = StyleColor(0.5, 0.5, 0.5, 0.55)
 
 _series_label(s) = hasproperty(s, :label) ? String(s.label) : ""
 
-# The legend's items and the box that holds them, before it is positioned. The
-# items are the visible series, in series order unless the legend asks for a
-# dictionary sort; each carries the series' position in the list so a click can
-# name the series it stands for.
+"""
+    _legend_items(chart, series) -> Vector{Tuple{Int,String,Any}}
+
+What the legend lists, as `(series_index, label, swatch_color)`.
+
+A line, scatter, bar or histogram series is one entry in its own colour. A strip
+is a *band* of colours, so a colour of its own would stand for nothing on the
+chart: it takes a neutral swatch, and its colours are listed separately as the
+states they actually mean. Strips sharing a state table share those entries.
+
+The series come first and the states after them, rather than each strip's states
+following it: sharing means a second strip on the same table lists none of its
+own, and interleaved that reads as though the states belonged to the first strip
+alone. Grouped, the first block is what is drawn and the second is what the
+colours mean.
+
+A zero index is an entry that names no series, which is what keeps a state entry
+inert without the reader knowing about states: zero already reads as "inside the
+legend but on nothing", so such an entry neither toggles nor hovers.
+"""
+function _legend_items(chart::Chart, series)
+    cycle = chart.style.color_cycle
+    items = Tuple{Int,String,Any}[]
+    states = Tuple{Int,String,Any}[]
+    for (index, s) in series
+        if s isa ChartStripSeries
+            push!(items, (index, _series_label(s), _STRIP_SWATCH))
+            for code in 1:length(s.states)
+                label = strip_state_name(s, code)
+                color = strip_state_color(s, code, cycle)
+                any(it -> it[2] == label && it[3] == color, states) && continue
+                push!(states, (0, label, color))
+            end
+        else
+            push!(items, (index, _series_label(s), series_color(s.color, index, cycle)))
+        end
+    end
+    append!(items, states)
+end
+
+# The legend's items and the box that holds them, before it is positioned, in
+# series order unless the legend asks for a dictionary sort.
 function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
                       font::StyleFont, w::Int, h::Int)
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
-    items = [(index, _series_label(s)) for (index, s) in series]
+    items = _legend_items(chart, series)
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
-    sizes = Tuple{Int,Int}[p.measure(label, font) for (_, label) in items]
+    sizes = Tuple{Int,Int}[p.measure(it[2], font) for it in items]
     horizontal = legend.position in (:above, :below) ||
                  (legend.position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * _PAD : w ÷ 3
@@ -431,21 +472,19 @@ function _legend_elements!(out, g)
 
     rects = legend_item_rects(plan)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
-        s = g.chart.series[index]
-        color = series_color(s.color, index, style.color_cycle)
+        _, label, color = plan.items[k]
         cy = y + row_h ÷ 2
         # The legend is where a selected or hovered series is called out: it is
-        # the one place every series has a fixed, findable spot.
-        if index == g.selected_index
-            push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _SELECTION, 3))
-        elseif index == g.hovered_index
-            push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _HOVER, 3))
+        # the one place every series has a fixed, findable spot. An entry that
+        # names no series has nothing to call out.
+        if index != 0
+            if index == g.selected_index
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _SELECTION, 3))
+            elseif index == g.hovered_index
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _HOVER, 3))
+            end
         end
-        # A hidden series keeps its legend row but loses its swatch colour, so
-        # clicking it back on is obvious.
-        s.visible || (color = StyleColor(color.red, color.green, color.blue, 0.25))
         push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8, color, 2))
-        label = plan.items[k][2]
         th = plan.sizes[k][2]
         push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2,
                                 plan.font, text_color))

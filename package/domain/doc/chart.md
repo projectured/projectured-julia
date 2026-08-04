@@ -118,10 +118,22 @@ the series list, which is the legend's order unless `legend.sort` reorders it.
 
 Colours follow the **state**, not the series, so the same state reads the same
 across every strip: a code takes its entry from the chart's colour cycle, or from
-the series' own `state_colors`. Each segment names its state inside itself when
-the name fits — no rotation, since the backends drop affine rotation, so a name
-that does not fit is left out. `draw_edges` adds the faint segment borders that
-are OMNeT++'s opt-in.
+the series' own `state_colors`. The cycle is indexed by the *code*, so two strips
+with different tables give their first state the same colour — a series with a
+vocabulary of its own wants `state_colors` to stay apart, which is what the
+`chart_strip` example's channel series shows. Each segment names its state inside
+itself when the name fits — no rotation, since the backends drop affine rotation,
+so a name that does not fit is left out. `draw_edges` adds the faint segment
+borders that are OMNeT++'s opt-in.
+
+The **legend** lists the states, because that is what a strip's colours mean. A
+strip's own entry keeps a neutral grey swatch — the band is many colours and any
+one of them would misname the rest — and clicking it still hides or shows the
+series. The state entries are a colour key and name no series, so clicking one
+selects the legend, the way empty space inside the box already does. Series
+entries come first and the states after them: strips sharing a table share their
+entries, and interleaved that would read as though the states belonged to the
+first strip alone.
 
 Mixing strips with line, scatter or histogram series is legal but degraded: the y
 axis stays numeric and the strips simply occupy their integer rows against it. A
@@ -296,10 +308,10 @@ Not covered, and why:
   drop; labels are thinned instead. In-strip state names are omitted rather than
   rotated for the same reason, where OMNeT++ labels any segment past ten pixels
   and turns the name vertical when it does not fit.
-- OMNeT++'s per-value legend, which its strip charts reach by clicking the
-  legend, has no counterpart: clicking a legend item here already hides or shows
-  its series. The value-to-name mapping is carried by the in-strip labels and the
-  crosshair readout instead.
+- OMNeT++ hides its per-value legend behind a click that swaps it for the series
+  entry. Both are shown at once here — the states are the point of a strip, and a
+  mode you have to discover is a poor place to keep them — which also leaves the
+  legend click free to go on hiding a series.
 - OMNeT++ gives each strip its own subplot and hides its y axis; strips here are
   rows in one plot, and the y axis carries their labels.
 
