@@ -614,31 +614,66 @@ the registry shape before the big one.
       Both `julia_main` methods kept — PackageCompiler resolves the app entry by
       that name (§8). Verified `--help`/`-v` → 0, unknown flag → 1 with usage.
 
-### P4 — omnetpp-julia simulator examples (6 files) · recipe 7b
+### P4 — omnetpp-julia simulator examples (6 files) · recipe 7b — **DONE** (`omnetpp-julia@entry-point-repl-api`)
 
-- [ ] Turn each `parse_args` defaults `Dict` into a keyword signature on a
-      `<scenario>_model(; …)` builder; the `--help` block becomes its docstring.
-- [ ] Move the six scenario bodies into `OmnetppSimulatorExample`, `include`d by
-      the module rather than by each other.
-- [ ] Add `scenarios()` / `build_scenario(name; …)` / `run_scenario(name; …)`;
-      delete the six `main`s, guards and `script_path`/`scripts`.
+- [x] Each `parse_args` defaults `Dict` is now the keyword signature of
+      `small_model` / `campus_model` / `backbone_model` / `datacenter_model` /
+      `large_model` / `packet_hash_model`; each `--help` block is the docstring.
+- [x] `scenarios()` / `build_scenario(name; …)` / `run_scenario(name; …)`; the six
+      `main`s, guards, `parse_args`es and `script_path`/`scripts` deleted.
+- [x] **Submodules after all, for a different reason than §6.1.** `example.jl` and
+      `routing.jl` are two *independent models* that collide on five names with
+      different definitions (`FIB_N`, `naive_fib`, `compute_delay_edges`,
+      `reset_nodes!`, `build_random_network`). §6.1's collisions were demos that
+      failed to name their functions after themselves; these are two models that
+      legitimately want the same word. Merging would mean renaming one model's
+      internals, so: `OmnetppSimulatorExample.Routing` and `.PacketHash`.
+      `routing.jl` is included once; the five `include("routing.jl")` lines are gone.
+- [x] Each scenario's hard-coded `results/<name>.vec` is a `vec_path` keyword.
+- [x] **Trap avoided:** every routing script had a local
+      `time_limit = to_simtime(p[:time_limit])` shadowing the raw value, while the
+      `Config:` println read the RAW `p[:time_limit]`. A literal `p[:x]` → `x`
+      substitution prints the converted `SimTime`. `to_simtime` is applied at the
+      one point that needs it instead.
+- [x] Verified against the original scripts at identical parameters: `Config:` line
+      byte-identical, 261 sent / 17 received, hash `62c90f6d4a43c7a52c90a8d885add817`
+      on both paths; `test_simulator()` 5057 pass, 0 failures.
 
-### P5 — omnetpp-julia benchmarks + launchers (7 files) · recipe 7b
+### P5 — omnetpp-julia benchmarks + launchers (7 files) · recipe 7b — **DONE**
 
-- [ ] `benchmark.jl` → `sweep_benchmark(; …)` returning rows; repoint its stale
-      `../examples/example.jl` include (§6.3).
-- [ ] `compare_vec.jl` → `compare_reference_vec(left, right; tol, max_diff)`.
-- [ ] `lifecycle_throughput.jl` → `lifecycle_throughput()`; `units_overhead.jl` →
-      `units_overhead()`.
-- [ ] `plot.jl` → `plot_thread_scaling(csv)`; move off `Plots`/GR to CairoMakie if
-      it is to share an environment with the SDL stack.
-- [ ] Reduce `bench_threads.sh` to a `julia -t $T -e '…'` loop (§8).
-- [ ] `legacy/example/run.jl` → `run_legacy_example(name="ned"; backend)`.
+- [x] `benchmark.jl` → `sweep_benchmark(; …)` returning rows; its stale
+      `../examples/example.jl` include repointed at
+      `OmnetppSimulatorExample.PacketHash` (§6.3).
+- [x] `compare_vec.jl` → `compare_reference_vec(left, right; tol, max_diff)`.
+      Could not reuse the name `compare_vec_files` internally — `OmnetppSimulator`
+      already exports one with different semantics.
+- [x] `lifecycle_throughput()` and `units_overhead()`, both returning measurements.
+- [x] `plot.jl` → `plot_thread_scaling(csv)` in its **own package**
+      (`benchmark/plot/`, `OmnetppBenchPlot`), deliberately NOT in `OmnetppBench`
+      or the root environment: Plots/GR does not resolve alongside the SDL stack.
+      Left on Plots — moving it to CairoMakie is a separate decision.
+- [x] `bench_threads.sh` reduced to a `julia -t $T -e '…'` loop (§8).
+- [x] `legacy/example/run.jl` → `run_legacy_example(name="ned"; backend)`, with
+      `backend` a constructed object so the caller picks the backend package.
+- [x] **Another `Main`-only collision:** `benchmark.jl`'s `log(msg)` would have
+      added a method to `Base.log` inside a module. Renamed `_progress`.
+- [x] Verified: all four run and return; sweep `pass=true`; `test_simulator()`
+      5057 pass, 0 failures.
 
 ### P6 — omnetpp-julia watch demos (24 files) · recipe 7a
 
-- [ ] **Upstream, additive:** forward `on_frame` from `run_example`'s core to
-      `run_editor!`, which already accepts it (§4.2.1).
+> **Blocked on a cross-repo sequencing decision.** The omnetpp worktree's
+> `[sources]` resolve `Projectured*` to `/home/projectured/workspace/projectured-julia`
+> — the user's *main checkout*, not the projectured worktree — so the `on_frame`
+> passthrough below is invisible to omnetpp until the projectured branch reaches
+> main. Repointing `[sources]` at a worktree must not be committed (it lands
+> dangling `projectured-julia-<wt>` paths on merge). Resolve before starting the
+> 24-file conversion.
+
+- [x] **Upstream, additive:** `run_example`'s core now forwards `on_frame` to
+      `run_editor!`, which already accepted it (§4.2.1). Done in
+      `projectured-julia@entry-point-repl-api`; `test_domain()` 139842 pass,
+      5 known-broken, 0 failures.
 - [ ] Define `WatchExample`, `run_watch_example`, `stop_driver!` and the
       `watch_examples` registry in `OmnetppPresentationExample`.
 - [ ] Convert the `mm1k` pair as the reference conversion: document maker,
