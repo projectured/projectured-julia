@@ -28,24 +28,24 @@ machines; omnetpp-julia's enum-attributed vectors later).
 
 ## Requirements
 
-- [ ] `ChartStripSeries`: a new `ChartSeries` document type rendering an
+- [x] `ChartStripSeries`: a new `ChartSeries` document type rendering an
       enumerated-value column over an ascending time column as colored
       sample-and-hold segments.
-- [ ] Multiple strip series stack as rows in one plot; a strips-only chart
+- [x] Multiple strip series stack as rows in one plot; a strips-only chart
       labels the y axis with the series labels, one per row.
-- [ ] Per-state colors from the chart's color cycle indexed by state code,
+- [x] Per-state colors from the chart's color cycle indexed by state code,
       overridable per series; state names drawn inside segments wide enough to
       hold them; optional faint segment edges.
-- [ ] Interaction: clicking a segment selects that sample (the segment is
+- [x] Interaction: clicking a segment selects that sample (the segment is
       outlined); the crosshair readout names the state under the cursor;
       hover veil, legend toggling, zoom/pan/rubber-band, series reordering
       all work (hiding or reordering strips under an explicit zoom window
       renumbers rows; `0` refits — D4).
-- [ ] Scalable: element count bounded by the plot width, not the sample count —
+- [x] Scalable: element count bounded by the plot width, not the sample count —
       equal-adjacent runs coalesce, sub-pixel runs fold; a zoomed-in window
       renders every segment it contains exactly.
-- [ ] Reactive: replacing the value column (one cell write) repaints the strip.
-- [ ] Registered example, tests, docs; the umbrella sweeps stay green with no
+- [x] Reactive: replacing the value column (one cell write) repaints the strip.
+- [x] Registered example, tests, docs; the umbrella sweeps stay green with no
       new skip entries.
 
 ## Where the code goes
@@ -457,25 +457,77 @@ and why".
 Implement in a dedicated worktree; one commit per phase; keep this plan
 updated (check boxes, record decisions) as work lands.
 
-- [ ] **P0 — geometry + document type.** `strip_runs`/`fold_strips` with unit
-      tests; `ChartStripSeries` + ctors + `chart_series_family` +
+- [x] **P0 — geometry + document type.** DONE. `strip_runs`/`fold_strips` with
+      unit tests; `ChartStripSeries` + ctors + `chart_series_family` +
       `chart_sample` + name/color helpers.
-      Exit: `test_chart_geometry()` green including the new sets; a
-      `chart_sample` testset in `test_chart()` passes.
-- [ ] **P1 — rendering.** The `_data_bounds` row merge; row map + y
+      Exit: `test_chart_geometry()` 105/105 (was 81).
+
+      Decisions made while implementing:
+      - `fold_strips` takes the pixel edges **unrounded**, rounding only on
+        output. With `Int` edges every sub-pixel run has width zero, so
+        "dominant by duration" would have had no signal to work with and the
+        winner would have been arbitrary. Fractional pixel width is
+        proportional to data duration, which is what the rule wants.
+      - The distinct-code accumulator is a `Vector{Tuple{Int,Float64}}`
+        scanned linearly rather than a `Dict`: a fold spans a handful of
+        states, and this allocates nothing per span.
+      - The name-column check is O(1) — `eltype`, falling back to the first
+        element for a `Vector{Any}` — so a million-sample `Vector{Int}` is
+        neither scanned nor copied on its way into a series.
+- [x] **P1 — rendering.** DONE. The `_data_bounds` row merge; row map + y
       row-label mode in `_layout`; the `_frame_elements!` gridline flag;
       `_series_elements!`; x/y bounds methods; labels, edges, veiling.
-      Exit: the drawing/row/label `@testset`s in `test_chart()` green;
-      `write_example_pdf` on a hand-built strips chart visually verified;
-      `test_domain()` diffed clean against baseline.
-- [ ] **P2 — interaction.** `_sample_hit` strip branch; `_series_hit` band
-      fallback; selected-segment outline; crosshair state readout.
-      Exit: the selection/round-trip/readout `@testset`s green.
-- [ ] **P3 — example, registration, scale, docs.** `chart_strip_example` in
-      all five registration points; scale test; `chart.md`; sweeps.
-      Exit: `test_chart()` + `test_chart_scale()` green; `test_printers()` /
-      `test_position_navigations()` / `test_click_roundtrips()` sweeps green
-      with no new skips; screenshot regenerated; live-editor probe done.
+      Exit: the existing `test_chart()` 235/235 and `test_chart_scale()`
+      14/14 unchanged by the shared-seam edits, before any strip test was
+      added — the baseline diff the top risk asks for.
+
+      Decisions made while implementing:
+      - `_strip_rows` takes the **chart**, not just the series list: on a
+        category x axis it returns no rows at all. A strip there is never
+        drawn (the printer routes the whole category family to the bar
+        renderer), and without this its band would still have been clickable
+        with nothing in it.
+      - The row-label flag gates only the **y** gridline loop.
+        `_frame_elements!` runs one loop per axis off the same `grid_color`,
+        and the x gridlines must stay — a strip chart still measures time.
+      - `_series_label` already existed for the legend and reads `label` off
+        anything that has one, so the row labels reuse it rather than
+        introducing a second accessor.
+      - In-strip label colour is picked by luminance against the state's own
+        fill, so a name stays readable at both ends of the colour cycle.
+- [x] **P2 — interaction.** DONE. `_sample_hit` strip branch; `_series_hit`
+      band fallback; selected-segment outline; crosshair state readout.
+      Exit: `test_chart()` 289/289, including 30 strip and 21 strip-sample
+      assertions.
+
+      Decisions made while implementing:
+      - Precedence is expressed by **ordering, not distance**: the existing
+        point loops keep their `best_d` competition and the strip branch runs
+        only when they come back empty. Band containment has no distance to
+        compare against a pixel radius, so folding it into the same
+        comparison would have meant inventing one.
+      - `_strip_sample_at` bounds the hit at `_strip_end` — the same function
+        the printer uses for the drawn edge — which is what makes the empty
+        band past an explicit `x_end` fall through to series selection.
+- [x] **P3 — example, registration, scale, docs.** DONE.
+      `chart_strip_example` in all five registration points; scale test;
+      `chart.md`.
+      Exit: `test_chart_geometry()` 105/105, `test_chart()` 289/289,
+      `test_chart_scale()` 21/21.
+
+      Decisions and discoveries:
+      - The example passes **integer codes** with an explicit `states` table
+        rather than a name column: pooling assigns codes by first appearance,
+        which would not have matched the declared table's order.
+      - **No screenshot to regenerate.** That exit criterion was inherited
+        from the chart-domain plan, but `chart.md` carries no screenshot on
+        `main` and no `chart*.png` is checked in — the guide injector has
+        never been run for it. Nothing to do rather than something to add.
+      - The scale test cannot assert `spans == visible_samples`:
+        `visible_range` deliberately keeps one extra index each side so a
+        segment straddling an edge still draws, so exactness is pinned as
+        `visible <= spans <= visible + 2` with every span at least a pixel.
+      - `GraphicsRect`'s fields are `w`/`h`, not `width`/`height`.
 
 ## Risks
 
