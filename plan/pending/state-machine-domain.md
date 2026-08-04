@@ -596,6 +596,46 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
       - Julia 1.12's world-age rules apply to *reading* a binding from a
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
+
+### Status: P5–P7 are blocked on landing P0–P4
+
+Everything through P4 is implemented and verified on three branches:
+`projectured-julia` **`fsm-domain`** (P0–P2, P4), `omnetpp-julia`
+**`fsm-runtime`** (P3), `inet-julia` **`fsm-mac`** (the P5 prep step below).
+
+**The blocker is dependency resolution, not design.** inet-julia's packages
+resolve `OmnetppSimulator` through a committed `[sources]` path that points at
+the *main* omnetpp-julia checkout, so a worktree branch is invisible to them:
+`isdefined(OmnetppSimulator, :FsmModule)` is `false` from inet-julia's test
+environment even with the branch checked out next door. There is no
+non-invasive local override — `Manifest.toml` is gitignored, but `[sources]`
+lives in `Project.toml`, which is committed and shared, and a scratch
+environment cannot override a path-dependency's own `[sources]` either.
+
+To unblock, merge the two upstream branches into their main checkouts
+(`git -C omnetpp-julia merge --ff-only fsm-runtime`, likewise
+`projectured-julia` / `fsm-domain` for the editor side P6 needs). After that
+P5–P7 proceed as written, with the notes below already established.
+
+**Done for P5 already** (on `fsm-mac`, and valuable on its own): the traffic
+golden hash is pinned. The review's finding was correct — `:notraffic`, the
+only pinned scenario, never takes a MAC out of `MAC_IDLE`, and `:bestcase`
+asserted only `event_count > 0`, so a MAC swap would have passed vacuously.
+`:bestcase` now runs 500 µs (where the followers contend and seven frames
+really go out and come back), pins its hash, and asserts the frame counts so
+the scenario cannot quietly stop covering the transmit path. Pinned against
+the *unmodified* MAC, so it is usable as a before/after guard.
+
+**Established for P5 by reading `Mac.jl` against the abstraction:** the MAC is
+expressible as written, with one clarification worth recording. Requirement
+R13 (pass-through handlers shared across states — `carrier_sense` must be
+updated on every carrier event regardless of state) is **met by the classifier
+seam, not by machine structure**: `mac_handle_carrier_sense_start!` is a helper
+that updates the variable and then dispatches, exactly as the C++
+`handleCarrierSenseStart()` does before calling `handleWithFsm`. No
+shared-handler feature is needed, and none was built. Likewise `_start_ifg!`
+becomes `target = WAIT_IFG` plus a `WAIT_IFG` **entry action** that schedules
+the timer — which is what entry actions are for.
 - [ ] **P5 — pilot: t1s MAC (inet-julia).** `FsmFile`/`FsmParser` land first (§8).
   **Acceptance fix from review**: the only pinned golden hash today is `:notraffic`,
   which never takes the MAC out of `MAC_IDLE` — a MAC swap would pass vacuously. So:
