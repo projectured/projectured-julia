@@ -146,6 +146,41 @@ end
                open=TextString("'", p.quote_style),
                close=TextString("'", p.quote_style))
 
+# ── Operator precedence, and the parentheses it demands ─────────────────────
+#
+# The tree knows how its operands group; the printed text only knows
+# precedence. So an operand that binds *looser* than its parent has to be
+# parenthesized, or the text regroups into a different expression — `!(a || b)`
+# printed bare becomes `!a || b`, which is not the same thing and does not
+# announce itself.
+
+const _JULIA_COMPARISONS = (:(==), :(!=), :(<), :(>), :(<=), :(>=), :(===), :(!==))
+
+_julia_precedence(op::Symbol) =
+    op === :|| ? 1 :
+    op === :&& ? 2 :
+    op in _JULIA_COMPARISONS ? 3 :
+    op in (:+, :-) ? 4 :
+    op in (:*, :/) ? 5 : 6
+
+# `&&` and `||` associate to the right in Julia, the arithmetic and comparison
+# operators to the left. The side an operator already associates toward needs no
+# parentheses at equal precedence; the other side does.
+_julia_right_associative(op::Symbol) = op === :&& || op === :||
+
+_julia_operand_parens(operand, outer::Symbol, on_right::Bool) = begin
+    operand isa JuliaBinaryOp || return false
+    inner = _julia_precedence(operand.operator)
+    outer_precedence = _julia_precedence(outer)
+    tight = _julia_right_associative(outer) ? !on_right : on_right
+    tight ? inner <= outer_precedence : inner < outer_precedence
+end
+
+_julia_parenthesize(marker, style) =
+    SyntaxNode([marker];
+               open = TextString("(", style.font, color_solarized_gray),
+               close = TextString(")", style.font, color_solarized_gray))
+
 # ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaBinaryOpToSyntaxNode
@@ -153,11 +188,18 @@ end
 end
 
 @projection_template JuliaBinaryOpToSyntaxNode JuliaBinaryOp (p, m) ->
-    SyntaxConcatenation([ project(:left),
-                          SyntaxLeaf(TextString(() -> _julia_operator_string(m.operator), p.op);
-                                     open=TextString(" ", p.op.font, color_default),
-                                     close=TextString(" ", p.op.font, color_default)),
-                          project(:right) ])
+    SyntaxConcatenation(() -> begin
+        operator = m.operator
+        left  = _julia_operand_parens(m.left,  operator, false) ?
+                _julia_parenthesize(project(:left),  p.op) : project(:left)
+        right = _julia_operand_parens(m.right, operator, true) ?
+                _julia_parenthesize(project(:right), p.op) : project(:right)
+        [ left,
+          SyntaxLeaf(TextString(() -> _julia_operator_string(m.operator), p.op);
+                     open=TextString(" ", p.op.font, color_default),
+                     close=TextString(" ", p.op.font, color_default)),
+          right ]
+    end)
 
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
@@ -165,9 +207,14 @@ end
     op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
+# A unary operator binds tighter than every binary one, so a binary operand is
+# always parenthesized.
 @projection_template JuliaUnaryOpToSyntaxNode JuliaUnaryOp (p, u) ->
-    SyntaxConcatenation([ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)),
-                          project(:operand) ])
+    SyntaxConcatenation(() -> begin
+        operand = u.operand isa JuliaBinaryOp ?
+                  _julia_parenthesize(project(:operand), p.op) : project(:operand)
+        [ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)), operand ]
+    end)
 
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
