@@ -248,7 +248,10 @@ exhaustiveness check came first.
       named in `_NO_ROUND_TRIP`
 - [x] `test_catalog(; domain = :julia)` — 101456 pass, 1 broken (`julia/empty`
       navigation), 0 fail
-- [ ] `test_catalog()` over every domain
+- [x] `test_catalog()` over every domain — **238841 pass, 33 broken, 0 fail, 0
+      error**. 32 of the 33 are the registries that were already there
+      (`sql/*`, `yaml/sequence`, `filesystem/directory`), which nothing in this
+      branch touches; the 33rd is `julia/empty`.
 - [ ] `test_demo_catalog()` in omnetpp-julia, once this lands on `main` — it
       cannot see a worktree
 - [ ] startup and first click re-measured against the 5.4 s / 12.9 s baseline,
