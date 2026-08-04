@@ -83,8 +83,8 @@ end
 _marker_stub(node::JuliaCall, ctx::LoaderContext) = begin
     args = getfield(node, :arguments)[]
     s = args[1] isa Cell ? args[1][] : args[1]
-    ref = parse_marker_text(s.value)
-    ref === nothing ? node : ReferenceStub(ref, ctx)
+    src = parse_marker_text(s.value)
+    src === nothing ? node : ReferenceStub(src, ctx)
 end
 
 # Traversal — mutates `Document`-typed slot cells in place, rebuilds

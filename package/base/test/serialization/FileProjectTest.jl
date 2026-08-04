@@ -11,7 +11,6 @@ recreation after external deletion.
 using Test
 using ProjecturedBase.FileProjectModule
 using ProjecturedBase.TextFileModule
-using ProjecturedBase.ReferenceModule: FileReferenceStep, Reference, ConcreteReference
 
 function test_file_project()
 @testset "FileProject: TextFile round-trip" begin
@@ -120,15 +119,14 @@ function test_file_project()
     end
 
     @testset "ReferenceStub: constructor and printing" begin
-        # S2 introduces the type; S3-S4 wire the intern table + forcing.
-        r = ConcreteReference(FileReferenceStep("child.json"),
-                              Reference())
-        stub = ReferenceStub(r)
+        stub = ReferenceStub("file(\"child.json\")")
         @test stub isa FileProjectModule.ReferenceStub
-        @test stub.reference == r
+        @test stub.source == "file(\"child.json\")"
+        @test marker_text(stub) == "<<file(\"child.json\")>>"
         @test occursin("ReferenceStub", sprint(show, stub))
-        # equality is by reference chain
-        @test ReferenceStub(r) == stub
+        # equality is by marker source
+        @test ReferenceStub("file(\"child.json\")") == stub
+        @test ReferenceStub("file(\"other.json\")") != stub
     end
 
 end

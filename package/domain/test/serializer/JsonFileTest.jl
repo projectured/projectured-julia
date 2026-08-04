@@ -10,7 +10,6 @@ using Test
 using ProjecturedDomain.FileProjectModule
 using ProjecturedDomain.JsonFileModule
 using ProjecturedDomain.JsonModule
-using ProjecturedDomain.ReferenceModule: FileReferenceStep, EmptyReference, ConcreteReference
 
 # Access the underlying cell of a @document field so we can inspect a
 # slot without going through the auto-generated property getter (which
@@ -77,8 +76,7 @@ function test_json_file()
             entry = getfield(obj, :entries)[][1]
             slot = _slot(entry, :value)
             @test slot isa ReferenceStub
-            @test slot.reference == ConcreteReference(FileReferenceStep("child.json"),
-                                                       EmptyReference())
+            @test slot.source == "file(\"child.json\")"
         finally
             rm(d; recursive=true, force=true)
         end

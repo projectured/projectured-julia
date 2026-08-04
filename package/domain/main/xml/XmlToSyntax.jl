@@ -48,7 +48,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
        XmlElementToSyntaxNode,
        ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
@@ -202,7 +202,7 @@ end
     SyntaxLeaf(TextString(_embedded_marker_element(f), p.style))
 
 _embedded_marker_element(f::FileDocument) =
-    "<pred:ref>" * _xml_text_escape("<<file(" * repr(filename(f)) * ")>>") * "</pred:ref>"
+    "<pred:ref>" * _xml_text_escape(file_marker_text(filename(f))) * "</pred:ref>"
 
 # Escape the five XML text-node characters: `<`, `>`, `&` are required;
 # `"` and `'` need not be escaped in text nodes but harmless if we do.

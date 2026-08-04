@@ -12,7 +12,6 @@ using Test
 using ProjecturedDomain.FileProjectModule
 using ProjecturedDomain.JsonFileModule
 using ProjecturedDomain.JsonModule
-using ProjecturedDomain.ReferenceModule: FileReferenceStep, EmptyReference, ConcreteReference
 
 _stub_at(obj::JsonObject, key::AbstractString) = begin
     for e in getfield(obj, :entries)[]
@@ -45,8 +44,7 @@ function test_file_project_s4()
     # ── ReferenceStub state ─────────────────────────────────────────────
 
     @testset "unhosted ReferenceStub is not resolvable" begin
-        ref = ConcreteReference(FileReferenceStep("x.json"), EmptyReference())
-        stub = ReferenceStub(ref)
+        stub = ReferenceStub("file(\"x.json\")")
         @test !is_resolved(stub)
         @test_throws ErrorException resolve!(stub)
     end
@@ -127,17 +125,12 @@ function test_file_project_s4()
         end
     end
 
-    # ── Fragment ref is rejected in S4 ───────────────────────────────────
+    # ── A marker naming no registered function fails loudly ──────────────
 
-    @testset "fragment reference errors at resolve time (S5 territory)" begin
+    @testset "unknown vocabulary function errors at resolve time" begin
         d = mktempdir()
         try
-            # Build a stub whose reference has a chain past the file step.
-            frag_ref = ConcreteReference(
-                FileReferenceStep("x.json"),
-                ConcreteReference(FileReferenceStep("y.json"), EmptyReference()))
-            ctx = LoaderContext(d)
-            stub = ReferenceStub(frag_ref, ctx)
+            stub = ReferenceStub("nosuchfunction(\"x.json\")", LoaderContext(d))
             @test_throws ErrorException resolve!(stub)
         finally
             rm(d; recursive=true, force=true)

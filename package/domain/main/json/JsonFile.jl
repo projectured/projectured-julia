@@ -72,8 +72,8 @@ end
 _substitute_markers(node, ctx::LoaderContext) = node
 
 function _substitute_markers(node::JsonString, ctx::LoaderContext)
-    ref = parse_marker_text(node.value)
-    ref === nothing ? node : ReferenceStub(ref, ctx)
+    src = parse_marker_text(node.value)
+    src === nothing ? node : ReferenceStub(src, ctx)
 end
 
 function _substitute_markers(node::JsonArray, ctx::LoaderContext)

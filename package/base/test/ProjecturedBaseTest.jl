@@ -72,6 +72,7 @@ include("projection/SortingTest.jl")
 include("projection/HigherOrderTest.jl")
 include("projection/VersioningToAnyTest.jl")
 include("serialization/FileProjectTest.jl")
+include("serialization/MarkerLanguageTest.jl")
 
 """
     test_base_layering()
@@ -111,6 +112,7 @@ function test_base()
         test_window_input_unwrapping()
         test_versioning_to_any()
         test_file_project()
+        test_marker_language()
     end
 end
 
@@ -119,7 +121,7 @@ export test_bounded_sync, test_document_reflection
 export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export test_versioning_to_any
-export test_file_project
+export test_file_project, test_marker_language
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 
 end # module ProjecturedBaseTest

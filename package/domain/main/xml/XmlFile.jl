@@ -70,8 +70,8 @@ end
 
 function _marker_stub(node::XmlElement, ctx::LoaderContext)
     child = _unwrap(_unwrap(getfield(node, :children))[1])
-    ref = parse_marker_text(strip(_unwrap(getfield(child, :content))))
-    ref === nothing ? node : ReferenceStub(ref, ctx)
+    src = parse_marker_text(strip(_unwrap(getfield(child, :content))))
+    src === nothing ? node : ReferenceStub(src, ctx)
 end
 
 # Traversal — mutate in place. Element children may themselves be

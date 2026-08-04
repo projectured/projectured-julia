@@ -56,7 +56,7 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
@@ -657,6 +657,6 @@ end
     SyntaxLeaf(TextString(_embedded_marker_fence(f), p.style))
 
 _embedded_marker_fence(f::FileDocument) =
-    "```pred-ref\n<<file(" * repr(filename(f)) * ")>>\n```"
+    "```pred-ref\n" * file_marker_text(filename(f)) * "\n```"
 
 end # module

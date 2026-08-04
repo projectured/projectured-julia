@@ -81,8 +81,8 @@ _is_marker_block(node::MarkdownCodeBlock) =
 
 function _marker_stub(node::MarkdownCodeBlock, ctx::LoaderContext)
     body = _unwrap(getfield(node, :code))
-    ref = parse_marker_text(strip(body))
-    ref === nothing ? node : ReferenceStub(ref, ctx)
+    src = parse_marker_text(strip(body))
+    src === nothing ? node : ReferenceStub(src, ctx)
 end
 
 # Traversal: every container replaces its child-slot values in place

@@ -12,7 +12,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -190,7 +190,7 @@ end
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
-_embedded_marker_body(file::FileDocument) = json_escape("<<file(" * repr(filename(file)) * ")>>")
+_embedded_marker_body(file::FileDocument) = json_escape(file_marker_text(filename(file)))
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 

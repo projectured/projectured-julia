@@ -9,9 +9,8 @@ have no existing supertype) or opts in via the `is_file_document`
 trait (for types that already have one, e.g. omnetpp-pred's `NedFile
 <: NedDocument`). The driver walks the graph and each file
 document's content is emitted to its named file. Cross-file
-references (built on the reference layer's `FileReferenceStep`)
-survive save/load through a marker embedded in each format's natural
-syntax.
+embedding survives save/load through a **marker** embedded in each
+format's natural syntax — see "The marker language" below.
 
 This module carries the pieces every format hooks into:
 
@@ -40,28 +39,59 @@ This module carries the pieces every format hooks into:
 - `load_project(T, filename, base_dir)` — read a project rooted at
   a single file document of concrete type `T`. Creates one
   `LoaderContext` that all stubs from the load share.
-- `ReferenceStub` — a first-class `Document` node standing in for a
-  cross-file reference. `resolve!(stub)` fetches (or lazily loads)
-  the target through the intern table so two markers to the same
-  target share the same `===` object.
+- `ReferenceStub` — a first-class `Document` node standing in for one
+  marker. `resolve!(stub)` evaluates the marker's expression (lazily,
+  once) and caches the value in a reactive cell.
 - `LoaderContext` — the per-load intern table + base directory the
   stubs consult.
 - `register_file_document_type!(ext, T)` — every concrete
-  `FileDocument` registers its extension so `resolve!` can pick the
+  `FileDocument` registers its extension so `file(…)` can pick the
   right type for a marker's target.
+
+# The marker language
+
+A marker is `<<expr>>`, where `expr` is a **restricted Julia
+expression**: a call over a registered vocabulary whose arguments are
+literals or nested calls. It is read with the Julia parser and run by
+the small interpreter here — never `eval`, so opening a project can
+never execute arbitrary code, and a marker is still analyzable data.
+
+    <<file("child.json")>>                          the parsed file document
+    <<definition(file("steps.jl"), "queue_step")>>   one definition inside it
+
+The vocabulary is the extension seam: each function is registered by
+the package that owns its machinery, with
+`register_marker_function!(:name, f)`, and is called as
+`f(ctx, args...)`. This module registers `file` (the project loader
+itself); the Julia domain registers `definition`; omnetpp-julia's
+presentation registers `realize`.
+
+Three properties every marker keeps:
+
+- **Verbatim source.** A stub stores the marker body exactly as
+  written, and `marker_text` re-emits it, so saving a file that was
+  loaded is byte-identical — the save path never re-prints an
+  evaluated value.
+- **Interning.** Every call's value is cached in `ctx.intern` under
+  its canonical source, so two markers naming the same thing evaluate
+  to the `===` object. `file(…)` also pre-registers its placeholder
+  before parsing, which is what makes reference cycles terminate.
+- **Laziness.** Evaluation happens on `resolve!`, not at load, and the
+  result lands in a reactive cell — so a projection that reads
+  `stub.resolved` re-prints by itself when the embed is forced.
 """
 module FileProjectModule
 
 import ..CellModule: Cell, ComputedCell, ReactiveCell, unwrap_cell
 import ..DocumentModule: Document, search_documents
-import ..ReferenceModule: ConcreteReference, EmptyReference, Reference, FileReferenceStep
 
 export FileDocument, is_file_document,
        filename, content, emit_text, populate_file!,
        save_project!, load_project, ReferenceStub, resolve!, is_resolved,
-       LoaderContext,
+       resolve_stubs!, LoaderContext,
        register_file_document_type!, file_document_type,
-       marker_text, parse_marker_text
+       register_marker_function!, marker_function, evaluate_marker,
+       marker_text, parse_marker_text, file_marker_text
 
 # ── FileDocument: abstract type + is_file_document trait ──────────────────
 #
@@ -183,18 +213,19 @@ populate_file!(f, filename::AbstractString, ctx) =
     LoaderContext(base_dir::AbstractString)
 
 The bookkeeping one `load_project` call carries. `base_dir` is where
-every relative marker path resolves against; `intern` maps a fully
-qualified `ConcreteReference` to whatever it resolved to (a
-`FileDocument` for a whole-file reference; later stages extend this
-to fragment references into a loaded document).
+every relative marker path resolves against — paths are always
+written relative to the project root, never to the file the marker
+sits in, which is what makes one canonical intern key per target.
+
+`intern` maps the **canonical source of a marker call** to the value
+that call evaluated to: `file("a.json")` to its `JsonFile`,
+`realize(file("a.json"))` to the document that realises. Keying by
+canonical source (rather than by the value's identity) is what makes
+two markers written the same way share one object, and what lets
+`file` pre-register a placeholder to break cycles.
 """
 mutable struct LoaderContext
     base_dir::String
-    # Keyed by `marker_text(ref)` (a String) rather than by the
-    # `ConcreteReference` itself, because `hash(::ConcreteReference)`
-    # is not `==`-consistent — dict lookups by a *fresh* ref that
-    # equals a stored one would miss. The marker text is unique per
-    # reference in the S3/S4 vocabulary, so it's a safe surrogate.
     intern::Dict{String, Any}
 end
 
@@ -239,56 +270,63 @@ end
 # ── ReferenceStub ──────────────────────────────────────────────────────────
 
 """
-    ReferenceStub(reference::ConcreteReference [, context::LoaderContext])
+    ReferenceStub(source::AbstractString [, context::LoaderContext])
 
-Placeholder for a cross-file reference before its target is resolved.
-`reference` starts with a `FileReferenceStep` and describes where the
-target lives; `context`, when present, is the `LoaderContext` this
-stub was born under — `resolve!(stub)` consults `context.intern` to
-share targets with sibling stubs and to break cycles.
+One marker, standing in the document tree for whatever its expression
+evaluates to. `source` is the marker body **verbatim** — the text
+between `<<` and `>>`, exactly as it was written — so the save path
+can re-emit it without ever re-printing the value. `context`, when
+present, is the `LoaderContext` this stub was born under;
+`resolve!(stub)` evaluates through it, sharing interned values with
+sibling stubs and terminating cycles.
 
-A stub with `context === nothing` is *unhosted* — a marker that was
-constructed in memory outside a load session (e.g. by a user
-composing a graph). Calling `resolve!` on it errors; the stub still
-serves as a first-class marker for save-time projection.
+A stub with `context === nothing` is *unhosted* — a marker composed in
+memory outside a load session. Calling `resolve!` on it errors; the
+stub still serves as a first-class marker for save-time projection.
+
+`stub.resolved` reads the evaluated value through its reactive cell
+(`nothing` until forced), so a projection that prints an embed
+re-prints by itself once `resolve!` runs.
 """
 mutable struct ReferenceStub <: Document
-    reference::ConcreteReference
+    source::String
     context::Union{Nothing, LoaderContext}
     resolved::ReactiveCell{Any}
 end
 
-ReferenceStub(reference::ConcreteReference) =
-    ReferenceStub(reference, nothing, ReactiveCell{Any}(nothing))
-ReferenceStub(reference::ConcreteReference, context::LoaderContext) =
-    ReferenceStub(reference, context, ReactiveCell{Any}(nothing))
+ReferenceStub(source::AbstractString) =
+    ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing))
+ReferenceStub(source::AbstractString, context::LoaderContext) =
+    ReferenceStub(String(source), context, ReactiveCell{Any}(nothing))
 
-Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", s.reference, ")")
+# `stub.resolved` reads *through* the reactive cell (the raw cell stays
+# reachable with `getfield`), which is both what a reference path into
+# the embed evaluates and what makes a printer depend on the forcing.
+Base.getproperty(stub::ReferenceStub, name::Symbol) =
+    name === :resolved ? getfield(stub, :resolved)[] : getfield(stub, name)
 
-# Two stubs are equal when their references are — the context and the
+Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", marker_text(s), ")")
+
+# Two stubs are equal when their marker source is — the context and the
 # resolved cell are load-session state, not identity.
-Base.:(==)(a::ReferenceStub, b::ReferenceStub) = a.reference == b.reference
+Base.:(==)(a::ReferenceStub, b::ReferenceStub) = getfield(a, :source) == getfield(b, :source)
 
 """
     is_resolved(stub::ReferenceStub) -> Bool
 
 `true` when `resolve!` has been called on this stub (or a previous
-resolve in the same context session cached its target).
+resolve in the same context session cached its value).
 """
 is_resolved(stub::ReferenceStub) = getfield(stub, :resolved)[] !== nothing
 
 """
     resolve!(stub::ReferenceStub) -> Any
 
-Load-or-fetch the referent named by `stub.reference`. On first call,
-consults `stub.context.intern`; on a miss, loads the referenced file
-(pre-registering it in the intern table before parsing so a cycle
-back to the same file terminates), stores the result in the intern
-table, and populates `stub.resolved`. Subsequent calls hit the
-cached value in `stub.resolved` directly.
-
-S4 handles the **whole-file** marker only. A fragment reference
-(`file("x").identity("h")...`) is deferred to S5.
+Evaluate this stub's marker expression and cache the value. On a
+first call the expression runs through [`evaluate_marker`](@ref) —
+which consults `context.intern`, so a value some sibling marker
+already produced is shared rather than rebuilt. Subsequent calls read
+the cached value.
 """
 function resolve!(stub::ReferenceStub)
     cached = getfield(stub, :resolved)[]
@@ -296,79 +334,208 @@ function resolve!(stub::ReferenceStub)
     ctx = stub.context
     ctx === nothing &&
         error("resolve!: this ReferenceStub has no LoaderContext — resolve requires a load-session context")
-    ref = stub.reference
-    step = ref.head
-    step isa FileReferenceStep ||
-        error("resolve!: reference must start with a FileReferenceStep, got ", typeof(step))
-    ref.tail isa EmptyReference ||
-        error("resolve!: fragment references are not yet supported (S5) — got a chain of length > 1")
-    T = file_document_type(step.path)
-    target = _load_into_context(T, step.path, ctx; marker_key=marker_text(ref))
-    getfield(stub, :resolved)[] = target
-    target
+    value = evaluate_marker(getfield(stub, :source), ctx)
+    getfield(stub, :resolved)[] = value
+    value
 end
 
-# ── Marker syntax (whole-file only in S3) ──────────────────────────────────
-
 """
-    marker_text(reference::ConcreteReference) -> String
+    resolve_stubs!(root) -> root
 
-Format a cross-file `ConcreteReference` as the marker text embedded in a
-natural file (`"<<REF>>"`). S3 handles the **whole-file** case only:
-a reference whose only step is a `FileReferenceStep` renders as
-`<<file("path")>>`. Longer chains (identity, field steps into a
-loaded file) land in later stages together with the intern table
-they need to resolve.
+Force every marker reachable from `root`, transitively: resolve the
+stubs in `root`, then the stubs inside whatever they evaluated to, and
+so on. Shared and cyclic targets terminate through the intern table
+and the visited set.
+
+Loading stays lazy by default (`load_project` resolves nothing); this
+is the "open the whole project now" button, used when a caller wants
+the complete graph in memory — e.g. before rendering a page whose
+embeds must all be visible.
 """
-function marker_text(reference::ConcreteReference)
-    step = reference.head
-    step isa FileReferenceStep ||
-        error("marker_text: reference must start with a FileReferenceStep, got ", typeof(step))
-    reference.tail isa EmptyReference ||
-        error("marker_text: S3 only supports whole-file markers; got a chain of length > 1")
-    "<<file(" * repr(step.path) * ")>>"
+function resolve_stubs!(root)
+    pending = Any[root]
+    seen    = IdDict{Any, Bool}()
+    while !isempty(pending)
+        node = pop!(pending)
+        (node === nothing || haskey(seen, node)) && continue
+        seen[node] = true
+        for stub in search_documents(node, x -> x isa ReferenceStub)
+            push!(pending, resolve!(stub))
+        end
+    end
+    root
 end
 
-marker_text(stub::ReferenceStub) = marker_text(stub.reference)
+# ── The marker language ────────────────────────────────────────────────────
+#
+# `<<expr>>` where `expr` is a call over the registered vocabulary whose
+# arguments are literals or nested calls. Julia parses it; the
+# interpreter below runs it. See the module docstring.
 
-# `<<file("path")>>` matcher — deliberately strict so a JSON string that
-# happens to start with `<<file(` but isn't a valid marker fails cleanly
-# rather than being taken for one and losing its content on save.
-const _MARKER_RE = r"^<<file\(\"((?:[^\"\\]|\\.)*)\"\)>>$"
+const _MARKER_FUNCTIONS = Dict{Symbol, Any}()
 
 """
-    parse_marker_text(text::AbstractString) -> Union{Nothing, ConcreteReference}
+    register_marker_function!(name::Symbol, f) -> f
 
-Recognise a marker string. Returns the ref chain the marker names, or
-`nothing` if `text` is not marker-shaped. S3 recognises only the
-whole-file form; a non-match is not an error — the caller (a per-format
-marker walk) uses `nothing` to leave the text as an ordinary value.
+Add `name` to the marker vocabulary. `f` is called as
+`f(ctx::LoaderContext, args...)` with the marker's evaluated
+arguments, and returns the value the marker stands for. Register from
+a module's `__init__` (the registry is runtime state, not baked into
+the precompiled image).
+"""
+function register_marker_function!(name::Symbol, f)
+    _MARKER_FUNCTIONS[name] = f
+    f
+end
+
+"""
+    marker_function(name::Symbol) -> f or nothing
+
+The vocabulary entry for `name`, or `nothing` when the name is not
+registered.
+"""
+marker_function(name::Symbol) = get(_MARKER_FUNCTIONS, name, nothing)
+
+marker_function_names() = sort!(String[String(k) for k in keys(_MARKER_FUNCTIONS)])
+
+"""
+    marker_text(stub::ReferenceStub) -> String
+
+The stub's marker as it appears in a file: its verbatim source
+wrapped back in `<<`/`>>`.
+"""
+marker_text(stub::ReferenceStub) = "<<" * getfield(stub, :source) * ">>"
+
+"""
+    file_marker_text(path::AbstractString) -> String
+
+The whole-file marker naming `path` — `<<file("path")>>`. What a
+format's projection emits for a `FileDocument` embedded directly in
+its tree (as opposed to through a stub).
+"""
+file_marker_text(path::AbstractString) = "<<file(" * repr(String(path)) * ")>>"
+
+const _MARKER_OPEN  = "<<"
+const _MARKER_CLOSE = ">>"
+
+"""
+    parse_marker_text(text::AbstractString) -> Union{Nothing, String}
+
+Recognise a marker. Returns the marker's **body source** verbatim, or
+`nothing` when `text` is not marker-shaped — which is not an error:
+the caller (a per-format marker walk) uses `nothing` to leave the
+text as an ordinary value. Surrounding whitespace is ignored, so a
+fenced block's body works as-is.
+
+Recognition is syntactic only: the body must parse as a restricted
+call expression. Whether its function is in the vocabulary is settled
+at `resolve!` time, so a marker naming a function some not-yet-loaded
+package registers still round-trips.
 """
 function parse_marker_text(text::AbstractString)
-    m = match(_MARKER_RE, text)
-    m === nothing && return nothing
-    # Un-escape the JSON-ish backslash escapes we allow in the path.
-    raw = m.captures[1]
-    path = _unescape_marker_path(raw)
-    ConcreteReference(FileReferenceStep(path), EmptyReference())
+    t = strip(text)
+    (startswith(t, _MARKER_OPEN) && endswith(t, _MARKER_CLOSE)) || return nothing
+    stop = prevind(t, prevind(t, lastindex(t)))
+    start = firstindex(t) + ncodeunits(_MARKER_OPEN)
+    start > stop && return nothing
+    body = SubString(t, start, stop)
+    _parse_marker_expression(body) === nothing ? nothing : String(body)
 end
 
-function _unescape_marker_path(s::AbstractString)
-    buf = IOBuffer()
-    i = firstindex(s)
-    while i <= lastindex(s)
-        c = s[i]
-        if c == '\\' && i < lastindex(s)
-            n = s[i + 1]
-            n == '"'      && (write(buf, '"');  i = nextind(s, i, 2); continue)
-            n == '\\'     && (write(buf, '\\'); i = nextind(s, i, 2); continue)
-            # Fall through for any other escape (leave it literal — v1 keeps
-            # only the escapes the format needs to embed inside a JSON string).
-        end
-        write(buf, c)
-        i = nextind(s, i)
+"""
+    evaluate_marker(source::AbstractString, ctx::LoaderContext) -> Any
+
+Run one marker body against the vocabulary, in `ctx`. Errors when the
+body is not a restricted call expression or names a function no
+package registered — a marker never silently evaluates to nothing.
+"""
+function evaluate_marker(source::AbstractString, ctx::LoaderContext)
+    expr = _parse_marker_expression(source)
+    expr === nothing &&
+        error("evaluate_marker: not a marker expression: ", repr(String(source)),
+              " — a marker body is a call over the vocabulary (", join(marker_function_names(), ", "), ")")
+    _evaluate_marker_expression(expr, ctx)
+end
+
+function _evaluate_marker_expression(e::Expr, ctx::LoaderContext)
+    key = _canonical_marker(e)
+    haskey(ctx.intern, key) && return ctx.intern[key]
+    name = e.args[1]::Symbol
+    f = marker_function(name)
+    f === nothing &&
+        error("marker: unknown function ", name, " in ", key,
+              " — the vocabulary is (", join(marker_function_names(), ", "), ")")
+    args = Any[a isa Expr ? _evaluate_marker_expression(a, ctx) : a for a in e.args[2:end]]
+    value = f(ctx, args...)
+    ctx.intern[key] = value
+    value
+end
+
+# Parse a marker body, returning the expression when it is in the
+# restricted subset and `nothing` otherwise. `raise=false` turns a
+# syntax error into an `Expr(:error, …)`, which fails the shape check
+# like any other non-call.
+function _parse_marker_expression(body::AbstractString)
+    expr = Meta.parse(String(body); raise=false, depwarn=false)
+    _is_marker_call(expr) ? expr : nothing
+end
+
+# The subset: a call whose head is a plain name and whose arguments are
+# literals or, recursively, calls. No assignment, no control flow, no
+# bare names, no keyword arguments — a marker is data that happens to
+# read as Julia.
+_is_marker_call(::Any) = false
+function _is_marker_call(e::Expr)
+    e.head === :call || return false
+    isempty(e.args) && return false
+    e.args[1] isa Symbol || return false
+    all(a -> _is_marker_call(a) || _is_marker_literal(a), @view e.args[2:end])
+end
+
+_is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char || x === nothing
+
+# The intern key: the expression printed in one canonical form, so
+# `file("a.json")` and `file( "a.json" )` name the same value.
+function _canonical_marker(e::Expr)
+    io = IOBuffer()
+    _print_canonical(io, e)
+    String(take!(io))
+end
+
+function _print_canonical(io::IO, e::Expr)
+    print(io, e.args[1], "(")
+    for (i, a) in enumerate(@view e.args[2:end])
+        i > 1 && print(io, ", ")
+        _print_canonical(io, a)
     end
-    String(take!(buf))
+    print(io, ")")
+end
+
+_print_canonical(io::IO, x::AbstractString) = print(io, repr(String(x)))
+_print_canonical(io::IO, x) = print(io, repr(x))
+
+# ── The `file` vocabulary function ─────────────────────────────────────────
+
+"""
+    file(path)  [marker vocabulary]
+
+The parsed file document at `path`, relative to the project's base
+directory. Interned per load session, so every marker naming one file
+gets the `===` document, and cycle-safe: the placeholder is registered
+before the file is parsed.
+"""
+function marker_file(ctx::LoaderContext, path)
+    path isa AbstractString ||
+        error("file(…): expected a path string, got ", typeof(path), " (", repr(path), ")")
+    p = String(path)
+    _load_into_context(file_document_type(p), p, ctx; marker_key=_file_marker_key(p))
+end
+
+# Normalised so `a.json` and `./a.json` intern as one target.
+_file_marker_key(path::AbstractString) = "file(" * repr(normpath(String(path))) * ")"
+
+function __init__()
+    register_marker_function!(:file, marker_file)
 end
 
 # ── Driver: save + load ────────────────────────────────────────────────────
@@ -464,9 +631,7 @@ finished loading before its stubs are forced by user code).
 """
 function _load_into_context(::Type{T}, filename::AbstractString, ctx::LoaderContext;
                             marker_key::Union{Nothing, String}=nothing) where {T}
-    key = marker_key === nothing ?
-          marker_text(ConcreteReference(FileReferenceStep(String(filename)), EmptyReference())) :
-          marker_key
+    key = marker_key === nothing ? _file_marker_key(filename) : marker_key
     haskey(ctx.intern, key) && return ctx.intern[key]::T
     file = _make_empty_file(T, filename)
     ctx.intern[key] = file

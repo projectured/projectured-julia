@@ -40,7 +40,7 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
@@ -806,7 +806,7 @@ end
     SyntaxLeaf(TextString(_embedded_marker_call(f), p.style))
 
 _embedded_marker_call(f::FileDocument) =
-    "pred_ref(\"" * _julia_string_escape("<<file(" * repr(filename(f)) * ")>>") * "\")"
+    "pred_ref(\"" * _julia_string_escape(file_marker_text(filename(f))) * "\")"
 
 function _julia_string_escape(s::AbstractString)
     buf = IOBuffer()
