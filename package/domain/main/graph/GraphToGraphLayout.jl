@@ -124,7 +124,13 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         out
     end)
 
+    # The highlights pass through as derived cells. They are read by the
+    # renderer only, so changing one repaints without disturbing `child_iomaps`
+    # or `placed` — the expensive engine run stays cached across a highlight
+    # change, which is what makes a live current-state marker affordable.
     layout = GraphLayout(vertex_layouts, edge_layouts, Cell(:tb), Cell(40), Cell(60),
+        ComputedCell(() -> graph.highlight_vertex),
+        ComputedCell(() -> graph.highlight_edge),
         ComputedCell(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
         end))

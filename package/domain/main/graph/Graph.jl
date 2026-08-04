@@ -55,10 +55,22 @@ end
 """
 A graph: `CellVector` of `GraphVertex` + `CellVector` of `GraphEdge`. Because a
 vertex's `content` is arbitrary, a vertex may hold another `GraphGraph` for free.
+
+`highlight_vertex` / `highlight_edge` name one vertex and one edge to draw
+emphasized — a ring around the node, a thickened stroke on the edge. They are
+**presentation state, not content**: a producer wires them as derived cells over
+whatever it is tracking (a running state machine's current state, a search hit),
+and they flow through `GraphLayout` to the renderer without touching a vertex's
+`content` — which is what keeps a highlight change from invalidating the
+measured sizes and re-running the whole layout. Both hold the referent by
+identity, like an edge's endpoints; a `VertexLayout` is rebuilt on every layout
+recompute and must never be held here.
 """
 @document struct GraphGraph <: GraphDocument
     vertices::CellVector = CellVector()
     edges::CellVector = CellVector()
+    highlight_vertex::Any = nothing
+    highlight_edge::Any = nothing
 end
 
 # Two-CellVector convenience: Rule C only covers a single CellVector, so this
@@ -66,7 +78,7 @@ end
 function GraphGraph(vertices::Vector, edges::Vector)
     GraphGraph(CellVector(Cell[v isa Cell ? v : Cell(v) for v in vertices]),
                CellVector(Cell[e isa Cell ? e : Cell(e) for e in edges]),
-               Cell(nothing))
+               Cell(nothing), Cell(nothing), Cell(nothing))
 end
 
 end # module

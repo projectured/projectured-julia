@@ -74,6 +74,8 @@ include("document/SqlDocumentTest.jl")
 include("document/SelectionEnumeration.jl")
 
 # ── projections ──────────────────────────────────────────────────────────────
+include("projection/FsmToSyntaxTest.jl")
+include("projection/FsmDiagramTest.jl")
 include("projection/JsonToSyntaxTest.jl")
 include("projection/XmlToSyntaxTest.jl")
 include("projection/SqlToSyntaxTest.jl")
@@ -155,6 +157,8 @@ function test_domain()
         test_sql_parser()
         test_sql_document()
         # projections
+        test_fsm_to_syntax()
+        test_fsm_diagram()
         test_json_to_syntax()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
@@ -234,7 +238,7 @@ function test_domain_examples()
 end
 
 export test_domain, test_domain_layering, test_domain_examples
-export test_fsm
+export test_fsm, test_fsm_to_syntax, test_fsm_diagram
 export test_json, test_json_parser, test_xml_parser,
        test_sql_parser, test_sql_document, test_sql_document_nested_select,
        test_sql_boolean_expression

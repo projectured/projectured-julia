@@ -170,6 +170,15 @@ function test_position_navigations()
                              # one — the four standalone chart examples navigate.
                              "table", "math_table", "chart", "chart_inspector",
                              "workbench", "assistant",
+                             # `fsm` is the twelve-state TCP machine. It
+                             # navigates correctly — it is simply far too big
+                             # for an exhaustive caret walk (tens of minutes,
+                             # where every other example is seconds).
+                             # `fsm_toggle` exercises the same notation on a
+                             # small machine and stays in the sweep.
+                             # `fsm_diagram` is a graph pipeline, here for the
+                             # widget/graphics keyboard-routing reason above.
+                             "fsm", "fsm_diagram",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 sigs = posnav_seed_broken(example.name)

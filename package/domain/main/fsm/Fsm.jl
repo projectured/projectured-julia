@@ -178,11 +178,16 @@ FsmComponent(name::AbstractString; variables = FsmVariable[], timers = FsmTimer[
 # ── Lookup helpers ───────────────────────────────────────────────────────
 # Name-based resolution is what the notation reader and the paste fix-up use;
 # identity is what the stored references hold.
+#
+# Every helper here filters its collection by type first. A machine being
+# edited legally holds an `FsmInsertion` in its `states` (that is what typing
+# a new state looks like mid-commit), and a helper that assumed otherwise would
+# throw on a field the placeholder does not have.
 
 "Find a state of `machine` by name; `nothing` when absent."
 function find_state(machine::FsmMachine, name::AbstractString)
     for s in machine.states
-        s.name == name && return s
+        s isa FsmState && s.name == name && return s
     end
     nothing
 end
@@ -190,7 +195,7 @@ end
 "Find an event of `component` by name; `nothing` when absent."
 function find_event(component::FsmComponent, name::AbstractString)
     for e in component.events
-        e.name == name && return e
+        e isa FsmEvent && e.name == name && return e
     end
     nothing
 end
@@ -198,7 +203,7 @@ end
 "Find a timer of `component` by name; `nothing` when absent."
 function find_timer(component::FsmComponent, name::AbstractString)
     for t in component.timers
-        t.name == name && return t
+        t isa FsmTimer && t.name == name && return t
     end
     nothing
 end
@@ -206,13 +211,13 @@ end
 "Find a machine of `component` by name; `nothing` when absent."
 function component_machine(component::FsmComponent, name::AbstractString)
     for m in component.machines
-        m.name == name && return m
+        m isa FsmMachine && m.name == name && return m
     end
     nothing
 end
 
 "The states of `machine` as a plain `Vector{FsmState}` (document order)."
-machine_states(machine::FsmMachine) = FsmState[s for s in machine.states]
+machine_states(machine::FsmMachine) = FsmState[s for s in machine.states if s isa FsmState]
 
 """
 All transitions of `machine` flattened in document order (states in order,
@@ -223,8 +228,9 @@ recording, and the diagram's live edge highlight.
 function machine_transitions(machine::FsmMachine)
     result = FsmTransition[]
     for s in machine.states
+        s isa FsmState || continue
         for t in s.transitions
-            push!(result, t)
+            t isa FsmTransition && push!(result, t)
         end
     end
     result

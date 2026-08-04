@@ -49,6 +49,11 @@ end
 """
 The placed layout for a graph: `VertexLayout`/`EdgeLayout` collections + the
 direction/spacing knobs fed to the engine.
+
+`highlight_vertex` / `highlight_edge` carry the graph's emphasis through to the
+renderer, by identity (a `GraphVertex` / `GraphEdge` — never a layout, which is
+rebuilt on every recompute). They are derived cells over the graph's own fields,
+so changing a highlight repaints without re-running the layout engine.
 """
 @document struct GraphLayout <: GraphLayoutDocument
     vertex_layouts::CellVector = CellVector()
@@ -56,6 +61,8 @@ direction/spacing knobs fed to the engine.
     direction::Symbol = :tb
     node_sep::Int = 40
     rank_sep::Int = 60
+    highlight_vertex::Any = nothing
+    highlight_edge::Any = nothing
 end
 
 """

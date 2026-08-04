@@ -182,6 +182,7 @@ include("sequencechart/SequenceChartRowReferenceStep.jl")
 include("sequencechart/SequenceChart.jl")
 include("sequencechart/SequenceChartPlot.jl")
 include("fsm/Fsm.jl")
+include("fsm/FsmDiagram.jl")
 include("book/Book.jl")
 include("markdown/Markdown.jl")
 include("conversation/Evaluator.jl")
@@ -222,6 +223,13 @@ include("book/BookToSyntax.jl")
 include("math/MathToSyntax.jl")
 include("julia/JuliaToSyntax.jl")
 include("formula/FormulaToSyntax.jl")
+# After julia/JuliaToSyntax.jl: the notation merges the Julia dispatch table so
+# embedded guards/actions/entry/helpers render through the same recursion.
+include("fsm/FsmToSyntax.jl")
+include("fsm/FsmToFsmDiagram.jl")
+# After the graph slice projections: the diagram prints into GraphGraph and
+# relies on the stock layout/graphics stages to draw it.
+include("fsm/FsmDiagramToGraph.jl")
 include("sql/SqlToSyntax.jl")
 include("dbcatalog/DbCatalogToSql.jl")
 include("dbcatalog/DbCatalogToSyntax.jl")

@@ -297,6 +297,12 @@ end
 
 _convert_head(::Val{:block}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 
+# `a; b` written on ONE line parses to a `:toplevel` *nested* inside the outer
+# one, so a semicolon-separated statement group reaches here instead of being
+# flattened by `juliaparse`'s own top-level handling. It means exactly what a
+# `:block` means — a sequence of statements — and converts the same way.
+_convert_head(::Val{:toplevel}, x::Expr) = JuliaBlock(_convert_statements(x.args))
+
 _convert_head(::Val{:tuple}, x::Expr) =
     JuliaTuple(JuliaDocument[convert_expr(e) for e in x.args])
 

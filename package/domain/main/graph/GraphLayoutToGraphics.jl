@@ -49,6 +49,13 @@ const _PAD    = 8
 const _EDGE = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)
 const _EDGE_W = 2
 const _ARROW = 10
+# Highlight style (`GraphLayout.highlight_vertex` / `highlight_edge`): a ring
+# just outside the node's box, and a re-stroke over the edge's own line. Both
+# are *extra* elements keyed on the highlight cells alone — never a change to a
+# node's content or geometry, so a highlight move never re-runs the layout.
+const _HIGHLIGHT = StyleColor(0xb5 / 255, 0x89 / 255, 0x00 / 255, 1.0)   # solarized yellow
+const _HIGHLIGHT_W = 3
+const _HIGHLIGHT_GAP = 3
 
 # The point halfway along a polyline route by arc length — where an edge label
 # sits. Falls back to the single point / origin for degenerate routes.
@@ -123,6 +130,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
 
     elements = ComputedCellVector(() -> begin
         result = Any[]
+        # Read the highlights once per repaint. They are compared by identity
+        # against the vertex/edge each layout holds.
+        highlight_vertex = layout.highlight_vertex
+        highlight_edge = layout.highlight_edge
         # Edges first (behind the nodes), each with its optional label centred on
         # the route midpoint.
         labels = edge_label_iomaps[]
@@ -135,6 +146,12 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             directed = e isa GraphEdge ? e.directed : false
             push!(result, GraphicsPolyline(route, _EDGE;
                 width=_EDGE_W, end_arrow=directed, arrow_size=_ARROW))
+            # The highlighted edge is re-stroked over its own line, keeping the
+            # arrowhead it already drew.
+            if highlight_edge !== nothing && e === highlight_edge
+                push!(result, GraphicsPolyline(route, _HIGHLIGHT;
+                    width=_HIGHLIGHT_W, end_arrow=directed, arrow_size=_ARROW))
+            end
             lim = i <= length(labels) ? labels[i] : nothing
             if lim !== nothing
                 lo = lim.output
@@ -153,6 +170,14 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             x, y, w, h = Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h)
             bx, by = x - _PAD, y - _PAD
             bw, bh = w + 2*_PAD, h + 2*_PAD
+            # The ring goes behind the box, inflated by the gap, so the box's
+            # own opaque fill leaves only the ring's edge showing.
+            v = getfield(vl, :vertex)[]
+            if highlight_vertex !== nothing && v === highlight_vertex
+                g = _HIGHLIGHT_GAP + _HIGHLIGHT_W
+                push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g,
+                    _HIGHLIGHT, _RADIUS + g))
+            end
             push!(result, GraphicsRect(bx, by, bw, bh,
                 _FILL, _RADIUS;
                 border_width=_BORDER_W, border_color=_BORDER))
