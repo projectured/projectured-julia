@@ -47,7 +47,8 @@ import ..TextModule: TextString, TextBlock
 import ..StyleTextModule: StyleText, DStyleText
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_solarized_gray
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, Operation
+import ..WidgetModule: InvokeWidgetActionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
                             content, filename
@@ -194,6 +195,28 @@ for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
     @eval function read_intent(p::$T, iomap::EmbedIoMap, op::ReplaceStringRangeOperation)
         result = map_reference_backward(p, iomap, op.reference)
         result === nothing ? nothing : ReplaceStringRangeOperation(result, op.replacement)
+    end
+    # An event travels DOWN to the embedded document, and whatever its reader
+    # answers comes back through the methods above.
+    #
+    # Without this an embed is a picture: the operation methods only re-root what
+    # the embedded reader "produced", and nothing ever asked it to produce
+    # anything, because the press stopped here. A live simulation card rendered
+    # its buttons and none of them could be pressed.
+    #
+    # Dispatch keeps this from catching operations — `Operation` and the two
+    # reference-carrying kinds are all more specific than an untyped argument —
+    # so this only ever sees a gesture on its way in.
+    # Disambiguator: the untyped event method below and the generic widget-action
+    # passthrough (WidgetModule) are each more specific in one argument, so a
+    # widget action arriving here matches both. It travels up unchanged, which is
+    # what both of them would have done.
+    @eval read_intent(::$T, ::EmbedIoMap, op::InvokeWidgetActionOperation) = op
+    @eval function read_intent(p::$T, iomap::EmbedIoMap, evt)
+        inner = iomap.inner_iomap
+        inner === nothing && return nothing
+        op = read_intent(inner.projection, inner, evt)
+        op === nothing ? nothing : read_intent(p, iomap, op)
     end
 end
 

@@ -13,6 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
+import ..ProjectionApiModule: Projection, read_intent
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
@@ -1772,6 +1773,21 @@ can mutate `editor.document` or projection state. A `nothing` action is a no-op.
 struct InvokeWidgetActionOperation <: Operation
     widget::WidgetDocument
 end
+
+# A widget action carries its own target, so it needs no re-rooting and must not
+# be dropped on the way out.
+#
+# The generic reader (`Projection.jl`) forwards a self-contained
+# `ReplaceReferencedValueOperation` unchanged for exactly this reason — it is
+# "the path identity-rooted controls take back through any generic projection" —
+# and returns `nothing` for every other operation type. This one is just as
+# self-contained and was not on the list, so any projection without a reader of
+# its own swallowed it: a button inside a rewrap (a markdown page's stack of
+# blocks, say) rendered, took the press, answered, and the answer went nowhere.
+#
+# It lives here rather than in the kernel because the kernel cannot name a widget
+# type — the same reason the text- and number-range branches live above it.
+read_intent(::Projection, iomap, op::InvokeWidgetActionOperation) = op
 
 """
     InvokeActionOperation(action)
