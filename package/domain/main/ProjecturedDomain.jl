@@ -209,6 +209,7 @@ include("gesturemap/GestureMapToSyntax.jl")
 include("xml/XmlToSyntax.jl")
 include("markdown/MarkdownToSyntax.jl")
 include("markdown/MarkdownFile.jl") # FileDocument wrapping a MarkdownDocument
+include("markdown/MarkdownToLayout.jl") # MarkdownRoot as a stack of blocks
 include("xml/XmlFile.jl")           # FileDocument wrapping an XmlDocument
 include("filesystem/FileSystemToSyntax.jl")
 include("filesystem/FileSystemToWidget.jl")

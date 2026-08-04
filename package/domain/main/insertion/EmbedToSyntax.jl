@@ -25,6 +25,11 @@ fighting.
 Selection descends into an embed through `.resolved` — the stub's
 field holding the evaluated value — which is a plain structural step
 the walker and both reference maps carry like any other.
+
+Both rules are domain-neutral in the direction that matters: they hand
+the embedded value to `recursion`, so they work unchanged in the
+to-syntax fabric and in a to-graphics dispatch table. Only the
+*unforced* fallback has to know which table it is in (`unforced`).
 """
 module EmbedToSyntaxModule
 
@@ -38,7 +43,7 @@ import ..ReferenceModule: FieldReferenceStep, EmptyReference, ConcreteReference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..SyntaxModule: SyntaxLeaf
-import ..TextModule: TextString
+import ..TextModule: TextString, TextBlock
 import ..StyleTextModule: StyleText, DStyleText
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_solarized_gray
@@ -67,16 +72,23 @@ end
 # ── ReferenceStubToSyntax ──────────────────────────────────────────────────
 
 """
-    ReferenceStubToSyntax(; style)
+    ReferenceStubToSyntax(; style, unforced)
 
-Print a marker's value where the marker stands. `style` is used for
-the marker text of a stub that has not been forced (`resolve!`) — the
-same fallback a failed marker gets, so a page never shows wrong
-content in place of an embed.
+Print a marker's value where the marker stands. A stub that has not
+been forced (`resolve!`) prints its marker text instead — the same
+fallback a failed marker gets, so a page never shows wrong content in
+place of an embed.
+
+`unforced` says in which domain that fallback is written, because this
+rule sits in **two** dispatch tables: `:syntax` (a `SyntaxLeaf`, for
+the to-syntax fabric) or `:prose` (a `TextBlock` handed back through
+`recursion`, for a to-graphics table where a syntax node would be a
+stranger). `style` is the marker text's style either way.
 """
 @projection struct ReferenceStubToSyntax
     style::ImmutableCell{DStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    unforced::Symbol = :syntax
 end
 
 function print_document(p::ReferenceStubToSyntax, recursion, stub::ReferenceStub, ctx)
@@ -89,10 +101,19 @@ function print_document(p::ReferenceStubToSyntax, recursion, stub::ReferenceStub
     end)
     output = ComputedCell(() -> begin
         iomap = inner[]
-        iomap === nothing ? SyntaxLeaf(TextString(marker_text(stub), p.style)) : iomap.output
+        iomap === nothing ?
+            _unforced_output(p, recursion, marker_text(stub), ctx) : iomap.output
     end)
     EmbedIoMap(p, stub, output, inner)
 end
+
+# The marker's own text, in the domain this table speaks. `:prose` goes back
+# through `recursion` so a to-graphics table renders it with its text chain
+# rather than meeting a syntax node it has no rule for.
+_unforced_output(p, recursion, text::AbstractString, ctx) =
+    p.unforced === :prose ?
+        print_child(recursion, TextBlock([TextString(text, p.style)]), ctx).output :
+        SyntaxLeaf(TextString(text, p.style))
 
 function map_reference_forward(::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
     @reference_case reference begin
@@ -115,15 +136,17 @@ end
 # ── FileDocumentToSyntax ───────────────────────────────────────────────────
 
 """
-    FileDocumentToSyntax(; style)
+    FileDocumentToSyntax(; style, unforced)
 
 Print a file document as its content — the file is a container for one
-document, and the reader wants the document. `style` renders the
-whole-file marker for a file document whose content is missing.
+document, and the reader wants the document. A file with no content
+prints its whole-file marker; `unforced` picks the domain that fallback
+is written in, as for [`ReferenceStubToSyntax`](@ref).
 """
 @projection struct FileDocumentToSyntax
     style::ImmutableCell{DStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    unforced::Symbol = :syntax
 end
 
 function print_document(p::FileDocumentToSyntax, recursion, file::FileDocument, ctx)
@@ -135,7 +158,7 @@ function print_document(p::FileDocumentToSyntax, recursion, file::FileDocument, 
     output = ComputedCell(() -> begin
         iomap = inner[]
         iomap === nothing ?
-            SyntaxLeaf(TextString(file_marker_text(filename(file)), p.style)) : iomap.output
+            _unforced_output(p, recursion, file_marker_text(filename(file)), ctx) : iomap.output
     end)
     EmbedIoMap(p, file, output, inner)
 end

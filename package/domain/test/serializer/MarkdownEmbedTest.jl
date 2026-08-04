@@ -26,6 +26,11 @@ using ProjecturedDomain.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedDomain.SelectionModule: set_selection!, get_selection
 using ProjecturedDomain.NaturalFormatModule: document_to_text
+using ProjecturedDomain.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedDomain.WidgetModule: WidgetButton
+using ProjecturedDomain.GeometryModule: Point2D
+using ProjecturedDomain.GraphicsModule: GraphicsCanvas
+using ProjecturedDomain.CellModule: AbstractCell
 
 const _ME_STEPS = "function packet_queue_step(x)\n    return x + 1\nend\n"
 const _ME_PAGE  = "# Step\n\nProse before.\n\n```pred-ref\n" *
@@ -55,6 +60,34 @@ end
 
 _me_stub_index(md) = findfirst(e -> (e isa Cell ? e[] : e) isa ReferenceStub,
                                collect(getfield(md, :elements)[]))
+
+_me_renderer() = NaturalToGraphics(measure = (text, _font) -> (length(text) * 10, 20))
+
+# Every string a rendered graphics tree draws. Iterative, with a visited set:
+# a rendered canvas may splice the same child canvas in more than one place.
+function _me_graphics_text(root)
+    drawn   = String[]
+    pending = Any[root]
+    seen    = Set{UInt64}()
+    while !isempty(pending)
+        node = pop!(pending)
+        while node isa AbstractCell
+            node = node[]
+        end
+        node === nothing && continue
+        id = objectid(node)
+        id in seen && continue
+        push!(seen, id)
+        if node isa GraphicsCanvas
+            for element in node.elements
+                push!(pending, element)
+            end
+        elseif string(typeof(node).name.name) == "GraphicsText"
+            push!(drawn, string(node.text))
+        end
+    end
+    drawn
+end
 
 function test_markdown_embed()
 @testset "Markdown embeds: render inline, save by marker, caret descends" begin
@@ -153,6 +186,36 @@ function test_markdown_embed()
             iomap = print_document(_me_fabric(), md)
             @test iomap.output.selection === nothing
             @test occursin("<<definition(", _me_rendered_text(md))
+        end
+    end
+
+    @testset "a widget embed renders as a widget, not as text" begin
+        # The reason a page renders as a stack of blocks: an embedded document
+        # may belong to a domain that is not syntax-producible. A live
+        # simulation card is a widget — squeezed through a syntax tree it would
+        # arrive as reflected text, and would never see a click.
+        _me_project() do page, d
+            md   = content(page)
+            i    = _me_stub_index(md)
+            stub = (e = collect(getfield(md, :elements)[])[i]; e isa Cell ? e[] : e)
+            getfield(stub, :resolved)[] =
+                WidgetButton(Point2D(0, 0), Point2D(90, 30), "Run simulation")
+
+            drawn = _me_graphics_text(print_document(_me_renderer(), md).output)
+            # The button's own label is drawn, so the widget renderer ran …
+            @test "Run simulation" in drawn
+            # … the page's prose is still there …
+            @test any(t -> occursin("Prose before.", t), drawn)
+            # … and nothing arrived as a reflected object dump.
+            @test !any(t -> occursin("WidgetButton", t), drawn)
+        end
+    end
+
+    @testset "an unforced embed draws its marker in the page" begin
+        _me_project() do page, d
+            drawn = _me_graphics_text(print_document(_me_renderer(), content(page)).output)
+            @test any(t -> occursin("<<definition(", t), drawn)
+            @test any(t -> occursin("Prose after.", t), drawn)
         end
     end
 

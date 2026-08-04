@@ -91,7 +91,8 @@ import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
-import ..MarkdownModule: MarkdownDocument
+import ..MarkdownModule: MarkdownDocument, MarkdownRoot
+import ..MarkdownToLayoutModule: MarkdownRootToVerticalLayout
 import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
 import ..FileProjectModule: FileDocument, ReferenceStub
 
@@ -178,6 +179,17 @@ function NaturalToGraphics(; measure::Function,
         Pair{Type,Any}[p for p in extra],
         LayoutToGraphics().dispatch,   # layouts before widgets: a WidgetTable builds a GridLayout
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
+        Pair{Type,Any}[
+            # A markdown page is a stack of blocks, not one syntax tree, so each
+            # element re-enters *this* renderer in its own domain. Prose still
+            # goes to the syntax fabric; an embed whose document is a widget
+            # (a live simulation card) reaches the widget renderer and can be
+            # clicked, which a syntax tree could never offer it.
+            MarkdownRoot  => ChainingProjection(MarkdownRootToVerticalLayout(),
+                                                VerticalLayoutToGraphicsCanvas()),
+            ReferenceStub => ReferenceStubToSyntax(unforced = :prose),
+            FileDocument  => FileDocumentToSyntax(unforced = :prose),
+        ],
         Pair{Type,Any}[
             # The Text placeholder / name buffer are `TextDocument`s, but they are not
             # prose: they route through the syntax fabric, whose table renders them
