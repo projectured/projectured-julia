@@ -86,11 +86,50 @@ function precompile_atoms(atoms)
     rendered
 end
 
+"""
+    precompile_atom_parsers(atoms) -> Int
+
+Round-trip every atom that has a natural text format — render it to text, read
+that text back — and return how many completed. Compiles the reading half of the
+stack, which is otherwise JIT'd the first time anyone opens a file.
+
+No domain→parser table is needed: the natural format is already a registry.
+`natural_extension(doc)` names the format, `document_to_text(doc)` renders it
+(its own documentation says the text is the editor's rendered form, "which the
+domain parser re-reads"), and `parse_natural(Val(:ext), text)` is the parser a
+domain registered. A domain with no natural format has no `natural_extension`
+method and drops out — the registry answering, rather than a list here going
+stale.
+
+Editor scaffolding is expected to fail the round trip rather than pass it: a
+document carrying an insertion placeholder has no valid natural text, as
+`NaturalFormatModule` says outright. So this counts successes instead of
+asserting them, and `test_natural_round_trips_every_atom` is where the count is
+held to a number.
+"""
+function precompile_atom_parsers(atoms)
+    parsed = 0
+    for atom in atoms
+        try
+            document = atom.make_document()
+            extension = natural_extension(document)
+            format = Symbol(SubString(extension, 2))
+            applicable(parse_natural, Val(format), "") || continue
+            parse_natural(Val(format), document_to_text(document))
+            parsed += 1
+        catch
+            # As above: not the place a failure is meant to surface.
+        end
+    end
+    parsed
+end
+
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs
     # compiling, and doing it here keeps the measured region to the pipeline.
     _atoms = AtomicDocument[visual_atomic_documents; domain_atomic_documents]
     @compile_workload begin
         precompile_atoms(_atoms)
+        precompile_atom_parsers(_atoms)
     end
 end

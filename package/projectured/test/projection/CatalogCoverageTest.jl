@@ -120,6 +120,104 @@ catalog_coverage_gap() =
     sort(String[string(nameof(T isa UnionAll ? Base.unwrap_unionall(T) : T))
                 for T in setdiff(_coverage_wanted(), _coverage_covered())])
 
+"""
+    test_natural_renders_every_atom()
+
+The precompile workload swallows a failing atom, because a workload must not
+fail a build. This is where that failure is meant to surface instead: every atom
+has to survive `NaturalToGraphics`, the renderer an editor actually puts on
+screen, or the workload is compiling less than it appears to.
+"""
+function test_natural_renders_every_atom()
+    @testset "every atom renders naturally" begin
+        atoms = ProjecturedExample.atomic_documents()
+        @test precompile_atoms(atoms) == length(atoms)
+        # Name the ones that failed: a bare count sends the reader back to a loop
+        # with a `catch` in it and nothing to go on.
+        for atom in atoms
+            precompile_atoms([atom]) == 1 && continue
+            @info "atom does not render through NaturalToGraphics" atom.domain atom.name
+        end
+    end
+end
+
+# Does this atom's domain declare a natural text format with a parser behind it?
+# Domains without one (text, primitive, book…) are not round-trip candidates and
+# are not failures.
+function _round_trip_eligible(atom)
+    try
+        extension = natural_extension(atom.make_document())
+        applicable(parse_natural,
+                   Val(Symbol(SubString(extension, 2))), "")
+    catch
+        false
+    end
+end
+
+# ── Atoms that are fragments, not documents ────────────────────────────────
+# A natural format parses a *file*, and several atoms are deliberately smaller
+# than one: a column name is not a statement, an attribute is not a root element,
+# `"key": value` is not a JSON document. Rendering them is right and re-reading
+# them is not, so they are named here rather than counted.
+#
+# An atom that stops round-tripping and is NOT named here fails unmarked, which
+# is the point; and a name here that starts round-tripping is asserted stale.
+const _NO_ROUND_TRIP = Set{String}([
+    # Sub-document fragments: correct to render, meaningless to re-parse alone.
+    "json/object_entry", "xml/text", "xml/attribute",
+    "julia/interpolation", "julia/where_parameters",
+    "sql/all_columns", "sql/column_name", "sql/table_name", "sql/scalar_value",
+    "sql/comparison", "sql/select_item", "sql/and", "sql/or", "sql/not",
+    "sql/where_filter_condition", "sql/where_clause", "sql/from_item",
+    "sql/from_clause", "sql/join_on_condition", "sql/joined_from_item",
+    "sql/subquery_from_item", "sql/column_definition", "sql/update_assignment",
+    # These two are whole statements and still do not re-parse — the SQL parser
+    # reads SELECT and rejects INSERT/UPDATE with "not a parseable statement".
+    # A parser gap rather than a fragment, and the only entry here that names a
+    # bug rather than a category.
+    "sql/insert_statement", "sql/update_statement",
+])
+
+_round_trip_name(atom) = string(atom.domain) * "/" * atom.name
+
+function _round_trips(atom)
+    try
+        document = atom.make_document()
+        extension = natural_extension(document)
+        format = Symbol(SubString(extension, 2))
+        applicable(parse_natural, Val(format), "") || return false
+        parse_natural(Val(format), document_to_text(document))
+        true
+    catch
+        false
+    end
+end
+
+"""
+    test_natural_round_trips_every_atom()
+
+The reading half. An atom whose domain declares a natural format has to render
+to text and parse back, or the parser workload is compiling a path nobody walks.
+
+Failure is legitimate for an atom smaller than a file, so those are named in
+`_NO_ROUND_TRIP` rather than counted. Anything else that fails, fails here.
+"""
+function test_natural_round_trips_every_atom()
+    @testset "every atom round-trips through its natural format" begin
+        atoms = ProjecturedExample.atomic_documents()
+        eligible = filter(_round_trip_eligible, atoms)
+        @test !isempty(eligible)              # the format registry was read at all
+
+        failed = Set(_round_trip_name(a) for a in eligible if !_round_trips(a))
+        @test sort(collect(setdiff(failed, _NO_ROUND_TRIP))) == String[]
+        @test sort(collect(setdiff(_NO_ROUND_TRIP, failed))) == String[]
+
+        # And the workload really does exercise the rest, rather than skipping
+        # everything and reporting a tidy zero.
+        @test precompile_atom_parsers(atoms) == length(eligible) - length(failed)
+    end
+end
+
 function test_catalog_coverage()
     @testset "catalog coverage" begin
         wanted = _coverage_wanted()

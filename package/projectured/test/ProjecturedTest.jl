@@ -180,6 +180,8 @@ function test_all()
     test_catalog()
     # Is the catalog exhaustive? The printers are the list of what it owes.
     test_catalog_coverage()
+    test_natural_renders_every_atom()
+    test_natural_round_trips_every_atom()
     test_printers()
     test_readers()
     test_position_navigations()
@@ -243,6 +245,7 @@ export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_catalog, test_catalog_typeins
 export test_catalog_coverage, catalog_coverage_gap
+export test_natural_renders_every_atom, test_natural_round_trips_every_atom
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
