@@ -3,6 +3,7 @@ Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
+ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
 ProjecturedDomainTest = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
@@ -38,6 +39,7 @@ ProjecturedKernelExample = {path = "package/kernel/example"}
 ProjecturedKernelTest = {path = "package/kernel/test"}
 ProjecturedBase = {path = "package/base/main"}
 ProjecturedBaseTest = {path = "package/base/test"}
+ProjecturedBuilder = {path = "package/executable/builder"}
 ProjecturedDomain = {path = "package/domain/main"}
 ProjecturedDomainTest = {path = "package/domain/test"}
 ProjecturedDomainExample = {path = "package/domain/example"}

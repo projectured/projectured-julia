@@ -8,31 +8,31 @@ backend choice is fixed ("baked in") or selectable at runtime ("delayed").
 
 ## Building
 
-The build interface is a plain Julia function, `build_executable` (in
-[`Builder.jl`](Builder.jl)) — there is no CLI to learn.
-
-### Default build (v1)
-
-```bash
-cd package/executable
-julia Build.jl
-```
-
-[`Build.jl`](Build.jl) is a thin wrapper that calls `build_executable(; backends=[SdlBackend])`
-with the default spec: **a JSON file editor with the SDL backend baked in**. Output goes
-to `build/bin/projectured`, and all build output is logged to `build.log`.
-
-### Custom builds (from the REPL)
-
+The build interface is a plain Julia function, `build_executable` (in the
+[`ProjecturedBuilder`](builder/) package) — there is no CLI and no build script.
 Name the backend by its real type, so load its package first (`using ProjecturedSdl`
 for `SdlBackend`, `using ProjecturedWeb` for `WebBackend`; `ConsoleBackend` comes with
-`Projectured`):
+`Projectured`). The repository root environment resolves both packages:
 
 ```julia
-using ProjecturedSdl                       # brings SdlBackend into scope
-include("package/executable/Builder.jl")
-using .ProjecturedBuilder
+using ProjecturedSdl, ProjecturedBuilder     # julia --project=.
+```
 
+### The two shipping configurations
+
+```julia
+build_executable(workbench_app(SdlBackend))     # what ships: workbench, json/xml/sql/julia
+build_executable(default_json_app(SdlBackend))  # the v1 default: a plain JSON file editor
+```
+
+Output goes to `build/bin/projectured`. Both are *functions of the backend type*
+rather than constants, so this package stays independent of any backend package.
+Pass `logfile="build.log"` to send the long, noisy compile output to a file
+instead of the terminal.
+
+### Custom builds
+
+```julia
 # A workbench-less JSON file editor, SDL baked in, named "json-editor":
 build_executable(; app_name="json-editor", domain=:json, workbench=false,
                    file_backed=true, backends=[SdlBackend])
@@ -40,6 +40,9 @@ build_executable(; app_name="json-editor", domain=:json, workbench=false,
 # Generate the config only (no multi-minute compile) — useful for inspection:
 build_executable(BuildSpec(; domain=:json, backends=[SdlBackend]); compile=false)
 ```
+
+The compile has to `Pkg.activate` the app environment; `build_executable` restores
+the caller's active project on the way out, so a REPL session is left where it was.
 
 `build_executable` (1) generates [`main/AppConfig.jl`](main/) — the baked
 configuration constants plus the `using` line(s) for exactly the compiled-in
@@ -85,8 +88,9 @@ compiled-in backends; on a baked build `--backend` is rejected.
 
 ```
 executable/
-├── Build.jl                  # thin entry: calls build_executable() (default spec)
-├── Builder.jl                # ProjecturedBuilder: BuildSpec + build_executable
+├── builder/                  # ProjecturedBuilder: BuildSpec + build_executable
+│   ├── Project.toml
+│   └── ProjecturedBuilder.jl
 ├── README.md                 # this file
 ├── main/
 │   ├── Project.toml              # package configuration / dependencies

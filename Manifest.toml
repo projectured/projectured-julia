@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "1c7d617f08943df5b54fc1bd56ef4cb9edfd273c"
+project_hash = "b72ba37cf281ba0d3aa7cdfacd047ff2b8466ae6"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -769,6 +769,13 @@ deps = ["ProjecturedBase", "ProjecturedKernelTest", "Test"]
 entryfile = "ProjecturedBaseTest.jl"
 path = "package/base/test"
 uuid = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
+version = "0.1.0"
+
+[[deps.ProjecturedBuilder]]
+deps = ["Pkg"]
+entryfile = "ProjecturedBuilder.jl"
+path = "package/executable/builder"
+uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
