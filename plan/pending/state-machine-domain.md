@@ -597,11 +597,11 @@ decisions here as they land. Cross-repo note: inet-julia/omnetpp-julia resolve
         just-evaluated module, not only to calling it; the test fetches every
         binding through `invokelatest`.
 
-### Status: P0–P4 landed on main; P5–P7 are next and unblocked
+### Status: P0–P5 landed on main; P6–P7 are next
 
-Everything through P4 is implemented, verified and merged into `main` in all
-three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, the P5
-prep step below in inet-julia).
+Everything through P5 is implemented, verified and merged into `main` in all
+three repos (P0–P2 and P4 in projectured-julia, P3 in omnetpp-julia, P5 in
+inet-julia). The MAC in the shipping 10BASE-T1S model is generated code.
 
 **The one thing that had to happen first was landing, not design.** While the
 work sat on worktree branches, inet-julia could not see the runtime at all:
@@ -633,16 +633,57 @@ that updates the variable and then dispatches, exactly as the C++
 shared-handler feature is needed, and none was built. Likewise `_start_ifg!`
 becomes `target = WAIT_IFG` plus a `WAIT_IFG` **entry action** that schedules
 the timer — which is what entry actions are for.
-- [ ] **P5 — pilot: t1s MAC (inet-julia).** `FsmFile`/`FsmParser` land first (§8).
-  **Acceptance fix from review**: the only pinned golden hash today is `:notraffic`,
-  which never takes the MAC out of `MAC_IDLE` — a MAC swap would pass vacuously. So:
-  on the clean tree, **pin a traffic scenario's hash** (`:bestcase`, currently a
-  placeholder asserting only `event_count > 0`); then re-express `Mac.jl`'s FSM core
-  as `EthernetCsmaMac.fsm` (helpers/classifiers as `helpers` content; state constants
-  matching the existing enum's 0-based values, §5.3), generate, swap into the
-  `include()` chain, and require the pinned traffic hash **identical** plus
-  `phase6_mac.jl`'s unit testsets green. This is the acceptance test for
-  R1/R2/R5/R6/R7/R8/R14.
+- [x] **P5 — pilot: t1s MAC (inet-julia).** DONE. The 6-state EthernetCsmaMac is
+  generated from a state machine document. Exit: **both pinned golden hashes
+  unchanged** — `:notraffic` `0x429fe1b7…` at 299 events, `:bestcase`
+  `0x6f8ce88a…` at 480 events with 7 frames sent and received — plus
+  `phase6_mac.jl` green, link layer 417/417, inet-julia 2311/2311. The generated
+  machine reproduces the hand-written one bit for bit. This is the acceptance
+  test for R1/R2/R5/R6/R7/R8/R9/R11/R14.
+
+      The `:bestcase` hash was pinned first, on the unmodified MAC (the review's
+      finding: `:notraffic` never takes a MAC out of `MAC_IDLE`, so it could not
+      have caught a MAC change, and `:bestcase` asserted only
+      `event_count > 0`).
+
+      Decisions and discoveries:
+      - **Outgoing calls had to be deferred — and that is the C++ design, not a
+        workaround.** Handing a frame down reaches PLCA, which synchronously
+        calls back into the MAC's own carrier handler; the generated machine
+        refuses to re-enter its own cascade. That is exactly why every `phy->`
+        call in `EthernetCsmaMac.cc` is wrapped in `FSMA_Delay_Action`.
+        Deferring left both hashes untouched, which also proves the re-entrant
+        callback's only effect while `TRANSMITTING` was setting a variable.
+      - **R13 is met by the classifier seam, as predicted.** `carrier_sense` and
+        `collision` are updated by the handler that receives the event, which
+        then dispatches — `handleCarrierSenseStart()`'s shape. No
+        shared-handler feature was needed in the abstraction.
+      - The jam timer's retry increment happens in its **callback**, before the
+        dispatch: the guards that follow read the new value, and a guard must
+        not have side effects.
+      - `on_unhandled = :ignore` matches the hand-written *port*, whose timer
+        callbacks return silently when the state has moved on. The C++ is
+        exhaustiveness-checked; the port is not, and the pilot reproduces the
+        port.
+      - **`.fsm` files were not needed and are not on the critical path.** The
+        machine is a document built in `tool/generate_mac_fsm.jl`, and
+        `MacFsm.jl` is generated from it. `FsmFile`/`FsmParser` remain worth
+        having (they are what would make the machine editable in the editor
+        rather than in Julia) but the pilot did not require them.
+      - **Three julia-domain gaps surfaced**, each worked around and worth
+        closing: no splat (`f(_...)`), no anonymous `function … end` (the
+        lambda form works), and **no keyword arguments in a function
+        *definition*** — the last is why `MacState`'s constructor stayed
+        hand-written.
+      - **A generated file has an ordering constraint the component cannot yet
+        express**: the host struct's field types must be defined before it,
+        while helpers are emitted after it because they dispatch on it. The two
+        interface structs therefore live in the hand-written companion. A
+        `preamble` list on `FsmComponent` would let the generator own them.
+      - `generate_component(...; wrap_module = false)` was added for this: the
+        t1s slice is nine files making up one module, so a generated file
+        wrapped in its own module would not drop in where the hand-written one
+        sat.
 - [ ] **P6 — live view.** Watch example in inet-julia under a new `watch/` env
   carrying the presentation-stack deps (§7): editor with the diagram over the pilot
   machine, sliced driver + monitor task refreshing `FsmDiagram`, current state ring,
