@@ -1,0 +1,21 @@
+name = "ProjecturedBench"
+uuid = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedBench.jl"
+
+# Development-only measurements that back design decisions elsewhere in the
+# repository: what a colour costs in each representation, and how far a reactive
+# cell's invalidation fans out. Not a dependency of anything that ships.
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+Projectured = {path = "../package/projectured/main"}
+ProjecturedExample = {path = "../package/projectured/example"}
+
+[compat]
+julia = "1.10"

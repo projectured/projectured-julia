@@ -7,17 +7,19 @@
 #   • the top cells by fanout ATTRIBUTED to the struct+field that holds them —
 #     so we can see whether the shared high-fanout cells are TextString spans or
 #     projection style config (ObjectToSyntax.style, …).
-#
-# Run from the worktree root, e.g.:
-#   julia --project=. bench/fanout.jl workbench json
 
-using Projectured, ProjecturedExample
-using Projectured: ReactiveCell, ImmutableCell, MutableCell, AbstractCell
-using Statistics
+"""
+    walk_cells(root) -> (cells, owner)
 
-# Force every cell reachable from the iomap, collecting each AbstractCell once and
-# attributing each to the (struct type, field) that holds it (first owner wins).
-function walk(root)
+Every `AbstractCell` reachable from `root`, forced, collected once, in discovery
+order — plus `owner`, mapping each cell's `objectid` to the `(struct, field)` that
+holds it (first owner wins). The traversal descends arrays, sets, tuples, dicts
+and struct fields, and stops at scalars and functions.
+
+Separate from [`fanout_report`](@ref) because the census is useful on its own: it
+answers "what cells does this object graph actually contain, and who owns them".
+"""
+function walk_cells(root)
     seen  = Set{UInt64}()
     cells = AbstractCell[]
     owner = Dict{UInt64, Tuple{Symbol,Symbol}}()
@@ -48,43 +50,58 @@ function walk(root)
     return cells, owner
 end
 
-kindname(c) = c isa ReactiveCell ? :reactive :
-              c isa ImmutableCell ? :immutable :
-              c isa MutableCell ? :mutable : :other
+_kindname(c) = c isa ReactiveCell ? :reactive :
+               c isa ImmutableCell ? :immutable :
+               c isa MutableCell ? :mutable : :other
 
-function report(name)
+# `dependents` is `Union{Nothing, Vector{WeakRef}}`, allocated on demand — a cell
+# nothing reads keeps it `nothing` rather than an empty vector, which is the whole
+# point of the lazy field. Fanout zero.
+_fanout(c::ReactiveCell) = (d = getfield(c, :dependents); d === nothing ? 0 : length(d))
+
+"""
+    fanout_report(name = "workbench"; io = stdout, top = 20) -> NamedTuple
+
+Print the cell-kind census and reactive `dependents` fanout distribution for the
+named example's printed pipeline, with the `top` highest-fanout cells attributed
+to the `struct.field` that holds each. Returns the measurements, so several
+examples can be compared in one session:
+
+    a = fanout_report("workbench"); b = fanout_report("json")
+    a.census[:reactive] / b.census[:reactive]
+"""
+function fanout_report(name = "workbench"; io::IO = stdout, top::Integer = 20)
     ex = getproperty(@__MODULE__, Symbol(name, "_example"))
     doc, proj = ex.make_document(), ex.make_projection()
     iomap = print_document(proj, doc)
-    cells, owner = walk(iomap)
+    cells, owner = walk_cells(iomap)
 
     # census
     census = Dict(:reactive => 0, :immutable => 0, :mutable => 0, :other => 0)
-    for c in cells; census[kindname(c)] += 1; end
+    for c in cells; census[_kindname(c)] += 1; end
 
     rcells = ReactiveCell[c for c in cells if c isa ReactiveCell]
-    ndeps  = [length(getfield(c, :dependents)) for c in rcells]
+    ndeps  = [_fanout(c) for c in rcells]
     s = sort(ndeps); n = length(s); q(p) = s[clamp(ceil(Int, p*n), 1, n)]
 
-    println("\n", "="^78)
-    println("$(name)_example   —   cells reached: $(length(cells))")
-    println("  kinds: reactive=$(census[:reactive])  immutable=$(census[:immutable])  mutable=$(census[:mutable])")
-    println("  dependents fanout (reactive cells, n=$n):  sum=$(sum(ndeps))  mean=$(round(mean(ndeps);digits=3))",
+    println(io, "\n", "="^78)
+    println(io, "$(name)_example   —   cells reached: $(length(cells))")
+    println(io, "  kinds: reactive=$(census[:reactive])  immutable=$(census[:immutable])  mutable=$(census[:mutable])")
+    println(io, "  dependents fanout (reactive cells, n=$n):  sum=$(sum(ndeps))  mean=$(round(mean(ndeps);digits=3))",
             "  median=$(median(ndeps))  p99=$(q(0.99))  max=$(maximum(ndeps))")
-    println("  cells with fanout >16: $(count(>(16), ndeps))    >64: $(count(>(64), ndeps))")
+    println(io, "  cells with fanout >16: $(count(>(16), ndeps))    >64: $(count(>(64), ndeps))")
 
-    println("  ── top 20 reactive cells by fanout, attributed to owner ──")
-    println("    ", rpad("fanout",7), rpad("value",22), "owner (struct.field)")
-    order = sortperm(ndeps; rev=true)[1:min(20, n)]
+    println(io, "  ── top $(top) reactive cells by fanout, attributed to owner ──")
+    println(io, "    ", rpad("fanout",7), rpad("value",22), "owner (struct.field)")
+    order = sortperm(ndeps; rev=true)[1:min(top, n)]
     for i in order
         c = rcells[i]
         vt = try; string(typeof(getfield(c,:valid) ? getfield(c,:value) : nothing)); catch; "?"; end
         own = get(owner, objectid(c), (Symbol("<value>"), Symbol("-")))
-        println("    ", rpad(ndeps[i],7), rpad(vt,22), "$(own[1]).$(own[2])")
+        println(io, "    ", rpad(ndeps[i],7), rpad(vt,22), "$(own[1]).$(own[2])")
     end
-end
+    println(io, "="^78)
 
-for name in (isempty(ARGS) ? ["workbench"] : ARGS)
-    report(name)
+    return (; name = String(name), cells = length(cells), census = census,
+              fanout = ndeps, owner = owner)
 end
-println("\n", "="^78)
