@@ -77,70 +77,85 @@ The directive exists; nothing checks it against the method table.
 
 ## The plan
 
-- [ ] **Make exhaustiveness an assertion, not a directive.** A test that every
-      `print_document` method has an atom for its document type, failing with the
-      list of gaps. This is the piece that makes everything below stay true.
-      Existing known gaps go in the `@catalog-broken` registry that
-      `CatalogTest.jl` already has, so the suite stays green while the list stays
-      visible.
+- [x] **Make exhaustiveness an assertion, not a directive.**
+      `test_catalog_coverage` in
+      `package/projectured/test/projection/CatalogCoverageTest.jl`. A printer
+      added later whose document type has no atom fails unmarked; the standing
+      debt is one `@test_broken` plus the named `_NO_ATOM` list; and a name still
+      listed after its atom is written is asserted stale, so the list cannot
+      outlive the gap it records.
 
-- [ ] **Close the 150 gaps.** Mechanical, and each one is independently
-      valuable — a bare atom exercises paths the curated examples do not, which
-      is the argument the catalog plan already makes. Start with the domains that
-      have printers but few atoms (Julia 33/54 is the worst offender and the one
-      the demo hits).
+      The gap is **130, not 150**. The earlier figure counted seven Base types
+      (`Array`, `Bool`, `Symbol`, …) and four abstract ones, neither of which can
+      be instantiated and both of which are reached through a concrete document
+      already in the set. Test-package fixtures (`ProbeDoc`, `Pair2`) are
+      excluded too — real documents with real printers, but counting them would
+      make the answer depend on what happens to be loaded.
 
-- [ ] **One `@compile_workload` per example package, driven by the registry.**
-      Each workload prints the atoms *its own package registers*, through the
-      printers those documents dispatch to, and forces the output. No sample, no
-      demo, no catalog of pages — the workload is the method table, and the atoms
-      are what make it runnable.
+- [x] **Close the Julia gap** — 22 atoms, taking that domain from 33/54 to 54/54
+      and the total from 130 to 108. `julia/empty` is marked broken for position
+      navigation: `JuliaEmpty` renders to nothing, so there is no caret to seed.
+      Arguably correct rather than broken, and marked rather than skipped for the
+      reason the catalog plan gives — the atom is still printed and read like any
+      other.
 
-      | workload lives in | atoms it walks | pairs it compiles |
-      |---|---|---|
-      | `ProjecturedDomainExample` | `domain_atomic_documents` | `ProjecturedDomain`'s 192 |
-      | `ProjecturedVisualExample` | `visual_atomic_documents` | `ProjecturedVisual`'s 94 |
-      | `OmnetppPresentationExample` | its own (to be written) | `OmnetppPresentation`'s 13 |
+- [ ] **Close the remaining 108.** 59 are the widget set and layouts
+      (`ProjecturedVisual`), 39 the application documents (workbench,
+      conversation, fsm, dbcatalog, graph), 6 `ProjecturedBase`, 3
+      `ProjecturedKernel`. `catalog_coverage_gap()` prints the worklist.
 
-      `ProjecturedBase`'s 9 pairs have no example package of their own — there is
-      no `package/base/example` — so they ride along in
-      `ProjecturedDomainExample`, which already depends on base. `ProjecturedSdl`
-      has a single pair and can wait.
+- [x] **One `@compile_workload`, driven by the registry** —
+      `package/domain/example/Precompile.jl`, walking every atom through
+      `NaturalToGraphics` and forcing the output.
+
+      **One workload, not one per example package.** `ProjecturedVisualExample`
+      cannot name `NaturalToGraphics` (it lives in domain), and its own atoms are
+      8 against 59 widget printers that have no atom at all, so a second workload
+      there would buy nothing until those atoms exist. `ProjecturedDomainExample`
+      depends on `ProjecturedVisualExample`, so it walks both registries.
+      Revisit when the widget atoms land.
+
+      **`NaturalToGraphics` rather than a per-domain chain**, because it is the
+      one projection that dispatches on document type across every domain,
+      collection, layout and widget — the renderer an editor actually puts on
+      screen. A domain→chain table would have been a second registry to keep in
+      step with the first.
 
       Forcing is not optional: printing alone builds thunks. Atoms are minimal by
       construction, so forcing an atom completely is cheap — the "walking the
       whole output is too expensive" problem belongs to real documents and does
       not arise here.
 
-- [ ] **Add the parsers, round-tripped off the same atoms.** Printing an atom
-      already produces its text; feeding that text back through the domain's
-      parser costs one more line and compiles the reading half of the stack,
-      which is otherwise JIT'd the first time anyone opens a file.
+- [x] **Add the parsers, round-tripped off the same atoms.**
+      `precompile_atom_parsers` in the same file.
 
-      `document_to_text(doc)` (`visual/main/fileformat/NaturalFormat.jl`) is the
-      generic document→String side. The reading side is one function per domain —
-      `juliaparse`, `jsonparse`, `xmlparse`, `yamlparse`, `markdownparse`,
-      `sqlparse`, plus `parse_natural` in the visual layer — so the workload
-      needs a domain→parser table of seven entries. That table is small enough to
-      be honest, and the same exhaustiveness test should assert every exported
-      `*parse` appears in it, so a new domain's parser cannot be quietly left
-      out.
+      **No domain→parser table was needed.** The plan called for one of seven
+      entries; the natural format turned out to be a registry already.
+      `natural_extension(doc)` names the format, `document_to_text(doc)` renders
+      it — its own documentation says the text is the editor's rendered form,
+      "which the domain parser re-reads" — and `parse_natural(Val(:ext), text)`
+      is what a domain registered. A domain with no natural format has no method
+      and drops out. That is the registry answering rather than a list going
+      stale, and it deletes the "assert every exported `*parse` is in the table"
+      step along with the table.
 
-      The text is derived from the atoms rather than written by hand, which is
-      what keeps this as non-arbitrary as the printer half: the parser sees
-      exactly the constructs the registry holds.
-
-- [ ] **And the file round-trip, driven by the file-type registry.**
+- [ ] **The file round-trip, driven by the file-type registry.** Not done.
       `_FILE_DOCUMENT_TYPES` (extension → concrete type, populated by
-      `register_file_document_type!`) is a second registry that makes a second
-      workload non-accidental: for each registered extension, run `emit_text` and
-      `populate_file!`. That pair *is* the editor's save/load path and is what
-      the demo's `definition(file(…))` marker runs on every page.
+      `register_file_document_type!`) supports a second workload: for each
+      registered extension, run `emit_text` and `populate_file!`. That pair is
+      the editor's save/load path and is what the demo's `definition(file(…))`
+      marker runs on every page. Left until the atom gap closes, because the
+      natural round trip above already compiles the parsers themselves and this
+      only adds the file layer around them.
 
-      Note the ordering trap already recorded below: these types register
-      themselves in their package's `__init__`, which does not run during
-      precompilation, so the workload's `@setup_workload` has to do the
-      registrations itself.
+      Note the ordering trap: these types register in their package's `__init__`,
+      which does not run during precompilation, so `@setup_workload` has to do
+      the registrations itself.
+
+- [ ] **`OmnetppPresentationExample`'s 13 pairs**, in omnetpp-julia. Not done
+      here and not testable from this worktree: omnetpp-julia's `[sources]` point
+      at the live `projectured-julia` checkout rather than at a worktree, so it
+      cannot see these changes until they land on `main`.
 
 ### What the parser half is worth
 
@@ -153,11 +168,19 @@ Expect a few hundred milliseconds per parser.
 Two things not to assume. The parser's coverage unit is **not** the document
 type: `_convert_head` dispatches on the `Expr` head (`Val{:function}`,
 `Val{:macrocall}`, …), so coverage follows the constructs present in the text.
-And not every atom's printed text will parse back — a bare leaf need not be
-standalone-parseable. A throw still compiles everything up to the throw, so a
-tolerant workload is fine, but it must not become the place round-trip failures
-go to hide: that is what `JuliaParserTest.jl` and `SqlParserTest.jl` are for, and
-a `try` in the workload should not be read as the round trip being tested.
+And not every atom's printed text parses back — measured, 80 of the 105 eligible
+atoms round-trip. A throw still compiles everything up to the throw, so a
+tolerant workload is fine, but it must not become the place failures go to hide.
+
+Which is why both workloads have a test standing behind them:
+`test_natural_renders_every_atom` (132 of 132) and
+`test_natural_round_trips_every_atom`, whose `_NO_ROUND_TRIP` names the 25 that
+do not. Nearly all are atoms smaller than a file — a column name is not a
+statement, an XML attribute is not a root element, `"key": value` is not a JSON
+document — which is correct behaviour, not a defect. Two are not:
+`sql/insert_statement` and `sql/update_statement` are whole statements that the
+SQL parser rejects with "not a parseable statement". That is a parser gap this
+check happened to find, and it is recorded here rather than fixed in passing.
 
 ### Layering: decided — the example packages, and only those
 
@@ -197,14 +220,39 @@ nothing it compiles survives the process.
   the ceiling; it is not the design, and it should be dropped once the
   registry-driven workloads land.
 
+## What it bought, measured
+
+In a fresh session, rendering through `NaturalToGraphics`. The baseline column is
+the same worktree with the workload body removed, so nothing else differs.
+
+| | no workload | atoms only | + Julia atoms | + parsers |
+|---|---|---|---|---|
+| render a real Julia source file | 12.57 s | 3.48 s | 0.92 s | 0.93 s |
+| parse that file (`juliaparse_file`) | 0.77 s | 0.74 s | 0.74 s | **0.39 s** |
+| render a markdown page | 1.86 s | 0.10 s | 0.10 s | 0.10 s |
+| render a json atom | 2.33 s | 0.55 s | 0.54 s | 0.55 s |
+
+Cost, `ProjecturedDomainExample`: precompile **7.7 s → 44 s**, package image
+**→ 74 MB**, `using` **0.81 s**. Paid once per source change, not per session.
+
+The Julia-atoms column is the point of the exercise: the workload alone left a
+source file at 3.48 s, because 22 of the node types in it had no atom to be
+compiled from. Coverage is what makes a workload worth having, which is why the
+exhaustiveness check came first.
+
 ## Verification
 
-- [ ] the exhaustiveness test lists zero unexplained gaps, for the printer table
-      and for the domain→parser table
-- [ ] `test_demo_catalog()` and the per-package suites stay green
-- [ ] startup and first click re-measured against the 5.4 s / 12.9 s baseline
-- [ ] the cost side re-measured too: precompile time and package image size per
-      example package, and `using` time, which the prototype left unchanged
+- [x] `test_catalog_coverage` — 3 pass, 1 broken (the 108 standing gaps)
+- [x] `test_natural_renders_every_atom` — 132 of 132
+- [x] `test_natural_round_trips_every_atom` — 80 of 105 eligible, the other 25
+      named in `_NO_ROUND_TRIP`
+- [x] `test_catalog(; domain = :julia)` — 101456 pass, 1 broken (`julia/empty`
+      navigation), 0 fail
+- [ ] `test_catalog()` over every domain
+- [ ] `test_demo_catalog()` in omnetpp-julia, once this lands on `main` — it
+      cannot see a worktree
+- [ ] startup and first click re-measured against the 5.4 s / 12.9 s baseline,
+      likewise after landing
 
 ## Status
 
