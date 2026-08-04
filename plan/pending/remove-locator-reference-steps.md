@@ -1,7 +1,7 @@
 # Removing FileReferenceStep and IdentityReferenceStep — they are not steps
 
-Status: **pending** (2026-08-04). **Gated** on the queuing-tutorial migration's Phase B
-(the marker language) landing in this repository — that phase removes their last consumer.
+Status: **done** (2026-08-04), on branch `tutorial-embeds`. Phase B removed their
+last consumer (the `FileProject` marker codec), which was the gate.
 Follow-up of `inet-julia/plan/pending/queuing-tutorial-migration.md` §9.
 
 ## 1. Why
@@ -51,16 +51,33 @@ visual-layer geometry steps — which pass the test: a selection genuinely carri
 
 ## 3. Steps
 
-- [ ] 0: after Phase B lands — grep projectured-julia, omnetpp-julia, inet-julia for
-      `FileReferenceStep`/`IdentityReferenceStep`/`IdentityDocument`; confirm the only
-      remaining sites are the three kernel files, their includes/exports, tests and docs
-- [ ] 1: delete the three kernel files; remove their includes/exports from
-      `ReferenceModule.jl` (**sealed — ask permission first**)
-- [ ] 2: delete `IdentityAndFileStepTest.jl`; strip residual step assertions from the
-      FileProject/JsonFile tests
-- [ ] 3: docs sweep (`package/kernel/doc/reference.md` and any other live guide)
-- [ ] 4: full suites green in all three repositories
+- [x] 0: grep across the three repositories — the only sites were the three kernel
+      files, their includes/exports and the kernel test. Nothing in omnetpp-julia or
+      inet-julia; no live guide mentioned them (Phase B had already removed the
+      FileProject/JsonFile assertions)
+- [x] 1: deleted the three kernel files; removed their includes and their five
+      exported names from `ReferenceModule.jl` (**sealed — permission given
+      explicitly by the user in the implementing conversation, 2026-08-04**)
+- [x] 2: deleted `IdentityAndFileStepTest.jl` and unwired it from
+      `ProjecturedKernelTest`
+- [x] 3: docs sweep — nothing to change
+- [x] 4: suites unchanged: base 387/387, visual 49287, domain 140012 pass / 0 fail;
+      kernel keeps its 5 pre-existing "Rule C" failures (a kernel-only-env artefact,
+      not this change); omnetpp-julia presentation 232/232, simulator 5061/5061;
+      inet-julia queuing 202/202
 
 ## Implementation log
 
-(append: permissions granted, deviations, final grep results)
+**Done 2026-08-04**, on branch `tutorial-embeds` (worktree
+`projectured-julia-tutorial`), in one commit.
+
+The survey came out exactly as predicted: three kernel files, their include and
+export lines, and one kernel test. Phase B had already taken the FileProject and
+JsonFile assertions with it, so nothing remained there, and no live guide named
+either step or the `.file(…)` / `.identity(…)` DSL forms they added.
+
+Removing them takes those two `@reference` extension forms with them, which is
+the point — the reference syntax is now closed over steps that a selection
+genuinely carries.
+
+Status: **done**, moves to `plan/done/` once the branch lands on `main`.
