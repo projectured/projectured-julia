@@ -602,6 +602,13 @@ function MarkdownToSyntax(; style::Symbol = :source)
             MarkdownLink          => MarkdownLinkToStyledNode(),
             MarkdownImage         => MarkdownImageToStyledNode(),
             MarkdownRoot          => MarkdownRootToSyntaxNode(),
+            # An embed keeps its marker in *both* styles when this projection
+            # runs alone: a domain projection is the save path, and the save
+            # path is by-marker. Rendering an embed inline is the shared
+            # to-syntax fabric's job (`EmbedToSyntax`), which is what a page
+            # goes through when it is read rather than written.
+            ReferenceStub         => ReferenceStubToMarkdownSyntaxLeaf(),
+            FileDocument          => EmbeddedFileDocumentToMarkdownSyntaxLeaf(),
             Vector{Cell}          => CopyingProjection(),
         )
     end

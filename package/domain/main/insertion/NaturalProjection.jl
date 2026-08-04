@@ -90,6 +90,10 @@ import ..FileSystemModule: FileSystemDocument
 import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..MarkdownToSyntaxModule: MarkdownToSyntax
+import ..MarkdownModule: MarkdownDocument
+import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
+import ..FileProjectModule: FileDocument, ReferenceStub
 
 export NaturalToGraphics, natural_to_syntax_dispatch
 
@@ -107,6 +111,13 @@ function natural_to_syntax_dispatch()
         Pair{Type,Any}[
             JsonDocument       => JsonToSyntax(),
             XmlDocument        => XmlToSyntax(),
+            MarkdownDocument   => MarkdownToSyntax(style = :rendered),
+            # An embed renders as what it embeds: the stub prints the value its
+            # marker evaluated to, the file document prints its content. Both
+            # come *before* the reflection tail, and neither is in a domain's own
+            # table — saving goes through that one and stays by-marker.
+            ReferenceStub      => ReferenceStubToSyntax(),
+            FileDocument       => FileDocumentToSyntax(),
             MathDocument       => MathToSyntax(),
             JuliaDocument      => JuliaToSyntax(),
             SqlDocument        => SqlToSyntax(),
