@@ -41,6 +41,22 @@ const _CATALOG_EDIT_BROKEN = (
     "sql/column_definition/", "sql/where_filter_condition/",
     # @catalog-broken under-typed @reference in a node's backward map (on a click)
     "filesystem/directory/",
+    # Documents that had no atom until the coverage check asked for one, and so
+    # have never been printed or edited standalone before. Three distinct causes,
+    # all of them real gaps rather than test artefacts:
+    #
+    # @catalog-broken layouts and the widget composite: printed through their own
+    #   single-step projection there is no `recursion`, so a child cannot be
+    #   printed and the child's type has no `print_document` method. Nested under
+    #   a parent (how they are always used in anger) the recursion exists and they
+    #   are fine — which is exactly why a bare atom was worth adding.
+    "layout/", "widget/composite/", "widget/reference_inspector/", "graph/layout/",
+    # @catalog-broken bare text spans: `WordWrapping` is block-level and has no
+    #   method for a lone `TextString`/`TextNewline`/`TextLine`.
+    "text/bare_string/", "text/bare_newline/", "text/bare_line/",
+    # @catalog-broken ReferenceStub is a plain `mutable struct <: Document`, not a
+    #   `@document`, so it has no `selection` field for a reader to write.
+    "embed/stub/",
 )
 _catalog_edit_broken(name) =
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
@@ -58,9 +74,35 @@ _catalog_edit_broken(name) =
 #   skipped because the atom still has to be printed and read like any other, and
 #   because "a document that renders empty" is a case the navigator may one day
 #   want an answer for.
+# @catalog-broken the layouts, the widget composite, the bare text spans and the
+#   embed stub: same three causes as the edit set above (no recursion standalone,
+#   no block for the wrapper to wrap, no selection field), which leave the walk
+#   with no caret to seed.
 const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
                              "sql/statement_list/", "sql/where_filter_condition/",
-                             "julia/empty/")
+                             "julia/empty/",
+                             "layout/", "widget/composite/",
+                             "widget/reference_inspector/", "graph/layout/",
+                             "text/bare_string/", "text/bare_newline/",
+                             "text/bare_line/", "embed/stub/")
+# Entries whose PRINTER cannot force its own output. Distinct from the edit set:
+# these fail before any gesture, when the walk reads the cells the printer built.
+# @catalog-broken layouts / widget composite / graph layout: no `recursion` in a
+#   single-step projection, so a child has no `print_document` method.
+# @catalog-broken text/bare_*: `WordWrapping` is block-level and has no method for
+#   a lone span, so the derived `:graphics` variant cannot be forced. The `:text`
+#   variant — the one these atoms exist for — prints fine.
+# @catalog-broken embed/stub: `ReferenceStub` is a plain `mutable struct <:
+#   Document` rather than a `@document`, so it has no `selection` field.
+const _CATALOG_PRINT_BROKEN = ("layout/", "widget/composite/",
+                               "widget/reference_inspector/", "graph/layout/",
+                               "text/bare_string/", "text/bare_newline/",
+                               "text/bare_line/", "embed/stub/")
+_catalog_print_broken(name) =
+    any(p -> occursin(p, name), _CATALOG_PRINT_BROKEN) ?
+        (msg -> occursin("MethodError", msg) || occursin("FieldError", msg) ||
+                occursin("TypeError", msg)) : nothing
+
 _catalog_seed_broken(name)   = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_errs -> true) : nothing
 _catalog_throws_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? (_msg -> true) : nothing
 # a per-state caret step whose selection can't re-apply (same broken entries).
@@ -73,6 +115,9 @@ _run_catalog_tester(::typeof(test_position_navigation), ex::Example) =
                              seed_broken=_catalog_seed_broken(ex.name),
                              throws_broken=_catalog_throws_broken(ex.name),
                              broken=_catalog_nav_state_broken(ex.name))
+_run_catalog_tester(::typeof(test_printer), ex::Example) =
+    test_printer(ex.name, ex.make_document(), ex.make_projection();
+                 broken=_catalog_print_broken(ex.name))
 _run_catalog_tester(::typeof(test_reader), ex::Example) =
     test_reader(ex.name, ex.make_document(), ex.make_projection(); broken=_catalog_edit_broken(ex.name))
 _run_catalog_tester(::typeof(test_repl), ex::Example) =

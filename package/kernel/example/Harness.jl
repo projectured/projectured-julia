@@ -55,6 +55,40 @@ struct AtomicDocument
     make_document       # () -> a fresh document instance
 end
 
+"""
+    force_projected(node, depth = 0) -> nothing
+
+Read every cell under a printed tree, so that whatever the printer deferred is
+actually computed.
+
+A projection prints lazily: it returns a tree of thunks, and the printers run
+when the cells are read. Anything that only inspects a printer's `output` has
+therefore not run the projection, it has run the first step of it. Two callers
+need that difference and got it wrong in opposite directions — the catalog's
+bridge search accepted a projection that throws on the first read, and a
+precompile workload compiles almost nothing until it walks what it printed.
+
+The depth cap guards against cyclic structure, not against size.
+"""
+function force_projected(node, depth::Int = 0)
+    depth > 40 && return nothing
+    node isa ProjecturedKernel.CellModule.AbstractCell &&
+        return force_projected(node[], depth)
+    for field in (:elements, :content, :canvas, :children, :items)
+        hasproperty(node, field) || continue
+        value = getproperty(node, field)
+        value isa ProjecturedKernel.CellModule.AbstractCell && (value = value[])
+        if value isa AbstractVector
+            for child in value
+                force_projected(child, depth + 1)
+            end
+        elseif value !== nothing && !(value isa AbstractString)
+            force_projected(value, depth + 1)
+        end
+    end
+    nothing
+end
+
 function write_example_image(example::Example, filename;
                               width=nothing, height=nothing,
                               max_width=1800, max_height=1200, kwargs...)

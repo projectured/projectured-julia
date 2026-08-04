@@ -37,7 +37,7 @@ include("LlmFake.jl")         # FakeLlm — canned-reply test double (no network
 include("LlmScripted.jl")     # ScriptedLlm + scripted-round builders
 include("BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
 
-export Example, AtomicDocument
+export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run

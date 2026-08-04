@@ -24,32 +24,6 @@
 
 using PrecompileTools: @setup_workload, @compile_workload
 
-# Read every cell the printer produced. The printer alone builds thunks; the
-# compilation this file exists for happens when they are read, so a workload
-# that prints without walking compiles almost nothing.
-#
-# An atom is minimal by construction, so walking one completely is cheap — the
-# "walking the whole output is too expensive" problem belongs to real documents
-# and does not arise here. The depth cap is for cyclic structure, not size.
-function _force_projected(node, depth = 0)
-    depth > 40 && return nothing
-    node isa ProjecturedKernel.CellModule.AbstractCell &&
-        return _force_projected(node[], depth)
-    for f in (:elements, :content, :canvas, :children, :items)
-        hasproperty(node, f) || continue
-        v = getproperty(node, f)
-        v isa ProjecturedKernel.CellModule.AbstractCell && (v = v[])
-        if v isa AbstractVector || v isa ProjecturedBase.CollectionModule.CellVector
-            for c in v
-                _force_projected(c, depth + 1)
-            end
-        elseif v !== nothing && !(v isa AbstractString)
-            _force_projected(v, depth + 1)
-        end
-    end
-    nothing
-end
-
 """
     precompile_atoms(atoms) -> Int
 
@@ -74,7 +48,7 @@ function precompile_atoms(atoms)
     for atom in atoms
         try
             iomap = print_document(projection, nothing, atom.make_document(), context)
-            _force_projected(get_iomap_output(iomap))
+            force_projected(get_iomap_output(iomap))
             rendered += 1
         catch
             # Swallowed on purpose: a precompile workload must not fail a build.

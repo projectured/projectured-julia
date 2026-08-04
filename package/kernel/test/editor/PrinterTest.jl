@@ -129,13 +129,22 @@ end
 
 # One @test per forced cell, so the test count reflects the full reactive
 # walk rather than collapsing to a single isempty(errors) assertion.
-function test_printer(label, document, projection)
+#
+# `broken` is the escape hatch `test_reader` and `test_repl` already have: a
+# `message -> Bool` predicate recognising a known failure signature, so it is
+# recorded `@test_broken` rather than `@test`. A *different* failure on the same
+# example still surfaces as an unmarked `Fail`, which is the point. The printer
+# went without one until a catalog atom failed here for a reason worth naming
+# rather than worth hiding.
+function test_printer(label, document, projection; broken=nothing)
     @testset "$label" begin
+        mark(ok, msg) = (broken !== nothing && !ok && broken(msg)) ?
+                        (@test_broken ok) : (@test ok)
         iomap = try
             print_document(projection, document)
         catch e
             @warn "[$label] print_document threw: $e"
-            @test false
+            mark(false, "print_document threw: $e")
             return
         end
         status = WalkStatus()
@@ -143,7 +152,7 @@ function test_printer(label, document, projection)
         _walk!(iomap, Set{UInt64}(), errors, status;
                oncell = (ok, msg) -> begin
                    ok || @warn "[$label] $msg"
-                   @test ok
+                   mark(ok, msg)
                end)
         if status.depth_limit_hit
             @info "[$label] walk hit depth limit ($_WALK_MAX_DEPTH) at $(status.visited_count) nodes (max_depth=$(status.max_depth))"
