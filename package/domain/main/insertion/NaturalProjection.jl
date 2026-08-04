@@ -28,7 +28,9 @@ Two recursion fabrics, tied together by the four-function recursion contract:
 - **the to-graphics dispatcher** — the returned `RecursiveProjection(
   TypeDispatchingProjection(…))`. It routes layout combinators and widget nodes
   to their direct graphics renderers (which recurse their embedded content back
-  through this same dispatcher), prose `TextDocument` to a text→graphics chain,
+  through this same dispatcher), a `GraphGraph` to the two graph stages (whose
+  vertex content re-enters here, so a diagram node may be a widget or prose or a
+  table), prose `TextDocument` to a text→graphics chain,
   and **everything else** (`Any`) to `syntax_to_graphics =
   RecursiveProjection(natural_to_syntax) → SyntaxToText → Text→Graphics`. The
   `Any` catch-all means the renderer never errors — it degrades to a reflected
@@ -95,6 +97,9 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot
 import ..MarkdownToLayoutModule: MarkdownRootToVerticalLayout
 import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
 import ..FileProjectModule: FileDocument, ReferenceStub
+import ..GraphModule: GraphGraph
+import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
+import ..GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas
 
 export NaturalToGraphics, natural_to_syntax_dispatch
 
@@ -189,6 +194,13 @@ function NaturalToGraphics(; measure::Function,
                                                 VerticalLayoutToGraphicsCanvas()),
             ReferenceStub => ReferenceStubToSyntax(unforced = :prose),
             FileDocument  => FileDocumentToSyntax(unforced = :prose),
+            # A graph is a diagram, not a syntax tree: it goes through its own two
+            # stages (size and place, then draw). No `NestingProjection` here — the
+            # stages take *this* renderer as their recursion, so a vertex's content
+            # is whatever it is, rendered the same way it would be anywhere else.
+            # That is what lets a diagram node be a widget, or prose, or a table.
+            GraphGraph    => ChainingProjection(GraphGraphToGraphLayout(),
+                                                GraphLayoutToGraphicsCanvas()),
         ],
         Pair{Type,Any}[
             # The Text placeholder / name buffer are `TextDocument`s, but they are not

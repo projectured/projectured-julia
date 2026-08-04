@@ -142,4 +142,40 @@ end
     @test is_reference_equal(strip_reference_types(back), strip_reference_types(@reference(g, vertices[1])))
 end
 
+@testset "the natural renderer draws a graph as a diagram" begin
+    # A diagram is one of the things "almost any document" has to cover, and the
+    # vertex content is where it matters: the graph stages take the natural
+    # renderer as their recursion, so a node may be anything the renderer knows —
+    # here a widget column of an icon-less label pair, which is what a module in a
+    # network diagram is.
+    renderer = NaturalToGraphics(measure = (text, _font) -> (length(text) * 10, 20))
+    node(name) = GraphVertex(VerticalLayout(Any[WidgetLabel(Point2D(0, 0), name)]; gap = 2))
+    a, b = node("source"), node("sink")
+    graph = GraphGraph(Any[a, b], Any[GraphEdge(a, b)])
+
+    output = print_document(renderer, graph).output
+    @test output isa GraphicsCanvas
+    # A diagram, not a syntax tree: the vertices are placed boxes and the edge is
+    # drawn between them. Reflected `GraphGraph(…)` text would mean the `Any`
+    # fallback caught it.
+    elements = collect(output.elements)
+    @test count(e -> e isa GraphicsRect, elements) >= 2
+    @test any(e -> e isa GraphicsPolyline, elements)
+
+    # The widget vertex really went through the widget renderer.
+    text = String[]
+    pending, seen = Any[output], Set{UInt64}()
+    while !isempty(pending)
+        n = pop!(pending)
+        n isa AbstractCell && (n = n[])
+        n === nothing && continue
+        objectid(n) in seen && continue
+        push!(seen, objectid(n))
+        n isa GraphicsCanvas ? append!(pending, collect(n.elements)) :
+            n isa GraphicsText && push!(text, string(n.text))
+    end
+    @test "source" in text
+    @test "sink" in text
+end
+
 end # test_graph
