@@ -580,21 +580,39 @@ the registry shape before the big one.
 - [x] Verified: linklayer 414 → 423 pass (exactly the new assertions), full
       `test/runtests.jl` 2317 pass, 0 failures.
 
-### P2 — projectured-julia build + bench (4 files) · recipe 7b
+### P2 — projectured-julia build + bench (4 files) · recipe 7b — **DONE**
 
-- [ ] Promote `Builder.jl`'s `ProjecturedBuilder` to a real sub-package so
-      `using ProjecturedBuilder` works without `include`.
-- [ ] Add the `logfile` kwarg to `build_executable`; add `DEFAULT_JSON_APP` and
-      `WORKBENCH_APP` specs.
-- [ ] Delete `Build.jl` and `regenerate.sh`.
-- [ ] `bench/` → `ProjecturedBench` exporting `colorbench()`, `fanout_report(name)`
-      and `walk`.
+- [x] `ProjecturedBuilder` promoted to a package at `package/executable/builder/`,
+      added to the root environment. `using ProjecturedSdl, ProjecturedBuilder`
+      is now the whole setup.
+- [x] `logfile` kwarg on `build_executable` (default `nothing` — an interactive
+      caller should see the output; the scripts hard-coded a redirect).
+- [x] Named specs — **as functions, not constants**: `default_json_app(backend)`
+      and `workbench_app(backend)`. A constant would have to name `SdlBackend`,
+      making the builder depend on ProjecturedSdl and undoing the reflection
+      design that keeps it backend-agnostic.
+- [x] Two fixes the move forced: `exe_dir` defaulted to `@__DIR__`, now one level
+      deeper → `EXECUTABLE_DIR`; and the compile's `Pkg.activate` used to strand
+      the caller's REPL in the app environment → previous project restored in a
+      `finally`.
+- [x] Delete `Build.jl` and `regenerate.sh`; README rewritten.
+- [x] `bench/` → `ProjecturedBench` with `colorbench()`, `fanout_report(name)`,
+      `walk_cells` (not `walk` — ambiguous next to the kernel's `walk_document`
+      once it is an export). Both now return their measurements as well as
+      printing.
+- [x] **Bit-rot found and fixed:** `fanout.jl` read `length(cell.dependents)`, but
+      that field became `Union{Nothing,Vector{WeakRef}}` allocated on demand, so
+      it threw `MethodError` on any example with an unread cell. Nothing ran it,
+      so nothing caught it.
+- [x] Verified: `workbench_app(SdlBackend)` generates the same `AppConfig.jl` as
+      `regenerate.sh`'s spec; active project survives the call; `colorbench()`
+      output unchanged; workbench max fanout still 104.
 
-### P3 — projectured-julia executable (3 lines) · recipe 7b
+### P3 — projectured-julia executable (3 lines) · recipe 7b — **DONE**
 
-- [ ] Delete `main()` and the `PROGRAM_FILE` guard from `ProjecturedExecutable.jl`.
-      Keep both `julia_main` methods — PackageCompiler resolves the app entry by
-      that name (§8).
+- [x] Deleted `main()`, the `PROGRAM_FILE` guard, and `main` from the export list.
+      Both `julia_main` methods kept — PackageCompiler resolves the app entry by
+      that name (§8). Verified `--help`/`-v` → 0, unknown flag → 1 with usage.
 
 ### P4 — omnetpp-julia simulator examples (6 files) · recipe 7b
 
