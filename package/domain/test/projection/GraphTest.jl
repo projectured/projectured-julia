@@ -204,4 +204,31 @@ end
     @test "sink" in text
 end
 
+@testset "a graph canvas declares the extent of its layout" begin
+    # A graph used to report 0x0 no matter how big it was, so every container
+    # that asked how much room it needed reserved none and the graph drew over
+    # whatever followed it. Callers worked around it by ESTIMATING a height from
+    # the node count — a guess that cannot tell a tall thin chain from a wide
+    # flat mesh, and the tall chain overlapped the prose under it.
+    a, b = GraphVertex("a"), GraphVertex("b")
+    edge = GraphEdge(a, b)
+    layout = GraphLayout(; vertex_layouts = CellVector(Any[VertexLayout(a, 10, 10, 80, 30),
+                                                          VertexLayout(b, 10, 500, 80, 30)]),
+                           edge_layouts   = CellVector(Any[EdgeLayout(edge, [(50, 40), (50, 500)])]))
+    canvas = print_document(GraphLayoutToGraphicsCanvas(), layout).output
+    # Tall enough for the lower box (y 500 + h 30) plus the box padding and ring.
+    @test Int(canvas.h[]) >= 530
+    @test Int(canvas.w[]) >= 90
+
+    # And it FOLLOWS the layout rather than being computed once: a topology
+    # exists only after a run has built the network, so a graph is routinely
+    # empty when first drawn and gets its nodes afterwards.
+    getfield(layout.vertex_layouts[2], :y)[] = 900
+    @test Int(canvas.h[]) >= 930
+
+    # A route that bows outside every box it connects still counts.
+    push!(layout.edge_layouts, EdgeLayout(edge, [(50, 40), (4000, 40)]))
+    @test Int(canvas.w[]) >= 4000
+end
+
 end # test_graph

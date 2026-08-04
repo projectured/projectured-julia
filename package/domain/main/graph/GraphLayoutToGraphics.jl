@@ -203,7 +203,51 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     elements = ComputedCellVector(() -> drawn[][1])
     node_elements = ComputedCell(() -> drawn[][2])
 
-    canvas = GraphicsCanvas(elements, layout_none)
+    # How much room the graph needs, read off the layout that placed it.
+    #
+    # Without this the canvas declares 0×0, and every container that asks a
+    # child how much room it wants is told "none": an `AnchoredLayout` around a
+    # graph then reports zero height, the vertical layout above it reserves
+    # nothing, and the graph draws straight over whatever follows it. That is
+    # the same wrong answer for four nodes as for four hundred, which is why
+    # callers ended up ESTIMATING a height from the node count — a guess that
+    # cannot tell a tall thin chain from a wide flat mesh.
+    #
+    # A cell rather than a number, because the layout is reactive and often
+    # arrives late: a topology exists only once a run has built the network, so
+    # the graph is empty when first drawn and gets its nodes afterwards. The
+    # extent has to recompute when it does, or its container reserves room for
+    # the empty version for the rest of the session.
+    #
+    # Read from the layout rather than by walking the drawn elements: the
+    # placement is what decides the size, and measuring elements would need a
+    # text-measuring function this stage has no business holding.
+    extent = ComputedCell(function ()
+        right = bottom = 0
+        for vertex_layout in layout.vertex_layouts
+            vertex_layout isa VertexLayout || continue
+            # The node BOX is the vertex inflated by `_PAD` on every side, and a
+            # highlight ring sits outside that — both are painted, so both count.
+            margin = _PAD + _HIGHLIGHT_GAP + _HIGHLIGHT_W
+            right  = max(right,  Int(vertex_layout.x) + Int(vertex_layout.w) + margin)
+            bottom = max(bottom, Int(vertex_layout.y) + Int(vertex_layout.h) + margin)
+        end
+        # A route may bow outside every box it connects, and an edge label sits
+        # on the route, so the waypoints count too.
+        for edge_layout in layout.edge_layouts
+            edge_layout isa EdgeLayout || continue
+            for point in edge_layout.route
+                right  = max(right,  Int(point[1]))
+                bottom = max(bottom, Int(point[2]))
+            end
+        end
+        (right, bottom)
+    end)
+
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                            ComputedCell(() -> Int32(extent[][1])),
+                            ComputedCell(() -> Int32(extent[][2])),
+                            elements, layout_none, true, Cell(nothing))
     GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps, node_elements)
 end
 
