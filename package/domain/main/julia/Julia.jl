@@ -305,6 +305,19 @@ block.
 end
 
 """
+A module definition `module Name … end`; `bare` distinguishes `baremodule`.
+`body` is a `JuliaBlock` of the module's top-level statements.
+
+A module is the unit a `.jl` file *is*, which is why it is modeled: a document
+that projects to a complete, loadable file has to be able to say `module`.
+"""
+@document struct JuliaModuleDef <: JuliaDocument
+    name::String
+    body::Document
+    bare::Bool = false
+end
+
+"""
 A subtype expression `lhs <: rhs`. Distinct from `JuliaBinaryOp`
 because `<:` is not a runtime operator — the parser emits it as
 `Expr(:<:, lhs, rhs)` and it appears in type headers, not in

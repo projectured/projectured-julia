@@ -28,8 +28,9 @@ import ..JuliaModule: JuliaDocument,
                       JuliaAnonymousTypeAnnotation, JuliaEmpty,
                       JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaInsertion, _julia_operator_string
-import ..TextModule: TextString
+                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef,
+                      JuliaInsertion, _julia_operator_string
+import ..TextModule: TextString, hinted_text
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
@@ -38,7 +39,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
-import ..ProjectionTemplateModule: var"@projection_template", project, collection
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, filename
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
@@ -56,7 +57,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
-       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode,
+       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefToSyntaxNode,
        ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
        JuliaToSyntax
 
@@ -268,6 +269,28 @@ end
         # emits a "\n" after the last field; no leading "\n" here or
         # a blank line opens up before `end`.
         SyntaxLeaf(TextString("end", p.keyword_style)),
+    ])
+
+# ── JuliaModuleDefToSyntaxNode ─────────────────────────────────────────────
+#
+# The body is a `JuliaBlock`, so it indents and supplies its own surrounding
+# newlines — the same shape `JuliaStructToSyntaxNode` relies on, and the reason
+# neither node writes a newline before `end`.
+
+@projection struct JuliaModuleDefToSyntaxNode
+    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    name_style::ImmutableCell{DStyleText}    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaModuleDefToSyntaxNode JuliaModuleDef (p, m) ->
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString(() -> m.bare ? "baremodule " : "module ", p.keyword_style)),
+        SyntaxLeaf(bound(:name, String,
+                         hinted_text(() -> m.name, () -> isempty(m.name),
+                                     "enter module name", p.name_style))),
+        project(:body),
+        SyntaxLeaf(TextString(() -> "end # module " * m.name, p.keyword_style)),
     ])
 
 # ── JuliaSubtypeToSyntaxNode ───────────────────────────────────────────────
@@ -699,6 +722,7 @@ function JuliaToSyntax()
         JuliaIf              => JuliaIfToSyntaxNode(),
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
         JuliaUsing           => JuliaUsingToSyntaxNode(),
+        JuliaModuleDef       => JuliaModuleDefToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
         # A cross-file reference — either as a load-produced stub or
         # as an embedded FileDocument child — renders as a

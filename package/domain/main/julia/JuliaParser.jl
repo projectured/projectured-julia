@@ -18,7 +18,7 @@ Some constructs the `Expr` AST collapses are mapped to a default:
 - `begin … end` parses to a block, so it becomes `JuliaBlock` (never `JuliaBegin`).
 
 Constructs with no node in the domain (short-circuit `&&`/`||`, `where`, keyword
-args, splats, broadcast, string interpolation, structs, macros, modules) raise a
+args, splats, broadcast, string interpolation) raise a
 clear error rather than being silently dropped.
 """
 module JuliaParserModule
@@ -31,7 +31,7 @@ import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, Ju
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaUsing, JuliaLambda, JuliaDocument
+    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef, JuliaDocument
 export juliaparse, juliaparse_file
 
 # ── Operator classification ───────────────────────────────────────────────────
@@ -211,6 +211,16 @@ function _convert_head(::Val{:struct}, x::Expr)
     header  = convert_expr(x.args[2])
     body    = convert_expr(x.args[3])
     JuliaStruct(mutable, header, body)
+end
+
+# `module Name … end` → `Expr(:module, true, name, body)`;
+# `baremodule` sets the flag false (the flag is "include the standard preamble",
+# so a bare module is `false`).
+function _convert_head(::Val{:module}, x::Expr)
+    standard = x.args[1]::Bool
+    name = x.args[2]
+    name isa Symbol || error("unsupported module name: $(repr(name))")
+    JuliaModuleDef(String(name), convert_expr(x.args[3]), !standard)
 end
 
 # `A <: B` — outside a type header this could be a runtime test, but
