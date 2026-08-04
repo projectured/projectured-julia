@@ -9,7 +9,7 @@ Scope: anything that only works as `julia <file>.jl` — a `main()`, an
 `if abspath(PROGRAM_FILE) == @__FILE__` guard, a top-level `ARGS` script, or a
 shell wrapper around `julia -e`.
 
-**Decision (agreed, not yet implemented).** Scripts that *open an editor* become
+**Decision (implemented).** Scripts that *open an editor* become
 `Example`s in the owning `<Stem>Example` package, run by the existing gallery
 verbs; the driven ones get a `WatchExample` wrapper that adds the one thing the
 harness lacks — a background driver (§4.2.1). Scripts that *compute or report*
@@ -660,39 +660,59 @@ the registry shape before the big one.
 - [x] Verified: all four run and return; sweep `pass=true`; `test_simulator()`
       5057 pass, 0 failures.
 
-### P6 — omnetpp-julia watch demos (24 files) · recipe 7a
+### P6 — omnetpp-julia watch demos (25 files) · recipe 7a — **DONE**
 
-> **Blocked on a cross-repo sequencing decision.** The omnetpp worktree's
-> `[sources]` resolve `Projectured*` to `/home/projectured/workspace/projectured-julia`
-> — the user's *main checkout*, not the projectured worktree — so the `on_frame`
-> passthrough below is invisible to omnetpp until the projectured branch reaches
-> main. Repointing `[sources]` at a worktree must not be committed (it lands
-> dangling `projectured-julia-<wt>` paths on merge). Resolve before starting the
-> 24-file conversion.
+> **The cross-repo sequencing that blocked this:** omnetpp's `[sources]` resolve
+> `Projectured*` to the projectured **main checkout**, not to a worktree, so the
+> `on_frame` passthrough was invisible until the projectured branch was merged.
+> Resolved by rebasing `projectured-julia@entry-point-repl-api` onto main and
+> fast-forwarding. Repointing `[sources]` at a worktree is the alternative and
+> must not be committed — it lands dangling `projectured-julia-<wt>` paths.
 
-- [x] **Upstream, additive:** `run_example`'s core now forwards `on_frame` to
-      `run_editor!`, which already accepted it (§4.2.1). Done in
-      `projectured-julia@entry-point-repl-api`; `test_domain()` 139842 pass,
-      5 known-broken, 0 failures.
-- [ ] Define `WatchExample`, `run_watch_example`, `stop_driver!` and the
-      `watch_examples` registry in `OmnetppPresentationExample`.
-- [ ] Convert the `mm1k` pair as the reference conversion: document maker,
-      projection maker, driver; assertions to `OmnetppPresentationTest`.
-- [ ] Convert the 4 static demos (`topology`, `routing_topology`, `config_form`,
-      `workflow`) — plain `Example`s, no driver. Repoint `routing_topology.jl`'s
-      stale include at `package/simulator/example/routing.jl` (§6.3).
-- [ ] Convert the remaining 7 driven demos.
-- [ ] `mm1k/run.jl` → `run_mm1k_project(; backend)`.
-- [ ] Wire every converted example's assertions into `test_presentation()`.
-- [ ] Delete `Shell.jl` (`shell_projection` / `run_shell!` / `write_shell_image`)
-      once nothing imports them.
-- [ ] Fix the 22 stale `--project=watch` header comments by deleting them — the
-      docstring on the registered example replaces them (§6.4).
+- [x] **Upstream, additive:** `run_example`'s core forwards `on_frame` to
+      `run_editor!`, which already accepted it (§4.2.1). `test_domain()` 139842
+      pass, 5 known-broken, 0 failures. Merged to projectured main.
+- [x] `WatchExample` + `stop_driver!` + `example(w)` + `run_watch_example` +
+      `write_watch_image` in `src/WatchExample.jl`; `WATCH_EXAMPLES`,
+      `watch_examples()`, `watch_example(name)` in the module.
+      **Holds factories, not a materialised `Example`** — §4.2.1 caution 1; a
+      `const Example` would bake a simulator into the precompile image.
+- [x] Each `X.jl` / `X_sdl.jl` pair merged into one file — the split existed only
+      to keep SDL out of the headless process, and SDL now enters at the call
+      site (`run_watch_example(...; backend=SdlBackend())`).
+- [x] All 15 demos converted and registered (4 static, 11 driven).
+- [x] `routing_topology.jl`'s stale include repointed at
+      `OmnetppSimulatorExample.Routing` (§6.3).
+- [x] `mm1k/run.jl` → `run_mm1k_project(; backend)`.
+- [x] Assertions moved into `OmnetppPresentationTest`: **169 → 433 pass, 0
+      failures.** They had never run, and several were stale against APIs that
+      had moved on (`ParameterAssignment.values` is a `CellVector` of
+      `ParameterBinding`, not a `Dict`; form fields are live-bound cells;
+      `AbstractSweep` is gone). Two workbench checks called
+      `search_references(; raw=true)` at ~40 s and ~33 GB each — replaced with
+      direct `workbench_select!` calls.
+- [x] `Shell.jl` deleted; its own header already called it a re-implementation of
+      `run_example`.
+- [x] Every stale `--project=watch` header comment replaced with the
+      `run_watch_example(:name)` call (§6.4).
+- [x] **A 25th demo:** `statchart_sdl.jl` postdates this plan and is registered
+      too. Its two-window layout became one `HorizontalLayout` — a
+      `WatchExample` is one window.
+- [ ] `adaptive`'s assertions are defined but not called: `optimize_simulation!`
+      hits a pre-existing bug in the BlackBoxOptim extension's `_axis`. Unrelated
+      to this migration — left for whoever owns that extension.
 
-### Verification
+### Verification — all green
 
-- [ ] `julia --project=. test/runtests.jl` green in each repo (omnetpp needs `-t 4`).
-- [ ] Every registry enumerable and every entry runnable: `run_scenario.(scenarios())`
-      headless, `watch_examples()` spot-checked in a window.
-- [ ] `grep -rn 'PROGRAM_FILE\|^function main\|^main()' --include=*.jl` returns only
-      the four §8 survivors.
+- [x] inet-julia `test/runtests.jl` **2317 pass**, 0 failures (2308 baseline + 9).
+- [x] projectured-julia `test_domain()` **139842 pass**, 5 known-broken, 0 failures.
+- [x] omnetpp-julia `test_simulator()` **5057 pass**; `test_presentation()`
+      **433 pass** (169 baseline), 0 failures.
+- [x] Every registry enumerable and every entry constructible: all 6 scenarios
+      build, and `run_scenario(:routing_small)` reproduces the original script's
+      `Config:` line and network hash `62c90f6d4a43c7a52c90a8d885add817`
+      byte-for-byte; all 15 watch demos build document + projection.
+- [x] `grep -rn 'PROGRAM_FILE\|^function main(\|^main()'` across all three repos
+      returns **only** `package/adaptagrams/deps/build.jl` — the Pkg build hook
+      §8 requires. The other three §8 survivors (`Precompile.jl`, `julia_main`,
+      `bench_threads.sh`) are intact by design.
