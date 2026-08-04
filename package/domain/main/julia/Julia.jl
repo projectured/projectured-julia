@@ -415,12 +415,144 @@ An if-else expression.
 end
 
 """
-A function definition.
+A splatted argument — `f(xs...)`, `(a, b...)`. `value` is what is
+splatted; the `...` is postfix, which is why this is a node of its own
+rather than a `JuliaUnaryOp`.
+"""
+@document struct JuliaSplat <: JuliaDocument
+    value::Document
+end
+
+"""
+A broadcast call — `f.(a, b)`. Structurally a call whose dot means
+"apply elementwise", and written as one, so it keeps `callee` and
+`arguments` rather than reusing `JuliaFieldAccess` (which is what the
+same `Expr(:.)` head means when its second argument is a name).
+"""
+@document struct JuliaBroadcast <: JuliaDocument
+    callee::Document
+    arguments::CellVector
+end
+
+"""
+An interpolated string — `"a \$(x) b"`. `parts` alternates literal text
+(`JuliaString`) with the expressions between; a part that is not a
+`JuliaString` is rendered inside `\$(…)`.
+"""
+@document struct JuliaStringInterpolation <: JuliaDocument
+    parts::CellVector = CellVector()
+end
+
+"""
+One literal run inside an interpolated string. Distinct from
+`JuliaString` because it is already inside the quotes: it prints its
+text and nothing else.
+"""
+@document struct JuliaStringChunk <: JuliaDocument
+    text::String
+end
+
+"""
+One interpolated expression inside a string — the `\$(…)` part.
+"""
+@document struct JuliaInterpolation <: JuliaDocument
+    value::Document
+end
+
+"""
+A `where` clause — `f(x::T) where {T}`, `Vector{T} where T`.
+`parameters` are the type variables it introduces; the braces are
+always written, which is the form that stays readable when there is
+more than one.
+"""
+@document struct JuliaWhere <: JuliaDocument
+    body::Document
+    parameters::CellVector = CellVector()
+end
+
+"""
+A comprehension or a generator — `[f(i) for i in r]`, `Any[…]`,
+`(f(i) for i in r)`.
+
+`element_type` is the type before the bracket (`JuliaEmpty` when there
+is none) and `brackets` distinguishes a comprehension, which builds a
+collection, from a generator, which does not.
+"""
+@document struct JuliaComprehension <: JuliaDocument
+    expression::Document
+    iterators::CellVector
+    element_type::Document = JuliaEmpty()
+    brackets::Bool = true
+    condition::Document = JuliaEmpty()
+end
+
+"""
+A `do` block — `map(xs) do x … end`. `call` is the call the block is
+attached to; `parameters` and `body` are the function it passes,
+written out rather than kept as a lambda, because `do` writes them
+without the arrow a lambda would.
+"""
+@document struct JuliaDo <: JuliaDocument
+    call::Document
+    parameters::CellVector
+    body::Document
+end
+
+"""
+A `let` block — `let x = 1, y = 2 … end`. `bindings` are the
+assignments it opens with (possibly none, for a bare `let … end`).
+"""
+@document struct JuliaLet <: JuliaDocument
+    bindings::CellVector
+    body::Document
+end
+
+"""
+A named tuple — `(; a = 1, b = 2)`. Distinct from `JuliaTuple` because
+the leading `;` and the `name = value` entries are not what a
+positional tuple writes.
+"""
+@document struct JuliaNamedTuple <: JuliaDocument
+    entries::CellVector = CellVector()
+end
+
+"""
+A function definition. `result_type` is the declared return type and
+`where_clause` a [`JuliaWhereParameters`](@ref); both are `JuliaEmpty`
+when absent, and print as nothing.
+
+The `where` lives here rather than wrapping the whole definition in a
+[`JuliaWhere`](@ref), because that is where it is written: after the
+parameter list, not after `end`. It is a single document rather than a
+collection because **`params` is this struct's one vector field** — a
+`@document` with two of them loses the sugar that wraps a raw `Vector`
+into a `CellVector`, and `params` would stop being a place the
+selection walker can descend.
 """
 @document struct JuliaFunction <: JuliaDocument
     name::Document
     params::CellVector
     body::Document
+    result_type::Document = JuliaEmpty()
+    where_clause::Document = JuliaEmpty()
+end
+
+"""
+The type variables a `where` introduces, as one document — `where {T,
+S}`. Its own node so a function's signature can carry it in a single
+field (see [`JuliaFunction`](@ref)).
+"""
+@document struct JuliaWhereParameters <: JuliaDocument
+    parameters::CellVector
+end
+
+"""
+A bare function declaration — `function f end`, which introduces a
+name without a method. Its own node because it has no parameter list
+at all, which is not the same as an empty one.
+"""
+@document struct JuliaFunctionDeclaration <: JuliaDocument
+    name::Document
 end
 
 # ── Utility ──────────────────────────────────────────────────────────────────

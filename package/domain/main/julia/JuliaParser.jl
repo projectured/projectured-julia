@@ -31,7 +31,11 @@ import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, Ju
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef, JuliaDocument
+    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef, JuliaDocument,
+    JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
+    JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
+    JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration,
+    JuliaWhereParameters
 export juliaparse, juliaparse_file
 
 # ── Operator classification ───────────────────────────────────────────────────
@@ -225,8 +229,13 @@ end
 
 # `A <: B` — outside a type header this could be a runtime test, but
 # most sightings are in headers. Kept as a dedicated document type.
+#
+# The ONE-argument form is the anonymous bound `Vector{<:Real}`, which is the
+# same operator with nothing on its left; `JuliaEmpty` on the left is what says
+# so, and the printer drops the space it would otherwise leave.
 _convert_head(::Val{:<:}, x::Expr) =
-    JuliaSubtype(convert_expr(x.args[1]), convert_expr(x.args[2]))
+    length(x.args) == 1 ? JuliaSubtype(JuliaEmpty(), convert_expr(x.args[1])) :
+                          JuliaSubtype(convert_expr(x.args[1]), convert_expr(x.args[2]))
 
 # Short-circuit operators — Julia's parser emits `&&`/`||` as their
 # own heads rather than as `Expr(:call, :&&, …)`, so a generic binary
@@ -246,10 +255,21 @@ end
 
 # ── Assignment (plain and compound) ──────────────────────────────────────────
 
-_convert_head(::Val{:(=)}, x::Expr) =
-    JuliaAssignment(:(=), convert_expr(x.args[1]), convert_expr(x.args[2]))
+function _convert_head(::Val{:(=)}, x::Expr)
+    target = x.args[1]
+    value = x.args[2]
+    # Julia wraps the body of a short-form definition WITH a `where` in a block
+    # (`f(x::T) where {T} = x` becomes `… = begin x end`) but not one without.
+    # Unwrap it, so both forms read the same way they were written.
+    if target isa Expr && target.head === :where && value isa Expr && value.head === :block
+        statements = [s for s in value.args if !(s isa LineNumberNode)]
+        length(statements) == 1 && (value = statements[1])
+    end
+    JuliaAssignment(:(=), convert_expr(target), convert_expr(value))
+end
 
-for op in (:(+=), :(-=), :(*=), :(/=))
+for op in (:(+=), :(-=), :(*=), :(/=), :(%=), :(^=), :(÷=),
+           :(|=), :(&=), :(⊻=), :(<<=), :(>>=))
     @eval _convert_head(::Val{$(QuoteNode(op))}, x::Expr) =
         JuliaAssignment($(QuoteNode(op)), convert_expr(x.args[1]), convert_expr(x.args[2]))
 end
@@ -320,8 +340,17 @@ _convert_head(::Val{:block}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 # `:block` means — a sequence of statements — and converts the same way.
 _convert_head(::Val{:toplevel}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 
-_convert_head(::Val{:tuple}, x::Expr) =
+function _convert_head(::Val{:tuple}, x::Expr)
+    # `(; a = 1)` puts its entries in a `:parameters` child; `(a = 1,)` writes
+    # them as assignments. Either way it is a named tuple, not a positional one.
+    if length(x.args) == 1 && x.args[1] isa Expr && x.args[1].head === :parameters
+        return convert_expr(x.args[1])
+    end
+    if !isempty(x.args) && all(a -> a isa Expr && (a.head === :(=) || a.head === :kw), x.args)
+        return JuliaNamedTuple(JuliaDocument[convert_expr(e) for e in x.args])
+    end
     JuliaTuple(JuliaDocument[convert_expr(e) for e in x.args])
+end
 
 _convert_head(::Val{:vect}, x::Expr) =
     JuliaArray(JuliaDocument[convert_expr(e) for e in x.args])
@@ -341,11 +370,114 @@ function _convert_head(::Val{:(::)}, x::Expr)
     end
 end
 
+# One head, two meanings: `a.b` names a field, `f.(x)` broadcasts a call. The
+# second argument tells them apart — a name, or the argument tuple.
 function _convert_head(::Val{:.}, x::Expr)
     field = x.args[2]
+    if field isa Expr && field.head === :tuple
+        return JuliaBroadcast(convert_expr(x.args[1]),
+                              JuliaDocument[convert_expr(a) for a in field.args])
+    end
     field isa QuoteNode || error("unsupported field access: $(repr(field))")
     return JuliaFieldAccess(convert_expr(x.args[1]), JuliaIdentifier(String(field.value)))
 end
+
+# ── The rest of ordinary Julia ───────────────────────────────────────────────
+
+_convert_head(::Val{:...}, x::Expr) = JuliaSplat(convert_expr(x.args[1]))
+
+# `a < b < c` → Expr(:comparison, a, :<, b, :<, c). Folded left into ordinary
+# binary operations: it prints back exactly as written, which is what a syntax
+# model owes. (Julia's own meaning — `a < b && b < c` — differs from the folded
+# form's, so this is a rendering, not a semantics.)
+function _convert_head(::Val{:comparison}, x::Expr)
+    result = convert_expr(x.args[1])
+    for index in 2:2:(length(x.args) - 1)
+        result = JuliaBinaryOp(x.args[index], result, convert_expr(x.args[index + 1]))
+    end
+    result
+end
+
+# `"a $(x) b"` -> Expr(:string, "a ", :x, " b"). A literal chunk stays a string;
+# everything else is an expression to be written back inside `$(…)`.
+_convert_head(::Val{:string}, x::Expr) =
+    JuliaStringInterpolation(JuliaDocument[_convert_string_part(part) for part in x.args])
+
+# Inside the quotes a literal run is text, not a string literal — it has no
+# quotes of its own — and everything else is written back as an interpolation.
+_convert_string_part(part::AbstractString) = JuliaStringChunk(String(part))
+_convert_string_part(part) = JuliaInterpolation(convert_expr(part))
+
+# `f(x) where {T}` → Expr(:where, body, T…). Nested `where`s flatten, because
+# `where {T} where {S}` and `where {T, S}` mean the same thing and one of them
+# reads.
+function _convert_head(::Val{:where}, x::Expr)
+    body = x.args[1]
+    parameters = Any[x.args[2:end]...]
+    while body isa Expr && body.head === :where
+        prepend!(parameters, body.args[2:end])
+        body = body.args[1]
+    end
+    JuliaWhere(convert_expr(body),
+               JuliaDocument[convert_expr(p) for p in parameters])
+end
+
+# `[f(i) for i in r]` → Expr(:comprehension, Expr(:generator, f(i), i = r)).
+_convert_head(::Val{:comprehension}, x::Expr) = _comprehension(x.args[1], JuliaEmpty(), true)
+_convert_head(::Val{:typed_comprehension}, x::Expr) =
+    _comprehension(x.args[2], convert_expr(x.args[1]), true)
+_convert_head(::Val{:generator}, x::Expr) = _comprehension(x, JuliaEmpty(), false)
+
+# The generator inside: its first argument is the expression, the rest are the
+# `var = iterable` clauses a `for` loop writes the same way.
+function _comprehension(generator, element_type, brackets::Bool)
+    (generator isa Expr && generator.head === :generator) ||
+        error("unsupported comprehension body: $(repr(generator))")
+    spec = generator.args[2]
+    # `[e for i in r if p]` puts the clauses under a `:filter` whose first
+    # argument is the condition.
+    condition = JuliaEmpty()
+    if spec isa Expr && spec.head === :filter
+        condition = convert_expr(spec.args[1])
+        spec = length(spec.args) == 2 ? spec.args[2] : Expr(:block, spec.args[2:end]...)
+    end
+    JuliaComprehension(convert_expr(generator.args[1]),
+                       _convert_for_iterators(spec),
+                       element_type, brackets, condition)
+end
+
+# `map(xs) do x … end` → Expr(:do, call, Expr(:->, tuple, body)). The lambda is
+# taken apart here because `do` writes its parameters without an arrow.
+function _convert_head(::Val{:do}, x::Expr)
+    lambda = x.args[2]
+    (lambda isa Expr && lambda.head === :->) ||
+        error("unsupported do block: $(repr(lambda))")
+    spec = lambda.args[1]
+    parameters = spec isa Expr && spec.head === :tuple ? spec.args : Any[spec]
+    JuliaDo(convert_expr(x.args[1]),
+            JuliaDocument[convert_expr(a) for a in parameters],
+            convert_expr(lambda.args[2]))
+end
+
+# `let x = 1, y = 2; … end` → Expr(:let, bindings, body). One binding is the
+# assignment itself; several are a block of them; none is an empty block.
+function _convert_head(::Val{:let}, x::Expr)
+    spec = x.args[1]
+    bindings = if spec isa Expr && spec.head === :block
+        JuliaDocument[convert_expr(b) for b in spec.args if !(b isa LineNumberNode)]
+    elseif spec === nothing || (spec isa Expr && isempty(spec.args) && spec.head === :block)
+        JuliaDocument[]
+    else
+        JuliaDocument[convert_expr(spec)]
+    end
+    JuliaLet(bindings, convert_expr(x.args[2]))
+end
+
+# `(; a = 1)` → Expr(:tuple, Expr(:parameters, Expr(:kw, …)…)); `(a = 1,)` →
+# Expr(:tuple, Expr(:(=), …)). Both are named tuples; the first is the form
+# with the semicolon.
+_convert_head(::Val{:parameters}, x::Expr) =
+    JuliaNamedTuple(JuliaDocument[convert_expr(e) for e in x.args])
 
 # ── Control flow ─────────────────────────────────────────────────────────────
 
@@ -442,13 +574,35 @@ _try_branch(b) = b === false ? nothing : convert_expr(b)
 # ── Definitions ──────────────────────────────────────────────────────────────
 
 function _convert_head(::Val{:function}, x::Expr)
+    # `function f end` — a name with no method, and no parameter list at all.
+    length(x.args) == 1 && return JuliaFunctionDeclaration(convert_expr(x.args[1]))
     sig = x.args[1]
+    result_type = JuliaEmpty()
+    type_parameters = JuliaDocument[]
+    # `function f(x) where {T}` — the signature is the call wrapped in a where,
+    # possibly more than once.
+    while sig isa Expr && sig.head === :where
+        append!(type_parameters, JuliaDocument[convert_expr(v) for v in sig.args[2:end]])
+        sig = sig.args[1]
+    end
+    # `function f(x)::T` — the signature is the call wrapped in an annotation.
+    if sig isa Expr && sig.head === :(::) && length(sig.args) == 2
+        result_type = convert_expr(sig.args[2])
+        sig = sig.args[1]
+    end
+    # `function (x) … end` — anonymous, so it is a lambda written the long way.
+    if sig isa Expr && sig.head === :tuple
+        return JuliaLambda(JuliaDocument[convert_expr(p) for p in sig.args],
+                           convert_expr(x.args[2]))
+    end
     (sig isa Expr && sig.head === :call) ||
         error("unsupported function signature: $(repr(sig))")
     name = convert_expr(sig.args[1])
     params = JuliaDocument[convert_expr(p) for p in sig.args[2:end]]
     body = convert_expr(x.args[2])
-    return JuliaFunction(name, params, body)
+    where_clause = isempty(type_parameters) ? JuliaEmpty() :
+                                            JuliaWhereParameters(type_parameters)
+    return JuliaFunction(name, params, body, result_type, where_clause)
 end
 
 end # module

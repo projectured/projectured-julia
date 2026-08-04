@@ -287,17 +287,23 @@ stub still serves as a first-class marker for save-time projection.
 `stub.resolved` reads the evaluated value through its reactive cell
 (`nothing` until forced), so a projection that prints an embed
 re-prints by itself once `resolve!` runs.
+
+`inline` says whether the marker was written *in* a line of prose
+rather than as a block of its own. That is part of how it was written,
+which the stub is already responsible for remembering — a format's
+save path emits the shape it was given back.
 """
 mutable struct ReferenceStub <: Document
     source::String
     context::Union{Nothing, LoaderContext}
     resolved::ReactiveCell{Any}
+    inline::Bool
 end
 
-ReferenceStub(source::AbstractString) =
-    ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing))
-ReferenceStub(source::AbstractString, context::LoaderContext) =
-    ReferenceStub(String(source), context, ReactiveCell{Any}(nothing))
+ReferenceStub(source::AbstractString; inline::Bool = false) =
+    ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing), inline)
+ReferenceStub(source::AbstractString, context::LoaderContext; inline::Bool = false) =
+    ReferenceStub(String(source), context, ReactiveCell{Any}(nothing), inline)
 
 # `stub.resolved` reads *through* the reactive cell (the raw cell stays
 # reachable with `getfield`), which is both what a reference path into

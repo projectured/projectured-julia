@@ -651,8 +651,10 @@ end
 @projection_template ReferenceStubToMarkdownSyntaxLeaf ReferenceStub (p, s) ->
     SyntaxLeaf(TextString(_stub_marker_fence(s), p.style))
 
+# A marker written in a line of prose goes back as it was found; one written as
+# a block of its own goes back in its fence.
 _stub_marker_fence(stub::ReferenceStub) =
-    "```pred-ref\n" * marker_text(stub) * "\n```"
+    stub.inline ? marker_text(stub) : "```pred-ref\n" * marker_text(stub) * "\n```"
 
 # ── EmbeddedFileDocumentToMarkdownSyntaxLeaf ────────────────────────────────
 

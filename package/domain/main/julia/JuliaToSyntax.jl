@@ -29,7 +29,11 @@ import ..JuliaModule: JuliaDocument,
                       JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
                       JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef,
-                      JuliaInsertion, _julia_operator_string
+                      JuliaInsertion,
+                      JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
+                      JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
+                      JuliaStringChunk, JuliaInterpolation,
+                      JuliaFunctionDeclaration, JuliaWhereParameters, _julia_operator_string
 import ..TextModule: TextString, hinted_text
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
@@ -41,6 +45,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
+
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
@@ -58,6 +63,12 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
        JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefToSyntaxNode,
+       JuliaSplatToSyntaxNode, JuliaBroadcastToSyntaxNode,
+       JuliaStringInterpolationToSyntaxNode, JuliaWhereToSyntaxNode,
+       JuliaComprehensionToSyntaxNode, JuliaDoToSyntaxNode, JuliaLetToSyntaxNode,
+       JuliaNamedTupleToSyntaxNode,
+       JuliaStringChunkToSyntaxLeaf, JuliaInterpolationToSyntaxNode,
+       JuliaFunctionDeclarationToSyntaxNode, JuliaWhereParametersToSyntaxNode,
        ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
        JuliaToSyntax
 
@@ -346,10 +357,12 @@ end
     op_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
+# `A <: B`, and `<:B` for the anonymous bound — where there is nothing on the
+# left there is no space either.
 @projection_template JuliaSubtypeToSyntaxNode JuliaSubtype (p, s) ->
     SyntaxConcatenation([
         project(:lhs),
-        SyntaxLeaf(TextString(" <: ", p.op_style)),
+        SyntaxLeaf(TextString(() -> s.lhs isa JuliaEmpty ? "<:" : " <: ", p.op_style)),
         project(:rhs),
     ])
 
@@ -558,6 +571,132 @@ end
                                      sep=TextString(", ", p.delim)),
                           project(:body) ])
 
+# ── The rest of ordinary Julia ──────────────────────────────────────────────
+#
+# One rule each, all `@projection_template`, all mirroring the parser arms in
+# `JuliaParser.jl`. Nothing here is clever: the point of the group is that a
+# real source file parses and prints back, so that a page can embed a function
+# out of one.
+
+const _JULIA_DELIM  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+const _JULIA_KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+
+@projection struct JuliaSplatToSyntaxNode
+    delim::ImmutableCell{DStyleText} = _JULIA_DELIM
+end
+
+@projection_template JuliaSplatToSyntaxNode JuliaSplat (p, s) ->
+    SyntaxNode([project(:value)]; close=TextString("...", p.delim))
+
+@projection struct JuliaBroadcastToSyntaxNode
+    delim::ImmutableCell{DStyleText}  = _JULIA_DELIM
+    callee::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+end
+
+@projection_template JuliaBroadcastToSyntaxNode JuliaBroadcast (p, b) ->
+    SyntaxNode([project(:callee),
+                SyntaxNode(collection(:arguments);
+                           open=TextString(".(", p.delim),
+                           close=TextString(")", p.delim),
+                           sep=TextString(", ", p.delim))])
+
+# An interpolated string: the literal chunks print as themselves, everything
+# else inside a dollar-brace. The quotes belong to the whole thing, not to the chunks,
+# which is why this is a node and not a leaf.
+@projection struct JuliaStringInterpolationToSyntaxNode
+    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template JuliaStringInterpolationToSyntaxNode JuliaStringInterpolation (p, s) ->
+    SyntaxNode(collection(:parts);
+               open=TextString("\"", p.delim),
+               close=TextString("\"", p.delim))
+
+# A literal run inside an interpolated string: its text, and nothing around it.
+@projection struct JuliaStringChunkToSyntaxLeaf
+    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@projection_template JuliaStringChunkToSyntaxLeaf JuliaStringChunk (p, c) ->
+    SyntaxLeaf(TextString(() -> c.text, p.style))
+
+@projection struct JuliaInterpolationToSyntaxNode
+    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+end
+
+@projection_template JuliaInterpolationToSyntaxNode JuliaInterpolation (p, i) ->
+    SyntaxNode([project(:value)];
+               open=TextString("\$(", p.delim), close=TextString(")", p.delim))
+
+@projection struct JuliaWhereToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+end
+
+@projection_template JuliaWhereToSyntaxNode JuliaWhere (p, w) ->
+    SyntaxNode([project(:body),
+                SyntaxNode(collection(:parameters);
+                           open=TextString(" where {", p.keyword),
+                           close=TextString("}", p.delim),
+                           sep=TextString(", ", p.delim))])
+
+# `[expr for i in r]`, `Any[…]`, `(expr for i in r)`. The element type prints
+# before the bracket when there is one; `JuliaEmpty` prints nothing, so the
+# untyped form needs no separate rule.
+@projection struct JuliaComprehensionToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+end
+
+@projection_template JuliaComprehensionToSyntaxNode JuliaComprehension (p, c) ->
+    SyntaxNode([project(:element_type),
+                SyntaxNode([project(:expression),
+                            SyntaxNode(collection(:iterators);
+                                       open=TextString(" for ", p.keyword),
+                                       sep=TextString(", ", p.delim)),
+                            SyntaxNode([project(:condition)];
+                                       open=TextString(() -> c.condition isa JuliaEmpty ? "" : " if ",
+                                                       p.keyword))];
+                           open=TextString(c.brackets ? "[" : "(", p.delim),
+                           close=TextString(c.brackets ? "]" : ")", p.delim))])
+
+@projection struct JuliaDoToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
+end
+
+# `call do params` … `end`, in the shape every other block-bodied construct
+# uses: a header concatenation, the body (which supplies its own newline and
+# indentation), then `end`.
+@projection_template JuliaDoToSyntaxNode JuliaDo (p, d) ->
+    SyntaxConcatenation([ SyntaxConcatenation([ project(:call),
+                                                SyntaxNode(collection(:parameters);
+                                                           open=TextString(" do ", p.keyword),
+                                                           sep=TextString(", ", p.keyword)) ]),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
+
+@projection struct JuliaLetToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+end
+
+@projection_template JuliaLetToSyntaxNode JuliaLet (p, l) ->
+    SyntaxConcatenation([ SyntaxNode(collection(:bindings);
+                                     open=TextString("let ", p.keyword),
+                                     sep=TextString(", ", p.delim)),
+                          project(:body),
+                          SyntaxLeaf(TextString("end", p.keyword)) ])
+
+@projection struct JuliaNamedTupleToSyntaxNode
+    delim::ImmutableCell{DStyleText} = _JULIA_DELIM
+end
+
+@projection_template JuliaNamedTupleToSyntaxNode JuliaNamedTuple (p, n) ->
+    SyntaxNode(collection(:entries);
+               open=TextString("(; ", p.delim),
+               close=TextString(")", p.delim),
+               sep=TextString(", ", p.delim))
+
 # ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaUsingToSyntaxNode
@@ -690,6 +829,8 @@ _is_empty_else(x) =
     delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
+# The result type prints after the parameter list; `JuliaEmpty` prints nothing,
+# so a function without one needs no separate rule.
 @projection_template JuliaFunctionToSyntaxNode JuliaFunction (p, f) ->
     SyntaxConcatenation([ SyntaxConcatenation([ SyntaxLeaf(TextString("function", p.keyword);
                                                            close=TextString(" ", p.keyword.font, color_default)),
@@ -697,9 +838,37 @@ end
                                                 SyntaxNode(collection(:params);
                                                            open=TextString("(", p.delim),
                                                            close=TextString(")", p.delim),
-                                                           sep=TextString(", ", p.delim)) ]),
+                                                           sep=TextString(", ", p.delim)),
+                                                SyntaxNode([project(:result_type)];
+                                                           open=TextString(() -> f.result_type isa JuliaEmpty ? "" : "::",
+                                                                           p.delim)),
+                                                project(:where_clause) ]),
                           project(:body),
                           SyntaxLeaf(TextString("end", p.keyword)) ])
+
+# ── JuliaFunctionDeclarationToSyntaxNode ────────────────────────────────────
+
+# ` where {T, S}` — printed by the clause itself, so a function without one
+# holds a `JuliaEmpty` and prints nothing.
+@projection struct JuliaWhereParametersToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template JuliaWhereParametersToSyntaxNode JuliaWhereParameters (p, w) ->
+    SyntaxNode(collection(:parameters);
+               open=TextString(" where {", p.keyword),
+               close=TextString("}", p.delim),
+               sep=TextString(", ", p.delim))
+
+@projection struct JuliaFunctionDeclarationToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+end
+
+@projection_template JuliaFunctionDeclarationToSyntaxNode JuliaFunctionDeclaration (p, f) ->
+    SyntaxNode([project(:name)];
+               open=TextString("function ", p.keyword),
+               close=TextString(" end", p.keyword))
 
 # ── Reference mapping & readers ─────────────────────────────────────────────
 #
@@ -740,6 +909,16 @@ function JuliaToSyntax()
         JuliaBinaryOp        => JuliaBinaryOpToSyntaxNode(),
         JuliaUnaryOp         => JuliaUnaryOpToSyntaxNode(),
         JuliaCall            => JuliaCallToSyntaxNode(),
+        JuliaSplat           => JuliaSplatToSyntaxNode(),
+        JuliaBroadcast       => JuliaBroadcastToSyntaxNode(),
+        JuliaStringInterpolation => JuliaStringInterpolationToSyntaxNode(),
+        JuliaStringChunk     => JuliaStringChunkToSyntaxLeaf(),
+        JuliaInterpolation   => JuliaInterpolationToSyntaxNode(),
+        JuliaWhere           => JuliaWhereToSyntaxNode(),
+        JuliaComprehension   => JuliaComprehensionToSyntaxNode(),
+        JuliaDo              => JuliaDoToSyntaxNode(),
+        JuliaLet             => JuliaLetToSyntaxNode(),
+        JuliaNamedTuple      => JuliaNamedTupleToSyntaxNode(),
         JuliaMacroCall       => JuliaMacroCallToSyntaxNode(),
         JuliaConst           => JuliaConstToSyntaxNode(),
         JuliaDocstring       => JuliaDocstringToSyntaxNode(),
@@ -768,6 +947,8 @@ function JuliaToSyntax()
         JuliaBlock           => JuliaBlockToSyntaxNode(),
         JuliaIf              => JuliaIfToSyntaxNode(),
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
+        JuliaFunctionDeclaration => JuliaFunctionDeclarationToSyntaxNode(),
+        JuliaWhereParameters => JuliaWhereParametersToSyntaxNode(),
         JuliaUsing           => JuliaUsingToSyntaxNode(),
         JuliaModuleDef       => JuliaModuleDefToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
