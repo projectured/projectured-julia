@@ -430,7 +430,7 @@ Almost nothing to do.
 
 | File | Shape | Purpose | Removal |
 |---|---|---|---|
-| [package/linklayer/test/compare_t1s_vectors.jl](../../../inet-julia/package/linklayer/test/compare_t1s_vectors.jl) | shebang, `ARGS` length check, `exit(0/1)` | Compares two T1S `.vec` files with per-signal tolerance rules (deterministic signals `:exact`; RNG-driven `packetInterval` etc. `:count_within(2)`). Used to validate the Julia T1S port against the C++ INET run. | The rules `Dict` is the valuable part and it is currently trapped in a script. Move to `InetLinkLayerTest` as `t1s_vector_rules()` + `compare_t1s_vectors(left, right)` returning the report; the printing and `exit` become the caller's. Then the T1S comparison can run inside `test_linklayer()` instead of by hand. |
+| [package/linklayer/test/compare_t1s_vectors.jl](../../../inet-julia/package/linklayer/test/compare_t1s_vectors.jl) | shebang, `ARGS` length check, `exit(0/1)` | Compares two T1S `.vec` files with per-signal tolerance rules (deterministic signals `:exact`; RNG-driven `packetInterval` etc. `:count_within(2)`). Used to validate the Julia T1S port against the C++ INET run. | The rules `Dict` is the valuable part and it is currently trapped in a script. Move to `InetLinkLayerTest` as `t1s_vector_rules()` + `compare_t1s_vectors(left, right)` returning the report; the printing and `exit` become the caller's. A reference comparison already runs in `test_linklayer()` (phase 8) *without* the rules — and the rules as written never matched a real signal name (see P1). |
 | [package/packet/example/packet_api_demo.jl](../../../inet-julia/package/packet/example/packet_api_demo.jl) | top-level, prints | Worked tour of the packet/chunk API — `@header Ipv4Header`, tags, `peek`, the R9 guard. | Wrap in `packet_api_demo()` exported from `InetPacketExample`; delete the top-level statements. Same registry treatment as omnetpp: `script_path`/`scripts` → `demos()` / `run_demo(:packet_api)`. |
 
 `test/runtests.jl` is already REPL-native, with the same per-component header as
@@ -557,13 +557,28 @@ Everything else on this list can be a function.
 One commit per checked box. Ordered so the cheap, collision-free repos establish
 the registry shape before the big one.
 
-### P1 — inet-julia (2 files) · recipe 7b
+### P1 — inet-julia (2 files) · recipe 7b — **DONE** (`inet-julia@entry-point-repl-api`)
 
-- [ ] `compare_t1s_vectors.jl` → `t1s_vector_rules()` + `compare_t1s_vectors(left, right)`
-      on `InetLinkLayerTest`, returning the report; drop the printing and `exit`.
-- [ ] Call it from `test_linklayer()` — the comparison has never run in CI.
-- [ ] `packet_api_demo.jl` → `packet_api_demo()` on `InetPacketExample`.
-- [ ] Replace `script_path`/`scripts` with a `demos()` registry.
+- [x] `compare_t1s_vectors.jl` → `t1s_vector_rules()` + `compare_t1s_vectors(left, right)`
+      on `InetLinkLayerTest`, returning the report; printing moved to
+      `print_t1s_comparison`, `exit` dropped. New file `T1sVectorComparison.jl`.
+- [x] Cover the rules table in `test_linklayer()` (9 new assertions).
+      **Correction to this plan:** the claim that the comparison "has never run
+      in CI" was wrong — `phase8_compare_harness.jl` already diffs a `notraffic`
+      run against `inet-reference/notraffic.vec`. What never ran was the *rules
+      table*: it keys on bare signal names, but a recorded vector is named
+      `<signal>:<mode>` (`curID:vector`), so the expansion matched nothing and
+      every signal silently fell back to `:exact`. Rules now key on the base
+      name via `signal_base_name`; phase 8's own assertion is untouched.
+- [x] `packet_api_demo.jl` → `packet_api_demo(; io, receivers, payload_bytes)`
+      returning `(; packet, copies)`. Header/tag declarations stay at module
+      level — `@header` defines a struct.
+- [x] Replace `script_path`/`scripts` with `DEMOS` / `demos()` / `run_demo(name)`.
+      Nothing referenced the path helpers.
+- [x] `broadcast` → `broadcast_packet`: shadowing `Base.broadcast` is harmless at
+      `Main` scope in a script, not in a package that exports it.
+- [x] Verified: linklayer 414 → 423 pass (exactly the new assertions), full
+      `test/runtests.jl` 2317 pass, 0 failures.
 
 ### P2 — projectured-julia build + bench (4 files) · recipe 7b
 
