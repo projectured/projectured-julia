@@ -72,12 +72,11 @@ The depth cap guards against cyclic structure, not against size.
 """
 function force_projected(node, depth::Int = 0)
     depth > 40 && return nothing
-    node isa ProjecturedKernel.CellModule.AbstractCell &&
-        return force_projected(node[], depth)
+    node isa AbstractCell && return force_projected(node[], depth)
     for field in (:elements, :content, :canvas, :children, :items)
         hasproperty(node, field) || continue
         value = getproperty(node, field)
-        value isa ProjecturedKernel.CellModule.AbstractCell && (value = value[])
+        value isa AbstractCell && (value = value[])
         if value isa AbstractVector
             for child in value
                 force_projected(child, depth + 1)
