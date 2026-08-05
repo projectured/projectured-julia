@@ -1069,7 +1069,11 @@ end
 _button_command(w::WidgetButton) = (c = w.command; c isa Action ? c : nothing)
 _button_enabled(w::WidgetButton) =
     !(w.enabled === false) && !((c = _button_command(w)) !== nothing && c.enabled === false)
-_button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? string(c.label) : w.content)
+# The label is passed RAW, never string()-coerced here: the polymorphic
+# branches downstream (`_content_size` / `_push_content!` render an
+# `ImageDocument`, the menu-item printer recurses a `WidgetDocument`) must see
+# the value itself, and text stringification already happens at the leaf.
+_button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? c.label : w.content)
 # Icon (Stage 5): a bound command's icon wins, else the button's own.
 _button_icon(w::WidgetButton) = (c = _button_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
 
@@ -1514,8 +1518,10 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         enabled = _menu_item_enabled(w)
         fg = enabled ? p.text.color : p.disabled_foreground
         # A bound command's label overrides the content; otherwise the content is the
-        # label (text) or a recursed widget.
-        content = command !== nothing ? string(command.label) : w.content
+        # label (text) or a recursed widget. The label is passed RAW (the
+        # WidgetDocument branch below and the text leaf's own string() do the
+        # interpreting), so a bound label keeps the same polymorphism as content.
+        content = command !== nothing ? command.label : w.content
         child_iomaps = Any[]
         elems = Any[]
         cw, ch = 0, 0

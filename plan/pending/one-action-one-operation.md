@@ -283,7 +283,7 @@ switching printers without retargeting the `set_cell_function!` delegators
 freezes the six live omnetpp labels). Steps 2 and 3 are cross-repo landings —
 omnetpp-julia resolves against the live checkout.
 
-- [ ] **1. Prep (green, tiny).** Drop the `string()` coercions on bound-label
+- [x] **1. Prep (green, tiny).** Drop the `string()` coercions on bound-label
       reads (`WidgetToGraphics.jl:1072`, `:1518`) — behaviour-identical today
       (every current command label is a `String`), and required so the merged
       raw-label read preserves image/widget content.
