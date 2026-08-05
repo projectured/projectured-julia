@@ -107,14 +107,15 @@ These do something other than a single-slot write, so they stay their own types:
 | Operation | Where it lives | Why it stays |
 |---|---|---|
 | `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
-| `SelectTabOperation(tabbed_pane, index)` | `document/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
+| `SelectTabOperation(tabbed_pane, index)` | `visual/widget/Widget.jl` | event-like signal — the workbench overloads it into a document-selection move |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
 | `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
 | `WriteOsClipboardOperation` | `projection/primitive/ClipboardToAny.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
-| assistant/composer & splitter-drag operations | `editor/*`, `document/Widget.jl` | async turns, multi-field resets, transient drag state, arbitrary `action` callables |
+| `InvokeActionOperation(action)` | `visual/widget/Widget.jl` | runs an `Action`'s callback — an effect, not a field write. The one activation operation: every control (button, menu item, toolbar entry, keyboard shortcut) is a view of an `Action` and answers a press with this. It names its own target, so a projection that hosts controls forwards it unchanged rather than re-rooting it |
+| assistant/composer & splitter-drag operations | `editor/*`, `visual/widget/Widget.jl` | async turns, multi-field resets, transient drag state |
 
 Operation modules are the right place to look when wiring a new gesture: the
 operation declares its semantics once, the projections that emit it stay small, and

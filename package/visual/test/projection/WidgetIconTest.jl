@@ -49,7 +49,7 @@ end
 
 @testset "a bound command's icon drives the button (Action.icon)" begin
     save = Action("Save"; icon = :save)
-    b = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; command = save)).output
+    b = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), save)).output
     @test !isempty(_prims_of(b, GraphicsPolyline))
 end
 
@@ -67,7 +67,7 @@ end
 @testset "WidgetToolButton is an icon-first button" begin
     tb = WidgetToolButton(:save)
     @test tb isa WidgetButton
-    @test tb.icon === :save
+    @test tb.action.icon === :save
     @test !isempty(_prims_of(print_document(proj, tb).output, GraphicsPolyline))
 end
 

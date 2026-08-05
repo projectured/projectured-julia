@@ -1066,18 +1066,18 @@ end
 # A control is a view of its `Action` (the constructor guarantees one is always
 # there, folding a sugar-built control's own label/icon into a fresh one), so
 # the printers read the action and nothing else — no precedence rule.
-_button_command(w::WidgetButton) = (c = w.action; c isa Action ? c : nothing)
+_button_action(w::WidgetButton) = w.action::Action
 # Enablement is a CONJUNCTION, not an override: this view can be inert while the
 # shared command stays live in its other views.
 _button_enabled(w::WidgetButton) =
-    !(w.enabled === false) && !((c = _button_command(w)) !== nothing && c.enabled === false)
+    !(w.enabled === false) && !(_button_action(w).enabled === false)
 # The label is passed RAW, never string()-coerced here: the polymorphic
 # branches downstream (`_content_size` / `_push_content!` render an
 # `ImageDocument`, the menu-item printer recurses a `WidgetDocument`) must see
 # the value itself, and text stringification already happens at the leaf.
-_button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? c.label : w.content)
+_button_label_content(w::WidgetButton) = _button_action(w).label
 # Icon (Stage 5): on the action, like the label.
-_button_icon(w::WidgetButton) = (c = _button_command(w); c !== nothing ? c.icon : w.icon)
+_button_icon(w::WidgetButton) = _button_action(w).icon
 
 function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -1193,11 +1193,10 @@ end
 # A command that does something wins; the dialog is the fallback for one that
 # does not, so a button carrying both a callback and a dialog runs the callback.
 function _button_primary_op(w::WidgetButton)
-    command = _button_command(w)
-    (command !== nothing && command.callback !== nothing) &&
-        return InvokeActionOperation(command)
+    command = _button_action(w)
+    command.callback === nothing || return InvokeActionOperation(command)
     dlg = w.dialog
-    dlg === nothing && return command === nothing ? nothing : InvokeActionOperation(command)
+    dlg === nothing && return InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
                         x=80, y=60, width=480, height=320, content=dlg)
 end
@@ -1338,8 +1337,8 @@ function _open_context_menu(p::WidgetContextMenuToGraphicsCanvas, menu, iomap, l
     _, row_h = p.measure("M", p.font)
     width = 0
     for it in items
-        it isa WidgetMenuItem && !(it.content isa WidgetDocument) || continue
-        tw, _ = _text_size(p.measure, p.font, string(it.content))
+        it isa WidgetMenuItem && !(it.action.label isa WidgetDocument) || continue
+        tw, _ = _text_size(p.measure, p.font, string(it.action.label))
         width = max(width, tw)
     end
     OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
@@ -1507,16 +1506,16 @@ end
 
 # A bound command (Stage 4) supplies the item's label, enabled-state, and callback,
 # so a menu item / toolbar button / shortcut can share one `Action`.
-_menu_item_command(w::WidgetMenuItem) = (c = w.action; c isa Action ? c : nothing)
+_menu_item_command(w::WidgetMenuItem) = w.action::Action
 _menu_item_enabled(w::WidgetMenuItem) =
-    !(w.enabled === false) && !((c = _menu_item_command(w)) !== nothing && c.enabled === false)
-_menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); c !== nothing ? c.icon : w.icon)
+    !(w.enabled === false) && !(_menu_item_command(w).enabled === false)
+_menu_item_icon(w::WidgetMenuItem) = _menu_item_command(w).icon
 
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     # The child (a recursed widget content) is reconciled and forced only in the
     # WidgetDocument branch.
-    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    child_iomap = reconcile_child_iomap(() -> w.action.label, c -> print_child(recursion, c, ctx))
     build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         command = _menu_item_command(w)
@@ -1526,7 +1525,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         # label (text) or a recursed widget. The label is passed RAW (the
         # WidgetDocument branch below and the text leaf's own string() do the
         # interpreting), so a bound label keeps the same polymorphism as content.
-        content = command !== nothing ? command.label : w.content
+        content = command.label
         child_iomaps = Any[]
         elems = Any[]
         cw, ch = 0, 0
@@ -1615,9 +1614,9 @@ function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
     row_h = iomap.control_height
     width = iomap.control_width
     for it in items
-        it isa WidgetMenuItem && !(it.content isa WidgetDocument) || continue
+        it isa WidgetMenuItem && !(it.action.label isa WidgetDocument) || continue
         icox, _ = _content_offset(it)
-        tw, _ = _text_size(p.measure, p.text.font, string(it.content))
+        tw, _ = _text_size(p.measure, p.text.font, string(it.action.label))
         width = max(width, tw + 2icox)
     end
     OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
@@ -1984,10 +1983,10 @@ function _collect_command_actions!(acc::Vector{Action}, w)
     # a shortcut — a sugar-folded action is built without one — so the filter
     # below collects exactly the same set it did when it read `command`.
     if w isa WidgetMenuItem
-        c = w.action; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+        c = w.action; c.shortcut !== nothing && push!(acc, c)
         sm = w.submenu; sm isa WidgetMenu && _collect_command_actions!(acc, sm)
     elseif w isa WidgetButton
-        c = w.action; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+        c = w.action; c.shortcut !== nothing && push!(acc, c)
     elseif w isa WidgetMenu || w isa WidgetToolbar
         for e in w.elements
             e isa WidgetDocument && _collect_command_actions!(acc, e)

@@ -237,7 +237,7 @@ alongside the widget types in
 |---|---|
 | `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the workbench overloads it into a document-selection move |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
-| `InvokeWidgetActionOperation(widget)` | invoke a button's `action` callable (with the editor if it takes one) |
+| `InvokeActionOperation(action)` | invoke a control's `Action` — its `callback` runs (with the editor if it takes one), guarded by the action's `enabled` |
 
 The `WidgetToGraphics` reader produces these in response to
 `MousePress`/`MouseScroll`, routing each through the appropriate container
@@ -274,10 +274,12 @@ its printer renders from transient state — the same input → operation → in
 printer loop every other widget uses:
 
 - **Click → action.** A `MousePress(:left)` on the button yields an
-  `InvokeWidgetActionOperation(button)`. The editor evaluates it by calling the
-  button's `action` callable — with the editor when the callable takes one
-  argument (so it can mutate `editor.document` / projection state), otherwise
-  with none. A `nothing` action is inert.
+  `InvokeActionOperation(button.action)`. The editor evaluates it by calling the
+  action's `callback` — with the editor when it takes one argument (so it can
+  mutate `editor.document` / projection state), otherwise with none. An action
+  with no callback is inert on click, and its `dialog` (if any) opens instead.
+  A projection that renders controls inside its own output must pass the
+  operation on — see **Hosting controls** below.
 - **Hover / press feedback.** The button carries two transient cells,
   `hovered` and `pressed` (like the split pane's drag state — not serialised).
   `MouseDown` / `MouseUp` set `pressed`; a `MouseMove` over the button sets
@@ -285,6 +287,31 @@ printer loop every other widget uses:
   (`pressed → active_color`, else `hovered → hover_color`, else
   `background_color`) and drops the drop-shadow while pressed, so the button
   re-renders reactively as its state changes.
+
+### Hosting controls
+
+A projection that renders controls inside its own output owns one more
+responsibility: passing their activations on. A press answers with
+`InvokeActionOperation`, which names its own `Action` and needs no re-rooting —
+but the generic reader forwards only what it recognises and returns `nothing`
+for everything else, so a hosting projection with no reader for it swallows the
+press. The control renders, takes the click, answers, and the answer goes
+nowhere. One method fixes it:
+
+```julia
+read_intent(::MyProjection, iomap, op::InvokeActionOperation) = op
+```
+
+A projection whose catch-all reader (`read_intent(::MyProjection, iomap, op)`)
+already forwards every `Operation` needs nothing.
+
+**Naming the projection is load-bearing.** The seemingly simpler
+`read_intent(::Projection, iomap, op::InvokeActionOperation)` — one rule for
+every projection at once — cannot work: it ties with that catch-all, since each
+signature is more specific in one argument and less in another. The tie is
+invisible until the first activation reaches such a projection, and then it is a
+`MethodError`, not a dead button. This is a property of the 3-argument reader,
+which dispatches on the payload.
 
 ### Enter / leave: `WidgetHoverTrackingProjection`
 
@@ -393,13 +420,22 @@ An `Action(label; icon, enabled, shortcut, callback)` is a shared command object
 reference the **same** `Action`, so one object drives all three and toggling its
 `enabled` disables all of them at once.
 
-- **Binding.** `WidgetMenuItem` and `WidgetButton` take an optional
-  `command::Action`. When bound, the widget renders the action's `label` and
-  follows its `enabled` (muting when disabled), and a click emits
-  `InvokeActionOperation(command)` — which runs the action's `callback`
-  (editor-arg preferred, else 0-arg), guarded by `enabled`. Without a command they
-  keep their own `content` + callback behaviour, so existing widgets are
-  unaffected. Toolbar entries are `WidgetMenuItem`s, so they inherit this.
+- **Every control has one.** `WidgetMenuItem` and `WidgetButton` carry an
+  `action::Action` and nothing else about the command — there is no second
+  behaviour or appearance field, so no precedence rule. Pass an `Action` to bind
+  a shared command; pass a bare callable (or nothing) and the constructor folds
+  the control's own `content` and `icon` into a **fresh** `Action`. A click
+  emits `InvokeActionOperation(action)`. Toolbar entries are `WidgetMenuItem`s,
+  so they inherit this.
+- **A bound control is a LIVE view.** It reads the action's cells rather than
+  owning copies, so renaming a command or disabling it re-renders every control
+  bound to it with no re-binding step. A control never writes to a shared
+  action: an own label or icon that differs from the bound action's is a
+  constructor error, not a silent loss — make a second `Action` sharing the
+  `callback` if two views need different faces.
+- **Enablement is a conjunction.** The effective state is the control's own
+  `enabled` **and** the action's, so one view can be inert while the shared
+  command stays live in its others.
 - **Shortcuts.** `Shortcut(:s; ctrl=true)` builds the chord (a `KeyDownPattern`
   with exact-modifier matching). The `WidgetShell` reader collects the commands
   carrying a shortcut from its `menu_bar`/`toolbar` — the menu *is* the registry —
@@ -438,10 +474,10 @@ three backings coexist:
 - **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
   or `glyph_icon` / `image_icon`. An unknown name draws nothing (zero width).
 - **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,
-  drawn left of the label, tinted to its foreground. A command-bound widget takes
-  its icon from **`command.icon`** (so a menu item and a toolbar button share one),
-  else the widget's own `icon`. `WidgetToolButton(:save; …)` is an icon-first
-  button (Qt's `QToolButton`).
+  drawn left of the label, tinted to its foreground. It is constructor sugar: the
+  icon lives on the control's `Action` (`action.icon`), which is how a menu item
+  and a toolbar button bound to one command share it. `WidgetToolButton(:save; …)`
+  is an icon-first button (Qt's `QToolButton`).
 
 See `make_widget_document_example` (File menu / toolbar / tool-button row with
 icons) and `WidgetIconTest`.

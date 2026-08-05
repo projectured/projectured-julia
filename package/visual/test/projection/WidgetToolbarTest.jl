@@ -42,7 +42,7 @@ end
             g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, :none, _mods)
             ch = read_intent(proj, nothing, Intent(g, nothing), io)
             op = ch isa Intent ? ch.operation : ch
-            op isa ReplaceReferencedValueOperation && return op.document.content
+            op isa ReplaceReferencedValueOperation && return op.document.action.label
         end
         return nothing
     end

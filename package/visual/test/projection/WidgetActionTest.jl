@@ -1,7 +1,7 @@
-# Actions & shortcuts (Stage 4). A shared `Action` (label, enabled, shortcut,
-# callback) is referenced by a `WidgetMenuItem` (`command=`), a `WidgetButton`
-# (`command=`), and a keyboard shortcut collected by `WidgetShell`. One object drives
-# all three: clicking the item or the button, or pressing the shortcut, each emits
+# Actions & shortcuts (Stage 4). One shared `Action` (label, icon, enabled,
+# shortcut, callback) is bound by a `WidgetMenuItem`, a `WidgetButton`, and a
+# keyboard shortcut collected by `WidgetShell` — each control is a VIEW of it.
+# Clicking the item or the button, or pressing the shortcut, each emits
 # `InvokeActionOperation(action)`; toggling `action.enabled` disables all three.
 
 
@@ -19,7 +19,7 @@ proj = make_widget_projection_example()
     save = Action("Save"; shortcut = Shortcut(:s; ctrl = true), callback = (_e) -> (fired[] += 1))
 
     # Menu item bound to the command.
-    item = WidgetMenuItem("Save"; command = save)
+    item = WidgetMenuItem(save)
     iio  = print_document(proj, item)
     iop  = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys()))
     @test iop isa CompoundOperation
@@ -27,7 +27,7 @@ proj = make_widget_projection_example()
     @test iop.operations[1].action === save
 
     # Button bound to the same command.
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
+    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), save)
     bio = print_document(proj, btn)
     bop = read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys()))
     @test bop isa InvokeActionOperation
@@ -35,7 +35,7 @@ proj = make_widget_projection_example()
 
     # Keyboard shortcut collected by the shell from its menu bar.
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
-                        menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
+                        menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
     sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
@@ -53,16 +53,16 @@ end
     save = Action("Save"; enabled = false,
                   shortcut = Shortcut(:s; ctrl = true), callback = (_e) -> error("must not fire"))
 
-    item = WidgetMenuItem("Save"; command = save)
+    item = WidgetMenuItem(save)
     iio  = print_document(proj, item)
     @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; command = save)
+    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), save)
     bio = print_document(proj, btn)
     @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
-                        menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
+                        menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
     # The disabled action's shortcut does not fire; the key falls through instead.
@@ -79,7 +79,7 @@ end
     fired = Ref(0)
     save  = Action("Save"; shortcut = Shortcut(:s; ctrl = true), callback = (_e) -> (fired[] += 1))
     shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
-                        menu_bar = WidgetMenu([WidgetMenuItem("Save"; command = save)]),
+                        menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
 
@@ -99,6 +99,82 @@ end
     a.enabled = true
     evaluate_operation(_ActionMockEditor(a), InvokeActionOperation(a))
     @test fired[] == 1
+end
+
+@testset "a bound control is a LIVE view of its Action" begin
+    # The property the whole design rests on: a control reads the action's cells
+    # rather than owning copies, so renaming or disabling the command re-renders
+    # every view of it with no re-binding step. Asserted on the DRAWN OUTPUT —
+    # a structural check would pass against a frozen render.
+    save = Action("Save"; callback = (_e) -> nothing)
+    btn  = WidgetButton(Point2D(0, 0), Point2D(200, 0), save)
+    item = WidgetMenuItem(save)
+    bio, iio = print_document(proj, btn), print_document(proj, item)
+    @test _dialog_text_xy(bio.output, "Save") !== nothing
+    @test _dialog_text_xy(iio.output, "Save") !== nothing
+
+    # Rename the command: both views follow, with nothing re-printed.
+    save.label = "Store"
+    @test _dialog_text_xy(bio.output, "Store") !== nothing
+    @test _dialog_text_xy(iio.output, "Store") !== nothing
+    @test _dialog_text_xy(bio.output, "Save")  === nothing
+
+    # Disable it: both views decline the click (the conjunction's action half).
+    save.enabled = false
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    save.enabled = true
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) isa InvokeActionOperation
+
+    # The view's own gate is the other half: inert here, live elsewhere.
+    btn.enabled = false
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) isa CompoundOperation
+end
+
+@testset "a control's own label and icon fold into a fresh Action" begin
+    f = (_e) -> nothing
+    b = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go"; action = f, icon = :save)
+    @test b.action isa Action
+    @test b.action.label === "Go" && b.action.icon === :save && b.action.callback === f
+    # Two sugar-built controls never share an Action.
+    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go").action !==
+          WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go").action
+    # A sugar action declares no shortcut, so it never enters the shell registry.
+    @test b.action.shortcut === nothing
+
+    # A bound Action is the source of truth and is never written to: an own
+    # label that says something ELSE has nowhere to live.
+    save = Action("Save"; icon = :save, callback = f)
+    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), save).action === save
+    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; action = save).action === save
+    @test_throws ErrorException WidgetButton(Point2D(0, 0), Point2D(80, 0), "Different"; action = save)
+    @test_throws ErrorException WidgetButton(Point2D(0, 0), Point2D(80, 0), save; action = f)
+end
+
+@testset "a command that does something beats the dialog it also carries" begin
+    fired = Ref(0)
+    dlg = WidgetMessageBox("Confirm", "Proceed?")
+
+    # Dialog alone: the click opens it.
+    only_dialog = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Open"; dialog = dlg)
+    dio = print_document(proj, only_dialog)
+    @test read_intent(proj, dio, MousePress(:left, 2, 2, ModifierKeys())) isa OpenWindowOperation
+
+    # Callback as well: the callback wins, and the dialog is the fallback for a
+    # command that does nothing.
+    both = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Open";
+                        action = (_e) -> (fired[] += 1), dialog = dlg)
+    bio = print_document(proj, both)
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) isa InvokeActionOperation
+end
+
+@testset "a menu item's submenu beats its callback" begin
+    # Unlike a button's dialog: opening the submenu is what a menu-bar entry IS.
+    sub  = WidgetMenu([WidgetMenuItem("Leaf")])
+    item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = sub)
+    iio  = print_document(proj, item)
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) isa OpenPopupOperation
 end
 
 @testset "WidgetStatusBar renders its segments as a bottom band" begin

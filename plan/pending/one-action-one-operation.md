@@ -319,7 +319,7 @@ omnetpp-julia resolves against the live checkout.
       Comment-only mentions in the five omnetpp catch-all readers and
       `SimulationToWidget.jl:163` get reworded.
 
-- [ ] **4. Drop the fields.** Remove `content`, `icon`, `command` from both
+- [x] **4. Drop the fields.** Remove `content`, `icon`, `command` from both
       structs; rewrite the two ctor bodies (:377 → 15 args, :646 → 12); no new
       field defaults (the keyword-only ctor trap is gated exactly on that).
       Rewrite the ~19 `command =` sites (example file → bound form
@@ -329,7 +329,7 @@ omnetpp-julia resolves against the live checkout.
       `DemoCatalogTest:251`). Update the ctor docstrings (`Widget.jl:311`,
       `:603`, WidgetToolButton `:391-395` which advertises `command`).
 
-- [ ] **5. Tests and docs.**
+- [x] **5. Tests and docs.**
       - New: the rendered read-through test (print → mutate a shared action's
         label + enabled → force → assert drawn text/tint changed); the
         callback-beats-dialog and inert-command+dialog cells; an

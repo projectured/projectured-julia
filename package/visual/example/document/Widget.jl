@@ -32,8 +32,8 @@ function make_widget_document_example(; width=1024, height=768)
     # ── Buttons & menus tab ───────────────────────────────────────────────────
     tool = (icon) -> WidgetToolButton(icon; size=Point2D(40, 40), border=fb, padding=Inset(8, 8, 8, 8))
     buttons = VerticalLayout(Any[
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Save";    # icon from the command
-                     command=save_action, border=fb, padding=Inset(4, 4, 8, 8)),
+        WidgetButton(Point2D(0, 0), Point2D(180, 44), save_action;   # label + icon from the command
+                     border=fb, padding=Inset(4, 4, 8, 8)),
         WidgetButton(Point2D(0, 0), Point2D(180, 44), "Edit";    # icon on the button itself
                      icon=:pencil, dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
                      border=fb, padding=Inset(4, 4, 8, 8)),
@@ -139,9 +139,9 @@ function make_widget_document_example(; width=1024, height=768)
     # ── Chrome: menu bar (shared actions) + toolbar + status bar + tooltip ─────
     menu_bar = WidgetMenu([
         WidgetMenuItem("File"; submenu=WidgetMenu([
-            WidgetMenuItem("New";  command=new_action),
-            WidgetMenuItem("Open"; command=open_action),
-            WidgetMenuItem("Save"; command=save_action)])),
+            WidgetMenuItem(new_action),
+            WidgetMenuItem(open_action),
+            WidgetMenuItem(save_action)])),
         WidgetMenuItem("Edit"; submenu=WidgetMenu([
             WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
         WidgetMenuItem("View"; submenu=WidgetMenu([
@@ -149,9 +149,9 @@ function make_widget_document_example(; width=1024, height=768)
         WidgetMenuItem("Help"; submenu=WidgetMenu([WidgetMenuItem("About")])),
     ]; orientation=:horizontal)
     toolbar = WidgetToolbar([
-        WidgetMenuItem("New";  command=new_action),
-        WidgetMenuItem("Open"; command=open_action),
-        WidgetMenuItem("Save"; command=save_action),
+        WidgetMenuItem(new_action),
+        WidgetMenuItem(open_action),
+        WidgetMenuItem(save_action),
     ]; padding=Inset(4, 4, 4, 4))
     status_bar = WidgetStatusBar(["Ready", "shadcn widget gallery", "Ln 1, Col 1"])
     tip = WidgetTooltip(Point2D(20, height - 80), Point2D(360, 48),
@@ -328,17 +328,17 @@ function make_widget_shell_document_example(; width=600, height=400)
     # on click (Stage 3 Step 4c); the File items present the shared commands.
     menu_bar = WidgetMenu([
         WidgetMenuItem("File"; submenu=WidgetMenu([
-            WidgetMenuItem("New";  command=new_action),
-            WidgetMenuItem("Open"; command=open_action),
-            WidgetMenuItem("Save"; command=save_action)])),
+            WidgetMenuItem(new_action),
+            WidgetMenuItem(open_action),
+            WidgetMenuItem(save_action)])),
         WidgetMenuItem("Edit"; submenu=WidgetMenu([
             WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
         WidgetMenuItem("Help"; submenu=WidgetMenu([
             WidgetMenuItem("About")])),
     ]; orientation=:horizontal)
-    toolbar  = WidgetToolbar([WidgetMenuItem("New";  command=new_action),
-                              WidgetMenuItem("Open"; command=open_action),
-                              WidgetMenuItem("Save"; command=save_action)];
+    toolbar  = WidgetToolbar([WidgetMenuItem(new_action),
+                              WidgetMenuItem(open_action),
+                              WidgetMenuItem(save_action)];
                              padding=Inset(4, 4, 4, 4))
     status_bar = WidgetStatusBar(["Ready", "Ln 1, Col 1"])
     WidgetShell(content;

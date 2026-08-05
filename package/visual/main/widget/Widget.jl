@@ -308,7 +308,7 @@ get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 A clickable button — a view of an [`Action`], the single home of what the
 command *is* (label, icon, availability, shortcut, callback).
 
-`action` is that command. Pass an `Action` to bind a shared command: the button
+`action` is that command. Pass an `Action` to bind a shared one: the button
 shows its `label`/`icon`, follows its `enabled`, and fires its callback (the
 positional `content` may only duplicate the bound label — a differing one has
 nowhere to live and errors). Pass a bare callable — or nothing, for an inert
@@ -317,8 +317,7 @@ button — and the constructor folds `content` and `icon` into a fresh
 the source of truth and the printers consult nothing else. An `Action` may also
 be passed as the positional `content` directly. Clicking emits
 `InvokeActionOperation(action)`; the callback is called with the editor when it
-accepts one argument, otherwise with none. `command =` is an alias for binding
-an `Action`.
+accepts one argument, otherwise with none.
 
 `gestures` is an optional per-instance `Vector{GestureBinding}` for behavior
 beyond the plain click: the reader consults it *before* the built-in
@@ -343,11 +342,8 @@ are not meant to be serialised.
 @document struct WidgetButton <: WidgetDocument
     position::Point2D
     size::Point2D
-    content::Any
     action::Any
     gestures::Any
-    command::Any
-    icon::Any
     dialog::Any
     visible::Bool
     enabled::Bool
@@ -364,7 +360,6 @@ end
 function WidgetButton(position::Point2D, size::Point2D, content;
                       action=nothing,
                       gestures=GestureBinding[],
-                      command=nothing,
                       icon=nothing,
                       dialog=nothing,
                       visible::Bool=true,
@@ -381,13 +376,11 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # suppress (map to `DoNothingOperation()`) a default.
     # `icon` (optional) is an icon name drawn left of the label (Stage 5);
     # `dialog` (optional) is a child `WidgetDialog` opened modally on click.
-    # The `action` field always ends up holding an `Action` (see `as_action`);
-    # the `content`/`icon`/`command` fields are kept populated only for the
-    # transition and are no longer read by the printers.
-    act = as_action(content, icon, action, command)
-    content isa Action && (content = nothing)
-    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(act), Cell(gestures),
-                 Cell(command), Cell(icon), Cell(dialog),
+    # `content` and `icon` are constructor sugar, not fields: they fold into the
+    # button's `Action`, which is the single home of what the command is.
+    WidgetButton(Cell(position), Cell(size),
+                 Cell(as_action(content, icon, action)), Cell(gestures),
+                 Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
@@ -408,7 +401,7 @@ get_instance_gesture_bindings(w::WidgetButton) = w.gestures
 
 An icon-first button (Qt's `QToolButton`): a `WidgetButton` showing `icon` with an
 optional short `label`. A thin convenience over `WidgetButton`, so it accepts the
-same keywords (`command`, `action`, `enabled`, `border`, …). Stage 5.
+same keywords (`action`, `enabled`, `border`, …). Stage 5.
 """
 WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
     WidgetButton(Point2D(0, 0), size, label; icon=icon, kwargs...)
@@ -620,7 +613,7 @@ one (the item shows its `label`/`icon`, follows its `enabled`, and a click
 emits `InvokeActionOperation(action)` — so a menu item, a toolbar button, and a
 keyboard shortcut can share one command), or a bare callable/nothing folded
 with `content`/`icon` into a fresh `Action`; an `Action` may also be passed as
-the positional `content`. `command =` is an alias for binding an `Action`.
+the positional `content`.
 `submenu` is an optional `WidgetMenu` opened as a popup just below the item on
 a left click; an item with a submenu opens it **instead of** running its
 action, so the one item type serves a menu-bar entry, a nested submenu, and a
@@ -629,11 +622,8 @@ leaf command. A click on an enabled leaf item also closes the enclosing popup
 disabled command) is inert.
 """
 @document struct WidgetMenuItem <: WidgetDocument
-    content::Any
     action::Any
     gestures::Any
-    command::Any
-    icon::Any
     submenu::Any
     visible::Bool
     enabled::Bool
@@ -649,7 +639,6 @@ end
 function WidgetMenuItem(content;
                         action=nothing,
                         gestures=GestureBinding[],
-                        command=nothing,
                         icon=nothing,
                         submenu=nothing,
                         visible::Bool=true,
@@ -660,11 +649,9 @@ function WidgetMenuItem(content;
                         border_color=nothing,
                         padding::Inset=inset_default,
                         padding_color=nothing)
-    # See `WidgetButton`: the `action` field always holds an `Action`, and the
-    # `content`/`icon`/`command` fields are transitional, no longer read.
-    act = as_action(content, icon, action, command)
-    content isa Action && (content = nothing)
-    WidgetMenuItem(Cell(content), Cell(act), Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
+    # See `WidgetButton`: `content` and `icon` are sugar that folds into the
+    # item's `Action`.
+    WidgetMenuItem(Cell(as_action(content, icon, action)), Cell(gestures), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
@@ -1775,14 +1762,12 @@ end
 # control — is folded together with the control's own `content`/`icon` into a
 # fresh `Action`, whose cells then ARE the storage: there is exactly one home
 # for the command's appearance, and the printers need no precedence rule.
-function as_action(content, icon, action, command)
-    action !== nothing && command !== nothing &&
-        error("pass either `action` or `command`, not both")
+function as_action(content, icon, action)
     bound = content isa Action ? content : nothing
-    behaviour = command !== nothing ? command : action
+    behaviour = action
     if bound !== nothing
         behaviour === nothing ||
-            error("the positional content is already an Action; pass no `action`/`command` beside it")
+            error("the positional content is already an Action; pass no `action` beside it")
         _own_conflicts(icon, bound.icon) &&
             error("an own `icon` differing from the bound Action's cannot be kept — put it on the Action")
         return bound
