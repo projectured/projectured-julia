@@ -187,6 +187,14 @@ end
 # An embed introduces no syntax of its own, so it has nothing to say about a
 # gesture: it only re-roots what the embedded document's own reader produced.
 
+# Where an embedded document hangs off its embed: the one step that turns a
+# reference in the embedded document's domain into one in this embed's.
+# Built step-by-step rather than with `@reference`: the operation an inner
+# reader produced carries whatever node types it carries, and the macro refuses
+# a tail it cannot type. Prepending one field step preserves the tail as it is.
+_embed_reroot(::ReferenceStubToSyntax, r) = ConcreteReference(FieldReferenceStep("resolved"), r)
+_embed_reroot(::FileDocumentToSyntax,  r) = ConcreteReference(FieldReferenceStep("content"), r)
+
 for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
     @eval function read_intent(p::$T, iomap::EmbedIoMap, op::ReplaceSelectionOperation)
         result = map_reference_backward(p, iomap, op.path)
@@ -222,8 +230,17 @@ for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
         # for dispatch re-enters THIS method for any type without a specific one,
         # which is an infinite recursion — a mouse crossing the embed blew the
         # stack after 29k frames.
-        op isa ReplaceSelectionOperation   && return read_intent(p, iomap, op)
-        op isa ReplaceStringRangeOperation && return read_intent(p, iomap, op)
+        # An operation the INNER reader produced is already in the embedded
+        # document's own domain — it mapped it on the way out. Re-rooting it is
+        # therefore prepending this embed's step, NOT running it back through
+        # `map_reference_backward`, which expects a reference still in the
+        # embed's OUTPUT domain and answers nothing for one that has already
+        # been mapped. Doing that dropped every caret placed inside an embedded
+        # card: clicking a parameter value did nothing at all.
+        op isa ReplaceSelectionOperation &&
+            return ReplaceSelectionOperation(_embed_reroot(p, op.path))
+        op isa ReplaceStringRangeOperation &&
+            return ReplaceStringRangeOperation(_embed_reroot(p, op.reference), op.replacement)
         op   # anything else carries its own target and travels up unchanged
     end
 end
