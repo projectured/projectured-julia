@@ -24,17 +24,17 @@ _bproj() = ChainingProjection(
 @testset "button: a per-instance right-click binding fires (left-click unchanged)" begin
     fired = Ref(false)
     rc = GestureBinding(MousePressPattern(:right, nothing, nothing),
-                        (doc, evt) -> InvokeWidgetActionOperation(doc),
+                        (doc, evt) -> InvokeActionOperation(doc.action),
                         _always, "context menu", "test")
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
                        action = (_e) -> (fired[] = true), gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeActionOperation
     # Right-click fires the custom binding.
     op = read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys()))
-    @test op isa InvokeWidgetActionOperation && op.widget === btn
+    @test op isa InvokeActionOperation && op.action === btn.action
     evaluate_operation(_WidgetGestureMockEditor(btn), op)
     @test fired[] == true
 end
@@ -50,7 +50,7 @@ end
     iomap = print_document(proj, nothing, btn, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
     @test op isa ReplaceReferencedValueOperation                 # the instance binding won…
-    @test !(op isa InvokeWidgetActionOperation)         # …the default primary op did not fire
+    @test !(op isa InvokeActionOperation)               # …the default primary op did not fire
 end
 
 @testset "button: suppression via DoNothingOperation makes left-click inert" begin
@@ -73,7 +73,7 @@ end
     btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> (fired[] = true))
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeActionOperation
     @test read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys())) === nothing
 end
 

@@ -13,7 +13,6 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..ProjectionApiModule: Projection, read_intent
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
@@ -26,8 +25,9 @@ import ..GeometryModule: Inset, Point2D, inset_default,
                         AffineTransform, affine_identity
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, SelectTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-       EndSplitterDragOperation, InvokeWidgetActionOperation, Shortcut, action_shortcut_matches,
-       InvokeActionOperation, numeric_validator, evaluate_operation, inset_default, inset_size,
+       EndSplitterDragOperation, Shortcut, action_shortcut_matches,
+       InvokeActionOperation, as_action,
+       numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
        inset_bottom_right, set_cell_function!,
        widget_list_selection, widget_list_selected,
@@ -305,12 +305,20 @@ get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 """
     WidgetButton(position, size, content; action, <base kwargs>)
 
-A clickable button.
+A clickable button — a view of an [`Action`], the single home of what the
+command *is* (label, icon, availability, shortcut, callback).
 
-`action` is an optional callable invoked when the button is clicked (via
-`InvokeWidgetActionOperation`). It is called with the editor when it accepts one
-argument, otherwise with none, so it can mutate `editor.document` / projection
-state. A `nothing` action makes the button inert on click.
+`action` is that command. Pass an `Action` to bind a shared command: the button
+shows its `label`/`icon`, follows its `enabled`, and fires its callback (the
+positional `content` may only duplicate the bound label — a differing one has
+nowhere to live and errors). Pass a bare callable — or nothing, for an inert
+button — and the constructor folds `content` and `icon` into a fresh
+`Action(content; icon, callback)`, so after construction the action is always
+the source of truth and the printers consult nothing else. An `Action` may also
+be passed as the positional `content` directly. Clicking emits
+`InvokeActionOperation(action)`; the callback is called with the editor when it
+accepts one argument, otherwise with none. `command =` is an alias for binding
+an `Action`.
 
 `gestures` is an optional per-instance `Vector{GestureBinding}` for behavior
 beyond the plain click: the reader consults it *before* the built-in
@@ -371,10 +379,14 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
     # suppress (map to `DoNothingOperation()`) a default.
-    # `command` (optional) is a shared `Action` (Stage 4); `icon` (optional) is an
-    # icon name drawn left of the label (Stage 5); `dialog` (optional) is a child
-    # `WidgetDialog` opened modally on click.
-    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(action), Cell(gestures),
+    # `icon` (optional) is an icon name drawn left of the label (Stage 5);
+    # `dialog` (optional) is a child `WidgetDialog` opened modally on click.
+    # The `action` field always ends up holding an `Action` (see `as_action`);
+    # the `content`/`icon`/`command` fields are kept populated only for the
+    # transition and are no longer read by the printers.
+    act = as_action(content, icon, action, command)
+    content isa Action && (content = nothing)
+    WidgetButton(Cell(position), Cell(size), Cell(content), Cell(act), Cell(gestures),
                  Cell(command), Cell(icon), Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
@@ -382,7 +394,11 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                  Cell(false), Cell(false))
 end
 
-set_cell_function!(w::WidgetButton, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+# The reactive-label channel: make this button's label computed. The label lives
+# on the button's `Action` — for a sugar-built button that action is fresh, so
+# the write is local; on a button bound to a SHARED action this renames the
+# command in every view of it, deliberately.
+set_cell_function!(w::WidgetButton, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
 
 # Per-instance gesture bindings (see `get_instance_gesture_bindings` / `read_bound_gesture`).
 get_instance_gesture_bindings(w::WidgetButton) = w.gestures
@@ -596,20 +612,21 @@ set_cell_function!(w::WidgetMenu, f::Function) = (set_cell_function!(getfield(w.
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
 """
-    WidgetMenuItem(content; action=nothing, command=nothing, submenu=nothing, <base kwargs>)
+    WidgetMenuItem(content; action=nothing, submenu=nothing, <base kwargs>)
 
-A single item inside a `WidgetMenu`. `action` is an optional callback (same
-contract as `WidgetButton.action`: called with the editor when it accepts one
-argument, else with none) invoked via `InvokeWidgetActionOperation` on a left
-click. `command` is an optional shared [`Action`] (Stage 4): when bound, the item
-shows the action's `label`, follows its `enabled`, and a click emits
-`InvokeActionOperation(command)` — so a menu item, a toolbar button, and a keyboard
-shortcut can share one command. `submenu` is an optional `WidgetMenu` opened as a
-popup just below the item on a left click; an item with a submenu opens it
-**instead of** running its action/command, so the one item type serves a menu-bar
-entry, a nested submenu, and a leaf command. A click on an enabled leaf item also
-closes the enclosing popup (a no-op when the menu is rendered inline). A disabled
-item (or one bound to a disabled command) is inert.
+A single item inside a `WidgetMenu` — a view of an [`Action`], exactly like
+[`WidgetButton`](@ref). `action` is the command: an `Action` to bind a shared
+one (the item shows its `label`/`icon`, follows its `enabled`, and a click
+emits `InvokeActionOperation(action)` — so a menu item, a toolbar button, and a
+keyboard shortcut can share one command), or a bare callable/nothing folded
+with `content`/`icon` into a fresh `Action`; an `Action` may also be passed as
+the positional `content`. `command =` is an alias for binding an `Action`.
+`submenu` is an optional `WidgetMenu` opened as a popup just below the item on
+a left click; an item with a submenu opens it **instead of** running its
+action, so the one item type serves a menu-bar entry, a nested submenu, and a
+leaf command. A click on an enabled leaf item also closes the enclosing popup
+(a no-op when the menu is rendered inline). A disabled item (or one bound to a
+disabled command) is inert.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     content::Any
@@ -643,7 +660,11 @@ function WidgetMenuItem(content;
                         border_color=nothing,
                         padding::Inset=inset_default,
                         padding_color=nothing)
-    WidgetMenuItem(Cell(content), Cell(action), Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
+    # See `WidgetButton`: the `action` field always holds an `Action`, and the
+    # `content`/`icon`/`command` fields are transitional, no longer read.
+    act = as_action(content, icon, action, command)
+    content isa Action && (content = nothing)
+    WidgetMenuItem(Cell(content), Cell(act), Cell(gestures), Cell(command), Cell(icon), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
@@ -651,7 +672,8 @@ function WidgetMenuItem(content;
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
-set_cell_function!(w::WidgetMenuItem, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+# See the `WidgetButton` method: the label lives on the item's `Action`.
+set_cell_function!(w::WidgetMenuItem, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
 
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
@@ -1743,6 +1765,46 @@ function Action(label;
     Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), Cell(callback))
 end
 
+# How a control acquires its `Action` — the one place the sugar forms resolve.
+#
+# A bound `Action` (passed as `action =`, `command =`, or the positional
+# content) is the source of truth and passes through untouched; a control never
+# writes to a shared action, so an own label/icon that DIFFERS from the bound
+# action's has nowhere to live and errors loudly (make a second `Action`
+# sharing the callback instead). A bare callable — or nothing, for an inert
+# control — is folded together with the control's own `content`/`icon` into a
+# fresh `Action`, whose cells then ARE the storage: there is exactly one home
+# for the command's appearance, and the printers need no precedence rule.
+function as_action(content, icon, action, command)
+    action !== nothing && command !== nothing &&
+        error("pass either `action` or `command`, not both")
+    bound = content isa Action ? content : nothing
+    behaviour = command !== nothing ? command : action
+    if bound !== nothing
+        behaviour === nothing ||
+            error("the positional content is already an Action; pass no `action`/`command` beside it")
+        _own_conflicts(icon, bound.icon) &&
+            error("an own `icon` differing from the bound Action's cannot be kept — put it on the Action")
+        return bound
+    end
+    if behaviour isa Action
+        _own_conflicts(content, behaviour.label) &&
+            error("an own content (\"$content\") differing from the bound Action's label cannot be kept — make a second Action sharing the callback")
+        _own_conflicts(icon, behaviour.icon) &&
+            error("an own `icon` differing from the bound Action's cannot be kept — put it on the Action")
+        return behaviour
+    end
+    Action(content; icon = icon, callback = behaviour)
+end
+
+# An own appearance value conflicts with the bound action's only when it is
+# actually saying something (a non-empty name or icon) and says something else.
+# Restricted to the scalar appearance kinds on purpose: a rich content (an image,
+# a nested widget) is never a duplicate of a bound action's label, and comparing
+# documents for equality here would be both meaningless and expensive.
+_own_conflicts(own::Union{AbstractString,Symbol}, bound) = !isempty(string(own)) && own != bound
+_own_conflicts(::Any, ::Any) = false
+
 """
     Shortcut(key; ctrl=false, alt=false, shift=false, meta=false) -> KeyDownPattern
 
@@ -1762,32 +1824,6 @@ end
 # gesture-layer `matches_event_pattern` (exact-modifier `KeyDownPattern` matching).
 action_shortcut_matches(action::Action, evt) =
     action.shortcut !== nothing && !(action.enabled === false) && matches_event_pattern(action.shortcut, evt)
-
-"""
-    InvokeWidgetActionOperation(widget)
-
-Invoke `widget`'s `action` callable (e.g. a `WidgetButton` click). The action is
-called with the editor when it accepts one argument, otherwise with none, so it
-can mutate `editor.document` or projection state. A `nothing` action is a no-op.
-"""
-struct InvokeWidgetActionOperation <: Operation
-    widget::WidgetDocument
-end
-
-# A widget action carries its own target, so it needs no re-rooting and must not
-# be dropped on the way out.
-#
-# The generic reader (`Projection.jl`) forwards a self-contained
-# `ReplaceReferencedValueOperation` unchanged for exactly this reason — it is
-# "the path identity-rooted controls take back through any generic projection" —
-# and returns `nothing` for every other operation type. This one is just as
-# self-contained and was not on the list, so any projection without a reader of
-# its own swallowed it: a button inside a rewrap (a markdown page's stack of
-# blocks, say) rendered, took the press, answered, and the answer went nowhere.
-#
-# It lives here rather than in the kernel because the kernel cannot name a widget
-# type — the same reason the text- and number-range branches live above it.
-read_intent(::Projection, iomap, op::InvokeWidgetActionOperation) = op
 
 """
     InvokeActionOperation(action)
@@ -1854,18 +1890,6 @@ end
 function evaluate_operation(editor, op::EndSplitterDragOperation)
     op.split.active_splitter = 0
     op.split.drag_anchor = nothing
-end
-
-function evaluate_operation(editor, op::InvokeWidgetActionOperation)
-    action = op.widget.action
-    action === nothing && return
-    # Prefer an editor-taking action so it can reach the document/projection;
-    # fall back to a 0-arg callable.
-    if applicable(action, editor)
-        action(editor)
-    elseif applicable(action)
-        action()
-    end
 end
 
 function evaluate_operation(editor, op::InvokeActionOperation)

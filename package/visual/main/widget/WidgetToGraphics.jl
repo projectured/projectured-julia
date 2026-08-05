@@ -47,7 +47,6 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        Inset, Point2D, inset_default,
                        SelectTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-                       InvokeWidgetActionOperation,
                        Action, InvokeActionOperation, action_shortcut_matches,
                        first_focusable_path, last_focusable_path, _next_focusable_in
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
@@ -1064,9 +1063,12 @@ end
 
 # ── WidgetButton ────────────────────────────────────────────────────────────
 
-# A bound command (Stage 4) supplies the button's label, enabled-state, and
-# callback, so a menu item / toolbar button / shortcut can share one `Action`.
-_button_command(w::WidgetButton) = (c = w.command; c isa Action ? c : nothing)
+# A control is a view of its `Action` (the constructor guarantees one is always
+# there, folding a sugar-built control's own label/icon into a fresh one), so
+# the printers read the action and nothing else — no precedence rule.
+_button_command(w::WidgetButton) = (c = w.action; c isa Action ? c : nothing)
+# Enablement is a CONJUNCTION, not an override: this view can be inert while the
+# shared command stays live in its other views.
 _button_enabled(w::WidgetButton) =
     !(w.enabled === false) && !((c = _button_command(w)) !== nothing && c.enabled === false)
 # The label is passed RAW, never string()-coerced here: the polymorphic
@@ -1074,8 +1076,8 @@ _button_enabled(w::WidgetButton) =
 # `ImageDocument`, the menu-item printer recurses a `WidgetDocument`) must see
 # the value itself, and text stringification already happens at the leaf.
 _button_label_content(w::WidgetButton) = (c = _button_command(w); c !== nothing ? c.label : w.content)
-# Icon (Stage 5): a bound command's icon wins, else the button's own.
-_button_icon(w::WidgetButton) = (c = _button_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
+# Icon (Stage 5): on the action, like the label.
+_button_icon(w::WidgetButton) = (c = _button_command(w); c !== nothing ? c.icon : w.icon)
 
 function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetButton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -1188,11 +1190,14 @@ end
 # centered, not anchored, so it opens directly as an `OpenWindowOperation` (no
 # popup resolver). v1 uses a generous fixed window box; true screen-sizing /
 # centering is deferred (see widget.md).
+# A command that does something wins; the dialog is the fallback for one that
+# does not, so a button carrying both a callback and a dialog runs the callback.
 function _button_primary_op(w::WidgetButton)
     command = _button_command(w)
-    command === nothing || return InvokeActionOperation(command)
+    (command !== nothing && command.callback !== nothing) &&
+        return InvokeActionOperation(command)
     dlg = w.dialog
-    dlg === nothing && return InvokeWidgetActionOperation(w)
+    dlg === nothing && return command === nothing ? nothing : InvokeActionOperation(command)
     OpenWindowOperation(; id=dlg.popup_id, modal=true, style=:dialog,
                         x=80, y=60, width=480, height=320, content=dlg)
 end
@@ -1502,10 +1507,10 @@ end
 
 # A bound command (Stage 4) supplies the item's label, enabled-state, and callback,
 # so a menu item / toolbar button / shortcut can share one `Action`.
-_menu_item_command(w::WidgetMenuItem) = (c = w.command; c isa Action ? c : nothing)
+_menu_item_command(w::WidgetMenuItem) = (c = w.action; c isa Action ? c : nothing)
 _menu_item_enabled(w::WidgetMenuItem) =
     !(w.enabled === false) && !((c = _menu_item_command(w)) !== nothing && c.enabled === false)
-_menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); (c !== nothing && c.icon !== nothing) ? c.icon : w.icon)
+_menu_item_icon(w::WidgetMenuItem) = (c = _menu_item_command(w); c !== nothing ? c.icon : w.icon)
 
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -1587,9 +1592,10 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         (evt.button === :left && _menu_item_enabled(w)) || return nothing
         submenu = w.submenu
         submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
+        # The subtree wins over the callback here (unlike a button's dialog):
+        # a menu-bar entry that opens a submenu is what the item IS.
         command = _menu_item_command(w)
-        invoke = command !== nothing ? InvokeActionOperation(command) :
-                                       InvokeWidgetActionOperation(w)
+        invoke = InvokeActionOperation(command)
         return CompoundOperation(Any[invoke, CloseWindowOperation(:widget_popup)])
     end
     (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
@@ -1974,11 +1980,14 @@ end
 # shell's `menu_bar` + `toolbar` (recursing submenus). The menu *is* the shortcut
 # registry, so there is no separate list to keep in sync (Stage 4).
 function _collect_command_actions!(acc::Vector{Action}, w)
+    # Every control now carries an `Action`, but only a SHARED one ever declares
+    # a shortcut — a sugar-folded action is built without one — so the filter
+    # below collects exactly the same set it did when it read `command`.
     if w isa WidgetMenuItem
-        c = w.command; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+        c = w.action; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
         sm = w.submenu; sm isa WidgetMenu && _collect_command_actions!(acc, sm)
     elseif w isa WidgetButton
-        c = w.command; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
+        c = w.action; (c isa Action && c.shortcut !== nothing) && push!(acc, c)
     elseif w isa WidgetMenu || w isa WidgetToolbar
         for e in w.elements
             e isa WidgetDocument && _collect_command_actions!(acc, e)

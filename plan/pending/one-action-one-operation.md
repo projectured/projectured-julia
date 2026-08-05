@@ -288,7 +288,7 @@ omnetpp-julia resolves against the live checkout.
       (every current command label is a `String`), and required so the merged
       raw-label read preserves image/widget content.
 
-- [ ] **2. The merge (one cross-repo landing).**
+- [x] **2. The merge (one cross-repo landing).**
       - `as_action` + both keyword ctors always store a real `Action` in the
         `action` field (folding positional `content` + `icon =`; guarding the
         error corners above); `command =` feeds the same slot during the
@@ -310,7 +310,7 @@ omnetpp-julia resolves against the live checkout.
         → `InvokeActionOperation(doc.action)` and identity asserts
         `op.widget === btn` → `op.action === btn.action`.
 
-- [ ] **3. Delete the dead type.** `InvokeWidgetActionOperation` struct +
+- [x] **3. Delete the dead type.** `InvokeWidgetActionOperation` struct +
       docstring, its `evaluate_operation`, the generic forwarder (HEAD:1790),
       export + the three imports, the `EmbedToSyntax:218-221` comment;
       `EmbedToSyntax.jl:222`'s two generated methods and

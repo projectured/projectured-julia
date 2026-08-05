@@ -1,6 +1,6 @@
 # WidgetMenu interactivity (Stage 3, Step 4 — foundation). A WidgetMenuItem gains
 # an optional `action` callback; a left click on an enabled item invokes it (via
-# InvokeWidgetActionOperation) and closes the enclosing popup (:widget_popup) in
+# InvokeActionOperation) and closes the enclosing popup (:widget_popup) in
 # one CompoundOperation. The WidgetMenu reader routes clicks to the hit item.
 # Disabled items and non-left clicks are inert. The close is a harmless no-op when
 # the menu is rendered inline (no such window).
@@ -49,8 +49,8 @@ end
     op, _ = _click_first_item(menu)
     @test op isa CompoundOperation
     @test length(op.operations) == 2
-    @test op.operations[1] isa InvokeWidgetActionOperation
-    @test op.operations[1].widget === item
+    @test op.operations[1] isa InvokeActionOperation
+    @test op.operations[1].action === item.action
     @test op.operations[2] isa CloseWindowOperation
     @test op.operations[2].id === :widget_popup
     evaluate_operation(_MenuMockEditor(menu), op.operations[1])

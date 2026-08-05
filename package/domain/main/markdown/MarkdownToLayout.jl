@@ -25,10 +25,12 @@ module MarkdownToLayoutModule
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector
 import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
+                              read_intent, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..MarkdownModule: MarkdownRoot
+import ..WidgetModule: InvokeActionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, is_element_reference_step
 
@@ -82,5 +84,13 @@ function map_reference_backward(::MarkdownRootToVerticalLayout, iomap, reference
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     ConcreteReference(FieldReferenceStep("elements"), t)
 end
+
+# The whole point of the rewrap is that a page's embedded card is a real widget
+# whose controls can be clicked — so this projection is the one that has to pass
+# their activations on. An `InvokeActionOperation` names its own `Action` and
+# needs no re-rooting, but the generic reader returns `nothing` for every
+# operation type it does not recognise, which is where a card's Run button used
+# to die: it rendered, took the press, answered, and the answer stopped here.
+read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
 
 end # module MarkdownToLayoutModule

@@ -42,8 +42,8 @@ end
 
     op = read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys()))
     @test !(op isa OpenPopupOperation)
-    @test op isa InvokeWidgetActionOperation
-    @test op.widget === btn
+    @test op isa InvokeActionOperation
+    @test op.action === btn.action
     evaluate_operation(_CtxMenuMockEditor(btn), op)
     @test fired[] == 1
 end

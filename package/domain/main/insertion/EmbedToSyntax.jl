@@ -48,7 +48,7 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_solarized_gray
 import ..OperationModule: ReplaceSelectionOperation, Operation
-import ..WidgetModule: InvokeWidgetActionOperation
+import ..WidgetModule: InvokeActionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
                             content, filename
@@ -215,11 +215,12 @@ for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
     # Dispatch keeps this from catching operations — `Operation` and the two
     # reference-carrying kinds are all more specific than an untyped argument —
     # so this only ever sees a gesture on its way in.
-    # Disambiguator: the untyped event method below and the generic widget-action
-    # passthrough (WidgetModule) are each more specific in one argument, so a
-    # widget action arriving here matches both. It travels up unchanged, which is
-    # what both of them would have done.
-    @eval read_intent(::$T, ::EmbedIoMap, op::InvokeWidgetActionOperation) = op
+    # A control's activation names its own target and needs no re-rooting, but
+    # the untyped event method below would hand it to the inner reader again, so
+    # it is passed on explicitly. This projection sits between an embedded card's
+    # controls and the editor: without it the button renders, takes the press,
+    # answers, and the answer dies here.
+    @eval read_intent(::$T, ::EmbedIoMap, op::InvokeActionOperation) = op
     @eval function read_intent(p::$T, iomap::EmbedIoMap, evt)
         inner = iomap.inner_iomap
         inner === nothing && return nothing

@@ -59,7 +59,7 @@ end
     @test xy !== nothing
     op = read_intent(proj, iomap, MousePress(:left, xy[1] + 2, xy[2] + 2, ModifierKeys()))
     @test op isa CompoundOperation
-    @test op.operations[1] isa InvokeWidgetActionOperation
+    @test op.operations[1] isa InvokeActionOperation
     @test op.operations[2] isa CloseWindowOperation
     @test op.operations[2].id === :widget_dialog
     evaluate_operation(_DialogMockEditor(dlg), op.operations[1])

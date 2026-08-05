@@ -30,7 +30,7 @@ function _button_doc()
     (button, count)
 end
 
-@testset "button click invokes its action via InvokeWidgetActionOperation" begin
+@testset "button click invokes its action via InvokeActionOperation" begin
     button, count = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
@@ -38,8 +38,8 @@ end
 
     # Click inside the button (its canvas is at 0,0 sized 120×40).
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
-    @test op isa InvokeWidgetActionOperation
-    @test op.widget === button
+    @test op isa InvokeActionOperation
+    @test op.action === button.action
 
     evaluate_operation(_WidgetButtonMockEditor(button), op)
     @test count[] == 1
@@ -120,7 +120,7 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, composite, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
-    @test op isa InvokeWidgetActionOperation && op.widget === button
+    @test op isa InvokeActionOperation && op.action === button.action
     evaluate_operation(_WidgetButtonMockEditor(composite), op)
     @test count[] == 1
 end
@@ -275,8 +275,8 @@ end
     proj = _proj()
     btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing)
     biomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, biomap, KeyDown(:return, ModifierKeys())) isa InvokeWidgetActionOperation
-    @test read_intent(proj, biomap, KeyDown(:space,  ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, biomap, KeyDown(:return, ModifierKeys())) isa InvokeActionOperation
+    @test read_intent(proj, biomap, KeyDown(:space,  ModifierKeys())) isa InvokeActionOperation
     dbtn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing, enabled = false)
     @test read_intent(proj, print_document(proj, nothing, dbtn, PrinterContext()),
                           KeyDown(:return, ModifierKeys())) === nothing
@@ -427,7 +427,7 @@ end
     up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys()))
     @test up isa ReplaceReferencedValueOperation && up.document === button && up.value == false
     # The composed click still reaches the action, as before.
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeActionOperation
 end
 
 # A WidgetCard used to swallow every pointer event but a click, so an interactive
@@ -459,7 +459,7 @@ end
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys()))
     @test dn isa ReplaceReferencedValueOperation && dn.document === button && dn.value == true
     # And a click still reaches the action through the card.
-    @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys())) isa InvokeWidgetActionOperation
+    @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys())) isa InvokeActionOperation
 end
 
 end # test_widget_button_behavior
