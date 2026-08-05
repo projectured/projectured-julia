@@ -25,21 +25,25 @@
 using PrecompileTools: @setup_workload, @compile_workload
 
 """
-    precompile_atoms(atoms) -> Int
+    precompile_atoms(atoms; projection = NaturalToGraphics(…)) -> Int
 
-Print every atom through `NaturalToGraphics` and force the result, returning how
-many rendered without error. Used by the workload below, and by
+Print every atom through `projection` and force the result, returning how many
+rendered without error. Used by the workload below, and by
 `test_natural_renders_every_atom` so that a projection an atom cannot survive is
 a test failure rather than something the workload silently skips.
 
-`NaturalToGraphics` is the projection to use rather than a per-domain chain
-because it is the one that dispatches on document type across every domain,
+`NaturalToGraphics` is the default rather than a per-domain chain because it is
+the one projection that dispatches on document type across every domain,
 collection, layout and widget — the same renderer an editor puts on screen. A
 hand-written domain→chain table would be a second registry to keep in step with
 this one.
+
+A downstream package passes its own: `OmnetppPresentationExample` splices the
+simulation-embed entry and the workbench dispatch into the same renderer, so its
+atoms compile through the projection its reader will actually meet.
 """
-function precompile_atoms(atoms)
-    projection = NaturalToGraphics(measure = truetype_measure_text)
+function precompile_atoms(atoms;
+                          projection = NaturalToGraphics(measure = truetype_measure_text))
     context = PrinterContext(EmptyReference(),
                              ProjecturedKernel.CellModule.Cell(1200),
                              ProjecturedKernel.CellModule.Cell(800),
@@ -98,6 +102,35 @@ function precompile_atom_parsers(atoms)
     parsed
 end
 
+"""
+    precompile_atom_walks(atoms) -> Int
+
+Resolve stubs over every atom, returning how many completed.
+
+`resolve_stubs!` is what opening a document does before anything renders it, and
+it is specialised per node type *and* per predicate closure — so it is only
+reached by calling `resolve_stubs!` itself, not by an equivalent walk written
+here. On the demo it was the single largest item in opening a page: 2.65 s
+across 317 closure instantiations, more than the embed, the JSON decode and the
+Expr conversion together.
+
+Most atoms carry no stub, which does not matter: the walk still specialises for
+the node types it descends through, and those are the specialisations being
+bought.
+"""
+function precompile_atom_walks(atoms)
+    walked = 0
+    for atom in atoms
+        try
+            resolve_stubs!(atom.make_document())
+            walked += 1
+        catch
+            # As above: not the place a failure is meant to surface.
+        end
+    end
+    walked
+end
+
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs
     # compiling, and doing it here keeps the measured region to the pipeline.
@@ -105,5 +138,6 @@ end
     @compile_workload begin
         precompile_atoms(_atoms)
         precompile_atom_parsers(_atoms)
+        precompile_atom_walks(_atoms)
     end
 end

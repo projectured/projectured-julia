@@ -229,7 +229,7 @@ export run_console_example, run_example, run_file_editor, sql_insert_syntax_exam
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
-export precompile_atoms, precompile_atom_parsers
+export precompile_atoms, precompile_atom_parsers, precompile_atom_walks
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 # Re-export the kernel-example LLM test doubles so domain test files can use
 # them without importing ProjecturedKernelExample directly.
