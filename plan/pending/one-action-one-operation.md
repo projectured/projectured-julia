@@ -373,8 +373,11 @@ omnetpp-julia resolves against the live checkout.
 
 ## Not in scope
 
-The demo catalog's dropped button press is a separate, still-open problem: the
-loss is inside the page renderer, before `CatalogShellToWidget` is consulted.
-This plan halves the surface that has to forward, but does not by itself find
-that site. The 3-arg vs 4-arg `read_intent` question (286 payload-dispatching
+~~The demo catalog's dropped button press~~ — **found and fixed in step 3.** The
+site was `MarkdownRootToVerticalLayout` (`domain/markdown/MarkdownToLayout.jl`),
+which had `print_document` and both reference maps but **no `read_intent`**, so
+the generic reader dropped every operation type it did not recognise. The widget
+operation survived only via the generic forwarder; the action operation never
+had one, which is why a card's Run button did nothing. One opt-in line there,
+plus the retyped `EmbedToSyntax` forwarder, and `test_demo_catalog` is 400/400. The 3-arg vs 4-arg `read_intent` question (286 payload-dispatching
 methods against 168 `Intent` ones) is likewise deferred.
