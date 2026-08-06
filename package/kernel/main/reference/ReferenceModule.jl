@@ -17,7 +17,7 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@reference_step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in ten fragments that share this namespace:
+The module lives in eleven fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
@@ -41,6 +41,9 @@ The module lives in ten fragments that share this namespace:
 - [`ReferenceSyntax.jl`](ReferenceSyntax.jl) — the **surface grammar both DSLs
   accept**, parsed once into one step AST (`RefStep`). The two DSL fragments below
   are *lowerings* of that AST, not parsers of their own.
+- [`ReferenceGlob.jl`](ReferenceGlob.jl) — the **glob language** (`glob_matches`):
+  `*`, `?`, `{a-e}`, `{^a-e}`, `{38..47}` over a single name. It knows nothing
+  about references; it is a fragment here because this is where its callers are.
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
@@ -99,6 +102,7 @@ include("ReferencePath.jl")
 include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
 include("ReferenceSyntax.jl")
+include("ReferenceGlob.jl")
 include("ReferenceCase.jl")
 include("ReferenceRules.jl")
 include("ReferencePatternString.jl")

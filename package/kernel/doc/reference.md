@@ -47,6 +47,8 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        once into one step AST (RefStep). The three
         │                        fragments below are lowerings of that AST,
         │                        not parsers of their own
+        ├─ ReferenceGlob.jl    — the glob language (*, ?, {a-e}, {38..47}) over
+        │                        one name; knows nothing about references
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
@@ -82,7 +84,7 @@ declares are named in the struct field annotations below it
 (`head::ReferenceStep`, `tail::Reference`), and those are evaluated at
 definition time, so the contract must be loaded before the types that satisfy it.
 
-The nine fragments are only ever imported together, so they share one
+The eleven fragments are only ever imported together, so they share one
 `ReferenceModule` namespace instead of being separate modules — splitting them
 would just multiply import headers. They still live in separate files for
 readability, but as **fragments** (0-module files sharing the aggregator's
