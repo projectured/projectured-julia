@@ -722,6 +722,59 @@ function test_reference_rules()
         @test apply_reference_rules(exactly, Reference(_fld("b"), _fld("a"))) === :no
     end
 
+    @testset "`_` is exactly one step" begin
+        _conforms("one step, any kind",
+            p -> (@reference_case p begin
+                a._   => :a_then_one
+                _._   => :two
+                at(_) => :one
+                __    => :other
+            end),
+            (@reference_rules begin
+                a._   => :a_then_one
+                _._   => :two
+                at(_) => :one
+                __    => :other
+            end))
+
+        # `_` counts a step, not a name — an index, a position and an extension step are
+        # each one step, so `xs[3]` is two.
+        # A bare `_` arm is the retired catch-all and raises (see below), so the
+        # one-step arm is written `at(_)` — which is what the arm word was always for.
+        one = @reference_rules begin
+            _._   => :two
+            at(_) => :one
+            __    => :other
+        end
+        @test apply_reference_rules(one, Reference(_fld("a"))) === :one
+        @test apply_reference_rules(one, Reference(RulesToyStep(:red))) === :one
+        @test apply_reference_rules(one, Reference(_fld("xs"), _el(3))) === :two
+        @test apply_reference_rules(one, Reference(_fld("xs"), _pos(0))) === :two
+        @test apply_reference_rules(one, EmptyReference()) === :other
+        @test apply_reference_rules(one, Reference(_fld("a"), _fld("b"), _fld("c"))) === :other
+
+        # A one-step wildcard is not a search, so it compiles like any other step and
+        # never reaches the interpreter.
+        @test !ReferenceModule._pattern_has_gap(first((@reference_rules begin
+            a._.b => 1
+        end).rules).pattern)
+    end
+
+    @testset "the retired catch-all says so" begin
+        # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
+        # error rather than a silent reinterpretation — the whole point of the guard.
+        @test_throws Exception @eval @reference_rules begin
+            _ => :nope
+        end
+        @test_throws Exception @eval @reference_case EmptyReference() begin
+            _ => :nope
+        end
+
+        # A wildcard has no construction reading either, in either spelling.
+        @test_throws Exception @eval @reference a._.b
+        @test_throws Exception @eval @reference a.__.b
+    end
+
     @testset "`at_or_below(P)` and `P.__` are the same arm" begin
         # The pattern sugar and the arm word have to agree, or one of them is a lie.
         word = @reference_rules begin

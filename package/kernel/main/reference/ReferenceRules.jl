@@ -235,6 +235,9 @@ function _match_step(h, step::PatStepRange, b::ReferenceRuleBindings)
     b1 === nothing ? nothing : _match_value(h.stop, step.stoppat, b1)
 end
 
+# `_` — one step, whatever it is. The caller has already established there is one.
+_match_step(h, ::PatStepAny, b::ReferenceRuleBindings) = b
+
 _match_step(h, step::PatStepExtension, b::ReferenceRuleBindings) =
     match_reference_step_value(Val(step.name), h, step.argpats, b, _match_value, _match_subpath)
 
@@ -666,6 +669,8 @@ _show_pat_step(io::IO, step::PatStepTypeBind, first::Bool) = print(io, "::", ste
 _show_pat_step(io::IO, step::PatStepWholePathBind, first::Bool) =
     step.name === :_ ? print(io, "_") : print(io, first ? "" : ".", step.name, "...")
 
+_show_pat_step(io::IO, ::PatStepAny, first::Bool) = print(io, first ? "" : ".", "_")
+
 function _show_pat_step(io::IO, step::PatStepGap, first::Bool)
     print(io, first ? "" : ".", "__", step.lazy ? "ʔ" : "")
     step.name === nothing || print(io, "(", step.name, ")")
@@ -711,6 +716,7 @@ _quote_pat_step(step::PatStepRange) =
 _quote_pat_step(step::PatStepType) = :($PatStepType($(esc(step.typeexpr))))
 _quote_pat_step(step::PatStepTypeBind) = :($PatStepTypeBind($(QuoteNode(step.name))))
 _quote_pat_step(step::PatStepWholePathBind) = :($PatStepWholePathBind($(QuoteNode(step.name))))
+_quote_pat_step(::PatStepAny) = :($PatStepAny())
 _quote_pat_step(step::PatStepGap) = :($PatStepGap($(QuoteNode(step.name)), $(step.lazy)))
 _quote_pat_step(step::PatStepPathInterp) = :($PatStepPathInterp($(esc(step.expr))))
 _quote_pat_step(step::PatStepExtension) =
@@ -757,9 +763,7 @@ _make_reference_rule_answer(value) = ReferenceRuleAnswer(value)
 # The pattern of an arm, in the matching reading of the shared grammar, plus the two
 # whole-path forms that have no path syntax of their own.
 function _rules_pattern(ex)
-    if ex === :_
-        return PatStep[PatStepWholePathBind(:_)]
-    elseif ex === :∅
+    if ex === :∅
         # A path that terminates *at* the element — a whole-element selection. The empty
         # pattern consumes nothing, so `at(∅)` holds exactly for an `EmptyReference`.
         return PatStep[]
@@ -781,6 +785,11 @@ function _parse_rules_arm(ex)
         guard = lhs.args[3]
         lhs = lhs.args[2]
     end
+
+    # A bare `_` arm is the retired catch-all, so it raises rather than quietly
+    # becoming "any one-step path". Only the un-worded arm is guarded: `at(_)` says
+    # one step deliberately, and is how the new meaning is written meanwhile.
+    lhs === :_ && error(REFERENCE_RETIRED_CATCH_ALL)
 
     mode = :at
     if lhs isa Expr && lhs.head === :call && lhs.args[1] in REFERENCE_RULE_MODES

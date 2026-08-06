@@ -113,6 +113,18 @@ end
 
 PatStepGap() = PatStepGap(nothing, false)
 
+# `_` — **exactly one step**, of any kind: a field, an index, a position, an extension
+# step. It is the counterpart of an ini file's `*` used as a whole path component, and
+# unlike a gap it needs no search, since it consumes exactly one thing — so it compiles
+# to what every other step compiles to and never reaches the interpreter.
+#
+# "Any kind" is literal: on a transitional path that still carries an unfolded
+# `TypeReferenceStep`, `_` consumes that step like any other. A gap differs here, since
+# its length arithmetic is shared with the stripped shape walk `^(p)` uses and so counts
+# navigation steps only. Neither is observable on a canonical path, where type
+# checkpoints are folded into the nodes and there are no checkpoint steps to count.
+struct PatStepAny <: PatStep end
+
 # A type assertion in a pattern: `f::T` matches `f`'s steps, then requires the
 # folded `type` field of the node reached to be a subtype of `T` (non-navigating).
 # It narrows the match — a path standing on some other kind of node falls through
@@ -190,12 +202,21 @@ _pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x
 _case_subpath(ex) =
     ex isa Symbol ? PatStep[PatStepWholePathBind(ex)] : _to_pat_steps(parse_reference_path(ex))
 
-# `__` reaches the shared grammar as an ordinary field name — the parser names no
-# pattern concept, and needs to name none for this. The *matching* reading of that name
-# is a gap, which is why the surface syntax needed nothing added to it.
+# `_` and `__` reach the shared grammar as ordinary field names — the parser names no
+# pattern concept, and needs to name none for either. The *matching* reading of those
+# names is a step wildcard and a gap, which is why the surface syntax needed nothing
+# added to it. They mirror an ini file's `*` and `**`, and unlike those they are legal
+# Julia identifiers in path position.
+# The migration guard's message, shared so the two DSLs cannot word it differently.
+const REFERENCE_RETIRED_CATCH_ALL =
+    "`_` is no longer the catch-all arm — write `__` for \"any path\". `_` now matches " *
+    "exactly one step, so `a._.b` is a path of three; write `at(_)` for a one-step arm."
+
+const REFERENCE_STEP_NAME = "_"
 const REFERENCE_GAP_NAME = "__"
 
 _to_pat(s::RefField)     = s.name == REFERENCE_GAP_NAME ? PatStepGap() :
+                           s.name == REFERENCE_STEP_NAME ? PatStepAny() :
                            PatStepField(PatValueLiteral(s.name))
 _to_pat(s::RefFieldExpr) = PatStepField(_parse_value(s.expr))
 _to_pat(s::RefIndex)     = PatStepIndex(_parse_value(s.expr))
@@ -295,7 +316,12 @@ function _parse_arm_pattern(lhs)
         length(lhs.args) == 2 || error("$mode(path) expects exactly one argument")
         return (mode, _parse_path(lhs.args[2]))
     elseif lhs === :_
-        return (:at, PatStep[PatStepWholePathBind(:_)])
+        # `_` used to be the catch-all and now matches exactly one step, so a bare `_`
+        # arm would quietly change from "anything" to "any one-step path". It is an
+        # error rather than a silent reinterpretation. Only the un-worded arm is
+        # guarded: `at(_)` is caught by the arm-word branch above and says one step
+        # deliberately, which is how the new meaning is written meanwhile.
+        error(REFERENCE_RETIRED_CATCH_ALL)
     elseif lhs === :∅
         # Empty-path pattern: matches a reference that terminates *at* the
         # element itself — a whole-element ("tree") selection. Compiles to a
@@ -485,6 +511,12 @@ match_reference_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) wher
 # not existing.
 _gen_step_match(hex, tex, step::PatStepPathInterp, rest_success, bound::Set{Symbol}) =
     error("^(expr) path interpolation is only valid as the sole step of an @reference_case pattern: ^($(step.expr))")
+
+# `_` matches whatever step it is handed: reaching per-step dispatch already means the
+# path had one. It binds nothing and tests nothing, so the rest of the pattern is the
+# whole of its code.
+_gen_step_match(hex, tex, step::PatStepAny, rest_success, bound::Set{Symbol}) =
+    (rest_success, bound)
 
 # A gap never reaches codegen: `_gen_rule` routes a pattern holding one to the
 # interpreter before either generator is entered. This says so out loud, so that a
@@ -697,7 +729,21 @@ function _gen_rule(rule)
               _nomatch
           end)
 
-    # A pattern whose match is a search is handed to the interpreter rather than
+    # A lone anonymous gap is the catch-all arm — by far the commonest arm there is, and
+    # on the hot path of every mapper and reader. It holds a gap but needs no search: a
+    # run that may be any length, with nothing before or after it to line up against,
+    # answers the same for every input. Compiling it keeps that arm free, where handing
+    # it to the interpreter would cost a materialized pattern and a bindings dict on
+    # every evaluation.
+    if length(pat) == 1 && pat[1] isa PatStepGap && pat[1].name === nothing
+        # `below` is the one form that looks at the input at all: the gap may decline to
+        # take anything, leaving the whole input over, so "strictly deeper" reduces to
+        # "the input is not empty".
+        mode === :below || return body
+        return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _nomatch)
+    end
+
+    # Any other pattern whose match is a search is handed to the interpreter rather than
     # compiled, so the search exists once in the codebase (see `_gen_interpreted_rule`).
     _pattern_has_gap(pat) && return _gen_interpreted_rule(mode, pat, body)
 

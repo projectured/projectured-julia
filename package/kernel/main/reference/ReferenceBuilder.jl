@@ -14,8 +14,20 @@
 # Code generation — RefStep → constructor expression
 # ------------------------------------------------------------
 
-_gen_build_step(step::RefField) =
+# `_` and `__` are wildcards in the *matching* reading of the shared grammar, and reach
+# it as ordinary field names. There is nothing to construct from either — a path being
+# built has to say which step it means — so they are rejected here rather than silently
+# lowered to a field with a peculiar name, which is what a builder would otherwise emit
+# for `@reference(a.__.b)`.
+function _gen_build_step(step::RefField)
+    step.name == REFERENCE_GAP_NAME &&
+        error("`__` (any run of steps) is only valid inside @reference_case / @reference_rules, " *
+              "not @reference/@reference_step — a path being built names its steps")
+    step.name == REFERENCE_STEP_NAME &&
+        error("`_` (any one step) is only valid inside @reference_case / @reference_rules, " *
+              "not @reference/@reference_step — a path being built names its steps")
     :(ReferenceModule.FieldReferenceStep(String($(QuoteNode(step.name)))))
+end
 
 _gen_build_step(step::RefFieldExpr) =
     :(ReferenceModule.FieldReferenceStep(String($(esc(step.expr)))))
