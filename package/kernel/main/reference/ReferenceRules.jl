@@ -854,7 +854,10 @@ _make_reference_rule_answer(value) = ReferenceRuleAnswer(value)
 # The pattern of an arm, in the matching reading of the shared grammar, plus the two
 # whole-path forms that have no path syntax of their own.
 function _rules_pattern(ex)
-    if ex === :∅
+    if ex isa Expr && ex.head === :macrocall &&
+       _macro_basename(ex.args[1]) === Symbol("@ref_str")
+        return parse_reference_pattern(ex.args[end])
+    elseif ex === :∅
         # A path that terminates *at* the element — a whole-element selection. The empty
         # pattern consumes nothing, so `at(∅)` holds exactly for an `EmptyReference`.
         return PatStep[]

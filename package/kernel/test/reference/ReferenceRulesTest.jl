@@ -992,6 +992,59 @@ function test_reference_rules()
         @test occursin("net.any(queue, buffer).capacity => :either", sprint(show, rules))
     end
 
+    @testset "the string spelling parses to the same pattern" begin
+        # The claim is not that the two spellings agree on some inputs — it is that they
+        # are the same data. Equality is the test.
+        @test (@reference_rules begin ref"**.host[*].queue.capacity" => 100 end) ==
+              (@reference_rules begin __.host[_].queue.capacity => 100 end)
+        @test (@reference_rules begin ref"*.a" => 1 end) ==
+              (@reference_rules begin _.a => 1 end)
+        @test (@reference_rules begin ref"**?.a" => 1 end) ==
+              (@reference_rules begin __ʔ.a => 1 end)
+        @test parse_reference_pattern("a.b") ==
+              first((@reference_rules begin a.b => 1 end).rules).pattern
+
+        # An index shifts from the 0-based counting a configuration file uses.
+        @test apply_reference_rules((@reference_rules begin ref"host[0]" => :first end),
+                                    Reference(_fld("host"), _el(1))) === :first
+        @test apply_reference_rules((@reference_rules begin ref"host[0]" => :first end),
+                                    Reference(_fld("host"), _el(0 + 2))) === nothing
+        @test (@reference_rules begin ref"h[0..2].p" => 1 end) ==
+              (@reference_rules begin h[1..3].p => 1 end)
+
+        # A name carrying glob characters becomes a glob; a plain one stays a literal.
+        @test apply_reference_rules((@reference_rules begin ref"**.host*.p" => :g end),
+                                    Reference(_fld("a"), _fld("hostZ"), _fld("p"))) === :g
+        @test apply_reference_rules((@reference_rules begin ref"**.host*.p" => :g end),
+                                    Reference(_fld("a"), _fld("xhost"), _fld("p"))) === nothing
+        @test (@reference_rules begin ref"plain.name" => 1 end) ==
+              (@reference_rules begin plain.name => 1 end)
+
+        # An escaped metacharacter is the character, so a name really holding a `*`
+        # round-trips as a literal rather than becoming a wildcard.
+        escaped = @reference_rules begin
+            ref"a\*b"  => :literal_star
+            __          => :miss
+        end
+        @test apply_reference_rules(escaped, Reference(_fld("a*b"))) === :literal_star
+        @test apply_reference_rules(escaped, Reference(_fld("axb"))) === :miss
+
+        # Built at run time, from text, with no macro anywhere — the case a rule set read
+        # from a configuration file actually is.
+        runtime = ReferenceRules([ReferenceRule(:at, parse_reference_pattern("**.queue.capacity"),
+                                                nothing, ReferenceRuleAnswer(100))])
+        @test apply_reference_rules(runtime,
+            Reference(_fld("net"), _fld("q"), _fld("queue"), _fld("capacity"))) == 100
+
+        # And it prints in the Julia spelling, because that is what it is.
+        @test occursin("__.queue.capacity => 100", sprint(show, runtime))
+
+        # A run of steps spliced into the middle of a NAME has no reading here.
+        @test_throws Exception parse_reference_pattern("host**x.p")
+        @test_throws Exception parse_reference_pattern("a..b")
+        @test_throws Exception parse_reference_pattern("a[]")
+    end
+
     @testset "the retired catch-all says so" begin
         # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
         # error rather than a silent reinterpretation — the whole point of the guard.

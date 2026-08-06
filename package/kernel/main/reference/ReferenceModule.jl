@@ -17,7 +17,7 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@reference_step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in nine fragments that share this namespace:
+The module lives in ten fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
@@ -49,6 +49,10 @@ The module lives in nine fragments that share this namespace:
   printed and applied later with `apply_reference_rules`. Its patterns are the
   `PatStep` data `ReferenceCase.jl` lowers to, matched by an interpreter rather
   than compiled, since a rule set may be built where no macro ran.
+- [`ReferencePatternString.jl`](ReferencePatternString.jl) — the **string spelling**
+  of a pattern (`ref"…"`, `parse_reference_pattern`): a dotted, glob-style key of
+  the kind a configuration file is written in, parsed into the same `PatStep` data
+  the Julia surface lowers to. A front end, not a second pattern language.
 - [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@reference_step`
   construction DSL (compact surface syntax for building paths).
 
@@ -86,6 +90,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ReferenceRules, ReferenceRule, ReferenceRuleAnswer, REFERENCE_RULE_MODES,
        apply_reference_rules, match_reference_pattern,
        glob_matches,
+       parse_reference_pattern, @ref_str,
        @reference_case, @reference_rules, @reference, @reference_step
 
 include("ReferenceInterface.jl")
@@ -96,6 +101,7 @@ include("ReferenceSearch.jl")
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")
 include("ReferenceRules.jl")
+include("ReferencePatternString.jl")
 include("ReferenceBuilder.jl")
 
 end # module

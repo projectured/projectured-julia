@@ -455,6 +455,11 @@ function _parse_arm_pattern(lhs)
         mode = lhs.args[1]
         length(lhs.args) == 2 || error("$mode(path) expects exactly one argument")
         return (mode, _parse_path(lhs.args[2]))
+    elseif lhs isa Expr && lhs.head === :macrocall &&
+           _macro_basename(lhs.args[1]) === Symbol("@ref_str")
+        # The string spelling of a pattern, as an arm. It parses to the same data, so it
+        # is read here rather than expanded and then re-read.
+        return (:at, parse_reference_pattern(lhs.args[end]))
     elseif lhs === :_
         # `_` used to be the catch-all and now matches exactly one step, so a bare `_`
         # arm would quietly change from "anything" to "any one-step path". It is an
