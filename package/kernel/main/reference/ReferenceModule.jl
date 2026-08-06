@@ -84,7 +84,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        build_reference_step, match_reference_step, match_reference_step_value,
        get_reference_step_subpath_args,
        ReferenceRules, ReferenceRule, ReferenceRuleAnswer, REFERENCE_RULE_MODES,
-       apply_reference_rules,
+       apply_reference_rules, match_reference_pattern,
        @reference_case, @reference_rules, @reference, @reference_step
 
 include("ReferenceInterface.jl")

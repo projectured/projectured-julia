@@ -242,19 +242,56 @@ _match_step(h, step::PatStepExtension, b::ReferenceRuleBindings) =
 # exactly (the codegen seam's `gen_path_match` continues with the rest, which in direct
 # style is just "the outer walk carries on").
 _match_subpath(path, steps::Vector{PatStep}, b::ReferenceRuleBindings) =
-    _consume(path, steps, b) isa EmptyReference ? b : nothing
+    _consume(path, steps, b, _accept_exhausted) === nothing ? nothing : b
+
+# What an arm word asks of the leftover, as a predicate. It is threaded *into* the walk
+# rather than applied to its answer, because a gap has to search: a gap that consumed
+# the wrong amount can leave an unacceptable leftover where a different amount would
+# have left an acceptable one, and only the arm word knows the difference.
+_accept_exhausted(leftover::Reference) = leftover isa EmptyReference
+_accept_deeper(leftover::Reference) = leftover isa ConcreteReference
+_accept_anything(leftover::Reference) = true
+
+_leftover_acceptor(mode::Symbol) =
+    mode === :at ? _accept_exhausted :
+    mode === :below ? _accept_deeper :
+    _accept_anything          # :at_or_below
 
 """
-    _consume(path, steps, bindings) -> leftover::Reference | nothing
+    _consume(path, steps, bindings, accept) -> leftover::Reference | nothing
 
 Match `steps` against a **leading segment** of `path`, answering the part of `path` left
-over. This is the primitive behind `at` (leftover must be empty), `below` (leftover must
-be non-empty) and `at_or_below` (any leftover).
+over — but only a leftover `accept` holds for. This is the primitive behind `at`
+(exhausted), `below` (non-empty) and `at_or_below` (anything).
 """
-function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindings)
-    isempty(steps) && return path
+function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindings,
+                  accept::Function)
+    isempty(steps) && return accept(path) ? path : nothing
     step = steps[1]
     rest = steps[2:end]
+
+    # `__` — any run of steps. The one step whose match is a search, and the reason
+    # `accept` is carried this far down. Greedy takes the longest run first and lazy
+    # (`__ʔ`) the shortest; either way the first run whose remainder matches wins, so a
+    # gap changes which member of the pattern's set is the witness, never whether one
+    # exists. Each attempt gets its own bindings, since a failed one must leave nothing
+    # behind.
+    if step isa PatStepGap
+        depth = length(path)
+        for taken in (step.lazy ? (0:depth) : (depth:-1:0))
+            attempt = copy(b)
+            skipped = _drop_navigation_steps(path, taken)
+            skipped === nothing && continue
+            step.name === nothing || _rule_bind!(attempt, step.name, _take_leading_steps(path, taken))
+            leftover = _consume(skipped, rest, attempt, accept)
+            if leftover !== nothing
+                empty!(b)
+                merge!(b, attempt)
+                return leftover
+            end
+        end
+        return nothing
+    end
 
     # A `::T` checkpoint is non-navigating and **narrowing**: where the path records a
     # node type it must be `<: T`, where it records none the step says nothing. The rule
@@ -265,17 +302,17 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     if step isa PatStepType
         if path isa ConcreteReference && head(path) isa TypeReferenceStep
             return _type_step_matches(head(path).type, step.typeexpr) ?
-                   _consume(tail(path), rest, b) : nothing
+                   _consume(tail(path), rest, b, accept) : nothing
         end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) ?
-               _consume(path, rest, b) : nothing
+               _consume(path, rest, b, accept) : nothing
     end
 
     # `::t` binds the node's folded `type` field and continues on the same path. Both
     # reference types carry a `type` field.
     if step isa PatStepTypeBind
         _rule_bind!(b, step.name, path.type)
-        return _consume(path, rest, b)
+        return _consume(path, rest, b, accept)
     end
 
     # `name...` (and the `_` arm) binds the entire remaining path and consumes it.
@@ -283,7 +320,7 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
         isempty(rest) ||
             error("`$(step.name)...` binds the remaining path, so it must be the last step of a pattern")
         _rule_bind!(b, step.name, path)
-        return EmptyReference()
+        return accept(EmptyReference()) ? EmptyReference() : nothing
     end
 
     # `^(p)` interpolates a whole path, so it is only meaningful as the sole step. The
@@ -292,13 +329,14 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     if step isa PatStepPathInterp
         isempty(rest) ||
             error("^(path) interpolation is only valid as the sole step of an @reference_rules pattern")
-        return _consume_path(path, step.expr)
+        leftover = _consume_path(path, step.expr)
+        return (leftover !== nothing && accept(leftover)) ? leftover : nothing
     end
 
     path isa ConcreteReference || return nothing
     stepped = _match_step(head(path), step, b)
     stepped === nothing && return nothing
-    _consume(tail(path), rest, stepped)
+    _consume(tail(path), rest, stepped, accept)
 end
 
 # Consume an interpolated path `sub` from the front of `path`, shape-only. The step walk
@@ -335,6 +373,15 @@ function _drop_navigation_steps(path::Reference, n::Int)
     path
 end
 
+# The mirror of `_drop_navigation_steps`: the first `n` navigation steps as a path of
+# their own, folded node types and all. What a bound gap (`__(owner)`) is given.
+function _take_leading_steps(path::Reference, n::Int)
+    n == 0 && return EmptyReference(path.type)
+    path isa ConcreteReference || return EmptyReference()
+    taken = head(path) isa TypeReferenceStep ? n : n - 1
+    ConcreteReference(path.type, head(path), _take_leading_steps(tail(path), taken))
+end
+
 """
     _match_above(path, steps, bindings) -> Bool
 
@@ -347,6 +394,13 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     isempty(steps) && return false
     step = steps[1]
     rest = steps[2:end]
+
+    # Reaching a gap settles it. A gap is unbounded, so whatever is left of the input can
+    # be absorbed by it and the pattern still has a member that continues past — which is
+    # exactly "the input is a proper prefix of some member". Nothing after the gap needs
+    # examining, and a bound gap has nothing well-defined to bind here, since the run it
+    # would name is the part of a member the input never reached.
+    step isa PatStepGap && return true
 
     if step isa PatStepType
         if path isa ConcreteReference && head(path) isa TypeReferenceStep
@@ -387,21 +441,43 @@ end
 # Match one arm, answering `(bindings, leftover)` or `nothing`. The leftover is what a
 # rules answer is applied to; every above-form leaves nothing of the input over.
 function _match_rule(rule::ReferenceRule, path::Reference)
+    _match_pattern(rule.mode, rule.pattern, path)
+end
+
+# Match one arm's pattern, answering `(bindings, leftover)` or `nothing`. Every
+# above-form leaves nothing of the input over.
+function _match_pattern(mode::Symbol, pattern::Vector{PatStep}, path::Reference)
     b = ReferenceRuleBindings()
-    mode = rule.mode
     if mode === :above || mode === :at_or_above
-        _match_above(path, rule.pattern, b) && return (b, EmptyReference())
+        _match_above(path, pattern, b) && return (b, EmptyReference())
         mode === :above && return nothing
         b = ReferenceRuleBindings()
-        leftover = _consume(path, rule.pattern, b)
-        return leftover isa EmptyReference ? (b, leftover) : nothing
+        leftover = _consume(path, pattern, b, _accept_exhausted)
+        return leftover === nothing ? nothing : (b, leftover)
     end
-    leftover = _consume(path, rule.pattern, b)
-    leftover === nothing && return nothing
-    mode === :at && return leftover isa EmptyReference ? (b, leftover) : nothing
-    mode === :below && return leftover isa ConcreteReference ? (b, leftover) : nothing
-    (b, leftover)   # :at_or_below
+    leftover = _consume(path, pattern, b, _leftover_acceptor(mode))
+    leftover === nothing ? nothing : (b, leftover)
 end
+
+"""
+    match_reference_pattern(mode, pattern, reference) -> bindings | nothing
+
+Match one arm's `pattern` against `reference` under an arm word (`:at`, `:below`,
+`:at_or_below`, `:above`, `:at_or_above`), answering the `Dict{Symbol,Any}` the match
+bound, or `nothing`.
+
+This is the **one matcher both DSLs use**. `@reference_rules` reaches it through
+[`apply_reference_rules`](@ref); `@reference_case` compiles the patterns it can into
+straight-line branches and calls this for the ones whose match is a search, then reopens
+the bindings as ordinary locals for its own escaped result expression. So a pattern
+means one thing, whichever DSL it is written in and whichever way it is executed.
+"""
+function match_reference_pattern(mode::Symbol, pattern::Vector{PatStep}, reference::Reference)
+    matched = _match_pattern(mode, pattern, reference)
+    matched === nothing ? nothing : matched[1]
+end
+
+match_reference_pattern(::Symbol, ::Vector{PatStep}, ::Nothing) = nothing
 
 # ------------------------------------------------------------
 # Answer evaluation
@@ -590,6 +666,11 @@ _show_pat_step(io::IO, step::PatStepTypeBind, first::Bool) = print(io, "::", ste
 _show_pat_step(io::IO, step::PatStepWholePathBind, first::Bool) =
     step.name === :_ ? print(io, "_") : print(io, first ? "" : ".", step.name, "...")
 
+function _show_pat_step(io::IO, step::PatStepGap, first::Bool)
+    print(io, first ? "" : ".", "__", step.lazy ? "ʔ" : "")
+    step.name === nothing || print(io, "(", step.name, ")")
+end
+
 _show_pat_step(io::IO, step::PatStepPathInterp, first::Bool) =
     (print(io, first ? "" : ".", "^("); show(io, step.expr); print(io, ")"))
 
@@ -630,6 +711,7 @@ _quote_pat_step(step::PatStepRange) =
 _quote_pat_step(step::PatStepType) = :($PatStepType($(esc(step.typeexpr))))
 _quote_pat_step(step::PatStepTypeBind) = :($PatStepTypeBind($(QuoteNode(step.name))))
 _quote_pat_step(step::PatStepWholePathBind) = :($PatStepWholePathBind($(QuoteNode(step.name))))
+_quote_pat_step(step::PatStepGap) = :($PatStepGap($(QuoteNode(step.name)), $(step.lazy)))
 _quote_pat_step(step::PatStepPathInterp) = :($PatStepPathInterp($(esc(step.expr))))
 _quote_pat_step(step::PatStepExtension) =
     :($PatStepExtension($(QuoteNode(step.name)), Any[$(map(_quote_pat_arg, step.argpats)...)]))

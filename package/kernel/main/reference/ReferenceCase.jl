@@ -96,6 +96,23 @@ struct PatStepWholePathBind <: PatStep
     name::Symbol
 end
 
+# `__` — **any run of steps, possibly none**, the counterpart of an ini file's `**`.
+# It is what makes a pattern denote a *set* of paths rather than one path, and it is
+# the only step whose match is a search: everything else either matches the step in
+# front of it or fails.
+#
+# `name` is the run's binder (`__(owner)`) or `nothing`; `lazy` reverses this one gap's
+# preference (`__ʔ`). A gap is **greedy** by default — it takes as much as it can while
+# letting the rest of the pattern match — which agrees with "the deepest match wins".
+# Greediness never decides *whether* an arm matches, only which member of the set was
+# the witness, and so which bindings come out.
+struct PatStepGap <: PatStep
+    name::Union{Nothing, Symbol}
+    lazy::Bool
+end
+
+PatStepGap() = PatStepGap(nothing, false)
+
 # A type assertion in a pattern: `f::T` matches `f`'s steps, then requires the
 # folded `type` field of the node reached to be a subtype of `T` (non-navigating).
 # It narrows the match — a path standing on some other kind of node falls through
@@ -173,7 +190,13 @@ _pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x
 _case_subpath(ex) =
     ex isa Symbol ? PatStep[PatStepWholePathBind(ex)] : _to_pat_steps(parse_reference_path(ex))
 
-_to_pat(s::RefField)     = PatStepField(PatValueLiteral(s.name))
+# `__` reaches the shared grammar as an ordinary field name — the parser names no
+# pattern concept, and needs to name none for this. The *matching* reading of that name
+# is a gap, which is why the surface syntax needed nothing added to it.
+const REFERENCE_GAP_NAME = "__"
+
+_to_pat(s::RefField)     = s.name == REFERENCE_GAP_NAME ? PatStepGap() :
+                           PatStepField(PatValueLiteral(s.name))
 _to_pat(s::RefFieldExpr) = PatStepField(_parse_value(s.expr))
 _to_pat(s::RefIndex)     = PatStepIndex(_parse_value(s.expr))
 _to_pat(s::RefPosition)  = PatStepPosition(_parse_value(s.expr))
@@ -190,6 +213,68 @@ _to_pat_steps(steps::Vector{RefStep}) = PatStep[_to_pat(s) for s in steps]
 
 # Parse a path pattern: the shared grammar, then the matching reading of it.
 _parse_path(ex) = _to_pat_steps(parse_reference_path(ex))
+
+# ------------------------------------------------------------
+# Reading a pattern as data
+#
+# Both readings of the AST need to know two things about a pattern without generating
+# any code for it: which names it binds, and whether it can be compiled at all. Both are
+# pure functions of the `PatStep` vector, so they serve the compiled and interpreted
+# sides alike — and the first of them is what lets a rule that falls back to the
+# interpreter hand its bindings to an answer that is ordinary escaped code.
+# ------------------------------------------------------------
+
+# A binder named `_` is written to be unreadable, so it is not a name anything can want.
+_add_binder!(names::Vector{Symbol}, name::Symbol) =
+    (name === :_ || name in names || push!(names, name); names)
+
+_value_binder_names!(names::Vector{Symbol}, ::PatValue) = names
+_value_binder_names!(names::Vector{Symbol}, p::PatValueBind) = _add_binder!(names, p.name)
+_value_binder_names!(names::Vector{Symbol}, p::PatValueTypedBind) = _add_binder!(names, p.name)
+
+_step_binder_names!(names::Vector{Symbol}, ::PatStep) = names
+_step_binder_names!(names::Vector{Symbol}, s::PatStepField) = _value_binder_names!(names, s.namepat)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepIndex) = _value_binder_names!(names, s.idxpat)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepPosition) = _value_binder_names!(names, s.idxpat)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepRange) =
+    _value_binder_names!(_value_binder_names!(names, s.startpat), s.stoppat)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepWholePathBind) = _add_binder!(names, s.name)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepTypeBind) = _add_binder!(names, s.name)
+_step_binder_names!(names::Vector{Symbol}, s::PatStepGap) =
+    s.name === nothing ? names : _add_binder!(names, s.name)
+
+function _step_binder_names!(names::Vector{Symbol}, s::PatStepExtension)
+    for arg in s.argpats
+        arg isa PatValue ? _value_binder_names!(names, arg) : _pattern_binder_names!(names, arg)
+    end
+    names
+end
+
+function _pattern_binder_names!(names::Vector{Symbol}, steps::Vector{PatStep})
+    for step in steps
+        _step_binder_names!(names, step)
+    end
+    names
+end
+
+"""
+    _pattern_binder_names(steps) -> Vector{Symbol}
+
+Every name `steps` binds, in the order it is written. A pure function of the pattern —
+which is what makes it usable where no code is being generated.
+"""
+_pattern_binder_names(steps::Vector{PatStep}) = _pattern_binder_names!(Symbol[], steps)
+
+# A gap is the one step whose match is a *search*: every other step either matches what
+# is in front of it or fails. The generators below are straight-line by construction, so
+# a pattern holding a gap is handed to the interpreter instead (see `_gen_rule`) — the
+# search is implemented once, where a rule set built at run time already needs it.
+_step_has_gap(::PatStep) = false
+_step_has_gap(::PatStepGap) = true
+_step_has_gap(s::PatStepExtension) =
+    any(arg -> arg isa PatValue ? false : _pattern_has_gap(arg), s.argpats)
+
+_pattern_has_gap(steps::Vector{PatStep}) = any(_step_has_gap, steps)
 
 # ------------------------------------------------------------
 # Rule parsing
@@ -401,6 +486,13 @@ match_reference_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) wher
 _gen_step_match(hex, tex, step::PatStepPathInterp, rest_success, bound::Set{Symbol}) =
     error("^(expr) path interpolation is only valid as the sole step of an @reference_case pattern: ^($(step.expr))")
 
+# A gap never reaches codegen: `_gen_rule` routes a pattern holding one to the
+# interpreter before either generator is entered. This says so out loud, so that a
+# future generator gains its gap case deliberately rather than by `MethodError`.
+_gen_step_match(hex, tex, step::PatStepGap, rest_success, bound::Set{Symbol}) =
+    error("a `__` gap is matched by the interpreter, not compiled — `_gen_rule` should " *
+          "have routed this pattern to `_gen_interpreted_rule`")
+
 # The `at` / `below` / `at_or_below` family: consume the pattern from the front of
 # the path, then judge what is left over. `terminal` is which of the three is being
 # asked, and it is only ever read when the pattern runs out — the walk itself is one
@@ -605,6 +697,10 @@ function _gen_rule(rule)
               _nomatch
           end)
 
+    # A pattern whose match is a search is handed to the interpreter rather than
+    # compiled, so the search exists once in the codebase (see `_gen_interpreted_rule`).
+    _pattern_has_gap(pat) && return _gen_interpreted_rule(mode, pat, body)
+
     # Two generators cover the five arm words: the above-family walks until the
     # input runs out inside the pattern, the rest consume the pattern and judge the
     # leftover.
@@ -612,6 +708,45 @@ function _gen_rule(rule)
             _gen_above_match(:_ref_input, pat, body, Set{Symbol}(), mode === :at_or_above) :
             _gen_path_match(:_ref_input, pat, body, Set{Symbol}(), mode)
     return ex
+end
+
+# ------------------------------------------------------------
+# The interpreted rule
+#
+# The seam that makes one matcher serve both DSLs. `match_reference_pattern`
+# (`ReferenceRules.jl`) answers the bindings a match produced; this reopens them as
+# ordinary local variables so the arm's guard and result stay what they have always
+# been — **escaped user code that closes over the call site**, with its locals, its
+# `return`, its everything.
+#
+# That is why the fallback calls the matcher and not `apply_reference_rules`: a rules
+# answer is deliberately closed and compiled in this module, and a `@reference_case`
+# answer is deliberately open. The two DSLs share matching; neither shares answer
+# evaluation.
+#
+# The binder names come from the pattern (`_pattern_binder_names`), so they are known
+# here even though the values are not. A name the match never reached raises on read,
+# as it does in compiled code — a pattern whose guard reads a binding its input never
+# arrived at is a defect either way.
+# ------------------------------------------------------------
+
+function _gen_interpreted_rule(mode, pat::Vector{PatStep}, body)
+    bindings = gensym(:bindings)
+    lets = [:($(esc(name)) = $bindings[$(QuoteNode(name))])
+            for name in _pattern_binder_names(pat)]
+    quote
+        let $bindings = ReferenceModule.match_reference_pattern($(QuoteNode(mode)),
+                                                                $(_quote_pattern(pat)),
+                                                                _ref_input)
+            if $bindings === nothing
+                _nomatch
+            else
+                let $(lets...)
+                    $body
+                end
+            end
+        end
+    end
 end
 
 # ------------------------------------------------------------
