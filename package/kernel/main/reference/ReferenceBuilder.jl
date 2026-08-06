@@ -59,6 +59,10 @@ function _gen_build_step(step::RefExtension)
     String(step.name) in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME) &&
         error("`$(step.name)(name)` (binding a run of steps) is only valid inside " *
               "@reference_case / @reference_rules, not @reference/@reference_step")
+    step.name === :any &&
+        error("`any(path, …)` (alternation) is only valid inside @reference_case / " *
+              "@reference_rules, not @reference/@reference_step — a path being built " *
+              "names one route, not a choice of them")
     _gen_build_extension_step(step)
 end
 

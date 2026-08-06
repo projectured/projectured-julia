@@ -302,6 +302,23 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     step = steps[1]
     rest = steps[2:end]
 
+    # `any(P, Q, …)` — the alternatives are tried in order, each followed by whatever
+    # comes after the alternation, so a branch is judged by whether the *whole* pattern
+    # goes through. Each attempt gets its own bindings, since a failed branch must leave
+    # nothing behind.
+    if step isa PatStepAlt
+        for alternative in step.alternatives
+            attempt = copy(b)
+            leftover = _consume(path, vcat(alternative, rest), attempt, accept)
+            if leftover !== nothing
+                empty!(b)
+                merge!(b, attempt)
+                return leftover
+            end
+        end
+        return nothing
+    end
+
     # `__` — any run of steps. The one step whose match is a search, and the reason
     # `accept` is carried this far down. Greedy takes the longest run first and lazy
     # (`__ʔ`) the shortest; either way the first run whose remainder matches wins, so a
@@ -432,6 +449,18 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     # exactly "the input is a proper prefix of some member". Nothing after the gap needs
     # examining, and a bound gap has nothing well-defined to bind here, since the run it
     # would name is the part of a member the input never reached.
+    if step isa PatStepAlt
+        for alternative in step.alternatives
+            attempt = copy(b)
+            if _match_above(path, vcat(alternative, rest), attempt)
+                empty!(b)
+                merge!(b, attempt)
+                return true
+            end
+        end
+        return false
+    end
+
     if step isa PatStepGap
         # A named gap binds what it covered — which here is whatever is left of the
         # input, since that is the part of the member the input reached before running
@@ -707,6 +736,15 @@ _show_pat_step(io::IO, step::PatStepWholePathBind, first::Bool) =
 
 _show_pat_step(io::IO, ::PatStepAny, first::Bool) = print(io, first ? "" : ".", "_")
 
+function _show_pat_step(io::IO, step::PatStepAlt, first::Bool)
+    print(io, first ? "" : ".", "any(")
+    for (i, alternative) in enumerate(step.alternatives)
+        i == 1 || print(io, ", ")
+        _show_pattern(io, alternative)
+    end
+    print(io, ")")
+end
+
 function _show_pat_step(io::IO, step::PatStepGap, first::Bool)
     print(io, first ? "" : ".", "__", step.lazy ? "ʔ" : "")
     step.name === nothing || print(io, "(", step.name, ")")
@@ -763,6 +801,8 @@ _quote_pat_step(step::PatStepType) = :($PatStepType($(esc(step.typeexpr))))
 _quote_pat_step(step::PatStepTypeBind) = :($PatStepTypeBind($(QuoteNode(step.name))))
 _quote_pat_step(step::PatStepWholePathBind) = :($PatStepWholePathBind($(QuoteNode(step.name))))
 _quote_pat_step(::PatStepAny) = :($PatStepAny())
+_quote_pat_step(step::PatStepAlt) =
+    :($PatStepAlt(Vector{$PatStep}[$(map(_quote_pattern, step.alternatives)...)]))
 _quote_pat_step(step::PatStepGap) = :($PatStepGap($(QuoteNode(step.name)), $(step.lazy)))
 _quote_pat_step(step::PatStepPathInterp) = :($PatStepPathInterp($(esc(step.expr))))
 _quote_pat_step(step::PatStepExtension) =

@@ -917,6 +917,70 @@ function test_reference_rules()
         @test occursin("glob\"q*\"", printed)
     end
 
+    @testset "`any(P, Q, …)` chooses between subpaths" begin
+        # In PATH position a bare symbol is a field name, which is what makes
+        # `any(queue, buffer)` read the way an ini file's alternation does. In value
+        # position the same spelling would bind, so the two are not interchangeable.
+        _conforms("subpath alternation",
+            p -> (@reference_case p begin
+                any(a, x).b => :either
+                __          => :miss
+            end),
+            (@reference_rules begin
+                any(a, x).b => :either
+                __          => :miss
+            end))
+
+        _conforms("alternation of multi-step branches",
+            p -> (@reference_case p begin
+                a.any(b.c, dup.dup) => :branch
+                __                  => :miss
+            end),
+            (@reference_rules begin
+                a.any(b.c, dup.dup) => :branch
+                __                  => :miss
+            end))
+
+        rules = @reference_rules begin
+            net.any(queue, buffer).capacity => :either
+            net.any(a[i], c[i]).z           => i
+            __                              => :miss
+        end
+        n(xs...) = Reference(_fld("net"), xs...)
+        @test apply_reference_rules(rules, n(_fld("queue"), _fld("capacity"))) === :either
+        @test apply_reference_rules(rules, n(_fld("buffer"), _fld("capacity"))) === :either
+        @test apply_reference_rules(rules, n(_fld("pool"), _fld("capacity"))) === :miss
+        @test apply_reference_rules(rules, n(_fld("a"), _el(4), _fld("z"))) == 4
+        @test apply_reference_rules(rules, n(_fld("c"), _el(7), _fld("z"))) == 7
+
+        # A branch is judged by whether the WHOLE pattern goes through, not just the
+        # branch: `a` matches here but leaves `z` unmatched, so the second branch wins.
+        @test apply_reference_rules((@reference_rules begin
+            any(a, a.b).c => :hit
+            __            => :miss
+        end), Reference(_fld("a"), _fld("b"), _fld("c"))) === :hit
+
+        # Alternation composes with gaps.
+        @test apply_reference_rules((@reference_rules begin
+            __.any(queue, buffer).capacity => :deep
+            __                             => :miss
+        end), Reference(_fld("x"), _fld("y"), _fld("buffer"), _fld("capacity"))) === :deep
+
+        # Branches that bind different names are refused where they are written, in both
+        # positions, rather than failing later for only the inputs that took one branch.
+        @test_throws Exception @eval @reference_rules begin
+            any(a[i], b).z => i
+        end
+        @test_throws Exception @eval @reference_rules begin
+            xs[any(i, 3)] => i
+        end
+
+        # A path being built names one route, not a choice of them.
+        @test_throws Exception @eval @reference a.any(b, c).d
+
+        @test occursin("net.any(queue, buffer).capacity => :either", sprint(show, rules))
+    end
+
     @testset "the retired catch-all says so" begin
         # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
         # error rather than a silent reinterpretation — the whole point of the guard.

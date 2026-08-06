@@ -151,6 +151,17 @@ PatStepGap() = PatStepGap(nothing, false)
 # checkpoints are folded into the nodes and there are no checkpoint steps to count.
 struct PatStepAny <: PatStep end
 
+# `any(P, Q, …)` in **path** position — any one of the alternative subpaths, tried in
+# order. Where the value-position `any` chooses between values, this chooses between
+# runs of steps, and a bare symbol inside it reads as a field name because each
+# alternative is parsed as a path. `any(queue, buffer)` is the spelling an ini file's
+# `{queue,buffer}` would want, and the one a reader expects.
+#
+# Its match branches, so it is interpreted rather than compiled.
+struct PatStepAlt <: PatStep
+    alternatives::Vector{Vector{PatStep}}
+end
+
 # A type assertion in a pattern: `f::T` matches `f`'s steps, then requires the
 # folded `type` field of the node reached to be a subtype of `T` (non-navigating).
 # It narrows the match — a path standing on some other kind of node falls through
@@ -189,6 +200,21 @@ _macro_basename(x) =
     x isa GlobalRef ? x.name :
     x isa Expr && x.head === :. && x.args[2] isa QuoteNode ? x.args[2].value : nothing
 
+# Every alternative of an alternation must bind the same names. Otherwise which names
+# exist depends on which branch won, and an answer reading one of them fails only for
+# the inputs that took the other branch — a defect that shows up late and rarely. It is
+# decidable from the pattern, so it is refused where it is written.
+function _check_alternatives_agree(names_per_branch, what::AbstractString)
+    length(names_per_branch) <= 1 && return nothing
+    first_names = Set(names_per_branch[1])
+    for names in names_per_branch[2:end]
+        Set(names) == first_names ||
+            error("every alternative of $what must bind the same names, got " *
+                  "$(sort(collect(first_names))) and $(sort(collect(Set(names))))")
+    end
+    nothing
+end
+
 function _parse_value(ex)
     if ex === :_
         return PatValueWildcard()
@@ -202,7 +228,11 @@ function _parse_value(ex)
     elseif ex isa Expr && ex.head == :call && ex.args[1] == :(..) && length(ex.args) == 3
         return PatValueRange(ex.args[2], ex.args[3])
     elseif ex isa Expr && ex.head == :call && ex.args[1] === :any
-        return PatValueAny(PatValue[_parse_value(a) for a in ex.args[2:end]])
+        length(ex.args) > 1 || error("any(value, …) expects at least one alternative")
+        alts = PatValue[_parse_value(a) for a in ex.args[2:end]]
+        _check_alternatives_agree([_value_binder_names!(Symbol[], a) for a in alts],
+                                  "any(value, …)")
+        return PatValueAny(alts)
     elseif ex isa Expr && ex.head == :(::) && ex.args[1] isa Symbol
         return PatValueTypedBind(ex.args[1], ex.args[2])
     elseif ex isa QuoteNode
@@ -276,6 +306,12 @@ _to_pat(s::RefTailBind)  = PatStepWholePathBind(s.name)
 # as extension steps — the parser has no gap concept and needs none — so the *matching*
 # reading of those two names is where the binder is read off.
 function _to_pat(s::RefExtension)
+    if s.name === :any
+        isempty(s.args) && error("any(path, …) expects at least one alternative")
+        alts = Vector{PatStep}[_to_pat_steps(parse_reference_path(a.expr)) for a in s.args]
+        _check_alternatives_agree(map(_pattern_binder_names, alts), "any(path, …)")
+        return PatStepAlt(alts)
+    end
     if String(s.name) in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME)
         length(s.args) == 1 && s.args[1] isa RefArgValue && s.args[1].expr isa Symbol ||
             error("$(s.name)(name) binds the run a gap takes and expects one bare name")
@@ -325,6 +361,13 @@ _step_binder_names!(names::Vector{Symbol}, s::PatStepRange) =
     _value_binder_names!(_value_binder_names!(names, s.startpat), s.stoppat)
 _step_binder_names!(names::Vector{Symbol}, s::PatStepWholePathBind) = _add_binder!(names, s.name)
 _step_binder_names!(names::Vector{Symbol}, s::PatStepTypeBind) = _add_binder!(names, s.name)
+function _step_binder_names!(names::Vector{Symbol}, s::PatStepAlt)
+    # Every branch binds the same names (checked where the alternation is written), so
+    # the first one answers for all of them.
+    isempty(s.alternatives) || _pattern_binder_names!(names, s.alternatives[1])
+    names
+end
+
 _step_binder_names!(names::Vector{Symbol}, s::PatStepGap) =
     s.name === nothing ? names : _add_binder!(names, s.name)
 
@@ -368,6 +411,7 @@ _value_needs_interpreter(::PatValue) = false
 _value_needs_interpreter(::PatValueAny) = true
 
 _step_needs_interpreter(s::PatStep) = _step_has_gap(s)
+_step_needs_interpreter(::PatStepAlt) = true
 _step_needs_interpreter(s::PatStepField) = _value_needs_interpreter(s.namepat)
 _step_needs_interpreter(s::PatStepIndex) = _value_needs_interpreter(s.idxpat)
 _step_needs_interpreter(s::PatStepPosition) = _value_needs_interpreter(s.idxpat)
@@ -730,6 +774,10 @@ _gen_step_match(hex, tex, step::PatStepAny, rest_success, bound::Set{Symbol}) =
 # A gap never reaches codegen: `_gen_rule` routes a pattern holding one to the
 # interpreter before either generator is entered. This says so out loud, so that a
 # future generator gains its gap case deliberately rather than by `MethodError`.
+_gen_step_match(hex, tex, step::PatStepAlt, rest_success, bound::Set{Symbol}) =
+    error("`any(path, …)` is matched by the interpreter, not compiled — `_gen_rule` " *
+          "should have routed this pattern to `_gen_interpreted_rule`")
+
 _gen_step_match(hex, tex, step::PatStepGap, rest_success, bound::Set{Symbol}) =
     error("a `__` gap is matched by the interpreter, not compiled — `_gen_rule` should " *
           "have routed this pattern to `_gen_interpreted_rule`")
