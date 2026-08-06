@@ -203,6 +203,38 @@ exporting `test_reference_rules` and aggregated by `test_kernel()` (line 143).
 - equality, `show`, and round-tripping through serialization, none of which may
   depend on the compiled form.
 
+## What the corpus found
+
+Two constructs cannot be conformed, and both are recorded as their own tests
+beside the corpus rather than quietly dropped.
+
+- **A repeated binder crashes `@reference_case`.** `_gen_path_match` generates
+  the *rest* of a pattern before the step in front of it, and passes the
+  *incoming* `bound` set down, so in `a.field(n).field(n)` the later occurrence
+  is the one that emits the `let n = …` binder and the earlier one — which runs
+  first — emits `h.name == n` against a variable bound only in the inner scope.
+  Every input reaching that step dies with an `UndefVarError`. Same shape inside
+  a single step (`items{i:i}`), since `_gen_step_match` generates its value
+  patterns inside-out too. The interpreter reads a pattern left to right, so the
+  later occurrence compares against what the earlier one bound, which is what
+  both DSLs document. **This is a latent bug in a sealed file** — reported, not
+  fixed.
+- **An above-arm with a guard over a binding the input never reached.** The
+  empty path is above everything, so the arm holds without ever reaching its
+  index step and the guard then reads a binding that was never made. Both DSLs
+  raise there, so that corpus entry runs over the non-empty paths only.
+
+The serialization test also earned its place immediately: caching the compiled
+*function* in the answer put a closure type on the wire, and Julia 1.12 reads it
+back as a world-age error ("access to binding `ReferenceModule.#62#63` in a world
+prior to its definition world … will error in future versions"). The compiled
+form is now a **method** of one module-level generic, keyed by a `Val` of a name
+derived from the expression and the binding-name set, and what the answer caches
+is that name. The method table is the cache, content-addressed, so a rule set
+that crosses a process boundary finds no method for its key and compiles it
+again — verified by writing a rules object (with its answers already compiled)
+from one process and applying it in another.
+
 ## Verification
 
 Run from the repo root environment, memory-capped under `systemd-run`.
@@ -212,6 +244,30 @@ Run from the repo root environment, memory-capped under `systemd-run`.
   `test_visual()` and `test_domain()` should be untouched — run them once to
   confirm that.
 
+**Result.** `test_reference_rules()` 424 pass; `test_reference_eval()` 7;
+`test_reference_builder()` 30; `test_kernel()` 895 pass / 3 fail / 2 error, where
+those five are the known pre-existing `DocumentMacro` "Rule C" failures — the
+same five, subtest for subtest, on a clean-main worktree. `test_base()` 387 pass,
+`test_visual()` 49534 pass / 1 broken, `test_domain()` 184679 pass / 5 broken, no
+failures or errors. Also clean under `--depwarn=error`.
+
+## Left open
+
+- **The pattern AST is not exported.** `PatStep`, `PatValue` and their subtypes
+  are the shape of a rules pattern, so building or inspecting one outside the
+  kernel — the configuration-read-from-a-file case this feature exists for —
+  needs them public. Only the macro path works today. That is ~16 more names on
+  `ReferenceModule`'s sealed export list.
+- **`match_reference_step_value` is declared in this fragment**, not in
+  `ReferenceInterface.jl` where a layer's open generics belong
+  ([AR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#ar-interface-declares-only));
+  that file is sealed. The error default stays here either way, beside the DSL
+  that first reaches it, as `match_reference_step`'s does in `ReferenceCase.jl`.
+- **No extension step registers the interpreted seam yet.** `.point`, `.proj`,
+  `.sample` and `.row` each need one method in the package that owns them before
+  a rules pattern can name them; until then the seam's error says so. The kernel
+  owns none of them, and the toy step in the test proves the seam.
+
 ## Done when
 
 `@reference_rules` builds an object whose patterns are data and whose answers are
@@ -219,4 +275,4 @@ expressions, `apply_reference_rules` answers exactly what the equivalent
 `@reference_case` block answers across the conformance corpus, rules-as-answer
 delegation works with nested bindings, the fragment is included, exported and
 listed in `CLAUDE.md`, and `test_kernel()` is green against a clean-main
-baseline.
+baseline. **Done.**

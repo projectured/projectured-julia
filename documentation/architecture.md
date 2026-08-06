@@ -335,7 +335,8 @@ above it in this list:
  7 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
  8 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
-               search_references, the @reference / @reference_case DSLs
+               search_references, the @reference / @reference_case /
+               @reference_rules DSLs
  9 selection   get_selection / set_selection! / clear_selection! / with_selection
 10 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
 11 binding     GestureBinding, the per-document-type registry, @gestures /

@@ -43,22 +43,26 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        (annotate_reference_types, …)
         ├─ ReferenceSearch.jl  — the path-producing reflection search
         │                        (search_references)
-        ├─ ReferenceSyntax.jl  — the surface grammar BOTH DSLs accept, parsed
-        │                        once into one step AST (RefStep). The two
+        ├─ ReferenceSyntax.jl  — the surface grammar EVERY DSL accepts, parsed
+        │                        once into one step AST (RefStep). The three
         │                        fragments below are lowerings of that AST,
         │                        not parsers of their own
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
+        ├─ ReferenceRules.jl   — the @reference_rules DSL: the same block of arms
+        │                        kept as a VALUE (ReferenceRules), matched by an
+        │                        interpreter over the same pattern AST
         └─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
                                  (compact surface syntax for building paths)
 ```
 
-The two DSLs read the **same path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
+The DSLs read the **same path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
 `.name(...)`, `^(e)` — so it is parsed in one place. Each DSL then *lowers* the
-resulting AST: the builder to constructor calls, the matcher to match branches. Six
-forms deliberately mean different things on each side, and the lowering is where that
-difference lives:
+resulting AST: the builder to constructor calls, the matcher to match branches, and
+`@reference_rules` to pattern *data* it interprets. Six forms deliberately mean
+different things on the building and matching sides, and the lowering is where that
+difference lives (`@reference_rules` reads the matching column):
 
 | Syntax | `@reference` / `@reference_step` builds | `@reference_case` matches |
 | --- | --- | --- |
@@ -77,7 +81,7 @@ declares are named in the struct field annotations below it
 (`head::ReferenceStep`, `tail::Reference`), and those are evaluated at
 definition time, so the contract must be loaded before the types that satisfy it.
 
-The seven fragments are only ever imported together, so they share one
+The nine fragments are only ever imported together, so they share one
 `ReferenceModule` namespace instead of being separate modules — splitting them
 would just multiply import headers. They still live in separate files for
 readability, but as **fragments** (0-module files sharing the aggregator's
@@ -448,8 +452,16 @@ Pattern syntax:
   `RangeReferenceStep(k, k)`, so `{s:e}` will also match a position; list more
   specific `{k}` patterns first if both are interesting)
 
-The `when(pattern, cond)` helper adds a guard; `prefix(pattern)` matches a
-prefix rather than requiring an exact match. `@reference_case` is commonly used
+The `when(pattern, cond)` helper adds a guard. `prefix(pattern)` holds when the
+**input runs out inside the pattern** — the input is a *proper prefix* of it, i.e. an
+ancestor of the place the pattern names. `prefix(a.b.c)` therefore answers for `a` and
+`a.b` and declines both `a.b.c` and `a.b.c.d`; it is how a mapper asks "is the selection
+at or above this place?" (see `ReferenceDispatchingProjection`). The other direction —
+"does this pattern name a leading segment of the input?" — is not a `@reference_case`
+form; it is `at_or_below(…)` in
+[`@reference_rules`](#rules-kept-as-an-object-reference_rules) below.
+
+`@reference_case` is commonly used
 in projection readers to translate output-domain references back to input-domain
 references — for example, mapping the empty path by identity:
 
@@ -462,12 +474,103 @@ function map_reference_forward(::SomeProjection, iomap, reference)
 end
 ```
 
-### The two DSLs are surface-syntax siblings
+### The DSLs are surface-syntax siblings
 
-`@reference` (construction) and `@reference_case` (destructuring) operate on the
-same reference vocabulary. Domain code that both constructs and matches
-references (every non-trivial `read_intent`) benefits from having them side by
-side — a change to one DSL's syntax is a change to its twin's grammar.
+`@reference` (construction), `@reference_case` (destructuring) and
+`@reference_rules` (destructuring, kept as a value) operate on the same reference
+vocabulary. Domain code that both constructs and matches references (every non-trivial
+`read_intent`) benefits from having them side by side — a change to one DSL's syntax is
+a change to its siblings' grammar.
+
+## Rules kept as an object: `@reference_rules`
+
+`@reference_case` applies at the point it is written and its arms are compiled away. A
+**configuration** is the same block of arms written *before* the thing it configures
+exists: a set of rules held as data, applied whenever a reference turns up. That is
+`@reference_rules`, which answers a `ReferenceRules` value — storable, comparable,
+printable and applied with `apply_reference_rules`:
+
+```julia
+rules = @reference_rules begin
+    buckets[2].capacity => 20
+    buckets[i].capacity => 10 * i          # i is bound by the match
+end
+
+apply_reference_rules(rules, reference)    # what @reference_case would answer
+```
+
+That last comment is the contract, and the conformance corpus in
+`ReferenceRulesTest.jl` is what holds it: the same block written both ways must answer
+identically. **First match wins** and no match answers `nothing`, so concatenating two
+sets leaves the first in charge and prepending is the whole override mechanism.
+
+### The arm vocabulary
+
+Each arm says where the **input** sits relative to its pattern `P`. The five forms are
+the complete lattice of prefix relations, and each fixes the *leftover* a delegating
+answer receives:
+
+| arm | holds when | leftover |
+| --- | --- | --- |
+| `P` / `at(P)` | the input **is** `P` | `∅` |
+| `below(P)` | the input is strictly deeper | the leftover |
+| `at_or_below(P)` | `P` or deeper | the leftover, possibly `∅` |
+| `above(P)` | the input is strictly shallower | `∅` |
+| `at_or_above(P)` | `P` or shallower | `∅` |
+
+`above(P)` is precisely `@reference_case`'s `prefix(P)`. The vocabularies are disjoint
+on purpose — one word cannot carry both directions — and writing `prefix(…)` here is an
+error naming the two forms that replace it.
+
+### Delegation: an answer that is rules
+
+An answer that is a rule set is asked the **leftover** the arm computed, with the
+bindings so far still in scope. That is what lets a set written about one place be
+applied at several places:
+
+```julia
+node = @reference_rules begin
+    queue.capacity => 100
+    serviceRate    => 10.0
+end
+
+@reference_rules begin
+    at_or_below(hosts[_]::WirelessHost) => ^(node)     # by kind, not by place
+    linkDelay                           => ^(10ms)
+end
+```
+
+Applied to `hosts[3].queue.capacity`, the first arm consumes `hosts[3]` and asks `node`
+about `queue.capacity`. Which leftover an arm produces is read off the arm, never off
+the answer, so an arm means the same thing whatever it answers.
+
+### The object is closed
+
+A pattern holds no expressions: every `^(…)`, every `::T` and every typed binder's type
+is evaluated at the construction site and the **value** stored. An answer is an
+expression, evaluated against what its own pattern bound and what the arms above it
+bound — and nothing else, because it is compiled in `ReferenceModule`, where a free name
+resolves rather than at the site the rules were written.
+
+`^(…)` is the one channel from that site, and it means the same thing on both sides of
+`=>`: on the left it interpolates a value to compare against, on the right it evaluates
+at construction and splices the value in. A unit, a domain constructor, a local, a
+nested rule set — all travel that way (`=> ^(@reference_rules begin … end)`).
+
+The identity of an answer is its expression: that is what `==` compares, what `show`
+prints, and what a serializer writes. The compiled form is a method in
+`ReferenceModule`'s table under a key derived from the expression, so nothing compiled
+travels with the object — a rule set written by one process is read and applied by
+another, which is the point of holding a configuration as data.
+
+### Extension steps need the interpreted seam
+
+A `.name(…)` step in a rules pattern is matched through
+`match_reference_step_value(::Val{name}, step, argpats, bindings, match_value,
+match_path)`, the interpreted sibling of `@reference_case`'s codegen
+`match_reference_step` (an interpreter cannot use a codegen seam). A step type that
+wants to appear in a rules pattern registers both, in the package that owns it; the
+seam's error names exactly what is missing.
 
 ## Mapping between document structs and reference steps
 
@@ -632,6 +735,13 @@ documents this at the type declaration.
 and adds `ReferenceEvalTest.jl` which walks `evaluate_reference` over a
 test-local `@document struct ToyBranch`. No concrete engine document is imported;
 the reference DSLs must stand on their own.
+
+`ReferenceRulesTest.jl` is mostly one **conformance corpus**: every construct of the
+pattern grammar written twice — once as a `@reference_case` block, once as a
+`ReferenceRules` object — applied to one corpus of paths and asserted to answer
+identically. Two matchers implementing one semantics is the standing risk this feature
+carries, and that corpus is what keeps them from drifting; extend it whenever either
+matcher learns something new.
 
 ## Why references matter
 
