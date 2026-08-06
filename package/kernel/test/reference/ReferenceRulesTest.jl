@@ -639,5 +639,143 @@ function test_reference_rules()
         @test_throws ErrorException apply_reference_rules(rules, Reference(RulesToyStep(:red)))
     end
 
+    @testset "`__` is any run of steps" begin
+        # A gap makes a pattern denote a SET of paths, so the conformance corpus applies
+        # to it exactly as to any other pattern — and every one of these goes through
+        # `@reference_case`'s interpreter fallback, since a gap is never compiled.
+        _conforms("leading gap",
+            p -> (@reference_case p begin
+                __.b.c => :ends_bc
+                __     => :other
+            end),
+            (@reference_rules begin
+                __.b.c => :ends_bc
+                __     => :other
+            end))
+
+        _conforms("trailing gap is at_or_below",
+            p -> (@reference_case p begin
+                a.b.__ => :under_ab
+                __     => :other
+            end),
+            (@reference_rules begin
+                a.b.__ => :under_ab
+                __     => :other
+            end))
+
+        _conforms("middle gap",
+            p -> (@reference_case p begin
+                a.__.c => :a_to_c
+                __     => :other
+            end),
+            (@reference_rules begin
+                a.__.c => :a_to_c
+                __     => :other
+            end))
+
+        _conforms("gap with a binder after it",
+            p -> (@reference_case p begin
+                __.buckets[i].capacity => i
+                __                     => :other
+            end),
+            (@reference_rules begin
+                __.buckets[i].capacity => i
+                __                     => :other
+            end))
+
+        _conforms("gap under an arm word",
+            p -> (@reference_case p begin
+                at_or_below(__.buckets[i]) => i
+                __                    => :other
+            end),
+            (@reference_rules begin
+                at_or_below(__.buckets[i]) => i
+                __                    => :other
+            end))
+
+        _conforms("a gap makes every input above the pattern",
+            p -> (@reference_case p begin
+                above(__.nowhere) => :above
+                __                => :other
+            end),
+            (@reference_rules begin
+                above(__.nowhere) => :above
+                __                => :other
+            end))
+
+        # `__` alone matches every path, including the empty one — which is what makes it
+        # the catch-all every other arm falls through to.
+        every = @reference_rules begin
+            __ => :any
+        end
+        for path in _corpus_paths()
+            @test apply_reference_rules(every, path) === :any
+        end
+
+        # A gap spans nothing as readily as it spans everything.
+        exactly = @reference_rules begin
+            __.a.__.b.__ => :spans
+            __           => :no
+        end
+        @test apply_reference_rules(exactly, Reference(_fld("a"), _fld("b"))) === :spans
+        @test apply_reference_rules(exactly, Reference(_fld("a"), _fld("x"), _fld("b"), _fld("y"))) === :spans
+        @test apply_reference_rules(exactly, Reference(_fld("b"), _fld("a"))) === :no
+    end
+
+    @testset "`at_or_below(P)` and `P.__` are the same arm" begin
+        # The pattern sugar and the arm word have to agree, or one of them is a lie.
+        word = @reference_rules begin
+            at_or_below(a.b) => :hit
+        end
+        sugar = @reference_rules begin
+            a.b.__ => :hit
+        end
+        for path in _corpus_paths()
+            @test apply_reference_rules(word, path) == apply_reference_rules(sugar, path)
+        end
+    end
+
+    @testset "a gap is greedy" begin
+        # Greediness is observable only where something after the gap is variable-length.
+        # Here the tail bind is, so the two readings differ in what `rest` gets: greedy
+        # takes the INNER queue and leaves less over.
+        rules = @reference_rules begin
+            __.queue.rest... => rest
+        end
+        path = Reference(_fld("net"), _fld("queue"), _fld("a"), _fld("queue"), _fld("b"))
+        @test apply_reference_rules(rules, path) == Reference(_fld("b"))
+
+        # With a fixed-length remainder the gap's length is determined, so there is only
+        # one candidate split and greediness cannot be observed at all.
+        fixed = @reference_rules begin
+            __.queue.capacity => :hit
+            __                => :miss
+        end
+        @test apply_reference_rules(fixed,
+            Reference(_fld("net"), _fld("queue"), _fld("x"), _fld("queue"), _fld("capacity"))) === :hit
+    end
+
+    @testset "the interpreter fallback keeps @reference_case's answer semantics" begin
+        # A `@reference_case` result is escaped user code: it must still see the call
+        # site, even when the match ran in the interpreter. `outer` is a local here and
+        # would be invisible to a rules answer, which is compiled closed.
+        outer = 7
+        matched = @reference_case Reference(_fld("a"), _fld("buckets"), _el(3)) begin
+            __.buckets[i] => i * outer
+            __            => :miss
+        end
+        @test matched == 21
+
+        # A guard reads the interpreter's bindings the same way.
+        guarded(p) = @reference_case p begin
+            when(__.buckets[i], i > 2) => :big
+            __.buckets[i]              => :small
+            __                         => :miss
+        end
+        @test guarded(Reference(_fld("a"), _fld("buckets"), _el(3))) === :big
+        @test guarded(Reference(_fld("a"), _fld("buckets"), _el(1))) === :small
+        @test guarded(Reference(_fld("a"))) === :miss
+    end
+
 end
 end # test_reference_rules
