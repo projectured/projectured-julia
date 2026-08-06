@@ -423,6 +423,78 @@ _step_needs_interpreter(s::PatStepExtension) =
 
 _pattern_needs_interpreter(steps::Vector{PatStep}) = any(_step_needs_interpreter, steps)
 
+# The same question with gaps set aside, since a gap may still be compilable — see
+# `_computed_gap_split`. An alternation never is.
+_value_or_alt_needs_interpreter(::PatStep) = false
+_value_or_alt_needs_interpreter(::PatStepAlt) = true
+_value_or_alt_needs_interpreter(s::PatStepField) = _value_needs_interpreter(s.namepat)
+_value_or_alt_needs_interpreter(s::PatStepIndex) = _value_needs_interpreter(s.idxpat)
+_value_or_alt_needs_interpreter(s::PatStepPosition) = _value_needs_interpreter(s.idxpat)
+_value_or_alt_needs_interpreter(s::PatStepRange) =
+    _value_needs_interpreter(s.startpat) || _value_needs_interpreter(s.stoppat)
+_value_or_alt_needs_interpreter(s::PatStepExtension) =
+    any(arg -> arg isa PatValue ? _value_needs_interpreter(arg) :
+               any(_value_or_alt_needs_interpreter, arg), s.argpats)
+
+# ------------------------------------------------------------
+# The computed gap
+#
+# A gap searches in general. It does not have to when the pattern is anchored at the
+# tail and everything after the gap consumes exactly one step: then the run's length is
+# `however many steps are left` minus `however many the rest needs`, which is arithmetic,
+# not a search. `__.queue.capacity` against a five-step path fixes the gap at three and
+# makes one attempt.
+#
+# That is the shape of nearly every configuration key, so it is worth compiling rather
+# than handing to the interpreter. Greediness cannot be observed here — with only one
+# candidate split there is nothing to prefer — which is why a lazy gap qualifies too.
+#
+# The conformance corpus is what keeps this honest: a gap pattern is compiled on the
+# `@reference_case` side and interpreted on the rules side, so every corpus entry
+# holding a gap now compares the two implementations against each other directly.
+# ------------------------------------------------------------
+
+# A step that consumes exactly one navigation step, whatever it is. `::T` and `::t` do
+# not (they are non-navigating, and `::T` steps over an unfolded checkpoint), nor does
+# anything of variable length.
+_step_consumes_one(::PatStep) = false
+_step_consumes_one(::PatStepField) = true
+_step_consumes_one(::PatStepIndex) = true
+_step_consumes_one(::PatStepPosition) = true
+_step_consumes_one(::PatStepRange) = true
+_step_consumes_one(::PatStepAny) = true
+_step_consumes_one(s::PatStepExtension) = !_step_has_gap(s)
+
+"""
+    _computed_gap_split(pattern, mode) -> (prefix, gap, suffix) | nothing
+
+The split that lets a gap's length be computed instead of searched, or `nothing` when
+this pattern is not of that shape. The conditions are exactly what `_gen_path_match`'s
+gap branch relies on, and are kept here so the two cannot answer differently.
+"""
+function _computed_gap_split(pattern::Vector{PatStep}, mode::Symbol)
+    # Only an `at` arm is anchored at the tail. `below` and `within` leave the leftover
+    # free, so the run's length is not implied and the gap searches again.
+    mode === :at || return nothing
+
+    gaps = findall(s -> s isa PatStepGap, pattern)
+    length(gaps) == 1 || return nothing
+    at = gaps[1]
+
+    prefix = pattern[1:at - 1]
+    suffix = pattern[at + 1:end]
+
+    # The prefix is walked by the ordinary generator, so it may hold anything that
+    # generator emits — but not a step that only has a reading as the sole one.
+    all(s -> !(s isa PatStepWholePathBind || s isa PatStepPathInterp), prefix) || return nothing
+    _pattern_has_gap(prefix) && return nothing
+
+    all(_step_consumes_one, suffix) || return nothing
+
+    (prefix, pattern[at], suffix)
+end
+
+
 # ------------------------------------------------------------
 # Rule parsing
 # ------------------------------------------------------------
@@ -820,6 +892,39 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return :($test ? $success : _nomatch), bound
     end
 
+    # A gap whose length is arithmetic rather than a search — see `_computed_gap_split`,
+    # which decides whether this branch is reachable at all.
+    if steps[1] isa PatStepGap
+        gap = steps[1]
+        suffix = steps[2:end]
+        p = gensym(:p)
+        taken = gensym(:taken)
+        skipped = gensym(:skipped)
+
+        inner_bound = gap.name === nothing ? bound : union(bound, Set([gap.name]))
+        rest, bound1 = _gen_path_match(skipped, suffix, success, inner_bound, terminal)
+        # A named gap is handed the run it took, which is the front of the path.
+        gap.name === nothing ||
+            (rest = :(let $(esc(gap.name)) = ReferenceModule._take_leading_steps($p, $taken)
+                          $rest
+                      end))
+
+        ex = quote
+            let $p = $path_ex
+                let $taken = ReferenceModule._navigation_length($p) - $(length(suffix))
+                    if $taken < 0
+                        _nomatch
+                    else
+                        let $skipped = ReferenceModule._drop_navigation_steps($p, $taken)
+                            $skipped === nothing ? _nomatch : $rest
+                        end
+                    end
+                end
+            end
+        end
+        return ex, bound1
+    end
+
     if length(steps) == 1 && steps[1] isa PatStepWholePathBind
         # A tail bind swallows whatever remains, so the leftover is empty by
         # construction — which `below` can never satisfy.
@@ -1017,6 +1122,12 @@ function _gen_rule(rule)
         # "the input is not empty".
         mode === :below || return body
         return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _nomatch)
+    end
+
+    # A gap whose length is arithmetic compiles like everything else.
+    if !any(_value_or_alt_needs_interpreter, pat) && _computed_gap_split(pat, mode) !== nothing
+        ex, _ = _gen_path_match(:_ref_input, pat, body, Set{Symbol}(), mode)
+        return ex
     end
 
     # Any other pattern whose match is a search is handed to the interpreter rather than

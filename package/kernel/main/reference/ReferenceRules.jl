@@ -422,6 +422,17 @@ function _drop_navigation_steps(path::Reference, n::Int)
     path
 end
 
+# How many navigation steps a path has, ignoring any unfolded checkpoint step — the
+# count a gap's arithmetic is done in.
+function _navigation_length(path::Reference)
+    n = 0
+    while path isa ConcreteReference
+        head(path) isa TypeReferenceStep || (n += 1)
+        path = tail(path)
+    end
+    n
+end
+
 # The mirror of `_drop_navigation_steps`: the first `n` navigation steps as a path of
 # their own, folded node types and all. What a bound gap (`__(owner)`) is given.
 function _take_leading_steps(path::Reference, n::Int)

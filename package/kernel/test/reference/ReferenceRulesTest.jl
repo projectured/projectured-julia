@@ -1045,6 +1045,44 @@ function test_reference_rules()
         @test_throws Exception parse_reference_pattern("a[]")
     end
 
+    @testset "a gap whose length is arithmetic compiles" begin
+        # Where the pattern is anchored at the tail and everything after the gap takes
+        # exactly one step, the run's length is `what is left` minus `what the rest
+        # needs` — arithmetic, not a search. Those compile; the rest reach the
+        # interpreter. This pins the boundary, which is otherwise invisible: both sides
+        # answer identically, which is exactly what the conformance corpus asserts.
+        compiled(ex) = !occursin("match_reference_pattern",
+                                 string(macroexpand(@__MODULE__, ex)))
+
+        @test compiled(:(@reference_case r begin __.b.c => 1; __ => 2 end))
+        @test compiled(:(@reference_case r begin __(o).b.c => o; __ => 2 end))
+        @test compiled(:(@reference_case r begin a.__.b[i] => i; __ => 2 end))
+        @test compiled(:(@reference_case r begin __ => 1 end))
+
+        # A variable-length remainder puts the length back in question.
+        @test !compiled(:(@reference_case r begin __.rest... => rest; __ => 2 end))
+        @test !compiled(:(@reference_case r begin __.a.__.b => 1; __ => 2 end))
+        # `::T` is non-navigating, so it consumes one step or none.
+        @test !compiled(:(@reference_case r begin __.b::Int => 1; __ => 2 end))
+        # Only an `at` arm is anchored at the tail; the others leave the leftover free.
+        @test !compiled(:(@reference_case r begin within(__.b) => 1; __ => 2 end))
+        # An alternation branches, whatever its lengths.
+        @test !compiled(:(@reference_case r begin any(a, b).c => 1; __ => 2 end))
+
+        # And the compiled reading answers what the interpreted one does, including for
+        # a bound gap and for a path carrying an unfolded checkpoint — the one place the
+        # two count steps differently if either gets it wrong.
+        _conforms("computed gap, bound",
+            p -> (@reference_case p begin
+                __(owner).b => owner
+                __          => :miss
+            end),
+            (@reference_rules begin
+                __(owner).b => owner
+                __          => :miss
+            end))
+    end
+
     @testset "the retired catch-all says so" begin
         # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
         # error rather than a silent reinterpretation — the whole point of the guard.
