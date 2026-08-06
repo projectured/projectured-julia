@@ -79,7 +79,7 @@ function map_reference_backward(::FsmToFsmDiagram, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::FsmMachine
         ::FsmDiagram.machine.rest... => (@reference ^(rest))
-        _ => nothing
+        __ => nothing
     end
 end
 

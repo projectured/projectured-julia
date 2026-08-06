@@ -539,7 +539,7 @@ function selected_sample(chart::Chart)
     n = length(chart.series)
     @reference_case reference begin
         ::Chart.series[i].sample(k) => (1 <= i <= n ? (i, k) : nothing)
-        _ => nothing
+        __ => nothing
     end
 end
 
@@ -596,7 +596,7 @@ function chart_part_index(chart::Chart, reference)
         ::Chart.y_axis.rest... => 3
         ::Chart.legend.rest... => 4
         ::Chart.series[i].rest... => (1 <= i <= n ? 4 + i : 0)
-        _ => 0
+        __ => 0
     end
 end
 
@@ -612,7 +612,7 @@ function selected_series_index(chart::Chart)
     reference === nothing && return 0
     @reference_case reference begin
         ::Chart.series[i].rest... => (1 <= i <= length(chart.series) ? i : 0)
-        _ => 0
+        __ => 0
     end
 end
 

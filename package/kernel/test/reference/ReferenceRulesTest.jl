@@ -114,21 +114,21 @@ function test_reference_rules()
         _conforms("literal field path",
             p -> (@reference_case p begin
                 a.b.c => :hit
-                _     => :miss
+                __    => :miss
             end),
             @reference_rules begin
                 a.b.c => :hit
-                _     => :miss
+                __    => :miss
             end)
 
         _conforms("index binder",
             p -> (@reference_case p begin
                 buckets[i].capacity => i
-                _                   => :miss
+                __                  => :miss
             end),
             @reference_rules begin
                 buckets[i].capacity => i
-                _                   => :miss
+                __                  => :miss
             end)
 
         _conforms("index wildcard and literal, in order",
@@ -155,21 +155,21 @@ function test_reference_rules()
         _conforms("position step",
             p -> (@reference_case p begin
                 items{k} => k
-                _        => :miss
+                __       => :miss
             end),
             @reference_rules begin
                 items{k} => k
-                _        => :miss
+                __       => :miss
             end)
 
         _conforms("range step",
             p -> (@reference_case p begin
                 items{s:e} => (s, e)
-                _          => :miss
+                __         => :miss
             end),
             @reference_rules begin
                 items{s:e} => (s, e)
-                _          => :miss
+                __         => :miss
             end)
 
         _conforms("guard",
@@ -185,41 +185,41 @@ function test_reference_rules()
         _conforms("tail bind",
             p -> (@reference_case p begin
                 a.rest... => rest
-                _         => :miss
+                __        => :miss
             end),
             @reference_rules begin
                 a.rest... => rest
-                _         => :miss
+                __        => :miss
             end)
 
         _conforms("empty path",
             p -> (@reference_case p begin
                 ∅ => :whole
-                _ => :miss
+                __ => :miss
             end),
             @reference_rules begin
                 ∅ => :whole
-                _ => :miss
+                __ => :miss
             end)
 
         _conforms("empty path with a bound terminal type",
             p -> (@reference_case p begin
                 ∅::t => t
-                _    => :miss
+                __   => :miss
             end),
             @reference_rules begin
                 ∅::t => t
-                _    => :miss
+                __   => :miss
             end)
 
         _conforms("type checkpoints",
             p -> (@reference_case p begin
                 ::RulesA.a::RulesB.b::RulesC => :typed
-                _                            => :miss
+                __                           => :miss
             end),
             @reference_rules begin
                 ::RulesA.a::RulesB.b::RulesC => :typed
-                _                            => :miss
+                __                           => :miss
             end)
 
         # The corpus holds one `RulesA`-typed path and one `RulesOther`-typed path of
@@ -228,46 +228,46 @@ function test_reference_rules()
             p -> (@reference_case p begin
                 ::RulesA.a.b     => :a
                 ::RulesOther.a.b => :other
-                _                => :miss
+                __               => :miss
             end),
             @reference_rules begin
                 ::RulesA.a.b     => :a
                 ::RulesOther.a.b => :other
-                _                => :miss
+                __               => :miss
             end)
 
         _conforms("a type checkpoint narrows an above-form",
             p -> (@reference_case p begin
                 above(::RulesA.a.b.c)     => :a
                 above(::RulesOther.a.b.c) => :other
-                _                          => :miss
+                __                         => :miss
             end),
             @reference_rules begin
                 above(::RulesA.a.b.c)     => :a
                 above(::RulesOther.a.b.c) => :other
-                _                         => :miss
+                __                        => :miss
             end)
 
         _conforms("node type binder",
             p -> (@reference_case p begin
                 a::t.b => t
-                _      => :miss
+                __     => :miss
             end),
             @reference_rules begin
                 a::t.b => t
-                _      => :miss
+                __     => :miss
             end)
 
         _conforms("extension step",
             p -> (@reference_case p begin
                 rulestoy(tag).c => tag
                 rulestoy(tag)   => (tag, :alone)
-                _               => :miss
+                __              => :miss
             end),
             @reference_rules begin
                 rulestoy(tag).c => tag
                 rulestoy(tag)   => (tag, :alone)
-                _               => :miss
+                __              => :miss
             end)
 
         # `^(…)` reads the construction site on both sides; here the two sites hold the
@@ -276,21 +276,21 @@ function test_reference_rules()
             _conforms("value interpolation",
                 p -> (@reference_case p begin
                     buckets[^(k)].capacity => :interp
-                    _                      => :miss
+                    __                     => :miss
                 end),
                 @reference_rules begin
                     buckets[^(k)].capacity => :interp
-                    _                      => :miss
+                    __                     => :miss
                 end)
 
             _conforms("whole-path interpolation",
                 p -> (@reference_case p begin
                     ^(interp_path) => :same_path
-                    _              => :miss
+                    __             => :miss
                 end),
                 @reference_rules begin
                     ^(interp_path) => :same_path
-                    _              => :miss
+                    __             => :miss
                 end)
         end
 
@@ -300,11 +300,11 @@ function test_reference_rules()
         _conforms("above(P) is above(P)",
             p -> (@reference_case p begin
                 above(a.b.c) => :above
-                _             => :miss
+                __            => :miss
             end),
             @reference_rules begin
                 above(a.b.c) => :above
-                _            => :miss
+                __           => :miss
             end)
 
         # The empty path is above everything, so an above-arm holds there without ever
@@ -313,11 +313,11 @@ function test_reference_rules()
         _conforms("above(P) with an index and a guard",
             p -> (@reference_case p begin
                 when(above(buckets[i].capacity), i < 5) => i
-                _                                        => :miss
+                __                                       => :miss
             end),
             (@reference_rules begin
                 when(above(buckets[i].capacity), i < 5) => i
-                _                                       => :miss
+                __                                      => :miss
             end),
             filter(p -> p isa ConcreteReference, _corpus_paths()))
 
@@ -325,11 +325,11 @@ function test_reference_rules()
             _conforms("above(^(path))",
                 p -> (@reference_case p begin
                     above(^(interp_path)) => :above
-                    _                      => :miss
+                    __                     => :miss
                 end),
                 @reference_rules begin
                     above(^(interp_path)) => :above
-                    _                     => :miss
+                    __                    => :miss
                 end)
         end
     end
@@ -375,7 +375,7 @@ function test_reference_rules()
         at_rules = @reference_rules begin
             ::RulesOther.a.b => :other
             ::RulesA.a.b     => :a
-            _                => :miss
+            __               => :miss
         end
         @test apply_reference_rules(at_rules, typed) === :a          # narrowed to the right arm
         @test apply_reference_rules(at_rules, untyped) === :other    # no type recorded, first arm takes it
@@ -400,7 +400,7 @@ function test_reference_rules()
         rules = @reference_rules begin
             a.b => :first
             a.b => :second
-            _   => :fallback
+            __  => :fallback
         end
         @test apply_reference_rules(rules, Reference(_fld("a"), _fld("b"))) === :first
         @test apply_reference_rules(rules, Reference(_fld("q"))) === :fallback
@@ -555,7 +555,7 @@ function test_reference_rules()
         # against what the earlier one bound, which is what the DSL documents.
         rules = @reference_rules begin
             a.field(n).field(n) => n
-            _                   => :miss
+            __                  => :miss
         end
         matching = Reference(_fld("a"), _fld("dup"), _fld("dup"))
         @test apply_reference_rules(rules, matching) == "dup"
@@ -563,7 +563,7 @@ function test_reference_rules()
 
         @test_throws UndefVarError (@reference_case matching begin
             a.field(n).field(n) => n
-            _                   => :miss
+            __                  => :miss
         end)
     end
 
@@ -577,7 +577,7 @@ function test_reference_rules()
                                                      name => :inner
                                                  end)
             ∅                                => :whole
-            _                                => :miss
+            __                               => :miss
         end
         text = sprint(show, rules)
         @test occursin("@reference_rules begin", text)

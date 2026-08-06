@@ -332,7 +332,7 @@ function _reference_series_index(chart::Chart, reference)
     @reference_case reference begin
         ::ChartPlot.chart.series[i].rest... => (1 <= i <= n ? i : 0)
         ::Chart.series[i].rest... => (1 <= i <= n ? i : 0)
-        _ => 0
+        __ => 0
     end
 end
 

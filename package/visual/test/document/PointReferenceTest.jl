@@ -71,7 +71,7 @@ let sample = ConcreteReference(FieldReferenceStep("img"),
                  ConcreteReference(PointReferenceStep(0, 42), EmptyReference()))
     matched = @reference_case sample begin
         img.point(_, py) => py
-        _ => nothing
+        __ => nothing
     end
     @test matched == 42
 end
@@ -80,7 +80,7 @@ end
 let sample = strip_reference_types(@reference ::PRA.value::PRB)
     matched = @reference_case sample begin
         cursor.point(px, py) => :point
-        _ => :other
+        __ => :other
     end
     @test matched == :other
 end

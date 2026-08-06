@@ -68,7 +68,7 @@ function map_reference_forward(p::FilteringProjection, iomap::FilteringProjectio
             j === nothing && return nothing
             ConcreteReference(get_reference_node_type(iomap.output), ElementReferenceStep(j), rest)
         end
-        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -78,7 +78,7 @@ function map_reference_backward(p::FilteringProjection, iomap::FilteringProjecti
             (j < 1 || j > length(iomap.kept_indices)) && return nothing
             ConcreteReference(get_reference_node_type(iomap.input), ElementReferenceStep(iomap.kept_indices[j]), rest)
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

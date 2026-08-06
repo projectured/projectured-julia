@@ -55,7 +55,7 @@ function map_reference_forward(p::ReversingProjection, iomap::ChildrenIoMap, ref
             ConcreteReference(get_reference_node_type(iomap.output),
                                   ElementReferenceStep(n + 1 - i), mapped_tail)
         end
-        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -71,7 +71,7 @@ function map_reference_backward(p::ReversingProjection, iomap::ChildrenIoMap, re
             ConcreteReference(get_reference_node_type(iomap.input),
                                   ElementReferenceStep(n + 1 - i), mapped_tail)
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

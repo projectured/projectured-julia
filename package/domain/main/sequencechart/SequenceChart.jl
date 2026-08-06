@@ -793,7 +793,7 @@ function selected_event(chart::SequenceChart)
     n = event_count(chart.events)
     @reference_case reference begin
         ::SequenceChart.events.row(k) => (1 <= k <= n ? k : 0)
-        _ => 0
+        __ => 0
     end
 end
 
@@ -808,7 +808,7 @@ function selected_arrow(chart::SequenceChart)
     n = arrow_count(chart.arrows)
     @reference_case reference begin
         ::SequenceChart.arrows.row(k) => (1 <= k <= n ? k : 0)
-        _ => 0
+        __ => 0
     end
 end
 
@@ -823,7 +823,7 @@ function selected_axis_index(chart::SequenceChart)
     reference === nothing && return 0
     @reference_case reference begin
         ::SequenceChart.axes[i].rest... => (1 <= i <= length(chart.axes) ? i : 0)
-        _ => 0
+        __ => 0
     end
 end
 
@@ -872,7 +872,7 @@ function sequence_chart_part_index(chart::SequenceChart, reference)
         end
         ::SequenceChart.events.rest... => 1 + n + 1
         ::SequenceChart.arrows.rest... => 1 + n + 2
-        _ => 0
+        __ => 0
     end
 end
 

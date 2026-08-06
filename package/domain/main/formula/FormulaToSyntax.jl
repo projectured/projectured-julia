@@ -181,7 +181,7 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[idx].^(inner))
         end
-        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -203,7 +203,7 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
                 @invoke map_reference_backward(p::Projection, iomap, reference)
             end
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 
@@ -249,7 +249,7 @@ function map_reference_forward(p::FormulaEnvironmentToSyntaxNode, iomap::Childre
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference ::SyntaxNode.children::CellVector[child_i].^(inner))
         end
-        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -264,7 +264,7 @@ function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::Childr
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing ? nothing : (@reference ::FormulaEnvironment.formulas::CellVector[child_i].^(inner))
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

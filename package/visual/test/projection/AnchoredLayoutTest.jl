@@ -51,7 +51,7 @@ end
 map_reference_forward(p::_AlBoxes, iomap, reference) =
     @reference_case reference begin
         ::VerticalLayout.children[i] => (@reference iomap.output elements[i])
-        _ => nothing
+        __ => nothing
     end
 
 # The (x, y) of each element of a rendered anchored layout.

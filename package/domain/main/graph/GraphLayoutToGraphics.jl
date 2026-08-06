@@ -274,7 +274,7 @@ function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayou
             cim = entry[3]
             map_reference_forward(cim.projection, cim, rest)
         end
-        _ => nothing
+        __ => nothing
     end
 end
 

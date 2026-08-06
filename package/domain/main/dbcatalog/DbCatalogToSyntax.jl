@@ -145,10 +145,10 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
                             Cell(ElementReferenceStep(child_i)),
                             Cell(inner))))
                 end
-                _ => nothing
+                __ => nothing
             end
         end
-        _ => nothing
+        __ => nothing
     end
 end
 

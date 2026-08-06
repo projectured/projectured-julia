@@ -152,7 +152,7 @@ end
 let sample = strip_reference_types(@reference ::A.items::B{4:7}::C)
     matched = @reference_case sample begin
         items{4:7} => :literal_match
-        _ => :fallback
+        __ => :fallback
     end
     @test matched == :literal_match
 end
@@ -195,7 +195,7 @@ end
 let whole = EmptyReference(Symbol)
     got = @reference_case whole begin
         (∅::t) => t
-        _      => :miss
+        __     => :miss
     end
     @test got === Symbol
 end
@@ -213,7 +213,7 @@ end
 let multi = @reference ::A.entries::B[1]::C.key::D
     matched = @reference_case multi begin
         ::A.entries::B[i]::C.key::D => (:hit, i)
-        _                           => :miss
+        __                          => :miss
     end
     @test matched == (:hit, 1)
 end

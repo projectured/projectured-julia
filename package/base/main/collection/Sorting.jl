@@ -105,7 +105,7 @@ function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoM
             mapped_tail === nothing && return nothing
             ConcreteReference(get_reference_node_type(iomap.output), ElementReferenceStep(j), mapped_tail)
         end
-        _ => @invoke map_reference_forward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_forward(p::Projection, iomap, reference)
     end
 end
 
@@ -120,7 +120,7 @@ function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIo
             i = iomap.index_map[j]
             ConcreteReference(get_reference_node_type(iomap.input), ElementReferenceStep(i), mapped_tail)
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

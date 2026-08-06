@@ -42,7 +42,7 @@ function test_reference_eval()
         p = strip_reference_types(@reference ::EA.right::EB.value::EC)
         matched = @reference_case p begin
             right.value => :hit
-            _           => :miss
+            __          => :miss
         end
         @test matched === :hit
 
@@ -50,7 +50,7 @@ function test_reference_eval()
         q = strip_reference_types(@reference ::EA.left::EB)
         matched2 = @reference_case q begin
             right.value => :hit
-            _           => :miss
+            __          => :miss
         end
         @test matched2 === :miss
     end
@@ -65,21 +65,21 @@ function test_reference_eval()
 
         right(p) = @reference_case p begin
             ::EvalBranch.left.value => :hit
-            _                       => :miss
+            __                      => :miss
         end
         wrong(p) = @reference_case p begin
             ::EA.left.value => :hit
-            _               => :miss
+            __              => :miss
         end
         supertype_pattern(p) = @reference_case p begin
             ::Document.left.value => :hit
-            _                     => :miss
+            __                    => :miss
         end
         # A narrowed-away arm must not swallow the input: the next arm gets its say.
         two_arms(p) = @reference_case p begin
             ::EA.left.value         => :wrong_arm
             ::EvalBranch.left.value => :right_arm
-            _                       => :miss
+            __                      => :miss
         end
 
         @test right(annotated) === :hit
@@ -94,20 +94,20 @@ function test_reference_eval()
         short     = annotate_reference_types(root, strip_reference_types(@reference ::EA.left::EB))
         above_right(p) = @reference_case p begin
             above(::EvalBranch.left.value) => :hit
-            _                              => :miss
+            __                             => :miss
         end
         above_wrong(p) = @reference_case p begin
             above(::EA.left.value) => :hit
-            _                      => :miss
+            __                     => :miss
         end
         above_super(p) = @reference_case p begin
             above(::Document.left.value) => :hit
-            _                            => :miss
+            __                           => :miss
         end
         above_two_arms(p) = @reference_case p begin
             above(::EA.left.value)         => :wrong_arm
             above(::EvalBranch.left.value) => :right_arm
-            _                              => :miss
+            __                             => :miss
         end
 
         @test above_right(short) === :hit
@@ -127,13 +127,13 @@ function test_reference_eval()
 
         leading(p) = @reference_case p begin
             ::EA.outer.left.value => :hit
-            _                     => :miss
+            __                    => :miss
         end
         @test leading(rerooted) === :hit
 
         above_leading(p) = @reference_case p begin
             above(::EA.outer.left.value.deeper) => :hit
-            _                                   => :miss
+            __                                  => :miss
         end
         @test above_leading(rerooted) === :hit
 
@@ -141,11 +141,11 @@ function test_reference_eval()
         # wrong type there is narrowed away — that is the tripwire, not a defect.
         mid_wrong(p) = @reference_case p begin
             ::EA.outer::EA.left.value => :hit
-            _                         => :miss
+            __                        => :miss
         end
         mid_right(p) = @reference_case p begin
             ::EA.outer::EvalBranch.left.value => :hit
-            _                                 => :miss
+            __                                => :miss
         end
         @test mid_wrong(rerooted) === :miss
         @test mid_right(rerooted) === :hit
@@ -159,7 +159,7 @@ function test_reference_eval()
             ∅::EvalBranch => :branch
             ∅::EA         => :ea
             ∅             => :untyped
-            _             => :miss
+            __            => :miss
         end
         @test m(typed) === :branch
         @test m(EmptyReference()) === :branch   # untyped ∅ is tolerated by the first arm

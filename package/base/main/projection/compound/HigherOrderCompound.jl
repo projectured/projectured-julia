@@ -28,7 +28,7 @@ function ApplyAtProjection(reference::Reference, projection)
             projection;
             recursion=IdentityProjection(),
         )
-        _                    => IdentityProjection()
+        __                   => IdentityProjection()
     end))
 end
 

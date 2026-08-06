@@ -773,7 +773,7 @@ function _row_of(reference, table::Symbol)
     @reference_case reference begin
         ::SequenceChartPlot.chart.events.row(k) => (table === :events ? k : 0)
         ::SequenceChartPlot.chart.arrows.row(k) => (table === :arrows ? k : 0)
-        _ => 0
+        __ => 0
     end
 end
 

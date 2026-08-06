@@ -113,7 +113,7 @@ whole = annotate_reference_types(obj, EmptyReference())
 @test whole isa EmptyReference && whole.type === JsonObject
 hit_whole = @reference_case whole begin
     ∅ => :whole
-    _ => :other
+    __ => :other
 end
 @test hit_whole == :whole
 

@@ -87,7 +87,7 @@ function map_reference_backward(::SequenceChartToSequenceChartPlot, iomap, refer
     @reference_case reference begin
         ∅ => @reference ::SequenceChart
         ::SequenceChartPlot.chart.rest... => (@reference ^(rest))
-        _ => nothing
+        __ => nothing
     end
 end
 

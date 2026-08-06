@@ -179,7 +179,7 @@ function map_reference_backward(p::SearchingProjection, iomap::SearchingProjecti
             (j < 1 || j > length(iomap.match_paths)) && return nothing
             _concat(iomap.match_paths[j], rest)
         end
-        _ => @invoke map_reference_backward(p::Projection, iomap, reference)
+        __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
 

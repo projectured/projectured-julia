@@ -86,7 +86,7 @@ function map_reference_backward(::ChartToChartPlot, iomap, reference)
     @reference_case reference begin
         ∅ => @reference ::Chart
         ::ChartPlot.chart.rest... => (@reference ^(rest))
-        _ => nothing
+        __ => nothing
     end
 end
 

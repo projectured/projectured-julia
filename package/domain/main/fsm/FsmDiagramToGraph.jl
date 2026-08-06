@@ -203,7 +203,7 @@ function map_reference_forward(::FsmDiagramToGraph, iomap, reference)
         ∅ => @reference ::GraphGraph
         ::FsmDiagram.machine.states[i].rest... =>
             (@reference ::GraphGraph.vertices::CellVector[i]::GraphVertex.content.^(rest))
-        _ => nothing
+        __ => nothing
     end
 end
 
@@ -213,7 +213,7 @@ function map_reference_backward(::FsmDiagramToGraph, iomap, reference)
         ∅ => @reference ::FsmDiagram
         ::GraphGraph.vertices[i].content.rest... =>
             (@reference ::FsmDiagram.machine::FsmMachine.states::CellVector[i].^(rest))
-        _ => nothing
+        __ => nothing
     end
 end
 
