@@ -81,7 +81,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceRules.jl`
-  - 🔒 `reference/ReferenceBuilder.jl`
+  - ⬜ `reference/ReferenceBuilder.jl`
 - **Layer 9 — selection** (`selection/`)
   - 🔒 `selection/SelectionLayer.jl`
   - 🔒 `selection/SelectionModule.jl`

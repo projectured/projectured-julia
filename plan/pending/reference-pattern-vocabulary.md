@@ -128,8 +128,12 @@ what lets gaps and arm words compose with no special cases, so that
    rest match; `__ʔ` reverses that gap only. This never changes *whether* an arm
    matches — only which member of the set was the witness, and so which bindings
    come out.
-3. **`_` and `__` count navigation steps.** An unfolded `TypeReferenceStep` is
-   invisible to them, as it is to the rest of the matcher.
+3. **`__` counts navigation steps; `_` counts steps.** A gap skips an unfolded
+   `TypeReferenceStep`, because its length arithmetic is shared with the stripped
+   shape walk `^(p)` uses. `_` consumes one step whatever it is, including such a
+   checkpoint. Neither is observable on a canonical path, where checkpoints are
+   folded into the nodes and there are no checkpoint steps to count — and the
+   unfolded form is a transitional build-time artifact.
 4. **A repeated binder is an equality check**, read left to right.
 5. **First match wins** across arms; no match answers `nothing`. The same rule
    OMNeT++ uses for ini lines, so a migrated file keeps its precedence.
@@ -208,9 +212,28 @@ implemented twice**: unification comes before the language grows.
    prefix of some member. `PatStepGap` carries its `name` and `lazy` fields from
    the start, but only the anonymous greedy spelling is wired up; `__ʔ` and
    `__(name)` stay in phase 5 as planned.
-3. **Migrate the catch-all.** 113 arms of the form `_ => …` become `__ => …`.
+3. **Migrate the catch-all.** **Done** — **92** arms, not the 113 a grep
+   reports. The other 21 belong to `@event_case` and `@gestures`, which spell
+   their own catch-all `_ =>`, and a blind rewrite would have broken them. The
+   arms were found by parsing all 581 files and walking for `@reference_case` /
+   `@reference_rules` macro calls, so the set is exactly the reference ones.
 4. **`_` becomes one step**, and a *sole* `_` becomes an error for one release —
-   see Migration.
+   see Migration. **Done.** Only the *un-worded* arm is guarded: `at(_)` is a
+   deliberate one-step arm, and is how the new meaning is written while the guard
+   stands. Both DSLs raise one shared message so they cannot word it differently.
+
+   Two things this phase also had to do, neither of them foreseen:
+
+   - **`@reference` rejects `_` and `__`.** Otherwise `@reference(a.__.b)` builds
+     a field literally named `__`. Needs `ReferenceBuilder.jl`, which was
+     **unsealed for it** and is now `⬜` in the inventory.
+   - **A lone anonymous gap compiles.** Phase 3 had just created 92 sole-`__`
+     patterns — the catch-all arm, on the hot path of every mapper and reader —
+     and routing them to the interpreter would have cost a materialized pattern
+     and a bindings dict per evaluation. A gap with nothing before or after it to
+     line up against answers the same for every input, so there is nothing to
+     search and it is emitted as the body itself. This is the first rung of the
+     tier-2 ladder, arriving early because phase 3 made it urgent.
 5. **`__ʔ` and `__(name)`.** `name...` **survives as its own form**, not as sugar
    to be retired: a trailing bind is what almost every caller wants, and reading
    `rest...` at the end of a path is clearer than reading a gap that happens to
@@ -254,17 +277,22 @@ to reintroduce drift.
 
 ## Migration
 
-`_` changes meaning from the catch-all to one step across **113** arms
-(`grep -rn "^\s*_\s*=>" --include=*.jl package/`). The danger is that `_ => v`
+`_` changes meaning from the catch-all to one step across **92** arms. A grep
+reports 113, but 21 of those are `@event_case` / `@gestures` arms with their own
+`_ =>` catch-all — so the migration was driven by *parsing* every file and
+walking for reference macro calls, not by a regex. The danger is that `_ => v`
 still *parses* afterwards and silently means "any one-step path", so the change
-would be invisible at 113 sites.
+would be invisible at each site.
 
 Therefore a sole `_` is an **error** for one release —
 
 > write `__` for the catch-all; `_` matches exactly one step
 
-— which turns 113 silent behaviour changes into 113 compiler messages. Value
-position is untouched: `xs[_]` still means "any value".
+— which turns 92 silent behaviour changes into 92 compiler messages. Value
+position is untouched: `xs[_]` still means "any value", and a bare `_` as a whole
+*subpath* argument (`proj(^(p), _)`) still binds the whole subpath, because a
+subpath slot takes a path and a bare symbol there binds one by the grammar's own
+rule.
 
 Two reserved-word consequences, both from value slots that are raw Julia today:
 
