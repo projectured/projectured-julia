@@ -827,7 +827,7 @@ uuid = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 version = "0.1.0"
 
 [[deps.ProjecturedKernelTest]]
-deps = ["ProjecturedKernel", "ProjecturedKernelExample", "Test"]
+deps = ["ProjecturedKernel", "ProjecturedKernelExample", "Serialization", "Test"]
 entryfile = "ProjecturedKernelTest.jl"
 path = "package/kernel/test"
 uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"

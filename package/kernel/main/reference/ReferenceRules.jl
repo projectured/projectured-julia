@@ -64,17 +64,19 @@ against what the match bound and nothing else.
 The expression is the identity — it is what `==` compares, what `show` prints and what
 a serializer writes. `compiled` is a cache *of* that expression, one entry per set of
 binding names it has been asked to run against (a nested rule set cannot know those
-names until it is applied), and is never part of what the answer *is*.
+names until it is applied), and is never part of what the answer *is*. What it holds is
+a **name**, not code: the compiled form lives in this module's method table under a key
+derived from the expression, so nothing compiled travels with the object.
 
 An expression that is not an `Expr` or a `Symbol` — a literal, or a value spliced in
 with `^(…)` at construction — is its own value and never reaches the compiler.
 """
 mutable struct ReferenceRuleAnswer
     expr::Any
-    compiled::Dict{Vector{Symbol}, Any}
+    compiled::Dict{Vector{Symbol}, Symbol}
 end
 
-ReferenceRuleAnswer(expr) = ReferenceRuleAnswer(expr, Dict{Vector{Symbol}, Any}())
+ReferenceRuleAnswer(expr) = ReferenceRuleAnswer(expr, Dict{Vector{Symbol}, Symbol}())
 
 """
     ReferenceRule(mode, pattern, guard, answer)
@@ -407,6 +409,24 @@ end
 # `^(…)`, which is evaluated at construction — that is what keeps the object closed.
 # ------------------------------------------------------------
 
+# The compiled form of an answer: one method of this generic per (expression, binding
+# names) pair, keyed by a `Val` of a name derived from that pair. The **method table is
+# the cache**, and the key is content-addressed rather than minted from a counter, so a
+# rule set that crossed a process boundary — or a `serialize`/`deserialize` round trip —
+# looks its own key up, finds no method, and compiles it again. Nothing compiled ever
+# travels with the object; caching a function *in* the answer would put a closure type
+# on the wire, which no other process can read back.
+function _run_reference_rule_answer end
+
+_answer_key(expr, names::Vector{Symbol}) = Symbol(repr(expr), "|", join(names, ","))
+
+_answer_method(key::Symbol, expr, names::Vector{Symbol}) =
+    :(function _run_reference_rule_answer(::Val{$(QuoteNode(key))}, __bindings)
+          $(Expr(:let,
+                 Expr(:block, (:($n = __bindings[$(QuoteNode(n))]) for n in names)...),
+                 Expr(:block, expr)))
+      end)
+
 function _evaluate_answer(answer::ReferenceRuleAnswer, b::ReferenceRuleBindings)
     expr = answer.expr
     # A quoted symbol is the commonest answer of all (`=> :hit`) and is its own value.
@@ -415,20 +435,13 @@ function _evaluate_answer(answer::ReferenceRuleAnswer, b::ReferenceRuleBindings)
     (expr isa Expr || expr isa Symbol) || return expr
     expr isa Symbol && haskey(b, expr) && return b[expr]
     names = sort!(collect(keys(b)))
-    fn = get!(answer.compiled, names) do
-        Core.eval(@__MODULE__, _answer_lambda(expr, names))
-    end
-    # The lambda was defined by `Core.eval` in this world, so calling it directly from a
-    # method compiled earlier is the world-age error waiting to happen.
-    Base.invokelatest(fn, b)
+    key = get!(() -> _answer_key(expr, names), answer.compiled, names)
+    hasmethod(_run_reference_rule_answer, Tuple{Val{key}, ReferenceRuleBindings}) ||
+        Core.eval(@__MODULE__, _answer_method(key, expr, names))
+    # The method may have been defined in this very world, so calling it from a method
+    # compiled earlier is the world-age error waiting to happen.
+    Base.invokelatest(_run_reference_rule_answer, Val(key), b)
 end
-
-_answer_lambda(expr, names::Vector{Symbol}) =
-    Expr(:(->), :__bindings,
-         Expr(:block,
-              Expr(:let,
-                   Expr(:block, (:($n = __bindings[$(QuoteNode(n))]) for n in names)...),
-                   Expr(:block, expr))))
 
 # ------------------------------------------------------------
 # Applying
@@ -578,7 +591,7 @@ _show_pat_step(io::IO, step::PatStepPathInterp, first::Bool) =
     (print(io, first ? "" : ".", "^("); show(io, step.expr); print(io, ")"))
 
 function _show_pat_step(io::IO, step::PatStepExtension, first::Bool)
-    print(io, ".", step.name, "(")
+    print(io, first ? "" : ".", step.name, "(")
     for (i, arg) in enumerate(step.argpats)
         i == 1 || print(io, ", ")
         arg isa PatValue ? _show_pat_value(io, arg) : _show_pattern(io, arg)

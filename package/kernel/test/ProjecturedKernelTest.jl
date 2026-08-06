@@ -63,6 +63,7 @@ include("document/DocumentContractTest.jl")
 include("document/DocumentMacroTest.jl")
 include("reference/ReferenceBuilderTest.jl")
 include("reference/ReferenceEvalTest.jl")
+include("reference/ReferenceRulesTest.jl")
 include("operation/RerootingTest.jl")
 include("operation/TraversalTest.jl")
 include("event/EventModuleTest.jl")
@@ -142,6 +143,7 @@ function test_kernel()
         test_document_macro()
         test_reference_builder()
         test_reference_eval()
+        test_reference_rules()
         test_rerooting()
         test_traversal()
         test_event_module()
@@ -160,7 +162,7 @@ export check_layering, test_layering_checkers
 # kernel unit suites
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
-       test_reference_builder, test_reference_eval, test_rerooting,
+       test_reference_builder, test_reference_eval, test_reference_rules, test_rerooting,
        test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam
 # generic drivers + walker internals reused by the higher test packages
