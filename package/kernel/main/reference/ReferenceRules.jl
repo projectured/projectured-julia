@@ -403,7 +403,14 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     # exactly "the input is a proper prefix of some member". Nothing after the gap needs
     # examining, and a bound gap has nothing well-defined to bind here, since the run it
     # would name is the part of a member the input never reached.
-    step isa PatStepGap && return true
+    if step isa PatStepGap
+        # A named gap binds what it covered — which here is whatever is left of the
+        # input, since that is the part of the member the input reached before running
+        # out. Without this a bound gap under an above-arm would leave its name unbound
+        # and the answer would fail reading it.
+        step.name === nothing || _rule_bind!(b, step.name, path)
+        return true
+    end
 
     if step isa PatStepType
         if path isa ConcreteReference && head(path) isa TypeReferenceStep

@@ -20,9 +20,9 @@
 # lowered to a field with a peculiar name, which is what a builder would otherwise emit
 # for `@reference(a.__.b)`.
 function _gen_build_step(step::RefField)
-    step.name == REFERENCE_GAP_NAME &&
-        error("`__` (any run of steps) is only valid inside @reference_case / @reference_rules, " *
-              "not @reference/@reference_step — a path being built names its steps")
+    step.name in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME) &&
+        error("`$(step.name)` (any run of steps) is only valid inside @reference_case / " *
+              "@reference_rules, not @reference/@reference_step — a path being built names its steps")
     step.name == REFERENCE_STEP_NAME &&
         error("`_` (any one step) is only valid inside @reference_case / @reference_rules, " *
               "not @reference/@reference_step — a path being built names its steps")
@@ -52,12 +52,22 @@ _gen_build_step(step::RefType) =
 _gen_build_step(step::RefTailBind) =
     error("`$(step.name)...` (tail binding) is only valid inside @reference_case, not @reference/@reference_step")
 
+# The bound spellings `__(name)` / `__ʔ(name)` reach here as extension steps, and are
+# refused for the same reason as the bare ones rather than being reported as an
+# unregistered step type.
+function _gen_build_step(step::RefExtension)
+    String(step.name) in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME) &&
+        error("`$(step.name)(name)` (binding a run of steps) is only valid inside " *
+              "@reference_case / @reference_rules, not @reference/@reference_step")
+    _gen_build_extension_step(step)
+end
+
 # Extension-registered `.name(args...)` DSL entries dispatch through
 # `build_reference_step(::Val{name}, escaped_args...)`. A subpath argument (declared via
 # `get_reference_step_subpath_args`) is parsed with the *construction* subpath rule and lowered to
 # its path expression; every other argument is an escaped Julia expression. So no step
 # type is named here.
-function _gen_build_step(step::RefExtension)
+function _gen_build_extension_step(step::RefExtension)
     args = Any[a isa RefArgSubPath ? _gen_build_path(_build_subpath(a.expr)) : esc(a.expr)
                for a in step.args]
     return build_reference_step(Val(step.name), args...)

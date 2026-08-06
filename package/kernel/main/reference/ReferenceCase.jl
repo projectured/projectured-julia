@@ -215,7 +215,14 @@ const REFERENCE_RETIRED_CATCH_ALL =
 const REFERENCE_STEP_NAME = "_"
 const REFERENCE_GAP_NAME = "__"
 
+# `__ʔ` (`\glst`+Tab) — the same run, taken shortest-first. `ʔ` is a *letter*, so the
+# parser reads `__ʔ` as one identifier; a literal `?` is the ternary operator and never
+# reaches us. It renders as a dotless question mark, which is what a lazy quantifier is
+# spelled with everywhere else.
+const REFERENCE_LAZY_GAP_NAME = "__ʔ"
+
 _to_pat(s::RefField)     = s.name == REFERENCE_GAP_NAME ? PatStepGap() :
+                           s.name == REFERENCE_LAZY_GAP_NAME ? PatStepGap(nothing, true) :
                            s.name == REFERENCE_STEP_NAME ? PatStepAny() :
                            PatStepField(PatValueLiteral(s.name))
 _to_pat(s::RefFieldExpr) = PatStepField(_parse_value(s.expr))
@@ -225,7 +232,17 @@ _to_pat(s::RefRange)     = PatStepRange(_parse_value(s.startexpr), _parse_value(
 _to_pat(s::RefType)      = _pat_type_step(s.expr)
 _to_pat(s::RefSplice)    = PatStepPathInterp(s.expr)
 _to_pat(s::RefTailBind)  = PatStepWholePathBind(s.name)
-_to_pat(s::RefExtension) = PatStepExtension(s.name, Any[_to_pat_arg(a) for a in s.args])
+# `__(owner)` and `__ʔ(owner)` name the run a gap takes. They reach the shared grammar
+# as extension steps — the parser has no gap concept and needs none — so the *matching*
+# reading of those two names is where the binder is read off.
+function _to_pat(s::RefExtension)
+    if String(s.name) in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME)
+        length(s.args) == 1 && s.args[1] isa RefArgValue && s.args[1].expr isa Symbol ||
+            error("$(s.name)(name) binds the run a gap takes and expects one bare name")
+        return PatStepGap(s.args[1].expr, String(s.name) == REFERENCE_LAZY_GAP_NAME)
+    end
+    PatStepExtension(s.name, Any[_to_pat_arg(a) for a in s.args])
+end
 
 _to_pat_arg(a::RefArgValue)   = _parse_value(a.expr)
 _to_pat_arg(a::RefArgSubPath) = _case_subpath(a.expr)

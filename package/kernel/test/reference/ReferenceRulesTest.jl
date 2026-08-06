@@ -760,6 +760,86 @@ function test_reference_rules()
         end).rules).pattern)
     end
 
+    @testset "`__ʔ` takes the shortest run" begin
+        # The only place greediness is observable: something after the gap is itself
+        # variable-length, so more than one split matches and the two differ in which.
+        nested = Reference(_fld("net"), _fld("queue"), _fld("a"), _fld("queue"), _fld("b"))
+
+        greedy = @reference_rules begin
+            __.queue.rest... => rest
+        end
+        lazy = @reference_rules begin
+            __ʔ.queue.rest... => rest
+        end
+        @test apply_reference_rules(greedy, nested) == Reference(_fld("b"))
+        @test apply_reference_rules(lazy, nested) ==
+              Reference(_fld("a"), _fld("queue"), _fld("b"))
+
+        # Where the split is determined, the two agree — which is the common case.
+        for rules in (greedy, lazy)
+            @test apply_reference_rules(rules,
+                Reference(_fld("net"), _fld("queue"), _fld("only"))) == Reference(_fld("only"))
+        end
+
+        _conforms("lazy gap",
+            p -> (@reference_case p begin
+                __ʔ.b.rest... => rest
+                __            => :miss
+            end),
+            (@reference_rules begin
+                __ʔ.b.rest... => rest
+                __            => :miss
+            end))
+    end
+
+    @testset "`__(name)` binds the run it took" begin
+        deep = Reference(_fld("net"), _fld("router"), _fld("queue"), _fld("capacity"))
+        bound = @reference_rules begin
+            __(owner).queue.capacity => owner
+        end
+        @test apply_reference_rules(bound, deep) == Reference(_fld("net"), _fld("router"))
+
+        # A gap that took nothing binds the empty path, not `nothing`.
+        @test apply_reference_rules(bound,
+            Reference(_fld("queue"), _fld("capacity"))) == EmptyReference()
+
+        # Greediness decides what the binder gets when both directions match.
+        both = Reference(_fld("q"), _fld("x"), _fld("q"), _fld("z"))
+        @test apply_reference_rules((@reference_rules begin
+            __(owner).q.rest... => owner
+        end), both) == Reference(_fld("q"), _fld("x"))
+        @test apply_reference_rules((@reference_rules begin
+            __ʔ(owner).q.rest... => owner
+        end), both) == EmptyReference()
+
+        # Under an above-arm a bound gap names what is left of the input — the part of
+        # the member the input reached before running out. Without that the answer would
+        # fail reading a name the match never bound.
+        @test apply_reference_rules((@reference_rules begin
+            above(__(owner).nowhere) => owner
+        end), Reference(_fld("x"))) == Reference(_fld("x"))
+
+        _conforms("bound gap",
+            p -> (@reference_case p begin
+                __(owner).c => owner
+                __          => :miss
+            end),
+            (@reference_rules begin
+                __(owner).c => owner
+                __          => :miss
+            end))
+
+        # A bound gap is data like everything else, and prints as it was written.
+        printed = sprint(show, @reference_rules begin
+            __ʔ(owner).queue.rest... => (owner, rest)
+        end)
+        @test occursin("__ʔ(owner).queue.rest... => (owner, rest)", printed)
+
+        @test_throws Exception @eval @reference_rules begin
+            __(a, b).c => 1
+        end
+    end
+
     @testset "the retired catch-all says so" begin
         # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
         # error rather than a silent reinterpretation — the whole point of the guard.
@@ -770,9 +850,12 @@ function test_reference_rules()
             _ => :nope
         end
 
-        # A wildcard has no construction reading either, in either spelling.
+        # A wildcard has no construction reading, in any of its spellings.
         @test_throws Exception @eval @reference a._.b
         @test_throws Exception @eval @reference a.__.b
+        @test_throws Exception @eval @reference a.__ʔ.b
+        @test_throws Exception @eval @reference a.__(owner).b
+        @test_throws Exception @eval @reference a.__ʔ(owner).b
     end
 
     @testset "`at_or_below(P)` and `P.__` are the same arm" begin
