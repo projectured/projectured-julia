@@ -222,6 +222,32 @@ function test_reference_rules()
                 _                            => :miss
             end)
 
+        # The corpus holds one `RulesA`-typed path and one `RulesOther`-typed path of
+        # the same shape, so an arm per type is decided by the node type alone.
+        _conforms("a type checkpoint narrows",
+            p -> (@reference_case p begin
+                ::RulesA.a.b     => :a
+                ::RulesOther.a.b => :other
+                _                => :miss
+            end),
+            @reference_rules begin
+                ::RulesA.a.b     => :a
+                ::RulesOther.a.b => :other
+                _                => :miss
+            end)
+
+        _conforms("a type checkpoint narrows an above-form",
+            p -> (@reference_case p begin
+                prefix(::RulesA.a.b.c)     => :a
+                prefix(::RulesOther.a.b.c) => :other
+                _                          => :miss
+            end),
+            @reference_rules begin
+                above(::RulesA.a.b.c)     => :a
+                above(::RulesOther.a.b.c) => :other
+                _                         => :miss
+            end)
+
         _conforms("node type binder",
             p -> (@reference_case p begin
                 a::t.b => t
@@ -336,6 +362,38 @@ function test_reference_rules()
         @test_throws LoadError @eval @reference_rules begin
             prefix(a.b) => :nope
         end
+    end
+
+    @testset "a `::T` narrows, and says nothing where the path has no type" begin
+        # Conformance alone cannot catch a regression here: it would still pass if
+        # BOTH readings went back to tolerating everything. These assert the answer.
+        typed = ConcreteReference(RulesA, _fld("a"),
+                    ConcreteReference(RulesB, _fld("b"), EmptyReference(RulesC)))
+        untyped = Reference(_fld("a"), _fld("b"))
+        unfolded = Reference(TypeReferenceStep(RulesA), _fld("a"), _fld("b"))
+
+        at_rules = @reference_rules begin
+            ::RulesOther.a.b => :other
+            ::RulesA.a.b     => :a
+            _                => :miss
+        end
+        @test apply_reference_rules(at_rules, typed) === :a          # narrowed to the right arm
+        @test apply_reference_rules(at_rules, untyped) === :other    # no type recorded, first arm takes it
+        @test apply_reference_rules(at_rules, unfolded) === :a       # the unfolded step narrows too
+
+        # Every mode reads the type step through the same predicate. (Parenthesized
+        # macro calls: the `begin … end` block form would swallow the commas.)
+        for mode_rules in (
+                @reference_rules(begin ::RulesOther.a => :hit end),
+                @reference_rules(begin below(::RulesOther.a) => :hit end),
+                @reference_rules(begin at_or_below(::RulesOther.a) => :hit end),
+                @reference_rules(begin above(::RulesOther.a.b.c) => :hit end),
+                @reference_rules(begin at_or_above(::RulesOther.a.b) => :hit end))
+            @test apply_reference_rules(mode_rules, typed) === nothing
+        end
+
+        # A supertype in the pattern still matches a concrete recorded type.
+        @test apply_reference_rules(@reference_rules(begin ::Any.a.b => :hit end), typed) === :hit
     end
 
     @testset "first match wins, no match answers nothing" begin

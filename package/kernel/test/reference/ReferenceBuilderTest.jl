@@ -175,7 +175,7 @@ end
 
 # ── @reference_case type binding (::t) ───────────────────────────────────
 # A lowercase `::t` binds the matched node's folded `type` field; a
-# capitalized `::T` stays a (tolerant) assertion. Construction's `::t` splices
+# capitalized `::T` is a narrowing assertion instead. Construction's `::t` splices
 # the runtime type value, so a bound type round-trips through reconstruction.
 
 # Terminal type binding on a whole-element (∅) selection.

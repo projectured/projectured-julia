@@ -260,15 +260,19 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     step = steps[1]
     rest = steps[2:end]
 
-    # A `::T` checkpoint is non-navigating and — for now — tolerant: it documents the
-    # expected node type and never fails a match, so a pattern keeps matching whether
-    # the path carries folded node types or is a plain skeleton. Matching continues on
-    # the SAME path for a folded node (the type is a field, consuming no step) and past
-    # an unfolded `TypeReferenceStep` *step* if one is present.
+    # A `::T` checkpoint is non-navigating and **narrowing**: where the path records a
+    # node type it must be `<: T`, where it records none the step says nothing. The rule
+    # is `_type_step_matches`, the same predicate `ReferenceCase.jl`'s codegen calls, so
+    # the compiled and interpreted readings cannot drift. Matching continues on the SAME
+    # path for a folded node (the type is a field, consuming no step) and past an
+    # unfolded `TypeReferenceStep` *step* if one is present.
     if step isa PatStepType
-        return (path isa ConcreteReference && head(path) isa TypeReferenceStep) ?
-               _consume(tail(path), rest, b) :
-               _consume(path, rest, b)
+        if path isa ConcreteReference && head(path) isa TypeReferenceStep
+            return _type_step_matches(head(path).type, step.typeexpr) ?
+                   _consume(tail(path), rest, b) : nothing
+        end
+        return _type_step_matches(_type_step_node_type(path), step.typeexpr) ?
+               _consume(path, rest, b) : nothing
     end
 
     # `::t` binds the node's folded `type` field and continues on the same path. Both
@@ -349,8 +353,11 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     rest = steps[2:end]
 
     if step isa PatStepType
-        return (path isa ConcreteReference && head(path) isa TypeReferenceStep) ?
-               _match_above(tail(path), rest, b) :
+        if path isa ConcreteReference && head(path) isa TypeReferenceStep
+            return _type_step_matches(head(path).type, step.typeexpr) &&
+                   _match_above(tail(path), rest, b)
+        end
+        return _type_step_matches(_type_step_node_type(path), step.typeexpr) &&
                _match_above(path, rest, b)
     end
 
@@ -744,7 +751,9 @@ Patterns use the step grammar of `@reference` and the matching conventions of
 `@reference_case`: bare symbols in *path* position are field names and in *value*
 position **bind**; `_` is a wildcard, `name::T` binds only if the value `isa T`, `^(expr)`
 interpolates a value to compare against, `name...` binds the remaining path, `∅` matches
-the whole-element (empty) path, and `when(pattern, cond)` adds a guard.
+the whole-element (empty) path, and `when(pattern, cond)` adds a guard. A capitalised
+`::T` in *path* position **narrows**: where the input records a node type it must be
+`<: T`, and where it records none the step says nothing.
 
 Each arm says where the **input** sits relative to its pattern `P`:
 

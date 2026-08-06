@@ -60,7 +60,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
 The DSLs read the **same path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
 `.name(...)`, `^(e)` — so it is parsed in one place. Each DSL then *lowers* the
 resulting AST: the builder to constructor calls, the matcher to match branches, and
-`@reference_rules` to pattern *data* it interprets. Six forms deliberately mean
+`@reference_rules` to pattern *data* it interprets. Seven forms deliberately mean
 different things on the building and matching sides, and the lowering is where that
 difference lives (`@reference_rules` reads the matching column):
 
@@ -69,6 +69,7 @@ difference lives (`@reference_rules` reads the matching column):
 | bare symbol as a **subpath argument** | a field name | **binds** the whole subpath |
 | bare symbol in a **value** position (`[i]`, `.field(e)`) | a runtime expression | **binds** the value |
 | `_` | a field named `"_"` | a wildcard |
+| `::T` (capitalised) | a type checkpoint, folded onto the node | **narrows** — the node's recorded type must be `<: T` |
 | `::t` (lowercase) | splices `t`'s runtime type value | **binds** the node's folded `type` |
 | `name...` | *rejected* — matcher-only | binds the remaining tail |
 | `base.^(e)` | splices a runtime path | *rejected* — builder-only |
@@ -295,6 +296,39 @@ Checkpoints are created programmatically, not by hand:
   generic `ProjectionTemplate` helpers prepend) into the folded node-type form.
   It is applied at construction so no stored or consumed path ever holds a
   checkpoint step.
+
+### A type in a pattern narrows the match
+
+The same `::T` that *records* a type when building a path **selects on** it when
+matching one. In `@reference_case` and `@reference_rules` alike, `::T` is
+non-navigating — it consumes no step — and it decides the arm:
+
+- where the path **records a node type**, that type must be `<: T`, or the arm
+  fails and the next one gets its chance;
+- where the path **records none** (`type === nothing`), `::T` says nothing and the
+  match proceeds.
+
+So `queue::PacketQueue.capacity` speaks of the capacity of every `PacketQueue`,
+not of every capacity at a queue-shaped place, and a selector no longer has to
+fall back on the lower-case binder plus a guard (`when(queue::t, t <: PacketQueue)`)
+to say the same thing three times. It also restores the tripwire the folded model
+lost: before the type was folded into node fields, a leading `TypeReferenceStep`
+made a cross-domain path fail to match structurally.
+
+The silent case is not a loophole, it is what keeps the rule usable:
+
+- a plain `@reference` skeleton and a `strip_reference_types` result are untyped
+  throughout;
+- `reroot_reference` prepends its nodes with the two-argument
+  `ConcreteReference`, which records no type — so a container routing a gesture
+  into a child keeps matching. Deeper in, the child's own nodes *are* typed, and a
+  pattern naming the wrong type there is narrowed away on purpose;
+- a recorded value that is not a `Type` is tolerated too, since `<:` has no answer
+  for it.
+
+Both readings of the grammar call one predicate — `_type_step_matches` in
+`ReferenceCase.jl` — so the compiled matcher and the rules interpreter cannot
+drift on what a type in a pattern means.
 
 ### Where checkpoints live (canonical, folded, everywhere)
 

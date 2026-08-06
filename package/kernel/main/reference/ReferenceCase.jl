@@ -75,10 +75,11 @@ struct PatStepWholePathBind <: PatStep
     name::Symbol
 end
 
-# A type assertion in a pattern: `f::T` matches `f`'s steps, then asserts the
-# folded `type` field of the node reached is a subtype of `T` (non-navigating).
-# The assertion is optional — an unknown (`nothing`) node type still matches — so
-# patterns that omit `::T`, and skeleton/skip-bound recursion tails, keep matching.
+# A type assertion in a pattern: `f::T` matches `f`'s steps, then requires the
+# folded `type` field of the node reached to be a subtype of `T` (non-navigating).
+# It narrows the match — a path standing on some other kind of node falls through
+# to the next rule. A path that records no type (`nothing`) still matches; see
+# `_type_step_matches`.
 struct PatStepType <: PatStep
     typeexpr
 end
@@ -264,10 +265,37 @@ function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Sym
 end
 
 # No `_gen_step_match(::PatStepType, …)`: a `PatStepType` is always intercepted at the top of
-# `_gen_path_match` / `_gen_prefix_match` (which handle the optional, tolerant type
+# `_gen_path_match` / `_gen_prefix_match` (which apply the narrowing type
 # assertion) before per-step dispatch is ever reached, so a step method would be
 # dead code. Every step reaches position 1 in the recursion, so this holds for
 # `PatStepType` anywhere in a pattern.
+
+# The narrowing rule a `::T` pattern step applies. It lives here, beside the
+# `PatStepType` it interprets, and is the single answer all four readings of that
+# step call — this fragment's compiled `_gen_path_match` / `_gen_prefix_match` and
+# `ReferenceRules.jl`'s interpreted `_consume` / `_match_above` — so the two DSLs
+# cannot drift on what a type in a pattern means.
+#
+# It NARROWS where the path knows what it stands on: a recorded node type must be
+# a subtype of `T`, so `queue::PacketQueue.capacity` speaks of the capacity of
+# every `PacketQueue` rather than of every capacity at a queue-shaped place, and a
+# stale or cross-domain path stops matching a pattern it has no business matching.
+#
+# It stays SILENT where the path records nothing. A `nothing` type matches: a
+# plain `@reference` skeleton, a skip-bound recursion tail, and the nodes
+# `reroot_reference` prepends to a child selection (built with the two-arg
+# `ConcreteReference`, which records no type) are all untyped, and failing those
+# would reject paths that never claimed a type rather than paths that claim the
+# wrong one. A recorded value that is not a `Type` is tolerated for the same
+# reason — `<:` has no answer for it, so there is nothing to narrow on.
+_type_step_matches(nodetype, T) =
+    nodetype === nothing || !(nodetype isa Type) || nodetype <: T
+
+# The node type a `::T` step reads at this point in the path: the folded `type`
+# field of the node reached, or `nothing` when the matcher was handed something
+# that is not a `Reference` at all (the continuation rejects it on its own).
+_type_step_node_type(p::Reference) = p.type
+_type_step_node_type(other) = nothing
 
 function _gen_step_match(hex, tex, step::PatStepField, rest_success, bound::Set{Symbol})
     nameexpr = :($hex.name)
@@ -359,24 +387,26 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
 
-    # A leading `::T` is an OPTIONAL, non-navigating, *tolerant* assertion: it
-    # documents the expected node type but never causes a match to fail, so a
-    # pattern keeps matching whatever path reaches it (folded with any node type,
-    # a plain skeleton, or a skip-bound recursion tail). Matching the rest stays on
-    # the SAME path for a folded node (the type is a field, consuming no step) and
-    # advances past an unfolded `TypeReferenceStep` *step* if one is present. (An
-    # enforcing `<: T` gate here wrongly rejects re-rooted child selections whose
-    # folded node type differs from the documented one.)
+    # A leading `::T` is a non-navigating **narrowing** assertion: it consumes no
+    # step, and where the path records a node type that type must be `<: T` or the
+    # whole rule fails and the next arm gets its chance. Where the path records no
+    # type it says nothing — see `_type_step_matches` for which paths those are and
+    # why they are tolerated. Matching the rest stays on the SAME path for a folded
+    # node (the type is a field) and advances past an unfolded `TypeReferenceStep`
+    # *step* if one is present.
     if steps[1] isa PatStepType
+        ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
         rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
                 if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
-                    $rest_on_tail
+                    ReferenceModule._type_step_matches(ReferenceModule.head($sp).type, $ty) ?
+                        $rest_on_tail : _nomatch
                 else
-                    $rest_on_same
+                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
+                        $rest_on_same : _nomatch
                 end
             end
         end
@@ -445,19 +475,24 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
                  $success : _nomatch), bound
     end
 
-    # A leading `::T` is a non-navigating, optional, *tolerant* type assertion
-    # (same as in `_gen_path_match`): it never fails a match, advancing past an
-    # unfolded `TypeReferenceStep` *step* if present, else matching on the same path.
+    # A leading `::T` is a non-navigating **narrowing** type assertion (the same
+    # `_type_step_matches` rule as in `_gen_path_match`, so the two cannot drift):
+    # a recorded node type must be `<: T`, an absent one says nothing. It advances
+    # past an unfolded `TypeReferenceStep` *step* if present, else matches on the
+    # same path.
     if steps[1] isa PatStepType
+        ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
         rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
         rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
         ex = quote
             let $sp = $path_ex
                 if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
-                    $rest_on_tail
+                    ReferenceModule._type_step_matches(ReferenceModule.head($sp).type, $ty) ?
+                        $rest_on_tail : _nomatch
                 else
-                    $rest_on_same
+                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
+                        $rest_on_same : _nomatch
                 end
             end
         end
@@ -547,9 +582,12 @@ use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/su
   than the whole path; `name...` binds the entire remaining tail; `∅` matches the
   empty (whole-element) path.
 
-A `::T` checkpoint is a **tolerant** assertion: it documents the expected node
-type but never fails a match, so a pattern keeps matching whether the path carries
-folded node types or is a plain skeleton.
+A `::T` checkpoint **narrows** the match: where the path records a node type,
+that type must be `<: T` or the rule falls through to the next one, so a pattern
+can speak of every node of a kind rather than of every node at a place. Where the
+path records no type — a plain skeleton, a skip-bound recursion tail, the nodes
+`reroot_reference` prepends — it says nothing and the match proceeds. A lowercase
+`::t` still binds the type instead of asserting it.
 """
 macro reference_case(ref, block)
     entries =
