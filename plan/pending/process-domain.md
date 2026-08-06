@@ -27,9 +27,17 @@ through*. The two goals that drive every decision below:
   carrier", the way IEEE spec flowcharts read). Refinement = adding the code.
   This is the reason the domain exists at all rather than being a flowchart
   projection over the julia domain (D2).
-- Codegen: a `ProcessModel` exports to a runnable `JuliaFunction`, embedded
-  code spliced verbatim (the `FsmToJuliaCode` contract: what the author sees
-  is exactly what runs).
+- **Realization**: a `ProcessModel` projects to a runnable `JuliaFunction`,
+  embedded code spliced verbatim (the `FsmToJuliaCode` contract: what the
+  author sees is exactly what runs). "Realize" = document → runnable Julia,
+  the term used throughout this plan.
+- **Debugging the realization in the editor**: while a realized process runs,
+  *where it is* is reflected live in the UI — in the diagram (the executing
+  box ringed, the arrow just taken re-stroked) and in the notation (the
+  executing line highlighted), from one shared position vocabulary. The UI
+  also drives execution: breakpoints, step, continue, pause. Realized code
+  must stay runnable **outside** the editor, so nothing in it may depend on
+  the document or projection layers.
 - Graph presentation: decision diamonds, labeled yes/no edges, loop
   back-edges, start/end terminators; selection round-trips (clicking a box
   selects the process node).
@@ -41,20 +49,23 @@ through*. The two goals that drive every decision below:
 ```
 package/domain/main/process/
   Process.jl                  — document types, ctors, insertions, gestures
+  ProcessRuntime.jl           — plain-Julia probe runtime (no ProjecturEd deps)
   ProcessToSyntax.jl          — the notation (primary edit surface)
   ProcessDiagram.jl           — presentation document
+  ProcessDebugSession.jl      — live position + debug control, shared by both views
   ProcessToProcessDiagram.jl  — thin identity-keeping stage
   ProcessDiagramToGraph.jl    — flowchart derivation into graph vertices/edges
-  ProcessToJuliaCode.jl       — codegen exporter (one-way)
-package/domain/doc/process.md — semantics contract, notation grammar, diagram rules
+  ProcessToJuliaCode.jl       — realization (one-way), plain and instrumented
+package/domain/doc/process.md — semantics contract, notation grammar, diagram
+                                rules, the probe protocol
 ```
 
 Include order in `ProjecturedDomain.jl`, mirroring fsm's two groups:
-`process/Process.jl` + `process/ProcessDiagram.jl` right after
-`fsm/FsmDiagram.jl` (document-model group); the four projections after fsm's
-projection block (`FsmToSyntax` … `FsmToJuliaCode`), since `ProcessToSyntax`
-composes with the julia dispatch table and `ProcessToJuliaCode` imports julia
-node types.
+`process/Process.jl`, `process/ProcessRuntime.jl`, `process/ProcessDiagram.jl`
+and `process/ProcessDebugSession.jl` right after `fsm/FsmDiagram.jl`
+(document-model group); the four projections after fsm's projection block
+(`FsmToSyntax` … `FsmToJuliaCode`), since `ProcessToSyntax` composes with the
+julia dispatch table and `ProcessToJuliaCode` imports julia node types.
 
 ## Design decisions
 
@@ -151,8 +162,9 @@ empty one. `@domain Process` provides `ProcessDocument`, `ProcessNothing`,
 `ProcessToProcessDiagram` builds the `ProcessDiagram` once per projection
 setup and keeps its identity (the `ChartToChartPlot` / `FsmToFsmDiagram`
 pattern — also what keeps the adaptagrams layout from collapsing on re-read).
-v1 `ProcessDiagram` carries only `model`; the live execution overlay (token
-position cells, `FsmDiagram`'s three-cell pattern) is a follow-up slot.
+`ProcessDiagram` carries the `model` and the `session` (D12) whose cells the
+live overlay reads — a driver takes the diagram's handle at setup and writes
+the same cells for the rest of the run, which is why the identity has to hold.
 
 v1 scope on the graph surface: **view, navigation, selection** — clicking a
 vertex yields the whole-element (∅) selection of the corresponding process
@@ -181,20 +193,132 @@ follow-up; v1 editing happens in the notation.
 - `break` → edge to the enclosing loop's successor; `continue` → edge to the
   loop header; `return` → edge to the end terminator.
 - Vertex identity is stable across reprints (layout stability).
+- The live overlay is two `ComputedCell`s over the session (D12), the
+  `FsmDiagramToGraph` shape: `highlight_vertex` resolves `session.node` to a
+  vertex; `highlight_edge` resolves the `(session.previous, session.node)`
+  pair to the edge between them. Deriving the stroked arrow from the node
+  *pair* is what keeps edges picture-only — the document has no edge to
+  index, and the runtime never learns a picture vocabulary. Both cells read
+  nothing else, so a step arriving mid-run repaints the overlay without
+  invalidating anything the layout engine depends on.
 
-### D9 — Codegen: one-way exporter, executability check
+### D9 — Realization: one-way, document-to-document, executability check
 
 `ProcessToJuliaCode` follows `FsmToJuliaCode`: deliberately **not** a
 registered bidirectional projection (the `.process` document is the source,
-the `.jl` output), but document-to-document, so generated code can be shown
+the `.jl` output), but document-to-document, so realized code can be shown
 through the stock julia pipeline without stringifying. Block actions splice
 their statements inline; parameters splice into the `JuliaFunction` header.
 An **unrefined step** (action `nothing`) generates
 `error("unrefined step: <description>")` — the honest executable of an
-informal box. Step descriptions are otherwise dropped in generated code (the
+informal box. Step descriptions are otherwise dropped in realized code (the
 julia domain has no comment node). The reverse importer (structured-subset
 Julia → process) is mechanically feasible thanks to D3 and recorded as a
 follow-up.
+
+### D10 — One position vocabulary: the node index
+
+Everything about debugging hangs off a single shared vocabulary, the
+`machine_transitions` / `transition_index` precedent: `process_nodes(model)`
+flattens the tree in document order into a `Vector`, and `node_index(model,
+node)` is a node's 1-based position in it (0 when absent). Realization
+numbers nodes by the **same walk**, so a bare `Int` is all the realized code
+ever reports, and both views resolve that `Int` back to a node by identity.
+
+This is what lets the runtime stay ignorant of ProjecturEd (D11) and the
+notation and the diagram share one live position without either knowing about
+the other (D13). It is also the fragile part: the index vocabulary is only
+valid for the tree the code was realized from, hence the staleness guard in
+D12.
+
+### D11 — Realization is instrumented at a chosen level; the probe protocol
+
+Debugging needs the realized code itself to say where it is — nothing else
+can know. So `ProcessToJuliaCode(; instrumentation = :position)` takes a
+level, and the *same* tree walk emits the same code plus, per level, one
+extra statement per node:
+
+| level | emitted per node | use |
+|---|---|---|
+| `:none` | nothing | export / ship; zero overhead |
+| `:position` | `process_at!(trace, i)` | in-editor debugging (default) |
+| `:locals` | `process_at!(trace, i, (; x, y, …))` | position + variable watch |
+
+`:locals` splices a `NamedTuple` of the variables in scope at that node —
+statically known, since they are the model's parameters plus the assignment
+targets and loop variables of enclosing nodes. It allocates per step, which
+is why it is a level rather than the default.
+
+Probes are strictly **additive** — one statement, always in statement
+position, never rewriting the surrounding code — so an instrumented and a
+plain realization cannot diverge in behaviour by construction; a test asserts
+the two return equal results (D-risk: Heisenbug).
+
+`trace` is threaded as the realized function's first parameter, defaulted:
+`f(args…; trace = nothing)`, and `process_at!(::Nothing, …)` is a no-op, so
+even an instrumented realization runs standalone with no debug machinery
+attached.
+
+**The runtime is plain Julia.** `ProcessRuntime.jl` defines a `mutable struct
+ProcessTrace` and the `process_at!` protocol with **no ProjecturEd
+dependency** — no `@document`, no cells — exactly as omnetpp-julia's `Fsm`
+runtime does for `FsmToJuliaCode`. Realized code says `using ProcessRuntime`
+and depends on nothing else; the module ships in the domain package for the
+editor's own use, and an embedder (a simulation host) may substitute its own
+implementation of the same protocol. The protocol, not the file, is the
+contract, and `doc/process.md` states it.
+
+### D12 — `ProcessDebugSession`: the document side, bridged on the refresh hook
+
+The session is a document (never serialized — live view state, the
+`FsmDiagram` rule that a running machine's position is not part of the
+machine) holding cells: `node`, `previous`, `step_count`, `status`
+(`:detached | :running | :paused | :finished | :stale`), `breakpoints`
+(node indices), `locals`, `node_count` (the staleness stamp).
+
+**Two objects, one bridge.** The `ProcessTrace` is written by the running
+code; the session is what projections read. `sync_process_debug!(session,
+trace)` runs **from the editor's refresh hook, never from a cell** (the
+`refresh_lifecycle!` rule — it writes), and goes both ways in one call: it
+pulls position/locals up into the session's cells with `set_cell_value!`, and
+pushes UI intent down into the trace (breakpoint set, run mode, resume). One
+function, one direction of control flow, no cell ever written from the
+process's task.
+
+**Threading.** A realized process runs on its own `Task` so a breakpoint
+cannot block the editor loop; the trace is written by that task and read by
+the refresh hook. Only `Int`s and an immutable `NamedTuple` cross, and the
+process is *stopped* whenever the interesting reads happen, so no lock is
+needed — but the rule that document cells are only ever written by the
+refresh hook is what actually keeps this safe, and it is absolute.
+
+**Blocking is the runtime's job.** `process_at!` records, then blocks on a
+`Channel` when node `i` is in `breakpoints` or the mode is `:step`. Continue
+/ step / pause / stop are gestures → operations that write session fields;
+the next bridge call turns them into runtime writes. Pause latency is one
+refresh, which is imperceptible and buys a threading model with no traps.
+
+**Staleness.** Node indices belong to the tree the code was realized from, so
+the session stamps `node_count = length(process_nodes(model))` at
+realization; when it stops matching, the bridge sets `status = :stale` and
+the views drop the highlight instead of ringing the wrong box. Cheap, and it
+catches exactly the edits that shift indices (structural ones — editing
+embedded Julia does not).
+
+### D13 — Both views reflect it; breakpoints are session state
+
+The session is deliberately **not** a field of `ProcessDiagram` alone: "where
+the process is" belongs in the notation as much as in the flowchart, and the
+notation is the primary edit surface. So `ProcessDebugSession` is its own
+document, `ProcessDiagram` holds one, and `ProcessToSyntax(; session =
+nothing)` optionally takes the same one — printers read its cells *inside*
+cells, so the highlight repaints reactively without a reprint (the rule that
+a printer reading a cell outside a cell freezes the render).
+
+Breakpoints live on the session, not on `ProcessStep` — they are debug state,
+not process content, and keeping them off the document is what lets
+`Process.jl` stay pure content. A breakpoint gesture on a step (either view)
+toggles the node's index in `session.breakpoints`.
 
 ## Document model (sketch)
 
@@ -239,6 +363,54 @@ end
     value::Any = nothing
 end
 ```
+
+The live side (D11–D13). The session is a document; the trace is not:
+
+```julia
+# ProcessDiagram.jl — presentation document, projection output, never content
+@document struct ProcessDiagram <: ProcessDocument
+    model::Any
+    session::Any = nothing             # a ProcessDebugSession
+end
+
+# ProcessDebugSession.jl — live position and debug control; never serialized
+@document struct ProcessDebugSession <: ProcessDocument
+    status::Symbol = :detached         # :detached|:running|:paused|:finished|:stale
+    node::Int = 0                      # current node index; 0 = nowhere
+    previous::Int = 0                  # the node stepped from — the picture's edge
+    step_count::Int = 0
+    breakpoints::CellVector = CellVector()   # node indices
+    locals::Any = nothing              # NamedTuple at the last probe, or nothing
+    node_count::Int = 0                # staleness stamp taken at realization
+end
+
+# ProcessRuntime.jl — PLAIN Julia. No @document, no cells, no ProjecturEd.
+mutable struct ProcessTrace
+    node::Int
+    previous::Int
+    step_count::Int
+    locals::Any
+    mode::Symbol                       # :run | :step | :pause | :stop
+    breakpoints::Set{Int}
+    resume::Channel{Symbol}
+    on_step::Any                       # nothing | (trace, i) -> nothing
+end
+
+process_at!(::Nothing, i, locals = nothing) = nothing   # runs standalone
+function process_at!(trace::ProcessTrace, i, locals = nothing)
+    trace.previous, trace.node = trace.node, i
+    trace.step_count += 1
+    trace.locals = locals
+    hook = trace.on_step; hook === nothing || hook(trace, i)
+    (trace.mode === :step || i in trace.breakpoints) && take!(trace.resume)
+    trace.mode === :stop && throw(ProcessStopped())
+    nothing
+end
+```
+
+The `on_step` hook mirrors `Fsm.on_transition`: an embedder that wants
+statistics or tracing hangs them off it instead of tangling recording into
+the protocol.
 
 Constructors follow fsm's "mixed positional+keyword" section verbatim: the
 natural authoring shapes (`ProcessStep("prepare"; action = …)`,
@@ -299,14 +471,29 @@ without that reader text navigation runs away.
   the chained stacks explicitly (process→syntax→text and
   process→diagram→graph→graphics — single-stage tests miss chain rules); a
   render test that forces the tree and presses real pixels, in the editor's
-  real order (print→refresh→select→refresh→click→refresh→type); codegen test:
-  generate → `document_to_text` → include in a sandbox module → call the
-  function → assert the result, plus a verbatim-splice assertion. Run under
+  real order (print→refresh→select→refresh→click→refresh→type); realization
+  test: realize → `document_to_text` → include in a sandbox module → call the
+  function → assert the result, plus a verbatim-splice assertion (the
+  `FsmToJuliaCodeTest` sandbox pattern, with `ProcessRuntime` included as
+  source into the sandbox exactly as `_PROBE_RUNTIME_SOURCE` is). Run under
   the usual memory cap.
+- **Debug tests** (P5): realize at `:position`, run to completion with a
+  trace attached, assert the visited node-index sequence is exactly the
+  expected path (including the loop's repeats and the branch not taken);
+  assert `:none` and `:position` realizations return equal results (the
+  Heisenbug guard); breakpoint test — run on a task, assert it blocks at the
+  marked node, that the session reports `:paused` at that node after one
+  bridge call, and that continue resumes; step-mode test walks the path one
+  node at a time; staleness test appends a step to the model and asserts the
+  next bridge marks `:stale` and both views drop the highlight; and a render
+  assertion that the *stroked* vertex and edge are the right ones (force the
+  tree and check the highlight cells resolve to the expected objects, not
+  merely that the function returned).
 - **Docs**: `package/domain/doc/process.md` — document types, notation
-  grammar, the execution/codegen contract (fsm.md's contract section as
-  template), diagram derivation rules. Add the module inventory entry in
-  `documentation/architecture.md`.
+  grammar, the execution/realization contract (fsm.md's contract section as
+  template), the `process_at!` probe protocol and instrumentation levels as a
+  contract an embedder can reimplement, diagram derivation rules. Add the
+  module inventory entry in `documentation/architecture.md`.
 
 ## Phases
 
@@ -320,9 +507,19 @@ without that reader text navigation runs away.
 - [ ] **P3 — Diagram.** `ProcessDiagram.jl`, `ProcessToProcessDiagram.jl`,
   `ProcessDiagramToGraph.jl` per D8; selection mapping (vertex click → ∅
   selection of the node, round-trip); pixel-pressing render test.
-- [ ] **P4 — Codegen.** `ProcessToJuliaCode.jl` per D9 with the
-  executability check; generated-module run test.
-- [ ] **P5 — Docs.** `doc/process.md`; architecture inventory entry.
+- [ ] **P4 — Realization.** `ProcessToJuliaCode.jl` per D9 at
+  `instrumentation = :none`, with the executability check;
+  `process_nodes` / `node_index` (D10) landed here since realization is their
+  first user; realized-module run test.
+- [ ] **P5 — Debugging.** `ProcessRuntime.jl` and the probe protocol (D11);
+  the `:position` and `:locals` levels; `ProcessDebugSession.jl` and
+  `sync_process_debug!` (D12); live overlay in the diagram (D8 last bullet)
+  and the notation highlight (D13); run/step/continue/pause/breakpoint
+  gestures and operations; the debug test set above. Land the position
+  reflection first and get it green before the control commands — reflection
+  is the requirement, control is what makes it usable.
+- [ ] **P6 — Docs.** `doc/process.md` including the probe protocol;
+  architecture inventory entry.
 
 ## Risks
 
@@ -343,6 +540,24 @@ without that reader text navigation runs away.
   registration (the self-modifying-document rule).
 - **Hand-built references** in tests/readers must carry type checkpoints
   (`reference_node_type`, `::CellVector` before index steps).
+- **Index staleness** (D12) is the sharp edge of the whole debug design:
+  edit the process while it runs and every index means something else. The
+  `node_count` stamp is the guard; the test that appends a step mid-run is
+  what proves it, and `:stale` must be visibly *no* highlight, never a
+  plausible wrong one.
+- **A blocking probe inside a host.** Breakpoints block the calling task by
+  design. Fine for a process the editor started on its own task; **not** fine
+  for a process realized into a simulation, where blocking stops the whole
+  simulation. Embedded realizations run at `:none`, or with an empty
+  breakpoint set and `mode = :run`, and `doc/process.md` says so.
+- **Cells written off the refresh hook.** The one threading rule (D12); a
+  probe that writes a document cell from the process's task would race the
+  editor. `ProcessRuntime` having no ProjecturEd dependency is what makes
+  that mistake unrepresentable — keep it that way.
+- **Instrumentation divergence.** Mitigated structurally (additive probes,
+  one walk) plus the equal-results test; if a probe ever needs to be anything
+  other than one statement in statement position, that is a design change,
+  not an implementation detail.
 
 ## Out of scope (follow-ups)
 
@@ -358,8 +573,14 @@ without that reader text navigation runs away.
   mechanical).
 - Graph-side structural editing operations (insert-after, wrap-in-loop from
   the diagram).
-- Live execution overlay on `ProcessDiagram` (token position; `FsmDiagram`'s
-  three-cell pattern).
+- Debugger comforts beyond P5: conditional breakpoints (a `JuliaDocument`
+  predicate evaluated in the probe), a step history / time-travel scrub over
+  recorded traces, editing a variable while paused, step-over vs step-into
+  (meaningless until `ProcessCall` exists), and debugging several concurrent
+  realizations of one model (the session assumes one).
+- Attaching the debugger to a realization running in another process or a
+  simulation host — the protocol allows it (the trace is plain data, the
+  bridge is one function), but the transport is not designed here.
 - Post-test (do-until) loop; multi-clause `foreach`.
 - Hybrid embedding both ways: a process body as `FsmState.entry` /
   `FsmTransition.action`; a `ProcessModel` among a Julia module's items.
