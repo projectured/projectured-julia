@@ -179,20 +179,20 @@ function test_reference_eval()
         at_arm(p)          = @reference_case p begin at(left.value) => :yes end
         bare_arm(p)        = @reference_case p begin left.value => :yes end
         below_arm(p)       = @reference_case p begin below(left.value) => :yes end
-        at_or_below_arm(p) = @reference_case p begin at_or_below(left.value) => :yes end
+        within_arm(p) = @reference_case p begin within(left.value) => :yes end
         above_arm(p)       = @reference_case p begin above(left.value) => :yes end
-        at_or_above_arm(p) = @reference_case p begin at_or_above(left.value) => :yes end
+        toward_arm(p) = @reference_case p begin toward(left.value) => :yes end
 
         for (arm, expected) in ((at_arm, [exact]),
                                 (bare_arm, [exact]),
                                 (below_arm, [deep]),
-                                (at_or_below_arm, [exact, deep]),
+                                (within_arm, [exact, deep]),
                                 (above_arm, [shallow]),
-                                (at_or_above_arm, [shallow, exact]))
+                                (toward_arm, [shallow, exact]))
             @test [p for p in paths if arm(p) === :yes] == expected
         end
 
-        # `prefix(…)` named `above(…)` while reading like `at_or_below(…)`; it is
+        # `prefix(…)` named `above(…)` while reading like `within(…)`; it is
         # gone, and the error says which one to write instead.
         @test_throws LoadError @eval @reference_case Reference() begin
             prefix(left.value) => :nope

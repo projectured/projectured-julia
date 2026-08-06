@@ -499,16 +499,16 @@ vocabulary, two DSLs:
 | --- | --- | --- |
 | `P` / `at(P)` | the input **is** `P` | `a.b.c` |
 | `below(P)` | the input is strictly deeper | `a.b.c.d`, `a.b.c.d.e` |
-| `at_or_below(P)` | `P` or deeper | `a.b.c`, `a.b.c.d` |
+| `within(P)` | `P` or deeper | `a.b.c`, `a.b.c.d` |
 | `above(P)` | the input is strictly shallower — it runs out *inside* `P` | `a`, `a.b` |
-| `at_or_above(P)` | `P` or shallower | `a`, `a.b`, `a.b.c` |
+| `toward(P)` | `P` or shallower | `a`, `a.b`, `a.b.c` |
 
 `above(…)` is how a mapper asks "is the selection an ancestor of this place?"
-(see `ReferenceDispatchingProjection`); `at_or_below(…)` is the other direction,
+(see `ReferenceDispatchingProjection`); `within(…)` is the other direction,
 "does this pattern name a leading segment of the input?".
 
 > There is no `prefix(…)`. It named `above(…)` while reading as though it meant
-> `at_or_below(…)`, which is exactly the confusion the five words exist to remove.
+> `within(…)`, which is exactly the confusion the five words exist to remove.
 > Writing it is an error that says which one to pick.
 
 `@reference_case` is commonly used
@@ -564,9 +564,9 @@ hands to a delegating answer:
 | --- | --- | --- |
 | `P` / `at(P)` | the input **is** `P` | `∅` |
 | `below(P)` | the input is strictly deeper | the leftover |
-| `at_or_below(P)` | `P` or deeper | the leftover, possibly `∅` |
+| `within(P)` | `P` or deeper | the leftover, possibly `∅` |
 | `above(P)` | the input is strictly shallower | `∅` |
-| `at_or_above(P)` | `P` or shallower | `∅` |
+| `toward(P)` | `P` or shallower | `∅` |
 
 ### Delegation: an answer that is rules
 
@@ -581,7 +581,7 @@ node = @reference_rules begin
 end
 
 @reference_rules begin
-    at_or_below(hosts[_]::WirelessHost) => ^(node)     # by kind, not by place
+    within(hosts[_]::WirelessHost) => ^(node)     # by kind, not by place
     linkDelay                           => ^(10ms)
 end
 ```

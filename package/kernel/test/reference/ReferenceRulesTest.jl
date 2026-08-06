@@ -345,14 +345,14 @@ function test_reference_rules()
                 (:at, @reference_rules begin at(a.b) => :yes end),
                 (:bare, @reference_rules begin a.b => :yes end),
                 (:below, @reference_rules begin below(a.b) => :yes end),
-                (:at_or_below, @reference_rules begin at_or_below(a.b) => :yes end),
+                (:within, @reference_rules begin within(a.b) => :yes end),
                 (:above, @reference_rules begin above(a.b) => :yes end),
-                (:at_or_above, @reference_rules begin at_or_above(a.b) => :yes end))
+                (:toward, @reference_rules begin toward(a.b) => :yes end))
             hits = [p for p in (shallow, exact, deep, elsewhere)
                     if apply_reference_rules(rules, p) === :yes]
             expected = mode === :at || mode === :bare ? [exact] :
                        mode === :below ? [deep] :
-                       mode === :at_or_below ? [exact, deep] :
+                       mode === :within ? [exact, deep] :
                        mode === :above ? [shallow] :
                        [shallow, exact]
             @test hits == expected
@@ -361,6 +361,17 @@ function test_reference_rules()
         # `prefix(…)` is gone from both DSLs, and each says which form to write.
         @test_throws LoadError @eval @reference_rules begin
             prefix(a.b) => :nope
+        end
+
+        # So are the two that spelled a disjunction. An arm word names one relation.
+        @test_throws Exception @eval @reference_rules begin
+            at_or_below(a.b) => :nope
+        end
+        @test_throws Exception @eval @reference_rules begin
+            at_or_above(a.b) => :nope
+        end
+        @test_throws Exception @eval @reference_case EmptyReference() begin
+            at_or_below(a.b) => :nope
         end
     end
 
@@ -386,9 +397,9 @@ function test_reference_rules()
         for mode_rules in (
                 @reference_rules(begin ::RulesOther.a => :hit end),
                 @reference_rules(begin below(::RulesOther.a) => :hit end),
-                @reference_rules(begin at_or_below(::RulesOther.a) => :hit end),
+                @reference_rules(begin within(::RulesOther.a) => :hit end),
                 @reference_rules(begin above(::RulesOther.a.b.c) => :hit end),
-                @reference_rules(begin at_or_above(::RulesOther.a.b) => :hit end))
+                @reference_rules(begin toward(::RulesOther.a.b) => :hit end))
             @test apply_reference_rules(mode_rules, typed) === nothing
         end
 
@@ -438,11 +449,11 @@ function test_reference_rules()
             ∅        => :the_queue_itself
         end
         middle = @reference_rules begin
-            at_or_below(queue) => ^(leaf)
+            within(queue) => ^(leaf)
             name               => :middle_name
         end
         top = @reference_rules begin
-            at_or_below(hosts[_]) => ^(middle)
+            within(hosts[_]) => ^(middle)
             linkDelay             => 42
         end
 
@@ -463,7 +474,7 @@ function test_reference_rules()
             when(rate, i > 2) => (i, j)
         end
         outer = @reference_rules begin
-            at_or_below(buckets[i].slots[j]) => ^(inner)
+            within(buckets[i].slots[j]) => ^(inner)
         end
         path(i, j, leaf) = Reference(_fld("buckets"), _el(i), _fld("slots"), _el(j), _fld(leaf))
 
@@ -478,7 +489,7 @@ function test_reference_rules()
             slots[i] => i
         end
         outer = @reference_rules begin
-            at_or_below(buckets[i]) => ^(inner)
+            within(buckets[i]) => ^(inner)
         end
         @test apply_reference_rules(outer,
             Reference(_fld("buckets"), _el(3), _fld("slots"), _el(8))) == 8
@@ -573,7 +584,7 @@ function test_reference_rules()
             buckets[i].capacity              => 10 * i
             when(items{k}, k > 0)            => :positive
             above(a.b.c)                     => :above
-            at_or_below(hosts[_])            => ^(@reference_rules begin
+            within(hosts[_])            => ^(@reference_rules begin
                                                      name => :inner
                                                  end)
             ∅                                => :whole
@@ -585,7 +596,7 @@ function test_reference_rules()
         @test occursin("buckets[i].capacity => 10i", text)
         @test occursin("when(items{k}, k > 0) => :positive", text)
         @test occursin("above(a.b.c) => :above", text)
-        @test occursin("at_or_below(hosts[_]) => @reference_rules begin", text)
+        @test occursin("within(hosts[_]) => @reference_rules begin", text)
         @test occursin("name => :inner", text)
         @test occursin("∅ => :whole", text)
         @test occursin("_ => :miss", text)
@@ -598,7 +609,7 @@ function test_reference_rules()
     @testset "serialization round-trips the data, not the compiled form" begin
         rules = @reference_rules begin
             buckets[i].capacity   => 10 * i
-            at_or_below(hosts[_]) => ^(@reference_rules begin
+            within(hosts[_]) => ^(@reference_rules begin
                                            name => :inner
                                        end)
         end
@@ -653,7 +664,7 @@ function test_reference_rules()
                 __     => :other
             end))
 
-        _conforms("trailing gap is at_or_below",
+        _conforms("trailing gap is within",
             p -> (@reference_case p begin
                 a.b.__ => :under_ab
                 __     => :other
@@ -685,11 +696,11 @@ function test_reference_rules()
 
         _conforms("gap under an arm word",
             p -> (@reference_case p begin
-                at_or_below(__.buckets[i]) => i
+                within(__.buckets[i]) => i
                 __                    => :other
             end),
             (@reference_rules begin
-                at_or_below(__.buckets[i]) => i
+                within(__.buckets[i]) => i
                 __                    => :other
             end))
 
@@ -999,10 +1010,10 @@ function test_reference_rules()
         @test_throws Exception @eval @reference a.__ʔ(owner).b
     end
 
-    @testset "`at_or_below(P)` and `P.__` are the same arm" begin
+    @testset "`within(P)` and `P.__` are the same arm" begin
         # The pattern sugar and the arm word have to agree, or one of them is a lie.
         word = @reference_rules begin
-            at_or_below(a.b) => :hit
+            within(a.b) => :hit
         end
         sugar = @reference_rules begin
             a.b.__ => :hit

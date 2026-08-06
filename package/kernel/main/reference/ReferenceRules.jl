@@ -26,7 +26,7 @@
 # `ReferenceCase.jl`'s codegen `match_reference_step`, so this fragment names no step
 # type it does not own.
 
-# `at(…)`, `below(…)`, `at_or_below(…)`, `above(…)`, `at_or_above(…)` and `when(…)` are
+# `at(…)`, `below(…)`, `within(…)`, `above(…)`, `toward(…)` and `when(…)` are
 # surface-syntax keywords the `@reference_rules` macro recognizes *by symbol* (see
 # `_parse_rules_arm`) and consumes at macroexpand time — they are never evaluated as
 # functions, so the layer defines and exports nothing for them. Writing any of them
@@ -43,9 +43,9 @@
 #
 #   `P` / `at(P)`      the input IS P                       leftover `∅`
 #   `below(P)`         the input is strictly deeper          the leftover, non-empty
-#   `at_or_below(P)`   P or deeper                           the leftover, possibly `∅`
+#   `within(P)`   P or deeper                           the leftover, possibly `∅`
 #   `above(P)`         the input is strictly shallower       leftover `∅`
-#   `at_or_above(P)`   P or shallower                        leftover `∅`
+#   `toward(P)`   P or shallower                        leftover `∅`
 
 # ------------------------------------------------------------
 # Rules as data
@@ -287,14 +287,14 @@ _accept_anything(leftover::Reference) = true
 _leftover_acceptor(mode::Symbol) =
     mode === :at ? _accept_exhausted :
     mode === :below ? _accept_deeper :
-    _accept_anything          # :at_or_below
+    _accept_anything          # :within
 
 """
     _consume(path, steps, bindings, accept) -> leftover::Reference | nothing
 
 Match `steps` against a **leading segment** of `path`, answering the part of `path` left
 over — but only a leftover `accept` holds for. This is the primitive behind `at`
-(exhausted), `below` (non-empty) and `at_or_below` (anything).
+(exhausted), `below` (non-empty) and `within` (anything).
 """
 function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindings,
                   accept::Function)
@@ -516,7 +516,7 @@ end
 # above-form leaves nothing of the input over.
 function _match_pattern(mode::Symbol, pattern::Vector{PatStep}, path::Reference)
     b = ReferenceRuleBindings()
-    if mode === :above || mode === :at_or_above
+    if mode === :above || mode === :toward
         _match_above(path, pattern, b) && return (b, EmptyReference())
         mode === :above && return nothing
         b = ReferenceRuleBindings()
@@ -531,7 +531,7 @@ end
     match_reference_pattern(mode, pattern, reference) -> bindings | nothing
 
 Match one arm's `pattern` against `reference` under an arm word (`:at`, `:below`,
-`:at_or_below`, `:above`, `:at_or_above`), answering the `Dict{Symbol,Any}` the match
+`:within`, `:above`, `:toward`), answering the `Dict{Symbol,Any}` the match
 bound, or `nothing`.
 
 This is the **one matcher both DSLs use**. `@reference_rules` reaches it through
@@ -883,14 +883,16 @@ function _parse_rules_arm(ex)
     lhs === :_ && error(REFERENCE_RETIRED_CATCH_ALL)
 
     mode = :at
-    if lhs isa Expr && lhs.head === :call && lhs.args[1] in REFERENCE_RULE_MODES
+    if lhs isa Expr && lhs.head === :call && haskey(REFERENCE_RETIRED_ARMS, lhs.args[1])
+        error(_retired_arm_message(lhs.args[1]))
+    elseif lhs isa Expr && lhs.head === :call && lhs.args[1] in REFERENCE_RULE_MODES
         length(lhs.args) == 2 ||
             error("$(lhs.args[1])(path) expects exactly one argument")
         mode = lhs.args[1]
         lhs = lhs.args[2]
     elseif lhs isa Expr && lhs.head === :call && lhs.args[1] === :prefix
         error("`prefix(…)` is not an arm word — write `above(…)` for \"the input stops " *
-              "inside the pattern\", or `at_or_below(…)` to match a leading segment of " *
+              "inside the pattern\", or `within(…)` to match a leading segment of " *
               "the input")
     end
 
@@ -939,9 +941,9 @@ Each arm says where the **input** sits relative to its pattern `P`:
 | --- | --- | --- |
 | `P` / `at(P)` | the input **is** `P` | `∅` |
 | `below(P)` | the input is strictly deeper | the leftover |
-| `at_or_below(P)` | `P` or deeper | the leftover, possibly `∅` |
+| `within(P)` | `P` or deeper | the leftover, possibly `∅` |
 | `above(P)` | the input is strictly shallower | `∅` |
-| `at_or_above(P)` | `P` or shallower | `∅` |
+| `toward(P)` | `P` or shallower | `∅` |
 
 The same five words say the same five things in `@reference_case`; what only a rules
 object has is the leftover column, which a nested rule set is applied to.
@@ -957,7 +959,7 @@ with the bindings so far still in scope, so one set can be applied at several pl
     end
 
     @reference_rules begin
-        at_or_below(hosts[_]::WirelessHost) => ^(node)     # by kind, not by place
+        within(hosts[_]::WirelessHost) => ^(node)     # by kind, not by place
     end
 
 The object is **closed**: an answer is evaluated against what the match bound and

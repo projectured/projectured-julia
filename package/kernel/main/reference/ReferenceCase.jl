@@ -28,16 +28,16 @@
 #
 #   `P` / `at(P)`      the input IS P
 #   `below(P)`         the input is strictly deeper
-#   `at_or_below(P)`   P or deeper
+#   `within(P)`   P or deeper
 #   `above(P)`         the input is strictly shallower — it runs out *inside* P
-#   `at_or_above(P)`   P or shallower
+#   `toward(P)`   P or shallower
 #
 # One word cannot carry both directions, which is why there is no `prefix(…)`: it
-# named `above(…)` while reading as though it meant `at_or_below(…)`.
+# named `above(…)` while reading as though it meant `within(…)`.
 #
 # The constant lives here, beside the `PatStep` AST both matching DSLs lower to, and
 # `ReferenceRules.jl` reads it from here — the two vocabularies are one vocabulary.
-const REFERENCE_RULE_MODES = (:at, :below, :at_or_below, :above, :at_or_above)
+const REFERENCE_RULE_MODES = (:at, :below, :within, :above, :toward)
 
 # ------------------------------------------------------------
 # Pattern representation
@@ -430,13 +430,27 @@ _pattern_needs_interpreter(steps::Vector{PatStep}) = any(_step_needs_interpreter
 # The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
 # A bare pattern is `at(…)`; the five arm words say where the input sits relative
 # to it.
+# Arm words that were renamed, and what they are now. They raise where they are written
+# rather than being quietly accepted, so a block written against the old vocabulary is a
+# message and not a mystery. `prefix` is here too: it named `above` while reading as
+# though it meant `within`, which is why it went.
+const REFERENCE_RETIRED_ARMS = Dict(
+    :at_or_below => "within",
+    :at_or_above => "toward")
+
+_retired_arm_message(name::Symbol) =
+    "`$(name)(path)` is no longer an arm word — write `$(REFERENCE_RETIRED_ARMS[name])(path)`; " *
+    "an arm word spells one relation, not a disjunction of two"
+
 function _parse_arm_pattern(lhs)
     if lhs isa Expr && lhs.head == :call && lhs.args[1] === :prefix
         # `prefix(P)` named `above(P)` while reading as though it meant
-        # `at_or_below(P)`; the word is gone rather than left to mislead.
+        # `within(P)`; the word is gone rather than left to mislead.
         error("`prefix(path)` is no longer an @reference_case arm — write `above(path)` " *
-              "for \"the input runs out inside path\", or `at_or_below(path)` for " *
+              "for \"the input runs out inside path\", or `within(path)` for " *
               "\"the input is path or deeper\"")
+    elseif lhs isa Expr && lhs.head == :call && haskey(REFERENCE_RETIRED_ARMS, lhs.args[1])
+        error(_retired_arm_message(lhs.args[1]))
     elseif lhs isa Expr && lhs.head == :call && lhs.args[1] in REFERENCE_RULE_MODES
         mode = lhs.args[1]
         length(lhs.args) == 2 || error("$mode(path) expects exactly one argument")
@@ -782,7 +796,7 @@ _gen_step_match(hex, tex, step::PatStepGap, rest_success, bound::Set{Symbol}) =
     error("a `__` gap is matched by the interpreter, not compiled — `_gen_rule` should " *
           "have routed this pattern to `_gen_interpreted_rule`")
 
-# The `at` / `below` / `at_or_below` family: consume the pattern from the front of
+# The `at` / `below` / `within` family: consume the pattern from the front of
 # the path, then judge what is left over. `terminal` is which of the three is being
 # asked, and it is only ever read when the pattern runs out — the walk itself is one
 # walk. The extension-step seam calls this with four arguments, which is `:at`: a
@@ -794,7 +808,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # path as-is — there are no interleaved checkpoint steps to skip.
     if isempty(steps)
         # The pattern is spent; the leftover decides.
-        terminal === :at_or_below && return success, bound
+        terminal === :within && return success, bound
         test = terminal === :below ?
                :($path_ex isa ReferenceModule.ConcreteReference) :
                :($path_ex isa ReferenceModule.EmptyReference)
@@ -887,15 +901,15 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     return ex, bound2
 end
 
-# The `above` / `at_or_above` family: the input runs out *inside* the pattern. The
+# The `above` / `toward` family: the input runs out *inside* the pattern. The
 # two differ only in what happens when both run out together — `above` wants the
-# input strictly shallower, `at_or_above` also accepts equal — so one walk with a
-# flag covers them, and `at_or_above` is exactly `above ∪ at`.
+# input strictly shallower, `toward` also accepts equal — so one walk with a
+# flag covers them, and `toward` is exactly `above ∪ at`.
 function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}(),
                           include_at::Bool=false)
     if isempty(steps)
         # The pattern is spent, so the input was not strictly shallower. It is `at`
-        # if the input is spent too, which only `at_or_above` accepts.
+        # if the input is spent too, which only `toward` accepts.
         include_at || return :(_nomatch), bound
         return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
     end
@@ -1007,8 +1021,8 @@ function _gen_rule(rule)
     # Two generators cover the five arm words: the above-family walks until the
     # input runs out inside the pattern, the rest consume the pattern and judge the
     # leftover.
-    ex, _ = mode === :above || mode === :at_or_above ?
-            _gen_above_match(:_ref_input, pat, body, Set{Symbol}(), mode === :at_or_above) :
+    ex, _ = mode === :above || mode === :toward ?
+            _gen_above_match(:_ref_input, pat, body, Set{Symbol}(), mode === :toward) :
             _gen_path_match(:_ref_input, pat, body, Set{Symbol}(), mode)
     return ex
 end
@@ -1082,12 +1096,12 @@ words `@reference_rules` uses:
 | --- | --- |
 | `P` / `at(P)` | the input **is** `P` |
 | `below(P)` | the input is strictly deeper |
-| `at_or_below(P)` | `P` or deeper |
+| `within(P)` | `P` or deeper |
 | `above(P)` | the input is strictly shallower — it runs out *inside* `P` |
-| `at_or_above(P)` | `P` or shallower |
+| `toward(P)` | `P` or shallower |
 
 There is no `prefix(…)`: it named `above(…)` while reading as though it meant
-`at_or_below(…)`, so writing it is an error that says which one to pick.
+`within(…)`, so writing it is an error that says which one to pick.
 
 A `::T` checkpoint **narrows** the match: where the path records a node type,
 that type must be `<: T` or the rule falls through to the next one, so a pattern
