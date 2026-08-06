@@ -17,7 +17,7 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@reference_step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in eight fragments that share this namespace:
+The module lives in nine fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
@@ -44,6 +44,11 @@ The module lives in eight fragments that share this namespace:
 - [`ReferenceCase.jl`](ReferenceCase.jl) — the `@reference_case`
   pattern-matching DSL (destructures a path against a series of
   `pattern => result` rules) plus the `when`/`prefix` guards.
+- [`ReferenceRules.jl`](ReferenceRules.jl) — the `@reference_rules` DSL: the same
+  block of arms kept as a **value** (`ReferenceRules`), which is stored, compared,
+  printed and applied later with `apply_reference_rules`. Its patterns are the
+  `PatStep` data `ReferenceCase.jl` lowers to, matched by an interpreter rather
+  than compiled, since a rule set may be built where no macro ran.
 - [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@reference_step`
   construction DSL (compact surface syntax for building paths).
 
@@ -76,8 +81,11 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
        search_references,
        get_reference_step_kind, evaluate_reference_step,
-       build_reference_step, match_reference_step, get_reference_step_subpath_args,
-       @reference_case, @reference, @reference_step
+       build_reference_step, match_reference_step, match_reference_step_value,
+       get_reference_step_subpath_args,
+       ReferenceRules, ReferenceRule, ReferenceRuleAnswer, REFERENCE_RULE_MODES,
+       apply_reference_rules,
+       @reference_case, @reference_rules, @reference, @reference_step
 
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")
@@ -86,6 +94,7 @@ include("ReferenceEvaluation.jl")
 include("ReferenceSearch.jl")
 include("ReferenceSyntax.jl")
 include("ReferenceCase.jl")
+include("ReferenceRules.jl")
 include("ReferenceBuilder.jl")
 
 end # module
