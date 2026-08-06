@@ -16,7 +16,7 @@
 #     editor).
 #
 # Interpreting a second time is the standing risk: the semantics in `_gen_path_match` /
-# `_gen_prefix_match` and the semantics in `_consume` / `_match_above` below are one
+# `_gen_above_match` and the semantics in `_consume` / `_match_above` below are one
 # thing implemented twice, and the conformance corpus in `ReferenceRulesTest.jl` — the
 # same corpus written once as `@reference_case` and once as rules, asserted equal — is
 # what holds them together.
@@ -36,20 +36,16 @@
 # The arm vocabulary
 # ------------------------------------------------------------
 
-# Where the **input** sits relative to the pattern `P`. The five forms are the whole
-# lattice of prefix relations between a path and a pattern, and each one fixes the
-# leftover a rules answer is handed:
+# The five arm words are `REFERENCE_RULE_MODES`, declared in `ReferenceCase.jl` beside
+# the pattern AST both matching DSLs share — `@reference_case` and `@reference_rules`
+# speak one vocabulary. What this fragment adds is the **leftover** each form hands to
+# a rules answer, which a compiled case has no equivalent of:
 #
 #   `P` / `at(P)`      the input IS P                       leftover `∅`
 #   `below(P)`         the input is strictly deeper          the leftover, non-empty
 #   `at_or_below(P)`   P or deeper                           the leftover, possibly `∅`
 #   `above(P)`         the input is strictly shallower       leftover `∅`
 #   `at_or_above(P)`   P or shallower                        leftover `∅`
-#
-# `above(P)` is exactly what `@reference_case` spells `prefix(P)` — the input runs out
-# *inside* P. The vocabularies are deliberately disjoint: one word cannot carry both
-# directions, and delegation needs the other one.
-const REFERENCE_RULE_MODES = (:at, :below, :at_or_below, :above, :at_or_above)
 
 # ------------------------------------------------------------
 # Rules as data
@@ -185,7 +181,7 @@ match_reference_step_value(::Val{n}, step, argpats, bindings, mv, mp) where {n} 
 # ------------------------------------------------------------
 # The pattern interpreter
 #
-# The mirror of `_gen_path_match` / `_gen_prefix_match` / `_gen_step_match` /
+# The mirror of `_gen_path_match` / `_gen_above_match` / `_gen_step_match` /
 # `_gen_value_match` in `ReferenceCase.jl`: the same semantics, executed rather than
 # emitted. Every function answers the updated bindings (or the leftover path) on a
 # match and `nothing` on a failure. Matching never backtracks — a step either matches or
@@ -343,7 +339,7 @@ end
     _match_above(path, steps, bindings) -> Bool
 
 True when `path` runs out **inside** `steps` — the input is strictly shallower than the
-pattern. The mirror of `_gen_prefix_match`, down to the order its branches are tried in,
+pattern. The mirror of `_gen_above_match`, down to the order its branches are tried in,
 because that order is observable: a leading `::T` is consulted before the path is tested
 for emptiness.
 """
@@ -375,7 +371,7 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     end
 
     # A whole-path bind is a pattern of unbounded length, so every input runs out inside
-    # it. (`@reference_case` cannot say this at all — `prefix(name...)` fails to expand.)
+    # it.
     if step isa PatStepWholePathBind
         _rule_bind!(b, step.name, path)
         return true
@@ -711,9 +707,9 @@ function _parse_rules_arm(ex)
         mode = lhs.args[1]
         lhs = lhs.args[2]
     elseif lhs isa Expr && lhs.head === :call && lhs.args[1] === :prefix
-        error("`prefix(…)` is an @reference_case form with no @reference_rules meaning — " *
-              "write `above(…)` for what it says there (the input stops inside the pattern), " *
-              "or `at_or_below(…)` to match a leading segment of the input")
+        error("`prefix(…)` is not an arm word — write `above(…)` for \"the input stops " *
+              "inside the pattern\", or `at_or_below(…)` to match a leading segment of " *
+              "the input")
     end
 
     (mode, _rules_pattern(lhs), guard, rhs)
@@ -765,8 +761,8 @@ Each arm says where the **input** sits relative to its pattern `P`:
 | `above(P)` | the input is strictly shallower | `∅` |
 | `at_or_above(P)` | `P` or shallower | `∅` |
 
-`above(P)` is what `@reference_case` spells `prefix(P)`; writing `prefix(…)` here is an
-error that says so.
+The same five words say the same five things in `@reference_case`; what only a rules
+object has is the leftover column, which a nested rule set is applied to.
 
 **First match wins** and no match answers `nothing`, so concatenating two sets leaves the
 first in charge and prepending is how a set overrides another.

@@ -89,32 +89,32 @@ function test_reference_eval()
         @test wrong(skeleton) === :hit
         @test two_arms(annotated) === :right_arm
 
-        # `prefix(P)` succeeds when the input runs out INSIDE `P`, so the pattern
+        # `above(P)` succeeds when the input runs out INSIDE `P`, so the pattern
         # has to be longer than the path.
         short     = annotate_reference_types(root, strip_reference_types(@reference ::EA.left::EB))
-        pre_right(p) = @reference_case p begin
-            prefix(::EvalBranch.left.value) => :hit
-            _                               => :miss
+        above_right(p) = @reference_case p begin
+            above(::EvalBranch.left.value) => :hit
+            _                              => :miss
         end
-        pre_wrong(p) = @reference_case p begin
-            prefix(::EA.left.value) => :hit
-            _                       => :miss
+        above_wrong(p) = @reference_case p begin
+            above(::EA.left.value) => :hit
+            _                      => :miss
         end
-        pre_super(p) = @reference_case p begin
-            prefix(::Document.left.value) => :hit
-            _                             => :miss
+        above_super(p) = @reference_case p begin
+            above(::Document.left.value) => :hit
+            _                            => :miss
         end
-        pre_two_arms(p) = @reference_case p begin
-            prefix(::EA.left.value)         => :wrong_arm
-            prefix(::EvalBranch.left.value) => :right_arm
-            _                               => :miss
+        above_two_arms(p) = @reference_case p begin
+            above(::EA.left.value)         => :wrong_arm
+            above(::EvalBranch.left.value) => :right_arm
+            _                              => :miss
         end
 
-        @test pre_right(short) === :hit
-        @test pre_wrong(short) === :miss
-        @test pre_super(short) === :hit
-        @test pre_wrong(strip_reference_types(short)) === :hit
-        @test pre_two_arms(short) === :right_arm
+        @test above_right(short) === :hit
+        @test above_wrong(short) === :miss
+        @test above_super(short) === :hit
+        @test above_wrong(strip_reference_types(short)) === :hit
+        @test above_two_arms(short) === :right_arm
     end
 
     @testset "a re-rooted path keeps matching — the June 2026 regression" begin
@@ -131,11 +131,11 @@ function test_reference_eval()
         end
         @test leading(rerooted) === :hit
 
-        pre_leading(p) = @reference_case p begin
-            prefix(::EA.outer.left.value.deeper) => :hit
-            _                                    => :miss
+        above_leading(p) = @reference_case p begin
+            above(::EA.outer.left.value.deeper) => :hit
+            _                                   => :miss
         end
-        @test pre_leading(rerooted) === :hit
+        @test above_leading(rerooted) === :hit
 
         # Deeper in, the child's own nodes ARE typed, and a pattern naming the
         # wrong type there is narrowed away — that is the tripwire, not a defect.
@@ -165,7 +165,41 @@ function test_reference_eval()
         @test m(EmptyReference()) === :branch   # untyped ∅ is tolerated by the first arm
     end
 
-    @testset "prefix + suffix predicates" begin
+    @testset "the arm vocabulary" begin
+        # One pattern, five forms, over paths that sit above / at / below it —
+        # the same table `@reference_rules` is held to, so the two DSLs say the
+        # same thing with the same words.
+        shallow = Reference(FieldReferenceStep("left"))
+        exact = Reference(FieldReferenceStep("left"), FieldReferenceStep("value"))
+        deep = Reference(FieldReferenceStep("left"), FieldReferenceStep("value"),
+                         FieldReferenceStep("more"))
+        elsewhere = Reference(FieldReferenceStep("right"))
+        paths = (shallow, exact, deep, elsewhere)
+
+        at_arm(p)          = @reference_case p begin at(left.value) => :yes end
+        bare_arm(p)        = @reference_case p begin left.value => :yes end
+        below_arm(p)       = @reference_case p begin below(left.value) => :yes end
+        at_or_below_arm(p) = @reference_case p begin at_or_below(left.value) => :yes end
+        above_arm(p)       = @reference_case p begin above(left.value) => :yes end
+        at_or_above_arm(p) = @reference_case p begin at_or_above(left.value) => :yes end
+
+        for (arm, expected) in ((at_arm, [exact]),
+                                (bare_arm, [exact]),
+                                (below_arm, [deep]),
+                                (at_or_below_arm, [exact, deep]),
+                                (above_arm, [shallow]),
+                                (at_or_above_arm, [shallow, exact]))
+            @test [p for p in paths if arm(p) === :yes] == expected
+        end
+
+        # `prefix(…)` named `above(…)` while reading like `at_or_below(…)`; it is
+        # gone, and the error says which one to write instead.
+        @test_throws LoadError @eval @reference_case Reference() begin
+            prefix(left.value) => :nope
+        end
+    end
+
+    @testset "is_reference_prefix" begin
         base = strip_reference_types(@reference ::EA.left::EB)
         deep = strip_reference_types(@reference ::EA.left::EB.value::EC)
         @test is_reference_prefix(base, deep)

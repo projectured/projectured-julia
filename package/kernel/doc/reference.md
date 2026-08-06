@@ -486,14 +486,30 @@ Pattern syntax:
   `RangeReferenceStep(k, k)`, so `{s:e}` will also match a position; list more
   specific `{k}` patterns first if both are interesting)
 
-The `when(pattern, cond)` helper adds a guard. `prefix(pattern)` holds when the
-**input runs out inside the pattern** — the input is a *proper prefix* of it, i.e. an
-ancestor of the place the pattern names. `prefix(a.b.c)` therefore answers for `a` and
-`a.b` and declines both `a.b.c` and `a.b.c.d`; it is how a mapper asks "is the selection
-at or above this place?" (see `ReferenceDispatchingProjection`). The other direction —
-"does this pattern name a leading segment of the input?" — is not a `@reference_case`
-form; it is `at_or_below(…)` in
-[`@reference_rules`](#rules-kept-as-an-object-reference_rules) below.
+The `when(pattern, cond)` helper adds a guard.
+
+### Where the input sits: the arm vocabulary
+
+A bare pattern `P` matches a path that **is** `P`. The four other arm words say
+where the input sits relative to `P` instead, and they are the same five words
+[`@reference_rules`](#rules-kept-as-an-object-reference_rules) uses — one
+vocabulary, two DSLs:
+
+| arm | holds when | for `a.b.c`, answers for |
+| --- | --- | --- |
+| `P` / `at(P)` | the input **is** `P` | `a.b.c` |
+| `below(P)` | the input is strictly deeper | `a.b.c.d`, `a.b.c.d.e` |
+| `at_or_below(P)` | `P` or deeper | `a.b.c`, `a.b.c.d` |
+| `above(P)` | the input is strictly shallower — it runs out *inside* `P` | `a`, `a.b` |
+| `at_or_above(P)` | `P` or shallower | `a`, `a.b`, `a.b.c` |
+
+`above(…)` is how a mapper asks "is the selection an ancestor of this place?"
+(see `ReferenceDispatchingProjection`); `at_or_below(…)` is the other direction,
+"does this pattern name a leading segment of the input?".
+
+> There is no `prefix(…)`. It named `above(…)` while reading as though it meant
+> `at_or_below(…)`, which is exactly the confusion the five words exist to remove.
+> Writing it is an error that says which one to pick.
 
 `@reference_case` is commonly used
 in projection readers to translate output-domain references back to input-domain
@@ -540,9 +556,9 @@ sets leaves the first in charge and prepending is the whole override mechanism.
 
 ### The arm vocabulary
 
-Each arm says where the **input** sits relative to its pattern `P`. The five forms are
-the complete lattice of prefix relations, and each fixes the *leftover* a delegating
-answer receives:
+The five arm words are [the ones `@reference_case` uses](#where-the-input-sits-the-arm-vocabulary)
+— one vocabulary, two DSLs. What a rules object adds is the *leftover* each form
+hands to a delegating answer:
 
 | arm | holds when | leftover |
 | --- | --- | --- |
@@ -551,10 +567,6 @@ answer receives:
 | `at_or_below(P)` | `P` or deeper | the leftover, possibly `∅` |
 | `above(P)` | the input is strictly shallower | `∅` |
 | `at_or_above(P)` | `P` or shallower | `∅` |
-
-`above(P)` is precisely `@reference_case`'s `prefix(P)`. The vocabularies are disjoint
-on purpose — one word cannot carry both directions — and writing `prefix(…)` here is an
-error naming the two forms that replace it.
 
 ### Delegation: an answer that is rules
 

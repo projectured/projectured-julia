@@ -12,11 +12,32 @@
 # `get_reference_step_subpath_args` seams declared in `ReferenceInterface.jl`, so this fragment names no step
 # type it does not own.
 
-# `when(pattern, cond)` and `prefix(path)` are surface-syntax keywords the
+# `when(pattern, cond)` and the five arm words below are surface-syntax keywords the
 # `@reference_case` macro recognizes *by symbol* (see `_parse_rule`) and consumes at
 # macroexpand time — they are never evaluated as functions, so the layer defines and
-# exports nothing for them. Writing either outside `@reference_case` is a plain
-# `UndefVarError`. See the `@reference_case` docstring for what they mean.
+# exports nothing for them. Writing any of them outside `@reference_case` (or
+# `@reference_rules`) is a plain `UndefVarError`. See the `@reference_case` docstring
+# for what they mean.
+
+# ------------------------------------------------------------
+# The arm vocabulary
+# ------------------------------------------------------------
+
+# Where the **input** sits relative to the pattern `P`. The five forms are the whole
+# lattice of prefix relations between a path and a pattern:
+#
+#   `P` / `at(P)`      the input IS P
+#   `below(P)`         the input is strictly deeper
+#   `at_or_below(P)`   P or deeper
+#   `above(P)`         the input is strictly shallower — it runs out *inside* P
+#   `at_or_above(P)`   P or shallower
+#
+# One word cannot carry both directions, which is why there is no `prefix(…)`: it
+# named `above(…)` while reading as though it meant `at_or_below(…)`.
+#
+# The constant lives here, beside the `PatStep` AST both matching DSLs lower to, and
+# `ReferenceRules.jl` reads it from here — the two vocabularies are one vocabulary.
+const REFERENCE_RULE_MODES = (:at, :below, :at_or_below, :above, :at_or_above)
 
 # ------------------------------------------------------------
 # Pattern representation
@@ -174,6 +195,39 @@ _parse_path(ex) = _to_pat_steps(parse_reference_path(ex))
 # Rule parsing
 # ------------------------------------------------------------
 
+# The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
+# A bare pattern is `at(…)`; the five arm words say where the input sits relative
+# to it.
+function _parse_arm_pattern(lhs)
+    if lhs isa Expr && lhs.head == :call && lhs.args[1] === :prefix
+        # `prefix(P)` named `above(P)` while reading as though it meant
+        # `at_or_below(P)`; the word is gone rather than left to mislead.
+        error("`prefix(path)` is no longer an @reference_case arm — write `above(path)` " *
+              "for \"the input runs out inside path\", or `at_or_below(path)` for " *
+              "\"the input is path or deeper\"")
+    elseif lhs isa Expr && lhs.head == :call && lhs.args[1] in REFERENCE_RULE_MODES
+        mode = lhs.args[1]
+        length(lhs.args) == 2 || error("$mode(path) expects exactly one argument")
+        return (mode, _parse_path(lhs.args[2]))
+    elseif lhs === :_
+        return (:at, PatStep[PatStepWholePathBind(:_)])
+    elseif lhs === :∅
+        # Empty-path pattern: matches a reference that terminates *at* the
+        # element itself — a whole-element ("tree") selection. Compiles to a
+        # zero-step `at` match (`_ref_input isa EmptyReference`). This only
+        # adds a writable pattern; the no-match fallthrough is still `nothing`.
+        return (:at, PatStep[])
+    elseif lhs isa Expr && lhs.head == :(::) && length(lhs.args) == 2 && lhs.args[1] === :∅
+        # `∅::t` / `∅::T` — a whole-element selection whose terminal type is
+        # bound (`::t`) or narrowed (`::T`). Matches an `EmptyReference`
+        # and reads its `type` field. The empty-path match falls out of the
+        # single type step operating on an EmptyReference.
+        return (:at, PatStep[_pat_type_step(lhs.args[2])])
+    else
+        return (:at, _parse_path(lhs))
+    end
+end
+
 function _parse_rule(ex)
     ex isa Expr && ex.head == :call && ex.args[1] == :(=>) ||
         error("expected `pattern => result`, got: $ex")
@@ -182,38 +236,11 @@ function _parse_rule(ex)
 
     if lhs isa Expr && lhs.head == :call && lhs.args[1] == :when
         length(lhs.args) == 3 || error("when(pattern, cond) expects exactly two arguments")
-        inner_lhs = lhs.args[2]
-        cond = lhs.args[3]
-        if inner_lhs isa Expr && inner_lhs.head == :call && inner_lhs.args[1] == :prefix
-            length(inner_lhs.args) == 2 || error("prefix(path) expects exactly one argument")
-            pat = _parse_path(inner_lhs.args[2])
-            return (:prefix, pat, cond, rhs)
-        else
-            pat = _parse_path(inner_lhs)
-            return (:exact, pat, cond, rhs)
-        end
-    elseif lhs isa Expr && lhs.head == :call && lhs.args[1] == :prefix
-        length(lhs.args) == 2 || error("prefix(path) expects exactly one argument")
-        pat = _parse_path(lhs.args[2])
-        return (:prefix, pat, nothing, rhs)
-    elseif lhs === :_
-        pat = PatStep[PatStepWholePathBind(:_)]
-        return (:exact, pat, nothing, rhs)
-    elseif lhs === :∅
-        # Empty-path pattern: matches a reference that terminates *at* the
-        # element itself — a whole-element ("tree") selection. Compiles to a
-        # zero-step exact match (`_ref_input isa EmptyReference`). This only
-        # adds a writable pattern; the no-match fallthrough is still `nothing`.
-        return (:exact, PatStep[], nothing, rhs)
-    elseif lhs isa Expr && lhs.head == :(::) && length(lhs.args) == 2 && lhs.args[1] === :∅
-        # `∅::t` / `∅::T` — a whole-element selection whose terminal type is
-        # bound (`::t`) or asserted (`::T`). Matches an `EmptyReference`
-        # and reads its `type` field. The empty-path match falls out of the
-        # single type step operating on an EmptyReference.
-        return (:exact, PatStep[_pat_type_step(lhs.args[2])], nothing, rhs)
+        mode, pat = _parse_arm_pattern(lhs.args[2])
+        return (mode, pat, lhs.args[3], rhs)
     else
-        pat = _parse_path(lhs)
-        return (:exact, pat, nothing, rhs)
+        mode, pat = _parse_arm_pattern(lhs)
+        return (mode, pat, nothing, rhs)
     end
 end
 
@@ -265,14 +292,14 @@ function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Sym
 end
 
 # No `_gen_step_match(::PatStepType, …)`: a `PatStepType` is always intercepted at the top of
-# `_gen_path_match` / `_gen_prefix_match` (which apply the narrowing type
+# `_gen_path_match` / `_gen_above_match` (which apply the narrowing type
 # assertion) before per-step dispatch is ever reached, so a step method would be
 # dead code. Every step reaches position 1 in the recursion, so this holds for
 # `PatStepType` anywhere in a pattern.
 
 # The narrowing rule a `::T` pattern step applies. It lives here, beside the
 # `PatStepType` it interprets, and is the single answer all four readings of that
-# step call — this fragment's compiled `_gen_path_match` / `_gen_prefix_match` and
+# step call — this fragment's compiled `_gen_path_match` / `_gen_above_match` and
 # `ReferenceRules.jl`'s interpreted `_consume` / `_match_above` — so the two DSLs
 # cannot drift on what a type in a pattern means.
 #
@@ -367,23 +394,37 @@ match_reference_step(::Val{n}, hex, argpats, rest_success, bound, gvm, gpm) wher
     error("no `match_reference_step(::Val{$(QuoteNode(n))}, …)` method registered — `.$(n)(…)` is not a known @reference_case step")
 
 # `^(expr)` interpolates a whole path to compare against, so it is only meaningful as the
-# *sole* step of a pattern — `_gen_path_match` / `_gen_prefix_match` intercept it there.
+# *sole* step of a pattern — `_gen_path_match` / `_gen_above_match` intercept it there.
 # Reaching per-step dispatch means it was written mid-chain (`a.^(p).b`, `a.b.^(p)`), which
 # has no matching reading. Say so, rather than failing with a `MethodError` on this method
 # not existing.
 _gen_step_match(hex, tex, step::PatStepPathInterp, rest_success, bound::Set{Symbol}) =
     error("^(expr) path interpolation is only valid as the sole step of an @reference_case pattern: ^($(step.expr))")
 
-function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
+# The `at` / `below` / `at_or_below` family: consume the pattern from the front of
+# the path, then judge what is left over. `terminal` is which of the three is being
+# asked, and it is only ever read when the pattern runs out — the walk itself is one
+# walk. The extension-step seam calls this with four arguments, which is `:at`: a
+# subpath argument must match its subpath exactly.
+function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}(),
+                         terminal::Symbol=:at)
     # Folded references expose a navigation step directly as `head` (the type is a
     # node field), so patterns written against the navigation skeleton match the
     # path as-is — there are no interleaved checkpoint steps to skip.
     if isempty(steps)
-        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
+        # The pattern is spent; the leftover decides.
+        terminal === :at_or_below && return success, bound
+        test = terminal === :below ?
+               :($path_ex isa ReferenceModule.ConcreteReference) :
+               :($path_ex isa ReferenceModule.EmptyReference)
+        return :($test ? $success : _nomatch), bound
     end
 
     if length(steps) == 1 && steps[1] isa PatStepWholePathBind
+        # A tail bind swallows whatever remains, so the leftover is empty by
+        # construction — which `below` can never satisfy.
         name = steps[1].name
+        terminal === :below && return :(_nomatch), union(bound, Set([name]))
         return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
 
@@ -397,8 +438,8 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
-        rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound)
+        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound, terminal)
+        rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound, terminal)
         ex = quote
             let $sp = $path_ex
                 if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
@@ -420,7 +461,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     if steps[1] isa PatStepTypeBind
         name = steps[1].name
         sp = gensym(:sp)
-        rest, b = _gen_path_match(sp, steps[2:end], success, union(bound, Set([name])))
+        rest, b = _gen_path_match(sp, steps[2:end], success, union(bound, Set([name])), terminal)
         ex = quote
             let $sp = $path_ex, $(esc(name)) = $sp.type
                 $rest
@@ -432,17 +473,21 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     if length(steps) == 1 && steps[1] isa PatStepPathInterp
         expr = esc(steps[1].expr)
         # Shape-only comparison: both sides stripped of type checkpoints so a
-        # canonical path matches a plain interpolated skeleton.
-        return :((ReferenceModule.strip_reference_types($path_ex) ==
-                  ReferenceModule.strip_reference_types($expr)) ?
-                 $success : _nomatch), bound
+        # canonical path matches a plain interpolated skeleton. The interpolated
+        # path is the whole pattern, so the leftover test is the prefix relation.
+        a = :(ReferenceModule.strip_reference_types($path_ex))
+        b = :(ReferenceModule.strip_reference_types($expr))
+        test = terminal === :at ? :($a == $b) :
+               terminal === :below ? :(ReferenceModule.is_reference_prefix($b, $a)) :
+               :($a == $b || ReferenceModule.is_reference_prefix($b, $a))
+        return :($test ? $success : _nomatch), bound
     end
 
     p = gensym(:p)
     h = gensym(:h)
     t = gensym(:t)
 
-    rest_success, bound1 = _gen_path_match(t, steps[2:end], success, bound)
+    rest_success, bound1 = _gen_path_match(t, steps[2:end], success, bound, terminal)
     step_success, bound2 = _gen_step_match(h, t, steps[1], rest_success, bound1)
 
     ex = quote
@@ -461,18 +506,28 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     return ex, bound2
 end
 
-function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}())
+# The `above` / `at_or_above` family: the input runs out *inside* the pattern. The
+# two differ only in what happens when both run out together — `above` wants the
+# input strictly shallower, `at_or_above` also accepts equal — so one walk with a
+# flag covers them, and `at_or_above` is exactly `above ∪ at`.
+function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Symbol}=Set{Symbol}(),
+                          include_at::Bool=false)
     if isempty(steps)
-        return :(_nomatch), bound
+        # The pattern is spent, so the input was not strictly shallower. It is `at`
+        # if the input is spent too, which only `at_or_above` accepts.
+        include_at || return :(_nomatch), bound
+        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
     end
 
     if length(steps) == 1 && steps[1] isa PatStepPathInterp
         expr = esc(steps[1].expr)
         # Shape-only prefix check: both sides stripped first.
-        return :(ReferenceModule.is_reference_prefix(
-                    ReferenceModule.strip_reference_types($path_ex),
-                    ReferenceModule.strip_reference_types($expr)) ?
-                 $success : _nomatch), bound
+        a = :(ReferenceModule.strip_reference_types($path_ex))
+        b = :(ReferenceModule.strip_reference_types($expr))
+        test = include_at ?
+               :(ReferenceModule.is_reference_prefix($a, $b) || $a == $b) :
+               :(ReferenceModule.is_reference_prefix($a, $b))
+        return :($test ? $success : _nomatch), bound
     end
 
     # A leading `::T` is a non-navigating **narrowing** type assertion (the same
@@ -483,8 +538,8 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_prefix_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound)
-        rest_on_same, b2 = _gen_prefix_match(sp, steps[2:end], success, bound)
+        rest_on_tail, b1 = _gen_above_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound, include_at)
+        rest_on_same, b2 = _gen_above_match(sp, steps[2:end], success, bound, include_at)
         ex = quote
             let $sp = $path_ex
                 if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
@@ -499,12 +554,12 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
         return ex, union(b1, b2)
     end
 
-    # `::t` binds the matched node's type, then continues the prefix match on the
+    # `::t` binds the matched node's type, then continues the above-match on the
     # same path (mirrors the `_gen_path_match` binder).
     if steps[1] isa PatStepTypeBind
         name = steps[1].name
         sp = gensym(:sp)
-        rest, b = _gen_prefix_match(sp, steps[2:end], success, union(bound, Set([name])))
+        rest, b = _gen_above_match(sp, steps[2:end], success, union(bound, Set([name])), include_at)
         ex = quote
             let $sp = $path_ex, $(esc(name)) = $sp.type
                 $rest
@@ -517,7 +572,7 @@ function _gen_prefix_match(path_ex, steps::Vector{PatStep}, success, bound::Set{
     h = gensym(:h)
     t = gensym(:t)
 
-    rest_match, bound1 = _gen_prefix_match(t, steps[2:end], success, bound)
+    rest_match, bound1 = _gen_above_match(t, steps[2:end], success, bound, include_at)
     step_match, bound2 = _gen_step_match(h, t, steps[1], rest_match, bound1)
 
     ex = quote
@@ -550,11 +605,12 @@ function _gen_rule(rule)
               _nomatch
           end)
 
-    if mode == :prefix
-        ex, _ = _gen_prefix_match(:_ref_input, pat, body, Set{Symbol}())
-    else
-        ex, _ = _gen_path_match(:_ref_input, pat, body, Set{Symbol}())
-    end
+    # Two generators cover the five arm words: the above-family walks until the
+    # input runs out inside the pattern, the rest consume the pattern and judge the
+    # leftover.
+    ex, _ = mode === :above || mode === :at_or_above ?
+            _gen_above_match(:_ref_input, pat, body, Set{Symbol}(), mode === :at_or_above) :
+            _gen_path_match(:_ref_input, pat, body, Set{Symbol}(), mode)
     return ex
 end
 
@@ -578,9 +634,22 @@ use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/su
 - `_` is a wildcard; `name::T` binds `name` only if the value `isa T`; `^(expr)`
   interpolates a value to compare against.
 - `when(pattern, cond)` matches `pattern` then requires the guard `cond` (which may
-  read the pattern's bindings); `prefix(pattern)` matches a leading prefix rather
-  than the whole path; `name...` binds the entire remaining tail; `∅` matches the
-  empty (whole-element) path.
+  read the pattern's bindings); `name...` binds the entire remaining tail; `∅`
+  matches the empty (whole-element) path.
+
+Each arm says where the **input** sits relative to its pattern `P` — the same five
+words `@reference_rules` uses:
+
+| arm | holds when |
+| --- | --- |
+| `P` / `at(P)` | the input **is** `P` |
+| `below(P)` | the input is strictly deeper |
+| `at_or_below(P)` | `P` or deeper |
+| `above(P)` | the input is strictly shallower — it runs out *inside* `P` |
+| `at_or_above(P)` | `P` or shallower |
+
+There is no `prefix(…)`: it named `above(…)` while reading as though it meant
+`at_or_below(…)`, so writing it is an error that says which one to pick.
 
 A `::T` checkpoint **narrows** the match: where the path records a node type,
 that type must be `<: T` or the rule falls through to the next one, so a pattern

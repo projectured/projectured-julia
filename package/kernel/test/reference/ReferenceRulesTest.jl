@@ -238,8 +238,8 @@ function test_reference_rules()
 
         _conforms("a type checkpoint narrows an above-form",
             p -> (@reference_case p begin
-                prefix(::RulesA.a.b.c)     => :a
-                prefix(::RulesOther.a.b.c) => :other
+                above(::RulesA.a.b.c)     => :a
+                above(::RulesOther.a.b.c) => :other
                 _                          => :miss
             end),
             @reference_rules begin
@@ -294,12 +294,12 @@ function test_reference_rules()
                 end)
         end
 
-        # `above(P)` is `@reference_case`'s `prefix(P)` — the arm holds when the input
+        # `above(P)` is `@reference_case`'s `above(P)` — the arm holds when the input
         # runs out *inside* P. This is the one place the two vocabularies differ by name
         # rather than by meaning, so it is pinned here.
-        _conforms("above(P) is prefix(P)",
+        _conforms("above(P) is above(P)",
             p -> (@reference_case p begin
-                prefix(a.b.c) => :above
+                above(a.b.c) => :above
                 _             => :miss
             end),
             @reference_rules begin
@@ -312,7 +312,7 @@ function test_reference_rules()
         # made. Both DSLs raise there, so the corpus for this one leaves it out.
         _conforms("above(P) with an index and a guard",
             p -> (@reference_case p begin
-                when(prefix(buckets[i].capacity), i < 5) => i
+                when(above(buckets[i].capacity), i < 5) => i
                 _                                        => :miss
             end),
             (@reference_rules begin
@@ -324,7 +324,7 @@ function test_reference_rules()
         let interp_path = Reference(_fld("a"), _fld("b"), _fld("c"))
             _conforms("above(^(path))",
                 p -> (@reference_case p begin
-                    prefix(^(interp_path)) => :above
+                    above(^(interp_path)) => :above
                     _                      => :miss
                 end),
                 @reference_rules begin
@@ -358,7 +358,7 @@ function test_reference_rules()
             @test hits == expected
         end
 
-        # `prefix(…)` has no meaning here, and says which form to write instead.
+        # `prefix(…)` is gone from both DSLs, and each says which form to write.
         @test_throws LoadError @eval @reference_rules begin
             prefix(a.b) => :nope
         end

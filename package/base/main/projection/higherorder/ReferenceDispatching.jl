@@ -27,7 +27,7 @@ The pair-based form uses structural equality: `default` is used when no key
 matches; `pairs` is a list of `Reference => Projection` pairs.
 
 The function-based form takes a `reference -> Projection` callable, enabling
-`@reference_case` patterns (including `prefix()` and `_` wildcards).
+`@reference_case` patterns (including the `above()` arm and `_` wildcards).
 
 # Examples
 
@@ -37,8 +37,8 @@ The function-based form takes a `reference -> Projection` callable, enabling
     )
 
     rdp = ReferenceDispatchingProjection(ref -> @reference_case ref begin
-        prefix(entries) => CopyingProjection()
-        entries         => SortingProjection(by = x -> x.key)
+        above(entries) => CopyingProjection()
+        entries        => SortingProjection(by = x -> x.key)
         _               => IdentityProjection()
     end)
 """

@@ -23,7 +23,7 @@ target is copied; siblings and children below are preserved.
 """
 function ApplyAtProjection(reference::Reference, projection)
     RecursiveProjection(ReferenceDispatchingProjection(ref -> @reference_case ref begin
-        prefix(^(reference)) => CopyingProjection()
+        above(^(reference)) => CopyingProjection()
         ^(reference)         => NestingProjection(
             projection;
             recursion=IdentityProjection(),
