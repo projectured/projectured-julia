@@ -234,11 +234,25 @@ implemented twice**: unification comes before the language grows.
      line up against answers the same for every input, so there is nothing to
      search and it is emitted as the body itself. This is the first rung of the
      tier-2 ladder, arriving early because phase 3 made it urgent.
-5. **`__ʔ` and `__(name)`.** `name...` **survives as its own form**, not as sugar
-   to be retired: a trailing bind is what almost every caller wants, and reading
-   `rest...` at the end of a path is clearer than reading a gap that happens to
-   be last.
-6. **Value patterns:** `a..b`, `any(…)`, `glob"…"`.
+5. **`__ʔ` and `__(name)`.** **Done.** `name...` **survives as its own form**, not
+   as sugar to be retired: a trailing bind is what almost every caller wants, and
+   reading `rest...` at the end of a path is clearer than reading a gap that
+   happens to be last.
+
+   Both bound spellings reach the shared grammar as *extension steps*, so the
+   parser still names no gap concept. One thing this phase had to settle that the
+   plan had not asked: under an above-arm a bound gap names **what is left of the
+   input** — the part of the member the input reached before running out —
+   because otherwise the fallback emits a `let` for a name the match never bound
+   and the answer fails reading it.
+6. **Value patterns:** `a..b`, `any(…)`, `glob"…"`. **Done.** `any(…)` routes to
+   the interpreter — its branches may bind different names, and threading one
+   `bound` set through them has no straight-line shape — while `..` and `glob`
+   compile.
+
+   A trap worth knowing: **`any(a, b)` in value position binds**, because a bare
+   symbol binds there and always has. Name alternatives are `any("queue",
+   "buffer")`; the bare-symbol spelling belongs to path position (phase 7).
 7. **Path-position `any(P, Q, …)`** — subpath alternation, the general form.
 8. **Arm renames** `at_or_below`→`within`, `at_or_above`→`toward`, plus the
    pattern sugar as an accepted alternative spelling.
@@ -356,11 +370,11 @@ Run from the repo root environment, memory-capped under `systemd-run`.
 
 ## Landed so far
 
-Phases 1 and 2, on `reference-pattern-gap`.
+Phases 1 to 6, on `reference-pattern-gap`.
 
-- `test_reference_rules()` 642 pass (from 473), `test_reference_eval()` 33,
+- `test_reference_rules()` 796 pass (from 473), `test_reference_eval()` 33,
   `test_reference_builder()` 30.
-- `test_kernel()` 1139 pass / 3 fail / 2 error — the same five pre-existing
+- `test_kernel()` 1293 pass / 3 fail / 2 error — the same five pre-existing
   `DocumentMacro` "Rule C" failures the baseline carries.
 - `test_base()` 387, `test_visual()` 49534 / 1 broken, `test_domain()` 184679 / 5
   broken. No failures or errors.
@@ -370,10 +384,8 @@ Phases 1 and 2, on `reference-pattern-gap`.
   pattern in the codebase contains a gap, so nothing that runs today takes a
   different path.
 
-Not done, and deliberately: the builder still accepts `__` as an ordinary field
-name. Rejecting it belongs in `ReferenceBuilder.jl`, which is **sealed**, and the
-cost of leaving it is that `@reference(a.__.b)` builds a field literally named
-`__` instead of saying it cannot. Worth fixing when that file is next opened.
+Still to come: phase 7 (path-position `any`), 8 (the `within` / `toward` renames),
+9 (the `ref"…"` string surface) and 10 (the rest of the tier-2 codegen).
 
 ## Done when
 
