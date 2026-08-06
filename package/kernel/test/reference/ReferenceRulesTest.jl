@@ -840,6 +840,83 @@ function test_reference_rules()
         end
     end
 
+    @testset "value patterns: ranges, alternation, globs" begin
+        hosts(i) = Reference(_fld("hosts"), _el(i), _fld("power"))
+        named(n) = Reference(_fld("net"), _fld(n), _fld("cap"))
+
+        _conforms("numeric range",
+            p -> (@reference_case p begin
+                buckets[1..2].capacity => :low
+                buckets[3..99].capacity => :high
+                __                      => :miss
+            end),
+            (@reference_rules begin
+                buckets[1..2].capacity => :low
+                buckets[3..99].capacity => :high
+                __                      => :miss
+            end))
+
+        _conforms("glob over a step name",
+            p -> (@reference_case p begin
+                a.field(glob"b*").c => :b_something
+                __                  => :miss
+            end),
+            (@reference_rules begin
+                a.field(glob"b*").c => :b_something
+                __                  => :miss
+            end))
+
+        # `..` used to reach the matcher as an interpolation and be compared against an
+        # Int, so `xs[0..3]` silently never matched. It has a meaning now.
+        ranged = @reference_rules begin
+            hosts[2..4].power => :mid
+            __                => :miss
+        end
+        @test apply_reference_rules(ranged, hosts(3)) === :mid
+        @test apply_reference_rules(ranged, hosts(2)) === :mid
+        @test apply_reference_rules(ranged, hosts(4)) === :mid
+        @test apply_reference_rules(ranged, hosts(5)) === :miss
+
+        # Alternatives may arrive as data, which is the case N arms cannot cover.
+        allowed = ["queue", "buffer"]
+        listed = @reference_rules begin
+            net.field(any(^(allowed))).cap => :listed
+            net.field(any("pool", "pipe")).cap => :literal
+            __                             => :miss
+        end
+        @test apply_reference_rules(listed, named("queue")) === :listed
+        @test apply_reference_rules(listed, named("buffer")) === :listed
+        @test apply_reference_rules(listed, named("pipe")) === :literal
+        @test apply_reference_rules(listed, named("other")) === :miss
+        # A spliced STRING is one name, not a set of letters.
+        @test apply_reference_rules((@reference_rules begin
+            net.field(any(^("queue"))).cap => :one
+            __                             => :miss
+        end), named("queue")) === :one
+
+        # The glob language, in full.
+        for (pattern, name, expected) in (("host*", "hostA", true), ("host*", "host", true),
+                                          ("host*", "xhost", false), ("*host", "myhost", true),
+                                          ("h?st", "host", true), ("h?st", "hoost", false),
+                                          ("mac{a-c}", "maca", true), ("mac{a-c}", "macd", false),
+                                          ("mac{^a-c}", "macd", true), ("mac{^a-c}", "maca", false),
+                                          ("h{8..12}", "h10", true), ("h{8..12}", "h1", false),
+                                          ("h{8..12}", "h12", true), ("a*b*c", "axxbyyc", true),
+                                          ("a*b*c", "axxc", false))
+            @test glob_matches(pattern, name) == expected
+        end
+        @test glob_matches("a\\*b", "a*b")
+        @test !glob_matches("a\\*b", "axb")
+
+        # All three print as they were written.
+        printed = sprint(show, @reference_rules begin
+            hosts[2..4].field(any("a", "b")).field(glob"q*") => 1
+        end)
+        @test occursin("hosts[2..4]", printed)
+        @test occursin("""any("a", "b")""", printed)
+        @test occursin("glob\"q*\"", printed)
+    end
+
     @testset "the retired catch-all says so" begin
         # `_` used to mean "any path" and now means "one step", so a bare `_` arm is an
         # error rather than a silent reinterpretation — the whole point of the guard.

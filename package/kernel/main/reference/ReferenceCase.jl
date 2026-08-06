@@ -64,6 +64,32 @@ struct PatValueInterp <: PatValue
     expr
 end
 
+# `lo..hi` — a number within an inclusive range, the reading an ini file's `{38..47}`
+# has. Both bounds are evaluated at the construction site, so a stored pattern holds
+# values rather than expressions (as `^(…)` and `::T` do).
+#
+# The syntax already parsed: a value slot keeps its Julia expression raw, so `xs[0..3]`
+# reached the matcher as an interpolation and was compared against an `Int`, which never
+# matched. This gives the slot its meaning rather than adding syntax.
+struct PatValueRange <: PatValue
+    lo
+    hi
+end
+
+# `glob"host*"` — a **character** pattern over one step's name, which is what an ini
+# key says with `host*` or `mac{a-c}`. See `glob_matches` for the language.
+struct PatValueGlob <: PatValue
+    pattern::String
+end
+
+# `any(a, b, …)` — the value matches any one of the alternatives, tried in order. An
+# alternative that is a spliced collection (`any(^(allowed))`) contributes each of its
+# elements, which is the whole point: *N* arms cannot be written when *N* is a runtime
+# value, so the alternatives have to be able to arrive as data.
+struct PatValueAny <: PatValue
+    alternatives::Vector{PatValue}
+end
+
 abstract type PatStep end
 
 struct PatStepField <: PatStep
@@ -156,6 +182,13 @@ _is_type_bind_symbol(x) =
 # Value-pattern parsing
 # ------------------------------------------------------------
 
+# The last component of a macro name, so `glob"…"` is recognized however it is
+# qualified at the call site.
+_macro_basename(x) =
+    x isa Symbol ? x :
+    x isa GlobalRef ? x.name :
+    x isa Expr && x.head === :. && x.args[2] isa QuoteNode ? x.args[2].value : nothing
+
 function _parse_value(ex)
     if ex === :_
         return PatValueWildcard()
@@ -163,6 +196,13 @@ function _parse_value(ex)
         return PatValueBind(ex)
     elseif ex isa Expr && ex.head == :call && ex.args[1] == :(^)
         return PatValueInterp(ex.args[2])
+    elseif ex isa Expr && ex.head === :macrocall &&
+           _macro_basename(ex.args[1]) === Symbol("@glob_str")
+        return PatValueGlob(String(ex.args[end]))
+    elseif ex isa Expr && ex.head == :call && ex.args[1] == :(..) && length(ex.args) == 3
+        return PatValueRange(ex.args[2], ex.args[3])
+    elseif ex isa Expr && ex.head == :call && ex.args[1] === :any
+        return PatValueAny(PatValue[_parse_value(a) for a in ex.args[2:end]])
     elseif ex isa Expr && ex.head == :(::) && ex.args[1] isa Symbol
         return PatValueTypedBind(ex.args[1], ex.args[2])
     elseif ex isa QuoteNode
@@ -270,6 +310,13 @@ _value_binder_names!(names::Vector{Symbol}, ::PatValue) = names
 _value_binder_names!(names::Vector{Symbol}, p::PatValueBind) = _add_binder!(names, p.name)
 _value_binder_names!(names::Vector{Symbol}, p::PatValueTypedBind) = _add_binder!(names, p.name)
 
+function _value_binder_names!(names::Vector{Symbol}, p::PatValueAny)
+    for alt in p.alternatives
+        _value_binder_names!(names, alt)
+    end
+    names
+end
+
 _step_binder_names!(names::Vector{Symbol}, ::PatStep) = names
 _step_binder_names!(names::Vector{Symbol}, s::PatStepField) = _value_binder_names!(names, s.namepat)
 _step_binder_names!(names::Vector{Symbol}, s::PatStepIndex) = _value_binder_names!(names, s.idxpat)
@@ -313,6 +360,24 @@ _step_has_gap(s::PatStepExtension) =
     any(arg -> arg isa PatValue ? false : _pattern_has_gap(arg), s.argpats)
 
 _pattern_has_gap(steps::Vector{PatStep}) = any(_step_has_gap, steps)
+
+# The full question `_gen_rule` asks: is there anything here the straight-line generators
+# cannot emit? A gap searches; an alternation branches in a way a single `bound` set
+# cannot follow. Everything else compiles.
+_value_needs_interpreter(::PatValue) = false
+_value_needs_interpreter(::PatValueAny) = true
+
+_step_needs_interpreter(s::PatStep) = _step_has_gap(s)
+_step_needs_interpreter(s::PatStepField) = _value_needs_interpreter(s.namepat)
+_step_needs_interpreter(s::PatStepIndex) = _value_needs_interpreter(s.idxpat)
+_step_needs_interpreter(s::PatStepPosition) = _value_needs_interpreter(s.idxpat)
+_step_needs_interpreter(s::PatStepRange) =
+    _value_needs_interpreter(s.startpat) || _value_needs_interpreter(s.stoppat)
+_step_needs_interpreter(s::PatStepExtension) =
+    any(arg -> arg isa PatValue ? _value_needs_interpreter(arg) : _pattern_needs_interpreter(arg),
+        s.argpats)
+
+_pattern_needs_interpreter(steps::Vector{PatStep}) = any(_step_needs_interpreter, steps)
 
 # ------------------------------------------------------------
 # Rule parsing
@@ -403,6 +468,24 @@ function _gen_value_match(valex, pat::PatValueBind, success, bound::Set{Symbol})
     end
 end
 
+function _gen_value_match(valex, pat::PatValueGlob, success, bound::Set{Symbol})
+    return :(($valex isa AbstractString &&
+              ReferenceModule.glob_matches($(pat.pattern), $valex)) ?
+             $success : _nomatch), bound
+end
+
+function _gen_value_match(valex, pat::PatValueRange, success, bound::Set{Symbol})
+    lo, hi = esc(pat.lo), esc(pat.hi)
+    return :(($valex isa Number && $lo <= $valex <= $hi) ? $success : _nomatch), bound
+end
+
+# An alternation never reaches codegen: `_gen_rule` routes a pattern holding one to the
+# interpreter, because its branches may bind different names and threading a `bound` set
+# through them has no straight-line shape.
+_gen_value_match(valex, pat::PatValueAny, success, bound::Set{Symbol}) =
+    error("`any(…)` is matched by the interpreter, not compiled — `_gen_rule` should " *
+          "have routed this pattern to `_gen_interpreted_rule`")
+
 function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Symbol})
     name = pat.name
     ty = esc(pat.ty)
@@ -445,6 +528,115 @@ end
 # reason — `<:` has no answer for it, so there is nothing to narrow on.
 _type_step_matches(nodetype, T) =
     nodetype === nothing || !(nodetype isa Type) || nodetype <: T
+
+# ------------------------------------------------------------
+# The glob language
+#
+# OMNeT++'s character patterns, over one step's name: `*` any run, `?` one character,
+# `{a-e}` a set, `{^a-e}` a negated set, `{38..47}` a number within a range, `\` escapes.
+# One implementation, called by the compiled and interpreted readings alike — the same
+# arrangement `_type_step_matches` has, and for the same reason.
+#
+# Nothing here says "a glob never crosses a step", because nothing has to: a value
+# pattern is only ever handed one name.
+# ------------------------------------------------------------
+
+"""
+    glob_matches(pattern, name) -> Bool
+
+True when `name` matches the glob `pattern` in full. `*` and `{n..m}` backtrack, so a
+pattern carrying several of them still answers exactly.
+"""
+glob_matches(pattern::AbstractString, name::AbstractString) =
+    _glob_match(pattern, firstindex(pattern), name, firstindex(name))
+
+function _glob_match(pat::AbstractString, pi::Int, s::AbstractString, si::Int)
+    while true
+        pi > lastindex(pat) && return si > lastindex(s)
+        c = pat[pi]
+
+        if c == '*'
+            # Try every split. Which one wins is invisible: a glob answers yes or no and
+            # binds nothing, so there is no greediness to choose here.
+            npi = nextind(pat, pi)
+            k = si
+            while true
+                _glob_match(pat, npi, s, k) && return true
+                k > lastindex(s) && return false
+                k = nextind(s, k)
+            end
+
+        elseif c == '?'
+            si > lastindex(s) && return false
+            pi = nextind(pat, pi)
+            si = nextind(s, si)
+
+        elseif c == '\\'
+            npi = nextind(pat, pi)
+            npi > lastindex(pat) && error("glob pattern ends in a backslash: $pat")
+            (si > lastindex(s) || pat[npi] != s[si]) && return false
+            pi = nextind(pat, npi)
+            si = nextind(s, si)
+
+        elseif c == '{'
+            close = findnext(isequal('}'), pat, pi)
+            close === nothing && error("unterminated `{` in glob pattern: $pat")
+            body = pat[nextind(pat, pi):prevind(pat, close)]
+            npi = nextind(pat, close)
+            occursin("..", body) && return _glob_match_number(body, pat, npi, s, si)
+            si > lastindex(s) && return false
+            negated = startswith(body, '^')
+            negated && (body = body[nextind(body, firstindex(body)):end])
+            (_glob_in_set(body, s[si]) == negated) && return false
+            pi = npi
+            si = nextind(s, si)
+
+        else
+            (si > lastindex(s) || c != s[si]) && return false
+            pi = nextind(pat, pi)
+            si = nextind(s, si)
+        end
+    end
+end
+
+# `{38..47}` matches a run of digits whose *value* is in the range, so `{8..12}` matches
+# "10" and not "1". The range does not imply the run's length, so every length is tried,
+# longest first.
+function _glob_match_number(body::AbstractString, pat::AbstractString, npi::Int,
+                            s::AbstractString, si::Int)
+    bounds = split(body, ".."; limit = 2)
+    lo = tryparse(Int, bounds[1])
+    hi = tryparse(Int, bounds[2])
+    (lo === nothing || hi === nothing) &&
+        error("`{$body}` in a glob pattern must be a numeric range like {38..47}")
+    stop = si
+    while stop <= lastindex(s) && isdigit(s[stop])
+        stop = nextind(s, stop)
+    end
+    while stop > si
+        value = tryparse(Int, s[si:prevind(s, stop)])
+        value !== nothing && lo <= value <= hi && _glob_match(pat, npi, s, stop) && return true
+        stop = prevind(s, stop)
+    end
+    false
+end
+
+function _glob_in_set(body::AbstractString, ch::AbstractChar)
+    i = firstindex(body)
+    while i <= lastindex(body)
+        j = nextind(body, i)
+        if j <= lastindex(body) && body[j] == '-' && nextind(body, j) <= lastindex(body)
+            k = nextind(body, j)
+            body[i] <= ch <= body[k] && return true
+            i = nextind(body, k)
+        else
+            body[i] == ch && return true
+            i = j
+        end
+    end
+    false
+end
+
 
 # The node type a `::T` step reads at this point in the path: the folded `type`
 # field of the node reached, or `nothing` when the matcher was handed something
@@ -762,7 +954,7 @@ function _gen_rule(rule)
 
     # Any other pattern whose match is a search is handed to the interpreter rather than
     # compiled, so the search exists once in the codebase (see `_gen_interpreted_rule`).
-    _pattern_has_gap(pat) && return _gen_interpreted_rule(mode, pat, body)
+    _pattern_needs_interpreter(pat) && return _gen_interpreted_rule(mode, pat, body)
 
     # Two generators cover the five arm words: the above-family walks until the
     # input runs out inside the pattern, the rest consume the pattern and judge the

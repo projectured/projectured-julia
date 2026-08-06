@@ -208,6 +208,35 @@ _match_value(value, pat::PatValueLiteral, b::ReferenceRuleBindings) =
 _match_value(value, pat::PatValueBind, b::ReferenceRuleBindings) =
     haskey(b, pat.name) ? (value == b[pat.name] ? b : nothing) : _rule_bind!(b, pat.name, value)
 
+_match_value(value, pat::PatValueGlob, b::ReferenceRuleBindings) =
+    (value isa AbstractString && glob_matches(pat.pattern, value)) ? b : nothing
+
+_match_value(value, pat::PatValueRange, b::ReferenceRuleBindings) =
+    (value isa Number && pat.lo <= value <= pat.hi) ? b : nothing
+
+# Alternatives are tried in order and the first that matches wins, so an alternation
+# binds whatever its winning branch bound. A spliced collection stands for its elements:
+# `any(^(allowed))` is the form that exists because the alternatives may only be known at
+# run time, and comparing a value to a whole collection would never match anything.
+function _match_value(value, pat::PatValueAny, b::ReferenceRuleBindings)
+    for alt in pat.alternatives
+        matched = _match_alternative(value, alt, b)
+        matched === nothing || return matched
+    end
+    nothing
+end
+
+_match_alternative(value, alt::PatValue, b::ReferenceRuleBindings) = _match_value(value, alt, b)
+
+_match_alternative(value, alt::PatValueLiteral, b::ReferenceRuleBindings) =
+    _is_alternative_set(alt.value) ? (value in alt.value ? b : nothing) :
+    (value == alt.value ? b : nothing)
+
+# What counts as "a collection of alternatives" rather than one value. A string is a
+# value: `any(^("abc"))` means the name `abc`, not one of three letters.
+_is_alternative_set(x) = (x isa AbstractVector || x isa Tuple || x isa AbstractSet ||
+                          x isa AbstractRange)
+
 _match_value(value, pat::PatValueTypedBind, b::ReferenceRuleBindings) =
     !(value isa pat.ty) ? nothing :
     haskey(b, pat.name) ? (value == b[pat.name] ? b : nothing) : _rule_bind!(b, pat.name, value)
@@ -701,6 +730,16 @@ _show_pat_value(io::IO, pat::PatValueTypedBind) =
     print(io, pat.name, "::", pat.ty isa Type ? nameof(pat.ty) : pat.ty)
 _show_pat_value(io::IO, pat::PatValueLiteral) = show(io, pat.value)
 _show_pat_value(io::IO, pat::PatValueInterp) = print(io, "^(", pat.expr, ")")
+_show_pat_value(io::IO, pat::PatValueRange) = print(io, pat.lo, "..", pat.hi)
+_show_pat_value(io::IO, pat::PatValueGlob) = print(io, "glob\"", pat.pattern, "\"")
+function _show_pat_value(io::IO, pat::PatValueAny)
+    print(io, "any(")
+    for (i, alt) in enumerate(pat.alternatives)
+        i == 1 || print(io, ", ")
+        _show_pat_value(io, alt)
+    end
+    print(io, ")")
+end
 
 # ------------------------------------------------------------
 # Quoting a pattern as data
@@ -737,6 +776,11 @@ _quote_pat_value(pat::PatValueBind) = :($PatValueBind($(QuoteNode(pat.name))))
 _quote_pat_value(pat::PatValueTypedBind) =
     :($PatValueTypedBind($(QuoteNode(pat.name)), $(esc(pat.ty))))
 _quote_pat_value(pat::PatValueLiteral) = :($PatValueLiteral($(QuoteNode(pat.value))))
+# Both bounds are evaluated at the construction site, like every other interpolation.
+_quote_pat_value(pat::PatValueGlob) = :($PatValueGlob($(pat.pattern)))
+_quote_pat_value(pat::PatValueRange) = :($PatValueRange($(esc(pat.lo)), $(esc(pat.hi))))
+_quote_pat_value(pat::PatValueAny) =
+    :($PatValueAny($PatValue[$(map(_quote_pat_value, pat.alternatives)...)]))
 # `^(e)` in a pattern is a value to compare against, so the construction site evaluates
 # it and the object stores the value — the pattern keeps no expression.
 _quote_pat_value(pat::PatValueInterp) = :($PatValueLiteral($(esc(pat.expr))))
