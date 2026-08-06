@@ -254,10 +254,24 @@ implemented twice**: unification comes before the language grows.
    symbol binds there and always has. Name alternatives are `any("queue",
    "buffer")`; the bare-symbol spelling belongs to path position (phase 7).
 7. **Path-position `any(P, Q, …)`** — subpath alternation, the general form.
+   **Done.** Each alternative is parsed as a *path*, so a bare symbol inside it is a
+   field name — which is what makes `any(queue, buffer)` read the way the spelling
+   looks. A branch is judged by whether the *whole* pattern goes through, not just
+   the branch. Alternatives must bind the same names, in both positions, refused
+   where the alternation is written: otherwise which names exist depends on which
+   branch won, and an answer reading one breaks only for the inputs that took the
+   other.
 8. **Arm renames** `at_or_below`→`within`, `at_or_above`→`toward`, plus the
-   pattern sugar as an accepted alternative spelling.
+   pattern sugar as an accepted alternative spelling. **Done.** The underscores
+   were never the objection — they spelled an `or`, and an arm word that has to say
+   "or" is two words wearing one name. Both old spellings raise and name their
+   replacement, as `prefix` already does.
 9. **The `ref"…"` string surface**, macro and runtime, lowering to the same
-   pattern data.
+   pattern data. **Done**, in its own fragment `ReferencePatternString.jl`, and the
+   equality is asserted directly rather than inferred from matching answers. Its
+   two departures from the syntax it models — indices shifting from 0-based, and
+   `**` having to be a whole component because a run of steps inside a *name* has
+   no reading in a step-structured path — live at that boundary and nowhere else.
 10. **Tier-2 codegen** — a pure optimization, safe because the differential test
     is already in place. See below.
 
@@ -370,11 +384,11 @@ Run from the repo root environment, memory-capped under `systemd-run`.
 
 ## Landed so far
 
-Phases 1 to 6, on `reference-pattern-gap`.
+Phases 1 to 9, on `reference-pattern-gap`.
 
-- `test_reference_rules()` 796 pass (from 473), `test_reference_eval()` 33,
+- `test_reference_rules()` 867 pass (from 473), `test_reference_eval()` 33,
   `test_reference_builder()` 30.
-- `test_kernel()` 1293 pass / 3 fail / 2 error — the same five pre-existing
+- `test_kernel()` 1364 pass / 3 fail / 2 error — the same five pre-existing
   `DocumentMacro` "Rule C" failures the baseline carries.
 - `test_base()` 387, `test_visual()` 49534 / 1 broken, `test_domain()` 184679 / 5
   broken. No failures or errors.
@@ -384,8 +398,10 @@ Phases 1 to 6, on `reference-pattern-gap`.
   pattern in the codebase contains a gap, so nothing that runs today takes a
   different path.
 
-Still to come: phase 7 (path-position `any`), 8 (the `within` / `toward` renames),
-9 (the `ref"…"` string surface) and 10 (the rest of the tier-2 codegen).
+Still to come: **phase 10 only** — the rest of the tier-2 codegen, which is a pure
+optimization with no semantic content. The vocabulary itself is complete: every
+form in the tables above is accepted by both matching DSLs, and an ini key and its
+Julia spelling parse to the same data.
 
 ## Done when
 
