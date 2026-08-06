@@ -273,7 +273,16 @@ implemented twice**: unification comes before the language grows.
    `**` having to be a whole component because a run of steps inside a *name* has
    no reading in a step-structured path — live at that boundary and nowhere else.
 10. **Tier-2 codegen** — a pure optimization, safe because the differential test
-    is already in place. See below.
+    is already in place. **Done.** An `at` arm whose gap is followed only by steps
+    that take exactly one step has its run's length computed rather than searched,
+    and compiles. A bound gap qualifies, and so does a lazy one — with one
+    candidate split there is nothing to prefer, which is the "greediness is
+    invisible" finding cashed in.
+
+    The boundary is a **test** rather than a comment: macroexpanding an arm and
+    looking for the interpreter call pins which patterns compile, so a later change
+    cannot move one across quietly. A variable-length remainder, a second gap, a
+    `::T` after the gap, a non-`at` arm and an alternation all stay interpreted.
 
 ### The compile/interpret ladder
 
@@ -384,24 +393,25 @@ Run from the repo root environment, memory-capped under `systemd-run`.
 
 ## Landed so far
 
-Phases 1 to 9, on `reference-pattern-gap`.
+All ten phases, on `reference-pattern-gap`.
 
-- `test_reference_rules()` 867 pass (from 473), `test_reference_eval()` 33,
+- `test_reference_rules()` 896 pass (from 473), `test_reference_eval()` 33,
   `test_reference_builder()` 30.
-- `test_kernel()` 1364 pass / 3 fail / 2 error — the same five pre-existing
+- `test_kernel()` 1393 pass / 3 fail / 2 error — the same five pre-existing
   `DocumentMacro` "Rule C" failures the baseline carries.
 - `test_base()` 387, `test_visual()` 49534 / 1 broken, `test_domain()` 184679 / 5
   broken. No failures or errors.
-- **No wall-clock cost.** `test_visual()` is 38.9 s on the branch against 39.6 s
-  on a clean-main worktree — marginally faster, inside the noise. Tier 1 is
-  untouched by construction: the gap check is a macroexpand-time question, and no
-  pattern in the codebase contains a gap, so nothing that runs today takes a
-  different path.
+- **No wall-clock cost**, measured by interleaving runs rather than comparing
+  single ones, because the machine drifts under repeated load. Final check on
+  `test_visual()`: main 35.9 s / 36.8 s against branch 37.0 s / 35.7 s — identical
+  means. Tier 1 is untouched by construction: the tier question is answered at
+  macroexpand time, and no pattern in the codebase contains a gap, so nothing that
+  runs today takes a different path.
 
-Still to come: **phase 10 only** — the rest of the tier-2 codegen, which is a pure
-optimization with no semantic content. The vocabulary itself is complete: every
-form in the tables above is accepted by both matching DSLs, and an ini key and its
-Julia spelling parse to the same data.
+Nothing is left. Every form in the tables above is accepted by both matching DSLs,
+an ini key and its Julia spelling parse to the same data, and the two matchers are
+one implementation with a compiled fast path that the corpus checks against the
+interpreted one.
 
 ## Done when
 
@@ -410,4 +420,4 @@ spelling answer identically, the arm words carry no disjunction in their names,
 the 113 catch-alls are migrated behind a compiler error rather than silently, the
 interpreter is the single normative matcher with codegen as a differential-tested
 optimization, and the four package suites are green against a clean-main baseline
-with no wall-clock regression.
+with no wall-clock regression. **Done.**
