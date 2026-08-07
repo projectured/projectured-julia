@@ -230,6 +230,7 @@ include("widget/WidgetPopupResolver.jl")
 include("pane/Pane.jl")
 include("pane/PaneSurgery.jl")
 include("pane/PaneGeometry.jl")
+include("pane/PaneToWidget.jl")
 
 # ── Slice 7 — syntax (tree presentation, target of every source domain) ─
 # Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.
