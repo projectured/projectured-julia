@@ -70,6 +70,7 @@ include("document/SyntaxTest.jl")
 include("document/TextTest.jl")
 include("document/GraphicsTest.jl")
 include("document/GeometryTest.jl")
+include("document/FontMetricsTest.jl")
 include("document/GraphicsLayoutTest.jl")
 include("document/LayoutAllocatorTest.jl")
 include("document/PrimitiveTest.jl")
@@ -181,6 +182,7 @@ function test_visual()
         test_text()
         test_graphics()
         test_affine_transform()
+        test_font_metrics()
         test_graphics_layout()
         test_layout_allocator()
         test_layout_constraint_helpers()
@@ -256,7 +258,7 @@ end
 
 export test_visual, test_visual_layering, test_visual_examples
 export test_point_reference
-export test_syntax, test_text, test_graphics, test_affine_transform,
+export test_syntax, test_text, test_graphics, test_affine_transform, test_font_metrics,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive, test_pane_surgery, test_pane_geometry, test_pane_to_widget,
        test_pane_reader, test_pane_gestures, test_pane_drag,

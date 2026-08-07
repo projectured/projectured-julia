@@ -16,7 +16,8 @@ module TrueTypeModule
 
 import ..FontModule: StyleFont, font_logical_size
 
-export truetype_measure_text
+export truetype_measure_text, font_ascent, font_descent, font_line_height,
+       font_x_height, font_cap_height
 
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
@@ -42,6 +43,7 @@ mutable struct TrueTypeFont
     descent::Int                  # hhea descender (font units, usually negative)
     bbox::NTuple{4,Int}           # head xMin,yMin,xMax,yMax (font units)
     cap_height::Int               # OS/2 sCapHeight if present, else ascent
+    x_height::Int                 # OS/2 sxHeight if present, else half the cap height
     italic_angle::Float64
     is_fixed_pitch::Bool
     cmap_off::Int                 # byte offset of chosen cmap subtable, 0 if none
@@ -93,12 +95,44 @@ function _parse_ttf(b::Vector{UInt8})
     cmap_sub, cmap_kind = cmap_off == 0 ? (0, 0) : _select_cmap(b, cmap_off)
 
     cap_height = (os2_off != 0 && os2_len >= 96) ? Int(_s16(b, os2_off + 88)) : ascent
+    # `sxHeight` sits two bytes before `sCapHeight` and arrived with OS/2
+    # version 2, so the same length gate covers both. Math needs the x height:
+    # the axis a fraction bar sits on is half of it above the baseline.
+    x_height = (os2_off != 0 && os2_len >= 96) ? Int(_s16(b, os2_off + 86)) : cap_height ÷ 2
     italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
     is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
 
-    TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, bbox,
-                 cap_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
-                 Dict{UInt32,UInt16}())
+    font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, bbox,
+                        cap_height, x_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
+                        Dict{UInt32,UInt16}())
+
+    # DejaVu — the family math is set in — still ships an OS/2 **version 1**
+    # table, which carries neither field, and the fallbacks above are poor: a
+    # cap height equal to the ascent overshoots by a fifth, and math would put
+    # the fraction bar too low. Read the glyphs instead. The top of `x` is the
+    # x height and the top of `H` is the cap height, which is what those numbers
+    # mean. A CFF font has no `glyf` table and keeps the fallbacks.
+    if os2_off == 0 || os2_len < 96
+        loca_off, _ = _find_table(b, "loca")
+        glyf_off, _ = _find_table(b, "glyf")
+        long_loca = _u16(b, head_off + 50) == 1
+        top_x = _glyph_ymax(b, loca_off, glyf_off, long_loca, glyph_id(font, 'x'))
+        top_h = _glyph_ymax(b, loca_off, glyf_off, long_loca, glyph_id(font, 'H'))
+        top_h > 0 && (font.cap_height = top_h)
+        font.x_height = top_x > 0 ? top_x : font.cap_height ÷ 2
+    end
+    font
+end
+
+# The `yMax` of one glyph's outline, in font units, or 0 when the font has no
+# outline for it. The glyph header is numberOfContours, xMin, yMin, xMax, yMax —
+# five signed shorts — so `yMax` sits at offset 8.
+function _glyph_ymax(b, loca_off::Integer, glyf_off::Integer, long_loca::Bool, gid::Integer)
+    (loca_off == 0 || glyf_off == 0 || gid == 0) && return 0
+    start = long_loca ? Int(_u32(b, loca_off + 4gid))     : 2 * Int(_u16(b, loca_off + 2gid))
+    stop  = long_loca ? Int(_u32(b, loca_off + 4gid + 4)) : 2 * Int(_u16(b, loca_off + 2gid + 2))
+    stop <= start && return 0   # an empty glyph, e.g. a space
+    Int(_s16(b, glyf_off + start + 8))
 end
 
 # Pick the most capable Unicode cmap subtable; returns (subtable_offset, format).
@@ -206,5 +240,59 @@ A no-op at the default zoom (`font_logical_size == size`).
 truetype_measure_text(text, font::StyleFont) =
     (round(Int, text_width(_load_ttf(font.filename), font_logical_size(font), String(text))),
      font_logical_size(font))
+
+# ════════════════════════════════════════════════════════════════════════
+# Vertical metrics
+# ════════════════════════════════════════════════════════════════════════
+#
+# A measurer answers `(width, height)`, and the two measurers answer different
+# heights: `truetype_measure_text` gives the em size, `sdl_measure_text` gives
+# the rasterized one. Neither says where the baseline sits, so a caller that
+# aligns boxes on a baseline — a math typesetter — reads the font's own table
+# instead. Every function below answers in *logical* pixels at
+# `font_logical_size(font)`, so a caller inside a computed cell reflows when the
+# user changes the font zoom.
+
+_font_metric(font::StyleFont, units::Integer) =
+    round(Int, units * font_logical_size(font) / _load_ttf(font.filename).units_per_em)
+
+"""
+    font_ascent(font::StyleFont) -> Int
+
+Distance from the top of a text box down to its baseline, in logical pixels
+(the `hhea` ascender). A `GraphicsText` draws from the top of its box, so its
+baseline sits exactly this far below its `y`.
+"""
+font_ascent(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).ascent)
+
+"""
+    font_descent(font::StyleFont) -> Int
+
+Distance from the baseline down to the bottom of a text box, in logical pixels.
+Positive, unlike the `hhea` descender it comes from.
+"""
+font_descent(font::StyleFont) = _font_metric(font, -_load_ttf(font.filename).descent)
+
+"""
+    font_line_height(font::StyleFont) -> Int
+
+The full height of a text box: the ascent plus the descent.
+"""
+font_line_height(font::StyleFont) = font_ascent(font) + font_descent(font)
+
+"""
+    font_x_height(font::StyleFont) -> Int
+
+The height of a lowercase `x`, in logical pixels. Math sets the axis — the
+height a fraction bar and a large operator center on — at half of it.
+"""
+font_x_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).x_height)
+
+"""
+    font_cap_height(font::StyleFont) -> Int
+
+The height of a capital letter, in logical pixels.
+"""
+font_cap_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).cap_height)
 
 end

@@ -207,7 +207,7 @@ log_{2}(1 + x)            \bar{L}      n!             |x|
 \matrix[2]{1, 2, 3, 4}    \cases{1 if x < n; 0 otherwise}
 ```
 
-## Part C — publish the font metrics
+## Part C — publish the font metrics — **done**
 
 Files: [TrueType.jl](../../package/visual/main/style/TrueType.jl),
 [Font.jl](../../package/visual/main/style/Font.jl)
@@ -230,6 +230,16 @@ that identity.
 
 **Commit C.** The metrics API plus a test in the visual test package that asserts
 the ascent and the descent of DejaVu Sans at size 20.
+
+**Found during the work.** DejaVu ships an OS/2 **version 1** table, which
+carries neither `sxHeight` nor `sCapHeight`, so step 1 alone would have given
+math a cap height equal to the ascent and an x height half of that — a fraction
+bar a pixel too low at every size. The parser now falls back to the outlines:
+the `yMax` of `x` is the x height and the `yMax` of `H` is the cap height, which
+is what those numbers mean. That needed a small `loca`/`glyf` lookup
+(`_glyph_ymax`). A CFF font has no `glyf` table and keeps the old fallback.
+The values for DejaVu Sans at size 20: ascent 19, descent 5, cap height 15,
+x height 11. `test_visual()` stays green (52469 pass, 1 broken, 0 fail).
 
 ## Part D — typeset the boxes
 
