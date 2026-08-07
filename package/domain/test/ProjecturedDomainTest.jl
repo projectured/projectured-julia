@@ -114,6 +114,7 @@ include("external/DbCatalogSqlTest.jl")
 include("projection/ConversationEditorTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/DraggingTest.jl")
+include("projection/CommandPaletteTest.jl")
 include("projection/GestureHelpTest.jl")
 include("projection/GestureLogTest.jl")
 include("projection/GestureMapTest.jl")
@@ -202,6 +203,7 @@ function test_domain()
         # ── moved down from the umbrella (domain-fixture tests) ──────────────
         test_gesture_map()
         test_gesture_help()
+        test_command_palette()
         test_gesture_log()
         test_db_catalog_sql()
         test_reference_inspector_text()
@@ -268,7 +270,8 @@ export test_console_backend, test_write_pdf, test_type_reference
 export test_json_content_clicks_clean, collect_json_tree_selections, test_json_placeholder_navigation
 export test_construct, reconstruct, test_json_construct, test_yaml_construct, test_xml_construct
 # moved down from the umbrella
-export test_gesture_map, test_gesture_help, test_gesture_log, test_db_catalog_sql,
+export test_gesture_map, test_gesture_help, test_gesture_log, test_command_palette,
+       test_db_catalog_sql,
        test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline,
        test_workbench_tab_click, test_workbench_content_pane, test_dragging, test_serialization, test_mcp_tools,
        test_mcp_resources, test_conversation_serialization, test_parse_markdown_blocks,

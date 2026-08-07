@@ -193,13 +193,24 @@ therefore edited at its end, as a mini-buffer is. A caret **inside** the query
 is deferred; when it arrives it belongs to the projected text field's own
 selection, not to the palette's.
 
-### 3. The palette renders through widgets
+### 3. The palette renders through the syntax pipeline
 
-`CommandPaletteToWidget` prints a `WidgetCard` that holds a `WidgetText` for the
-query and a `WidgetList` for the matching rows. Both widgets already handle the
-text edit, the hover, the row click, and the row selection —
-[Widget.jl](../../package/visual/main/widget/Widget.jl). The existing
-`WidgetToGraphics` stage draws the result.
+`CommandPaletteToSyntax` prints the type-in line and one line per matching
+command, exactly as
+[GestureMapToSyntax](../../package/domain/main/gesturemap/GestureMapToSyntax.jl)
+prints the help window. The same `SyntaxToText → WordWrapping → TextToGraphics`
+chain draws it.
+
+The plan first said `CommandPaletteToWidget`, over a `WidgetText` and a
+`WidgetList`. Version 1 is driven by the keyboard alone — type, Up, Down, Enter,
+Escape — which is what a type-in buffer is, and what the request describes. The
+widgets earn their place when a mouse does something: a row click, a hover, a
+caret inside the query. Until then they cost a reactive `items` vector and a
+selection mapped from `rows` to the displayed subset, and buy nothing.
+
+The children are a thunk, not a fixed vector. `print_document` runs once, and the
+palette re-derives on every keystroke, so a captured list would freeze the render
+at the moment the palette opened.
 
 ### 4. The decorator owns the state, the overlay, and the keys
 
@@ -248,7 +259,7 @@ New files:
 
 - `package/domain/main/gesturemap/CommandPalette.jl` — the document and the
   match function.
-- `package/domain/main/gesturemap/CommandPaletteToWidget.jl` — the projection.
+- `package/domain/main/gesturemap/CommandPaletteToSyntax.jl` — the projection.
 - `package/domain/main/gesturemap/CommandPaletteDecorator.jl` — the decorator.
 - `package/domain/test/projection/CommandPaletteTest.jl` — the tests.
 
@@ -298,11 +309,14 @@ Two facts found during the work:
 2. Split the collected set into the run set and the show set.
 3. Extend `test_gesture_help()` to cover a command-only binding.
 
-### Phase 3 — the palette document and its projection
+### Phase 3 — the palette document and its projection — **done**
 
-1. Add `CommandPalette` and the match function.
-2. Add `CommandPaletteToWidget`.
-3. Test the match order and the printer without an editor.
+1. ~~Add `CommandPalette` and the match function.~~
+2. ~~Add `CommandPaletteToSyntax` (not `ToWidget` — see above).~~
+3. ~~Test the match order and the printer without an editor.~~
+
+`test_command_palette()` reports 31 passed. The document carries `query` and
+`rows`; the matching subset is derived, never stored, so it cannot go stale.
 
 ### Phase 4 — the decorator
 

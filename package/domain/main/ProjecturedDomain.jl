@@ -160,6 +160,7 @@ const DocumentFileModule = ProjecturedVisual.DocumentFileModule
 include("json/Json.jl")
 include("yaml/Yaml.jl")
 include("gesturemap/GestureMap.jl")
+include("gesturemap/CommandPalette.jl")
 include("gesturelog/GestureLog.jl")
 include("math/Math.jl")
 include("julia/Julia.jl")
@@ -207,6 +208,7 @@ include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
 include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
+include("gesturemap/CommandPaletteToSyntax.jl")
 include("gesturelog/GestureLogToSyntax.jl")
 # The recorder and the overlay come after the log chain: the overlay names
 # GestureLogToSyntax to render the panel.
