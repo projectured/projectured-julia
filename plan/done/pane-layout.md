@@ -513,6 +513,14 @@ design leaves room.
 - The **drop indicator**, and the **caret in a tab name** — both need the widget
   tree to gain a layer without changing shape (step 8 and step 7).
 - A **split-drop that empties its source group** (step 8).
+- **The type-in sweep over a whole layout.** `test_typein` types at every caret
+  of an example; over a pane layout most carets are chrome that rightly declines,
+  and 526 of 891 positions fail. The two pane examples are therefore kept out of
+  the global `examples` registry (run them by name instead), so the suite's
+  baseline stays honest. Two real fixes came out of looking at it: the reader's
+  catch-all was ambiguous with the text-edit readers — typing in a tab threw a
+  `MethodError` — and the backward map built a path `@reference` refused because a
+  foreign domain left a node untyped.
 - **A `WidgetSplitPane` printer that is reactive on its slot count.** Until then
   a split re-prints the pane widgets (step 10).
 - **Reorder tabs inside a group by dragging.** The strip's drop zone means "into

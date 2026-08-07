@@ -54,7 +54,8 @@ import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
+                          get_reference_node_type
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
@@ -109,6 +110,16 @@ end
 
 const _PANE_BORDER = Inset(4, 4, 4, 4)
 const _PANE_PADDING = Inset(4, 4, 4, 4)
+
+# The junction type. A tab's content passes through this projection untouched, and
+# the mapper that handed it back names the step but not the node it descends from
+# — that node is the content document, which only this projection knows. Fill it
+# in here, so the path is typed all the way down and `@reference` accepts it.
+_typed_head(reference::ConcreteReference, document) =
+    reference.type === nothing ?
+        ConcreteReference(get_reference_node_type(document), reference.head, reference.tail) :
+        reference
+_typed_head(reference, ::Any) = reference
 
 # The tail after a scroll pane's own `content` step, or `nothing`.
 function _after_content_step(reference)
@@ -352,7 +363,7 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             content === nothing && return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
             inner = _child_backward(entries[i].iomap, content)
             inner === nothing && return nothing
-            @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(inner)
+            @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(_typed_head(inner, entries[i].iomap.input))
         end
     end
 end
@@ -368,13 +379,47 @@ end
 # through to the generic reader, which re-targets references through
 # `map_reference_backward` and hands a raw gesture to the tree's own
 # `@gestures` table.
+#
+# **One method per report, and no catch-all.** A method that took *any* payload
+# for this projection and this IoMap would be ambiguous with the readers that
+# take any projection and a particular operation — `ReaderDefaults`' text-edit
+# readers are exactly that shape. Each is more specific than the other in a
+# different argument, and the tie only shows up when the first text edit arrives:
+# typing in a tab would fail with a `MethodError` rather than edit anything.
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, payload)
-    answer = _read_report(p, iomap, payload)
-    answer === nothing || return answer
-    # The generic reader. `invoke` reaches it past this more specific method.
-    invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, payload)
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+                     operation::SelectTabOperation)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    pane_focus_operation(iomap.input, group, operation.tab_index)
 end
+
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+                     operation::CloseTabRequestOperation)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    pane_close_tab_operation(iomap.input, group, operation.tab_index)
+end
+
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+                     operation::NewTabRequestOperation)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    pane_open_tab_operation(iomap.input, group, p.new_tab())
+end
+
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+                     operation::DragTabOperation)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    (1 <= operation.tab_index <= length(group.tabs)) || return nothing
+    _drag_write(iomap.input, (group = group, index = operation.tab_index,
+                              target = nothing, zone = :none))
+end
+
+read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+            operation::ResizeSplitPaneOperation) =
+    _read_resize(iomap.input, iomap, operation)
 
 # A drag is a *gesture* state machine, so it needs the raw gesture even when the
 # layers below already turned it into an operation — a `MouseMove` over a button
@@ -468,32 +513,6 @@ function _drop_target(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
     w, h = Int(width[]), Int(height[])
     (w <= 0 || h <= 0) && return nothing
     pane_drop_zone(iomap.input, x / w, y / h; strip = _PANE_STRIP_PIXELS / h)
-end
-
-function _read_report(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation)
-    tree = iomap.input
-    if operation isa SelectTabOperation
-        group = _pane_node_for(iomap, operation.widget)
-        group isa PaneGroup || return nothing
-        return pane_focus_operation(tree, group, operation.tab_index)
-    elseif operation isa CloseTabRequestOperation
-        group = _pane_node_for(iomap, operation.widget)
-        group isa PaneGroup || return nothing
-        return pane_close_tab_operation(tree, group, operation.tab_index)
-    elseif operation isa NewTabRequestOperation
-        group = _pane_node_for(iomap, operation.widget)
-        group isa PaneGroup || return nothing
-        return pane_open_tab_operation(tree, group, p.new_tab())
-    elseif operation isa DragTabOperation
-        group = _pane_node_for(iomap, operation.widget)
-        group isa PaneGroup || return nothing
-        (1 <= operation.tab_index <= length(group.tabs)) || return nothing
-        return _drag_write(tree, (group = group, index = operation.tab_index,
-                                  target = nothing, zone = :none))
-    elseif operation isa ResizeSplitPaneOperation
-        return _read_resize(tree, iomap, operation)
-    end
-    nothing
 end
 
 # A splitter drag is a weight change. The widget computed two new pixel extents;
