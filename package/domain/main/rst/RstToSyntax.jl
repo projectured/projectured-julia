@@ -73,7 +73,8 @@ import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
+                       SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
@@ -100,6 +101,7 @@ export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstRootToSyntaxNode, RstStyledTextToSyntaxLeaf, RstStyledInline,
        RstStrongToStyledNode, RstEmphasisToStyledNode, RstRoleToStyledLeaf,
        RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
+       RstLiteralIncludeToStyledLeaf, RstEnumeratedListToStyledNode,
        RstToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
@@ -644,17 +646,22 @@ end
     lang_style::ImmutableCell{DStyleText}   = StyleText(_MONO, color_solarized_magenta)
     code_style::ImmutableCell{DStyleText}   = StyleText(_MONO, color_solarized_green)
     header::String = ".. code-block:: "
+    # The rendered view shows the code alone. The language names a colouring
+    # rule, not something a reader of the page needs to see.
+    show_language::Bool = true
 end
 
 @rst_indented RstCodeBlockToSyntaxNode RstCodeBlock (prj, doc, outer, inner) ->
     SyntaxConcatenation([
-        SyntaxLeaf(bound(:language, String, TextString(() -> doc.language, prj.lang_style));
+        SyntaxLeaf(bound(:language, String,
+                         TextString(() -> prj.show_language ? doc.language : "", prj.lang_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=TextString(() -> !prj.show_language || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
         SyntaxLeaf(TextString(() -> isempty(doc.code) ? "" :
-                                    "\n\n" * _indent_body(doc.code, inner), prj.code_style)) ])
+                                    (prj.show_language ? "\n\n" : "") * _indent_body(doc.code, inner),
+                              prj.code_style)) ])
 
 @projection struct RstImageToSyntaxNode
     marker_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
@@ -715,28 +722,40 @@ end
 
 @projection struct RstAdmonitionToSyntaxNode
     marker_style::ImmutableCell{DStyleText} = StyleText(_MONO_BOLD, color_solarized_yellow)
+    # With the marker off the kind is written as a word — `Note`, `Warning` —
+    # which is what the box is labelled in the natural notation.
+    show_marker::Bool = true
 end
 
 @rst_indented RstAdmonitionToSyntaxNode RstAdmonition (prj, doc, outer, inner) ->
     SyntaxNode(collection(:elements);
-               open=TextString(() -> ".. " * doc.kind * "::\n\n" * inner, prj.marker_style),
+               open=TextString(() -> (prj.show_marker ? ".. " * doc.kind * "::" :
+                                                        uppercasefirst(doc.kind)) * "\n\n" * inner,
+                               prj.marker_style),
                sep=TextString("\n\n" * inner, prj.marker_style),
                indentation=0)
 
 @projection struct RstToctreeToSyntaxNode
     marker_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
     entry_style::ImmutableCell{DStyleText}  = StyleText(_MONO, color_solarized_blue)
+    # With the marker off the directive line and its options go, and a heading
+    # word stands over the entries — a toctree *is* a table of contents, and
+    # `:maxdepth:` is a build setting the reader has no use for.
+    show_marker::Bool = true
+    heading::String   = "Contents"
 end
 
 @rst_indented RstToctreeToSyntaxNode RstToctree (prj, doc, outer, inner) ->
     SyntaxConcatenation([
-        SyntaxLeaf(TextString(() -> ".. toctree::" *
+        SyntaxLeaf(TextString(() -> prj.show_marker ?
+                                    ".. toctree::" *
                                     (doc.maxdepth == 0 ? "" : "\n" * inner * ":maxdepth: " * string(doc.maxdepth)) *
                                     (doc.titlesonly ? "\n" * inner * ":titlesonly:" : "") *
-                                    (doc.glob ? "\n" * inner * ":glob:" : ""),
+                                    (doc.glob ? "\n" * inner * ":glob:" : "") :
+                                    prj.heading,
                               prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=TextString(() -> !prj.show_marker || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
         SyntaxNode(collection(:entries);
                    open=TextString(() -> isempty(doc.entries) ? "" : "\n\n" * inner, prj.entry_style),
@@ -1040,6 +1059,92 @@ function ProjectionApiModule.print_document(p::RstSectionToStyledNode, recursion
     ChildrenIoMap(p, doc, node, child_iomaps)
 end
 
+# ── RstEnumeratedListToStyledNode (rendered; the numbers actually count) ─────
+# The source view prints the list's own start number on every item, because a
+# templated item cannot know its index and RST renumbers on render anyway. The
+# natural notation *is* the render, so the number has to be right — which means
+# building the items here, where the index is in hand.
+
+@projection struct RstEnumeratedListToStyledNode
+    marker_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+function ProjectionApiModule.print_document(p::RstEnumeratedListToStyledNode, recursion, doc::RstEnumeratedList, ctx)
+    indent = _ambient(ctx)
+    child_iomaps = ComputedCell(() -> [
+        print_child(recursion, item,
+                    make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
+        for (i, item) in enumerate(doc.items)])
+    items = ComputedCellVector(() -> begin
+        maps = child_iomaps[]
+        first_number = doc.start
+        SyntaxDocument[
+            SyntaxDelimitation(maps[k].output;
+                               opening_delimiter=TextString((k == 1 ? "" : "\n" * indent) *
+                                                            string(first_number + k - 1) * ". ",
+                                                            p.marker_style))
+            for k in eachindex(maps)]
+    end)
+    iomap_cell = Cell(nothing)
+    sel = ComputedCell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+    node = SyntaxNode(items; indentation=0, selection=sel)
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+# Each item sits inside the `SyntaxDelimitation` that carries its number, so
+# the tail hops through `.content` on the way in and out — the same hop
+# `YamlSequenceToBlockSyntaxNode` makes for its `- ` marker.
+function map_reference_forward(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), _) => reference
+        items{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxDelimitation.content.^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::RstEnumeratedList
+        ::SyntaxNode.children{s:e}.content.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_backward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::RstEnumeratedList.items::CellVector[child_i].^(inner)
+        end
+    end
+end
+
+function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    ReplaceSelectionOperation(result)
+end
+
+function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    ReplaceStringRangeOperation(new_ref, op.replacement)
+end
+
 # ── The picture ───────────────────────────────────────────────────────────────
 # A figure and an image draw the file `path` names, decoded lazily and capped in
 # width; a path that is not on disk falls back to the path as text. Modelled on
@@ -1069,10 +1174,46 @@ end
 end
 
 @rst_flat RstFigureToStyledNode RstFigure (prj, doc, indent) ->
-    SyntaxNode(collection(:caption);
-               open=TextString(() -> "", prj.caption_style),
-               sep=TextString("\n" * indent, prj.caption_style),
-               indentation=0)
+    SyntaxConcatenation([
+        SyntaxLeaf(_rst_picture(doc.path, StyleText(_MONO, color_black), prj.placeholder)),
+        SyntaxNode(collection(:caption);
+                   open=TextString(() -> isempty(doc.caption) ? "" : "\n" * indent, prj.caption_style),
+                   sep=TextString("\n" * indent, prj.caption_style),
+                   indentation=0) ])
+
+# ── RstLiteralIncludeToStyledLeaf (rendered; one line, not option syntax) ────
+# The source view lists the slice bounds as `:start-at:` / `:end-at:` lines,
+# which is the file's own spelling. The natural notation says the same thing in
+# one line: where the text comes from, in what language, between which marks.
+#
+# The arrow is drawn in DejaVu because SDL does not fall back between fonts —
+# a glyph the chrome font lacks arrives as an empty box, and Ubuntu Mono lacks
+# this one.
+
+@projection struct RstLiteralIncludeToStyledLeaf
+    marker_style::ImmutableCell{DStyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    path_style::ImmutableCell{DStyleText}   = StyleText(_MONO, color_solarized_violet)
+    detail_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+    marker::String = "\u21b3 "
+end
+
+# The bounds, as the reader would say them: from what, to what.
+function _include_detail(doc)
+    parts = String[]
+    isempty(doc.language) || push!(parts, doc.language)
+    from = isempty(doc.start_at) ? doc.start_after : doc.start_at
+    to   = isempty(doc.end_at) ? doc.end_before : doc.end_at
+    isempty(from) && isempty(to) && return isempty(parts) ? "" : "  (" * join(parts, ", ") * ")"
+    push!(parts, (isempty(from) ? "start" : from) * " \u2026 " * (isempty(to) ? "end" : to))
+    "  (" * join(parts, ", ") * ")"
+end
+
+@rst_flat RstLiteralIncludeToStyledLeaf RstLiteralInclude (prj, doc, indent) ->
+    SyntaxConcatenation([
+        SyntaxLeaf(bound(:path, String,
+                         hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                   open=TextString(prj.marker, prj.marker_style)),
+        SyntaxLeaf(TextString(() -> _include_detail(doc), prj.detail_style)) ])
 
 @projection struct RstImageToStyledNode
     placeholder::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
@@ -1164,10 +1305,13 @@ function RstToSyntax(; style::Symbol = :source)
         RstReference   => RstReferenceToSyntaxNode(show_markers=false),
         RstTransition  => RstTransitionToSyntaxLeaf(text="────────────", style=dejavu_gray),
         RstBulletList  => RstBulletListToSyntaxNode(marker="•  "),
-        RstCodeBlock   => RstCodeBlockToSyntaxNode(header=""),
+        RstCodeBlock   => RstCodeBlockToSyntaxNode(header="", show_language=false),
+        RstEnumeratedList => RstEnumeratedListToStyledNode(),
+        RstAdmonition  => RstAdmonitionToSyntaxNode(show_marker=false),
+        RstToctree     => RstToctreeToSyntaxNode(show_marker=false),
         RstLineBlock   => RstLineBlockToSyntaxNode(open_marker=""),
-        RstLiteralInclude => RstLiteralIncludeToSyntaxNode(header="↳ "),
-        RstAudio       => RstAudioToSyntaxNode(header="♪ "),
+        RstLiteralInclude => RstLiteralIncludeToStyledLeaf(),
+        RstAudio       => RstAudioToSyntaxNode(header=""),
         RstMathBlock   => RstMathBlockToSyntaxLeaf(show_marker=false),
         # A comment and a target are build-time chrome: the natural notation
         # shows the comment dimmed without its marker, and nothing for a target.

@@ -87,7 +87,12 @@ function make_rst_document_example()
                 ]),
             ]),
             RstSection(2, "-", [RstText("The Model")]; elements = [
-                RstFigure("media/Network.png"; align = "center",
+                # A path that exists relative to the repository root, so the
+                # rendered example draws a real picture when the editor is
+                # started there. A path that does not resolve degrades to the
+                # path as text, which is what a figure in a real showcase
+                # (`media/Network.png`) does until the loader seam lands.
+                RstFigure("asset/image/projectured.png"; align = "center",
                           caption = [RstParagraph([RstText("The network of the showcase")])]),
                 RstCodeBlock("ini", "*.source.numApps = 1\n*.source.app[0].typename = \"UdpSourceApp\""),
                 RstLiteralInclude("../omnetpp.ini", "ini",

@@ -107,6 +107,26 @@ editable.
 No markers. Large bold titles, real bold and italic, a role as a chip coloured
 by what it names, a figure as the picture itself, `•` bullets, a `────` rule.
 
+Every directive says what it means rather than how it is spelled:
+
+| Directive | The natural notation |
+| --- | --- |
+| `.. figure::` | the picture, with its caption under it |
+| `.. code-block:: ini` | the code alone, indented — the language names a colouring rule, not something the reader needs |
+| `.. note::` | the word `Note` over an indented body |
+| `.. toctree::` | the word `Contents` over the entries; `:maxdepth:` is a build setting and goes |
+| `.. literalinclude::` | one line — `↳ path (language, from … to)` — instead of four option lines |
+
+An enumerated list counts properly here. The source view prints the list's own
+start number on every item, because a templated item cannot know its index and
+RST renumbers on render anyway; the natural notation *is* the render, so
+`RstEnumeratedListToStyledNode` builds its items by hand, where the index is
+in hand.
+
+**Glyphs come from DejaVu.** SDL does not fall back between fonts: a glyph the
+chrome font lacks arrives as an empty box. Ubuntu Mono has `•` but not `↳`, so
+the rules that draw an arrow name `font_dejavu_monospace_regular_20`.
+
 Bold, italic and a section title change the font of every descendant text run,
 which travels as an ambient `:rst_style` in the printer context: a container
 augments it and delegates, the leaf reads it. That is the School A pattern
@@ -185,12 +205,19 @@ gives back the document it came from. All 349 INET files satisfy it.
 - **`include` does not resolve**, for the same reason.
 - **Sphinx role semantics.** A `:ned:` role does not resolve to a NED type and
   a `:doc:` role does not resolve to a page. A role is a styled string.
-- **An enumerated list prints its start number on every item.** An item does
-  not know its index. RST renumbers on render and a re-parse recovers the same
-  list, so nothing is lost on save; a list that starts at a number other than
-  one loses that start.
+- **The source view prints an enumerated list's start number on every item.**
+  An item does not know its index, and a re-parse recovers the same list, so
+  nothing is lost on save — but a list starting at a number other than one
+  loses that start. The rendered view counts properly.
+- **`RstSectionToStyledNode` has no reference mappers.** The rendered section
+  prints, but a selection does not map through it, so navigating the rendered
+  view stops at a section boundary. The source view maps fully.
 - **The rendered grid table keeps the drawn grid** rather than laying the
   cells out as a real table.
+- **A figure path is resolved against the process working directory,** not
+  against the file the figure came from, because the slice has no document
+  directory to resolve against — that is the same loader seam `literalinclude`
+  waits on. A path that does not resolve degrades to the path as text.
 - **No marker vocabulary.** The markdown slice has a cross-file reference
   convention; this one has no need of it yet. An `RstComment` whose body opens
   with `pred-ref` is the natural place for one.
