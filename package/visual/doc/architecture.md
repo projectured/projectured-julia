@@ -15,13 +15,13 @@ deliberate exception: the Display *device* and the display-size seam stay in
 the kernel (`device/Display.jl` + `backend/BackendInterface.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
-## The 11 slices and their include order
+## The 12 slices and their include order
 
 The slices form an acyclic dependency DAG; the include list below is a
 topological order of it — each slice imports only slices listed before it:
 
 ```
-style → screen → graphics → layout → text → widget → syntax →
+style → screen → graphics → layout → text → widget → pane → syntax →
 clipboard → tooltip → inspector → backend
 ```
 
@@ -33,13 +33,15 @@ change.
 
 ## Per-slice guides
 
-Four of the render-target slices have their own deep-dive guides, sitting
+Five of the slices have their own deep-dive guides, sitting
 alongside this document in `package/visual/doc/`:
 
 - [Text domain](text.md) — styled text spans and character-offset selection.
 - [Syntax domain](syntax.md) — the generic tree presentation target.
 - [Graphics domain](graphics.md) — backend-agnostic drawing primitives.
 - [Widget domain](widget.md) — the UI widget system and its themes.
+- [Pane domain](pane.md) — tab groups, splits, and the gestures that
+  rearrange them.
 
 ## Slice inventory
 
@@ -93,6 +95,18 @@ bridges (`PrimitiveToText`, `ReferenceToText`).
 (reflection-driven form),
 `WidgetHoverTracking.jl`, `ProjectionConfiguring.jl`,
 `WidgetPopupResolver.jl` (decorators).
+
+### pane/ — tab groups and splits: the screen layout
+
+`Pane.jl` (the layout document: `PaneTree`/`PaneSplit`/`PaneGroup`/`PaneTab`),
+`PaneSurgery.jl` (the tree edits, each of which builds a *generic* operation),
+`PaneGeometry.jl` (unit-square rectangles, the direction search, the drop
+zones), `PaneGestures.jl` (the `@gestures PaneTree` table), `PaneToWidget.jl`
+(the projection onto `WidgetSplitPane` / `WidgetTabbedPane`, and the reader that
+answers the strip's reports). Above `widget/`, because it projects onto widgets;
+in visual rather than domain, because it is the same shape as `screen/` one level
+down — a small structural document that organizes what the user sees. See
+[pane.md](pane.md).
 
 ### syntax/ — the tree presentation target of every source domain
 

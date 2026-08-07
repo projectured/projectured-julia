@@ -35,7 +35,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetShell(children)` | Top-level window contents |
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
 | `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
-| `WidgetTabbedPane(selector_element_pairs)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width |
+| `WidgetTabbedPane(selector_element_pairs; closable, new_tab, draggable)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width. The three flags add a close button per tab, a new-tab button after the last, and a grab on a button down — see [Strip reports](#strip-reports) |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
 | `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
@@ -236,6 +236,7 @@ alongside the widget types in
 | Operation | Effect |
 |---|---|
 | `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the workbench overloads it into a document-selection move |
+| `CloseTabRequestOperation` / `NewTabRequestOperation` / `DragTabOperation` | the other three event-like strip reports — see [Strip reports](#strip-reports) |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
 | `InvokeActionOperation(action)` | invoke a control's `Action` — its `callback` runs (with the editor if it takes one), guarded by the action's `enabled` |
 
@@ -266,6 +267,28 @@ conserved), clamped to each slot's `layout_min`/`layout_max`. In the
 the drag sticks instead of being undone by weighted redistribution. `sizes` is
 materialised from the measured slot extents on the first drag if it was empty.
 These cells are transient UI state and are not meant to be serialised.
+
+## Strip reports
+
+A tab strip can offer three more things than a tab click, each opt-in on the
+pane, and each *reporting* rather than deciding:
+
+| Flag | Draws | Reports |
+|---|---|---|
+| `closable` | a close button on every tab | `CloseTabRequestOperation(pane, index)` |
+| `new_tab` | a `+` button after the last tab | `NewTabRequestOperation(pane)` |
+| `draggable` | nothing | `DragTabOperation(pane, index)` on a left button down over a tab |
+
+The strip knows a button was pressed and **nothing about what it means** — what
+closing a tab does to the document behind it is the owning projection's business,
+exactly as `SelectTabOperation` already worked. A report that nobody claims is
+inert: `evaluate_operation` does nothing with it rather than failing.
+
+`_tab_strip_geometry` is the single place that lays out the strip, and both the
+printer and the reader read it — extend that function, never its callers, or the
+drawn tab and the hit-tested tab drift apart.
+
+The [pane domain](pane.md) is the reference consumer of all three.
 
 ## Button behavior
 

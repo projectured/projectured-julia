@@ -1,5 +1,13 @@
 # Pane layout: tab groups, splits, and drag and drop
 
+> **Status: DONE.** Implemented on branch `pane-layout`, one commit per step. The
+> slice is `package/visual/main/pane/`; the guide is
+> [package/visual/doc/pane.md](../../package/visual/doc/pane.md). Eight test
+> functions cover it, ending with `test_pane_construct`, which builds a
+> two-by-two layout from the empty group with nothing but real gestures through
+> one standing iomap. What the implementation changed about this plan is recorded
+> step by step below.
+
 A generic way to organize documents on the screen. The user starts with one
 empty tab group. The user then opens tabs, splits groups, closes tabs, moves the
 focus with the cursor keys, renames a tab in place, and drags a tab from one
@@ -191,6 +199,7 @@ the generic operation to emit.
 | Close the last tab, the parent split holds two | `replace_document(path_to(parent), sibling)` plus the focus move |
 | Split a group | `replace_document(path_to(group), PaneSplit(orientation, [group, new_group], [0.5, 0.5]))` plus the focus move |
 | Move a tab between groups | `MoveRangeOperation(source.tabs, a, b, target.tabs, i)` plus the focus move |
+| Drop a tab on a group's edge | the split write, the move, and the focus move — `pane_drop_split_operation`, added during step 8 |
 | Resize a split | one `ReplaceReferencedValueOperation` per changed weight, in a `CompoundOperation` |
 | Move the focus, switch the tab | `ReplaceSelectionOperation` |
 | Rename a tab | `ReplaceStringRangeOperation`, from the existing text gestures |
@@ -359,7 +368,7 @@ The empty group must:
 Do the work in a dedicated git worktree. Make one commit per step. Mark each step
 here when it is done, and record what the implementation changed about the design.
 
-1. **Add the documents and the surgery builders.** `Pane.jl` and
+1. **Done. Add the documents and the surgery builders.** `Pane.jl` and
    `PaneSurgery.jl`: the four document types, and one builder per edit that
    returns a generic operation. No operation struct. Register the slice in
    `ProjecturedVisual.jl` and in the visual slice order.
@@ -368,58 +377,97 @@ here when it is done, and record what the implementation changed about the desig
    of a one-element split, and the flatten of same-orientation splits — and
    asserts that the surviving nodes are the same objects (`===`).
 
-2. **Add the geometry.** `PaneGeometry.jl`: the rectangles, the direction search,
+2. **Done. Add the geometry.** `PaneGeometry.jl`: the rectangles, the direction search,
    and the traversal order.
    *Done when* the tests cover a three-way and a nested layout, all four
    directions, the no-neighbour case, and the wrap-around of the traversal.
 
-3. **Extend the widget layer.** The four additions above, with their own tests
-   against `widget_tabbed_pane_example`.
-   *Done when* a click on a close button, a click on the new-tab button, and a
-   `MouseDown` on a tab each produce their operation, and the existing tabbed-pane
-   tests still pass.
+3. **Done, in part. Extend the widget layer.** Three of the four additions
+   landed: the close button, the new-tab button, and the grab, each behind an
+   opt-in flag (`closable`, `new_tab`, `draggable`) and each answering an
+   event-like report. `test_widget_tab_strip` sweeps the strip and asserts which
+   report appears where, so it fixes no pixel.
 
-4. **Print the tree.** `PaneToWidget.jl`: a split prints a `WidgetSplitPane` with
+   **The document selector moved to step 7 and then turned out to be
+   unnecessary.** Printing the title as a child document would have needed the
+   selector's iomaps stored in the tabbed pane's own iomap — its `child_iomaps`
+   holds `(x, y, iomap)` triples by a convention several widgets share — and the
+   rename works without it (see step 7). What is lost is the caret *drawn* in the
+   strip; the name still changes as you type.
+
+4. **Done. Print the tree.** `PaneToWidget.jl`: a split prints a `WidgetSplitPane` with
    the translated orientation and the weights, a group prints a
    `WidgetTabbedPane`, a tab's content recurses. Map the references both ways.
    Print the empty state.
    *Done when* `test_printer(pane_example)` passes and the selection maps forward
    and backward through both node kinds.
 
-5. **Read the mouse.** Tab click, close, new tab, a click in a pane body, and the
-   splitter drag that writes the weights.
-   *Done when* each row of the mouse table above, except the three drag-and-drop
-   rows, has a test.
+5. **Done. Read the mouse.** Tab click, close, new tab, a click in a pane body,
+   and the splitter drag that writes the weights.
 
-6. **Add the keyboard.** The `@gestures PaneTree` table.
-   *Done when* every chord of the keyboard table has a test, and each one is also
-   tested with the caret inside a text document, to prove the content did not
-   claim it.
+   Two things the implementation found:
 
-7. **Rename in place.** The title is a `PrimitiveString`, the strip prints it
-   through a `WidgetText`, and the existing `@gestures PrimitiveString` editing
-   applies. `F2` and `Escape` only move the selection. There is no rename mode
-   and no rename operation.
-   *Done when* a round trip types a new name and the tree holds it.
+   - **The tree is transparent, so it shares its root's widget.** The search that
+     answers "which pane node printed this widget" must look at the children
+     *before* itself, or every group's report is answered by the tree.
+   - **A click in a pane's empty space hit nothing at all.** A pane's content is
+     a document that ends where its text ends, so most of a pane is not an
+     element. The reader now falls back: a press that nothing claimed focuses the
+     group it landed in, resolved through the same rectangles the drag uses.
 
-8. **Add drag and drop.** The state machine, the zones, and the indicator.
-   *Done when* a `MouseDown`, `MouseMove`, `MouseUp` sequence over a strip
-   produces the `MoveRangeOperation` of the move builder, and the same sequence
-   over an edge band produces the write of the split builder.
+6. **Done. Add the keyboard.** The `@gestures PaneTree` table, and the three key
+   symbols it needs added to the SDL vocabulary (`:t`, `:w`, `:backslash`).
 
-9. **Add the example and the guide.** `pane_example` in
-   `package/visual/example/`, one empty and one populated variant. A new
-   `package/visual/doc/pane.md`. Update `package/visual/doc/widget.md` for the
-   four widget additions, and `package/visual/doc/architecture.md` for the slice.
-   *Done when* `run_example(pane_example)` opens the layout and every operation
-   works in it.
+   **The directional chord became `Ctrl+Alt`+arrow, not `Alt`+arrow.** Plain
+   `Alt`+arrow is the structural navigation of a document — `@gestures
+   SyntaxCompound` binds it — so the pane layer takes the next chord out rather
+   than fighting a content domain for it. `Ctrl+Tab` is declared `override`,
+   because the widget split pane answers every `Tab` with its own traversal.
 
-10. **Build the layout from empty.** One test that starts from
-    `PaneTree(PaneGroup(PaneTab[]))`, fires only real gestures, and asserts the
-    resulting tree. Follow the live order: print, refresh, select, refresh,
-    click, refresh, type. This is the acceptance test of the whole plan.
-    *Done when* the test builds a two-by-two layout with four named tabs, moves
-    one tab between groups by a drag, and closes one group away.
+7. **Done, by a shorter route. Rename in place.** The title is a
+   `PrimitiveString` and `F2`/`Escape` only move the selection, exactly as
+   planned — but the strip does **not** print it through a `WidgetText`. Instead
+   the pane's own table hands each keystroke to `read_gesture(title, …)`, whose
+   `@gestures PrimitiveString` rules insert and delete, and re-roots the answer
+   onto the tree. So the editing code is still not written twice, and the widget
+   layer needed no change at all.
+
+   Two things this route costs: the caret is not drawn in the strip (the name
+   changes as you type, with no visible cursor), and the rule bodies do their own
+   guarding, because a `when(…)` guard sees the event's fields and not `doc`.
+
+8. **Done, without the indicator. Add drag and drop.** The state machine lives on
+   `PaneTree.drag` and runs in a four-argument reader, because a drag needs the
+   raw gesture even when the layers below already turned it into an operation.
+
+   **The pointer is resolved against the layout tree, not the printed canvas.**
+   The pane stage prints *widgets*, so it holds no coordinates at all; the groups
+   divide the available extent in proportion to their weights, so a group's
+   unit-square rectangle is where it is drawn. The strip is the one part with a
+   fixed height rather than a share, so its band is converted from pixels.
+
+   Two things are not done:
+
+   - **The drop indicator.** Drawing it needs an overlay layer of constant shape
+     over the root widget, so the tree does not change shape mid-drag; that is a
+     reference-mapping change, not a drawing one.
+   - **A split-drop that would empty its source group is declined.** The collapse
+     of the emptied group and the split of the target are two structural writes
+     whose paths would each be named against the tree the other leaves behind. A
+     drop in the target's middle handles that case, and does collapse the source.
+
+9. **Done. Add the example and the guide.** `pane_example` and
+   `empty_pane_example`, `make_pane_projection_example`, a new
+   [pane.md](../../package/visual/doc/pane.md), and the widget and architecture
+   guides updated. The example projection landed early, in step 6: a fresh tab
+   holds an empty text document, so the tests needed a renderer that knows one.
+
+10. **Done. Build the layout from empty.** `test_pane_construct` starts from
+    `PaneTree(PaneGroup(PaneTab[]))` and uses **one projection and one iomap** for
+    the whole sequence, as a live editor would: 39 assertions covering the first
+    focus, four named tabs, a two-by-two layout, a drag between groups that
+    collapses the emptied one, a click to focus, and a close. It is what found
+    the two faults recorded in step 5.
 
 ## Traps
 
@@ -445,7 +493,15 @@ session before.
 
 ## Deferred
 
-These are out of the scope of this plan. Record them so the design leaves room.
+These are out of the scope of this plan, or fell out of it. Record them so the
+design leaves room.
+
+- The **drop indicator**, and the **caret in a tab name** — both need the widget
+  tree to gain a layer without changing shape (step 8 and step 7).
+- A **split-drop that empties its source group** (step 8).
+- **Reorder tabs inside a group by dragging.** The strip's drop zone means "into
+  this group, at the end"; the insert index a drop between two tabs implies needs
+  the strip's own geometry, which lives in the widget layer.
 
 - Detach a tab into its own window. A drop outside the tree becomes an
   `OpenWindowOperation` of the `screen/` slice.
