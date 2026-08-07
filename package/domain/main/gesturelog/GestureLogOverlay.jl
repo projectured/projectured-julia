@@ -1,0 +1,201 @@
+"""
+    GestureLogOverlayProjectionModule
+
+A decorator that draws the [`GestureLog`](GestureLog.jl) as a panel over the
+content of a window.
+
+**Printer** — it projects the wrapped `inner`, projects the log through the
+`content` chain (Syntax → Text → Graphics), and returns a canvas with two
+elements: the inner output at the origin, and the panel at a corner. The inner
+output keeps the origin, so a pixel coordinate means the same thing above and
+below this decorator.
+
+**Reader** — a pure pass-through. The panel is not a hit target, so a click on
+the panel reaches the content below it.
+
+The log chain is printed one time. It stays up to date because
+[`GestureLogToSyntax`](GestureLogToSyntax.jl) derives its lines from
+`log.entries` inside a cell: an append invalidates the lines, and the text and
+graphics stages below re-derive from there.
+"""
+module GestureLogOverlayProjectionModule
+
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
+                              map_reference_backward, Projection
+import ..IntentModule: Intent
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..CollectionModule: CellVector
+import ..ChainingProjectionModule: ChainingProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
+import ..ColorModule: StyleColor
+import ..SyntaxToTextModule: SyntaxToText
+import ..TextToGraphicsModule: TextToGraphics
+import ..TrueTypeModule: truetype_measure_text
+import ..PrinterContextModule: PrinterContext
+import ..GestureLogModule: GestureLog
+import ..GestureLogToSyntaxModule: GestureLogToSyntax
+
+export GestureLogOverlayProjection, GestureLogOverlayProjectionIoMap,
+       make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
+
+"""
+    GESTURE_LOG_BACKGROUND
+
+The panel background: a dark, translucent rectangle. The content below the panel
+stays readable, and the light text of the log stays readable over any content.
+"""
+const GESTURE_LOG_BACKGROUND = StyleColor(0.0, 0.0, 0.0, 0.72)
+
+"""
+    make_gesture_log_content_projection(; measure = truetype_measure_text)
+
+The chain that renders a `GestureLog` down to graphics.
+"""
+make_gesture_log_content_projection(; measure = truetype_measure_text) =
+    ChainingProjection(GestureLogToSyntax(),
+                       RecursiveProjection(SyntaxToText()),
+                       TextToGraphics(measure = measure))
+
+"""
+    GestureLogOverlayProjection(; inner, log, content = …, anchor = :top_right,
+                                  margin = 12, padding = 8,
+                                  background = GESTURE_LOG_BACKGROUND)
+
+Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
+that draws `log` in the corner that `anchor` names: `:top_right`, `:top_left`,
+`:bottom_right` or `:bottom_left`. `margin` is the distance from the edges of
+the window, `padding` the distance between the panel border and the text.
+
+The panel needs the size of the window to reach a right or a bottom corner. The
+printer takes it from the available size of the printer context, which the
+window level sets. Without an available size the panel stays at the top left
+corner.
+"""
+struct GestureLogOverlayProjection <: Projection
+    inner::Any
+    log::GestureLog
+    content::Any
+    anchor::Symbol
+    margin::Int
+    padding::Int
+    background::StyleColor
+end
+
+function GestureLogOverlayProjection(; inner, log::GestureLog,
+                                       content = make_gesture_log_content_projection(),
+                                       anchor::Symbol = :top_right,
+                                       margin::Integer = 12, padding::Integer = 8,
+                                       background::StyleColor = GESTURE_LOG_BACKGROUND)
+    anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
+        error("GestureLogOverlayProjection: unknown anchor :$anchor")
+    GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding), background)
+end
+
+@iomap struct GestureLogOverlayProjectionIoMap
+    projection::Any
+    input::Any
+    output::Any
+    inner_iomap::Any
+    log_iomap::Any
+end
+
+# ── Printer ────────────────────────────────────────────────────────────────
+
+function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
+    inner_iomap = print_document(p.inner, recursion, input, ctx)
+    # The log gets a context of its own: the panel takes the space it needs and
+    # must not inherit the layout space of the content.
+    log_iomap = print_document(p.content, nothing, p.log, PrinterContext())
+
+    inner_output = ComputedCell(() -> _force(inner_iomap.output))
+    log_output = ComputedCell(() -> _force(log_iomap.output))
+
+    body_width() = _width(log_output[])
+    body_height() = _height(log_output[])
+    panel_width() = body_width() + 2 * p.padding
+    panel_height() = body_height() + 2 * p.padding
+
+    # The body sits inside the panel, one padding from the corner of the panel.
+    body = GraphicsCanvas(p.padding, p.padding, 0, 0,
+                          CellVector(Cell[log_output]), layout_none, true)
+    set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
+    set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
+
+    background = GraphicsRect(0, 0, 0, 0, p.background, 4)
+    set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
+    set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
+
+    panel = GraphicsCanvas(0, 0, 0, 0,
+                           CellVector(Cell[Cell(background), Cell(body)]), layout_none, true)
+    set_cell_function!(getfield(panel, :x), () -> Int32(_panel_x(p, ctx, panel_width())))
+    set_cell_function!(getfield(panel, :y), () -> Int32(_panel_y(p, ctx, panel_height())))
+    set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
+    set_cell_function!(getfield(panel, :h), () -> Int32(panel_height()))
+
+    # The inner output keeps the origin, so the coordinates the reader sees are
+    # the coordinates the inner pipeline printed.
+    output = GraphicsCanvas(0, 0, 0, 0,
+                            CellVector(Cell[inner_output, Cell(panel)]), layout_none, true)
+    set_cell_function!(getfield(output, :w),
+                       () -> Int32(max(_width(inner_output[]), panel.x + panel_width())))
+    set_cell_function!(getfield(output, :h),
+                       () -> Int32(max(_height(inner_output[]), panel.y + panel_height())))
+
+    GestureLogOverlayProjectionIoMap(p, input, output, inner_iomap, log_iomap)
+end
+
+_force(value) = value isa Cell ? value[] : value
+
+# The size of a printed document, for the documents that carry one. A projection
+# whose output names no size contributes nothing to the size of the panel.
+_width(document) = hasproperty(document, :w) ? Int(document.w) : 0
+_height(document) = hasproperty(document, :h) ? Int(document.h) : 0
+
+# The available size of the context is what the window gives the content. It is
+# a `Cell`, so the panel follows a resize of the window.
+_available(size::Cell) = Int(size[])
+_available(::Nothing) = 0
+
+function _panel_x(p::GestureLogOverlayProjection, ctx, width::Integer)
+    return _is_right(p.anchor) ?
+        max(p.margin, _available(ctx.available_width) - width - p.margin) :
+        p.margin
+end
+
+function _panel_y(p::GestureLogOverlayProjection, ctx, height::Integer)
+    return _is_bottom(p.anchor) ?
+        max(p.margin, _available(ctx.available_height) - height - p.margin) :
+        p.margin
+end
+
+_is_right(anchor::Symbol) = anchor === :top_right || anchor === :bottom_right
+_is_bottom(anchor::Symbol) = anchor === :bottom_right || anchor === :bottom_left
+
+# ── Reader (pass-through) ──────────────────────────────────────────────────
+
+read_intent(p::GestureLogOverlayProjection, recursion, change::Intent,
+            iomap::GestureLogOverlayProjectionIoMap) =
+    read_intent(p.inner, recursion, change, iomap.inner_iomap)
+
+read_intent(p::GestureLogOverlayProjection, iomap::GestureLogOverlayProjectionIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# ── Reference mapping ──────────────────────────────────────────────────────
+#
+# The panel adds one canvas level around the inner output, and the inner output
+# keeps the origin. A coordinate therefore needs no change. A structural
+# graphics path is not mapped through this seam today: `TextToGraphics` and
+# `WidgetToGraphics` both answer `nothing` for a graphics reference, so there is
+# no path to lengthen.
+
+map_reference_forward(p::GestureLogOverlayProjection,
+                      iomap::GestureLogOverlayProjectionIoMap, reference) =
+    map_reference_forward(p.inner, iomap.inner_iomap, reference)
+
+map_reference_backward(p::GestureLogOverlayProjection,
+                       iomap::GestureLogOverlayProjectionIoMap, reference) =
+    map_reference_backward(p.inner, iomap.inner_iomap, reference)
+
+end # module
