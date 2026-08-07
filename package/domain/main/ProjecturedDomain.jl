@@ -257,6 +257,9 @@ include("process/ProcessDiagramToGraph.jl")
 # Code generation: builds a JuliaDocument module and writes it through the
 # fileformat natural-text path, so it follows both.
 include("fsm/FsmToJuliaCode.jl")
+# Realization: builds a JuliaDocument function and writes it through the
+# fileformat natural-text path, so it follows both.
+include("process/ProcessToJuliaCode.jl")
 include("sql/SqlToSyntax.jl")
 include("dbcatalog/DbCatalogToSql.jl")
 include("dbcatalog/DbCatalogToSyntax.jl")

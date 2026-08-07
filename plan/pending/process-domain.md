@@ -555,10 +555,14 @@ without that reader text navigation runs away.
   too** — `…vertices[i]::GraphVertex.content::nt` with
   `nt = get_reference_node_type(node)`; `FsmDiagramToGraph` gets away without
   it only because its trailing `^(rest)` splice carries the type.
-- [ ] **P4 — Realization.** `ProcessToJuliaCode.jl` per D9 at
-  `instrumentation = :none`, with the executability check;
-  `process_nodes` / `node_index` (D10) landed here since realization is their
-  first user; realized-module run test.
+- [x] **P4 — Realization.** *Done.* `ProcessToJuliaCode.jl` per D9:
+  `realize_process` (document → `JuliaFunction`), `realize_process_text`,
+  `export_process`. 29 passing — the shape, verbatim splicing (asserted by
+  object identity, not by text), unrefined holes realizing to `error(…)` in
+  both statement and condition slots, and the realized function **loaded into
+  a sandbox module and called**: `drain` sends the right items and skips the
+  hole via `continue`; a `while`/`break`/`else`/early-`return` model returns
+  the right value for five inputs. Instrumentation levels stay in P5.
 - [ ] **P5 — Debugging.** `ProcessRuntime.jl` and the probe protocol (D11);
   the `:position` and `:locals` levels; `ProcessDebugSession.jl` and
   `sync_process_debug!` (D12); live overlay in the diagram (D8 last bullet)
