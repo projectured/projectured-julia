@@ -239,6 +239,9 @@ include("sequencechart/SequenceChartToSequenceChartPlot.jl")
 include("sequencechart/SequenceChartPlotToGraphics.jl")
 include("book/BookToSyntax.jl")
 include("math/MathToSyntax.jl")
+# The two-dimensional form of a formula: its own typesetter, next to the linear
+# one. Needs the visual style metrics (TrueTypeModule) and Graphics only.
+include("math/MathToGraphics.jl")
 include("julia/JuliaToSyntax.jl")
 include("formula/FormulaToSyntax.jl")
 # After julia/JuliaToSyntax.jl: the notation merges the Julia dispatch table so

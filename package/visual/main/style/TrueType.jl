@@ -17,7 +17,7 @@ module TrueTypeModule
 import ..FontModule: StyleFont, font_logical_size
 
 export truetype_measure_text, font_ascent, font_descent, font_line_height,
-       font_x_height, font_cap_height
+       font_x_height, font_cap_height, font_glyph_bounds
 
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
@@ -48,6 +48,9 @@ mutable struct TrueTypeFont
     is_fixed_pitch::Bool
     cmap_off::Int                 # byte offset of chosen cmap subtable, 0 if none
     cmap_kind::Int                # 4, 12, or 0
+    loca_off::Int                 # byte offset of the loca table, 0 if none (CFF)
+    glyf_off::Int                 # byte offset of the glyf table, 0 if none (CFF)
+    long_loca::Bool               # head indexToLocFormat: 32-bit loca entries
     gid_cache::Dict{UInt32,UInt16}
 end
 
@@ -102,8 +105,13 @@ function _parse_ttf(b::Vector{UInt8})
     italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
     is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
 
+    loca_off, _ = _find_table(b, "loca")
+    glyf_off, _ = _find_table(b, "glyf")
+    long_loca = _u16(b, head_off + 50) == 1
+
     font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, bbox,
                         cap_height, x_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
+                        loca_off, glyf_off, long_loca,
                         Dict{UInt32,UInt16}())
 
     # DejaVu — the family math is set in — still ships an OS/2 **version 1**
@@ -113,26 +121,30 @@ function _parse_ttf(b::Vector{UInt8})
     # x height and the top of `H` is the cap height, which is what those numbers
     # mean. A CFF font has no `glyf` table and keeps the fallbacks.
     if os2_off == 0 || os2_len < 96
-        loca_off, _ = _find_table(b, "loca")
-        glyf_off, _ = _find_table(b, "glyf")
-        long_loca = _u16(b, head_off + 50) == 1
-        top_x = _glyph_ymax(b, loca_off, glyf_off, long_loca, glyph_id(font, 'x'))
-        top_h = _glyph_ymax(b, loca_off, glyf_off, long_loca, glyph_id(font, 'H'))
+        _, top_x = _glyph_bounds(font, 'x')
+        _, top_h = _glyph_bounds(font, 'H')
         top_h > 0 && (font.cap_height = top_h)
         font.x_height = top_x > 0 ? top_x : font.cap_height ÷ 2
     end
     font
 end
 
-# The `yMax` of one glyph's outline, in font units, or 0 when the font has no
-# outline for it. The glyph header is numberOfContours, xMin, yMin, xMax, yMax —
-# five signed shorts — so `yMax` sits at offset 8.
-function _glyph_ymax(b, loca_off::Integer, glyf_off::Integer, long_loca::Bool, gid::Integer)
-    (loca_off == 0 || glyf_off == 0 || gid == 0) && return 0
-    start = long_loca ? Int(_u32(b, loca_off + 4gid))     : 2 * Int(_u16(b, loca_off + 2gid))
-    stop  = long_loca ? Int(_u32(b, loca_off + 4gid + 4)) : 2 * Int(_u16(b, loca_off + 2gid + 2))
-    stop <= start && return 0   # an empty glyph, e.g. a space
-    Int(_s16(b, glyf_off + start + 8))
+"""
+    _glyph_bounds(f, ch) -> (ymin, ymax)
+
+The vertical extent of one glyph's ink, in font units, or `(0, 0)` when the font
+carries no outline for it (a CFF font, or an empty glyph such as a space). The
+glyph header is numberOfContours, xMin, yMin, xMax, yMax — five signed shorts —
+so `yMin` sits at offset 4 and `yMax` at offset 8.
+"""
+function _glyph_bounds(f::TrueTypeFont, ch::AbstractChar)
+    gid = Int(glyph_id(f, UInt32(ch)))
+    (f.loca_off == 0 || f.glyf_off == 0 || gid == 0) && return (0, 0)
+    b = f.bytes
+    start = f.long_loca ? Int(_u32(b, f.loca_off + 4gid))     : 2 * Int(_u16(b, f.loca_off + 2gid))
+    stop  = f.long_loca ? Int(_u32(b, f.loca_off + 4gid + 4)) : 2 * Int(_u16(b, f.loca_off + 2gid + 2))
+    stop <= start && return (0, 0)   # an empty glyph, e.g. a space
+    (Int(_s16(b, f.glyf_off + start + 4)), Int(_s16(b, f.glyf_off + start + 8)))
 end
 
 # Pick the most capable Unicode cmap subtable; returns (subtable_offset, format).
@@ -294,5 +306,21 @@ font_x_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).x_h
 The height of a capital letter, in logical pixels.
 """
 font_cap_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).cap_height)
+
+"""
+    font_glyph_bounds(font::StyleFont, ch) -> (Int, Int)
+
+How far one glyph's ink reaches below and above the baseline, in logical pixels
+(below is negative). `(0, 0)` when the font carries no outline for it.
+
+A caller that tiles a tall delimiter out of the Unicode extension pieces needs
+this: the pieces stack by their ink, not by their text boxes.
+"""
+function font_glyph_bounds(font::StyleFont, ch::AbstractChar)
+    f = _load_ttf(font.filename)
+    ymin, ymax = _glyph_bounds(f, ch)
+    scale = font_logical_size(font) / f.units_per_em
+    (round(Int, ymin * scale), round(Int, ymax * scale))
+end
 
 end

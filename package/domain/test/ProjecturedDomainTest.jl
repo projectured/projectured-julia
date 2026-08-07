@@ -88,6 +88,7 @@ include("projection/JsonToSyntaxTest.jl")
 include("projection/XmlToSyntaxTest.jl")
 include("projection/SqlToSyntaxTest.jl")
 include("projection/FormulaToSyntaxTest.jl")
+include("projection/MathToGraphicsTest.jl")
 include("projection/FileSystemToSyntaxTest.jl")
 include("projection/GraphTest.jl")
 include("projection/ChartGeometryTest.jl")
@@ -195,6 +196,7 @@ function test_domain()
         test_sql_ddl()
         test_sql_ddl_selection()
         test_formula_to_syntax()
+        test_math_to_graphics()
         test_filesystem_to_syntax()
         test_graph()
         test_chart_geometry()
@@ -277,7 +279,8 @@ export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collec
        test_xml_to_syntax, test_xml_to_syntax_reader, test_xml_override_gestures,
        test_sql_to_syntax, test_sql_to_syntax_selection,
        test_sql_insert_update_selection, test_sql_ddl, test_sql_ddl_selection,
-       test_formula_to_syntax, test_filesystem_to_syntax, test_graph
+       test_formula_to_syntax, test_filesystem_to_syntax, test_graph,
+       test_math_to_graphics
 export test_chart_geometry, test_chart, test_chart_scale
 export test_sequencechart_geometry, test_sequencechart, test_sequencechart_selection
 export test_sequencechart_scale

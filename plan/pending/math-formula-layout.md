@@ -241,7 +241,7 @@ is what those numbers mean. That needed a small `loca`/`glyf` lookup
 The values for DejaVu Sans at size 20: ascent 19, descent 5, cap height 15,
 x height 11. `test_visual()` stays green (52469 pass, 1 broken, 0 fail).
 
-## Part D — typeset the boxes
+## Part D — typeset the boxes — **done**
 
 New file: `package/domain/main/math/MathToGraphics.jl`, included after
 `math/MathToSyntax.jl` in
@@ -344,9 +344,35 @@ the geometry that the rule must produce.
 `MathToGraphics(; measure, font = font_dejavu_sans_regular_20, style = :display)`
 builds the `TypeDispatchingProjection` over all of them.
 
-**Commits D1 to D5.** Commit after the leaves, after the row and the fraction,
-after the scripts and the radical, after the big operator and the derivative,
-and after the grids. Each commit adds its geometry test (Part G).
+**Commit D.** The rules landed together rather than in five commits: they share
+`_row`, `_glyph_box` and the metric struct, and a half-built table renders
+nothing to look at. The geometry test (38 assertions) came with them.
+
+**Found during the work.**
+
+1. **The style level cannot live in the rule.** The recursion is one table, so
+   one rule instance serves every depth. The level rides in
+   `ctx.properties[:math_style]`, and a rule that changes it says so with
+   `_with_style`. `p.style` is only where a root print starts.
+2. **A gap is named two ways.** A rule says either the class of the operator
+   that follows (`:relation`) or the size it wants (`:thin`). One table answers
+   both. The first render had no spaces at all, because half the rules spoke the
+   other language.
+3. **A script shift is a shift of the baseline, not of the box.** The first
+   version added the script's own ascent on top of the shift, which dropped
+   every subscript a full line. The numbers are TeX's: 0.36 em up, 0.2 em down,
+   and never less than the base's own reach.
+4. **A tall sign must be placed by its ink, not by its text box.** A `∑`, a `∫`
+   and a `√` sit anywhere inside their boxes, so centering the box leaves the
+   sign visibly high. `font_glyph_bounds` (added to Part C's API) answers where
+   the ink is, and the radical and the large operators place by it.
+5. **The radical sign is capped at 2.2 times the base size.** DejaVu has no
+   extensible radical, and a uniformly scaled one grows as wide as it is tall.
+   Past the cap the bar runs on above a sign that no longer follows it. A real
+   math font is the fix, not a wider glyph.
+6. **The tiled delimiters work.** A parenthesis, a bracket and a brace around a
+   fraction, a matrix or a case list are tiled from the Unicode pieces and show
+   no seam.
 
 ## Part E — map the selection
 
