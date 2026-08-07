@@ -1,13 +1,26 @@
 """
     MathToSyntaxModule
 
-Math → SyntaxDocument projection. Maps each math expression type to a matching
-syntax tree shape with colorized tokens:
+Math → SyntaxDocument projection: the **linear** form of a formula, one line of
+text. It is the save path (`document_to_text` runs it) and the plain-text view;
+`MathToGraphics` draws the two-dimensional one.
+
+A construct that has no plain-text form prints its LaTeX-like name, so the line
+stays unambiguous and a future LaTeX reader has something to read:
+`\\sqrt{x}`, `\\sum_{k=0}^{n} body`, `x_{i}^{2}`, `\\bar{x}`.
+
+Colorized tokens:
 - Variables in blue
 - Operators (+, -, *, /) in cyan
 - Parentheses in gray
 - Assignment (=) in yellow
+- Symbols in violet, function names in green
 - Numbers in magenta (via PrimitiveNumberToSyntaxLeaf)
+
+The rules added after the original five are `@projection_template` builders, so
+printing, reference mapping and the structural readers are generic. Each
+compound rule collapses an unmapped caret to a bounded flat offset
+(`_syntax_to_flat`), because a formula is full of projection-introduced chrome.
 """
 module MathToSyntaxModule
 
@@ -15,13 +28,21 @@ import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string
+import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string,
+                     MathSymbol, MathText, MathSpace, MathRow, MathUnaryOperation,
+                     MathFraction, MathScript, MathRadical, MathBigOperator,
+                     MathDifferential, MathDerivative, MathFunction, MathAccent,
+                     MathMatrix, MathCase, MathCases,
+                     math_operator_class, math_symbol_glyph, math_delimiter_strings,
+                     math_big_operator_name
 import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
+import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
 import ..StyleTextModule: StyleText, DStyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
+                                   bound, project, collection
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
@@ -34,7 +55,14 @@ import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
-       MathAssignmentToSyntaxNode, MathToSyntax
+       MathAssignmentToSyntaxNode, MathToSyntax,
+       MathSymbolToSyntaxLeaf, MathTextToSyntaxLeaf, MathSpaceToSyntaxLeaf,
+       MathRowToSyntaxNode, MathUnaryOperationToSyntaxNode,
+       MathFractionToSyntaxNode, MathScriptToSyntaxNode, MathRadicalToSyntaxNode,
+       MathBigOperatorToSyntaxNode, MathDifferentialToSyntaxNode,
+       MathDerivativeToSyntaxNode, MathFunctionToSyntaxNode,
+       MathAccentToSyntaxNode, MathMatrixToSyntaxNode,
+       MathCaseToSyntaxNode, MathCasesToSyntaxNode
 
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
@@ -229,8 +257,8 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
 
     node = SyntaxNode(
         ComputedCellVector(() -> SyntaxDocument[content_iomap[].output]);
-        open=TextString("(", p.delim),
-        close=TextString(")", p.delim),
+        open=TextString(() -> math_delimiter_strings(m.kind)[1], p.delim),
+        close=TextString(() -> math_delimiter_strings(m.kind)[2], p.delim),
         selection=sel)
     ChildrenIoMap(p, m, node, content_iomap)
 end
@@ -340,15 +368,337 @@ function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::Re
         introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
+# ── Shared styles for the template rules ─────────────────────────────────────
+
+const _VARIABLE = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+const _OPERATOR = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+const _CHROME   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+const _SYMBOL   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+const _NAME     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+const _WORD     = StyleText(font_ubuntu_monospace_regular_20, color_default)
+
+# An operand that is itself a sequence needs parentheses when it lands in a
+# position where the line would otherwise regroup it: a fraction's numerator, a
+# script's base, a function's argument.
+_math_is_sequence(doc) =
+    doc isa MathBinaryOperation || doc isa MathAssignment || doc isa MathRow ||
+    doc isa MathFraction || doc isa MathUnaryOperation
+
+# Append `marker` to `children`, in parentheses when `wrap` asks for them.
+function _push_operand!(children, wrap::Bool, marker, style)
+    if wrap
+        push!(children, SyntaxLeaf(TextString("(", style)))
+        push!(children, marker)
+        push!(children, SyntaxLeaf(TextString(")", style)))
+    else
+        push!(children, marker)
+    end
+    children
+end
+
+# `_{…}` / `^{…}` around an optional script, limit or index.
+function _push_braced!(children, prefix::AbstractString, marker, style)
+    push!(children, SyntaxLeaf(TextString(prefix, style)))
+    push!(children, marker)
+    push!(children, SyntaxLeaf(TextString("}", style)))
+    children
+end
+
+# ── MathSymbolToSyntaxLeaf ───────────────────────────────────────────────────
+#
+# The leaf renders the *glyph* of the name, not the name, so the text is not a
+# pre-image of the `name` field. It is projection-introduced text, like an Fsm
+# referent name.
+
+@projection struct MathSymbolToSyntaxLeaf
+    style::ImmutableCell{DStyleText} = _SYMBOL
+end
+
+@projection_template MathSymbolToSyntaxLeaf MathSymbol (p, doc) ->
+    SyntaxLeaf(TextString(() -> math_symbol_glyph(doc.name), p.style))
+
+# ── MathTextToSyntaxLeaf ─────────────────────────────────────────────────────
+
+@projection struct MathTextToSyntaxLeaf
+    style::ImmutableCell{DStyleText} = _WORD
+end
+
+@projection_template MathTextToSyntaxLeaf MathText (p, doc) ->
+    SyntaxLeaf(bound(:content, String, TextString(() -> doc.content, p.style)))
+
+# ── MathSpaceToSyntaxLeaf ────────────────────────────────────────────────────
+
+@projection struct MathSpaceToSyntaxLeaf
+    style::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathSpaceToSyntaxLeaf MathSpace (p, doc) ->
+    SyntaxLeaf(TextString(" ", p.style))
+
+# ── MathRowToSyntaxNode ──────────────────────────────────────────────────────
+#
+# Juxtaposition prints as its elements with one space between them.
+
+@projection struct MathRowToSyntaxNode
+    style::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathRowToSyntaxNode MathRow (p, doc) ->
+    SyntaxNode(collection(:elements); sep=TextString(" ", p.style))
+
+# ── MathUnaryOperationToSyntaxNode ───────────────────────────────────────────
+
+@projection struct MathUnaryOperationToSyntaxNode
+    op::ImmutableCell{DStyleText} = _OPERATOR
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathUnaryOperationToSyntaxNode MathUnaryOperation (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[]
+        text = SyntaxLeaf(TextString(() -> _operator_string(doc.operator), p.op))
+        doc.postfix || push!(children, text)
+        _push_operand!(children, _math_is_sequence(doc.operand), project(:operand), p.chrome)
+        doc.postfix && push!(children, text)
+        children
+    end)
+
+# ── MathFractionToSyntaxNode ─────────────────────────────────────────────────
+
+@projection struct MathFractionToSyntaxNode
+    op::ImmutableCell{DStyleText} = _OPERATOR
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathFractionToSyntaxNode MathFraction (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[]
+        _push_operand!(children, _math_is_sequence(doc.numerator), project(:numerator), p.chrome)
+        push!(children, SyntaxLeaf(TextString("/", p.op)))
+        _push_operand!(children, _math_is_sequence(doc.denominator), project(:denominator), p.chrome)
+        children
+    end)
+
+# ── MathScriptToSyntaxNode ───────────────────────────────────────────────────
+
+@projection struct MathScriptToSyntaxNode
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathScriptToSyntaxNode MathScript (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[]
+        _push_operand!(children, _math_is_sequence(doc.base), project(:base), p.chrome)
+        doc.subscript === nothing ||
+            _push_braced!(children, "_{", project(:subscript), p.chrome)
+        doc.superscript === nothing ||
+            _push_braced!(children, "^{", project(:superscript), p.chrome)
+        children
+    end)
+
+# ── MathRadicalToSyntaxNode ──────────────────────────────────────────────────
+
+@projection struct MathRadicalToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathRadicalToSyntaxNode MathRadical (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[ SyntaxLeaf(TextString("\\sqrt", p.name)) ]
+        if doc.index !== nothing
+            push!(children, SyntaxLeaf(TextString("[", p.chrome)))
+            push!(children, project(:index))
+            push!(children, SyntaxLeaf(TextString("]", p.chrome)))
+        end
+        push!(children, SyntaxLeaf(TextString("{", p.chrome)))
+        push!(children, project(:radicand))
+        push!(children, SyntaxLeaf(TextString("}", p.chrome)))
+        children
+    end)
+
+# ── MathBigOperatorToSyntaxNode ──────────────────────────────────────────────
+
+@projection struct MathBigOperatorToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathBigOperatorToSyntaxNode MathBigOperator (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[ SyntaxLeaf(TextString(() -> math_big_operator_name(doc.operator), p.name)) ]
+        doc.lower === nothing || _push_braced!(children, "_{", project(:lower), p.chrome)
+        doc.upper === nothing || _push_braced!(children, "^{", project(:upper), p.chrome)
+        push!(children, SyntaxLeaf(TextString(" ", p.chrome)))
+        _push_operand!(children, _math_is_sequence(doc.body), project(:body), p.chrome)
+        children
+    end)
+
+# ── MathDifferentialToSyntaxNode ─────────────────────────────────────────────
+
+@projection struct MathDifferentialToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+end
+
+@projection_template MathDifferentialToSyntaxNode MathDifferential (p, doc) ->
+    SyntaxConcatenation(() -> Any[
+        SyntaxLeaf(TextString(() -> doc.kind === :partial ? "\\partial " : "d", p.name)),
+        project(:variable)])
+
+# ── MathDerivativeToSyntaxNode ───────────────────────────────────────────────
+
+@projection struct MathDerivativeToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    op::ImmutableCell{DStyleText} = _OPERATOR
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+# `d(P)/d(t)`, and `d^2(P)/d(t)^2` for a higher order.
+@projection_template MathDerivativeToSyntaxNode MathDerivative (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        sign  = () -> doc.kind === :partial ? "\\partial" : "d"
+        order = () -> doc.order == 1 ? "" : "^" * string(doc.order)
+        children = Any[ SyntaxLeaf(TextString(() -> sign() * order(), p.name)) ]
+        _push_operand!(children, true, project(:body), p.chrome)
+        push!(children, SyntaxLeaf(TextString("/", p.op)))
+        push!(children, SyntaxLeaf(TextString(sign, p.name)))
+        _push_operand!(children, true, project(:variable), p.chrome)
+        push!(children, SyntaxLeaf(TextString(order, p.name)))
+        children
+    end)
+
+# ── MathFunctionToSyntaxNode ─────────────────────────────────────────────────
+
+@projection struct MathFunctionToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathFunctionToSyntaxNode MathFunction (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[ SyntaxLeaf(bound(:name, String, TextString(() -> doc.name, p.name))) ]
+        doc.base === nothing || _push_braced!(children, "_{", project(:base), p.chrome)
+        if doc.parenthesized
+            _push_operand!(children, true, project(:argument), p.chrome)
+        else
+            push!(children, SyntaxLeaf(TextString(" ", p.chrome)))
+            push!(children, project(:argument))
+        end
+        children
+    end)
+
+# ── MathAccentToSyntaxNode ───────────────────────────────────────────────────
+
+@projection struct MathAccentToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathAccentToSyntaxNode MathAccent (p, doc) ->
+    SyntaxConcatenation(() -> Any[
+        SyntaxLeaf(TextString(() -> "\\" * String(doc.accent) * "{", p.name)),
+        project(:base),
+        SyntaxLeaf(TextString("}", p.chrome))])
+
+# ── MathMatrixToSyntaxNode ───────────────────────────────────────────────────
+#
+# `\matrix[2]{a, b, c, d}` — the column count sits in the head, so the row
+# structure survives the one-line form.
+
+@projection struct MathMatrixToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathMatrixToSyntaxNode MathMatrix (p, doc) ->
+    SyntaxConcatenation(() -> Any[
+        SyntaxLeaf(TextString(() -> "\\matrix[" * string(doc.columns) * "]", p.name)),
+        SyntaxNode(collection(:elements);
+                   open=TextString("{", p.chrome),
+                   close=TextString("}", p.chrome),
+                   sep=TextString(", ", p.chrome))])
+
+# ── MathCaseToSyntaxNode / MathCasesToSyntaxNode ─────────────────────────────
+
+@projection struct MathCaseToSyntaxNode
+    keyword::ImmutableCell{DStyleText} = _NAME
+end
+
+@projection_template MathCaseToSyntaxNode MathCase (p, doc) ->
+    SyntaxConcatenation(() -> begin
+        children = Any[ project(:value) ]
+        if doc.condition === nothing
+            push!(children, SyntaxLeaf(TextString(" otherwise", p.keyword)))
+        else
+            push!(children, SyntaxLeaf(TextString(" if ", p.keyword)))
+            push!(children, project(:condition))
+        end
+        children
+    end)
+
+@projection struct MathCasesToSyntaxNode
+    name::ImmutableCell{DStyleText} = _NAME
+    chrome::ImmutableCell{DStyleText} = _CHROME
+end
+
+@projection_template MathCasesToSyntaxNode MathCases (p, doc) ->
+    SyntaxConcatenation(() -> Any[
+        SyntaxLeaf(TextString("\\cases", p.name)),
+        SyntaxNode(collection(:cases);
+                   open=TextString("{", p.chrome),
+                   close=TextString("}", p.chrome),
+                   sep=TextString("; ", p.chrome))])
+
+# ── Structural-caret navigation ──────────────────────────────────────────────
+#
+# A formula is mostly projection-introduced chrome: every brace, every operator
+# glyph and every LaTeX-like name. A caret on that chrome maps back to nothing
+# through the wiring, and the engine's fallback would then grow the path on
+# every round trip. Collapse it to a bounded flat offset instead — the
+# `XmlElementToSyntaxNode` precedent, which the original three compound rules
+# above already use.
+
+for T in (:MathRowToSyntaxNode, :MathUnaryOperationToSyntaxNode,
+          :MathFractionToSyntaxNode, :MathScriptToSyntaxNode,
+          :MathRadicalToSyntaxNode, :MathBigOperatorToSyntaxNode,
+          :MathDifferentialToSyntaxNode, :MathDerivativeToSyntaxNode,
+          :MathFunctionToSyntaxNode, :MathAccentToSyntaxNode,
+          :MathMatrixToSyntaxNode, :MathCaseToSyntaxNode, :MathCasesToSyntaxNode)
+    @eval function read_intent(p::$T, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+        result = map_reference_backward(p, iomap, op.path)
+        result !== nothing && return ReplaceSelectionOperation(result)
+        flat = _syntax_to_flat(iomap.output, op.path, SyntaxCompoundToText(), 0)
+        flat < 0 && return nothing
+        ReplaceSelectionOperation(
+            introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    end
+end
+
 # ── MathToSyntax (composite) ──────────────────────────────────────────────────
 
 function MathToSyntax()
     TypeDispatchingProjection(
         MathInsertion        => MathInsertionToSyntaxLeaf(),
         MathVariable         => MathVariableToSyntaxLeaf(),
+        MathSymbol           => MathSymbolToSyntaxLeaf(),
+        MathText             => MathTextToSyntaxLeaf(),
+        MathSpace            => MathSpaceToSyntaxLeaf(),
+        MathRow              => MathRowToSyntaxNode(),
         MathBinaryOperation  => MathBinaryOperationToSyntaxNode(),
+        MathUnaryOperation   => MathUnaryOperationToSyntaxNode(),
         MathParenthesized    => MathParenthesizedToSyntaxNode(),
         MathAssignment       => MathAssignmentToSyntaxNode(),
+        MathFraction         => MathFractionToSyntaxNode(),
+        MathScript           => MathScriptToSyntaxNode(),
+        MathRadical          => MathRadicalToSyntaxNode(),
+        MathBigOperator      => MathBigOperatorToSyntaxNode(),
+        MathDifferential     => MathDifferentialToSyntaxNode(),
+        MathDerivative       => MathDerivativeToSyntaxNode(),
+        MathFunction         => MathFunctionToSyntaxNode(),
+        MathAccent           => MathAccentToSyntaxNode(),
+        MathMatrix           => MathMatrixToSyntaxNode(),
+        MathCase             => MathCaseToSyntaxNode(),
+        MathCases            => MathCasesToSyntaxNode(),
         PrimitiveNumber      => PrimitiveNumberToSyntaxLeaf(),
     )
 end

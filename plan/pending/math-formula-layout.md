@@ -112,7 +112,7 @@ projections stay in the tree, and each new type has one rule in each.
 selection and navigation. Part H flips it. Until then the two-dimensional form
 is reachable through its own example projection.
 
-## Part A — extend the math domain
+## Part A — extend the math domain — **done**
 
 File: [Math.jl](../../package/domain/main/math/Math.jl)
 
@@ -137,6 +137,7 @@ that can be absent.
 | `MathAccent` | `base`, `accent::Symbol` | `x̄`, `v⃗`, `p̂` |
 | `MathUnaryOperation` | `operator::Symbol`, `operand`, `postfix::Bool = false` | `−x`, `n!` |
 | `MathMatrix` | `elements::CellVector`, `columns::Int`, `delimiter::Symbol = :bracket` | a matrix or a column vector |
+| `MathCase` | `value`, `condition::Any = nothing` | one branch of a piecewise definition |
 | `MathCases` | `cases::CellVector` | a piecewise definition |
 
 Two more changes to the types that exist:
@@ -161,7 +162,15 @@ types (`\lambda`); the glyph is what the printer draws.
 
 **Commit A.** The new types, the symbol table and the operator classes.
 
-## Part B — keep the linear projection complete
+**Found during the work.** One table holds three columns per operator — the
+text the linear form writes, the glyph the page shows and the class. The text
+column keeps `+ - * /` exactly as they were, so no existing output moved, and
+the glyph column is free to use a real minus sign and a real multiplication dot.
+`math_big_operator_name` does the same for a large operator (`\sum`, `\int`).
+A `MathCase` type joined the list: `MathCases` needs an element type that holds
+a value and its condition.
+
+## Part B — keep the linear projection complete — **done**
 
 File: [MathToSyntax.jl](../../package/domain/main/math/MathToSyntax.jl)
 
@@ -184,6 +193,19 @@ Register the new rules in `MathToSyntax()`'s dispatch table.
 
 **Commit B.** Linear rules for every new type. Run `test_printer(math_example)`
 and `test_reader(math_example)`.
+
+**Result.** `test_example(math_example)` gives 1116 pass / 18 fail against a
+clean-main baseline of 1115 pass / 18 fail. The 18 failures are the pre-existing
+type-in deletions at a value-to-chrome boundary; the extra pass follows the one
+new cell on `MathParenthesized`. The linear forms are:
+
+```
+k T B          λ          bit/s        1/(μ - λ)      P_{t}^{2}
+\sqrt{2 * x}   \sqrt[n]{x}             \sum_{k = 0}^{n} (x/n)
+\int_{0}^{∞} (x dt)       d(P)/d(t)    \partial^2(P)/\partial(t)^2
+log_{2}(1 + x)            \bar{L}      n!             |x|
+\matrix[2]{1, 2, 3, 4}    \cases{1 if x < n; 0 otherwise}
+```
 
 ## Part C — publish the font metrics
 
