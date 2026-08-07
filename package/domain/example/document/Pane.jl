@@ -1,0 +1,28 @@
+# Pane-tree example documents that hold real domain documents.
+#
+# The visual tier's `make_pane_document_example` fills its tabs with plain
+# strings, because the pane slice sits below every source domain. This tier is
+# above them, so a tab here can hold the json example document itself.
+
+# Three tab groups, and the focused tab holds the json example document.
+#
+#   +-----------------+-----------+
+#   |  data.json      |  notes    |
+#   |  read me        +-----------+
+#   |  license        |  scratch  |
+#   +-----------------+-----------+
+function make_pane_json_document_example()
+    left = PaneGroup(PaneTab[
+        PaneTab("data.json", make_json_document_example()),
+        PaneTab("read me", PrimitiveString("A tab holds a document, and any document will do.\n\n" *
+                                           "The first tab of this group holds the json example.\n" *
+                                           "Ctrl+Tab traverses the tabs, Ctrl+T opens one.")),
+        PaneTab("license", PrimitiveString("Public domain."))])
+    notes = PaneGroup(PaneTab[PaneTab("notes", PrimitiveString("Drag a tab onto another group to move it."))])
+    scratch = PaneGroup(PaneTab[PaneTab("scratch", PrimitiveString(""))])
+    right = PaneSplit(:horizontal, [notes, scratch])
+    tree = PaneTree(PaneSplit(:vertical, [left, right]; weights = [0.65, 0.35]))
+    # Start with the focus on the json tab, so the layout opens showing it.
+    set_selection!(tree, pane_tab_reference(tree, left, 1))
+    tree
+end

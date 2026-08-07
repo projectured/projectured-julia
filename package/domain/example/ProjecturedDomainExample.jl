@@ -65,6 +65,7 @@ include("document/FileSystem.jl")
 include("document/Navigator.jl")
 include("document/Focusing.jl")
 include("document/GestureMap.jl")
+include("document/Pane.jl")
 include("document/Workbench.jl")
 include("document/Assistant.jl")
 include("document/Conversation.jl")
@@ -100,6 +101,7 @@ include("projection/Markdown.jl")
 include("projection/FileSystem.jl")
 include("projection/Navigator.jl")
 include("projection/Focusing.jl")
+include("projection/Pane.jl")
 include("projection/Workbench.jl")
 include("projection/Assistant.jl")
 include("projection/Conversation.jl")
@@ -204,7 +206,9 @@ export make_math_projection_example, make_math_table_document_example
 export make_math_table_projection_example, make_mixed_document_example
 export make_mixed_projection_example, make_natural_document_example
 export make_natural_projection_example, make_navigator_document_example
-export make_navigator_projection_example, make_scrolling_document, make_scrolling_projection
+export make_navigator_projection_example
+export make_pane_json_document_example, make_pane_json_projection_example
+export make_scrolling_document, make_scrolling_projection
 export make_workspace_document_example, make_workspace_folder_document_example
 export make_sql_document_example, make_sql_insert_document_example
 export make_sql_insert_syntax_projection_example, make_sql_nested_document_example
@@ -224,7 +228,8 @@ export make_gesture_map_document_example
 export make_workbench_projection_example, make_xml_document_example
 export make_xml_projection_example, make_yaml_document_example, make_yaml_projection_example
 export markdown_example, markdown_rendered_example, math_example, math_table_example
-export mixed_example, natural_example, navigator_example, record_assistant_conversation_video
+export mixed_example, natural_example, navigator_example, pane_json_example
+export record_assistant_conversation_video
 export run_console_example, run_example, run_file_editor, sql_insert_syntax_example
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example

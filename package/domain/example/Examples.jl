@@ -43,6 +43,10 @@ const fsm_example            = Example("fsm",            make_fsm_document_examp
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
+# The visual tier's `pane_example` with real domain documents in its tabs: the
+# focused tab holds the json example document, and the renderer is the natural
+# projection, so any other domain works in a tab too.
+const pane_json_example      = Example("pane_json",      make_pane_json_document_example,      make_pane_json_projection_example; render_width=1000, render_height=700)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
 # the enumeration-based suites (test_printers / test_readers / test_position_navigations /
@@ -126,6 +130,7 @@ const domain_examples = Example[
     fsm_toggle_example,
     fsm_diagram_example,
     workbench_example,
+    pane_json_example,
     math_example,
     julia_example,
     graphics_image_example,
