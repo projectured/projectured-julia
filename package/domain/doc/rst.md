@@ -170,7 +170,45 @@ field is `bound`.
 
 `rst_section(document, title)` finds a section by the plain text of its title.
 Unlike the markdown counterpart it returns the node itself, because an RST
-section already owns its blocks.
+section already owns its blocks. It is also the slice's method of
+`document_section`, the generic behind the `section(…)` marker verb, so
+`<<section(file("page.rst"), "Title")>>` embeds a section of a page.
+
+## Embedding another document
+
+A cross-file reference reads as a directive whose argument is the marker:
+
+```
+.. pred-ref:: <<file("child.json")>>
+```
+
+The directive needs no parser rule. A name the parser does not know already
+becomes an `RstDirective` carrying its name and its argument, and emit writes it
+back unchanged. Load walks the block tree for a `pred-ref` directive whose
+argument parses as a marker and rewrites each into a `ReferenceStub`; a
+`pred-ref` whose argument is not a marker stays the directive it was, so a typing
+mistake shows on the page instead of vanishing.
+
+**Save is by marker, never by content.** `document_to_text` runs `RstToSyntax`
+alone, whose table renders a stub and an embedded file document as the directive
+they were written as. Reading is the other projection: the natural renderer
+prints an embed as the document it embeds, in that document's own domain.
+
+### A page is a stack of blocks
+
+`RstToLayout.jl` rewraps an `RstRoot` **and** an `RstSection` into a
+`VerticalLayout`, so each block renders in its own domain rather than joining one
+syntax tree. That is what lets an embed be a widget: the card an embedded
+document wears is a `WidgetCard`, and a widget squeezed through a syntax tree
+would arrive as reflected text and would never see a click.
+
+Markdown needs only the root rewrap, because a markdown page is flat. An RST
+section owns its blocks, so without the section rule every embed below the first
+title would still sit inside a syntax tree.
+
+The rewrap moves the blocks without touching them, so the reference maps only
+relocate the head: `elements[i] + rest ↔ children[i] + rest`, shifted by one in a
+section, where the title takes the first slot.
 
 ## Testing
 
@@ -187,6 +225,8 @@ section already owns its blocks.
 
 - `test_example(rst_example)` and `test_printer(rst_rendered_example)` for the
   two projections.
+- `test_rst_embed()` — the `pred-ref` directive, the card an embedded document
+  wears, and the save-by-marker invariant.
 
 ### The round-trip criterion is AST idempotence
 
@@ -211,13 +251,19 @@ gives back the document it came from. All 349 INET files satisfy it.
   loses that start. The rendered view counts properly.
 - **`RstSectionToStyledNode` has no reference mappers.** The rendered section
   prints, but a selection does not map through it, so navigating the rendered
-  view stops at a section boundary. The source view maps fully.
+  view stops at a section boundary. The source view maps fully. The layout
+  rewrap that the natural renderer uses does map a section's blocks.
+- **A rewrapped section's title is flat.** `RstSectionToVerticalLayout` draws the
+  title as one prose line in the level's font, with inline markup flattened to
+  its text, because a layout child cannot receive the ambient `:rst_style` the
+  syntax rule carries. A selection maps through the section's blocks but not into
+  its title.
 - **The rendered grid table keeps the drawn grid** rather than laying the
   cells out as a real table.
 - **A figure path is resolved against the process working directory,** not
   against the file the figure came from, because the slice has no document
   directory to resolve against — that is the same loader seam `literalinclude`
   waits on. A path that does not resolve degrades to the path as text.
-- **No marker vocabulary.** The markdown slice has a cross-file reference
-  convention; this one has no need of it yet. An `RstComment` whose body opens
-  with `pred-ref` is the natural place for one.
+- **An inline marker is not read.** A `pred-ref` directive is a block. A marker
+  written in a line of prose stays text: the markdown slice splits its text runs
+  around one, and this slice has no counterpart yet.
