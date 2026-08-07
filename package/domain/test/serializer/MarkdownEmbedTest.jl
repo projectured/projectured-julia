@@ -21,7 +21,11 @@ using ProjecturedDomain.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedDomain.ChainingProjectionModule: ChainingProjection
 using ProjecturedDomain.SyntaxToTextModule: SyntaxToText
 using ProjecturedDomain.TextToStringModule: TextToString
-using ProjecturedDomain.ProjectionApiModule: print_document, map_reference_backward
+using ProjecturedDomain.ProjectionApiModule: print_document, map_reference_backward, read_intent
+using ProjecturedDomain.EventModule: MousePress, KeyPress, ModifierKeys
+using ProjecturedDomain.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
+                                         evaluate_operation
+using ProjecturedDomain.PrimitiveModule: ReplaceStringRangeOperation
 using ProjecturedDomain.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedDomain.SelectionModule: set_selection!, get_selection
@@ -35,6 +39,10 @@ using ProjecturedDomain.CellModule: AbstractCell
 const _ME_STEPS = "function packet_queue_step(x)\n    return x + 1\nend\n"
 const _ME_PAGE  = "# Step\n\nProse before.\n\n```pred-ref\n" *
                   "<<definition(file(\"steps.jl\"), \"packet_queue_step\")>>\n```\n\nProse after.\n"
+const _ME_JSON_PAGE = "# Data\n\nProse before.\n\n```pred-ref\n" *
+                      "<<file(\"data.json\")>>\n```\n\nProse after.\n"
+# The open-card chevron the embed card's header draws.
+const _ME_CHEVRON = "▾"
 
 _me_fabric() = RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch()))
 
@@ -62,6 +70,42 @@ _me_stub_index(md) = findfirst(e -> (e isa Cell ? e[] : e) isa ReferenceStub,
                                collect(getfield(md, :elements)[]))
 
 _me_renderer() = NaturalToGraphics(measure = (text, _font) -> (length(text) * 10, 20))
+
+# Every drawn string with its absolute position, so a test can press the pixel a
+# given word was drawn at. Same walk as `_me_graphics_text`, carrying the offset.
+function _me_graphics_text_positions(root)
+    found   = Tuple{String,Int,Int}[]
+    pending = Any[(root, 0, 0)]
+    seen    = Set{UInt64}()
+    while !isempty(pending)
+        (node, ox, oy) = pop!(pending)
+        while node isa AbstractCell
+            node = node[]
+        end
+        node === nothing && continue
+        id = objectid(node)
+        id in seen && continue
+        push!(seen, id)
+        if node isa GraphicsCanvas
+            for element in node.elements
+                push!(pending, (element, ox + Int(node.x[]), oy + Int(node.y[])))
+            end
+        elseif string(typeof(node).name.name) == "GraphicsText"
+            push!(found, (string(node.text), ox + Int(node.x[]), oy + Int(node.y[])))
+        end
+    end
+    found
+end
+
+# The middle of the drawn run that reads exactly `text`, or (-1, -1) when no run
+# does. Exact, because the runs of a rendered page overlap as substrings: the
+# JSON key `a` is inside the card header's `data.json`.
+function _me_text_position(root, text::AbstractString)
+    for (drawn, x, y) in _me_graphics_text_positions(root)
+        drawn == text && return (x + 5, y + 5)
+    end
+    (-1, -1)
+end
 
 # Every string a rendered graphics tree draws. Iterative, with a visited set:
 # a rendered canvas may splice the same child canvas in more than one place.
@@ -216,6 +260,72 @@ function test_markdown_embed()
             drawn = _me_graphics_text(print_document(_me_renderer(), content(page)).output)
             @test any(t -> occursin("<<definition(", t), drawn)
             @test any(t -> occursin("Prose after.", t), drawn)
+            # No card around a marker: there is no document to frame yet.
+            @test !any(t -> occursin(_ME_CHEVRON, t), drawn)
+        end
+    end
+
+    # ── The card an embed wears ────────────────────────────────────────────
+    # The frame is a read-side decoration built by the projection. The page keeps
+    # its marker, and every gesture still reaches the embedded document.
+
+    @testset "a resolved embed is framed by a card titled after its file" begin
+        _me_project(_ME_JSON_PAGE) do page, d
+            resolve_stubs!(page)
+            drawn = _me_graphics_text(print_document(_me_renderer(), content(page)).output)
+            @test _ME_CHEVRON * " data.json" in drawn     # the card's own header
+            @test "a" in drawn                            # with the JSON key inside it
+            # One card, not two: the marker evaluates to a file document, which
+            # frames itself, so the stub adds no second frame.
+            @test count(t -> occursin(_ME_CHEVRON, t), drawn) == 1
+        end
+    end
+
+    @testset "the framed page still saves as its marker" begin
+        _me_project(_ME_JSON_PAGE) do page, d
+            before = document_to_text(content(page))
+            resolve_stubs!(page)
+            print_document(_me_renderer(), content(page))   # render, cards and all
+            @test document_to_text(content(page)) == before
+            @test occursin("<<file(\"data.json\")>>", before)
+        end
+    end
+
+    @testset "a click through the card reaches the embedded document" begin
+        _me_project(_ME_JSON_PAGE) do page, d
+            resolve_stubs!(page)
+            md = content(page)
+            iomap = print_document(_me_renderer(), md)
+            x, y = _me_text_position(iomap.output, "a")   # the JSON key
+            @test x >= 0
+            op = read_intent(iomap.projection, iomap, MousePress(:left, x, y, ModifierKeys()))
+            # The path is rooted in the PAGE and carries no step of the card's:
+            # storing it lands a selection in the embedded document itself.
+            @test op isa ReplaceSelectionOperation
+            @test op.path.head == FieldReferenceStep("elements")
+            set_selection!(md, op.path)
+            stub = (e = collect(getfield(md, :elements)[])[_me_stub_index(md)];
+                    e isa Cell ? e[] : e)
+            @test get_selection(stub.resolved) !== nothing
+
+            # And a key typed after that click edits the embedded document.
+            key = read_intent(iomap.projection, iomap, KeyPress('x', ModifierKeys()))
+            @test key isa ReplaceStringRangeOperation
+            @test key.reference.head == FieldReferenceStep("elements")
+        end
+    end
+
+    @testset "a click on the card header folds the embed away" begin
+        _me_project(_ME_JSON_PAGE) do page, d
+            resolve_stubs!(page)
+            iomap = print_document(_me_renderer(), content(page))
+            x, y = _me_text_position(iomap.output, _ME_CHEVRON * " data.json")
+            op = read_intent(iomap.projection, iomap, MousePress(:left, x, y, ModifierKeys()))
+            @test op isa ToggleCollapseOperation
+            evaluate_operation(nothing, op)
+            drawn = _me_graphics_text(iomap.output)
+            @test !("a" in drawn)                            # the body is gone
+            @test any(t -> occursin("data.json", t), drawn)  # the header stays
         end
     end
 
