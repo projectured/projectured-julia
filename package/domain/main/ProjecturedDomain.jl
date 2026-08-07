@@ -219,6 +219,8 @@ include("gesturelog/GestureLogRecorder.jl")
 include("gesturelog/GestureLogOverlay.jl")
 include("xml/XmlToSyntax.jl")
 include("markdown/MarkdownToSyntax.jl")
+include("rst/RstToSyntax.jl")
+include("rst/RstFile.jl")   # FileDocument wrapping an RstDocument
 include("markdown/MarkdownFile.jl") # FileDocument wrapping a MarkdownDocument
 include("markdown/MarkdownToLayout.jl") # MarkdownRoot as a stack of blocks
 include("xml/XmlFile.jl")           # FileDocument wrapping an XmlDocument

@@ -227,7 +227,12 @@ function _parse_blocks(lines::Vector{String})
               !(j > i && _is_adornment(lines[j]))
             j += 1
         end
-        text = join(strip.(lines[i:(j - 1)]), "\n")
+        # A paragraph joins its source lines with a **space**, not a newline.
+        # RST reflows a paragraph freely, so where the author broke the line
+        # carries no meaning — and a stored newline would emit a line that
+        # starts at column zero, which ends the list item or the directive body
+        # the paragraph sits in. One long line always re-parses to itself.
+        text = join(strip.(lines[i:(j - 1)]), " ")
         i = j
         literal = endswith(text, "::")
         if literal
