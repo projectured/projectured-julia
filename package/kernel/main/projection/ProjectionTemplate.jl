@@ -786,7 +786,7 @@ function _atomic_backward(p, w, reference)
         # opaque ⇒ mirror the default mapper exactly (typed empty so the
         # strict-typing invariant holds on the whole-node case)
         reference isa EmptyReference && return _typed(w.intype)
-        return _path(ProjectionReferenceStep(p, reference))
+        return introduced_reference(p, w.intype, reference)
     end
     core = reference
     core isa EmptyReference && return _typed(w.intype)                  # whole ⇒ ::In
@@ -801,7 +801,7 @@ function _atomic_backward(p, w, reference)
             return nothing
         end
         # any other output field is projection-introduced ⇒ wrap in our own step
-        return _path(TypeReferenceStep(w.intype), ProjectionReferenceStep(p, reference))
+        return introduced_reference(p, w.intype, reference)
     end
     return nothing
 end
@@ -933,7 +933,7 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 # the render stage renders it transparently). A *deeper*
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReference &&
-                    return _path(ProjectionReferenceStep(slot.iomap.projection, reference))
+                    return introduced_reference(slot.iomap.projection, intype, reference)
                 return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
@@ -1351,7 +1351,7 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperat
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
-    return ReplaceSelectionOperation(_path(ProjectionReferenceStep(p, op.path)))
+    return ReplaceSelectionOperation(introduced_reference(p, iomap.input, op.path))
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────

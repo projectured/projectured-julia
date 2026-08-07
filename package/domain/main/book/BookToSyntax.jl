@@ -42,7 +42,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
                          Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference,
+                                        is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..OperationModule: ReplaceSelectionOperation
@@ -235,7 +236,8 @@ function read_intent(p::BookBookToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(
+        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
@@ -414,7 +416,8 @@ function read_intent(p::BookChapterToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(
+        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
@@ -545,7 +548,8 @@ function read_intent(p::BookListToSyntaxNode,
     result !== nothing && return ReplaceSelectionOperation(result)
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
-    return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, ConcreteReference(PositionReferenceStep(flat)))))
+    return ReplaceSelectionOperation(
+        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit

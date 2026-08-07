@@ -41,7 +41,7 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, Reference,
                            ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
                            FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrinterContextModule: make_child_context
@@ -80,7 +80,9 @@ end
 function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
     reference isa EmptyReference && return EmptyReference()
     reference === nothing && return nothing
-    ConcreteReference(Cell(ProjectionReferenceStep(p, reference)), Cell(EmptyReference()))
+    # The input type, not `iomap.input`: the printer calls the forward mapper with a
+    # `nothing` iomap, so this pair must not depend on one.
+    introduced_reference(p, DbCatalogColumn, reference)
 end
 
 function read_intent(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
@@ -154,7 +156,7 @@ end
 
 """
 Reader for `ReplaceSelectionOperation`: try backward mapping, fall back to
-`ProjectionReferenceStep(p, {flat})` for structural positions (entity names,
+`introduced_reference(p, …, {flat})` for structural positions (entity names,
 keyword labels, whitespace).
 """
 function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
@@ -163,9 +165,7 @@ function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOp
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        ConcreteReference(Cell(ProjectionReferenceStep(p,
-            ConcreteReference(Cell(PositionReferenceStep(flat)), Cell(EmptyReference())))),
-            Cell(EmptyReference())))
+        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # ── Lazy-expansion helper ─────────────────────────────────────────────────────

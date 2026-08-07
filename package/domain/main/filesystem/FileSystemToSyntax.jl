@@ -30,7 +30,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -86,7 +86,7 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
         ::SyntaxLeaf.value{k} => reference
     end
     caret === nothing && return reference
-    ConcreteReference(ProjectionReferenceStep(p, caret))
+    introduced_reference(p, iomap.input, caret)
 end
 
 function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)

@@ -21,7 +21,8 @@ using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export ProjectionReferenceStep, is_introduced_reference, named_node_reference
+export ProjectionReferenceStep, introduced_reference, is_introduced_reference,
+       named_node_reference
 
 """
     ProjectionReferenceStep(projection, output_path)
@@ -38,6 +39,34 @@ the tree is evaluatable.
 end
 
 ReferenceModule.get_reference_step_kind(::ProjectionReferenceStep) = :structural
+
+"""
+    introduced_reference(projection, document, output_path) -> Reference
+    introduced_reference(projection, node_type::Type, output_path) -> Reference
+
+The canonical caret **on** a projection-introduced element: the step wrapped as a
+one-node path that satisfies the strict-typing invariant.
+
+`document` is the input node the projection printed, and its type is the type of the
+one node the path has. `output_path` names the introduced element inside the
+projection's output. The terminal records `Position`: the caret sits on the output the
+projection printed, so it has no input node to land on, and `evaluate_reference` against
+the input throws — which is what [`is_introduced_reference`](@ref) documents and what
+`named_node_reference` exists to normalize.
+
+Build every introduced caret through this, never by hand. A hand-built path leaves the
+terminal untyped, which no reader notices while the caret stays inside its own domain —
+`@reference` runs its strict check on **construction**, and a domain that maps its own
+references never constructs one from this path. An embedder does: a pane tab holds a
+foreign document, so `PaneToWidget` splices whatever the content projection hands back
+into an `@reference` literal, and an untyped terminal throws there.
+"""
+introduced_reference(projection, node_type::Type, output_path::Reference) =
+    ConcreteReference(node_type, ProjectionReferenceStep(projection, output_path),
+                      EmptyReference(Position))
+
+introduced_reference(projection, document, output_path::Reference) =
+    introduced_reference(projection, get_reference_node_type(document), output_path)
 
 """
     is_introduced_reference(reference) -> Bool

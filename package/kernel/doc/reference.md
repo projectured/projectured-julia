@@ -169,6 +169,12 @@ ProjectionReferenceStep(projection,
         ConcreteReference(PositionReferenceStep(0))))
 ```
 
+A mapper never wraps that step by hand. `introduced_reference(projection, document,
+output_path)` builds the whole path: the node records the type of the input node the
+projection printed, and the terminal records `Position`. Both types are needed, because
+`@reference` refuses an under-typed path, and an embedder — a pane tab holding a foreign
+document — splices whatever a content projection returns into an `@reference` literal.
+
 ## Reference paths and their structs
 
 A `Reference` chains steps. It is an **immutable linked list**, so

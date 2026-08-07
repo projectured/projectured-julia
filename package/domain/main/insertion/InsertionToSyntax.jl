@@ -61,7 +61,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, EmptyReference, Position, get_reference_node_type
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
+import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference"
 import ..GestureBindingModule: GestureBinding, var"@gestures"
@@ -240,7 +240,8 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
+    h.name == "value" ? op :
+        ReplaceSelectionOperation(introduced_reference(p, iomap.input, path))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a
@@ -635,7 +636,8 @@ function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
     path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
-    h.name == "value" ? op : ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
+    h.name == "value" ? op :
+        ReplaceSelectionOperation(introduced_reference(p, iomap.input, path))
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the

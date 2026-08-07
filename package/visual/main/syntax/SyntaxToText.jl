@@ -30,7 +30,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
 import ..ReferenceCaseModule: var"@reference_case"
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap, var"@iomap"
@@ -511,9 +511,8 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     field = _own_field(iomap, j)
     field !== nothing && return _own_span_path(node, field, c)
     flat = _text_elem_path_to_flat(elements, j, c)
-    return ConcreteReference(get_reference_node_type(node), ProjectionReferenceStep(p,
-               ConcreteReference(Position, PositionReferenceStep(flat), EmptyReference(Position))),
-               EmptyReference(Position))
+    return introduced_reference(p, node,
+               ConcreteReference(Position, PositionReferenceStep(flat), EmptyReference(Position)))
 end
 
 # Renders `marker? open`, children interleaved with `sep` (plus `\n`+indent when

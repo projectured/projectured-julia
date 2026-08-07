@@ -121,7 +121,7 @@ function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::Rep
     if h.name == "value"
         return op
     else
-        return ReplaceSelectionOperation(ConcreteReference(ProjectionReferenceStep(p, path)))
+        return ReplaceSelectionOperation(introduced_reference(p, iomap.input, path))
     end
 end
 
@@ -134,7 +134,7 @@ end
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
+import ..ProjectionReferenceStepModule: introduced_reference
 import ..PrinterContextModule: make_child_context
 
 """
