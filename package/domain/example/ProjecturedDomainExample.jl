@@ -99,6 +99,7 @@ include("projection/Mixed.jl")
 include("projection/Natural.jl")
 include("projection/Book.jl")
 include("projection/Markdown.jl")
+include("projection/Rst.jl")
 include("projection/FileSystem.jl")
 include("projection/Navigator.jl")
 include("projection/Focusing.jl")
@@ -202,6 +203,8 @@ export make_julia_string_interpolation_document_example
 export make_julia_struct_document_example, make_julia_subtype_document_example
 export make_julia_where_document_example, make_julia_where_parameters_document_example
 export make_markdown_document_example, make_markdown_projection_example
+export make_rst_projection_example, make_rst_rendered_projection_example
+export rst_example, rst_rendered_example
 export make_rst_text_document_example, make_rst_literal_document_example, make_rst_transition_document_example
 export make_rst_comment_document_example, make_rst_target_document_example, make_rst_insertion_document_example
 export make_rst_math_block_document_example, make_rst_role_document_example, make_rst_reference_document_example

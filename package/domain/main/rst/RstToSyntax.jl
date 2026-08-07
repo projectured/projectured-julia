@@ -52,14 +52,27 @@ import ..RstModule: RstDocument, RstInsertion, RstText, RstLiteral, RstEmphasis,
                     RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree,
                     RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstSection,
                     RstRoot
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, hinted_text, TextGraphics
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
-                     font_dejavu_monospace_regular_20
+                     font_dejavu_monospace_regular_20, font_ubuntu_regular_20,
+                     font_ubuntu_bold_20, font_ubuntu_italic_20, font_ubuntu_bold_36,
+                     font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18
 import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet,
                       color_solarized_yellow, color_solarized_orange
 import ..StyleTextModule: StyleText, DStyleText
+import ..ImageModule: ImageFile
+import ..BackendApiModule: decode_image
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..PrinterContextModule: make_child_context
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
+                          EmptyReference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
+import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceBuilderModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
@@ -84,7 +97,10 @@ export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstVideoToSyntaxNode, RstAudioToSyntaxNode, RstAdmonitionToSyntaxNode,
        RstToctreeToSyntaxNode, RstMathBlockToSyntaxLeaf, RstRawBlockToSyntaxLeaf,
        RstRoleDefinitionToSyntaxNode, RstDirectiveToSyntaxNode, RstSectionToSyntaxNode,
-       RstRootToSyntaxNode, RstToSyntax
+       RstRootToSyntaxNode, RstStyledTextToSyntaxLeaf, RstStyledInline,
+       RstStrongToStyledNode, RstEmphasisToStyledNode, RstRoleToStyledLeaf,
+       RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
+       RstToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
 const _MONO_BOLD = font_ubuntu_monospace_bold_20
@@ -268,7 +284,11 @@ end
     SyntaxConcatenation([ SyntaxLeaf(bound(:text, String,
                                            hinted_text(() -> doc.text, () -> isempty(doc.text), "link", prj.text_style));
                                      open=TextString(prj.show_markers ? "`" : "", prj.marker_style)),
-                          SyntaxLeaf(bound(:target, String, TextString(() -> doc.target, prj.target_style));
+                          # With the markers off the target is not shown at all:
+                          # the natural notation says where a link points by
+                          # colouring its text, not by printing the URL beside it.
+                          SyntaxLeaf(bound(:target, String,
+                                           TextString(() -> prj.show_markers ? doc.target : "", prj.target_style));
                                      open=TextString(() -> !prj.show_markers || isempty(doc.target) ? "" : " <", prj.marker_style),
                                      close=TextString(() -> !prj.show_markers ? "" :
                                                             (isempty(doc.target) ? "" : ">") * "`" * (doc.anonymous ? "__" : "_"),
@@ -347,7 +367,8 @@ end
 
 # `-  item` — the marker plus two spaces, so a continuation line indents by the
 # three spaces the item rule writes.
-_bullet_marker(doc) = (isempty(doc.marker) ? "-" : doc.marker) * "  "
+_bullet_marker(prj, doc) = (isempty(prj.marker) ? (isempty(doc.marker) ? "-" : doc.marker) *
+                                                  "  " : prj.marker)
 
 # `1. item`. Every item prints the list's own start number rather than a
 # running one, because an item does not know its index. RST accepts that and
@@ -357,12 +378,16 @@ _enum_marker(doc) = (startswith(doc.style, "#") ? "#" : string(doc.start)) *
 
 @projection struct RstBulletListToSyntaxNode
     marker_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+    # Empty means "use the marker the source wrote". The rendered view sets a
+    # bullet glyph instead, because the natural notation shows one bullet
+    # whatever character the file happened to use.
+    marker::String = ""
 end
 
 @rst_flat RstBulletListToSyntaxNode RstBulletList (prj, doc, indent) ->
     SyntaxNode(collection(:items);
-               open=TextString(() -> _bullet_marker(doc), prj.marker_style),
-               sep=TextString(() -> "\n" * indent * _bullet_marker(doc), prj.marker_style),
+               open=TextString(() -> _bullet_marker(prj, doc), prj.marker_style),
+               sep=TextString(() -> "\n" * indent * _bullet_marker(prj, doc), prj.marker_style),
                indentation=0)
 
 @projection struct RstEnumeratedListToSyntaxNode
@@ -797,6 +822,266 @@ end
     SyntaxNode(collection(:elements); sep=TextString("\n\n" * indent, prj.style), indentation=0)
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Rendered view (style = :rendered) — the natural notation
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Most of the natural notation is the source view with its markers turned off:
+# a literal without its backquotes, a bullet as `•`, a code block without its
+# `.. code-block::` line. Those are field values, so the rendered dispatch table
+# below rebuilds the same rules with different fields and no rule is written
+# twice.
+#
+# What needs its own rule is what *cascades*. Bold, italic and a section title
+# change the font of every descendant text run, and a text leaf is what finally
+# draws it. That travels as an ambient `:rst_style`, the way the indent travels
+# as `:rst_indent` — a container augments it and delegates (School A), the leaf
+# reads it.
+
+const _BODY = StyleText(font_ubuntu_regular_20, color_black)
+const _TITLE_COLOR = color_solarized_blue
+
+_title_font(level) = level <= 1 ? font_ubuntu_bold_36 :
+                     level == 2 ? font_ubuntu_bold_24 :
+                     level == 3 ? font_ubuntu_bold_22 :
+                                  font_ubuntu_bold_18
+
+# Augment the ambient style with a container's mode. There is no bold-italic
+# face, so nesting keeps the innermost weight.
+function _mode_style(mode::Symbol, ambient::StyleText, doc)
+    mode === :bold   && return StyleText(font_ubuntu_bold_20, ambient.color)
+    mode === :italic && return StyleText(font_ubuntu_italic_20, ambient.color)
+    ambient
+end
+
+# A role is drawn as a coloured chip with no `:name:` chrome. The colour groups
+# the roles by what they name, so a reader tells a NED type from a C++ symbol
+# from an ini parameter at a glance. An unknown role gets the neutral colour,
+# because the role set is open.
+function _role_color(name::AbstractString)
+    name in ("ned", "gate", "msg")            && return color_solarized_blue
+    name in ("cpp", "var", "fun")             && return color_solarized_violet
+    name in ("par", "ini")                    && return color_solarized_green
+    name in ("file", "download")              && return color_solarized_cyan
+    name in ("doc", "ref")                    && return color_solarized_magenta
+    name == "protocol"                        && return color_solarized_orange
+    color_solarized_gray
+end
+
+# ── RstStyledTextToSyntaxLeaf (rendered RstText; reads the ambient) ───────────
+# Same output shape and reference mapping as the source text leaf; only the font
+# differs, taken from the ambient `:rst_style` (or the body default).
+
+@projection struct RstStyledTextToSyntaxLeaf
+    style::ImmutableCell{DStyleText} = _BODY
+end
+
+function ProjectionApiModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
+    style = get_property(ctx, :rst_style, p.style)
+    sel = ComputedCell(() -> begin
+        s = t.selection
+        is_introduced_reference(s) && return s
+        map_reference_forward(p, nothing, s)
+    end)
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
+end
+
+function map_reference_forward(::RstStyledTextToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ::RstText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
+    end
+end
+
+function map_reference_backward(::RstStyledTextToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ::SyntaxLeaf.value.rest... => @reference ::RstText.content::String.^(rest)
+    end
+end
+
+function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    new_ref === nothing && return nothing
+    ReplaceStringRangeOperation(new_ref, op.replacement)
+end
+
+function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+    path = op.path
+    path isa ConcreteReference || return nothing
+    h = path.head
+    if h isa FieldReferenceStep && h.name == "value"
+        return ReplaceSelectionOperation(@reference ::RstText.content::String.^(path.tail))
+    else
+        return ReplaceSelectionOperation(@reference(iomap.input, proj(p, ^(path))))
+    end
+end
+
+# ── RstStyledInline (rendered Strong / Emphasis) ──────────────────────────────
+# A marker-free inline container that sets the ambient `:rst_style` and projects
+# its `content` children through it. The output is a `SyntaxNode` of the
+# projected children, so the reference mapping is the standard "delegate to
+# child i".
+
+abstract type RstStyledInline <: Projection end
+
+struct RstStrongToStyledNode   <: RstStyledInline end
+struct RstEmphasisToStyledNode <: RstStyledInline end
+
+_mode(::RstStrongToStyledNode)   = :bold
+_mode(::RstEmphasisToStyledNode) = :italic
+
+function ProjectionApiModule.print_document(p::RstStyledInline, recursion, doc, ctx)
+    ambient = get_property(ctx, :rst_style, _BODY)
+    style = _mode_style(_mode(p), ambient, doc)
+    child_iomaps = ComputedCell(() -> [
+        print_child(recursion, child,
+            with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)),
+                          :rst_style, style))
+        for (i, child) in enumerate(doc.content)])
+    items = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    iomap_cell = Cell(nothing)
+    sel = ComputedCell(() -> begin
+        im = iomap_cell[]
+        im === nothing && return nothing
+        path = doc.selection
+        path === nothing && return nothing
+        map_reference_forward(p, im, path)
+    end)
+    node = SyntaxNode(items; indentation=0, selection=sel)
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+function map_reference_forward(p::RstStyledInline, iomap::ChildrenIoMap, reference)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), _) => reference
+        content{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps
+            1 <= child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
+        end
+    end
+end
+
+for (T, D) in ((:RstStrongToStyledNode, :RstStrong), (:RstEmphasisToStyledNode, :RstEmphasis))
+    @eval function map_reference_backward(p::$T, iomap::ChildrenIoMap, reference)
+        @reference_case reference begin
+            ∅ => EmptyReference($D)
+            ::SyntaxNode.children{s:e}.rest... => begin
+                child_i = s + 1
+                iomaps = iomap.child_iomaps
+                1 <= child_i <= length(iomaps) || return nothing
+                child = iomaps[child_i]
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing && return nothing
+                @reference ::$D.content::CellVector[child_i].^(inner)
+            end
+        end
+    end
+end
+
+# ── RstRoleToStyledLeaf (rendered role; a coloured chip) ─────────────────────
+# The `:name:` chrome disappears and the colour carries what the name said. The
+# font and the colour are computed cells, so a role that is renamed recolours
+# without a re-print.
+
+@projection struct RstRoleToStyledLeaf
+    style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@rst_flat RstRoleToStyledLeaf RstRole (prj, doc, indent) ->
+    SyntaxLeaf(bound(:content, String,
+                     TextString(ComputedCell(() -> doc.content),
+                                Cell(_MONO), ComputedCell(() -> _role_color(doc.name)),
+                                Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))))
+
+# ── RstSectionToStyledNode (rendered section; a large title, no adornment) ────
+# The title children are projected under a heading ambient and the body children
+# under the body ambient, so one rule sets two different styles — which is why
+# it is written out rather than templated.
+
+@projection struct RstSectionToStyledNode
+    style::ImmutableCell{DStyleText} = _BODY
+end
+
+function ProjectionApiModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
+    indent = _ambient(ctx)
+    title_style = StyleText(_title_font(doc.level), _TITLE_COLOR)
+    child_iomaps = ComputedCell(() -> begin
+        maps = Any[]
+        for (i, child) in enumerate(doc.title)
+            push!(maps, print_child(recursion, child,
+                with_property(make_child_context(ctx, FieldReferenceStep("title"), ElementReferenceStep(i)),
+                              :rst_style, title_style)))
+        end
+        for (i, child) in enumerate(doc.elements)
+            push!(maps, print_child(recursion, child,
+                make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
+        end
+        maps
+    end)
+    title_count = ComputedCell(() -> length(doc.title))
+    items = ComputedCellVector(() -> begin
+        maps = child_iomaps[]
+        n = title_count[]
+        # A title child concatenates into the title line; every body block
+        # opens with the blank line that separates it from what came before.
+        SyntaxDocument[
+            k <= n ? maps[k].output :
+                     SyntaxNode(SyntaxDocument[maps[k].output];
+                                open=TextString("\n\n" * indent, p.style))
+            for k in eachindex(maps)]
+    end)
+    node = SyntaxNode(items; sep=TextString(() -> "", p.style), indentation=0)
+    ChildrenIoMap(p, doc, node, child_iomaps)
+end
+
+# ── The picture ───────────────────────────────────────────────────────────────
+# A figure and an image draw the file `path` names, decoded lazily and capped in
+# width; a path that is not on disk falls back to the path as text. Modelled on
+# the markdown rendered image.
+
+function _rst_picture(path, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+    if path isa AbstractString && !isempty(path) && isfile(String(path))
+        file = String(path)
+        image = ImageFile(file)
+        raw = getfield(image, :raw)
+        set_cell_function!(raw, () -> (try decode_image(file) catch; nothing end))
+        natural(i, fallback) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fallback)
+        width  = ComputedCell(() -> Int32(min(natural(2, 720), max_w)))
+        height = ComputedCell(() -> begin
+            w = min(natural(2, 720), max_w)
+            Int32(round(Int, natural(3, 460) * w / natural(2, 720)))
+        end)
+        return TextGraphics(Cell(image), width, height, Cell(style.font), Cell(""),
+                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    end
+    TextString(isempty(String(path)) ? "image" : String(path), placeholder)
+end
+
+@projection struct RstFigureToStyledNode
+    caption_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    placeholder::ImmutableCell{DStyleText}   = StyleText(_MONO, color_solarized_gray)
+end
+
+@rst_flat RstFigureToStyledNode RstFigure (prj, doc, indent) ->
+    SyntaxNode(collection(:caption);
+               open=TextString(() -> "", prj.caption_style),
+               sep=TextString("\n" * indent, prj.caption_style),
+               indentation=0)
+
+@projection struct RstImageToStyledNode
+    placeholder::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@rst_flat RstImageToStyledNode RstImage (prj, doc, indent) ->
+    SyntaxLeaf(_rst_picture(doc.path, StyleText(_MONO, color_black), prj.placeholder))
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Dispatcher
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -859,7 +1144,37 @@ marker-free — see the module docstring).
 """
 function RstToSyntax(; style::Symbol = :source)
     style in (:source, :rendered) || error("RstToSyntax: style must be :source or :rendered, got :$style")
-    TypeDispatchingProjection(_source_rules()...)
+    rules = _source_rules()
+    style === :source && return TypeDispatchingProjection(rules...)
+
+    dejavu_gray = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    # Every override either swaps in a cascading rule or turns a marker off by
+    # giving the same rule a different field value.
+    overrides = Dict{Any,Any}(
+        RstText        => RstStyledTextToSyntaxLeaf(),
+        RstStrong      => RstStrongToStyledNode(),
+        RstEmphasis    => RstEmphasisToStyledNode(),
+        RstRole        => RstRoleToStyledLeaf(),
+        RstSection     => RstSectionToStyledNode(),
+        RstFigure      => RstFigureToStyledNode(),
+        RstImage       => RstImageToStyledNode(),
+        # The backquotes go, the monospace stays.
+        RstLiteral     => RstLiteralToSyntaxLeaf(tick=""),
+        # A rule with no markers left to draw.
+        RstReference   => RstReferenceToSyntaxNode(show_markers=false),
+        RstTransition  => RstTransitionToSyntaxLeaf(text="────────────", style=dejavu_gray),
+        RstBulletList  => RstBulletListToSyntaxNode(marker="•  "),
+        RstCodeBlock   => RstCodeBlockToSyntaxNode(header=""),
+        RstLineBlock   => RstLineBlockToSyntaxNode(open_marker=""),
+        RstLiteralInclude => RstLiteralIncludeToSyntaxNode(header="↳ "),
+        RstAudio       => RstAudioToSyntaxNode(header="♪ "),
+        RstMathBlock   => RstMathBlockToSyntaxLeaf(show_marker=false),
+        # A comment and a target are build-time chrome: the natural notation
+        # shows the comment dimmed without its marker, and nothing for a target.
+        RstComment     => RstCommentToSyntaxLeaf(show_marker=false),
+        RstTarget      => RstTargetToSyntaxLeaf(open_marker="", close_marker=""),
+    )
+    TypeDispatchingProjection((k => get(overrides, k, v) for (k, v) in rules)...)
 end
 
 end # module
