@@ -59,6 +59,18 @@ const pane_json_example      = Example("pane_json",      make_pane_json_document
 # exhaust memory. Use them directly (e.g. `run_example(lazy_example)`); do not add
 # them to `examples`.
 const math_example           = Example("math",           make_math_document_example,           make_math_projection_example)
+# The same domain, typeset in two dimensions: the formulas of communication
+# network simulation, one per construct the renderer has to get right.
+#
+# Deliberately kept OUT of the `examples` registry below, for the reason
+# `lazy_example` is: one of the sweeps does not apply to it. A two-dimensional
+# formula has no line of text to put a caret in — a selection there names a
+# whole sub-expression — so `test_typein`, which types a character at every
+# rendered caret, has nothing to type into and reports every position as a
+# failure. Its printer, reader and navigation are covered by
+# `test_math_to_graphics()` in the domain suite; use it directly
+# (`run_example(math_display_example)`) for everything else.
+const math_display_example   = Example("math_display",   make_math_display_document_example,   make_math_display_projection_example)
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=283)
@@ -245,6 +257,22 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:math, "binary_operation", make_math_binary_operation_document_example),
     AtomicDocument(:math, "assignment",       make_math_assignment_document_example),
     AtomicDocument(:math, "parenthesized",    make_math_parenthesized_document_example),
+    AtomicDocument(:math, "symbol",           make_math_symbol_document_example),
+    AtomicDocument(:math, "text",             make_math_text_document_example),
+    AtomicDocument(:math, "space",            make_math_space_document_example),
+    AtomicDocument(:math, "row",              make_math_row_document_example),
+    AtomicDocument(:math, "unary_operation",  make_math_unary_operation_document_example),
+    AtomicDocument(:math, "fraction",         make_math_fraction_document_example),
+    AtomicDocument(:math, "script",           make_math_script_document_example),
+    AtomicDocument(:math, "radical",          make_math_radical_document_example),
+    AtomicDocument(:math, "big_operator",     make_math_big_operator_document_example),
+    AtomicDocument(:math, "differential",     make_math_differential_document_example),
+    AtomicDocument(:math, "derivative",       make_math_derivative_document_example),
+    AtomicDocument(:math, "function",         make_math_function_document_example),
+    AtomicDocument(:math, "accent",           make_math_accent_document_example),
+    AtomicDocument(:math, "matrix",           make_math_matrix_document_example),
+    AtomicDocument(:math, "case",             make_math_case_document_example),
+    AtomicDocument(:math, "cases",            make_math_cases_document_example),
     AtomicDocument(:julia, "bool",       make_julia_bool_document_example),
     AtomicDocument(:julia, "break",      make_julia_break_document_example),
     AtomicDocument(:julia, "char",       make_julia_char_document_example),

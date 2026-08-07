@@ -456,7 +456,7 @@ The printer alone is half a projection. Each rule needs
 The gestures are not yet verified in the live editor — the tests drive the
 reader directly.
 
-## Part G — examples, tests and documentation
+## Part G — examples, tests and documentation — **done**
 
 1. **Examples.** Add to
    [Math.jl](../../package/domain/example/document/Math.jl) one function per
@@ -489,6 +489,23 @@ reader directly.
    per-domain guide list in [CLAUDE.md](../../CLAUDE.md).
 
 **Commit G.** Examples, tests and the guide.
+
+**Found during the work.**
+
+1. **`math_display_example` is not in the `examples` registry.** `test_typein`
+   types a character at every rendered caret, and a two-dimensional formula
+   offers none — a selection there is a whole sub-expression. All 159 positions
+   were reported as failures. The example is registered but kept out of the
+   sweep, the way `lazy_example` is, and its printer, its REPL loop and its
+   arrow-key navigation are walked by `test_math_to_graphics()` instead. Text
+   editing inside a formula would need a caret inside a leaf, which is the
+   text-range work this plan deferred.
+2. **The printer walk found a real bug.** A function's base was registered as a
+   child through the *wrapper* box the projection introduced, not through the
+   base's own IO map, so every key on it threw. The wrapper is now marked and
+   the real child re-hung with both offsets added — the same trick the delimiter
+   wrapper uses.
+3. The test count is 72 assertions.
 
 ## Part H — make two dimensions the default
 

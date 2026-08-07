@@ -277,6 +277,31 @@ end
     @test read_intent(iomap.projection, iomap, KeyPress('7')).operations[1].value isa PrimitiveNumber
 end
 
+@testset "every example formula prints and answers a selection" begin
+    # `math_display_example` is not in the sweep registry (a two-dimensional
+    # formula has no text caret for `test_typein` to type into), so its printer
+    # and its reader are walked here instead.
+    document = make_math_display_document_example()
+    projection = make_math_display_projection_example()
+    errors, status = walk_printer_output(document, projection)
+    @test isempty(errors)
+    # The walk forced every cell of every box without hitting its own limits.
+    @test !status.depth_limit_hit
+    @test !status.node_cap_hit
+    @test status.visited_count > 1000
+
+    errors = walk_repl_loop(document, projection)
+    @test isempty(errors)
+
+    # The arrows walk the tree. Seed with the first formula selected: the
+    # Ctrl+Home seed the text pipeline uses has no meaning here, where a
+    # selection is a sub-expression rather than a caret.
+    states = explore_position_selections(document, projection,
+                 ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+    @test isempty(states.errors)
+    @test states.state_count > 1
+end
+
 @testset "a formula grows when a leaf does" begin
     # The metrics are cells: an edit re-derives the boxes above it and nothing
     # else. Widen a variable and the whole row must widen with it.

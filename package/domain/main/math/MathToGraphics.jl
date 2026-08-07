@@ -1354,6 +1354,8 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
         boxes = Any[name]
         spaces = Symbol[:none]
         steps = Any[nothing]
+        base_index = 0
+        base_offset = Cell(Int32(0))
         if base !== nothing
             # The base rides under the name, so it is a script box of its own.
             inner = _script_style(style)
@@ -1362,17 +1364,20 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             # child sits at the top of it unless the shift is the deeper of the
             # two.
             down = () -> round(Int, 0.2 * metrics().size)
+            base_offset = ComputedCell(() -> Int32(max(0, down() -
+                                                       _box_ascent(base, math_metrics(c, inner)))))
             base_box = MathGlyphBox(
-                _place(_box_output(base),
-                       Cell(Int32(0)),
-                       ComputedCell(() -> Int32(max(0, down() -
-                                                    _box_ascent(base, math_metrics(c, inner)))))),
+                _place(_box_output(base), Cell(Int32(0)), base_offset),
                 ComputedCell(() -> _box_width(base, math_metrics(c, inner))),
                 ComputedCell(() -> max(0, _box_ascent(base, math_metrics(c, inner)) - down())),
                 ComputedCell(() -> down() + _box_descent(base, math_metrics(c, inner))))
             push!(boxes, base_box)
             push!(spaces, :none)
-            push!(steps, (FieldReferenceStep("base"),))
+            # The box is a wrapper the projection introduced, not the base
+            # itself, so it is marked and the real child is re-hung below with
+            # both offsets added — the `_delimited` trick.
+            push!(steps, ())
+            base_index = length(boxes)
         end
         if doc.parenthesized
             half = function ()
@@ -1394,7 +1399,18 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             push!(spaces, :thin)
             push!(steps, (FieldReferenceStep("argument"),))
         end
-        _row(boxes, spaces, c, style, steps)
+        row = _row(boxes, spaces, c, style, steps)
+        base_index == 0 && return row
+        # Re-hang the base: the row placed its wrapper, the wrapper placed the
+        # base inside itself, and a click needs the sum of the two.
+        placed = row.children[1]
+        children = MathChild[MathChild((FieldReferenceStep("base"),), base, placed.x,
+                                       ComputedCell(() -> Int32(Int(placed.y[]) +
+                                                                Int(base_offset[]))))]
+        for child in row.children
+            child.steps === () || push!(children, child)
+        end
+        _build(row.elements, row.width, row.ascent, row.descent, children)
     end)
     _math_iomap(p, doc, build)
 end
