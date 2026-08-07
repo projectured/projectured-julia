@@ -403,7 +403,7 @@ end
 # and run the editor loop on `backend` (optionally under the profiler). The shared tail
 # of `run_example` and `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
-                           compose, profile::Bool=false, content_unwrap::Symbol=:plain,
+                           compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
                            mcp::Bool=false, on_frame=nothing)
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
     composed = compose(projs, backend)
