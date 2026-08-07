@@ -205,4 +205,29 @@ end # @testset
     @test Int(print_document(proj, fixed).output.h[]) == auto_h + 200
 end # @testset
 
+# A body that is a Document cannot make itself empty the way a reactive
+# `CellVector` content can, so the card itself has to drop it. The child IO map
+# survives the fold, so unfolding places the same child again.
+@testset "WidgetCard folds a Document body and unfolds to the same child" begin
+    # The card's own IO map, not the example chain's: the fold is asserted on the
+    # card's child entries.
+    proj = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                         measure = (t, f) -> (length(t) * 10, 24)).dispatch))
+    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
+    card = WidgetCard(Point2D(0, 0); title="t", content=button, width=240)
+    iomap = print_document(proj, nothing, card, PrinterContext())
+    entries() = length(getfield(iomap, :child_iomaps)[])
+    open_height, open_entries = Int(iomap.output.h[]), entries()
+    @test open_entries == 1
+
+    card.collapsed = true
+    @test Int(iomap.output.h[]) < open_height        # the body is gone
+    @test entries() == 0                             # and takes no click
+
+    card.collapsed = false
+    @test Int(iomap.output.h[]) == open_height       # and comes back as it was
+    @test entries() == open_entries
+end # @testset
+
 end # test_object_to_widget

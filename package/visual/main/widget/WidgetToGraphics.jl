@@ -3652,7 +3652,15 @@ function _card_build(p, w, ctx, tim, cim)
         max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
     end
     content = w.content
-    if cim !== nothing
+    # A collapsed card draws its header and nothing else. Reading `collapsed`
+    # here is what lets a card whose body is a plain Document fold: such a body
+    # cannot make itself empty the way a reactive `CellVector` content can (see
+    # `_collapsible_card` in ObjectToWidget). The recursed `cim` stays alive
+    # outside this cell, so unfolding places the child again without a re-print.
+    collapsed = w.collapsed === true
+    if collapsed
+        nothing                        # the header is the whole card
+    elseif cim !== nothing
         push!(child_iomaps, (padding, y, cim))
         push!(elements, _make_canvas(padding, y, Any[cim.output]))
         inner = cim.output
