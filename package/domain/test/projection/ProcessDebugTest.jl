@@ -154,7 +154,7 @@ end
 # editor keeps going. The bridge is what eventually lets it go.
 @testset "a breakpoint stops the process, and the UI resumes it" begin
     model = make_process_drain_document_example()
-    hand = loop_hand(model)
+    hand = _process_break_step(model)
     session = ProcessDebugSession()
     toggle_breakpoint!(session, hand)
     @test has_breakpoint(session, hand)
@@ -287,8 +287,8 @@ end
 end # @testset "ProcessDebug"
 end # test_process_debug
 
-# The step a breakpoint is set on in the tests above: `hand it to the medium`.
-loop_hand(model) = model.body.steps[2].body.steps[2]
+# The step a breakpoint is set on above: `hand it to the medium`, inside the loop.
+_process_break_step(model) = model.body.steps[2].body.steps[2]
 
 # Wait for something the process's own task has to do. Every use here is
 # bounded by a timeout, so a design mistake fails the test instead of hanging

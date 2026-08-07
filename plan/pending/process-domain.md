@@ -1,5 +1,14 @@
 # Process domain — structured flowcharts beside fsm
 
+**Status: implemented.** All six phases landed on the `process-domain` branch.
+`test_domain()` is 208880 passing / 0 failed / 0 errored / 5 broken (the five
+pre-existing markers), and the slice's own suites are
+`test_process` 66, `test_process_to_syntax` 107, `test_process_diagram` 36,
+`test_process_to_julia_code` 29, `test_process_debug` 59. The reference guide
+is `package/domain/doc/process.md`; what each phase settled is recorded in the
+design decisions and the phase list below.
+
+
 A new domain layer for process modeling: algorithms drawn as flowcharts. A
 process is what a spec draws as boxes and diamonds — do this, decide that,
 loop until — and what a program writes as structured control flow. The domain
@@ -48,24 +57,28 @@ through*. The two goals that drive every decision below:
 
 ```
 package/domain/main/process/
-  Process.jl                  — document types, ctors, insertions, gestures
+  Process.jl                  — document types, ctors, insertions, gestures, the tree walk
   ProcessRuntime.jl           — plain-Julia probe runtime (no ProjecturEd deps)
+  ProcessDiagram.jl           — presentation documents (diagram, terminal, edge label)
+  ProcessDebugSession.jl      — live position + debug control + the bridge
   ProcessToSyntax.jl          — the notation (primary edit surface)
-  ProcessDiagram.jl           — presentation document
-  ProcessDebugSession.jl      — live position + debug control, shared by both views
   ProcessToProcessDiagram.jl  — thin identity-keeping stage
   ProcessDiagramToGraph.jl    — flowchart derivation into graph vertices/edges
   ProcessToJuliaCode.jl       — realization (one-way), plain and instrumented
+  ProcessDebug.jl             — start_process: realization + runtime + session
 package/domain/doc/process.md — semantics contract, notation grammar, diagram
                                 rules, the probe protocol
 ```
 
-Include order in `ProjecturedDomain.jl`, mirroring fsm's two groups:
-`process/Process.jl`, `process/ProcessRuntime.jl`, `process/ProcessDiagram.jl`
-and `process/ProcessDebugSession.jl` right after `fsm/FsmDiagram.jl`
-(document-model group); the four projections after fsm's projection block
-(`FsmToSyntax` … `FsmToJuliaCode`), since `ProcessToSyntax` composes with the
-julia dispatch table and `ProcessToJuliaCode` imports julia node types.
+Include order in `ProjecturedDomain.jl`, mirroring fsm's two groups. The
+document-model group goes right after `fsm/FsmDiagram.jl`, in dependency
+order: `Process.jl`, `ProcessRuntime.jl`, `ProcessDiagram.jl`,
+`ProcessDebugSession.jl` (which needs the runtime). The projections follow
+fsm's projection block: `ProcessToSyntax.jl` after `FsmToSyntax.jl` (it merges
+the julia dispatch table, and reads the session for its highlight),
+`ProcessToProcessDiagram.jl` / `ProcessDiagramToGraph.jl` after the graph
+slice, then `ProcessToJuliaCode.jl` and `ProcessDebug.jl` last — the runner
+needs realization, which needs the julia node types.
 
 ## Design decisions
 
