@@ -17,8 +17,8 @@ printer, the reader, and both reference maps for free — there are no new
 Two recursion fabrics, tied together by the four-function recursion contract:
 
 - **`natural_to_syntax`** — a `TypeDispatchingProjection` that routes every
-  *syntax-producible* domain (JSON, XML, Math, Julia, Book, Primitive,
-  FileSystem) to its `*ToSyntax`, collections (`CellVector` / `ListNode`) to
+  *syntax-producible* domain (JSON, XML, Markdown, RST, Math, Julia, Book,
+  Primitive, FileSystem) to its `*ToSyntax`, collections (`CellVector` / `ListNode`) to
   `CollectionToSyntax`, and *anything else* to `ObjectToSyntax`'s reflection
   table (`Cell`/`Nothing`/`Bool`/`Number`/`String`/`Symbol`/`Char`/`Any`).
   Wrapped in a `RecursiveProjection`, it is the shared element-recursion fabric:
@@ -94,8 +94,11 @@ import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
+import ..RstToSyntaxModule: RstToSyntax
+import ..RstModule: RstDocument, RstRoot, RstSection
 import ..MarkdownModule: MarkdownDocument, MarkdownRoot
 import ..MarkdownToLayoutModule: MarkdownRootToVerticalLayout
+import ..RstToLayoutModule: RstRootToVerticalLayout, RstSectionToVerticalLayout
 import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
 import ..FileProjectModule: FileDocument, ReferenceStub
 import ..GraphModule: GraphGraph
@@ -146,6 +149,7 @@ function natural_to_syntax_dispatch()
             JsonDocument       => JsonToSyntax(),
             XmlDocument        => XmlToSyntax(),
             MarkdownDocument   => MarkdownToSyntax(style = :rendered),
+            RstDocument        => RstToSyntax(style = :rendered),
             # An embed renders as what it embeds: the stub prints the value its
             # marker evaluated to, the file document prints its content. Both
             # come *before* the reflection tail, and neither is in a domain's own
@@ -219,6 +223,14 @@ function NaturalToGraphics(; measure::Function,
             # (a live simulation card) reaches the widget renderer and can be
             # clicked, which a syntax tree could never offer it.
             MarkdownRoot  => ChainingProjection(MarkdownRootToVerticalLayout(),
+                                                VerticalLayoutToGraphicsCanvas()),
+            # An RST page is a stack of blocks for the same reason. It takes two
+            # rules where markdown takes one: an RST section OWNS its blocks, so a
+            # root rewrap alone would leave every embed below the first title
+            # inside a syntax tree, where a card could not go.
+            RstRoot       => ChainingProjection(RstRootToVerticalLayout(),
+                                                VerticalLayoutToGraphicsCanvas()),
+            RstSection    => ChainingProjection(RstSectionToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
             # An embed wears a card here, and only here: a card is a widget, so it
             # belongs in a to-graphics table. The to-syntax fabric above keeps the
