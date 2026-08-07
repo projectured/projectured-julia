@@ -186,6 +186,8 @@ include("sequencechart/SequenceChartPlot.jl")
 include("fsm/Fsm.jl")
 include("fsm/FsmDiagram.jl")
 include("process/Process.jl")
+include("process/ProcessDiagram.jl")
+include("process/ProcessDebugSession.jl")
 include("book/Book.jl")
 include("markdown/Markdown.jl")
 include("rst/Rst.jl")
@@ -248,6 +250,10 @@ include("fsm/FsmToFsmDiagram.jl")
 # After the graph slice projections: the diagram prints into GraphGraph and
 # relies on the stock layout/graphics stages to draw it.
 include("fsm/FsmDiagramToGraph.jl")
+include("process/ProcessToProcessDiagram.jl")
+# After the graph slice projections, as the fsm diagram is: the flowchart
+# prints into GraphGraph and relies on the stock layout/graphics stages.
+include("process/ProcessDiagramToGraph.jl")
 # Code generation: builds a JuliaDocument module and writes it through the
 # fileformat natural-text path, so it follows both.
 include("fsm/FsmToJuliaCode.jl")

@@ -80,3 +80,6 @@ end
 make_process_document_example() = make_process_transmit_document_example()
 
 make_process_model_document_example() = make_process_transmit_document_example()
+
+"The diagram example document: the drain procedure (small enough to read as a picture)."
+make_process_diagram_document_example() = make_process_drain_document_example()

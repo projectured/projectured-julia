@@ -537,9 +537,24 @@ without that reader text navigation runs away.
   gap (`test_typein(julia_example)` is 0 of 84 on a clean tree), so the
   notation's own typein is guarded by a julia-free document instead — 75 of
   75, and that assertion lives in `ProcessToSyntaxTest`.
-- [ ] **P3 — Diagram.** `ProcessDiagram.jl`, `ProcessToProcessDiagram.jl`,
-  `ProcessDiagramToGraph.jl` per D8; selection mapping (vertex click → ∅
-  selection of the node, round-trip); pixel-pressing render test.
+- [x] **P3 — Diagram.** *Done.* `ProcessDiagram.jl`,
+  `ProcessToProcessDiagram.jl`, `ProcessDiagramToGraph.jl` per D8, plus
+  `process_diagram_example`. 36 passing: the flowchart's arrows (spine, both
+  loop exits, the back edge, labelled decision exits with no merge vertex,
+  `continue` to the header, `break` to the loop exit, `return` to stop), the
+  overlay repainting reactively without moving the layout, and the selection
+  round-trip.
+
+  Three things the implementation settled. **`ProcessDebugSession.jl` landed
+  here, not in P5** — the overlay has to read something, and the document is
+  independent of the runtime that fills it. **`ProcessTerminal` and
+  `ProcessEdgeLabel`** are presentation documents in `ProcessDiagram.jl` with
+  label rules of their own: a terminal oval and an arrow caption have no
+  document node behind them, and inventing one to carry a string would have
+  been faking content. **A hand-built `@reference` must type its last node
+  too** — `…vertices[i]::GraphVertex.content::nt` with
+  `nt = get_reference_node_type(node)`; `FsmDiagramToGraph` gets away without
+  it only because its trailing `^(rest)` splice carries the type.
 - [ ] **P4 — Realization.** `ProcessToJuliaCode.jl` per D9 at
   `instrumentation = :none`, with the executability check;
   `process_nodes` / `node_index` (D10) landed here since realization is their
