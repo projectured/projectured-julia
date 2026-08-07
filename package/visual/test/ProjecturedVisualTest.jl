@@ -104,6 +104,7 @@ include("projection/WidgetIconTest.jl")
 include("projection/WidgetTreeTest.jl")
 include("projection/WidgetToolbarTest.jl")
 include("projection/WidgetTableTest.jl")
+include("projection/WidgetTabStripTest.jl")
 include("projection/WidgetTransformPaneTest.jl")
 include("projection/LayoutCloseoutTest.jl")
 include("projection/WidgetFormsTest.jl")
@@ -206,6 +207,7 @@ function test_visual()
         test_widget_tree()
         test_widget_toolbar()
         test_widget_table()
+        test_widget_tab_strip()
         test_widget_transform_pane()
         test_layout_closeout()
         test_widget_forms()
@@ -252,7 +254,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
-       test_widget_toolbar, test_widget_table, test_widget_transform_pane,
+       test_widget_toolbar, test_widget_table, test_widget_tab_strip, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard_to_any, test_tooltip, test_split_pane_drag, test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip

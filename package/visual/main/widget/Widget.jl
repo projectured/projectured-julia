@@ -24,7 +24,8 @@ import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
                         AffineTransform, affine_identity
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
-       WidgetTreeNode, SelectTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+       WidgetTreeNode, SelectTabOperation, CloseTabRequestOperation, NewTabRequestOperation,
+       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, Shortcut, action_shortcut_matches,
        InvokeActionOperation, as_action,
        numeric_validator, evaluate_operation, inset_default, inset_size,
@@ -950,11 +951,17 @@ _as_tab_page(p::WidgetTabPage) = p
 _as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothing)
 
 """
-    WidgetTabbedPane(selector_element_pairs; <base kwargs>)
+    WidgetTabbedPane(selector_element_pairs; closable, new_tab, <base kwargs>)
 
 A tabbed container.  `selector_element_pairs` is a `Vector` of
 `(selector, element)` or `(selector, element, icon)` tuples (each wrapped in a
 [`WidgetTabPage`](@ref)).
+
+`closable` draws a close button on every tab, `new_tab` draws a new-tab button
+after the last one, and `draggable` makes a button down on a tab a grab. All three
+are off by default, and none of them decides what the gesture *means*: the strip
+answers with [`CloseTabRequestOperation`](@ref) / [`NewTabRequestOperation`](@ref)
+/ [`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 """
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
@@ -966,6 +973,9 @@ A tabbed container.  `selector_element_pairs` is a `Vector` of
     padding::Inset = inset_default
     padding_color::StyleColor = nothing
     tab_scroll::Int = 0
+    closable::Bool = false
+    new_tab::Bool = false
+    draggable::Bool = false
 end
 
 # `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -979,12 +989,16 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           border_color=nothing,
                           padding::Inset=inset_default,
                           padding_color=nothing,
-                          tab_scroll::Integer=0)
+                          tab_scroll::Integer=0,
+                          closable::Bool=false,
+                          new_tab::Bool=false,
+                          draggable::Bool=false)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),
                      Cell(Int(tab_scroll)),
+                     Cell(closable), Cell(new_tab), Cell(draggable),
                      Cell(nothing))
 end
 
@@ -1685,6 +1699,42 @@ struct SelectTabOperation <: Operation
 end
 
 """
+    CloseTabRequestOperation(widget, tab_index)
+
+Signals that the close button of tab `tab_index` (1-based) of `widget` was
+clicked. Like [`SelectTabOperation`](@ref) this only *reports* — the strip knows
+a button was pressed and nothing about what closing means, so the projection that
+owns the tabs answers it with an edit of its own document.
+"""
+struct CloseTabRequestOperation <: Operation
+    widget::WidgetTabbedPane
+    tab_index::Int
+end
+
+"""
+    NewTabRequestOperation(widget)
+
+Signals that the new-tab button of `widget`'s strip was clicked. Reports only;
+see [`CloseTabRequestOperation`](@ref).
+"""
+struct NewTabRequestOperation <: Operation
+    widget::WidgetTabbedPane
+end
+
+"""
+    DragTabOperation(widget, tab_index)
+
+Signals that a mouse button went down on tab `tab_index` (1-based) of `widget` —
+the grab that may become a drag. Reports only: the strip resolves *which tab* was
+grabbed, and the projection that owns the tabs runs the drag from there, because
+only it knows where a tab may be dropped.
+"""
+struct DragTabOperation <: Operation
+    widget::WidgetTabbedPane
+    tab_index::Int
+end
+
+"""
     StartSplitterDragOperation(split, splitter_index, anchor_coord, slot_sizes)
 
 Begin dragging the splitter after slot `splitter_index` of `split`. Materialises
@@ -1836,6 +1886,13 @@ Apply a widget operation.
 function evaluate_operation(editor, op::SelectTabOperation)
     op.widget.selection = ConcreteReference(ElementReferenceStep(op.tab_index), EmptyReference())
 end
+
+# The three strip reports are inert when nothing claimed them. A press on a close
+# button with no projection above to say what closing means must do nothing — the
+# report reached the editor because no one answered it, which is not an error.
+evaluate_operation(editor, op::CloseTabRequestOperation) = nothing
+evaluate_operation(editor, op::NewTabRequestOperation) = nothing
+evaluate_operation(editor, op::DragTabOperation) = nothing
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
     split = op.split

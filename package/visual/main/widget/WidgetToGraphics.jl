@@ -45,7 +45,8 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
-                       SelectTabOperation,
+                       SelectTabOperation, CloseTabRequestOperation,
+                       NewTabRequestOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
                        Action, InvokeActionOperation, action_shortcut_matches,
                        first_focusable_path, last_focusable_path, _next_focusable_in
@@ -2572,14 +2573,24 @@ end
 # Shared tab-strip layout, so the printer's drawing and the reader's hit-testing /
 # scroll-clamping agree exactly (including any per-tab icon width — measuring text
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
-# the content offset, the tab padding, the strip height, the natural strip width, and
-# one tuple per tab: `(label, icon, icon_w, gap, x, rw)` where `x`/`rw` are the tab's
-# left edge and full width in strip coordinates.
+# a NamedTuple of the content offset, the tab padding, the strip height, the natural
+# strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, close_w)`, where
+# `x`/`rw` are the tab's left edge and full width in strip coordinates and `close_w`
+# is its close button's size (0 when the pane is not `closable`) — and the new-tab
+# button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
+#
+# The fields are ordered so a positional destructure of the first six reads exactly
+# as it did before the two buttons were added.
 function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane)
     cox, coy = _content_offset(w)
     sel_pad = p.tab_padding
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw)
-    tab_h = 0
+    # The em height sizes the buttons, and gives an empty strip its height — a pane
+    # with no tabs still shows a new-tab button, which is the state a fresh layout
+    # starts in.
+    _, em_h = _text_size(p.measure, p.font, "M")
+    closable = w.closable === true
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, close_w)
+    tab_h = em_h
     x = cox
     for pair in w.selector_element_pairs
         label = string(pair.selector)
@@ -2587,14 +2598,25 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
         tw, th = _text_size(p.measure, p.font, label)
         iw  = icon_width(icon, th)
         gap = iw > 0 ? _sc(6) : 0
-        rw  = tw + iw + gap + 2 * sel_pad
-        push!(tabs, (label, icon, iw, gap, x, rw))
+        cw  = closable ? th : 0
+        cgap = cw > 0 ? _sc(6) : 0
+        rw  = tw + iw + gap + cw + cgap + 2 * sel_pad
+        push!(tabs, (label, icon, iw, gap, x, rw, cw))
         x += rw
         tab_h = max(tab_h, th)
     end
     sel_h = tab_h + 2 * sel_pad
-    strip_w = isempty(tabs) ? 0 : (tabs[end][5] + tabs[end][6] - cox)
-    (cox, coy, sel_pad, sel_h, strip_w, tabs)
+    new_w = w.new_tab === true ? em_h + 2 * sel_pad : 0
+    strip_w = (isempty(tabs) && new_w == 0) ? 0 : (x + new_w - cox)
+    (cox = cox, coy = coy, pad = sel_pad, height = sel_h, strip_w = strip_w,
+     tabs = tabs, new_x = x, new_w = new_w)
+end
+
+# The close button's box inside a tab tuple: its left edge and its width, or
+# `nothing` when the tab has none.
+function _tab_close_box(tab, sel_pad::Int)
+    cw = tab[7]
+    cw > 0 ? (tab[5] + tab[6] - sel_pad - cw, cw) : nothing
 end
 
 # Rendered horizontal scroll offset of the strip: the stored `tab_scroll` clamped to
@@ -2624,14 +2646,15 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     end
 
     selector_cv = ComputedCellVector(() -> begin
-        (_, _, sel_pad, sel_h, strip_w, tabs) = geom[]
+        g = geom[]
+        sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(sel_cell[], length(tabs))
         result = Any[]
         tab_radius = _sc(p.corner_radius)
         # Muted track behind the whole tab row.
-        _push_panel!(result, cox, coy, strip_w, sel_h; fill=p.track_color, radius=tab_radius)
+        _push_panel!(result, cox, coy, g.strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
-            label, icon, iw, gap, tx, rw = tabs[i]
+            label, icon, iw, gap, tx, rw, cw = tabs[i]
             if i == active
                 # Active tab: a raised background pill.
                 _push_panel!(result, tx, coy, rw, sel_h; fill=p.active_color, radius=tab_radius)
@@ -2639,7 +2662,13 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             fg = i == active ? p.active_foreground : p.inactive_foreground
             iw > 0 && _push_icon!(result, icon, tx + sel_pad, coy + sel_pad, iw, fg)
             _push_text!(result, p.font, label, tx + sel_pad + iw + gap, coy + sel_pad, fg)
+            # The close button sits at the tab's right edge, tinted like its label.
+            box = _tab_close_box(tabs[i], sel_pad)
+            box === nothing || _push_icon!(result, :close, box[1], coy + sel_pad, box[2], fg)
         end
+        # The new-tab button follows the last tab.
+        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad,
+                                   g.new_w - 2 * sel_pad, p.inactive_foreground)
         result
     end)
 
@@ -2735,6 +2764,32 @@ function _tab_view_w(iomap::ChildrenIoMap, strip_w::Int)
     vp isa GraphicsViewport ? Int(vp.w[]) : strip_w
 end
 
+# The strip-space x of a point that lands in the tab strip, or `nothing` when it
+# does not. A tab drawn at screen x sits at strip coordinate `x + scroll`, so every
+# strip hit-test starts here.
+function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane,
+                               iomap, x::Int, y::Int)
+    g = _tab_strip_geometry(p, w)
+    (isempty(g.tabs) && g.new_w == 0) && return nothing
+    (y >= g.coy && y < g.coy + g.height) || return nothing
+    view_w = _tab_view_w(iomap, g.strip_w)
+    (x >= g.cox && x < g.cox + view_w) || return nothing
+    x + _tab_scroll_offset(w, g.strip_w, view_w)
+end
+
+# The 1-based tab a strip-space x lands on, or 0. `on_close` answers whether it
+# landed on that tab's close button.
+function _tab_at_strip_x(g, xx::Int)
+    for (i, t) in enumerate(g.tabs)
+        tx, rw = t[5], t[6]
+        (xx >= tx && xx < tx + rw) || continue
+        box = _tab_close_box(t, g.pad)
+        on_close = box !== nothing && xx >= box[1] && xx < box[1] + box[2]
+        return (i, on_close)
+    end
+    (0, false)
+end
+
 function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     if evt isa MousePress
@@ -2743,18 +2798,16 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
             res = _route_active_tab(iomap, child_iomaps, evt)
             return _tab_prefix(res)
         end
-        cox, coy, sel_pad, sel_h, strip_w, tabs = _tab_strip_geometry(p, w)
-        if !isempty(tabs) && evt.y >= coy && evt.y < coy + sel_h
-            view_w = _tab_view_w(iomap, strip_w)
-            # A click in the (clipped) strip maps to a tab through the scroll offset:
-            # the tab drawn at screen x sits at strip coordinate `x + scroll`.
-            if evt.x >= cox && evt.x < cox + view_w
-                xx = evt.x + _tab_scroll_offset(w, strip_w, view_w)
-                for (i, t) in enumerate(tabs)
-                    tx, rw = t[5], t[6]
-                    xx >= tx && xx < tx + rw && return SelectTabOperation(w, i)
-                end
-            end
+        xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
+        if xx !== nothing
+            g = _tab_strip_geometry(p, w)
+            # The new-tab button first: it follows the last tab, so no tab box can
+            # claim it.
+            g.new_w > 0 && xx >= g.new_x && xx < g.new_x + g.new_w &&
+                return NewTabRequestOperation(w)
+            index, on_close = _tab_at_strip_x(g, xx)
+            index > 0 && return on_close ? CloseTabRequestOperation(w, index) :
+                                           SelectTabOperation(w, index)
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
     end
@@ -2786,6 +2839,20 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     # pointer is over — routing to the *selected* tab (as coordless events do) left
     # a hovered widget inside a tab unlit. `_route_active_tab` translates coords into
     # the tab's frame (hit-gating the crossings so the tab strip is excluded).
+    # A left button down on a tab of a `draggable` pane is a grab. The strip
+    # resolves which tab; the projection that owns the tabs runs the drag from
+    # there, because only it knows where a tab may be dropped. A down on the close
+    # button is not a grab, and a down anywhere else routes as before.
+    if evt isa MouseDown && evt.button === :left
+        w = iomap.input
+        if w isa WidgetTabbedPane && w.draggable === true
+            xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
+            if xx !== nothing
+                index, on_close = _tab_at_strip_x(_tab_strip_geometry(p, w), xx)
+                index > 0 && !on_close && return DragTabOperation(w, index)
+            end
+        end
+    end
     if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove ||
        evt isa MouseEnter || evt isa MouseLeave
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
