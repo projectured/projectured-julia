@@ -229,6 +229,7 @@ include("widget/WidgetPopupResolver.jl")
 # above widget/ because it projects onto WidgetSplitPane / WidgetTabbedPane.
 include("pane/Pane.jl")
 include("pane/PaneSurgery.jl")
+include("pane/PaneGeometry.jl")
 
 # ── Slice 7 — syntax (tree presentation, target of every source domain) ─
 # Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.

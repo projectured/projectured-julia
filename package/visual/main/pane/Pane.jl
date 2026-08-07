@@ -37,7 +37,8 @@ import ..PrimitiveModule: PrimitiveString
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        pane_tab_title_string, pane_orientation_opposite, pane_split_axis,
-       pane_weight, pane_weights, pane_normalized_weights
+       pane_weight, pane_weights, pane_normalized_weights,
+       pane_groups, pane_parent
 
 # ── PaneDocument (abstract base) ───────────────────────────────────────────
 
@@ -133,6 +134,49 @@ not part of the layout and is not meant to be serialized.
 @document struct PaneTree <: PaneDocument
     root::Any
     drag::Any = nothing
+end
+
+# ── Tree walks ─────────────────────────────────────────────────────────────
+
+"""
+    pane_groups(tree) -> Vector{PaneGroup}
+
+Every group of the tree, in the order a depth-first walk reaches them. This is
+the traversal order the Tab chord follows.
+"""
+pane_groups(tree::PaneTree) = pane_groups(tree.root)
+pane_groups(group::PaneGroup) = PaneGroup[group]
+function pane_groups(split::PaneSplit)
+    result = PaneGroup[]
+    for i in 1:length(split.elements)
+        append!(result, pane_groups(split.elements[i]))
+    end
+    result
+end
+pane_groups(::Any) = PaneGroup[]
+
+"""
+    pane_parent(tree, node) -> (owner, index) | Nothing
+
+The node that holds `node`: `(tree, 0)` for the root, or `(split, k)` for the
+`k`-th element of a split. `nothing` when the node is not in the tree.
+"""
+function pane_parent(tree::PaneTree, node)
+    node === tree.root && return (tree, 0)
+    _parent_walk(tree.root, node)
+end
+
+_parent_walk(::Any, node) = nothing
+function _parent_walk(split::PaneSplit, node)
+    elements = split.elements
+    for i in 1:length(elements)
+        elements[i] === node && return (split, i)
+    end
+    for i in 1:length(elements)
+        found = _parent_walk(elements[i], node)
+        found === nothing || return found
+    end
+    nothing
 end
 
 # ── Orientation ────────────────────────────────────────────────────────────
