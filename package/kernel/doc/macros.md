@@ -41,7 +41,7 @@ repeat the obvious:
 
 | Macro | Bare form | Expands to |
 |---|---|---|
-| `@document struct T … end`   | no `<:` | `mutable struct T <: Document … end` |
+| `@document struct T … end`   | no `<:` | `T{…} <: AbstractT <: Document` — three types; see [`@document`](#document) |
 | `@projection struct T … end` | no `<:` | `struct T <: Projection … end` |
 | `@iomap struct T … end`      | no `<:` | `struct T <: IoMap … end` |
 
@@ -65,14 +65,54 @@ end
 
 The macro rewrites the struct into the **kind-parameterized stem**: an
 immutable struct with one cell type-parameter per field
-(see [plan/pending/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)),
-plus an injected `selection::Reference = nothing` field appended as the last
-field — the programmer never writes it, and writing it by hand is an error:
+(see [plan/done/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)),
+plus an injected `selection::Union{Nothing, Reference} = nothing` field appended
+as the last field — a `Reference` for what is selected inside this node, or
+`nothing` for no selection. Around the stem it emits a per-schema **family** and
+a **native mutable layout**:
 
 ```julia
-struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: JsonDocument
+abstract type AbstractJsonString <: JsonDocument end   # the family both layouts share
+
+struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: AbstractJsonString
     value::C1          # a cell holding the String
-    selection::C2      # injected by the macro: a cell holding the Reference
+    selection::C2      # injected by the macro: a cell holding the selection
+end
+
+mutable struct JsonStringMut <: AbstractJsonString      # the native layout
+    value::String                          # the declared type, with no cell box
+    selection::Union{Nothing, Reference}
+end
+```
+
+### Two layouts, one schema
+
+| Type | What it is |
+|---|---|
+| `Foo{C1, …}` — the **stem** | The bare name. An immutable struct, one cell per field; every kind alias is a parameterization of it. |
+| `FooMut` — the **native layout** | A real `mutable struct` holding the declared value types directly. No cell box, so `getproperty` / `setproperty!` are the default `getfield` / `setfield!` — byte-for-byte the struct you would have written by hand. It gets the same Rule Y positional and keyword constructors as the stem. |
+| `AbstractFoo` — the **family** | The abstract type both layouts subtype, so `document_family(T)` answers `AbstractFoo` for either one and `x isa AbstractFoo` covers both. |
+
+The family sits between the stem and the supertype you wrote, so the domain
+dispatch you declared is unchanged — `JsonString <: JsonDocument` still holds,
+transitively. The two layouts are additive: the bare name is still the stem, and
+every existing `Foo` / `Foo{…}` dispatch and alias means what it meant before.
+The macro exports `AbstractFoo` and `FooMut` itself.
+
+**Declaring `selection` by hand.** You normally never write it. The one reason to
+is a **value document** that must pin the field's *value* type — the isbits pivot:
+`selection::ImmutableCell{Nothing}` is isbits and not selectable (a leaf value),
+while the injected `Union{Nothing, Reference}` form is selectable. An explicit
+`selection` must come **last** (anywhere else is an error) and defaults to
+`nothing`, so it does not count as a programmer default and leaves Rule Y and the
+keyword constructors gated exactly as the injected field would. `StyleText` is the
+worked example:
+
+```julia
+@document ImmutableCell struct StyleText
+    font::DStyleFont
+    color::DStyleColor
+    selection::Nothing
 end
 ```
 
@@ -271,10 +311,10 @@ empty-document types (`JsonInsertion`, `XmlInsertion`, `SyntaxInsertion`,
 convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothing), …)`
 form.
 
-For `@document`, the keyword constructor is generated for **both** the Cell-based
-struct and its immutable `I`-prefixed snapshot — but only when **the programmer**
-declares at least one field default; the always-defaulted, macro-injected
-`selection` field does not itself count. A struct with no defaults of its own
+For `@document`, the keyword constructor is generated for the bare name, the
+`I`-prefixed and `M`-prefixed kinds, and the native `FooMut` layout — but only
+when **the programmer** declares at least one field default; the
+always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free
 for a hand-written keyword constructor that needs to do more than fill fields
 (`WorkbenchAssistant` back-links its draft this way). A struct with no fields of
@@ -287,17 +327,20 @@ struct body, is spelled out in `plan/done/macro-default-field-values.md`.
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 
 The macros wrap *every* declared field in a `Cell` regardless of the type
-annotation. The annotation is preserved verbatim in the generated I-struct (for
-`@document`), where it becomes an **enforced** field type. So the rule is:
+annotation. The annotation is what the **typed kinds** enforce: `IFoo` / `MFoo`
+build their cells from it (`ImmutableCell{String}`, …), while the bare reactive
+kind stores every field as `Any`. So the rule is:
 
 - Declare the field with its logical type (`::String`, `::Reference`, `::Int`),
   **but the annotation must admit every value the field can actually hold.** If
   the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
   number whose text has been fully deleted — the annotation must include it
-  (`::Union{Real, Nothing}`), or snapshotting that document (`IFoo(foo)`) will
-  throw when it tries to put `nothing` into a non-`Nothing` field. The runtime
-  struct hides this (the field is really a `Cell`), so a dishonest annotation
-  stays silent until the first snapshot.
+  (`::Union{Real, Nothing}`). A dishonest annotation stays silent under the bare
+  name and then bites twice: `IFoo(…)` / `MFoo(…)` **throw** on a value the
+  annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
+  `copy_document(ImmutableCell, doc)` does *not* throw — it falls back to the
+  value's own type, so the copy quietly lands **off** the alias and
+  `copy isa IFoo` is `false`.
 - The macro takes care of the Cell wrapping for the runtime struct.
 
 The only time you'd annotate `::Cell` directly is when the field really
@@ -328,13 +371,14 @@ machinery, and with it the same three sharp edges:
   generated auto-wrapping constructor. (The one constructor the macro itself can
   add is the *outer* keyword constructor for `@kwdef`-style defaults — see
   "Default field values" above.)
-- **Equality is identity, not structural.** A `@document` type is a `mutable
-  struct`, so it keeps Julia's default *identity* `==`/`hash`; only the
-  generated `I`-prefixed snapshot (`IFoo`, an immutable `struct`) compares
-  structurally. Reference/path types define `==` by hand. Don't assume two
-  freshly built documents with equal fields are `==` — they are not. Code that
-  needs value comparison (e.g. `search_references`) compares the unwrapped
-  *leaf values*, not whole documents.
+- **Equality is identity for every kind but the immutable one.** The stem is an
+  immutable struct, so `===` compares it field cell by field cell — but a
+  `ReactiveCell` and a `MutableCell` are *mutable* objects, which `===` compares
+  by identity. So two separately built `Foo`s (or `MFoo`s) with equal contents
+  are **not** `==`. `IFoo` is immutable the whole way down, stem and cells, so it
+  is the one kind that compares structurally. Reference/path types define `==` by
+  hand. Code that needs value comparison (e.g. `search_references`) compares the
+  unwrapped *leaf values*, not whole documents.
 
 ## How this pattern threads through the codebase
 
