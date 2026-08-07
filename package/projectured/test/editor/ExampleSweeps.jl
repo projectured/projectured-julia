@@ -179,6 +179,11 @@ function test_position_navigations()
                              # `fsm_diagram` is a graph pipeline, here for the
                              # widget/graphics keyboard-routing reason above.
                              "fsm", "fsm_diagram",
+                             # The pane trees print through `PaneToWidget`, so
+                             # they are here for the widget-container reason
+                             # above: the strip and the split pane hold the
+                             # content, and Ctrl+Home reaches no caret in it.
+                             "pane", "empty_pane", "pane_json",
                              "dbcatalog", "sql_syntax", "sql_table") && continue
             @testset "$(example.name)" begin
                 sigs = posnav_seed_broken(example.name)
