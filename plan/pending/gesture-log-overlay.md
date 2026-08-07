@@ -142,17 +142,27 @@ gesture get one style, the operation gets another style.
 The printer of `GestureLogOverlayProjection` does this:
 
 1. Print the inner projection. Keep the inner iomap.
-2. Make the panel body as a `ComputedCell`. The thunk prints the log through
-   `ChainingProjection(GestureLogToSyntax(), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure))`
-   and returns the output canvas. The thunk reads `log.entries`, so the buffer
-   invalidates it. This re-prints the whole panel for each record. The panel
-   holds at most 20 lines, so the cost is small. A reactive
-   `GestureLogToSyntax` is the refinement if a measurement shows a cost.
+2. Print the log **one time** through
+   `ChainingProjection(GestureLogToSyntax(), RecursiveProjection(SyntaxToText()), TextToGraphics(measure=measure))`.
+
+   > **Done differently (2026-08-07).** The plan said to re-print the chain
+   > inside a `ComputedCell` on each record. That is not needed.
+   > `GestureLogToSyntax` derives its lines from `log.entries` inside a
+   > `ComputedCellVector`, so an append invalidates the lines and the text and
+   > graphics stages below re-derive by themselves. A probe confirmed it: the
+   > canvas of the log chain went from 112x16 to 328x32 to 328x64 as the entries
+   > arrived, with no second `print_document` call. One print is both cheaper
+   > and more correct, so the coarse re-print is gone.
 3. Make the background rectangle. Its `w` and `h` read the body canvas size plus
    the padding, inside cells.
 4. Make the panel canvas with the rectangle and the body. Its `x` and `y` read
    `ctx.available_width` and `ctx.available_height` and the anchor, inside
    cells, so a resize of the window moves the panel.
+
+   The geometry cells are installed with `set_cell_function!` on the field cell
+   of an already-built document, the idiom that `TextToGraphics` uses for its
+   caret and highlight rectangles. The documents keep their identity and only
+   their cells re-derive.
 5. Return an output canvas with exactly two elements: a `ComputedCell` that
    yields the inner output, and the panel canvas. The two elements are stable,
    so the iomap identity is stable (AR-STABLE-IOMAP-IDENTITY).
@@ -212,25 +222,25 @@ inspector) with one line of code.
 Do the work in a git worktree, not in the main checkout. Make one commit per
 step. Mark each step here when it is complete.
 
-- [ ] **Step 1 — Add the log document.** Add
+- [x] **Step 1 — Add the log document.** DONE. Add
   `package/domain/main/gesturelog/GestureLog.jl` with `GestureLogEntry`,
   `GestureLog`, `record_gesture!`, `describe_gesture`, `describe_operation` and
   `default_gesture_log_filter`. Include it in
   [ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain.jl) next to
   the `gesturemap` document include. Export the new names beside the
   `GestureMap` exports.
-- [ ] **Step 2 — Add the syntax printer.** Add
+- [x] **Step 2 — Add the syntax printer.** DONE. Add
   `package/domain/main/gesturelog/GestureLogToSyntax.jl`, modelled on
   `GestureMapToSyntax`. Include it after `GestureMapToSyntax.jl`.
-- [ ] **Step 3 — Add the recorder.** Add
+- [x] **Step 3 — Add the recorder.** DONE. Add
   `package/domain/main/gesturelog/GestureLogRecorder.jl` with
   `GestureLogRecordingProjection`, a transparent printer, a reader that records
   and returns the inner result, and delegating reference mappers.
-- [ ] **Step 4 — Add the overlay.** Add
+- [x] **Step 4 — Add the overlay.** DONE. Add
   `package/domain/main/gesturelog/GestureLogOverlay.jl` with
   `GestureLogOverlayProjection` and the panel geometry above. Include it after
   Step 2, because the printer names `GestureLogToSyntax`.
-- [ ] **Step 5 — Wire the gallery.** Add the three keyword arguments to
+- [x] **Step 5 — Wire the gallery.** DONE. Add the three keyword arguments to
   `run_example` in [Gallery.jl](../../package/domain/example/Gallery.jl) and
   document them in the docstring.
 - [ ] **Step 6 — Check the colors and the mapping in the live editor.** Run
@@ -240,8 +250,8 @@ step. Mark each step here when it is complete.
   reaches the content; a widget pipeline still maps its references. If the
   backend ignores the alpha component, use an opaque panel color. If the widget
   pipeline loses a reference, add the `elements[1]` step to the mappers.
-- [ ] **Step 7 — Add the tests.** See the next section.
-- [ ] **Step 8 — Update the documentation.** Add the slice to the inventory in
+- [x] **Step 7 — Add the tests.** DONE (written; the run is the gate). See the next section.
+- [x] **Step 8 — Update the documentation.** DONE. Add the slice to the inventory in
   [package/domain/doc/architecture.md](../../package/domain/doc/architecture.md).
   Add a short section to
   [documentation/debugging.md](../../documentation/debugging.md), because the

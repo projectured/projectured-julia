@@ -73,6 +73,8 @@ fsm/        Fsm.jl · FsmToSyntax.jl · FsmDiagram.jl · FsmToFsmDiagram.jl ·
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
 gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
+gesturelog/ GestureLog.jl · GestureLogToSyntax.jl · GestureLogRecorder.jl ·
+            GestureLogOverlay.jl
 versioning/ Versioning.jl · VersioningToAny.jl
 
 workbench/  apps layer (above the source slices)

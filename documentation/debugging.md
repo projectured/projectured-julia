@@ -43,6 +43,7 @@ few keyword arguments worth knowing:
 | `tooltip=true` | Opens a sibling window showing the *current selection*'s reference (compact + human-readable) while a selection is set. |
 | `inspector=true` | Opens a secondary window that **follows the mouse** and shows the reference a single click *would* create at the pointer — compact (`ReferenceToText`) and human-readable (`ReferenceToHumanReadableText`) — without committing a selection. Move the mouse around to see what is what. Desktop/SDL only. |
 | `reset=true` | Rebuilds a fresh `document`/`projection` from the example's factories. Use this after an interactive session has mutated the cached instance. |
+| `gesture_log=true` | Shows a panel in the top-right corner with the last gestures and the operation each one made. See [The gesture log overlay](#the-gesture-log-overlay). |
 
 If you get a stale-state bug, `run_example("foo"; reset=true)` is almost
 always the first thing to try — the `Example` struct caches one shared
@@ -55,6 +56,50 @@ To drive the same example from a browser instead of an SDL window, pass a
 ```julia
 julia> run_example("json"; backend=WebBackend())            # serve on http://127.0.0.1:8080
 julia> run_example("json"; backend=WebBackend(port=9000))   # then open the URL; the editor appears in the tab
+```
+
+## The gesture log overlay
+
+`gesture_log=true` puts a panel over the content of each window. The panel shows
+what the editor did: one line per gesture, with the operation that the
+projection pipeline made from it, newest line first.
+
+```julia
+julia> run_example("json"; gesture_log=true)
+julia> run_example("json"; gesture_log=true, gesture_log_capacity=40)
+julia> run_example("json"; gesture_log=true,                    # keep everything
+                   gesture_log_filter=(gesture, operation) -> true)
+```
+
+The filter is a predicate `(gesture, operation) -> Bool`. It runs when the
+operation is recorded, not when the panel is drawn.
+`default_gesture_log_filter` drops the selection operations, because a selection
+follows almost every click and almost every arrow key and would fill the whole
+buffer.
+
+Use it to answer "did my gesture reach the reader, and what did it make?"
+without a breakpoint. A gesture that no reader answers leaves no line, which is
+the answer to the first half of the question.
+
+Two things stay outside the panel:
+
+- The readability zoom (`Ctrl+=` / `Ctrl+-`). The editor makes that operation
+  after the pipeline declines the gesture, so no projection sees it.
+- Everything the recorder does not reach. The recorder sits at the root of the
+  composed projection, which is every operation of the gallery pipelines.
+
+The panel is not interactive. A click goes through it to the content below.
+
+The slice is [domain/main/gesturelog/](../package/domain/main/gesturelog/):
+`GestureLog.jl` (the buffer and the rendering of a gesture and an operation),
+`GestureLogToSyntax.jl` (one line per entry), `GestureLogRecorder.jl` (the
+decorator that records) and `GestureLogOverlay.jl` (the decorator that draws).
+Wrap your own pipeline the same way the gallery does:
+
+```julia
+log = GestureLog(; capacity = 20)
+overlay = GestureLogOverlayProjection(inner = my_projection, log = log)
+root = GestureLogRecordingProjection(inner = my_screen_projection, log = log)
 ```
 
 ## Printing without rendering

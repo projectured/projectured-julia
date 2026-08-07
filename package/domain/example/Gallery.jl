@@ -18,7 +18,7 @@ end
                 caching=false, scrolling=false, workbench=false, reset=false,
                 tooltip=false, inspector=false, introspection=false, selection=nothing,
                 shell=false, hover=false, dragging=false, gesture_help=false,
-                command_palette=false, profile=false)
+                command_palette=false, gesture_log=false, profile=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -79,10 +79,10 @@ off (pasting OS text into an arbitrary node domain is not type-safe); the
 dedicated `clipboard_example` wires JSON converters for it. Incompatible with
 `tooltip` and `inspector`.
 
-Five more wrappers are layers rather than alternatives, so they compose with
+Six more wrappers are layers rather than alternatives, so they compose with
 each other and with one of the wrappers above. They apply in this order, and a
 projection wrapper that comes later sits further out: `dragging`, `shell`,
-`caching`, `hover`, `gesture_help`, `command_palette`.
+`caching`, `hover`, `gesture_help`, `command_palette`, `gesture_log`.
 
 When `dragging=true`, each example's document is wrapped in a `DraggingState`
 and its projection in a `DraggingProjection`. A press that travels more than a
@@ -110,6 +110,18 @@ When `command_palette=true`, each example's projection is wrapped in the command
 type-in overlay: one hot key opens a field that runs a named operation. The
 decorator is still being implemented, so this flag raises an error today — see
 `plan/pending/command-palette.md`.
+
+When `gesture_log=true`, a panel in the top-right corner of each window shows
+what the editor did: the last gestures and the operation each one made. One
+`GestureLog` is shared by every window. A `GestureLogRecordingProjection` at the
+root of the composed projection records the operations, and a
+`GestureLogOverlayProjection` around each example's own pipeline draws the
+panel. `gesture_log_capacity` is the number of entries the buffer keeps
+(default 20) and `gesture_log_filter` is a predicate `(gesture, operation) ->
+Bool` that replaces `default_gesture_log_filter`, which drops the selection
+operations. The panel is not interactive: a click goes through it to the
+content. The editor makes the readability-zoom operation after the pipeline
+declines the gesture, so the log does not hold it.
 
 When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
 The profile buffer is cleared first; once the editor window is closed (the
@@ -164,6 +176,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
                      text_filtering=false, text_highlighting=false, selection=nothing,
                      shell=false, hover=false, dragging=false,
                      gesture_help=false, command_palette=false,
+                     gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
                      profile=false, backend=nothing, on_frame=nothing)
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
@@ -191,6 +204,10 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     if tooltip && workbench
         error("run_example: tooltip=true is not compatible with workbench=true")
     end
+
+    # One log for the whole screen: every window's overlay shows it and the
+    # recorder at the root fills it.
+    log_document = gesture_log ? GestureLog(; capacity = gesture_log_capacity) : nothing
 
     # Apply the flags to each (document, projection) pair.
     docs  = Any[]
@@ -261,6 +278,12 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         if command_palette
             projection = make_command_palette_projection(projection)
         end
+        # The overlay comes last, so it draws over every wrapper above. It is
+        # transparent to the reader; the recorder below, at the root, is what
+        # fills the log.
+        if gesture_log
+            projection = GestureLogOverlayProjection(inner = projection, log = log_document)
+        end
         push!(docs, document)
         push!(projs, projection)
     end
@@ -288,6 +311,15 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> get_pointer_position(b)) :
               tooltip   ? (p, b) -> _multi_window_projection_tooltipped(p) :
                           (p, b) -> _multi_window_projection(p)
+    # The recorder sits at the root of whichever composer runs, because the root
+    # is the seam every operation passes through.
+    if gesture_log
+        inner_compose = compose
+        compose = (p, b) -> GestureLogRecordingProjection(
+            inner  = inner_compose(p, b),
+            log    = log_document,
+            filter = something(gesture_log_filter, default_gesture_log_filter))
+    end
     _run_window_scene(docs, projs, names;
                       width=width, height=height, backend=backend,
                       compose=compose, profile=profile, content_unwrap=content_unwrap,
