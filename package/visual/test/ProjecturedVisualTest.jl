@@ -108,6 +108,7 @@ include("projection/WidgetTabStripTest.jl")
 include("projection/PaneToWidgetTest.jl")
 include("projection/PaneReaderTest.jl")
 include("projection/PaneGestureTest.jl")
+include("projection/PaneDragTest.jl")
 include("projection/WidgetTransformPaneTest.jl")
 include("projection/LayoutCloseoutTest.jl")
 include("projection/WidgetFormsTest.jl")
@@ -214,6 +215,7 @@ function test_visual()
         test_pane_to_widget()
         test_pane_reader()
         test_pane_gestures()
+        test_pane_drag()
         test_widget_transform_pane()
         test_layout_closeout()
         test_widget_forms()
@@ -251,7 +253,7 @@ export test_point_reference
 export test_syntax, test_text, test_graphics, test_affine_transform,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive, test_pane_surgery, test_pane_geometry, test_pane_to_widget,
-       test_pane_reader, test_pane_gestures
+       test_pane_reader, test_pane_gestures, test_pane_drag
 export test_projection_template_hygiene, test_projection_template_fixed_children
 export test_syntax_to_text, test_primitive_to_text, test_text_to_graphics,
        test_word_wrapping, test_text_filtering, test_text_highlighting,

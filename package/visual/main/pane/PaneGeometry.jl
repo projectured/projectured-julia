@@ -17,7 +17,7 @@ import ..PaneModule: PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_groups, pane_weights, pane_normalized_weights
 
 export pane_rectangles, pane_rectangle, pane_neighbour_group, pane_next_group,
-       pane_group_at
+       pane_group_at, pane_drop_zone, pane_zone_orientation
 
 # Two edges that meet exactly must still read as "past each other", so every
 # comparison allows this much slack.
@@ -141,6 +141,54 @@ function _direction_measure(here, there, direction::Symbol)
 end
 
 _overlap(a, a_length, b, b_length) = min(a + a_length, b + b_length) - max(a, b)
+
+# ── Drop zones ─────────────────────────────────────────────────────────────
+
+"""
+    pane_drop_zone(tree, x, y; strip = 0.0, band = 0.2) -> (group, zone) | Nothing
+
+The group under the unit-square point `(x, y)`, and which part of it the point
+landed in:
+
+  * `:strip`  — the tab strip across its top. `strip` is its height **in units of
+    the whole square**, because a strip is a fixed number of pixels rather than a
+    share of its group; it is divided by the group's height here. A drop there
+    means "into this group", the same as its middle.
+  * `:center` — the middle. A drop there moves the tab into the group.
+  * `:left`, `:right`, `:above`, `:below` — an edge band, `band` wide as a
+    fraction of the group. A drop there splits the group and puts the tab in the
+    new pane.
+
+A band wins over the centre, and the strip wins over everything, so the three
+never overlap.
+"""
+function pane_drop_zone(tree::PaneTree, x::Real, y::Real; strip::Real = 0.0, band::Real = 0.2)
+    group = pane_group_at(tree, x, y)
+    group === nothing && return nothing
+    r = pane_rectangle(tree, group)
+    (r === nothing || r.w <= 0 || r.h <= 0) && return nothing
+    u = (x - r.x) / r.w
+    v = (y - r.y) / r.h
+    local_strip = min(0.5, strip / r.h)
+    v <= local_strip && return (group, :strip)
+    below_strip = (v - local_strip) / (1 - local_strip)
+    u < band && return (group, :left)
+    u > 1 - band && return (group, :right)
+    below_strip < band && return (group, :above)
+    below_strip > 1 - band && return (group, :below)
+    (group, :center)
+end
+
+"""
+    pane_zone_orientation(zone) -> Symbol | Nothing
+
+The split a drop on `zone` makes: `:vertical` for a side band (the new pane sits
+beside), `:horizontal` for a top or bottom one (it sits above or below).
+`nothing` for a zone that moves rather than splits.
+"""
+pane_zone_orientation(zone::Symbol) =
+    zone === :left || zone === :right ? :vertical :
+    zone === :above || zone === :below ? :horizontal : nothing
 
 # ── Traversal ──────────────────────────────────────────────────────────────
 

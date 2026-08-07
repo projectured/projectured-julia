@@ -42,7 +42,7 @@ export pane_path, pane_collection_path,
        pane_focus, pane_focused_group, pane_focused_tab_index,
        pane_tab_reference, pane_focus_operation,
        pane_open_tab_operation, pane_close_tab_operation, pane_split_operation,
-       pane_move_tab_operation, pane_resize_operation
+       pane_move_tab_operation, pane_drop_split_operation, pane_resize_operation
 
 # ── Path construction ──────────────────────────────────────────────────────
 
@@ -494,6 +494,46 @@ function _shifted_tab_path(tree::PaneTree, split::PaneSplit, dropped::Integer,
         return _reference_from(pairs, tab)
     end
     nothing
+end
+
+# ── Drop a tab on a group's edge ───────────────────────────────────────────
+
+"""
+    pane_drop_split_operation(tree, source, source_index, target, orientation, side) -> Operation | Nothing
+
+Split `target` and put `source`'s `source_index`-th tab in the new pane — what a
+drop on a group's edge band means. The tab keeps its identity: it is moved, not
+copied.
+
+**The source must keep at least one tab.** A drop that would empty it is
+declined, because the collapse of the emptied group and the split of the target
+are two structural writes whose paths would each be named against the tree the
+other leaves behind. Drop into the target's middle instead: that move handles the
+collapse. See the plan's deferred list.
+"""
+function pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
+                                   target::PaneGroup, orientation::Symbol, side::Symbol)
+    (1 <= source_index <= length(source.tabs)) || return nothing
+    length(source.tabs) > 1 || return nothing
+    tab = source.tabs[source_index]
+    new_group = PaneGroup(PaneTab[])
+    before = side === :left || side === :above
+    elements = before ? Any[new_group, target] : Any[target, new_group]
+    split = PaneSplit(orientation, elements; weights = [0.5, 0.5])
+    write = _slot_write(tree, target, split)
+    write === nothing && return nothing
+
+    # The tab moves by identity, so this write carries the two vectors and no
+    # path — it is the one member of the compound the split cannot invalidate.
+    move = MoveRangeOperation(source.tabs, Int(source_index), Int(source_index),
+                              new_group.tabs, 1)
+    # The cursor is named against the tree the split leaves behind: the source
+    # group can sit inside the very subtree that moved one level down.
+    pairs = _pairs_to(tree, new_group; from = target, to = split)
+    pairs === nothing && return nothing
+    push!(pairs, (new_group, FieldReferenceStep("tabs")))
+    push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
+    CompoundOperation(Any[write, move, ReplaceSelectionOperation(_reference_from(pairs, tab))])
 end
 
 # ── Resize a split ─────────────────────────────────────────────────────────

@@ -35,7 +35,12 @@ import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_split_axis, pane_weights, pane_normalized_weights,
                      pane_tab_title_string, default_new_pane_tab
 import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
-                            pane_close_tab_operation, pane_resize_operation
+                            pane_close_tab_operation, pane_resize_operation,
+                            pane_move_tab_operation, pane_drop_split_operation
+import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation
+import ..IntentModule: Intent
+import ..EventModule: MouseMove, MouseUp
+import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
                        ResizeSplitPaneOperation
@@ -80,6 +85,8 @@ struct PaneGroupToWidgetTabbedPane <: Projection end
     input::Any
     output::Any
     root_iomap::Any            # reconciling cell: the root node's IoMap
+    available::Any             # (width, height) cells, or nothing — what a drag
+                               # resolves the pointer against
 end
 
 @iomap struct PaneSplitToWidgetSplitPaneIoMap
@@ -155,7 +162,10 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     root_iomap = reconcile_child_iomap(
         () -> tree.root,
         root -> _recurse(recursion, root, make_child_context(ctx, tree, (@reference_step root))))
-    PaneTreeToWidgetIoMap(p, tree, ComputedCell(() -> root_iomap[].output), root_iomap)
+    available = (ctx.available_width === nothing || ctx.available_height === nothing) ?
+                nothing : (ctx.available_width, ctx.available_height)
+    PaneTreeToWidgetIoMap(p, tree, ComputedCell(() -> root_iomap[].output), root_iomap,
+                          available)
 end
 
 function map_reference_forward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, reference)
@@ -316,6 +326,84 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, payload)
     invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, payload)
 end
 
+# A drag is a *gesture* state machine, so it needs the raw gesture even when the
+# layers below already turned it into an operation — a `MouseMove` over a button
+# becomes a hover write, and the drag would never see the pointer. The four-arg
+# reader is where both are in hand. Everything outside a drag reads exactly as
+# the generic bridge does.
+function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
+                     iomap::PaneTreeToWidgetIoMap)
+    tree = iomap.input
+    if getfield(tree, :drag)[] !== nothing
+        answer = _drag_step(p, iomap, change.gesture)
+        answer === nothing || return Intent(change.gesture, answer)
+    end
+    payload = change.operation === nothing ? change.gesture : change.operation
+    Intent(change.gesture, read_intent(p, iomap, payload))
+end
+
+# ── The drag ───────────────────────────────────────────────────────────────
+#
+# `PaneTree.drag` holds `(group, index, target, zone)` while a tab is held: where
+# it came from, and where it would land. It is transient state on the tree, so
+# each write carries the tree itself and re-roots nowhere.
+#
+# The pointer is resolved against the **layout tree**, not against the printed
+# canvas: the groups divide the available extent in proportion to their weights,
+# so the unit-square rectangle of a group *is* where it is drawn. The tab strip
+# is the one part that has a fixed height rather than a share, so its band is
+# converted from pixels here.
+
+const _PANE_STRIP_PIXELS = 32
+
+_drag_write(tree, state) = ReplaceReferencedValueOperation(tree, "drag", state)
+
+function _drag_step(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, gesture)
+    tree = iomap.input
+    state = getfield(tree, :drag)[]
+    if gesture isa MouseMove
+        landing = _drop_target(iomap, gesture.x, gesture.y)
+        target, zone = landing === nothing ? (nothing, :none) : landing
+        # Only write when the target moved, so a drag across a pane is not one
+        # write per pixel.
+        (state.target === target && state.zone === zone) && return nothing
+        return _drag_write(tree, (group = state.group, index = state.index,
+                                  target = target, zone = zone))
+    elseif gesture isa MouseUp
+        drop = _drop_operation(tree, state)
+        clear = _drag_write(tree, nothing)
+        return drop === nothing ? clear : CompoundOperation(Any[drop, clear])
+    end
+    nothing
+end
+
+function _drop_operation(tree::PaneTree, state)
+    target = state.target
+    target === nothing && return nothing
+    source, index, zone = state.group, state.index, state.zone
+    orientation = pane_zone_orientation(zone)
+    if orientation === nothing
+        # The strip or the middle: the tab moves into the group, at its end.
+        source === target && return nothing
+        return pane_move_tab_operation(tree, source, index, target,
+                                       length(target.tabs) + 1)
+    end
+    # The zone names the side the new pane lands on.
+    pane_drop_split_operation(tree, source, index, target, orientation, zone)
+end
+
+# The group and zone under a pointer, or `nothing` when the layout has no
+# allocation to resolve against (an unconstrained print divides nothing).
+function _drop_target(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
+    available = iomap.available
+    available === nothing && return nothing
+    width, height = available
+    (width === nothing || height === nothing) && return nothing
+    w, h = Int(width[]), Int(height[])
+    (w <= 0 || h <= 0) && return nothing
+    pane_drop_zone(iomap.input, x / w, y / h; strip = _PANE_STRIP_PIXELS / h)
+end
+
 function _read_report(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation)
     tree = iomap.input
     if operation isa SelectTabOperation
@@ -330,6 +418,12 @@ function _read_report(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operati
         group = _pane_node_for(iomap, operation.widget)
         group isa PaneGroup || return nothing
         return pane_open_tab_operation(tree, group, p.new_tab())
+    elseif operation isa DragTabOperation
+        group = _pane_node_for(iomap, operation.widget)
+        group isa PaneGroup || return nothing
+        (1 <= operation.tab_index <= length(group.tabs)) || return nothing
+        return _drag_write(tree, (group = group, index = operation.tab_index,
+                                  target = nothing, zone = :none))
     elseif operation isa ResizeSplitPaneOperation
         return _read_resize(tree, iomap, operation)
     end
