@@ -134,7 +134,7 @@ _unforced_output(p, recursion, text::AbstractString, ctx) =
         print_child(recursion, TextBlock([TextString(text, p.style)]), ctx).output :
         SyntaxLeaf(TextString(text, p.style))
 
-function map_reference_forward(p::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_forward(::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
     @reference_case reference begin
         ::ReferenceStub.resolved.rest... => begin
             inner = iomap.inner_iomap
@@ -144,7 +144,7 @@ function map_reference_forward(p::ReferenceStubToSyntax, iomap::EmbedIoMap, refe
     end
 end
 
-function map_reference_backward(p::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_backward(::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
     result = map_reference_backward(inner.projection, inner, reference)
@@ -184,7 +184,7 @@ function print_document(p::FileDocumentToSyntax, recursion, file::FileDocument, 
     EmbedIoMap(p, file, output, printed)
 end
 
-function map_reference_forward(p::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_forward(::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
     @reference_case reference begin
         ::FileDocument.content.rest... => begin
             inner = iomap.inner_iomap
@@ -194,7 +194,7 @@ function map_reference_forward(p::FileDocumentToSyntax, iomap::EmbedIoMap, refer
     end
 end
 
-function map_reference_backward(p::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_backward(::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
     result = map_reference_backward(inner.projection, inner, reference)
