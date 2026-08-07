@@ -309,8 +309,9 @@ function test_command_palette_decorator()
     @testset "a domain rule with no gesture is reached only by name" begin
         obj = JsonObject("a" => JsonNumber(1))
         bindings = get_document_gesture_bindings(JsonObject)
-        command = only(b for b in bindings if b.pattern === nothing)
-        @test command.name == "Move from value to key"
+        commands = [b for b in bindings if b.pattern === nothing]
+        @test sort([b.name for b in commands]) ==
+              ["Move from value to key", "Sort the entries by key"]
 
         # Tab moves the cursor from the key to the value; the command moves it back.
         set_selection!(obj, @reference(obj, entries[1].key{0}))
