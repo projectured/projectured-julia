@@ -564,15 +564,151 @@ _build(s::_Section) = RstSection(s.level, s.title.adornment, _parse_inline(s.tit
 
 # ── Inline parsing ────────────────────────────────────────────────────────────
 
+# The characters an inline start-string may follow, and the ones an inline
+# end-string may precede. These two sets are what keeps the corpus readable:
+# an INET page writes `*.host.numApps = 1` in running prose, and without the
+# rule that a start-string is followed by a non-blank and an end-string is
+# preceded by a non-blank, every such wildcard would open an emphasis span.
+const _PRE_OK  = Set{Char}(" \t\n-:/'\"<([{")
+const _POST_OK = Set{Char}(" \t\n-.,:;!?\\/'\")]}>")
+
+# May a delimiter of `width` characters start a span at `i`?
+function _start_ok(cs::Vector{Char}, i::Int, width::Int)
+    (i == 1 || cs[i - 1] in _PRE_OK) || return false
+    i + width <= length(cs) || return false
+    !isspace(cs[i + width])
+end
+
+# May a delimiter of `width` characters end a span at `j`?
+function _end_ok(cs::Vector{Char}, j::Int, width::Int)
+    j > 1 || return false
+    isspace(cs[j - 1]) && return false
+    j + width - 1 == length(cs) || cs[j + width] in _POST_OK
+end
+
+# The index of the first valid end-string at or after `from`.
+function _find_end(cs::Vector{Char}, delim::Vector{Char}, from::Int)
+    width = length(delim)
+    j = from
+    while j + width - 1 <= length(cs)
+        if cs[j:(j + width - 1)] == delim && _end_ok(cs, j, width)
+            return j
+        end
+        j += 1
+    end
+    nothing
+end
+
+# A reference closes with `` `_ `` or `` `__ ``, so the underscore that follows
+# its backtick belongs to the marker. The general end-string rule would reject
+# it — `_` is not a character an inline span may precede — which is why a
+# reference gets its own finder.
+function _find_reference_end(cs::Vector{Char}, from::Int)
+    j = from
+    while j < length(cs)
+        cs[j] == '`' && !isspace(cs[j - 1]) && cs[j + 1] == '_' && return j
+        j += 1
+    end
+    nothing
+end
+
+# `:name:`content`` at `i`; returns the name, the content and the next index.
+function _match_role(cs::Vector{Char}, i::Int)
+    n = length(cs)
+    j = findnext(==(':'), cs, i + 1)
+    (j === nothing || j == i + 1) && return nothing
+    name = String(cs[(i + 1):(j - 1)])
+    occursin(r"^[a-zA-Z0-9_+.-]+$", name) || return nothing
+    (j + 1 <= n && cs[j + 1] == '`') || return nothing
+    k = findnext(==('`'), cs, j + 2)
+    k === nothing && return nothing
+    (name, String(cs[(j + 2):(k - 1)]), k + 1)
+end
+
+# `text <url>` splits into its two halves; a bare `name` keeps an empty target.
+function _split_reference(body::AbstractString)
+    m = match(r"^(.*?)\s*<([^>]*)>$", body)
+    m === nothing && return (String(strip(body)), "")
+    (String(strip(m.captures[1])), String(m.captures[2]))
+end
+
 """
     _parse_inline(text) -> Vector{Any}
 
 Split a run of inline RST into text / literal / role / strong / emphasis /
 reference / substitution / footnote nodes.
 
-Filled in by the inline pass; until then every run is one `RstText`.
+The delimiters are tried in the order an outer one can contain an inner one:
+`` ``literal`` `` first (it protects everything inside it), then a role, then
+`**strong**` before `*emphasis*`, then a reference, a substitution and a
+footnote reference. An unclosed delimiter degrades to literal text.
 """
-_parse_inline(text::AbstractString) = isempty(text) ? Any[] : Any[RstText(String(text))]
+function _parse_inline(text::AbstractString)
+    cs = collect(text)
+    n = length(cs)
+    out = Any[]
+    buf = Char[]
+    flush!() = isempty(buf) ? nothing : (push!(out, RstText(String(buf))); empty!(buf); nothing)
+    i = 1
+    while i <= n
+        c = cs[i]
+        matched = false
+        if c == '`' && i + 1 <= n && cs[i + 1] == '`' && _start_ok(cs, i, 2)
+            j = _find_end(cs, ['`', '`'], i + 2)
+            if j !== nothing
+                flush!(); push!(out, RstLiteral(String(cs[(i + 2):(j - 1)])))
+                i = j + 2; matched = true
+            end
+        end
+        if !matched && c == ':' && (i == 1 || cs[i - 1] in _PRE_OK)
+            m = _match_role(cs, i)
+            if m !== nothing
+                flush!(); push!(out, RstRole(m[1], m[2]))
+                i = m[3]; matched = true
+            end
+        end
+        if !matched && c == '*' && i + 1 <= n && cs[i + 1] == '*' && _start_ok(cs, i, 2)
+            j = _find_end(cs, ['*', '*'], i + 2)
+            if j !== nothing
+                flush!(); push!(out, RstStrong(_parse_inline(String(cs[(i + 2):(j - 1)]))))
+                i = j + 2; matched = true
+            end
+        end
+        if !matched && c == '*' && _start_ok(cs, i, 1)
+            j = _find_end(cs, ['*'], i + 1)
+            if j !== nothing
+                flush!(); push!(out, RstEmphasis(_parse_inline(String(cs[(i + 1):(j - 1)]))))
+                i = j + 1; matched = true
+            end
+        end
+        if !matched && c == '`' && _start_ok(cs, i, 1)
+            j = _find_reference_end(cs, i + 1)
+            if j !== nothing
+                anonymous = j + 2 <= n && cs[j + 2] == '_'
+                text, target = _split_reference(String(cs[(i + 1):(j - 1)]))
+                flush!(); push!(out, RstReference(text, target, anonymous))
+                i = j + (anonymous ? 3 : 2); matched = true
+            end
+        end
+        if !matched && c == '|' && _start_ok(cs, i, 1)
+            j = _find_end(cs, ['|'], i + 1)
+            if j !== nothing
+                flush!(); push!(out, RstSubstitutionReference(String(cs[(i + 1):(j - 1)])))
+                i = j + 1; matched = true
+            end
+        end
+        if !matched && c == '[' && _start_ok(cs, i, 1)
+            j = findnext(==(']'), cs, i + 1)
+            if j !== nothing && j + 1 <= n && cs[j + 1] == '_' && j > i + 1
+                flush!(); push!(out, RstFootnoteReference(String(cs[(i + 1):(j - 1)])))
+                i = j + 2; matched = true
+            end
+        end
+        matched || (push!(buf, c); i += 1)
+    end
+    flush!()
+    out
+end
 
 # ── Entry points ──────────────────────────────────────────────────────────────
 
