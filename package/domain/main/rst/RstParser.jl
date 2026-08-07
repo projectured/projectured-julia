@@ -90,6 +90,21 @@ function _trim_blanks(lines::Vector{String})
     lines[a:b]
 end
 
+# The end of the contiguous run that starts at `i` and stays indented by at
+# least `least`. Unlike `_indented_run` this stops at a blank line, which is
+# what an option value's continuation needs: a blank line ends the option list
+# and starts the directive's body, and skipping it would read the body as part
+# of the last option's value.
+function _contiguous_run(lines::Vector{String}, i::Int, least::Int)
+    j = i - 1
+    k = i
+    while k <= length(lines) && !_blank(lines[k]) && _indent(lines[k]) >= least
+        j = k
+        k += 1
+    end
+    j
+end
+
 # The end of the run that starts at `i` and stays blank or indented by at
 # least `least`. Returns `i - 1` when the run is empty.
 function _indented_run(lines::Vector{String}, i::Int, least::Int)
@@ -439,19 +454,33 @@ function _parse_explicit(lines::Vector{String}, i::Int, j::Int)
     (RstComment(text), next)
 end
 
+# An option line of a directive: `:name:` or `:name: value`. The leading indent
+# is not constrained, even though the body arrives dedented — one corpus file
+# indents an option line with a tab where its neighbour uses spaces, and
+# reading the odd one as the previous option's value would lose it.
+_option_line(line::AbstractString) = match(r"^\s*:([^:\s][^:]*):(?:\s+(.*))?$", line)
+
 # Split a directive body into its leading option lines and the rest.
 function _split_options(body::Vector{String})
     k = 1
     options = Any[]
     while k <= length(body)
-        m = _indent(body[k]) == 0 ? match(r"^:([^:\s][^:]*):(?:\s+(.*))?$", body[k]) : nothing
+        m = _option_line(body[k])
         m === nothing && break
         value = m.captures[2] === nothing ? "" : String(strip(m.captures[2]))
-        # An option value may continue on the following indented lines.
-        e = _indented_run(body, k + 1, 1)
+        # An option value may continue on the following indented lines, up to
+        # the blank line that ends the option list — or up to the next option,
+        # which is a sibling and not a continuation however it is indented.
+        e = k
+        j = k + 1
+        while j <= length(body) && !_blank(body[j]) && _indent(body[j]) >= 1 &&
+              _option_line(body[j]) === nothing
+            e = j
+            j += 1
+        end
         e >= k + 1 && (value = strip(value * "\n" * join(_dedent(body[(k + 1):e]), "\n")))
         push!(options, RstDirectiveOption(String(m.captures[1]), String(value)))
-        k = max(e, k) + 1
+        k = e + 1
     end
     (options, _trim_blanks(body[min(k, length(body) + 1):end]))
 end
@@ -470,8 +499,11 @@ const _ADMONITIONS = ("note", "warning", "important", "caution", "tip", "hint",
 
 # Build the directive that `head` (the text after `.. `) names, with `body` as
 # its already-dedented content.
+# `head` is the text after the `.. ` marker. The leading marker is accepted too,
+# because a substitution definition prints its body directive in full — the
+# projection has one rule per directive and that rule writes `.. name:: `.
 function _parse_directive(head::AbstractString, body::Vector{String})
-    m = match(r"^([a-zA-Z0-9_+:.-]+)::\s*(.*)$", strip(head))
+    m = match(r"^(?:\.\.\s+)?([a-zA-Z0-9_+:.-]+)::\s*(.*)$", strip(head))
     m === nothing && return RstComment(String(head))
     name = String(m.captures[1])
     argument = String(strip(m.captures[2]))

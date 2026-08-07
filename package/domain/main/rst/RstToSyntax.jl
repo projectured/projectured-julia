@@ -505,10 +505,12 @@ function _grid_table_text(doc)
     columns = maximum(length(r.cells) for r in rows)
     texts = [[k <= length(r.cells) ? _cell_source(r.cells[k]) : "" for k in 1:columns] for r in rows]
     stored = collect(doc.widths)
-    # A column is at least as wide as the source drew it and always wide enough
-    # for its widest cell plus the space on each side.
+    # A column is wide enough for its widest cell plus the one leading space,
+    # and never narrower than the source drew it. Asking for a trailing space as
+    # well would widen a column whose cell the source wrapped over two lines,
+    # because a cell rejoins as one line here.
     widths = [max(k <= length(stored) ? Int(stored[k]) : 0,
-                  maximum(length(t[k]) for t in texts) + 2) for k in 1:columns]
+                  maximum(length(t[k]) for t in texts) + 1) for k in 1:columns]
     ruling(fill) = "+" * join((fill^w for w in widths), "+") * "+"
     lines = String[ruling("-")]
     for (i, row) in enumerate(texts)
@@ -702,15 +704,18 @@ end
 end
 
 @rst_indented RstToctreeToSyntaxNode RstToctree (prj, doc, outer, inner) ->
-    SyntaxNode(collection(:entries);
-               open=TextString(() -> ".. toctree::" *
-                                     (doc.maxdepth == 0 ? "" : "\n" * inner * ":maxdepth: " * string(doc.maxdepth)) *
-                                     (doc.titlesonly ? "\n" * inner * ":titlesonly:" : "") *
-                                     (doc.glob ? "\n" * inner * ":glob:" : "") *
-                                     "\n\n" * inner,
-                               prj.marker_style),
-               sep=TextString("\n" * inner, prj.marker_style),
-               indentation=0)
+    SyntaxConcatenation([
+        SyntaxLeaf(TextString(() -> ".. toctree::" *
+                                    (doc.maxdepth == 0 ? "" : "\n" * inner * ":maxdepth: " * string(doc.maxdepth)) *
+                                    (doc.titlesonly ? "\n" * inner * ":titlesonly:" : "") *
+                                    (doc.glob ? "\n" * inner * ":glob:" : ""),
+                              prj.marker_style)),
+        SyntaxNode(collection(:extra);
+                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   sep=TextString("\n" * inner, prj.marker_style), indentation=0),
+        SyntaxNode(collection(:entries);
+                   open=TextString(() -> isempty(doc.entries) ? "" : "\n\n" * inner, prj.entry_style),
+                   sep=TextString("\n" * inner, prj.entry_style), indentation=0) ])
 
 @projection struct RstMathBlockToSyntaxLeaf
     marker_style::ImmutableCell{DStyleText} = StyleText(_MONO, color_solarized_gray)
