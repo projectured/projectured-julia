@@ -107,6 +107,73 @@ end
     @test tree.drag.zone === :strip
 end
 
+# Every rectangle in a rendered canvas, as `(x, y, w, h)`.
+function _rectangles(node, acc = Tuple{Int,Int,Int,Int}[])
+    if node isa GraphicsRect
+        push!(acc, (Int(node.x), Int(node.y), Int(node.w), Int(node.h)))
+    elseif node isa GraphicsCanvas
+        for element in node.elements
+            _rectangles(element, acc)
+        end
+    elseif node isa GraphicsViewport
+        _rectangles(node.content, acc)
+    end
+    acc
+end
+
+# The overlay layer: the layout is slot 1, the drop indicator slot 2.
+_indicator(iomap) = getfield(iomap, :step_iomaps)[][1][].output.elements[2]
+
+@testset "the indicator shows where the tab would land" begin
+    tree, left, right, editor = _two_groups()
+    proj, iomap = _print(tree)
+    @test _indicator(iomap).visible === false     # nothing held, nothing shown
+
+    _feed!(editor, proj, iomap, DragTabOperation(_group_widget(iomap, left), 1))
+    @test _indicator(iomap).visible === false     # held, but over nothing yet
+
+    # Over the middle of a group: the whole group is the target.
+    x, y = _point(tree, right, 0.5, 0.5)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    r = pane_rectangle(tree, right)
+    @test _indicator(iomap).visible === true
+    @test _indicator(iomap).position.x[] == round(Int, r.x * WIDTH)
+    @test _indicator(iomap).width == round(Int, r.w * WIDTH)
+    @test _indicator(iomap).height == round(Int, r.h * HEIGHT)
+
+    # Over an edge band: the half the new pane would take.
+    x, y = _point(tree, right, 0.5, 0.95)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    @test _indicator(iomap).visible === true
+    @test _indicator(iomap).height == round(Int, r.h / 2 * HEIGHT)
+    @test _indicator(iomap).position.y[] == round(Int, (r.y + r.h / 2) * HEIGHT)
+
+    # A side band takes half the width instead.
+    x, y = _point(tree, right, 0.03, 0.5)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    @test _indicator(iomap).width == round(Int, r.w / 2 * WIDTH)
+    @test _indicator(iomap).height == round(Int, r.h * HEIGHT)
+
+    # The pointer leaves every pane: nothing to show.
+    _feed!(editor, proj, iomap, MouseMove(10_000, 10_000, :left, ModifierKeys()))
+    @test _indicator(iomap).visible === false
+
+    # And it is *drawn*: the widget's own flag says nothing about what reached the
+    # canvas — an early return for an invisible widget, or an origin fixed at
+    # print time, would leave the flag true and the screen unchanged.
+    x, y = _point(tree, right, 0.5, 0.95)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    @test any(_rectangles(iomap.output)) do (rx, ry, rw, rh)
+        rw == _indicator(iomap).width && rh == _indicator(iomap).height
+    end
+
+    # And the drop puts it away.
+    x, y = _point(tree, right, 0.5, 0.5)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys()))
+    @test _indicator(iomap).visible === false
+end
+
 @testset "a drop in the middle moves the tab into that group" begin
     tree, left, right, editor = _two_groups()
     moved = left.tabs[1]

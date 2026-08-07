@@ -58,6 +58,7 @@ the fields they need plus `visible`/`selection`:
 | `WidgetAvatar(position, initials; size)` | Circular initials avatar |
 | `WidgetAlert(position, title, description; variant)` | Callout (`:default`/`:destructive`) |
 | `WidgetSkeleton(position; width, height)` | Loading placeholder |
+| `WidgetHighlight(position; width, height)` | An area called out — a translucent accent fill under an accent outline. What a drop indicator is made of; the opposite of a skeleton, which is meant to disappear into its surface |
 | `WidgetToggle(position, content; pressed)` | Two-state toggle button |
 | `WidgetToggleGroup(position, options; selected)` | Segmented control |
 | `WidgetSelect(position, value; width)` | Closed select / combobox |
@@ -289,6 +290,20 @@ printer and the reader read it — extend that function, never its callers, or t
 drawn tab and the hit-tested tab drift apart.
 
 The [pane domain](pane.md) is the reference consumer of all three.
+
+## A drag is not hit-tested
+
+A container routes a `MousePress` to the child under the pointer, and rightly
+drops it when the pointer is over nothing. The three events a **drag** is made of
+— `MouseDown`, `MouseMove`, `MouseUp` — are different: the widget that holds a
+drag must keep receiving them even when the cursor strays off anything drawn, or
+it never learns that the button came up and stays held forever.
+
+`WidgetComposite` therefore offers those three to the hit child first, exactly as
+a click, and then — only if nothing was hit — to its children in order.
+`WidgetTabbedPane` forwards them to its active tab ungated for the same reason. A
+split pane's slot is drawn only where its content draws, so a splitter dragged
+past the text is exactly the case this covers.
 
 ## A split pane follows its slots
 

@@ -123,26 +123,49 @@ end
     @test read_intent(pane_stage, pane_iomap, NewTabRequestOperation(stranger)) === nothing
 end
 
-@testset "a splitter drag becomes a weight change" begin
+@testset "a splitter drag runs from the pointer" begin
+    # The whole gesture, through the reader — a button down on the divider, a
+    # move, a release. Applying `StartSplitterDragOperation` by hand instead would
+    # not notice that the reader never hands it back.
     left = PaneGroup(PaneTab[_tab("l")])
     right = PaneGroup(PaneTab[_tab("r")])
     tree = PaneTree(PaneSplit(:vertical, [left, right]))
     editor = _PaneReaderMockEditor(tree)
-    pane_stage = RecursiveProjection(PaneToWidget())
-    iomap = print_document(pane_stage, tree)
-    widget = iomap.output
+    proj = make_pane_projection_example(measure = _stub)
+    iomap = print_document(proj, nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(400), Cell(300),
+                                          Dict{Symbol,Any}()))
 
-    # Stand in for the drag the widget runs: it materializes the slot extents and
-    # then reports two new ones.
-    _apply!(editor, StartSplitterDragOperation(widget, 1, 100, [200, 200]))
-    op = read_intent(pane_stage, iomap, ResizeSplitPaneOperation(widget, 1, 300, 100))
-    @test op !== nothing
-    _apply!(editor, op)
-    @test pane_weights(tree.root) == [0.75, 0.25]
+    # The divider of an even split sits near the middle; find the band it grabs in.
+    grab = nothing
+    for x in 190:210
+        op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys()))
+        if op isa StartSplitterDragOperation
+            grab = x
+            _apply!(editor, op)
+            break
+        end
+    end
+    @test grab !== nothing
 
-    # A drag on a split pane this tree did not print is declined.
+    move = read_intent(proj, iomap, MouseMove(300, 150, :left, ModifierKeys()))
+    @test move isa ReplaceReferencedValueOperation
+    _apply!(editor, move)
+    @test pane_weights(tree.root)[1] > 0.6        # the left pane took the space
+    @test sum(pane_weights(tree.root)) ≈ 1.0
+
+    finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys()))
+    @test finish isa EndSplitterDragOperation
+    _apply!(editor, finish)
+    @test tree.root.elements[1] === left          # and the layout kept its shape
+end
+
+@testset "a drag on a split pane this tree did not print is declined" begin
+    tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
+    stage = RecursiveProjection(PaneToWidget())
+    iomap = print_document(stage, tree)
     stranger = WidgetSplitPane(:horizontal, Any[])
-    @test read_intent(pane_stage, iomap,
+    @test read_intent(stage, iomap,
                       ResizeSplitPaneOperation(stranger, 1, 10, 10)) === nothing
 end
 

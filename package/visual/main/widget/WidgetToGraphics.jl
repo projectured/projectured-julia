@@ -38,7 +38,7 @@ import ..ColorModule: StyleColor,
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
-                       WidgetTabbedPane, WidgetTabPage, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
+                       WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
@@ -88,6 +88,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
+       WidgetHighlightToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
@@ -1741,10 +1742,12 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
         MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
-        MouseDown => _route_composite_event(child_iomaps, evt.x, evt.y,
+        MouseDown => _route_composite_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
-        MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
+        MouseUp => _route_composite_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
+        MouseMove => _route_composite_drag(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
         MouseEnter => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
         MouseLeave => _route_composite_event(child_iomaps, evt.x, evt.y,
@@ -1763,6 +1766,28 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     res === nothing && return nothing
     op, slot_idx = res
     reroot_operation(op, (FieldReferenceStep("elements"), RangeReferenceStep(slot_idx - 1, slot_idx)))
+end
+
+# The three events a drag is made of. They route to the hit child first, exactly
+# as a click does — but when the pointer is over nothing, they are offered to the
+# children anyway, in order. **A drag must keep reaching the widget that holds
+# it even when the cursor strays off the content**: a split pane's slot is drawn
+# only where its content draws, so a splitter dragged past the text would lose its
+# own release and stay held. The tabbed pane forwards these to its active tab
+# ungated for the same reason.
+function _route_composite_drag(child_iomaps::Vector, x::Int, y::Int, make_evt)
+    hit = _route_composite_event(child_iomaps, x, y, make_evt)
+    hit === nothing || return hit
+    for (i, entry) in enumerate(child_iomaps)
+        entry === nothing && continue
+        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        result = read_intent(cim.projection, cim,
+                             make_evt(x - ox - Int(canvas.x), y - oy - Int(canvas.y)))
+        result === nothing || return (result, i)
+    end
+    nothing
 end
 
 # Hit-test a coordinate event against each child canvas; returns `(op, i)` for
@@ -4021,6 +4046,42 @@ end
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
+# The same colour at a different alpha — what makes a highlight read *over* the
+# surface it covers rather than replacing it.
+_with_alpha(color::StyleColor, alpha::Real) =
+    StyleColor(color.red, color.green, color.blue, Float64(alpha))
+
+# The drop-indicator surface: a translucent accent fill under a solid accent
+# outline, so the called-out area reads over whatever it covers.
+@projection struct WidgetHighlightToGraphicsCanvas
+    fill_color::StyleColor
+    border_color::StyleColor
+    border_width::Int
+    corner_radius::Int
+end
+
+# Everything here is read **inside** a cell, `position` and `visible` included: a
+# highlight is moved and shown while it is already printed — that is its whole
+# job — and a canvas whose origin was fixed at print time, or an IoMap returned
+# early for an invisible widget, would never move or appear.
+function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::WidgetHighlight, ctx)
+    position = getfield(w, :position)
+    shown() = w.visible !== false
+    x = ComputedCell(() -> Int32(Int(position[].x[])))
+    y = ComputedCell(() -> Int32(Int(position[].y[])))
+    width  = ComputedCell(() -> Int32(shown() ? max(0, _sc(Int(w.width))) : 0))
+    height = ComputedCell(() -> Int32(shown() ? max(0, _sc(Int(w.height))) : 0))
+    elements = ComputedCellVector(() -> begin
+        cw, ch = Int(width[]), Int(height[])
+        (cw <= 0 || ch <= 0) && return Any[]
+        Any[GraphicsRect(0, 0, cw, ch, p.fill_color, _sc(p.corner_radius);
+                         border_width = _sc(p.border_width), border_color = p.border_color)]
+    end)
+    SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
+                                     layout_none, true, Cell(nothing)))
+end
+@_printer_only WidgetHighlightToGraphicsCanvas
+
 @projection struct WidgetSkeletonToGraphicsCanvas
     fill_color::StyleColor
     corner_radius::Int
@@ -5909,6 +5970,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             14, 4, theme.radius, theme.border_width,
             theme.foreground, theme.border, theme.destructive),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, 6),
+        WidgetHighlight  => WidgetHighlightToGraphicsCanvas(_with_alpha(theme.primary, 0.25),
+                                                            theme.primary, 2, 6),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             StyleStroke(theme.border, theme.border_width),

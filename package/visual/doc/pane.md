@@ -159,6 +159,23 @@ Both containers follow their own child lists: `WidgetTabbedPane` always did, and
 edit it compares the standing render against a fresh print of the same tree. A
 test that asserts on the tree alone passes while the screen is stale.
 
+## The drop indicator
+
+While a tab is held, one `WidgetHighlight` shows where it would land: the whole
+of the target group for a drop that moves the tab into it, and the half a new
+pane would take for a drop on an edge band.
+
+It is **always in the widget tree**, in slot 2 of a `WidgetComposite` whose slot
+1 is the layout — only its position, size and `visible` move. That is what keeps
+the widget tree the same shape whether a tab is held or not, so showing the
+indicator costs no re-print and changes no reference mapping.
+
+A composite is what can carry the overlay: it hands each child the extent it was
+given itself, so the panes still divide the whole window, and it places each
+child at its own position, so the indicator can sit anywhere over them. A
+`StackLayout` clears the available size for its children, which would collapse
+the split panes to their intrinsic sizes.
+
 ## Renaming is not a mode
 
 A tab's title is a text document. Putting the caret in it **is** the editing

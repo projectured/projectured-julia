@@ -38,15 +38,17 @@ import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
                             pane_close_tab_operation, pane_resize_operation,
                             pane_move_tab_operation, pane_drop_split_operation,
                             pane_focus, pane_shown_tab_index
-import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation
+import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation, pane_rectangle
 import ..IntentModule: Intent
 import ..EventModule: MouseMove, MouseUp, MousePress
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
-                       ResizeSplitPaneOperation
+                       StartSplitterDragOperation, ResizeSplitPaneOperation,
+                       EndSplitterDragOperation
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetScrollPane, Inset
+                       WidgetScrollPane, WidgetComposite, WidgetHighlight,
+                       Inset, Point2D
 import ..LayoutModule: LayoutConstraint
 import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
                       reconcile_child_iomap, reconcile_child_iomaps
@@ -187,20 +189,90 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
                          make_child_context(ctx, tree, (@reference_step root))))
     available = (ctx.available_width === nothing || ctx.available_height === nothing) ?
                 nothing : (ctx.available_width, ctx.available_height)
-    PaneTreeToWidgetIoMap(p, tree, ComputedCell(() -> root_iomap[].output), root_iomap,
-                          available)
+
+    # The layout, and one layer over it. A `WidgetComposite` is what can carry the
+    # overlay: it hands each child the extent it was given itself, so the panes
+    # still divide the whole window, and it places each child at its own position,
+    # so the indicator can sit anywhere over them. (A `StackLayout` clears the
+    # available size for its children, which would collapse the split panes to
+    # their intrinsic sizes.)
+    indicator = _drop_indicator(tree, available)
+    composite = WidgetComposite(Point2D(0, 0), Any[])
+    set_cell_function!(getfield(composite.elements, :elements),
+                       () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
+    # The pane layer is slot 1, always. The indicator never takes a keystroke, so
+    # a constant selection is the whole of what the composite's coordless routing
+    # needs — the pane widget routes on from there by its own.
+    getfield(composite, :selection)[] =
+        @reference ::WidgetComposite.elements::CellVector[1]::WidgetDocument
+
+    PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
 end
 
+# ── The drop indicator ─────────────────────────────────────────────────────
+#
+# While a tab is held, one muted rectangle shows where it would land: the whole
+# of the target group for a drop that moves the tab into it, and the half a new
+# pane would take for a drop on an edge band. It is a single widget whose cells
+# read the drag, so showing and moving it costs no re-print — and it is always in
+# the tree, just invisible, so the widget tree keeps its shape.
+function _drop_indicator(tree::PaneTree, available)
+    indicator = WidgetHighlight(Point2D(0, 0); visible = false)
+    rectangle() = _drop_indicator_rectangle(tree, available)
+    set_cell_function!(getfield(indicator, :position), () -> begin
+        r = rectangle()
+        r === nothing ? Point2D(0, 0) : Point2D(r[1], r[2])
+    end)
+    set_cell_function!(getfield(indicator, :width),
+                       () -> (r = rectangle(); r === nothing ? 0 : r[3]))
+    set_cell_function!(getfield(indicator, :height),
+                       () -> (r = rectangle(); r === nothing ? 0 : r[4]))
+    set_cell_function!(getfield(indicator, :visible), () -> rectangle() !== nothing)
+    indicator
+end
+
+# The pixel rectangle the indicator marks, or `nothing` when no drag is over a
+# group. An edge band shows the half the new pane would take; the strip and the
+# middle show the whole group, because that is where the tab would go.
+function _drop_indicator_rectangle(tree::PaneTree, available)
+    available === nothing && return nothing
+    state = getfield(tree, :drag)[]
+    state === nothing && return nothing
+    target = state.target
+    target === nothing && return nothing
+    r = pane_rectangle(tree, target)
+    r === nothing && return nothing
+    width, height = Int(available[1][]), Int(available[2][])
+    (width <= 0 || height <= 0) && return nothing
+    x, y, w, h = state.zone === :left  ? (r.x,             r.y,             r.w / 2, r.h) :
+                 state.zone === :right ? (r.x + r.w / 2,   r.y,             r.w / 2, r.h) :
+                 state.zone === :above ? (r.x,             r.y,             r.w,     r.h / 2) :
+                 state.zone === :below ? (r.x,             r.y + r.h / 2,   r.w,     r.h / 2) :
+                                         (r.x,             r.y,             r.w,     r.h)
+    (round(Int, x * width), round(Int, y * height),
+     round(Int, w * width), round(Int, h * height))
+end
+
+# The layout sits in slot 1 of the overlay composite, so every path through this
+# projection gains that hop.
 function map_reference_forward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, reference)
     @reference_case reference begin
-        ::PaneTree.root.rest... => _child_forward(iomap.root_iomap, rest)
+        ::PaneTree.root.rest... => begin
+            inner = _child_forward(iomap.root_iomap, rest)
+            @reference ::WidgetComposite.elements::CellVector[1].^(inner)
+        end
     end
 end
 
 function map_reference_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, reference)
-    inner = _child_backward(iomap.root_iomap, reference)
-    inner === nothing && return nothing
-    @reference ::PaneTree.root.^(inner)
+    @reference_case reference begin
+        ::WidgetComposite.elements{s:e}.rest... => begin
+            s == 0 || return nothing        # slot 2 is the indicator: nothing to map
+            inner = _child_backward(iomap.root_iomap, rest)
+            inner === nothing && return nothing
+            @reference ::PaneTree.root.^(inner)
+        end
+    end
 end
 
 # ── PaneSplit ──────────────────────────────────────────────────────────────
@@ -356,12 +428,10 @@ end
 # `map_reference_backward` and hands a raw gesture to the tree's own
 # `@gestures` table.
 #
-# **One method per report, and no catch-all.** A method that took *any* payload
-# for this projection and this IoMap would be ambiguous with the readers that
-# take any projection and a particular operation — `ReaderDefaults`' text-edit
-# readers are exactly that shape. Each is more specific than the other in a
-# different argument, and the tie only shows up when the first text edit arrives:
-# typing in a tab would fail with a `MethodError` rather than edit anything.
+# **One method per report**, rather than one method that takes any payload and
+# forwards the rest. Each names the operation it answers, so what this projection
+# claims is the list below and nothing else — every other payload, a text edit or
+# a raw gesture included, reaches the generic reader by ordinary dispatch.
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::SelectTabOperation)
@@ -396,6 +466,15 @@ end
 read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
             operation::ResizeSplitPaneOperation) =
     _read_resize(iomap.input, iomap, operation)
+
+# The two ends of a splitter drag are the widget's own transient state — which
+# splitter is held, and where it was grabbed. They carry the split pane itself, so
+# they are forwarded untouched: the pane layer has nothing to add, and dropping
+# them would leave the drag unable to start at all.
+read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+            operation::StartSplitterDragOperation) = operation
+read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+            operation::EndSplitterDragOperation) = operation
 
 # A drag is a *gesture* state machine, so it needs the raw gesture even when the
 # layers below already turned it into an operation — a `MouseMove` over a button

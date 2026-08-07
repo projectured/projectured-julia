@@ -1380,6 +1380,31 @@ end
 WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
 
+# ── WidgetHighlight ─────────────────────────────────────────────────────────
+
+"""
+    WidgetHighlight(position; width, height, visible)
+
+A translucent accent rectangle with an accent outline: **an area called out**,
+not a control. It draws nothing of its own beyond that, takes no input, and is
+sized by its caller rather than by content — so it can be laid over other widgets
+to say *this is where the thing goes*. A drag's drop indicator is what it was
+added for; a selection band over an arbitrary region is the same shape.
+
+It is a highlight and not a [`WidgetSkeleton`](@ref) because the two say opposite
+things: a skeleton is a muted stand-in for content that has not arrived, and
+disappears into the surface it sits on, which is exactly what a drop indicator
+must not do.
+"""
+@document struct WidgetHighlight <: WidgetDocument
+    position::Point2D
+    width::Int
+    height::Int
+    visible::Bool
+end
+WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true) =
+    WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
+
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
 """
