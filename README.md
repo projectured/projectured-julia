@@ -225,17 +225,18 @@ Three reading tracks — pick the one that matches your goal.
 
 ### New here? Start with
 
-1. [Concepts](documentation/concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
-2. [Examples tour](documentation/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
-3. [Getting started](documentation/getting-started.md) — prerequisites, setup, and the REPL helpers.
+1. [Introduction](documentation/introduction.md) — the engineer's introduction: every concept with its real code, how the concepts combine, and how to extrapolate what the system can do.
+2. [Concepts](documentation/concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
+3. [Examples tour](documentation/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
+4. [Getting started](documentation/getting-started.md) — prerequisites, setup, and the REPL helpers.
 
 ### Building something? Read next
 
-4. [Architecture](documentation/architecture.md) — the package chain, layer/slice structure, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
-5. [Reactive cells](package/kernel/doc/cell.md) — the `Cell` system that powers incrementality.
-6. [Macros](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap` macros.
-7. [Projection system](package/kernel/doc/projection-system.md) — the four projection interface functions and the printer/reader pair.
-8. [Tutorial: new domain](documentation/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
+5. [Architecture](documentation/architecture.md) — the package chain, layer/slice structure, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
+6. [Reactive cells](package/kernel/doc/cell.md) — the `Cell` system that powers incrementality.
+7. [Macros](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap` macros.
+8. [Projection system](package/kernel/doc/projection-system.md) — the four projection interface functions and the printer/reader pair.
+9. [Tutorial: new domain](documentation/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
 
 ### Going deeper
 

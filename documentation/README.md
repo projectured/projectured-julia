@@ -17,13 +17,16 @@ agent sees both sets through `list_guides` / `read_guide`.
 You want to understand what ProjecturEd is, see it in action, and form a
 mental model before diving into code.
 
-1. [Concepts](concepts.md) — what projectional editing is, the five core
+1. [Introduction](introduction.md) — the engineer's introduction: every concept
+   with its real code, how the concepts combine, and how to extrapolate what the
+   system can do.
+2. [Concepts](concepts.md) — what projectional editing is, the five core
    ideas, and a step-by-step walkthrough of a key event.
-2. [Examples tour](examples-tour.md) — guided tour of six examples with
+3. [Examples tour](examples-tour.md) — guided tour of six examples with
    screenshots and what to try.
-3. [Getting started](getting-started.md) — prerequisites, setup, and REPL
+4. [Getting started](getting-started.md) — prerequisites, setup, and REPL
    helpers (`run_example`, `print_example`, `write_example_image`).
-4. [Debugging](debugging.md) — driving the printer/reader by hand, forcing
+5. [Debugging](debugging.md) — driving the printer/reader by hand, forcing
    reactive cells, inspecting selection.
 
 ---
@@ -32,7 +35,8 @@ mental model before diving into code.
 
 You want to add a domain, a projection, a backend, or extend an existing one.
 
-1. [Concepts](concepts.md) — start here if you haven't already.
+1. [Introduction](introduction.md) then [Concepts](concepts.md) — start here if
+   you haven't already.
 2. [Architecture](architecture.md) — the package chain, layer/slice structure,
    full module inventory, pipeline status. See [Terminology](terminology.md)
    for the division vocabulary (package / layer / slice / module).
@@ -80,6 +84,7 @@ Read it first; it will point you here and to the specific guides you need.
 
 | Guide | Contents |
 |---|---|
+| [Introduction](introduction.md) | The engineer's introduction — every concept with its code, how they combine, what the combinations make possible |
 | [Concepts](concepts.md) | Plain-English conceptual guide — the five core ideas and a key-event walkthrough |
 | [Examples tour](examples-tour.md) | Guided tour of six examples with what to try |
 | [Vision](vision.md) | Long-term potential, positioning, and "compared to…" |
