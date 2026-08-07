@@ -221,17 +221,52 @@ end
     @test inner.elements[2] === right           # dropped on the left, so it is second
 end
 
-@testset "a drop that would empty its group is declined" begin
-    # The split-drop needs the source to keep a tab; the move-drop handles the
-    # collapse instead. See the builder's docstring.
-    tree, left, right, editor = _two_groups()
-    proj, iomap = _grab!(editor, tree, right, 1)
-    x, y = _point(tree, left, 0.5, 0.95)
-    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys()))
-    @test tree.drag === nothing                 # the drag ends either way
-    @test length(right.tabs) == 1               # and nothing moved
-    @test tree.root.elements[1] === left
+@testset "every drop lands, whatever the layout and whatever it empties" begin
+    # The four shapes a split-drop meets, crossed with a source that survives the
+    # drop and one that is emptied by it. Each must move the tab and leave a tree
+    # whose splits all still hold two or more elements.
+    _tabs(n) = PaneTab[_tab("s\$i") for i in 1:n]
+
+    function _shape(kind, source_tabs)
+        source = PaneGroup(_tabs(source_tabs))
+        a, b = PaneGroup(PaneTab[_tab("a")]), PaneGroup(PaneTab[_tab("b")])
+        kind === :pair   ? (PaneTree(PaneSplit(:vertical, [source, a])), source, a) :
+        kind === :three  ? (PaneTree(PaneSplit(:vertical, [source, a, b])), source, b) :
+                           (PaneTree(PaneSplit(:vertical, [source,
+                                PaneSplit(:horizontal, [a, b])])), source, b)
+    end
+
+    # Every split of a well-formed tree holds two or more elements.
+    _well_formed(node) =
+        !(node isa PaneSplit) ||
+        (length(node.elements) >= 2 &&
+         all(_well_formed(node.elements[i]) for i in 1:length(node.elements)))
+
+    for kind in (:pair, :three, :nested), source_tabs in (1, 2)
+        for (zone, orientation) in ((:right, :vertical), (:below, :horizontal),
+                                    (:left, :vertical), (:above, :horizontal))
+            tree, source, target = _shape(kind, source_tabs)
+            editor = _PaneDragMockEditor(tree)
+            moved = source.tabs[1]
+            label = "\$kind/\$source_tabs/\$zone"
+
+            operation = pane_drop_split_operation(tree, source, 1, target, orientation, zone)
+            @test operation !== nothing
+            operation === nothing && continue
+            evaluate_operation(editor, operation)
+
+            groups = pane_groups(tree)
+            landed = findfirst(g -> any(g.tabs[i] === moved for i in 1:length(g.tabs)), groups)
+            @test landed !== nothing                          # the tab is somewhere
+            landed === nothing && continue
+            @test length(groups[landed].tabs) == 1            # in a pane of its own
+            @test !(groups[landed] in (source, target))       # a new one
+            @test _well_formed(tree.root)                     # no one-element split
+            @test (source in groups) == (source_tabs > 1)     # emptied source is gone
+            @test target in groups                            # the landing group stays
+            @test evaluate_reference(tree, get_selection(tree)) === moved
+        end
+    end
 end
 
 @testset "a drop back on its own group does nothing" begin

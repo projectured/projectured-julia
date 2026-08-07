@@ -29,6 +29,11 @@ function _writes(op)
     op isa ReplaceReferencedValueOperation ? Any[op] : Any[]
 end
 
+# A grab now arrives inside a compound: the widget's stale measurements are
+# cleared in the same step.
+_starts_drag(op) = op isa StartSplitterDragOperation ||
+                   (op isa CompoundOperation && any(_starts_drag, op.operations))
+
 _is_delete(op) = any(w -> w.value isa AbstractVector && isempty(w.value), _writes(op))
 _is_insert(op) = any(w -> w.value isa AbstractVector && length(w.value) == 1 &&
                           w.value[1] isa PaneTab, _writes(op))
@@ -140,7 +145,7 @@ end
     grab = nothing
     for x in 190:210
         op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys()))
-        if op isa StartSplitterDragOperation
+        if _starts_drag(op)
             grab = x
             _apply!(editor, op)
             break
@@ -158,6 +163,76 @@ end
     @test finish isa EndSplitterDragOperation
     _apply!(editor, finish)
     @test tree.root.elements[1] === left          # and the layout kept its shape
+end
+
+@testset "a second drag continues from where the first left off" begin
+    # The widget anchors a drag on its measured `sizes`, and materializes them
+    # only when they are empty. This projection answers every resize with a
+    # *weight* write and never lets `sizes` be written, so a second drag would
+    # anchor on the first one's measurements and the splitter would jump back.
+    left = PaneGroup(PaneTab[_tab("l")])
+    right = PaneGroup(PaneTab[_tab("r")])
+    tree = PaneTree(PaneSplit(:vertical, [left, right]))
+    editor = _PaneReaderMockEditor(tree)
+    proj = make_pane_projection_example(measure = _stub)
+    iomap = print_document(proj, nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(400), Cell(300),
+                                          Dict{Symbol,Any}()))
+
+    # Grab the divider wherever it currently is, move to `to`, release.
+    function _drag!(to)
+        grabbed = false
+        for x in 0:399
+            operation = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys()))
+            _starts_drag(operation) || continue
+            _apply!(editor, operation)
+            grabbed = true
+            break
+        end
+        grabbed || return false
+        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, :left, ModifierKeys())))
+        _apply!(editor, read_intent(proj, iomap, MouseUp(:left, to, 150, ModifierKeys())))
+        true
+    end
+
+    @test _drag!(300)
+    after_first = pane_weights(tree.root)[1]
+    @test after_first > 0.7
+
+    # The second drag moves the divider a little further right. If it anchored on
+    # the first drag's measurements it would snap back towards the middle.
+    @test _drag!(330)
+    after_second = pane_weights(tree.root)[1]
+    @test after_second > after_first
+    @test after_second < after_first + 0.15
+end
+
+@testset "a nested splitter can be grabbed" begin
+    # The parent hit-tests its slots before routing, and a hairline between two
+    # panes is not a hit — so without an ungated pass only the outermost splitter
+    # would ever answer.
+    left = PaneGroup(PaneTab[_tab("l")])
+    top = PaneGroup(PaneTab[_tab("t")])
+    bottom = PaneGroup(PaneTab[_tab("b")])
+    inner = PaneSplit(:horizontal, [top, bottom])
+    tree = PaneTree(PaneSplit(:vertical, [left, inner]))
+    editor = _PaneReaderMockEditor(tree)
+    proj = make_pane_projection_example(measure = _stub)
+    iomap = print_document(proj, nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(400), Cell(300),
+                                          Dict{Symbol,Any}()))
+
+    # The inner divider runs across the right column, near half its height.
+    grabbed = findfirst(y -> _starts_drag(read_intent(proj, iomap,
+                                MouseDown(:left, 340, y, ModifierKeys()))), 100:200)
+    @test grabbed !== nothing
+    grabbed === nothing && return
+    y = (100:200)[grabbed]
+    _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys())))
+    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, :left, ModifierKeys())))
+    _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys())))
+    @test pane_weights(inner)[1] > 0.6              # the top pane took the space
+    @test pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
 end
 
 @testset "a drag on a split pane this tree did not print is declined" begin

@@ -2508,11 +2508,11 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         # navigator, and any other unselected pane, unhoverable). A splitter drag was
         # already consumed above by `_split_drag_read`, so a `MouseDown`/`MouseMove`/
         # `MouseUp` reaching here is not part of a drag and belongs to a child.
-        MouseDown => _route_split_event(child_iomaps, evt.x, evt.y,
+        MouseDown => _route_split_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
-        MouseUp => _route_split_event(child_iomaps, evt.x, evt.y,
+        MouseUp => _route_split_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
-        MouseMove => _route_split_event(child_iomaps, evt.x, evt.y,
+        MouseMove => _route_split_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
         MouseEnter => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
@@ -2597,6 +2597,27 @@ function _forward_split_event_slot(child_iomaps::Vector, evt, slot::Int)
     (_, _, cim) = entry::Tuple{Cell,Cell,Any}
     result = read_intent(cim.projection, cim, evt)
     result isa Operation ? (result, slot) : nothing
+end
+
+# The three events a drag is made of, routed like a click and then — when the
+# pointer is over nothing drawn — offered to the slots anyway. **A nested split's
+# own splitter lives in exactly that gap**: it is drawn inside the child, but the
+# parent hit-tests the child's canvas first, and a hairline between two panes is
+# not a hit. Without this, only the outermost splitter can ever be grabbed.
+function _route_split_drag(child_iomaps::Vector, x::Int, y::Int, make_evt)
+    hit = _route_split_event(child_iomaps, x, y, make_evt)
+    hit === nothing || return hit
+    for (i, entry) in enumerate(child_iomaps)
+        entry === nothing && continue
+        (x_cell, y_cell, cim) = entry::Tuple{Cell,Cell,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        result = read_intent(cim.projection, cim,
+                             make_evt(x - Int(x_cell[]) - Int(canvas.x),
+                                      y - Int(y_cell[]) - Int(canvas.y)))
+        result === nothing || return (result, i)
+    end
+    nothing
 end
 
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)

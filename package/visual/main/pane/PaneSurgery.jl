@@ -63,17 +63,19 @@ function _reference_from(pairs, final)
 end
 
 # Append the pairs leading from `current` to `target`, and answer whether it was
-# found. `from`/`to` substitute one node for another as the walk passes it, so a
-# caller can name a slot in the tree the edit is about to produce (the sibling
-# that replaces a collapsing split, the split that replaces a group).
-function _trail_into!(current, target, pairs; from = nothing, to = nothing)
-    if current === from
-        # The substitution fires once. A replacement usually *contains* the node
-        # it replaces — a split wraps the group it splits, a sibling sits inside
-        # the split it collapses — so a second firing would walk in circles.
-        current = to
-        from = nothing
-        to = nothing
+# found.
+#
+# `subs` is how a caller names a slot in the tree an edit is *about to* produce:
+# each `old => new` swaps one node for another as the walk passes it. Several can
+# be in flight at once — a drop that splits one group and collapses another needs
+# both — and each fires **once**, because a replacement usually *contains* the node
+# it replaces (a split wraps the group it splits, a sibling sits inside the split
+# it collapses) and a second firing would walk in circles.
+function _trail_into!(current, target, pairs; subs = _NO_SUBSTITUTIONS)
+    index = findfirst(pair -> pair.first === current, subs)
+    if index !== nothing
+        current = subs[index].second
+        subs = [subs[j] for j in eachindex(subs) if j != index]
     end
     current === target && return true
     if current isa PaneSplit
@@ -81,7 +83,7 @@ function _trail_into!(current, target, pairs; from = nothing, to = nothing)
         for i in 1:length(elements)
             push!(pairs, (current, FieldReferenceStep("elements")))
             push!(pairs, (elements, ElementReferenceStep(i)))
-            _trail_into!(elements[i], target, pairs; from, to) && return true
+            _trail_into!(elements[i], target, pairs; subs) && return true
             pop!(pairs)
             pop!(pairs)
         end
@@ -98,11 +100,14 @@ function _trail_into!(current, target, pairs; from = nothing, to = nothing)
     false
 end
 
+const _NO_SUBSTITUTIONS = Pair{Any,Any}[]
+
 # The pairs from `tree` down to `node`, or `nothing` when the node is not in it.
-function _pairs_to(tree::PaneTree, node; from = nothing, to = nothing)
+function _pairs_to(tree::PaneTree, node; from = nothing, to = nothing,
+                   subs = from === nothing ? _NO_SUBSTITUTIONS : Pair{Any,Any}[from => to])
     node === tree && return Any[]
     pairs = Any[(tree, FieldReferenceStep("root"))]
-    _trail_into!(tree.root, node, pairs; from, to) || return nothing
+    _trail_into!(tree.root, node, pairs; subs) || return nothing
     pairs
 end
 
@@ -135,8 +140,9 @@ end
 # element need not be there yet — its type comes from the object, not from the
 # tree — so this names the slot an insert or a collapse is about to fill.
 function _element_path(tree::PaneTree, owner, field::Symbol, index::Integer, element;
-                       from = nothing, to = nothing)
-    pairs = _pairs_to(tree, owner; from, to)
+                       from = nothing, to = nothing,
+                       subs = from === nothing ? _NO_SUBSTITUTIONS : Pair{Any,Any}[from => to])
+    pairs = _pairs_to(tree, owner; subs)
     pairs === nothing && return nothing
     collection = getproperty(owner, field)
     push!(pairs, (owner, FieldReferenceStep(String(field))))
@@ -597,35 +603,95 @@ Split `target` and put `source`'s `source_index`-th tab in the new pane — what
 drop on a group's edge band means. The tab keeps its identity: it is moved, not
 copied.
 
-**The source must keep at least one tab.** A drop that would empty it is
-declined, because the collapse of the emptied group and the split of the target
-are two structural writes whose paths would each be named against the tree the
-other leaves behind. Drop into the target's middle instead: that move handles the
-collapse. See the plan's deferred list.
+**The source may be emptied by it.** A group that loses its last tab goes away,
+and its parent split goes with it when that leaves one element — so the drop is
+two structural writes whose paths each have to be named against the tree the
+other leaves behind. Four shapes, and each names its paths accordingly:
+
+  * the source keeps a tab — the split is written at the target's own slot;
+  * the source's parent holds it and the target and nothing else — the parent
+    *is* what the new split replaces, so one write does the whole job;
+  * the source's parent holds it and one other element — the split is written
+    first (at a slot the collapse can not move, because a group holds nothing),
+    then the sibling takes the parent's slot;
+  * the source's parent holds three or more — the split is written first, then
+    the source is spliced out with its weight.
 """
 function pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
                                    target::PaneGroup, orientation::Symbol, side::Symbol)
     (1 <= source_index <= length(source.tabs)) || return nothing
-    length(source.tabs) > 1 || return nothing
+    source === target && return nothing
     tab = source.tabs[source_index]
     new_group = PaneGroup(PaneTab[])
     before = side === :left || side === :above
-    elements = before ? Any[new_group, target] : Any[target, new_group]
-    split = PaneSplit(orientation, elements; weights = [0.5, 0.5])
-    write = _slot_write(tree, target, split)
-    write === nothing && return nothing
-
+    split = PaneSplit(orientation, before ? Any[new_group, target] : Any[target, new_group];
+                      weights = [0.5, 0.5])
     # The tab moves by identity, so this write carries the two vectors and no
-    # path — it is the one member of the compound the split cannot invalidate.
+    # path — it is the one member of the compound no other write can invalidate.
     move = MoveRangeOperation(source.tabs, Int(source_index), Int(source_index),
                               new_group.tabs, 1)
-    # The cursor is named against the tree the split leaves behind: the source
-    # group can sit inside the very subtree that moved one level down.
-    pairs = _pairs_to(tree, new_group; from = target, to = split)
-    pairs === nothing && return nothing
+
+    writes, subs = _drop_split_writes(tree, source, target, split)
+    writes === nothing && return nothing
+
+    pairs = _pairs_to(tree, new_group; subs)
+    pairs === nothing && return CompoundOperation(vcat(writes, Any[move]))
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-    CompoundOperation(Any[write, move, ReplaceSelectionOperation(_reference_from(pairs, tab))])
+    CompoundOperation(vcat(writes, Any[move, ReplaceSelectionOperation(_reference_from(pairs, tab))]))
+end
+
+# The structural writes a split-drop needs, and the substitutions that name the
+# tree they leave behind. `nothing` when the drop can not be expressed.
+function _drop_split_writes(tree::PaneTree, source::PaneGroup, target::PaneGroup,
+                            split::PaneSplit)
+    # The source keeps a tab: nothing goes away, so the split is all there is.
+    if length(source.tabs) > 1
+        write = _slot_write(tree, target, split)
+        return write === nothing ? (nothing, _NO_SUBSTITUTIONS) :
+               (Any[write], Pair{Any,Any}[target => split])
+    end
+
+    parent = pane_parent(tree, source)
+    parent === nothing && return (nothing, _NO_SUBSTITUTIONS)
+    owner, k = parent
+    # The root group is the only group there is, so there is no target to drop on.
+    owner === tree && return (nothing, _NO_SUBSTITUTIONS)
+
+    split_parent = owner::PaneSplit
+    n = length(split_parent.elements)
+    if n == 2
+        sibling = split_parent.elements[k == 1 ? 2 : 1]
+        # The source and the target are the whole of that split: the new split
+        # replaces it outright, and the source needs no write of its own.
+        if sibling === target
+            write = _slot_write(tree, split_parent, split)
+            return write === nothing ? (nothing, _NO_SUBSTITUTIONS) :
+                   (Any[write], Pair{Any,Any}[split_parent => split])
+        end
+        # Otherwise the sibling takes the parent's slot. The split is written
+        # first: it lands in a *group's* slot, which nothing else can move.
+        write = _slot_write(tree, target, split)
+        collapse = _slot_write(tree, split_parent, sibling)
+        (write === nothing || collapse === nothing) && return (nothing, _NO_SUBSTITUTIONS)
+        return (Any[write, collapse],
+                Pair{Any,Any}[target => split, split_parent => sibling])
+    end
+
+    # Three or more: the source is spliced out, and its weight with it.
+    write = _slot_write(tree, target, split)
+    write === nothing && return (nothing, _NO_SUBSTITUTIONS)
+    elements_path = pane_collection_path(tree, split_parent, :elements)
+    elements_path === nothing && return (nothing, _NO_SUBSTITUTIONS)
+    weights = pane_weights(split_parent)
+    deleteat!(weights, k)
+    writes = filter(!isnothing, Any[write, delete_elements(elements_path, k - 1),
+                                    _write_weights(tree, split_parent, weights)])
+    # A split standing in for the parent as it will be — the same node type and
+    # the surviving elements — so a path through it lands on the right index.
+    survivors = Any[split_parent.elements[i] for i in 1:n if i != k]
+    (writes, Pair{Any,Any}[target => split,
+                           split_parent => PaneSplit(split_parent.orientation, survivors)])
 end
 
 # ── Resize a split ─────────────────────────────────────────────────────────
@@ -652,7 +718,7 @@ function _write_weights(tree::PaneTree, split::PaneSplit, weights::AbstractVecto
 end
 
 # The write that puts `replacement` in the slot `node` occupies.
-function _slot_write(tree::PaneTree, node, replacement)
+function _slot_write(tree::PaneTree, node, replacement; subs = _NO_SUBSTITUTIONS)
     parent = pane_parent(tree, node)
     parent === nothing && return nothing
     owner, k = parent
@@ -660,7 +726,7 @@ function _slot_write(tree::PaneTree, node, replacement)
         path = _reference_from(Any[(tree, FieldReferenceStep("root"))], replacement)
         return ReplaceReferencedValueOperation(nothing, path, replacement)
     end
-    path = _element_path(tree, owner, :elements, k, replacement)
+    path = _element_path(tree, owner, :elements, k, replacement; subs)
     path === nothing && return nothing
     ReplaceReferencedValueOperation(nothing, path, replacement)
 end

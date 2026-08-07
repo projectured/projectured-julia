@@ -299,11 +299,19 @@ drops it when the pointer is over nothing. The three events a **drag** is made o
 drag must keep receiving them even when the cursor strays off anything drawn, or
 it never learns that the button came up and stays held forever.
 
-`WidgetComposite` therefore offers those three to the hit child first, exactly as
-a click, and then — only if nothing was hit — to its children in order.
-`WidgetTabbedPane` forwards them to its active tab ungated for the same reason. A
-split pane's slot is drawn only where its content draws, so a splitter dragged
-past the text is exactly the case this covers.
+`WidgetComposite` and `WidgetSplitPane` therefore offer those three to the hit
+child first, exactly as a click, and then — only if nothing was hit — to their
+children in order. `WidgetTabbedPane` forwards them to its active tab ungated for
+the same reason.
+
+Two cases this covers, both of which look like "the drag does not work":
+
+- A slot is drawn only where its content draws, so a splitter dragged past the
+  text loses its own release and stays held.
+- **A nested split's divider lives in exactly that gap.** It is drawn inside the
+  child, but the parent hit-tests the child's canvas first, and a hairline
+  between two panes is not a hit — so without the ungated pass only the outermost
+  splitter can ever be grabbed.
 
 ## A split pane follows its slots
 

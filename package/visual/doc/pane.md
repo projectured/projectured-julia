@@ -139,7 +139,7 @@ the focused tab. Two need more than that:
 | Click a tab's close button | Close it |
 | Click the new-tab button | Open a tab |
 | Click anywhere in a pane | Focus that group |
-| Drag a splitter | Write the split's weights |
+| Drag a splitter | Write the split's weights — at any depth, and from wherever the divider is now |
 | Drag a tab onto a group's strip or middle | Move it into that group |
 | Drag a tab onto a group's edge band | Split that group, the tab in the new pane |
 
@@ -158,6 +158,34 @@ Both containers follow their own child lists: `WidgetTabbedPane` always did, and
 `test_pane_construct` asserts it the only way that works: after every structural
 edit it compares the standing render against a fresh print of the same tree. A
 test that asserts on the tree alone passes while the screen is stale.
+
+## A splitter drag, twice
+
+The widget anchors a drag on its measured `sizes` and materializes them only when
+they are empty. This projection answers every resize with a **weight** write and
+never lets `sizes` be written, so after one drag they still hold what was measured
+at that grab. The grab is therefore answered with a compound that **clears them
+first**: each drag re-measures what is on screen, and the divider starts where it
+is rather than jumping back to where the last drag began.
+
+## Every drop lands
+
+A drop on an edge band splits the landing group, and the tab that arrives may
+have been the last one in the group it left — which then goes away, and takes its
+parent split with it when that leaves one element. The drop is two structural
+writes whose paths each have to be named against the tree the other leaves
+behind, and `pane_drop_split_operation` names them by shape:
+
+| The source's parent | The writes |
+|---|---|
+| — (the source keeps a tab) | the split, at the target's own slot |
+| holds the source and the target, nothing else | one write: the new split replaces the parent |
+| holds the source and one other element | the split first — a group's slot is one the collapse can not move — then the sibling takes the parent's slot |
+| holds three or more | the split first, then the source is spliced out with its weight |
+
+`test_pane_drag` walks all four shapes against a source that survives and one
+that is emptied, in all four bands, and asserts each leaves a well-formed tree
+with the tab in a pane of its own.
 
 ## The drop indicator
 

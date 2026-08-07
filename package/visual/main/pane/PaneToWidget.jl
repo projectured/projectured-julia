@@ -469,10 +469,20 @@ read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
 
 # The two ends of a splitter drag are the widget's own transient state — which
 # splitter is held, and where it was grabbed. They carry the split pane itself, so
-# they are forwarded untouched: the pane layer has nothing to add, and dropping
-# them would leave the drag unable to start at all.
+# the pane layer has nothing to add, and dropping them would leave the drag unable
+# to start at all.
+#
+# The grab does need one thing: **its measurements cleared first**. The widget
+# anchors a drag on its `sizes`, and materializes them only when they are empty —
+# but this projection answers every resize with a *weight* write and never lets
+# `sizes` be written, so they still hold what was measured at the first grab. A
+# second drag would anchor on those, and the splitter would jump back to where the
+# first one started. Clearing them makes the widget re-measure what is on screen.
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
-            operation::StartSplitterDragOperation) = operation
+            operation::StartSplitterDragOperation) =
+    CompoundOperation(Any[
+        ReplaceReferencedValueOperation(operation.split, "sizes", CellVector()),
+        operation])
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
 
