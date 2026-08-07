@@ -3711,6 +3711,55 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     ChildrenIoMap(p, w, outer, ComputedCell(() -> build[].child_iomaps))
 end
 
+# ── The card's two document slots ───────────────────────────────────────────
+#
+# A card owns a real reference step: its body hangs off `.content` and a Document
+# header off `.title`. Both maps and the reader name the slot they travel
+# through, the way `WidgetShellToGraphicsCanvas` names its four.
+
+_card_slot_value(w::WidgetCard, name::AbstractString) =
+    name == "content" ? w.content :
+    name == "title"   ? w.title   : nothing
+
+# The slot a recursed child sits in, or `nothing` for a child that is neither.
+function _card_slot_name(w::WidgetCard, cim)
+    cim === nothing && return nothing
+    input = cim.input
+    input === w.content && return "content"
+    input === w.title   && return "title"
+    nothing
+end
+
+# Prepend the slot a child answered from, so a path an inner reader produced
+# arrives in the card's own input domain. An operation that carries its own root
+# (a control's activation, a hover flag) passes through `reroot_operation`
+# unchanged.
+function _card_reroot(w::WidgetCard, cim, op)
+    op === nothing && return nothing
+    name = _card_slot_name(w, cim)
+    name === nothing && return op
+    reroot_operation(op, (FieldReferenceStep(name),))
+end
+
+# Route a coordinate-bearing event to the child under the pointer and re-root its
+# answer by the slot that child sits in. `_route_to_children` cannot do this: it
+# reports the operation without saying which child produced it, and a card's two
+# slots need two different steps.
+function _card_route(w::WidgetCard, entries::Vector, x::Int, y::Int, make_evt)
+    for entry in entries
+        entry === nothing && continue
+        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && continue
+        op = read_intent(cim.projection, cim, make_evt(lx, ly))
+        op === nothing && continue
+        return _card_reroot(w, cim, op)
+    end
+    nothing
+end
+
 # A click on the card's header (a Document title — its first child entry) is a
 # fold gesture → toggle the card. Clicks elsewhere route into the card content.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
@@ -3724,39 +3773,70 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
             (tx <= evt.x < tx + tw && ty <= evt.y < ty + th) && return ToggleCollapseOperation(w)
         end
     end
-    _route_click_to_children(entries, evt)
+    _card_route(w, entries, evt.x, evt.y,
+                (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
 # widget nested in a card (a button, a hovered row) still sees hover crossings, the
 # pointer motion behind them, and the raw press-down/release that drive its
-# `hovered`/`pressed` feedback. These paths do not re-root: the card is TRANSPARENT
-# in the reference domain (it consumes no reference step), so a child's operation
-# bubbles up unchanged, mirroring the MousePress path (`_route_click_to_children`).
-# The scroll wheel is still the card's own concern to decline (nothing).
+# `hovered`/`pressed` feedback. The scroll wheel is still the card's own concern
+# to decline (nothing).
 #
 # A coordless keyboard event has no coordinate to hit-test, so it routes into the
-# card's CONTENT selection-directed: forwarded only when the card's forward-projected
-# `selection` actually points inside it, so a card onto which nothing projects
-# (every card in a plain display, where `selection === nothing`) behaves exactly as
-# it did before.
+# card's CONTENT selection-directed: forwarded only when the card's `selection`
+# actually points inside it, so a card onto which nothing projects (every card in
+# a plain display, where `selection === nothing`) behaves exactly as it did before.
 function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    entries = getfield(iomap, :child_iomaps)[]
-    (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
-    evt isa MouseMove && return _route_move_to_children(entries, evt)
-    (evt isa MouseDown || evt isa MouseUp) && return _route_downup_to_children(entries, evt)
-    evt isa MouseScroll && return nothing
     w = iomap.input
+    entries = getfield(iomap, :child_iomaps)[]
+    (evt isa MouseEnter || evt isa MouseLeave) &&
+        return _card_route(w, entries, evt.x, evt.y,
+                           (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
+                                                          MouseLeave(x, y, evt.buttons, evt.modifiers))
+    evt isa MouseMove &&
+        return _card_route(w, entries, evt.x, evt.y,
+                           (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+    (evt isa MouseDown || evt isa MouseUp) &&
+        return _card_route(w, entries, evt.x, evt.y,
+                           (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
+                                                         MouseUp(evt.button, x, y, evt.modifiers))
+    evt isa MouseScroll && return nothing
     getfield(w, :selection)[] === nothing && return nothing
     for entry in entries
         entry === nothing && continue
         (_, _, cim) = entry::Tuple{Int,Int,Any}
         cim.input === w.content || continue
-        return read_intent(cim.projection, cim, evt)
+        return _card_reroot(w, cim, read_intent(cim.projection, cim, evt))
+    end
+    nothing
+end
+
+# `content.<rest>` / `title.<rest>` → the slot's own image, shifted by where the
+# card placed it. A structural path passes through unshifted; only a coordinate
+# accumulates. The build cell already records the placement, so the offset is in
+# hand.
+function map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, reference)
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    head isa FieldReferenceStep || return nothing
+    target = _card_slot_value(iomap.input, head.name)
+    target === nothing && return nothing
+    for entry in getfield(iomap, :child_iomaps)[]::Vector
+        entry === nothing && continue
+        (ox, oy, cim) = entry
+        cim.input === target || continue
+        child = map_reference_forward(cim.projection, cim, reference.tail)
+        return _shift_child_image(child, ox, oy, cim)
     end
     nothing
 end
 map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
+
+# The body slot, for a caller that re-roots a path out of the card without having
+# routed the event itself. The reader does not come through here: it knows which
+# of the two slots answered and prepends that one (`_card_reroot`).
+map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
+    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
