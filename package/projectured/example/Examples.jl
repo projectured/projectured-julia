@@ -11,6 +11,7 @@ const examples = [
     widget_scroll_bar_example, widget_scroll_pane_example, widget_transform_pane_example,
     widget_shell_example,
     widget_tabbed_pane_example,
+    pane_example, empty_pane_example,
     widget_badge_example, widget_separator_example, widget_card_example, widget_switch_example,
     widget_progress_example, widget_slider_example, widget_radio_group_example,
     widget_avatar_example, widget_alert_example, widget_skeleton_example,

@@ -462,12 +462,26 @@ here when it is done, and record what the implementation changed about the desig
    guides updated. The example projection landed early, in step 6: a fresh tab
    holds an empty text document, so the tests needed a renderer that knows one.
 
-10. **Done. Build the layout from empty.** `test_pane_construct` starts from
+10. **Done, and it earned its keep. Build the layout from empty.** `test_pane_construct` starts from
     `PaneTree(PaneGroup(PaneTab[]))` and uses **one projection and one iomap** for
     the whole sequence, as a live editor would: 39 assertions covering the first
     focus, four named tabs, a two-by-two layout, a drag between groups that
     collapses the emptied one, a click to focus, and a close. It is what found
-    the two faults recorded in step 5.
+    the two faults recorded in step 5 — and, once it compared the *rendered*
+    canvas rather than the tree, a third one:
+
+    **A split could not reach the screen through the standing IoMaps.**
+    `WidgetSplitPane` fixes its slot count when it is printed, so a split that
+    adds a pane left the display showing the old shape while the document ran
+    ahead. `PaneTreeToWidget` now keys its root IoMap on the tree's split shape
+    and re-prints the pane widgets when that changes; tab counts stay out of the
+    key, because a tabbed pane does follow its tabs reactively. The proper fix is
+    a `WidgetSplitPane` printer that is reactive on its slot count, which is a
+    rewrite of a printer the workbench depends on.
+
+    The lesson is the one the test now enforces: **assert on the render, not on
+    the document.** Every structural step compares the standing canvas against a
+    fresh print of the same tree.
 
 ## Traps
 
@@ -499,6 +513,8 @@ design leaves room.
 - The **drop indicator**, and the **caret in a tab name** — both need the widget
   tree to gain a layer without changing shape (step 8 and step 7).
 - A **split-drop that empties its source group** (step 8).
+- **A `WidgetSplitPane` printer that is reactive on its slot count.** Until then
+  a split re-prints the pane widgets (step 10).
 - **Reorder tabs inside a group by dragging.** The strip's drop zone means "into
   this group, at the end"; the insert index a drop between two tabs implies needs
   the strip's own geometry, which lives in the widget layer.

@@ -49,6 +49,29 @@ function rename!(name)
     true
 end
 
+# The shape of a rendered canvas, as a string. Two prints of the same tree must
+# give the same shape — which is the whole point of a standing iomap.
+function shape(node, depth = 0)
+    depth > 8 && return "…"
+    if node isa GraphicsCanvas
+        return "C[" * join([shape(e, depth + 1) for e in node.elements], ",") * "]"
+    elseif node isa GraphicsViewport
+        return "V(" * shape(node.content, depth + 1) * ")"
+    end
+    string(nameof(typeof(node)))
+end
+
+# **The standing render must equal a fresh one.** A structural edit that only the
+# document sees is the failure this catches: `WidgetSplitPane` fixes its slot
+# count when it is printed, so a split has to re-print the pane widgets, and a
+# test that asserts on the tree alone would never notice that it did not.
+function assert_rendered!()
+    fresh = print_document(make_pane_projection_example(measure = _stub), nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
+                                          Dict{Symbol,Any}()))
+    @test shape(iomap.output) == shape(fresh.output)
+end
+
 # A point inside a group, as a fraction of its own rectangle.
 function point(group, u, v)
     r = pane_rectangle(tree, group)
@@ -98,6 +121,7 @@ end
     @test tree.root.orientation === :vertical
     @test tree.root.elements[1] === first_group
     @test rename!("b")
+    assert_rendered!()
 end
 
 second_group = tree.root.elements[2]
@@ -109,6 +133,7 @@ second_group = tree.root.elements[2]
     @test right.orientation === :horizontal
     @test right.elements[1] === second_group
     @test rename!("d")
+    assert_rendered!()
 end
 
 @testset "move back to the left pane and split it too" begin
@@ -116,6 +141,7 @@ end
     @test pane_focus(tree)[1] === first_group
     press!(ctrl_shift(:backslash))
     @test rename!("c")
+    assert_rendered!()
 end
 
 @testset "four panes, four names, two by two" begin
@@ -150,6 +176,7 @@ end
     # Its group had nothing else in it, so the group went away with it.
     @test tree.root.elements[1] === first_group
     @test length(pane_groups(tree)) == 3
+    assert_rendered!()
 end
 
 @testset "close a group away" begin
@@ -170,11 +197,12 @@ end
     @test tree.root.elements[1] === first_group
     names = [pane_tab_title_string(t) for g in pane_groups(tree) for t in g.tabs]
     @test sort(names) == ["a", "b", "c"]
+    assert_rendered!()
 end
 
 @testset "and it still renders" begin
-    canvas = iomap.output
-    @test canvas isa GraphicsCanvas
+    @test iomap.output isa GraphicsCanvas
+    assert_rendered!()
     # The layout is two panes side by side, so a press in each half must land in
     # a different group.
     left_group, right_group = pane_groups(tree)

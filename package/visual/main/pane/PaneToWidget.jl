@@ -45,7 +45,8 @@ import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
                        ResizeSplitPaneOperation
-import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane, Inset
+import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
+                       WidgetScrollPane, Inset
 import ..LayoutModule: LayoutConstraint
 import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
                       reconcile_child_iomap, reconcile_child_iomaps
@@ -107,6 +108,15 @@ end
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 const _PANE_BORDER = Inset(4, 4, 4, 4)
+const _PANE_PADDING = Inset(4, 4, 4, 4)
+
+# The tail after a scroll pane's own `content` step, or `nothing`.
+function _after_content_step(reference)
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "content") || return nothing
+    reference.tail
+end
 
 # A tab's content belongs to a foreign domain, so it is not this projection's to
 # print: it passes through unchanged and the renderer below reads it. Only pane
@@ -160,9 +170,27 @@ end
 # The tree is transparent: it prints as its root, and adds one field step to the
 # paths that pass through it.
 function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
-    root_iomap = reconcile_child_iomap(
-        () -> tree.root,
-        root -> _recurse(recursion, root, make_child_context(ctx, tree, (@reference_step root))))
+    child_context = make_child_context(ctx, tree, (@reference_step root))
+    # `WidgetSplitPane` fixes its slot count when it is printed: its per-slot
+    # cells, child IoMaps and canvas children are all built for the count it saw.
+    # So a split that adds or removes a pane can *not* reach the screen through
+    # the IoMaps that are already standing — the layout would keep the shape it
+    # was printed with. Re-print the pane widgets when that shape changes.
+    #
+    # The key is the split shape alone, never the tab counts: a tabbed pane does
+    # follow its tabs reactively, so opening and closing tabs stays incremental,
+    # and only a split or a collapse pays for a re-print.
+    shape = ComputedCell(() -> _split_shape(tree.root))
+    cached_key = Ref{Any}(nothing)
+    cached = Ref{Any}(nothing)
+    root_iomap = ComputedCell(() -> begin
+        key = (objectid(tree.root), shape[])
+        if cached[] === nothing || cached_key[] != key
+            cached[] = _recurse(recursion, tree.root, child_context)
+            cached_key[] = key
+        end
+        cached[]
+    end)
     available = (ctx.available_width === nothing || ctx.available_height === nothing) ?
                 nothing : (ctx.available_width, ctx.available_height)
     PaneTreeToWidgetIoMap(p, tree, ComputedCell(() -> root_iomap[].output), root_iomap,
@@ -180,6 +208,13 @@ function map_reference_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap
     inner === nothing && return nothing
     @reference ::PaneTree.root.^(inner)
 end
+
+# How many elements every split of a subtree holds, nested. Reading it registers
+# a dependency on each split's element list, and on none of the tab lists.
+_split_shape(split::PaneSplit) =
+    (length(split.elements),
+     Tuple(_split_shape(split.elements[i]) for i in 1:length(split.elements))...)
+_split_shape(::Any) = 0
 
 # ── PaneSplit ──────────────────────────────────────────────────────────────
 
@@ -248,19 +283,28 @@ end
 # ── PaneGroup ──────────────────────────────────────────────────────────────
 
 function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGroup, ctx)
+    # One entry per tab: the content's IoMap, and the scroll pane that holds it.
+    # **The scroll pane is what keeps a tab inside its own pane** — a content
+    # document is drawn as wide as it is, so without a viewport to clip it the
+    # text of one pane runs straight across the next. It is built here, beside the
+    # IoMap, so it keeps its identity — and its scroll offset — for as long as the
+    # tab lives.
     content_iomaps = reconcile_child_iomaps(
         () -> Any[tab.content for tab in group.tabs],
-        (i, content) -> _recurse(recursion, content,
-            make_child_context(ctx, group, (@reference_step tabs), (@reference_step [i]),
-                               (@reference_step content))))
+        (i, content) -> begin
+            child = _recurse(recursion, content,
+                make_child_context(ctx, group, (@reference_step tabs), (@reference_step [i]),
+                                   (@reference_step content)))
+            (iomap = child, pane = WidgetScrollPane(child.output; padding = _PANE_PADDING))
+        end)
 
     # Every group offers the whole vocabulary: close a tab, open one, grab one.
     pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
                             border = _PANE_BORDER)
     set_cell_function!(pane, () -> begin
-        iomaps = content_iomaps[]
+        entries = content_iomaps[]
         tabs = group.tabs
-        Any[(pane_tab_title_string(tabs[i]), iomaps[i].output) for i in eachindex(iomaps)]
+        Any[(pane_tab_title_string(tabs[i]), entries[i].pane) for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
@@ -272,10 +316,12 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
                                iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
     @reference_case reference begin
         ::PaneGroup.tabs[i].rest... => begin
-            iomaps = iomap.content_iomaps
-            (1 <= i <= length(iomaps)) || return nothing
-            inner = _tab_forward(iomaps[i], rest)
-            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(inner)
+            entries = iomap.content_iomaps
+            (1 <= i <= length(entries)) || return nothing
+            inner = _tab_forward(entries[i].iomap, rest)
+            inner isa EmptyReference &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetScrollPane
+            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetScrollPane.content.^(inner)
         end
     end
 end
@@ -295,13 +341,16 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
     @reference_case reference begin
         ::WidgetTabbedPane.selector_element_pairs{s:e}.rest... => begin
             i = s + 1
-            iomaps = iomap.content_iomaps
-            i <= length(iomaps) || return nothing
+            entries = iomap.content_iomaps
+            i <= length(entries) || return nothing
             # A bare `selector_element_pairs[i]` is a tab-strip click: it names
-            # the tab, not anything inside it.
+            # the tab, not anything inside it. Anything deeper comes through the
+            # scroll pane that holds the tab's content.
             rest isa EmptyReference &&
                 return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
-            inner = _child_backward(iomaps[i], rest)
+            content = _after_content_step(rest)
+            content === nothing && return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
+            inner = _child_backward(entries[i].iomap, content)
             inner === nothing && return nothing
             @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(inner)
         end
