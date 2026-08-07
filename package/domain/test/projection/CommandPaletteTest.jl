@@ -101,4 +101,169 @@ function test_command_palette()
 end
 end
 
-export test_command_palette
+# A minimal stand-in for the Editor that the operation evaluators mutate.
+mutable struct _PaletteEditor
+    document::Any
+    iomap::Any
+end
+
+function test_command_palette_decorator()
+@testset "CommandPaletteProjection" begin
+    none    = ModifierKeys()
+    summon  = KeyDown(:p, ModifierKeys(ctrl=true, shift=true))
+    enter   = KeyDown(:return, none)
+    escape  = KeyDown(:escape, none)
+
+    # The real JSON pipeline, down to graphics — the decorator draws over graphics.
+    mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
+    mkpalette(state) = CommandPaletteProjection(inner = make_json_projection_example(),
+                                                measure = _pipeline_measure, state = state)
+
+    @testset "the summoning gesture opens the palette and toggles it shut" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        @test !state.open[]
+        @test read_intent(p, iomap, summon) isa DoNothingOperation
+        @test state.open[]
+        # The same key dismisses it, as F1 dismisses the help window.
+        @test read_intent(p, iomap, summon) isa DoNothingOperation
+        @test !state.open[]
+    end
+
+    @testset "the rows are the context, and only the document's own can run" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        read_intent(p, iomap, summon)
+        rows = state.palette.rows
+        # The whole chain contributes rows, so there are more than the array's nine.
+        @test length(rows) > 9
+        @test any(r -> r.description == "Insert a new element", rows)
+        # Only the array's own bindings are runnable, and only those that have a name.
+        @test all(r -> r.domain in ("JsonArray", "JsonDocument"), filter(r -> r.runnable, rows))
+        @test any(r -> !r.runnable, rows)
+    end
+
+    @testset "keys build the query and never reach the content" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        arr = mkarr()
+        iomap = print_document(p, arr)
+        read_intent(p, iomap, summon)
+        for c in "insert"
+            @test read_intent(p, iomap, KeyPress(c)) isa DoNothingOperation
+        end
+        @test state.palette.query == "insert"
+        @test command_palette_row(state.palette).description == "Insert a new element"
+        # A comma inserts an element in JSON. While the palette is open it is a
+        # character of the query, and the array is untouched.
+        @test read_intent(p, iomap, KeyPress(',')) isa DoNothingOperation
+        @test length(arr.elements) == 1
+        @test state.palette.query == "insert,"
+    end
+
+    @testset "Backspace and the arrows move inside the palette" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        read_intent(p, iomap, summon)
+        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        read_intent(p, iomap, KeyDown(:backspace, none))
+        @test state.palette.query == "inser"
+        first_row = command_palette_row(state.palette)
+        read_intent(p, iomap, KeyDown(:down, none))
+        @test command_palette_row(state.palette) !== first_row
+        read_intent(p, iomap, KeyDown(:up, none))
+        @test command_palette_row(state.palette) === first_row
+    end
+
+    @testset "Enter runs the command against the document and closes" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        arr = mkarr()
+        iomap = print_document(p, arr)
+        read_intent(p, iomap, summon)
+        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        operation = read_intent(p, iomap, enter)
+        @test operation isa Operation
+        @test !(operation isa DoNothingOperation)
+        @test !state.open[]
+        # The operation is expressed against the array, so it applies to it.
+        evaluate_operation(_PaletteEditor(arr, nothing), operation)
+        @test length(arr.elements) == 2
+    end
+
+    @testset "Escape closes the palette and runs nothing" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        arr = mkarr()
+        iomap = print_document(p, arr)
+        read_intent(p, iomap, summon)
+        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        @test read_intent(p, iomap, escape) isa DoNothingOperation
+        @test !state.open[]
+        @test length(arr.elements) == 1
+    end
+
+    @testset "a closed palette lets every gesture through" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        arr = mkarr()
+        iomap = print_document(p, arr)
+        # A comma reaches JSON and inserts an element, as it does without the palette.
+        operation = read_intent(p, iomap, KeyPress(','))
+        @test operation isa Operation
+        @test !state.open[]
+    end
+
+    @testset "the wrapper is there open or closed, with the content first" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        @test iomap.output isa GraphicsCanvas
+        @test length(iomap.output.elements) == 1
+        @test iomap.output.elements[1] === iomap.inner_iomap.output
+        read_intent(p, iomap, summon)
+        # The same output tree now carries the palette as a second element.
+        @test length(iomap.output.elements) == 2
+        @test iomap.output.elements[1] === iomap.inner_iomap.output
+        read_intent(p, iomap, escape)
+        @test length(iomap.output.elements) == 1
+    end
+
+    @testset "a mapped reference gains, and gives up, the wrapper step" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        arr = mkarr()
+        iomap = print_document(p, arr)
+        forward = map_reference_forward(p, iomap, arr.selection)
+        inner = map_reference_forward(p.inner, iomap.inner_iomap, arr.selection)
+        if inner !== nothing
+            @test forward.head == FieldReferenceStep("elements")
+            @test forward.tail.head == ElementReferenceStep(1)
+            @test forward.tail.tail == inner
+            @test map_reference_backward(p, iomap, forward) ==
+                  map_reference_backward(p.inner, iomap.inner_iomap, inner)
+        end
+        # A reference that does not name the content maps back to nothing.
+        @test map_reference_backward(p, iomap, EmptyReference()) === nothing
+    end
+
+    @testset "the help window sees exactly what it saw without the palette" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        # The tables are rebuilt per call, so compare what a row shows, not the
+        # closures inside.
+        mine  = [(b.domain, b.description) for b in collect_gesture_bindings(p, nothing, iomap)]
+        inner = [(b.domain, b.description) for b in
+                 collect_gesture_bindings(p.inner, nothing, iomap.inner_iomap)]
+        @test mine == inner
+        @test !isempty(mine)
+    end
+
+end
+end
+
+export test_command_palette, test_command_palette_decorator

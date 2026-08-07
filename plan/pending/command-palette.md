@@ -318,13 +318,26 @@ Two facts found during the work:
 `test_command_palette()` reports 31 passed. The document carries `query` and
 `rows`; the matching subset is derived, never stored, so it cannot go stale.
 
-### Phase 4 — the decorator
+### Phase 4 — the decorator — **done**
 
-1. Add `CommandPaletteProjection` and `CommandPaletteState`.
-2. Write the printer with the constant canvas wrapper.
-3. Write the reader with the inverted order.
-4. Write the reference mapping.
-5. Test that a command runs and that the document changes.
+1. ~~Add `CommandPaletteProjection` and `CommandPaletteState`.~~
+2. ~~Write the printer with the constant canvas wrapper.~~
+3. ~~Write the reader with the inverted order.~~
+4. ~~Write the reference mapping.~~
+5. ~~Test that a command runs and that the document changes.~~
+
+`test_command_palette_decorator()` reports 41 passed.
+
+Three decisions taken during the work:
+
+- **The summoning gesture toggles.** Ctrl+Shift+P dismisses an open palette, the
+  way F1 dismisses the help window.
+- **The palette state holds one document, mutated on open, not replaced.** The
+  printer builds a sub-iomap for it once; a replaced document would leave that
+  iomap pointing at the old one.
+- **The wrapper canvas is built once, and only its element list is reactive.**
+  Rebuilding the canvas per frame would replace the whole graphics tree on every
+  toggle.
 
 ### Phase 5 — the wiring and real commands
 

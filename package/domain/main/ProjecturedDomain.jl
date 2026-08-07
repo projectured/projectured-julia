@@ -209,6 +209,7 @@ include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument
 include("yaml/YamlToSyntax.jl")
 include("gesturemap/GestureMapToSyntax.jl")
 include("gesturemap/CommandPaletteToSyntax.jl")
+include("gesturemap/CommandPaletteDecorator.jl")
 include("gesturelog/GestureLogToSyntax.jl")
 # The recorder and the overlay come after the log chain: the overlay names
 # GestureLogToSyntax to render the panel.
