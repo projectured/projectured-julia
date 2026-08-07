@@ -48,8 +48,11 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
         gesture_style = row.applicable ? p.gesture : p.muted
         desc_style = row.applicable ? p.description : p.muted
         suffix = row.applicable ? "" : "  (n/a)"
-        # gesture cell + connective + description cell, all in one leaf's value.
-        text = string("  ", row.gesture, " — ", row.description, suffix)
+        # gesture cell + connective + description cell, all in one leaf's value. A row
+        # with no gesture has nothing left of the connective, so it drops both.
+        text = isempty(row.gesture) ?
+               string("  ", row.description, suffix) :
+               string("  ", row.gesture, " — ", row.description, suffix)
         push!(children, SyntaxLeaf(TextString(text, desc_style)))
     end
     out = SyntaxNode(children; sep=TextString("\n"))

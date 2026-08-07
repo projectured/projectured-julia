@@ -23,21 +23,27 @@ import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: describe_event_pattern
 
-export GestureRow, gesture_map
+export GestureRow, gesture_row, gesture_map
 
 """
-    GestureRow(gesture, description, domain, applicable)
+    GestureRow(gesture, description, domain, applicable, name, runnable)
 
-One display row: `gesture` is the keystroke/click rendering (`describe_event_pattern(pattern)`),
-`description` is what it does, `domain` groups rows under a heading, and
-`applicable` is whether the binding can fire for the current selection (greyed
-when false).
+One display row: `gesture` is the keystroke/click rendering (`describe_event_pattern(pattern)`,
+and the empty string for a binding that has no gesture), `description` is what it
+does, `domain` groups rows under a heading, and `applicable` is whether the binding
+can fire for the current selection (greyed when false).
+
+`name` is what a user types to run the binding, or `nothing` when it has none.
+`runnable` says the caller may run it against the document these rows were built
+for — see [`gesture_row`](@ref).
 """
 struct GestureRow
     gesture::String
     description::String
     domain::String
     applicable::Bool
+    name::Union{String,Nothing}
+    runnable::Bool
 end
 
 """
@@ -56,16 +62,38 @@ end
 # which case the row is simply shown as not-applicable rather than erroring.
 _row_applicable(b::GestureBinding, doc, sel) = try b.applicable(doc, sel) catch; false end
 
+# A binding with no gesture has no keystroke to render, so its gesture column is empty.
+_row_gesture(b::GestureBinding) =
+    b.pattern === nothing ? "" : describe_event_pattern(b.pattern)
+
+"""
+    gesture_row(binding, doc, sel; runnable = false) -> GestureRow
+
+One row for `binding`, with its precondition evaluated for `doc` + `sel`.
+
+Pass `runnable = true` only when `binding` belongs to `doc` itself. Such a binding
+builds its operation in `doc`'s own reference vocabulary, so a caller may run it
+with [`fire_named_gesture_binding`](@ref) and use the result directly. A binding
+gathered from a deeper projection stage builds its operation against *that*
+stage's document, and only the reader chain maps it back — running it here would
+produce a path rooted in the wrong document. A binding with no `name` is never
+runnable, whatever the caller passes.
+"""
+gesture_row(b::GestureBinding, doc, sel; runnable::Bool = false) =
+    GestureRow(_row_gesture(b), b.description, b.domain,
+               _row_applicable(b, doc, sel), b.name,
+               runnable && b.name !== nothing)
+
 """
     gesture_map(bindings, doc) -> GestureMap
 
 Turn `bindings` into a `GestureMap`, marking each row applicable when its
-precondition holds for `doc`'s current selection.
+precondition holds for `doc`'s current selection. The help window only shows
+rows, so it marks none of them runnable.
 """
 function gesture_map(bindings, doc)
     sel = getfield(doc, :selection)[]
-    rows = GestureRow[GestureRow(describe_event_pattern(b.pattern), b.description, b.domain,
-                                 _row_applicable(b, doc, sel)) for b in bindings]
+    rows = GestureRow[gesture_row(b, doc, sel) for b in bindings]
     GestureMap(rows, nothing)
 end
 
