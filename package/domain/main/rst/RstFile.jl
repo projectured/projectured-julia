@@ -30,7 +30,8 @@ import ..RstToSyntaxModule: RstToSyntax
 import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
                               natural_extension, parse_natural
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
-                            LoaderContext, register_file_document_type!
+                            LoaderContext, register_file_document_type!,
+                            document_section
 
 export RstFile, rst_section, rst_title_text
 
@@ -103,6 +104,27 @@ end
 _elements_of(document::RstRoot)    = document.elements
 _elements_of(document::RstSection) = document.elements
 _elements_of(::Any)                = ()
+
+# The `section` verb is one shared generic; RST adds its method here, markdown
+# adds its own. A marker that names no section fails loudly rather than embed
+# nothing, which is what `rst_section` answers for a caller that wants to look.
+function document_section(document::Union{RstRoot,RstSection}, title::AbstractString)
+    found = rst_section(document, title)
+    found === nothing &&
+        error("section(…): no title reads ", repr(title),
+              " — the document has (", join(_section_titles(document), ", "), ")")
+    found
+end
+
+# Every section title in the tree, depth first — the error message's inventory.
+function _section_titles(document, acc = String[])
+    for element in _elements_of(document)
+        element isa RstSection || continue
+        push!(acc, rst_title_text(element))
+        _section_titles(element, acc)
+    end
+    acc
+end
 
 function __init__()
     register_file_document_type!(".rst", RstFile)

@@ -38,7 +38,7 @@ import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
                               natural_extension, parse_natural
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!, register_marker_function!,
+                            register_file_document_type!, document_section,
                             is_file_document
 
 export MarkdownFile, PRED_REF_LANGUAGE, markdown_section
@@ -241,11 +241,14 @@ end
 _heading_texts(elements) =
     String[_heading_text(e) for e in elements if e isa MarkdownHeading]
 
+# The `section` verb is one shared generic (`FileProjectModule.document_section`),
+# because the registry holds one function per verb name. Markdown adds its method
+# here; RST adds its own.
+document_section(root::MarkdownRoot, title::AbstractString) = markdown_section(root, title)
+
 function __init__()
     register_file_document_type!(".md",       MarkdownFile)
     register_file_document_type!(".markdown", MarkdownFile)
-    register_marker_function!(:section,
-                              (ctx, document, title) -> markdown_section(document, title))
 end
 
 end # module

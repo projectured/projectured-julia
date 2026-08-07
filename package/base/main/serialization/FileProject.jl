@@ -91,7 +91,7 @@ export FileDocument, is_file_document,
        resolve_stubs!, LoaderContext,
        register_file_document_type!, file_document_type,
        register_marker_function!, marker_function, evaluate_marker,
-       marker_text, parse_marker_text, file_marker_text
+       marker_text, parse_marker_text, file_marker_text, document_section
 
 # ── FileDocument: abstract type + is_file_document trait ──────────────────
 #
@@ -390,6 +390,15 @@ a module's `__init__` (the registry is runtime state, not baked into
 the precompiled image).
 """
 function register_marker_function!(name::Symbol, f)
+    previous = get(_MARKER_FUNCTIONS, name, nothing)
+    # First registration wins, as it does for the natural-syntax table. Two
+    # formats that both want one verb must share it through a generic (see
+    # `document_section`), because a silent overwrite makes the winner depend on
+    # which `__init__` ran last, and the loser fails only at load time.
+    if previous !== nothing && previous !== f
+        @warn "register_marker_function!: the verb is already registered — keeping the first" name
+        return previous
+    end
     _MARKER_FUNCTIONS[name] = f
     f
 end
@@ -540,8 +549,41 @@ end
 # Normalised so `a.json` and `./a.json` intern as one target.
 _file_marker_key(path::AbstractString) = "file(" * repr(normpath(String(path))) * ")"
 
+# ── The `section` vocabulary function ──────────────────────────────────────
+
+"""
+    section(document, title)  [marker vocabulary]
+
+The part of `document` headed `title`, in that document's own format. Addressing
+a section by the words of its heading is what lets it survive being moved, and
+what makes a renamed heading fail loudly instead of embedding the wrong part of
+a page.
+
+Open generic: a format adds a method for its own root type — markdown gathers
+the blocks that follow a heading, RST returns the section node, which already
+owns its blocks. One verb serves every format, because the marker registry holds
+one function per name and two formats registering `:section` would leave the
+winner to load order.
+"""
+function document_section end
+
+document_section(document, title::AbstractString) =
+    error("section(…): no section vocabulary for a ", typeof(document),
+          " — the format registers one by adding a `document_section` method")
+
+# A marker naming a file gets the file; the section lives in its content.
+document_section(file::FileDocument, title::AbstractString) =
+    document_section(content(file), title)
+
+function marker_section(::LoaderContext, document, title)
+    title isa AbstractString ||
+        error("section(…): expected a title string, got ", typeof(title), " (", repr(title), ")")
+    document_section(document, String(title))
+end
+
 function __init__()
     register_marker_function!(:file, marker_file)
+    register_marker_function!(:section, marker_section)
 end
 
 # ── Driver: save + load ────────────────────────────────────────────────────
