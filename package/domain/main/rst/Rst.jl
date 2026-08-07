@@ -267,6 +267,14 @@ end
 
 @forward_vector_protocol on RstBlockQuote to elements
 
+# Every field defaults, so the macro emits only the "fill everything" form
+# `RstBlockQuote([...])` — the positional-defaults rule needs a required
+# leading field and there is none. An attributed quote needs the arity-2 form
+# by hand.
+RstBlockQuote(elements::AbstractVector, attribution::AbstractString; collapsed::Bool = false) =
+    RstBlockQuote(_rst_cellvector(elements), Cell(String(attribution)),
+                  Cell(collapsed), Cell(nothing))
+
 """
 A transition — a horizontal rule between blocks, written as a run of four or
 more punctuation characters standing alone.
