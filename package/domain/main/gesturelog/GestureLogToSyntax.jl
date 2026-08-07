@@ -1,0 +1,75 @@
+"""
+    GestureLogToSyntaxModule
+
+Projects a [`GestureLog`](GestureLog.jl) onto a `SyntaxNode` for display: one
+line per entry, newest line first, so the newest line always sits at the same
+place and the panel does not move under the eye of the user.
+
+Each line holds three parts with their own style: the index, the gesture and the
+operation. A line that records a selection operation is muted, because a
+selection is context and not a change.
+
+Read-only. There is nothing to author here, so this is a plain leaf printer with
+no reader and no reference mappers.
+"""
+module GestureLogToSyntaxModule
+
+import ..ProjectionApiModule: print_document, Projection
+import ..ProjectionModule: var"@projection"
+import ..IoMapModule: SimpleIoMap
+import ..CollectionModule: ComputedCellVector
+import ..GestureLogModule: GestureLog, GestureLogEntry
+import ..TextModule: TextString
+import ..FontModule: font_ubuntu_monospace_regular_16, font_ubuntu_monospace_bold_16
+import ..ColorModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
+import ..StyleTextModule: StyleText, DStyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..PrinterContextModule: PrinterContext
+
+export GestureLogToSyntax
+
+@projection struct GestureLogToSyntax
+    index::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_16, color_gray159)
+    gesture::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_16, color_solarized_cyan)
+    operation::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_16, color_gray223)
+    muted::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_16, color_solarized_gray)
+    empty::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_16, color_solarized_gray)
+end
+
+# The width of the gesture column, in characters. The font is monospaced, so a
+# padded string aligns the operations of every line.
+const _GESTURE_WIDTH = 18
+
+"""
+    print_document(p::GestureLogToSyntax, recursion, log::GestureLog, ctx)
+
+One `SyntaxNode` per entry, joined by newlines. The children are derived, not
+copied: the outer node reads `log.entries` inside a `ComputedCellVector`, so an
+append rebuilds the lines and the panel that shows them.
+"""
+function print_document(p::GestureLogToSyntax, recursion, log::GestureLog, ctx::PrinterContext)
+    children = ComputedCellVector(function ()
+        entries = log.entries
+        isempty(entries) && return SyntaxDocument[SyntaxLeaf(TextString("no gesture yet", p.empty))]
+        lines = SyntaxDocument[]
+        for index in length(entries):-1:1
+            push!(lines, _line(p, entries[index]))
+        end
+        lines
+    end)
+    SimpleIoMap(p, log, SyntaxNode(children; sep=TextString("\n")))
+end
+
+# One line: "  12  Ctrl+C            set .entries[1].value = 1".
+function _line(p::GestureLogToSyntax, entry::GestureLogEntry)
+    muted = entry.kind === :ReplaceSelectionOperation
+    gesture_style = muted ? p.muted : p.gesture
+    operation_style = muted ? p.muted : p.operation
+    SyntaxNode(SyntaxDocument[
+        SyntaxLeaf(TextString(lpad(string(entry.index), 4) * "  ", p.index)),
+        SyntaxLeaf(TextString(rpad(entry.gesture, _GESTURE_WIDTH) * "  ", gesture_style)),
+        SyntaxLeaf(TextString(entry.operation, operation_style)),
+    ])
+end
+
+end # module
