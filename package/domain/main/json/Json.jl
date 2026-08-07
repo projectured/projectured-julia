@@ -121,6 +121,9 @@ end
 @gestures JsonObject begin
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
     KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
+    # The way back has no key of its own. A rule with no gesture reaches the user by
+    # name instead, through the command palette.
+    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
 end
 
 end # module

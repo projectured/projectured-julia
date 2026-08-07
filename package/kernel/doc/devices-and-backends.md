@@ -481,8 +481,8 @@ GestureBinding.jl (GestureBindingModule) — GestureBinding, the per-document-ty
 A `GestureBinding` is reified *data*: an `EventPattern` (what fires it, and
 how it is described) + `operation(document, event) -> Operation | Nothing` +
 an `applicable(document, selection) -> Bool` precondition + a human
-`description` + a `domain` tag — the same declaration both fires the edit and
-can be listed to a user. [`@gestures`](../../../package/kernel/main/binding/Gestures.jl)
+`description` + a `domain` tag + an optional `name` — the same declaration both
+fires the edit and can be listed to a user. [`@gestures`](../../../package/kernel/main/binding/Gestures.jl)
 emits the `get_document_gesture_bindings_own` method holding a type's own
 table; `get_document_gesture_bindings` walks it plus every supertype's.
 `fire_gesture_bindings(bindings, target, selection, event)` is the one firing
@@ -494,6 +494,40 @@ gesture-binding reader, so *what fires* cannot drift from what a listing
 shows. `read_bound_gesture`'s optional third argument covers a target whose
 selection comes from elsewhere (e.g. a node addressed by path inside its
 enclosing document), so one entry point serves both.
+
+#### A rule with no gesture
+
+The pattern is optional. A binding whose `pattern` is `nothing` has no gesture at
+all: no key and no click reaches it, and `fire_gesture_bindings` skips it. Only
+its `name` does, through `fire_named_gesture_binding(bindings, target, selection,
+name)` — the counterpart that selects a binding by the name a user types instead
+of by the event that fires it, and passes `nothing` for the event.
+
+Write it in the pattern slot of the rule form that already exists:
+
+```julia
+@gestures JsonObject begin
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
+    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
+end
+```
+
+The author writes in the pattern slot exactly what the field holds, so a reader
+of the table sees the absence of a gesture and has no second surface to learn.
+Three rules follow from the shape. A `nothing` rule must carry a description,
+because the description is the name and there is no pattern to derive one from. A
+`nothing` rule binds no pattern variable, so its body reads `doc` and `sel` only.
+`override(nothing)` is an error, because override claims a key and there is none.
+
+`name` is filled in by `@gestures`, and only when the author wrote a description
+**and** the rule reads no event. A rule that binds a pattern variable — JSON's
+`when(KeyPress(c), isdigit(c))` — has no name, because a name carries no event to
+read `c` from. A rule with no description has none either: its description is the
+gesture rendering (`"Ctrl+K"`), which is not a command name.
+
+This is what puts an operation in front of a user without spending a key on it.
+The command palette in the domain package lists these by name; see
+[the gesturemap slice](../../domain/main/gesturemap/CommandPalette.jl).
 
 ### Downward edges
 

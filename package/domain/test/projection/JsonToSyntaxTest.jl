@@ -214,12 +214,15 @@ function test_json_gesture_collection()
     @testset "whole object entry greys type-to-replace, keeps comma + Tab" begin
         obj2 = JsonObject("a" => JsonNumber(1))
         all, app = collect_for(obj2, @reference(obj2, entries[1]))
-        @test length(all) == 10                       # 8 inherited + , insert + Tab
+        # 8 inherited + , insert + Tab + the value-to-key command, which has no
+        # gesture and is reached by name from the command palette.
+        @test length(all) == 11
         # A whole entry is a key/value wrapper, not a replaceable value — the
         # type-to-replace set is greyed (its `applicable` precondition fails on a
-        # JsonObjectEntry target); only the two always-on object gestures remain.
-        descs = sort([describe_event_pattern(b.pattern) for b in app])
-        @test descs == [",", "Tab"]
+        # JsonObjectEntry target); only the always-on object gestures remain. The
+        # command has no keystroke to render, so its column is empty.
+        descs = sort([b.pattern === nothing ? "" : describe_event_pattern(b.pattern) for b in app])
+        @test descs == ["", ",", "Tab"]
     end
 
 end # @testset "JsonToSyntax gesture collection"

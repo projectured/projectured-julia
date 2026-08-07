@@ -107,9 +107,10 @@ When `gesture_help=true`, each example's projection is wrapped in a
 pipeline. One shared state backs every window, so `F1` toggles one window.
 
 When `command_palette=true`, each example's projection is wrapped in the command
-type-in overlay: one hot key opens a field that runs a named operation. The
-decorator is still being implemented, so this flag raises an error today — see
-`plan/pending/command-palette.md`.
+type-in overlay: `Ctrl+Shift+P` opens a field over the content, typing narrows the
+list of commands available where the user is, and Enter runs the selected one.
+Escape or the same key closes it. Each window gets its own palette, because the
+palette is drawn into its window rather than opened beside it.
 
 When `gesture_log=true`, a panel in the top-right corner of each window shows
 what the editor did: the last gestures and the operation each one made. One

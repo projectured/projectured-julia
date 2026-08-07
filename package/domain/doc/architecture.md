@@ -72,7 +72,11 @@ fsm/        Fsm.jl · FsmToSyntax.jl · FsmDiagram.jl · FsmToFsmDiagram.jl ·
                                    codegen, → graph slice for the diagram)
 filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
 formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
-gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl
+gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl ·
+            CommandPalette.jl · CommandPaletteToSyntax.jl ·
+            CommandPaletteDecorator.jl
+            (two views of one collected binding set: the help window shows it,
+             the command palette runs it by name)
 gesturelog/ GestureLog.jl · GestureLogToSyntax.jl · GestureLogRecorder.jl ·
             GestureLogOverlay.jl
 versioning/ Versioning.jl · VersioningToAny.jl

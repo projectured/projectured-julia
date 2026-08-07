@@ -263,6 +263,49 @@ function test_command_palette_decorator()
         @test !isempty(mine)
     end
 
+    # Through the real editor pipeline (`_multi_window_projection`), so the operation
+    # travels the whole reader chain and `ScreenToScreen` reroots it to the screen
+    # root. This is what a palette window could not do.
+    @testset "a command runs through the real editor pipeline" begin
+        arr = mkarr()
+        # Wrapped exactly as `run_example(...; command_palette=true)` wraps it.
+        composed = ProjecturedDomainExample._multi_window_projection(
+            [make_command_palette_projection(make_json_projection_example())])
+        screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
+        iomap = print_document(composed, screen)
+
+        @test read_intent(composed, iomap, WindowInput(:json, summon)) isa DoNothingOperation
+        for c in "insert"
+            read_intent(composed, iomap, WindowInput(:json, KeyPress(c)))
+        end
+        operation = read_intent(composed, iomap, WindowInput(:json, enter))
+        @test operation isa Operation
+        # The path is rooted at the screen, so applying it reaches the array inside
+        # the window.
+        evaluate_operation(_PaletteEditor(screen, iomap), operation)
+        @test length(arr.elements) == 2
+    end
+
+    @testset "a domain rule with no gesture is reached only by name" begin
+        obj = JsonObject("a" => JsonNumber(1))
+        bindings = get_document_gesture_bindings(JsonObject)
+        command = only(b for b in bindings if b.pattern === nothing)
+        @test command.name == "Move from value to key"
+
+        # Tab moves the cursor from the key to the value; the command moves it back.
+        set_selection!(obj, @reference(obj, entries[1].key{0}))
+        forward = read_gesture(obj, KeyDown(:tab, none))
+        @test forward isa ReplaceSelectionOperation
+        set_selection!(obj, forward.path)
+        back = fire_named_gesture_binding(bindings, obj, obj.selection, "Move from value to key")
+        @test back isa ReplaceSelectionOperation
+        @test occursin("key", string(back.path))
+
+        # XML has the same gap, filled the same way.
+        xml_command = only(b for b in get_document_gesture_bindings(XmlElement) if b.pattern === nothing)
+        @test xml_command.name == "Move to attribute name"
+    end
+
 end
 end
 

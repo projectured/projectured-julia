@@ -34,16 +34,15 @@ function make_shell_projection(projection; measure=truetype_measure_text,
     )))
 end
 
-# The call site that Phase 5 of the command-palette plan fills in: wrap a
-# pipeline in the command type-in overlay, so one hot key opens a field that runs
-# a named operation. `CommandPaletteProjection` is still being implemented, so
-# the gallery's `command_palette=true` reaches this and stops here. Replace the
-# body with the decorator once it lands — see plan/pending/command-palette.md.
-function make_command_palette_projection(projection)
-    error("make_command_palette_projection: the command type-in overlay is not " *
-          "implemented yet; CommandPaletteProjection is in progress " *
-          "(see plan/pending/command-palette.md)")
-end
+# Wrap a pipeline in the command type-in overlay: Ctrl+Shift+P opens a field over
+# the content that runs a named operation on it.
+#
+# Each call mints its own `CommandPaletteState`, so every window gets its own
+# palette. The help window is a *sibling window* and can share one flag across
+# windows; the palette is drawn INTO its window, so a shared flag would draw it
+# over every window at once.
+make_command_palette_projection(projection; measure=truetype_measure_text) =
+    CommandPaletteProjection(inner = projection, measure = measure)
 
 function make_introspection_projection(projection; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20

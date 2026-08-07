@@ -271,8 +271,8 @@ Changed files:
   and the run flag.
 - `package/domain/main/gesturemap/GestureMap.jl` — the two new row fields.
 - `package/domain/main/ProjecturedDomain.jl` — the three includes.
-- `package/domain/example/Gallery.jl` — the decorator, beside the help
-  decorator.
+- `package/domain/example/projection/Wrapper.jl` — `make_command_palette_projection`.
+- `package/domain/example/Gallery.jl` — the `command_palette` flag's documentation.
 
 Every file above is unsealed. No sealed file changes.
 
@@ -339,38 +339,67 @@ Three decisions taken during the work:
   Rebuilding the canvas per frame would replace the whole graphics tree on every
   toggle.
 
-### Phase 5 — the wiring and real commands
+### Phase 5 — the wiring and real commands — **done**
 
-1. Wrap each example pipeline in the decorator in `Gallery.jl`.
-2. Add two or three `nothing` rules to JSON and to XML. Choose operations that
-   have no good key.
-3. Test the JSON example in the editor's real order: print, refresh, open the
-   palette, type, press Enter, refresh, then compare the document.
-4. Write the palette section in
+1. ~~Fill in `make_command_palette_projection` in `example/projection/Wrapper.jl`,
+   the call site `run_example(...; command_palette=true)` already reaches.~~
+2. ~~Add `nothing` rules to JSON and to XML.~~
+3. ~~Test the JSON example through the real editor pipeline.~~
+4. ~~Write the palette section in
    [package/kernel/doc/devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md),
-   which holds the gesture-binding text today.
+   which holds the gesture-binding text today.~~
 
-## Tests
+Two commands fill a real gap, and each is one line over an existing helper:
 
-- `test_kernel()` — the binding change.
-- `test_gesture_help()` — the row change.
-- A new `test_command_palette()` with four cases: the match order, the run set
-  filter, the Enter route, and the Escape route.
-- One live-order case on the JSON example, as the memory note
-  "live-editor-hides-two-bug-classes" requires.
+- `JsonObject` — "Move from value to key". Tab moves the other way and has a key;
+  the way back had none.
+- `XmlElement` — "Move to attribute name". `=` moves the other way.
 
-## Open decisions
+**One palette per window, not one shared.** The help window is a sibling window,
+so one flag serves every content window. The palette is drawn *into* its window,
+so a shared flag would draw it over every window at once. Each call to
+`make_command_palette_projection` therefore mints its own `CommandPaletteState`,
+and `run_example` calls it once per example.
 
-1. **Which hot key?** The plan proposes Ctrl+Shift+P. F1 is the help window.
-   Alt+X is the other candidate, and it matches the Lisp heritage.
+**The help window says "by name".** A row with no gesture renders
+`by name — <description>` in the gesture column, so a user reading the help window
+learns that the command exists and how to reach it.
+
+## Tests — what was run
+
+- `test_gesture_binding()` — 66 passed, up from 46. The naming rules, the skip in
+  the firing loop, both macro errors, and firing by name.
+- `test_command_palette()` — 31 passed. The match, the rank, the selection, the
+  step, and the reactive rendering.
+- `test_command_palette_decorator()` — 49 passed. The toggle, the swallowed keys,
+  Enter, Escape, the wrapper canvas, the reference mapping, the run through the
+  real editor pipeline, and the two domain commands.
+- `test_kernel()` — 1413 passed, 3 failed, 2 errored. The five are the known
+  `DocumentMacro` "Rule C" cases, which fail the same way on clean `main` in a
+  kernel-only environment.
+- `test_base()`, `test_visual()`, `test_domain()` — all green. The domain suite
+  reports 184777 passed, 0 failed, 5 broken.
+
+The umbrella suite (`test_all()`) did **not** run. A fresh worktree must
+precompile `ProjecturedOdbcExample` from scratch, and that needs a PostgreSQL ODBC
+driver which is not installed on this machine. The failure is unrelated to this
+work: the same environment limitation is why a fresh worktree also lacks the
+gitignored Adaptagrams shared library.
+
+## Decisions left open
+
+1. **Which hot key?** Built as Ctrl+Shift+P, which also dismisses the palette.
+   F1 is the help window. Alt+X is the other candidate, and it matches the Lisp
+   heritage. Changing it is one line in `CommandPaletteDecorator.jl`.
 2. **Does `GestureBinding` keep its name?** The concept is a *command*: the Lisp
    version calls it that, with `domain`, `description`, `gesture`, and
-   `operation` fields —
-   `projectured-lisp/source/editor/command.lisp`. A binding with no gesture
-   makes the current name wrong. A rename to `CommandBinding` is honest but
-   touches many files. The plan keeps the current name.
-3. **Which slice?** The plan puts the palette in the `gesturemap` slice, beside
-   the help window, because both read one collected set.
+   `operation` fields — `projectured-lisp/source/editor/command.lisp`. A binding
+   with no gesture makes the current name read oddly. A rename to
+   `CommandBinding` is honest but touches many files. This work kept the current
+   name.
+3. **Which slice?** The palette went into the `gesturemap` slice, beside the help
+   window, because both read one collected set. The slice name now covers two
+   things and could become `command`.
 
 ## Rejected alternatives
 
@@ -386,6 +415,11 @@ Three decisions taken during the work:
 
 ## Deferred
 
+- **The mouse.** Version 1 is keyboard-only: type, Up, Down, Enter, Escape. A row
+  click and a caret inside the query want `WidgetText` + `WidgetList`, and a
+  selection mapped from `rows` to the displayed subset.
+- **A binding from a deeper chain stage.** The palette lists it with its key and
+  marks it "key only".
 - A fuzzy rank with a score, and a recent-command list.
 - An icon column. The Lisp `command` class has one.
 - A command that asks for an argument before it runs.

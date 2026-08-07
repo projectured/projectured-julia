@@ -63,12 +63,12 @@ function test_gesture_map()
         @test [r.runnable for r in own] == [r.name !== nothing for r in own]
     end
 
-    @testset "a row for a binding with no gesture renders without a keystroke" begin
+    @testset "a row for a binding with no gesture says how to reach it" begin
         gmap = GestureMap(rows = [
             GestureRow("", "Sort the entries", "JsonObject", true, "Sort the entries", true)])
         text = render(print_document(g2s, gmap).output)
-        @test occursin("Sort the entries", text)
-        @test !occursin("—", text)          # no connective: nothing stands to its left
+        # The gesture column tells the user what to do instead of pressing a key.
+        @test occursin("by name — Sort the entries", text)
     end
 
     @testset "is_help_gesture recognizes the help summons" begin

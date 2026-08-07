@@ -49,10 +49,10 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
         desc_style = row.applicable ? p.description : p.muted
         suffix = row.applicable ? "" : "  (n/a)"
         # gesture cell + connective + description cell, all in one leaf's value. A row
-        # with no gesture has nothing left of the connective, so it drops both.
-        text = isempty(row.gesture) ?
-               string("  ", row.description, suffix) :
-               string("  ", row.gesture, " — ", row.description, suffix)
+        # with no gesture reads "by name" in the gesture column: that is how a user
+        # reaches it, from the command palette.
+        text = string("  ", isempty(row.gesture) ? "by name" : row.gesture,
+                      " — ", row.description, suffix)
         push!(children, SyntaxLeaf(TextString(text, desc_style)))
     end
     out = SyntaxNode(children; sep=TextString("\n"))
