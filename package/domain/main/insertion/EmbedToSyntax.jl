@@ -263,8 +263,19 @@ end
 _document_selection(value) =
     hasproperty(value, :selection) ? getfield(value, :selection)[] : nothing
 
-# The title a card wears: the file's name, or the marker as it was written.
-_embed_title(stub::ReferenceStub) = marker_text(stub)
+# The title a card wears. A header should say what the embed IS, not how it was
+# addressed, so a marker gives up its last name: `definition(file("steps.jl"),
+# "packet_queue_step")` is titled `packet_queue_step`. A marker that names
+# nothing keeps its own text, which is always true if not always short.
+function _embed_title(stub::ReferenceStub)
+    text = marker_text(stub)
+    last_name = nothing
+    for match in eachmatch(r"\"([^\"]*)\"", text)
+        name = match.captures[1]
+        isempty(name) || (last_name = name)
+    end
+    last_name === nothing ? text : last_name
+end
 
 # Whether a card really stands between this embed and its document. Asked of the
 # printed child rather than of the projection, because a value that frames itself
