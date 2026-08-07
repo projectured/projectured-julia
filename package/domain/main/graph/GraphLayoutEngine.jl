@@ -29,7 +29,8 @@ module GraphLayoutEngineModule
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphConstraint
 
-export GraphLayoutEngine, FallbackLayoutEngine, layout_graph
+export GraphLayoutEngine, FallbackLayoutEngine, DefaultLayoutEngine, layout_graph,
+       default_layout_engine, register_layout_engine!, resolved_layout_engine
 
 abstract type GraphLayoutEngine end
 
@@ -39,6 +40,73 @@ abstract type GraphLayoutEngine end
 Place the vertices and route the edges of `graph`. See module docs for the shapes.
 """
 function layout_graph end
+
+# The engine `default_layout_engine` hands out. A package with a better one
+# registers a factory here from its `__init__` — a mutation, not a second
+# method: replacing a method during precompilation is fatal, and this seam
+# exists precisely so an optional package can take over without one.
+# `register_file_document_type!` is registered the same way, for the same reason.
+const _PREFERRED_ENGINE = Ref{Any}(nothing)
+
+"""
+    register_layout_engine!(factory)
+
+Make `factory(; orthogonal)` the engine [`default_layout_engine`](@ref) returns.
+`ProjecturedAdaptagrams` calls this from its `__init__`, so a native layout
+costs a `using` and no rewiring. `nothing` restores the fallback.
+"""
+register_layout_engine!(factory) = (_PREFERRED_ENGINE[] = factory; nothing)
+
+"""
+    DefaultLayoutEngine(; orthogonal = false)
+
+The engine that decides which engine to be **when the layout runs**, rather than
+when the projection is built. That distinction is the whole point: a projection
+is usually constructed once at module load — an `Example` builds its projection
+in its constructor — which is long before an optional engine package can be
+loaded. An engine chosen at construction would be the fallback forever.
+
+`orthogonal` is what a caller *asks for*, not an engine it picks. Right-angled
+routes are what a flowchart wants — an arrow is read as flow, and a diagonal
+between two boxes reads as a relation instead of a direction — while a plain
+relationship graph reads better with direct lines. An engine that cannot honour
+the request ignores it (the fallback draws straight lines either way), so asking
+is always safe.
+"""
+struct DefaultLayoutEngine <: GraphLayoutEngine
+    orthogonal::Bool
+end
+
+DefaultLayoutEngine(; orthogonal::Bool = false) = DefaultLayoutEngine(orthogonal)
+
+"""
+    default_layout_engine(; orthogonal = false) -> DefaultLayoutEngine
+
+The engine a caller names when it has no reason to name a specific one.
+"""
+default_layout_engine(; orthogonal::Bool = false) = DefaultLayoutEngine(orthogonal)
+
+"""
+    resolved_layout_engine(engine) -> GraphLayoutEngine
+
+What a `DefaultLayoutEngine` is right now: the registered engine, or the
+fallback when nothing has registered. Any other engine is already itself.
+"""
+resolved_layout_engine(engine::GraphLayoutEngine) = engine
+
+function resolved_layout_engine(engine::DefaultLayoutEngine)
+    factory = _PREFERRED_ENGINE[]
+    factory === nothing ? FallbackLayoutEngine() :
+                          factory(; orthogonal = engine.orthogonal)
+end
+
+# Resolution happens per layout call. `GraphGraphToGraphLayout` memoizes on
+# topology, sizes and constraints — not on the engine — so a graph already laid
+# out keeps its old picture until something about it changes. Loading an engine
+# package mid-session is a session-start concern, not a live-editing one.
+layout_graph(engine::DefaultLayoutEngine, graph::GraphGraph, sizes::Dict,
+             constraints::Vector) =
+    layout_graph(resolved_layout_engine(engine), graph, sizes, constraints)
 
 # ── FallbackLayoutEngine ─────────────────────────────────────────────────────
 

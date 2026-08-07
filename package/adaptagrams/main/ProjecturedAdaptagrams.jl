@@ -31,7 +31,8 @@ install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
 """
 module ProjecturedAdaptagrams
 
-import ProjecturedDomain.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph
+import ProjecturedDomain.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
+                                                  register_layout_engine!
 import ProjecturedDomain.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
@@ -215,6 +216,20 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
     end
 
     (positions, routes)
+end
+
+# ── The default engine, once this package is loaded ──────────────────────────
+#
+# Registering is the whole opt-in: anything that asks for
+# `default_layout_engine()` — an example, a workbench page, a live diagram —
+# gets native placement and routing from the moment this package is in the
+# session, with nothing else rewired. Done from `__init__` so the mutation
+# survives precompilation; defining a second method instead would be a
+# precompile-fatal overwrite.
+
+function __init__()
+    register_layout_engine!((; orthogonal::Bool = false) ->
+                                AdaptagramsEngine(orthogonal = orthogonal))
 end
 
 end # module ProjecturedAdaptagrams

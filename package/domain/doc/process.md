@@ -143,6 +143,37 @@ Arrows come from the standard structured-control-flow construction:
 | `foreach` | the same two exits, labelled `next` and `done` |
 | `break` / `continue` / `return` | to the loop's exit / the loop's header / the stop terminal |
 
+### Which engine draws it
+
+The flowchart asks for `default_layout_engine(orthogonal = true)` rather than
+naming an engine. Two things follow.
+
+It gets **right-angled routes** where the engine can provide them, because a
+flowchart's arrows are read as flow, and a diagonal between two boxes reads as
+a relation instead of a direction.
+
+And it gets the **best engine in the session**, resolved when the layout runs
+rather than when the projection is built — `ProjecturedAdaptagrams` registers
+itself from its `__init__`, so:
+
+```julia
+using ProjecturedAdaptagrams          # native placement + obstacle-avoiding routing
+run_example("process_diagram")
+```
+
+Without it, the pure-Julia `FallbackLayoutEngine` places boxes on a grid and
+draws straight lines between them — legible for a handful of boxes, crossed and
+unreadable for a real procedure. The resolution is late on purpose: an
+`Example` builds its projection in its constructor, at module load, which is
+long before an optional native package can be loaded, so an engine captured
+then would be the fallback forever.
+
+Neither engine is a *flowchart* layout: both place by general graph criteria,
+so the picture is not guaranteed to read top-to-bottom. A layout derived from
+the process tree — where a sequence is a column, a decision opens two, and a
+loop's back edge runs up a margin lane — would give that by construction, and
+is the natural next step.
+
 Known v1 limits: a selection maps only when it names a node exactly (a caret
 *inside* a step's action does not light its box), and edges are not clickable.
 
