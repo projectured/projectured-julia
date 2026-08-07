@@ -12,7 +12,7 @@ projections, and the dependency-free backends (Console, Pdf).
 Each slice imports only slices to its left:
 
 ```
-style → screen → graphics → layout → text → widget → syntax →
+style → screen → graphics → layout → text → widget → pane → syntax →
 clipboard/tooltip/inspector → backend
 ```
 
@@ -29,6 +29,9 @@ clipboard/tooltip/inspector → backend
   ReferenceToText.
 - **widget/** — Widget + its projections + ObjectToWidget + hover/config/popup
   decorators.
+- **pane/** — the pane tree (PaneTree/PaneSplit/PaneGroup/PaneTab), its
+  surgery, its geometry, and its projection onto split and tabbed panes:
+  the generic way to organize documents on the screen.
 - **syntax/** — Syntax + its bridges (ObjectToSyntax, CollectionToSyntax,
   PrimitiveToSyntax) + SyntaxToText + InsertionToSyntax +
   NaturalProjection.
@@ -83,6 +86,9 @@ const DocumentReflectionModule = ProjecturedBase.DocumentReflectionModule
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
+# MoveRangeOperation — the identity-preserving relocation of CellVector elements
+# the pane slice moves a tab with.
+const DraggingProjectionModule = ProjecturedBase.DraggingProjectionModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
@@ -216,6 +222,13 @@ include("widget/CellTableToWidgetTable.jl")
 include("widget/WidgetHoverTracking.jl")
 include("widget/ProjectionConfiguring.jl")
 include("widget/WidgetPopupResolver.jl")
+
+# ── Slice 7 — pane (tab groups and splits: the screen layout) ────────────
+# Pane is the layout document (PaneTree/PaneSplit/PaneGroup/PaneTab); PaneSurgery
+# holds the tree edits, each of which builds a generic operation. The slice sits
+# above widget/ because it projects onto WidgetSplitPane / WidgetTabbedPane.
+include("pane/Pane.jl")
+include("pane/PaneSurgery.jl")
 
 # ── Slice 7 — syntax (tree presentation, target of every source domain) ─
 # Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.
