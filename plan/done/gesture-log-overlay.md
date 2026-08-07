@@ -243,20 +243,38 @@ step. Mark each step here when it is complete.
 - [x] **Step 5 — Wire the gallery.** DONE. Add the three keyword arguments to
   `run_example` in [Gallery.jl](../../package/domain/example/Gallery.jl) and
   document them in the docstring.
-- [ ] **Step 6 — Check the colors and the mapping in the live editor.** Run
-  `run_example("json"; gesture_log=true)` and
-  `run_example("workbench"; gesture_log=true)`. Check three things: the SDL
-  backend paints the translucent background; a click under the panel still
-  reaches the content; a widget pipeline still maps its references. If the
-  backend ignores the alpha component, use an opaque panel color. If the widget
-  pipeline loses a reference, add the `elements[1]` step to the mappers.
-- [x] **Step 7 — Add the tests.** DONE (written; the run is the gate). See the next section.
+- [x] **Step 6 — Check the colors and the mapping.** DONE, headless. An
+  interactive window needs a person at the screen, so the checks ran through the
+  same SDL renderer with `write_image` and through direct clicks:
+
+  1. **The translucent background works.** The offscreen render shows the dark
+     panel over the JSON content, and the content stays visible through it.
+  2. **Two glyphs were missing.** `←` and `∅` came out as boxes. The Ubuntu font
+     has no glyph for them and SDL draws no fallback. `GestureLogToSyntax` now
+     uses the DejaVu monospace font, which has both.
+  3. **The panel was one character too narrow.** The measure function of the
+     printer and the text metrics of the backend do not agree exactly, so the
+     last characters of the longest line sat on the border. The panel width now
+     carries `_WIDTH_SLACK = 8` pixels.
+  4. **A click reaches the content under the panel.** With the panel over the
+     top left corner, three clicks gave the identical
+     `ReplaceSelectionOperation` with and without the decorator.
+  5. **The widget pipeline maps as before.** Four clicks on the workbench
+     projection gave the identical outcome with and without the decorator, so
+     the `elements[1]` step is not needed. Two of those clicks raise an
+     "under-typed @reference" error in `WorkbenchToWidget.jl:543` — the plain
+     projection raises the same error at the same coordinates, so it is not from
+     this work.
+
+  Check 4 is now a test as well.
+- [x] **Step 7 — Add the tests.** DONE. `test_gesture_log()` is 46 assertions
+  and passes. See the next section.
 - [x] **Step 8 — Update the documentation.** DONE. Add the slice to the inventory in
   [package/domain/doc/architecture.md](../../package/domain/doc/architecture.md).
   Add a short section to
   [documentation/debugging.md](../../documentation/debugging.md), because the
   overlay is a debugging aid.
-- [ ] **Step 9 — Move this plan to `plan/done/`.**
+- [x] **Step 9 — Move this plan to `plan/done/`.** DONE.
 
 ## Tests
 
@@ -285,6 +303,10 @@ Test these things:
 
 Run `test_gesture_log()` alone while you work. Run `test_domain()` one time at
 the end.
+
+**Result (2026-08-07).** `test_gesture_log()` gives 46 passed, 0 failed.
+`test_domain()` gives 190741 passed, 0 failed, 0 errored, 5 broken — the same
+broken count as before this work.
 
 ## Risks
 
