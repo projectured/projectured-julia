@@ -220,8 +220,12 @@ function NaturalToGraphics(; measure::Function,
             # clicked, which a syntax tree could never offer it.
             MarkdownRoot  => ChainingProjection(MarkdownRootToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
-            ReferenceStub => ReferenceStubToSyntax(unforced = :prose),
-            FileDocument  => FileDocumentToSyntax(unforced = :prose),
+            # An embed wears a card here, and only here: a card is a widget, so it
+            # belongs in a to-graphics table. The to-syntax fabric above keeps the
+            # bare rules, and so does every domain's own table — the save path
+            # goes through those and stays by-marker.
+            ReferenceStub => ReferenceStubToSyntax(unforced = :prose, wrap = :card),
+            FileDocument  => FileDocumentToSyntax(unforced = :prose, wrap = :card),
             # A graph is a diagram, not a syntax tree: it goes through its own two
             # stages (size and place, then draw). No `NestingProjection` here — the
             # stages take *this* renderer as their recursion, so a vertex's content

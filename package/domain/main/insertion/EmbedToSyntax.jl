@@ -30,10 +30,19 @@ Both rules are domain-neutral in the direction that matters: they hand
 the embedded value to `recursion`, so they work unchanged in the
 to-syntax fabric and in a to-graphics dispatch table. Only the
 *unforced* fallback has to know which table it is in (`unforced`).
+
+`wrap = :card` frames the embedded document in a titled, foldable
+`WidgetCard`, so a page shows where the host stops and the embed
+starts. The card is built here and lives only in the projected tree;
+the document keeps its marker. A card is a widget, so this belongs in
+a to-graphics table only. It costs one reference step — the card's
+`content` — which both maps and the reader add on the way in and drop
+on the way out.
 """
 module EmbedToSyntaxModule
 
 import ..CellModule: Cell, ComputedCell
+import ..CollectionModule: ComputedCellVector
 import ..ProjectionApiModule: Projection, print_document, print_child,
                               map_reference_forward, map_reference_backward, read_intent
 import ..ProjectionModule: var"@projection"
@@ -45,10 +54,12 @@ import ..ReferenceBuilderModule: var"@reference"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString, TextBlock
 import ..StyleTextModule: StyleText, DStyleText
-import ..FontModule: font_ubuntu_monospace_regular_20
+import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_solarized_gray
+import ..GeometryModule: Point2D
+import ..LayoutModule: HorizontalLayout
 import ..OperationModule: ReplaceSelectionOperation, Operation
-import ..WidgetModule: InvokeActionOperation
+import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
                             content, filename
@@ -73,7 +84,7 @@ end
 # ── ReferenceStubToSyntax ──────────────────────────────────────────────────
 
 """
-    ReferenceStubToSyntax(; style, unforced)
+    ReferenceStubToSyntax(; style, unforced, wrap, card_width)
 
 Print a marker's value where the marker stands. A stub that has not
 been forced (`resolve!`) prints its marker text instead — the same
@@ -85,27 +96,34 @@ rule sits in **two** dispatch tables: `:syntax` (a `SyntaxLeaf`, for
 the to-syntax fabric) or `:prose` (a `TextBlock` handed back through
 `recursion`, for a to-graphics table where a syntax node would be a
 stranger). `style` is the marker text's style either way.
+
+`wrap` frames the embedded document: `:none` prints it bare, `:card`
+puts it in a titled, foldable [`WidgetCard`](@ref) so a reader can see
+where the host page stops and the embedded document starts. A card is a
+widget, so `:card` belongs in a to-graphics table only — a syntax tree
+has no place for one. `card_width` is the card's width where no parent
+allocates one.
 """
 @projection struct ReferenceStubToSyntax
     style::ImmutableCell{DStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     unforced::Symbol = :syntax
+    wrap::Symbol = :none
+    card_width::Int = 480
 end
 
 function print_document(p::ReferenceStubToSyntax, recursion, stub::ReferenceStub, ctx)
     child_ctx = make_child_context(ctx, FieldReferenceStep("resolved"))
     # `stub.resolved` reads through the stub's reactive cell, so forcing the
     # embed invalidates these two cells and the value appears by itself.
-    inner = ComputedCell(() -> begin
-        value = stub.resolved
-        value === nothing ? nothing : print_child(recursion, value, child_ctx)
-    end)
+    printed = _embed_printed(p, recursion, () -> stub.resolved,
+                             () -> _embed_title(stub), child_ctx)
     output = ComputedCell(() -> begin
-        iomap = inner[]
+        iomap = printed[]
         iomap === nothing ?
             _unforced_output(p, recursion, marker_text(stub), ctx) : iomap.output
     end)
-    EmbedIoMap(p, stub, output, inner)
+    EmbedIoMap(p, stub, output, printed)
 end
 
 # The marker's own text, in the domain this table speaks. `:prose` goes back
@@ -116,20 +134,21 @@ _unforced_output(p, recursion, text::AbstractString, ctx) =
         print_child(recursion, TextBlock([TextString(text, p.style)]), ctx).output :
         SyntaxLeaf(TextString(text, p.style))
 
-function map_reference_forward(::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_forward(p::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
     @reference_case reference begin
         ::ReferenceStub.resolved.rest... => begin
             inner = iomap.inner_iomap
             inner === nothing && return nothing
-            map_reference_forward(inner.projection, inner, rest)
+            map_reference_forward(inner.projection, inner, _embed_into_wrapper(inner, rest))
         end
     end
 end
 
-function map_reference_backward(::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_backward(p::ReferenceStubToSyntax, iomap::EmbedIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
     result = map_reference_backward(inner.projection, inner, reference)
+    result = _embed_out_of_wrapper(inner, result)
     result === nothing && return nothing
     @reference ::ReferenceStub.resolved.^(result)
 end
@@ -137,49 +156,136 @@ end
 # ── FileDocumentToSyntax ───────────────────────────────────────────────────
 
 """
-    FileDocumentToSyntax(; style, unforced)
+    FileDocumentToSyntax(; style, unforced, wrap, card_width)
 
 Print a file document as its content — the file is a container for one
 document, and the reader wants the document. A file with no content
 prints its whole-file marker; `unforced` picks the domain that fallback
-is written in, as for [`ReferenceStubToSyntax`](@ref).
+is written in, and `wrap` frames the content, as for
+[`ReferenceStubToSyntax`](@ref).
 """
 @projection struct FileDocumentToSyntax
     style::ImmutableCell{DStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     unforced::Symbol = :syntax
+    wrap::Symbol = :none
+    card_width::Int = 480
 end
 
 function print_document(p::FileDocumentToSyntax, recursion, file::FileDocument, ctx)
     child_ctx = make_child_context(ctx, FieldReferenceStep("content"))
-    inner = ComputedCell(() -> begin
-        value = content(file)
-        value === nothing ? nothing : print_child(recursion, value, child_ctx)
-    end)
+    printed = _embed_printed(p, recursion, () -> content(file),
+                             () -> String(filename(file)), child_ctx)
     output = ComputedCell(() -> begin
-        iomap = inner[]
+        iomap = printed[]
         iomap === nothing ?
             _unforced_output(p, recursion, file_marker_text(filename(file)), ctx) : iomap.output
     end)
-    EmbedIoMap(p, file, output, inner)
+    EmbedIoMap(p, file, output, printed)
 end
 
-function map_reference_forward(::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_forward(p::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
     @reference_case reference begin
         ::FileDocument.content.rest... => begin
             inner = iomap.inner_iomap
             inner === nothing && return nothing
-            map_reference_forward(inner.projection, inner, rest)
+            map_reference_forward(inner.projection, inner, _embed_into_wrapper(inner, rest))
         end
     end
 end
 
-function map_reference_backward(::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
+function map_reference_backward(p::FileDocumentToSyntax, iomap::EmbedIoMap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
     result = map_reference_backward(inner.projection, inner, reference)
+    result = _embed_out_of_wrapper(inner, result)
     result === nothing && return nothing
     @reference ::FileDocument.content.^(result)
+end
+
+# ── The card wrapper ───────────────────────────────────────────────────────
+#
+# `wrap = :card` prints a WidgetCard whose body is the embedded document, so the
+# page shows where the embed starts and stops and the reader can fold it away.
+# The card is NOT part of the document: it is built by this projection and lives
+# only in the projected tree. That is why the embedded document's printer context
+# keeps the embed's own step (`resolved` / `content`) — the card adds no document
+# step, and adds none to the context either.
+
+const _CARD_EXPANDED  = "▾"
+const _CARD_COLLAPSED = "▸"
+# SDL falls back between no fonts, and Ubuntu Mono has neither chevron.
+const _CARD_TITLE_STYLE = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+
+# The printed IO map of what stands where the marker stands: the embedded value
+# itself, or the card that frames it. Two cells, so the card is rebuilt only when
+# the value changes, and the value's own re-prints do not churn the card.
+function _embed_printed(p, recursion, value_of, title_of, child_ctx)
+    wrapped = ComputedCell(() -> begin
+        value = value_of()
+        value === nothing && return nothing
+        _embed_wraps(p, value) ? _embed_card(p, value, title_of()) : value
+    end)
+    ComputedCell(() -> begin
+        document = wrapped[]
+        document === nothing ? nothing : print_child(recursion, document, child_ctx)
+    end)
+end
+
+# A value that frames itself is left alone: a marker naming a whole file
+# evaluates to a `FileDocument`, whose own rule gives it a card titled by the file
+# name. Wrapping here as well would draw a card inside a card, titled twice.
+_embed_wraps(p, value) =
+    p.wrap === :card && !(value isa FileDocument) && !(value isa ReferenceStub)
+
+# A titled, foldable card around one embedded document. The header is a reactive
+# layout reading `card.collapsed` (the chevron), which is what makes a header
+# click re-render without a re-print; `_card_build` drops the body itself.
+function _embed_card(p, value, title::AbstractString)
+    selection = ComputedCell(() -> begin
+        inner = _document_selection(value)
+        inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
+    end)
+    card = WidgetCard(Cell(Point2D(0, 0)), Cell(nothing), Cell(nothing), Cell(value),
+                      Cell(nothing), Cell(Int(p.card_width)), Cell(0),
+                      Cell(true), Cell(false), selection)
+    card.title = HorizontalLayout(ComputedCellVector(() -> Any[
+        WidgetLabel(Point2D(0, 0),
+                    (card.collapsed ? _CARD_COLLAPSED : _CARD_EXPANDED) * " " * title;
+                    text_style = _CARD_TITLE_STYLE)
+    ]), Cell(:top), Cell(0), Cell(nothing))
+    card
+end
+
+# Where the caret sits inside the embedded document, if it sits there at all. A
+# value that is not a document node (a bare string a marker evaluated to) has no
+# selection to read.
+_document_selection(value) =
+    hasproperty(value, :selection) ? getfield(value, :selection)[] : nothing
+
+# The title a card wears: the file's name, or the marker as it was written.
+_embed_title(stub::ReferenceStub) = marker_text(stub)
+
+# Whether a card really stands between this embed and its document. Asked of the
+# printed child rather than of the projection, because a value that frames itself
+# is left unwrapped (see `_embed_wraps`).
+_embed_carded(inner) = inner !== nothing && inner.input isa WidgetCard
+
+# A path into the embedded document, as the printed child addresses it. The card's
+# body hangs off `content`; without a card the child IS the document.
+_embed_into_wrapper(inner, rest) =
+    _embed_carded(inner) ? ConcreteReference(FieldReferenceStep("content"), rest) : rest
+
+# The inverse: drop the step the card contributed. A path that does not come
+# through the card's body — a header op — is not a path into the embedded
+# document, and is refused rather than mis-rooted.
+function _embed_out_of_wrapper(inner, reference)
+    reference === nothing && return nothing
+    _embed_carded(inner) || return reference
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "content") || return nothing
+    reference.tail
 end
 
 # ── Readers ────────────────────────────────────────────────────────────────
@@ -192,8 +298,17 @@ end
 # Built step-by-step rather than with `@reference`: the operation an inner
 # reader produced carries whatever node types it carries, and the macro refuses
 # a tail it cannot type. Prepending one field step preserves the tail as it is.
-_embed_reroot(::ReferenceStubToSyntax, r) = ConcreteReference(FieldReferenceStep("resolved"), r)
-_embed_reroot(::FileDocumentToSyntax,  r) = ConcreteReference(FieldReferenceStep("content"), r)
+_embed_step(::ReferenceStubToSyntax) = FieldReferenceStep("resolved")
+_embed_step(::FileDocumentToSyntax)  = FieldReferenceStep("content")
+
+# With a card in between, the path the inner reader answered already carries the
+# card's own `content` step, because a card owns a reference step. Drop that one
+# and put the embed's in its place. `nothing` when the path did not come through
+# the card's body — a header op targets the card, not the document.
+function _embed_reroot(p, iomap, r)
+    path = _embed_out_of_wrapper(iomap.inner_iomap, r)
+    path === nothing ? nothing : ConcreteReference(_embed_step(p), path)
+end
 
 for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
     @eval function read_intent(p::$T, iomap::EmbedIoMap, op::ReplaceSelectionOperation)
@@ -238,10 +353,13 @@ for T in (:ReferenceStubToSyntax, :FileDocumentToSyntax)
         # embed's OUTPUT domain and answers nothing for one that has already
         # been mapped. Doing that dropped every caret placed inside an embedded
         # card: clicking a parameter value did nothing at all.
-        op isa ReplaceSelectionOperation &&
-            return ReplaceSelectionOperation(_embed_reroot(p, op.path))
-        op isa ReplaceStringRangeOperation &&
-            return ReplaceStringRangeOperation(_embed_reroot(p, op.reference), op.replacement)
+        if op isa ReplaceSelectionOperation
+            path = _embed_reroot(p, iomap, op.path)
+            return path === nothing ? nothing : ReplaceSelectionOperation(path)
+        elseif op isa ReplaceStringRangeOperation
+            path = _embed_reroot(p, iomap, op.reference)
+            return path === nothing ? nothing : ReplaceStringRangeOperation(path, op.replacement)
+        end
         op   # anything else carries its own target and travels up unchanged
     end
 end
