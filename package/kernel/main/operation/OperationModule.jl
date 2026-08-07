@@ -6,8 +6,9 @@ and applied by `evaluate_operation`. This module holds the abstract `Operation`
 supertype, the `evaluate_operation` / `invalidate_projection!` generics, the
 built-in cross-domain operations and their `evaluate_operation` methods, the
 `splice_*` text-edit helpers, and two open seams higher layers extend:
-`child_reference_steps` (per-container-document child traversal) and
-`reroot_operation` (per-path-bearing-operation reference rerooting). The
+`child_reference_steps` (per-container-document child traversal) and the
+per-path-bearing-operation reference seams `reroot_operation`,
+`operation_reference`, and `retarget_operation`. The
 selection-changing operations drive the selection primitives in the layer below,
 which is why the module sits above references and the selection contract.
 
@@ -17,7 +18,8 @@ The module lives in three fragments that share this namespace:
   the `evaluate_operation` / `invalidate_projection!` generics.
 - [`Operations.jl`](Operations.jl) — the concrete operations, the `splice_*`
   text-edit helpers, and the `child_reference_steps` traversal seam.
-- [`Rerooting.jl`](Rerooting.jl) — the `reroot_operation` seam and
+- [`Rerooting.jl`](Rerooting.jl) — the reference-rewrite seams
+  (`reroot_operation`, `operation_reference`, `retarget_operation`) and
   `reroot_reference`.
 
 `evaluate_operation` is duck-typed on `editor`: nothing in the layer names a
@@ -41,10 +43,10 @@ export Operation, evaluate_operation, invalidate_projection!,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
        # from Rerooting.jl
-       reroot_reference, reroot_operation
+       reroot_reference, reroot_operation, operation_reference, retarget_operation
 
 include("Interface.jl")   # Operation + evaluate_operation + invalidate_projection!
 include("Operations.jl")  # concrete ops, splice helpers, traversal seam
-include("Rerooting.jl")   # reroot seam + reroot_reference
+include("Rerooting.jl")   # reference-rewrite seams + reroot_reference
 
 end # module

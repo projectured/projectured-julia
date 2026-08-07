@@ -141,7 +141,12 @@ structure-preserving generic projections without a bespoke reader). A
 document-replace and sequence-insert/delete, which are
 `ReplaceReferencedValueOperation`s with a terminal `RangeReferenceStep`; a self-contained one
 (carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
-forwarded unchanged; all other operation types return `nothing`.
+forwarded unchanged.
+
+An operation type the kernel cannot name re-targets through the open
+`operation_reference` / `retarget_operation` seam — this is how the
+`Replace*RangeOperation`s of the package above travel back. An operation that
+reports no reference returns `nothing`.
 """
 function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
@@ -171,9 +176,9 @@ function read_intent(projection::Projection, iomap, operation)
         input_selection = map_reference_backward(projection, iomap, operation.path)
         input_selection === nothing && return nothing
         return ReplaceSelectionOperation(input_selection)
-    # The text-/number-range replace branches live in a higher package (as
-    # more-specific `read_intent` methods on those operation types — they take
-    # precedence over this catch-all).
+    # The text-/number-range replace operations live in a higher package, so the
+    # kernel cannot name them. They reach the `operation_reference` /
+    # `retarget_operation` seam in the `else` branch below.
     elseif operation isa CompoundOperation
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing
@@ -188,7 +193,17 @@ function read_intent(projection::Projection, iomap, operation)
         # `editor.document` at evaluation time).
         return operation
     else
-        return nothing
+        # An operation type the kernel does not name: ask the open seam for the
+        # reference it targets. An operation that reports one is re-targeted like
+        # the branches above; every other operation returns `nothing`. This keeps
+        # the default open over new operation types without a
+        # `read_intent(::Projection, iomap, ::TheOperation)` method, which would
+        # collide with the catch-all reader of every concrete projection.
+        reference = operation_reference(operation)
+        reference === nothing && return nothing
+        input_reference = map_reference_backward(projection, iomap, reference)
+        input_reference === nothing && return nothing
+        return retarget_operation(operation, input_reference)
     end
 end
 

@@ -2,13 +2,19 @@
     ReaderDefaultsModule
 
 Fragment of the projection layer's reader defaults — the Primitive-operation
-branches of `read_intent`. `read_intent` is an open generic; the kernel
-default handles the Primitive-free operation types (ReplaceSelection,
-ReplaceReferencedValue, Compound, ToggleCollapse, SelectNextInsertion, etc.)
-and this module adds the two Primitive-op methods beside the types they
-interpret. Multiple dispatch: these more-specific
-`read_intent(::Projection, iomap, ::Replace…RangeOperation)` methods take
-precedence over the kernel's catch-all `read_intent(p, iomap, operation)`.
+branches of `read_intent` that dispatch on the *IoMap*.
+
+The plain backward map of a `Replace…RangeOperation` is not here: it goes
+through the `operation_reference` / `retarget_operation` seam (see
+`primitive/Primitive.jl`), which the kernel's catch-all
+`read_intent(p, iomap, operation)` calls. A
+`read_intent(::Projection, iomap, ::Replace…RangeOperation)` method would be
+ambiguous with the catch-all reader that concrete projections define, because
+one is more specific in the projection and the other in the operation.
+
+What remains here needs a concrete IoMap type — the `ProjectionTemplate`
+`RuleIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
+needs over it.
 """
 module ReaderDefaultsModule
 
@@ -20,7 +26,7 @@ import ProjecturedKernel.EventModule: KeyDown, KeyPress
 import ProjecturedKernel.ProjectionReferenceStepModule: ProjectionReferenceStep
 import ProjecturedKernel.ReferenceModule: ConcreteReference
 import ..RecursiveProjectionModule: RecursiveProjection
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
 
 # Does the (input-domain) reference pass through any projection-introduced output?
 # A `ProjectionReferenceStep` step *anywhere* means that part of the path has no document
@@ -31,18 +37,6 @@ import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperati
 _targets_introduced_output(p::ConcreteReference) =
     p.head isa ProjectionReferenceStep || _targets_introduced_output(p.tail)
 _targets_introduced_output(::Any) = false
-
-function read_intent(projection::Projection, iomap, operation::ReplaceStringRangeOperation)
-    input_ref = map_reference_backward(projection, iomap, operation.reference)
-    input_ref === nothing && return nothing
-    return ReplaceStringRangeOperation(input_ref, operation.replacement)
-end
-
-function read_intent(projection::Projection, iomap, operation::ReplaceNumberRangeOperation)
-    input_ref = map_reference_backward(projection, iomap, operation.reference)
-    input_ref === nothing && return nothing
-    return ReplaceNumberRangeOperation(input_ref, operation.replacement)
-end
 
 # The value-edit retype for ProjectionTemplate's RuleIoMap lives here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because it references

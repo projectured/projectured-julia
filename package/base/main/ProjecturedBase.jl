@@ -16,7 +16,8 @@ operations:
   `CellTable` / `ListNode`) and their collection-shaped projections
   (`SortingProjection`, `FilteringProjection`).
 - **`primitive/`** — the scalar documents (`Primitive*` + the two
-  `Replace*RangeOperation`s) and `ReaderDefaults`, their default-`read_intent` half.
+  `Replace*RangeOperation`s) and `ReaderDefaults`, the IoMap-typed `read_intent`
+  methods that go with them.
 - **`projection/`** — the domain-free projection *algebra*: `generic/` +
   `higherorder/` combinators, `compound/`, plus `Searching` / `Copying`.
 - **`dragging/`, `reflection/`** — optional feature slices, each a document
@@ -119,7 +120,7 @@ include("collection/Filtering.jl")
 # Searching + Copying consume any input → generic algebra
 include("projection/Searching.jl")
 include("projection/Copying.jl")
-# ReaderDefaults — the Primitive-op branches of the default read_intent
+# ReaderDefaults — the IoMap-typed Primitive-op branches of read_intent
 include("primitive/ReaderDefaults.jl")
 # dragging/ projection — the press→drag→drop reader over DraggingState
 include("dragging/DraggingProjection.jl")

@@ -1,4 +1,6 @@
-# Fragment of `OperationModule` — the open `reroot_operation` seam.
+# Fragment of `OperationModule` — the open seams that rewrite the reference
+# inside an operation: `reroot_operation` (prepend steps) and
+# `operation_reference` / `retarget_operation` (replace the whole reference).
 # Reference/operation *re-rooting* shared by container readers: a container that
 # routes a gesture into one of its children gets back an operation whose reference
 # is rooted in the *child's* domain; to forward it up, the container prepends the
@@ -50,3 +52,27 @@ function reroot_operation(op::ReplaceReferencedValueOperation, steps::Tuple)
 end
 reroot_operation(op::CompoundOperation, steps::Tuple) =
     CompoundOperation(Any[reroot_operation(o, steps) for o in op.operations])
+
+"""
+    operation_reference(op) -> Reference or nothing
+
+The reference that `op` targets, or `nothing` when `op` carries none. Open
+generic: a path-bearing operation type defined in a higher package adds a method
+for itself. The default `read_intent` uses this pair of seams to re-target an
+operation it does not name, so a projection stays generic over operation types
+the kernel cannot enumerate.
+"""
+function operation_reference end
+
+operation_reference(op) = nothing
+
+"""
+    retarget_operation(op, reference) -> op
+
+`op` rebuilt against `reference`, which replaces the reference that
+`operation_reference` reports. Open generic, and the inverse of
+`operation_reference`: define both methods together or neither.
+"""
+function retarget_operation end
+
+retarget_operation(op, reference) = op
