@@ -1,0 +1,150 @@
+# What the pane tree does with what the widgets report: a tab click focuses, a
+# close button closes, the new-tab button opens, and a splitter drag becomes a
+# weight change.
+#
+# Every case drives the whole chain — a real pixel goes in at the graphics end and
+# a pane-domain operation comes out — because that is the only way to see the two
+# seams (widget report → pane edit, and the reference mapping) working together.
+mutable struct _PaneReaderMockEditor
+    document::Any
+end
+
+function test_pane_reader()
+@testset "PaneToWidget reader" begin
+
+_stub(t, f) = (max(1, length(t)) * 10, 24)
+_tab(name) = PaneTab(name, WidgetLabel(Point2D(0, 0), name))
+_chain() = ChainingProjection(RecursiveProjection(PaneToWidget()),
+                              make_widget_projection_example(measure = _stub))
+
+function _apply!(editor, op)
+    op === nothing && return nothing
+    evaluate_operation(editor, op)
+    op
+end
+
+# Every write inside an operation, flattened out of any compound.
+function _writes(op)
+    op isa CompoundOperation && return reduce(vcat, map(_writes, op.operations); init = Any[])
+    op isa ReplaceReferencedValueOperation ? Any[op] : Any[]
+end
+
+_is_delete(op) = any(w -> w.value isa AbstractVector && isempty(w.value), _writes(op))
+_is_insert(op) = any(w -> w.value isa AbstractVector && length(w.value) == 1 &&
+                          w.value[1] isa PaneTab, _writes(op))
+
+# Sweep the pane's top band and collect `x => operation` for every press that
+# answered. The band covers the tab strip whatever the theme's padding is.
+function _sweep(proj, iomap)
+    found = Tuple{Int,Any}[]
+    for y in 0:2:40, x in 0:2:400
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+        op === nothing || push!(found, (x, op))
+    end
+    found
+end
+
+_first_x(found, predicate) = for (x, op) in found
+    predicate(op) && return x
+end
+
+@testset "a tab click moves the focus" begin
+    group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = _chain()
+    iomap = print_document(proj, tree)
+
+    wanted = pane_tab_reference(tree, group, 2)
+    found = _sweep(proj, iomap)
+    hits = [op for (_, op) in found
+            if op isa ReplaceSelectionOperation && op.path == wanted]
+    @test !isempty(hits)
+
+    _apply!(editor, hits[1])
+    @test pane_focus(tree) == (group, 2)
+end
+
+@testset "a close button closes its own tab" begin
+    group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = _chain()
+    iomap = print_document(proj, tree)
+
+    closes = [op for (_, op) in _sweep(proj, iomap) if _is_delete(op)]
+    @test !isempty(closes)
+    kept = group.tabs[2]
+    _apply!(editor, closes[1])
+    @test length(group.tabs) == 1
+    @test group.tabs[1] === kept          # the first tab's button closed the first tab
+end
+
+@testset "the new-tab button opens a tab and focuses it" begin
+    group = PaneGroup(PaneTab[_tab("a")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = _chain()
+    iomap = print_document(proj, tree)
+
+    opens = [op for (_, op) in _sweep(proj, iomap) if _is_insert(op)]
+    @test !isempty(opens)
+    _apply!(editor, opens[1])
+    @test length(group.tabs) == 2
+    @test pane_focus(tree) == (group, 2)
+    @test pane_tab_title_string(group.tabs[2]) == "untitled"
+end
+
+@testset "the new-tab factory decides what a tab holds" begin
+    group = PaneGroup(PaneTab[_tab("a")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = ChainingProjection(
+        RecursiveProjection(PaneToWidget(new_tab = () -> _tab("made to order"))),
+        make_widget_projection_example(measure = _stub))
+    iomap = print_document(proj, tree)
+
+    opens = [op for (_, op) in _sweep(proj, iomap) if _is_insert(op)]
+    @test !isempty(opens)
+    _apply!(editor, opens[1])
+    @test pane_tab_title_string(group.tabs[2]) == "made to order"
+end
+
+@testset "a report from a pane that is not ours is declined" begin
+    group = PaneGroup(PaneTab[_tab("a")])
+    tree = PaneTree(group)
+    proj = _chain()
+    iomap = print_document(proj, tree)
+    stranger = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
+    pane_stage = RecursiveProjection(PaneToWidget())
+    pane_iomap = print_document(pane_stage, tree)
+    @test read_intent(pane_stage, pane_iomap, SelectTabOperation(stranger, 1)) === nothing
+    @test read_intent(pane_stage, pane_iomap, CloseTabRequestOperation(stranger, 1)) === nothing
+    @test read_intent(pane_stage, pane_iomap, NewTabRequestOperation(stranger)) === nothing
+end
+
+@testset "a splitter drag becomes a weight change" begin
+    left = PaneGroup(PaneTab[_tab("l")])
+    right = PaneGroup(PaneTab[_tab("r")])
+    tree = PaneTree(PaneSplit(:vertical, [left, right]))
+    editor = _PaneReaderMockEditor(tree)
+    pane_stage = RecursiveProjection(PaneToWidget())
+    iomap = print_document(pane_stage, tree)
+    widget = iomap.output
+
+    # Stand in for the drag the widget runs: it materializes the slot extents and
+    # then reports two new ones.
+    _apply!(editor, StartSplitterDragOperation(widget, 1, 100, [200, 200]))
+    op = read_intent(pane_stage, iomap, ResizeSplitPaneOperation(widget, 1, 300, 100))
+    @test op !== nothing
+    _apply!(editor, op)
+    @test pane_weights(tree.root) == [0.75, 0.25]
+
+    # A drag on a split pane this tree did not print is declined.
+    stranger = WidgetSplitPane(:horizontal, Any[])
+    @test read_intent(pane_stage, iomap,
+                      ResizeSplitPaneOperation(stranger, 1, 10, 10)) === nothing
+end
+
+end # testset
+end # function

@@ -34,6 +34,12 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_split_axis, pane_weights, pane_normalized_weights,
                      pane_tab_title_string
+import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
+                            pane_close_tab_operation, pane_resize_operation
+import ..PrimitiveModule: PrimitiveString
+import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
+                       NewTabRequestOperation, DragTabOperation,
+                       ResizeSplitPaneOperation
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane, Inset
 import ..LayoutModule: LayoutConstraint
 import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
@@ -47,14 +53,32 @@ import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
-export PaneTreeToWidget, PaneTreeToWidgetIoMap,
+export PaneTreeToWidget, PaneTreeToWidgetIoMap, default_new_pane_tab,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
        PaneToWidget
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
-struct PaneTreeToWidget <: Projection end
+"""
+    PaneTreeToWidget([new_tab])
+
+The pane tree's own projection. `new_tab` is the thunk the new-tab button calls
+to build a tab; pass one to decide what an empty tab holds in your application.
+"""
+struct PaneTreeToWidget <: Projection
+    new_tab::Any
+end
+
+"""
+    default_new_pane_tab() -> PaneTab
+
+The tab the new-tab button opens when no factory was given: one named
+"untitled", holding an empty string.
+"""
+default_new_pane_tab() = PaneTab("untitled", PrimitiveString(""))
+
+PaneTreeToWidget() = PaneTreeToWidget(default_new_pane_tab)
 struct PaneSplitToWidgetSplitPane <: Projection end
 struct PaneGroupToWidgetTabbedPane <: Projection end
 
@@ -282,6 +306,87 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
     end
 end
 
+# ── The reader ─────────────────────────────────────────────────────────────
+#
+# Everything the strip and the splitter *report* is answered here, at the tree,
+# for one reason: an edit needs the whole tree to name its target, and the tree
+# projection is the only one that holds it. Each report carries the widget it came
+# from, so the answer starts by finding the pane node that printed that widget.
+#
+# Every other payload — a reference-carrying operation, or a raw gesture — falls
+# through to the generic reader, which re-targets references through
+# `map_reference_backward` and hands a raw gesture to the tree's own
+# `@gestures` table.
+
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, payload)
+    answer = _read_report(p, iomap, payload)
+    answer === nothing || return answer
+    # The generic reader. `invoke` reaches it past this more specific method.
+    invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, payload)
+end
+
+function _read_report(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation)
+    tree = iomap.input
+    if operation isa SelectTabOperation
+        group = _pane_node_for(iomap, operation.widget)
+        group isa PaneGroup || return nothing
+        return pane_focus_operation(tree, group, operation.tab_index)
+    elseif operation isa CloseTabRequestOperation
+        group = _pane_node_for(iomap, operation.widget)
+        group isa PaneGroup || return nothing
+        return pane_close_tab_operation(tree, group, operation.tab_index)
+    elseif operation isa NewTabRequestOperation
+        group = _pane_node_for(iomap, operation.widget)
+        group isa PaneGroup || return nothing
+        return pane_open_tab_operation(tree, group, p.new_tab())
+    elseif operation isa ResizeSplitPaneOperation
+        return _read_resize(tree, iomap, operation)
+    end
+    nothing
+end
+
+# A splitter drag is a weight change. The widget computed two new pixel extents;
+# they are put back among the other slots' extents and the lot is normalized, so
+# the drag survives the next print and the next window resize — a pixel size
+# would not.
+function _read_resize(tree::PaneTree, iomap::PaneTreeToWidgetIoMap,
+                      operation::ResizeSplitPaneOperation)
+    split = _pane_node_for(iomap, operation.split)
+    split isa PaneSplit || return nothing
+    widget = operation.split
+    k = operation.splitter_index
+    n = length(split.elements)
+    (1 <= k < n) || return nothing
+    # The widget materializes `sizes` when the drag starts, so this is the extent
+    # of every slot as drawn. Without it there is nothing to scale against and the
+    # current weights stand.
+    length(widget.sizes) == n || return nothing
+    extents = Float64[Float64(widget.sizes[i]) for i in 1:n]
+    extents[k] = Float64(operation.new_size_a)
+    extents[k + 1] = Float64(operation.new_size_b)
+    pane_resize_operation(tree, split, extents)
+end
+
+# The pane node whose widget is `widget`. Only pane nodes are searched — a tab's
+# content is a foreign document and prints its own widgets, which are never the
+# target of a report this projection answers.
+function _pane_node_for(iomap, widget)
+    iomap === nothing && return nothing
+    # The children first, then this node. A tree prints *as* its root, so it
+    # shares that widget — asking the tree first would answer every group's
+    # report with the tree.
+    if iomap isa PaneTreeToWidgetIoMap
+        found = _pane_node_for(iomap.root_iomap, widget)
+        found === nothing || return found
+    elseif iomap isa PaneSplitToWidgetSplitPaneIoMap
+        for child in iomap.element_iomaps
+            found = _pane_node_for(child, widget)
+            found === nothing || return found
+        end
+    end
+    iomap.output === widget ? iomap.input : nothing
+end
+
 # ── The factory ────────────────────────────────────────────────────────────
 
 """
@@ -295,8 +400,8 @@ renderer after it, exactly as the workbench does —
 A tab's content passes through this stage unchanged, so `renderer` is what
 decides how each content document is drawn.
 """
-PaneToWidget() = TypeDispatchingProjection(
-    PaneTree  => PaneTreeToWidget(),
+PaneToWidget(; new_tab = default_new_pane_tab) = TypeDispatchingProjection(
+    PaneTree  => PaneTreeToWidget(new_tab),
     PaneSplit => PaneSplitToWidgetSplitPane(),
     PaneGroup => PaneGroupToWidgetTabbedPane(),
 )
