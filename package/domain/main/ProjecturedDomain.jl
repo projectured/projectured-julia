@@ -160,6 +160,7 @@ const DocumentFileModule = ProjecturedVisual.DocumentFileModule
 include("json/Json.jl")
 include("yaml/Yaml.jl")
 include("gesturemap/GestureMap.jl")
+include("gesturelog/GestureLog.jl")
 include("math/Math.jl")
 include("julia/Julia.jl")
 include("database/DatabaseInstance.jl")
