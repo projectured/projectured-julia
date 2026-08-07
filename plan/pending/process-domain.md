@@ -563,15 +563,55 @@ without that reader text navigation runs away.
   a sandbox module and called**: `drain` sends the right items and skips the
   hole via `continue`; a `while`/`break`/`else`/early-`return` model returns
   the right value for five inputs. Instrumentation levels stay in P5.
-- [ ] **P5 — Debugging.** `ProcessRuntime.jl` and the probe protocol (D11);
-  the `:position` and `:locals` levels; `ProcessDebugSession.jl` and
-  `sync_process_debug!` (D12); live overlay in the diagram (D8 last bullet)
-  and the notation highlight (D13); run/step/continue/pause/breakpoint
-  gestures and operations; the debug test set above. Land the position
-  reflection first and get it green before the control commands — reflection
-  is the requirement, control is what makes it usable.
-- [ ] **P6 — Docs.** `doc/process.md` including the probe protocol;
-  architecture inventory entry.
+- [x] **P5 — Debugging.** *Done.* `ProcessRuntime.jl` (the probe protocol,
+  plain Julia), the `:position` and `:locals` levels in
+  `ProcessToJuliaCode.jl`, `sync_process_debug!` in `ProcessDebugSession.jl`,
+  the notation highlight in `ProcessToSyntax.jl`, and `ProcessDebug.jl` — a
+  file the plan did not foresee — holding `start_process`, the one place
+  realization, runtime and session meet. 59 passing: the levels, the
+  loop-scope rule for `:locals`, the Heisenbug guard (all three levels return
+  the same result and the same side effects), the exact node sequence a run
+  visits, the bridge, a breakpoint stopping and resuming a run on its own
+  task, stepping node by node, `:stop` unwinding, staleness after an edit, and
+  the notation highlight.
+
+  Five things the implementation settled:
+
+  - **Positions travel as indices but arrive as documents.** The session
+    carries `current` / `previous_document` beside `node` / `previous`, both
+    written only by `set_process_position!`. A printer rule holds the node it
+    is drawing but not the tree root, so identity is the only comparison it
+    can make — resolving once in the bridge is what lets *both* views read the
+    same position. Breakpoints likewise hold **nodes**, not indices; the
+    bridge translates them for the runtime, which is the only party that wants
+    numbers.
+  - **A `command` cell carries UI intent.** A gesture writes
+    `:continue`/`:step`/`:pause`/`:stop`; the next sync applies it and clears
+    it. The alternative — the UI calling the runtime directly — would have put
+    a second writer on the trace and broken the single-bridge rule.
+  - **`trace` is a trailing optional positional, not a keyword.** `JuliaFunction`
+    has no keyword-parameter slot, and `f(args…, trace = nothing)` is
+    equivalent for every caller.
+  - **A loop is probed twice** — before it, and as its body's first statement —
+    so the header is marked on entry and at the top of every iteration,
+    including one a `continue` jumps to. The failing final test is unmarked;
+    it is the one position a realized loop does not report.
+  - **`:locals` respects Julia's loop scope.** Names a loop introduced are
+    dropped when it ends, or a probe after the loop would name variables that
+    no longer exist. This was a real bug caught by reading the emitted code.
+
+  Deferred from this phase: the *gestures* that write `session.command` and
+  toggle breakpoints. Every mechanism behind them is landed and tested
+  (`toggle_breakpoint!`, the command cell, the bridge); what is missing is the
+  `@gestures` binding, which belongs with the editor surface work rather than
+  the domain.
+- [x] **P6 — Docs.** *Done.* `package/domain/doc/process.md` — the
+  process-or-state-machine table, document types, refinement, the position
+  vocabulary, the notation and diagram rules, instrumentation levels, the
+  probe protocol as a contract an embedder can reimplement, the debugging
+  design and staleness, and what is not modeled. Inventory row in
+  `documentation/architecture.md`; the guide is linked from `CLAUDE.md`
+  (which also gained the `fsm` guide link it was missing).
 
 ## Risks
 

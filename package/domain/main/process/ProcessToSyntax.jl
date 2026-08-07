@@ -47,6 +47,12 @@ the same shared `recursion`, so `ProcessToSyntax()` merges the Julia
 type-dispatch table with the Process entries into one
 `TypeDispatchingProjection`.
 
+`ProcessToSyntax(; session)` hands every node rule a `ProcessDebugSession`, and
+a node the session names renders its leading keyword in the live colour (a
+breakpoint in another). It is a **style swap on a keyword that is printed
+anyway**: no glyph is added, so where a realized run happens to be cannot shift
+a caret offset out from under whoever is typing.
+
 The rules are `@projection_template` builders, so printing, reference mapping
 and the structural readers are generic. Each compound rule additionally
 collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
@@ -65,12 +71,14 @@ import ..ProcessModule: ProcessDocument, ProcessNothing, ProcessInsertion,
                         ProcessModel, ProcessSequence, ProcessStep, ProcessDecision,
                         ProcessWhile, ProcessForeach, ProcessBreak, ProcessContinue,
                         ProcessReturn
+import ..ProcessDebugSessionModule: ProcessDebugSession, has_breakpoint
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf,
                                           InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, hinted_text
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan
+                      color_solarized_magenta, color_solarized_cyan,
+                      color_solarized_orange, color_solarized_red
 import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -97,6 +105,28 @@ const _KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magent
 const _NAME    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 const _TEXT    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 const _CHROME  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+
+# Where a realized run is, and where it is set to stop. Both are style swaps on
+# a keyword that is printed anyway — nothing is added to the line, so a live
+# position cannot shift a single caret offset out from under the reader.
+const _CURRENT    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_orange)
+const _BREAKPOINT = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+
+# The style a node's leading keyword takes. Where a run *is* wins over where it
+# is set to stop, and a node that is neither prints exactly as it always does —
+# so a document with no session attached renders byte-for-byte the same.
+#
+# Both the position and the breakpoints are compared by identity against the
+# node being printed, which is why neither needs the tree root a printer rule
+# does not have. Read inside the printer's thunk, so a step arriving mid-run
+# repaints the line without a reprint.
+function _keyword_style(p, doc)
+    session = p.session
+    session === nothing && return p.keyword
+    session.current === doc && return p.current
+    has_breakpoint(session, doc) && return p.breakpoint
+    p.keyword
+end
 
 # What an unrefined hole renders as. Muted, and bracketed so it cannot be
 # mistaken for code that is actually there.
@@ -153,6 +183,9 @@ end
     keyword::ImmutableCell{DStyleText} = _KEYWORD
     text::ImmutableCell{DStyleText}    = _TEXT
     chrome::ImmutableCell{DStyleText}  = _CHROME
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessStepToSyntaxNode ProcessStep (p, doc) ->
@@ -163,10 +196,10 @@ end
                                              hinted_text(() -> doc.description,
                                                          () -> isempty(doc.description),
                                                          "describe this step", p.text));
-                                       open=TextString("step \"", p.keyword),
-                                       close=TextString("\"", p.keyword)))
+                                       open=TextString("step \"", _keyword_style(p, doc)),
+                                       close=TextString("\"", _keyword_style(p, doc))))
         else
-            push!(children, SyntaxLeaf(TextString("step", p.keyword)))
+            push!(children, SyntaxLeaf(TextString("step", _keyword_style(p, doc))))
         end
         if doc.action !== nothing
             push!(children, SyntaxLeaf(TextString(" / ", p.chrome)))
@@ -184,11 +217,14 @@ end
 @projection struct ProcessDecisionToSyntaxNode
     keyword::ImmutableCell{DStyleText} = _KEYWORD
     chrome::ImmutableCell{DStyleText}  = _CHROME
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessDecisionToSyntaxNode ProcessDecision (p, doc) ->
     SyntaxConcatenation(() -> begin
-        children = Any[ SyntaxLeaf(TextString("if ", p.keyword)) ]
+        children = Any[ SyntaxLeaf(TextString("if ", _keyword_style(p, doc))) ]
         push!(children, doc.condition === nothing ?
                         SyntaxLeaf(TextString(_NO_CONDITION, p.chrome)) : project(:condition))
         doc.then_branch === nothing || push!(children, project(:then_branch))
@@ -204,11 +240,14 @@ end
 @projection struct ProcessWhileToSyntaxNode
     keyword::ImmutableCell{DStyleText} = _KEYWORD
     chrome::ImmutableCell{DStyleText}  = _CHROME
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessWhileToSyntaxNode ProcessWhile (p, doc) ->
     SyntaxConcatenation(() -> begin
-        children = Any[ SyntaxLeaf(TextString("while ", p.keyword)) ]
+        children = Any[ SyntaxLeaf(TextString("while ", _keyword_style(p, doc))) ]
         push!(children, doc.condition === nothing ?
                         SyntaxLeaf(TextString(_NO_CONDITION, p.chrome)) : project(:condition))
         doc.body === nothing || push!(children, project(:body))
@@ -220,11 +259,14 @@ end
 @projection struct ProcessForeachToSyntaxNode
     keyword::ImmutableCell{DStyleText} = _KEYWORD
     chrome::ImmutableCell{DStyleText}  = _CHROME
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessForeachToSyntaxNode ProcessForeach (p, doc) ->
     SyntaxConcatenation(() -> begin
-        children = Any[ SyntaxLeaf(TextString("for ", p.keyword)) ]
+        children = Any[ SyntaxLeaf(TextString("for ", _keyword_style(p, doc))) ]
         push!(children, doc.variable === nothing ?
                         SyntaxLeaf(TextString(_NO_VARIABLE, p.chrome)) : project(:variable))
         push!(children, SyntaxLeaf(TextString(" in ", p.keyword)))
@@ -238,26 +280,35 @@ end
 
 @projection struct ProcessBreakToSyntaxLeaf
     keyword::ImmutableCell{DStyleText} = _KEYWORD
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessBreakToSyntaxLeaf ProcessBreak (p, doc) ->
-    SyntaxLeaf(TextString("break", p.keyword))
+    SyntaxLeaf(TextString(() -> "break", _keyword_style(p, doc)))
 
 @projection struct ProcessContinueToSyntaxLeaf
     keyword::ImmutableCell{DStyleText} = _KEYWORD
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessContinueToSyntaxLeaf ProcessContinue (p, doc) ->
-    SyntaxLeaf(TextString("continue", p.keyword))
+    SyntaxLeaf(TextString(() -> "continue", _keyword_style(p, doc)))
 
 @projection struct ProcessReturnToSyntaxNode
     keyword::ImmutableCell{DStyleText} = _KEYWORD
     chrome::ImmutableCell{DStyleText}  = _CHROME
+    current::ImmutableCell{DStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    session::Any = nothing
 end
 
 @projection_template ProcessReturnToSyntaxNode ProcessReturn (p, doc) ->
     SyntaxConcatenation(() -> begin
-        children = Any[ SyntaxLeaf(TextString("return", p.keyword)) ]
+        children = Any[ SyntaxLeaf(TextString("return", _keyword_style(p, doc))) ]
         if doc.value !== nothing
             push!(children, SyntaxLeaf(TextString(" ", p.chrome)))
             push!(children, project(:value))
@@ -294,17 +345,17 @@ end
 # Merged with the Julia table so an embedded action/condition/iterable renders
 # through the same recursion (the `FsmToSyntax` precedent).
 
-function ProcessToSyntax()
+function ProcessToSyntax(; session = nothing)
     pairs = copy(JuliaToSyntax().dispatch)
     push!(pairs, ProcessSequence  => ProcessSequenceToSyntaxNode())
     push!(pairs, ProcessModel     => ProcessModelToSyntaxNode())
-    push!(pairs, ProcessStep      => ProcessStepToSyntaxNode())
-    push!(pairs, ProcessDecision  => ProcessDecisionToSyntaxNode())
-    push!(pairs, ProcessWhile     => ProcessWhileToSyntaxNode())
-    push!(pairs, ProcessForeach   => ProcessForeachToSyntaxNode())
-    push!(pairs, ProcessBreak     => ProcessBreakToSyntaxLeaf())
-    push!(pairs, ProcessContinue  => ProcessContinueToSyntaxLeaf())
-    push!(pairs, ProcessReturn    => ProcessReturnToSyntaxNode())
+    push!(pairs, ProcessStep      => ProcessStepToSyntaxNode(session = session))
+    push!(pairs, ProcessDecision  => ProcessDecisionToSyntaxNode(session = session))
+    push!(pairs, ProcessWhile     => ProcessWhileToSyntaxNode(session = session))
+    push!(pairs, ProcessForeach   => ProcessForeachToSyntaxNode(session = session))
+    push!(pairs, ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session))
+    push!(pairs, ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session))
+    push!(pairs, ProcessReturn    => ProcessReturnToSyntaxNode(session = session))
     push!(pairs, ProcessInsertion => ProcessInsertionToSyntaxLeaf())
     push!(pairs, ProcessNothing   => InsertionNothingToSyntaxLeaf())
     TypeDispatchingProjection(pairs)

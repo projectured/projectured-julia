@@ -40,8 +40,8 @@ order.
 ## The live overlay
 
 `highlight_vertex` and `highlight_edge` are `ComputedCell`s over the diagram's
-debug session: the node index resolves to a vertex, and the `(previous, node)`
-pair resolves to the edge between them. Deriving the stroked arrow from the
+debug session: the node it names resolves to a vertex by identity, and the
+`(previous, current)` pair resolves to the edge between them. Deriving the stroked arrow from the
 node *pair* is what keeps edges picture-only — the document has no edge to
 index and the runtime never learns a picture vocabulary. Both cells read
 nothing else, so a step arriving mid-run repaints the overlay without
@@ -298,15 +298,15 @@ function print_document(p::ProcessDiagramToGraph, recursion,
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
-        _vertex_at(flowchart[], model, session.node)
+        _vertex_of(flowchart[], session.current)
     end)
 
     highlight_edge = ComputedCell(() -> begin
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
-        from = _vertex_at(flowchart[], model, session.previous)
-        to = _vertex_at(flowchart[], model, session.node)
+        from = _vertex_of(flowchart[], session.previous_document)
+        to = _vertex_of(flowchart[], session.current)
         (from === nothing || to === nothing) && return nothing
         for e in flowchart[].edges
             e.source === from && e.target === to && return e
@@ -324,11 +324,10 @@ function print_document(p::ProcessDiagramToGraph, recursion,
     iomap
 end
 
-# A node index (the domain's position vocabulary) resolved to its box, or
-# `nothing` when the index names no node, names one with no box, or is 0.
-function _vertex_at(flowchart, model, index)
-    model isa ProcessModel || return nothing
-    node = node_at(model, index)
+# The box drawing `node`, or `nothing` when there is none — which is what a
+# node with no box (a sequence), a position of nowhere, and a stale position
+# all look like. Every one of them means *no highlight*, never a wrong one.
+function _vertex_of(flowchart, node)
     node === nothing && return nothing
     for (n, v) in flowchart.pairs
         n === node && return v

@@ -195,6 +195,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `Book.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
 | `Math.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
 | `Julia.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOp`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
+| `Process.jl` | `ProcessModel`, `ProcessSequence`, `ProcessStep`, `ProcessDecision`, `ProcessWhile`, `ProcessForeach`, `ProcessBreak`, `ProcessContinue`, `ProcessReturn`; presentation `ProcessDiagram`, `ProcessTerminal`, `ProcessEdgeLabel`, `ProcessDebugSession` |
 | `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation` |
 | `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
 | `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |

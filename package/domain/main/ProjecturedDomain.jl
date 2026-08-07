@@ -186,6 +186,7 @@ include("sequencechart/SequenceChartPlot.jl")
 include("fsm/Fsm.jl")
 include("fsm/FsmDiagram.jl")
 include("process/Process.jl")
+include("process/ProcessRuntime.jl")
 include("process/ProcessDiagram.jl")
 include("process/ProcessDebugSession.jl")
 include("book/Book.jl")
@@ -260,6 +261,9 @@ include("fsm/FsmToJuliaCode.jl")
 # Realization: builds a JuliaDocument function and writes it through the
 # fileformat natural-text path, so it follows both.
 include("process/ProcessToJuliaCode.jl")
+# The debug runner: realization + runtime + session meet here, and nowhere
+# else, so it follows all three.
+include("process/ProcessDebug.jl")
 include("sql/SqlToSyntax.jl")
 include("dbcatalog/DbCatalogToSql.jl")
 include("dbcatalog/DbCatalogToSyntax.jl")

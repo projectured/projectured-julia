@@ -120,35 +120,35 @@ end
     session = ProcessDebugSession()
     diagram.session = session
 
+    at(node, from = 0) = set_process_position!(session, model, node_index(model, node),
+                                               from == 0 ? 0 : node_index(model, from))
+
     loop = model.body.steps[2]
-    session.node = node_index(model, loop)
+    at(loop)
     @test _count(canvas, GraphicsRect) == boxes + 1        # the ring
 
-    # An index naming a node with no box (a sequence), and one out of range,
-    # both mean no ring rather than a wrong one.
-    session.node = node_index(model, model.body)
+    # A position naming a node with no box (a sequence), and an index out of
+    # range, both mean no ring rather than a wrong one.
+    at(model.body)
     @test _count(canvas, GraphicsRect) == boxes
-    session.node = 9999
+    set_process_position!(session, model, 9999, 0)
     @test _count(canvas, GraphicsRect) == boxes
-    session.node = 0
+    set_process_position!(session, model, 0, 0)
     @test _count(canvas, GraphicsRect) == boxes
 
-    # The arrow just taken is derived from the (previous, node) pair.
+    # The arrow just taken is derived from the (previous, current) pair.
     guard = loop.body.steps[1]
-    session.previous = node_index(model, loop)
-    session.node = node_index(model, guard)
+    at(guard, loop)
     @test _count(canvas, GraphicsPolyline) == lines + 1
     # A pair with no arrow between them re-strokes nothing, and does not throw.
-    session.previous = node_index(model, guard)
-    session.node = node_index(model, loop.body.steps[3])
+    at(loop.body.steps[3], guard)
     @test _count(canvas, GraphicsPolyline) == lines
 
     # The layout is untouched by any of it: the boxes stay where they were.
     # Captured with nothing highlighted, so the ring is not part of `before`.
-    session.previous = 0
-    session.node = 0
+    set_process_position!(session, model, 0, 0)
     before = Set((r.x, r.y) for r in canvas.elements if r isa GraphicsRect)
-    session.node = node_index(model, guard)
+    at(guard)
     session.step_count = 17
     after = Set((r.x, r.y) for r in canvas.elements if r isa GraphicsRect)
     @test issubset(before, after)
