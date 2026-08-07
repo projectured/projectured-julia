@@ -117,7 +117,7 @@ function test_command_palette_decorator()
     # The real JSON pipeline, down to graphics — the decorator draws over graphics.
     mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
     mkpalette(state) = CommandPaletteProjection(inner = make_json_projection_example(),
-                                                measure = _pipeline_measure, state = state)
+                                                measure = truetype_measure_text, state = state)
 
     @testset "the summoning gesture opens the palette and toggles it shut" begin
         state = CommandPaletteState()
@@ -230,6 +230,26 @@ function test_command_palette_decorator()
         @test iomap.output.elements[1] === iomap.inner_iomap.output
         read_intent(p, iomap, escape)
         @test length(iomap.output.elements) == 1
+    end
+
+    # The palette draws OVER the document, so without a panel behind it neither can
+    # be read. Nothing else here would notice: the element count is the same either
+    # way, and only the pixels tell.
+    @testset "the open palette sits on a panel, sized to its text" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        read_intent(p, iomap, summon)
+        panel = iomap.output.elements[2].elements[1]
+        content = iomap.palette_iomap.output
+        @test panel isa GraphicsRect
+        @test panel.w == content.w + 2 * PALETTE_PADDING
+        @test panel.h == content.h + 2 * PALETTE_PADDING
+        @test panel.w > 0 && panel.h > 0        # the text measured for real
+        tall = panel.h
+        # The panel follows the list: a query that narrows it makes the panel shorter.
+        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        @test iomap.output.elements[2].elements[1].h < tall
     end
 
     @testset "a mapped reference gains, and gives up, the wrapper step" begin

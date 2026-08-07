@@ -55,10 +55,12 @@ import ..RecursiveProjectionModule: RecursiveProjection
 import ..SyntaxToTextModule: SyntaxToText
 import ..WordWrappingModule: WordWrapping
 import ..TextToGraphicsModule: TextToGraphics
-import ..GraphicsModule: GraphicsCanvas, layout_none
+import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
+import ..ColorModule: color_solarized_background_lighter, color_solarized_blue
 
 export CommandPaletteProjection, CommandPaletteState, CommandPaletteProjectionIoMap,
-       COMMAND_PALETTE_GESTURE, is_command_palette_gesture, command_palette_projection
+       COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
+       command_palette_projection
 
 """
     COMMAND_PALETTE_GESTURE
@@ -67,6 +69,13 @@ The gesture that summons the palette: Ctrl+Shift+P. F1 already opens the help
 window, which is the palette's read-only twin.
 """
 const COMMAND_PALETTE_GESTURE = KeyDownPattern(:p, [:ctrl, :shift])
+
+"""
+    PALETTE_PADDING
+
+Pixels between the palette's panel edge and its text.
+"""
+const PALETTE_PADDING = 10
 
 """
     is_command_palette_gesture(event) -> Bool
@@ -151,10 +160,27 @@ function print_document(p::CommandPaletteProjection, recursion, input, ctx)
     # one step.
     elements = ComputedCellVector(() ->
         p.state.open[] ?
-            Any[inner_iomap.output, GraphicsCanvas(Any[palette_iomap.output]; x=p.x, y=p.y)] :
+            Any[inner_iomap.output, _placed_palette(p, palette_iomap)] :
             Any[inner_iomap.output])
     output = GraphicsCanvas(elements, layout_none)
     CommandPaletteProjectionIoMap(p, input, Cell(output), inner_iomap, palette_iomap)
+end
+
+# The palette on its own panel, at (p.x, p.y). Without the panel the type-in lines
+# paint straight over the document and neither can be read.
+#
+# The panel is sized from what the palette measured, so it grows and shrinks with
+# the list. Reading `w`/`h` here makes the enclosing thunk re-run per keystroke,
+# which is what keeps the panel around the text rather than behind where the text
+# used to be.
+function _placed_palette(p::CommandPaletteProjection, palette_iomap)
+    content = palette_iomap.output
+    pad = PALETTE_PADDING
+    panel = GraphicsRect(0, 0, content.w + 2 * pad, content.h + 2 * pad,
+                         color_solarized_background_lighter, 6;
+                         border_width = 2, border_color = color_solarized_blue)
+    GraphicsCanvas(Any[panel, GraphicsCanvas(Any[content]; x = pad, y = pad)];
+                   x = p.x, y = p.y)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────

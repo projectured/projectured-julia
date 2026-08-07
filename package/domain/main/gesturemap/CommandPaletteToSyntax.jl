@@ -21,7 +21,7 @@ import ..IoMapModule: SimpleIoMap
 import ..CommandPaletteModule: CommandPalette, command_palette_matches,
                                command_palette_selected
 import ..TextModule: TextString
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..FontModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
                       color_default
 import ..StyleTextModule: StyleText, DStyleText
@@ -30,11 +30,14 @@ import ..PrinterContextModule: PrinterContext
 
 export CommandPaletteToSyntax
 
+# DejaVu, not Ubuntu: the palette writes the caret and the row marker as chevron
+# glyphs, and SDL draws a tofu box for a glyph the font lacks — it does no
+# fallback. Ubuntu Mono lacks both.
 @projection struct CommandPaletteToSyntax
-    query::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    selected::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
-    command::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
-    muted::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    query::ImmutableCell{DStyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+    selected::ImmutableCell{DStyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
+    command::ImmutableCell{DStyleText} = StyleText(font_dejavu_monospace_regular_20, color_default)
+    muted::ImmutableCell{DStyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
 end
 
 # The caret sits at the end of the query: the palette has one selection and it names
