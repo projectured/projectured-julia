@@ -49,6 +49,13 @@ import ..MathModule: MathDocument, MathInsertion, MathVariable, MathSymbol, Math
 import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_property, get_property
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
+                          RangeReferenceStep, Reference
+import ..PointReferenceStepModule: PointReferenceStep
+import ..OperationModule: ReplaceSelectionOperation
+import ..OperationRerootingModule: reroot_operation
+import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown
+import ..EventPatternModule: var"@event_case"
 import ..ReferenceBuilderModule: var"@reference_step"
 
 export MathIoMap, MathConfig, MathMetrics, math_metrics, MathToGraphics,
@@ -82,6 +89,29 @@ child, so a change in one leaf re-derives only the boxes above it.
     width::Cell
     ascent::Cell
     descent::Cell
+end
+
+"""
+    MathProjection
+
+The supertype of every rule in this module. All of them answer the same box
+protocol, so the selection maps and the mouse routing are written once, against
+the protocol, rather than once per rule.
+"""
+abstract type MathProjection <: Projection end
+
+"""
+    MathChild(steps, iomap, x, y)
+
+One child document inside a parent's box: the reference steps that reach it, its
+own IO map, and where the parent placed it. The placement is what lets a click
+find it and a selection find its way back out.
+"""
+struct MathChild
+    steps::Tuple
+    iomap::Any
+    x::Cell
+    y::Cell
 end
 
 """
@@ -285,7 +315,14 @@ function _math_iomap(p, doc, build::Cell)
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             _int32(() -> build[].width[]),
                             _int32(() -> build[].ascent[] + build[].descent[]),
-                            ComputedCellVector(() -> build[].elements),
+                            ComputedCellVector(function ()
+                                # The selection wash goes in front of the
+                                # content so a hit test finds the parts, and it
+                                # paints nothing while nothing is selected.
+                                elements = Any[_selection_element(p, doc, build)]
+                                append!(elements, build[].elements)
+                                elements
+                            end),
                             layout_none, true, Cell(nothing))
     MathIoMap(p, doc, canvas,
               ComputedCell(() -> build[].children),
@@ -302,7 +339,7 @@ box as a class symbol (`:none`, `:thin`, `:medium`, `:thick`), resolved against
 the metrics so a font zoom moves them.
 """
 function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbol,
-              children = Any[])
+              steps::Vector = Any[nothing for _ in boxes])
     ascent = ComputedCell(function ()
         m = math_metrics(c, style)
         a = 0
@@ -328,6 +365,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
         w
     end)
     elements = Any[]
+    children = MathChild[]
     for i in eachindex(boxes)
         x = ComputedCell(function ()
             m = math_metrics(c, style)
@@ -343,6 +381,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
             Int32(ascent[] - _box_ascent(boxes[i], m))
         end)
         push!(elements, _place(_box_output(boxes[i]), x, y))
+        steps[i] === nothing || push!(children, MathChild(steps[i], boxes[i], x, y))
     end
     _build(elements, width, ascent, descent, children)
 end
@@ -369,7 +408,7 @@ _print_math_child(recursion, doc, ctx) =
 
 # Each rule holds the shared configuration and the style level it prints at, so
 # a script's children are the same rules at a smaller size.
-struct MathVariableToGraphics <: Projection
+struct MathVariableToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -384,7 +423,7 @@ function _leaf_iomap(p, doc, text::Function, font::Function, color::StyleColor,
                ComputedCell(() -> c.measure(text(), font())[1]),
                ComputedCell(() -> font_ascent(font())),
                ComputedCell(() -> font_descent(font())),
-               Any[])
+               MathChild[])
     end)
     _math_iomap(p, doc, build)
 end
@@ -395,7 +434,7 @@ function print_document(p::MathVariableToGraphics, recursion, doc::MathVariable,
                 () -> math_metrics(p.config, style).slanted, p.config.ink, p.config)
 end
 
-struct MathSymbolToGraphics <: Projection
+struct MathSymbolToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -420,7 +459,7 @@ function print_document(p::MathSymbolToGraphics, recursion, doc::MathSymbol, ctx
                 p.config.ink, p.config)
 end
 
-struct MathTextToGraphics <: Projection
+struct MathTextToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -432,7 +471,7 @@ function print_document(p::MathTextToGraphics, recursion, doc::MathText, ctx)
                 () -> math_metrics(p.config, style).upright, p.config.ink, p.config)
 end
 
-struct MathNumberToGraphics <: Projection
+struct MathNumberToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -450,7 +489,7 @@ function print_document(p::MathNumberToGraphics, recursion, doc::PrimitiveString
                 () -> math_metrics(p.config, style).upright, p.config.ink, p.config)
 end
 
-struct MathSpaceToGraphics <: Projection
+struct MathSpaceToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -466,12 +505,12 @@ function print_document(p::MathSpaceToGraphics, recursion, doc::MathSpace, ctx)
             doc.kind === :thick ? m.thick :
             doc.kind === :quad ? m.size : m.thin
         end)
-        _build(Any[], width, Cell(0), Cell(0), Any[])
+        _build(Any[], width, Cell(0), Cell(0), MathChild[])
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathInsertionToGraphics <: Projection
+struct MathInsertionToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -486,7 +525,7 @@ function print_document(p::MathInsertionToGraphics, recursion, doc::MathInsertio
         width = ComputedCell(() -> max(4, math_metrics(c, style).x_height))
         ascent = ComputedCell(() -> math_metrics(c, style).x_height)
         element = _outline_element(() -> 0, () -> 0, () -> width[], () -> ascent[], c.hint)
-        _build(Any[element], width, ascent, Cell(0), Any[])
+        _build(Any[element], width, ascent, Cell(0), MathChild[])
     end)
     _math_iomap(p, doc, build)
 end
@@ -495,7 +534,7 @@ end
 # Sequences
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathRowToGraphics <: Projection
+struct MathRowToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -513,13 +552,14 @@ function print_document(p::MathRowToGraphics, recursion, doc::MathRow, ctx)
         # Juxtaposition is not glue: `k T B` needs a hair of space, and the
         # first element needs none.
         spaces = Symbol[i == 1 ? :none : :thin for i in eachindex(children)]
-        row = _row(children, spaces, c, style, children)
-        row
+        steps = Any[(FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))
+                    for i in eachindex(children)]
+        _row(children, spaces, c, style, steps)
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathBinaryOperationToGraphics <: Projection
+struct MathBinaryOperationToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -537,12 +577,12 @@ function print_document(p::MathBinaryOperationToGraphics, recursion, doc::MathBi
                           () -> math_metrics(c, style).upright)
         space = math_operator_class(doc.operator)
         _row(Any[left, sign, right], Symbol[:none, space, space], c, style,
-             Any[left, right])
+             Any[(FieldReferenceStep("left"),), nothing, (FieldReferenceStep("right"),)])
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathUnaryOperationToGraphics <: Projection
+struct MathUnaryOperationToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -558,12 +598,14 @@ function print_document(p::MathUnaryOperationToGraphics, recursion, doc::MathUna
                           () -> math_metrics(c, style).upright)
         # A sign that binds to one operand takes no space: `−x`, `n!`.
         boxes = doc.postfix ? Any[operand, sign] : Any[sign, operand]
-        _row(boxes, Symbol[:none, :none], c, style, Any[operand])
+        step = (FieldReferenceStep("operand"),)
+        steps = doc.postfix ? Any[step, nothing] : Any[nothing, step]
+        _row(boxes, Symbol[:none, :none], c, style, steps)
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathAssignmentToGraphics <: Projection
+struct MathAssignmentToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -579,7 +621,7 @@ function print_document(p::MathAssignmentToGraphics, recursion, doc::MathAssignm
         value = _print_math_child(recursion, doc.value, value_ctx)
         sign = _glyph_box(c, () -> "=", () -> math_metrics(c, style).upright)
         _row(Any[target, sign, value], Symbol[:none, :relation, :relation], c, style,
-             Any[target, value])
+             Any[(FieldReferenceStep("target"),), nothing, (FieldReferenceStep("value"),)])
     end)
     _math_iomap(p, doc, build)
 end
@@ -701,7 +743,7 @@ function _fill_extension(draw::Function, extension::Char, ext_h::Int, ext_max::I
     end
 end
 
-struct MathParenthesizedToGraphics <: Projection
+struct MathParenthesizedToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -723,7 +765,7 @@ function print_document(p::MathParenthesizedToGraphics, recursion, doc::MathPare
         open = _delimiter_box(c, style, doc.kind, :open, half)
         close = _delimiter_box(c, style, doc.kind, :close, half)
         _row(Any[open, content, close], Symbol[:none, :none, :none], c, style,
-             Any[content])
+             Any[nothing, (FieldReferenceStep("content"),), nothing])
     end)
     _math_iomap(p, doc, build)
 end
@@ -732,7 +774,7 @@ end
 # Fraction
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathFractionToGraphics <: Projection
+struct MathFractionToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -772,7 +814,9 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
         rule_y = ComputedCell(() -> Int32(ascent[] - math_metrics(c, style).axis -
                                           math_metrics(c, style).rule))
         elements = Any[]
-        for (box, above) in ((numerator, true), (denominator, false))
+        children = MathChild[]
+        for (box, above, field) in ((numerator, true, "numerator"),
+                                    (denominator, false, "denominator"))
             x = ComputedCell(function ()
                 m = metrics()
                 Int32((width[] - _box_width(box, m)) ÷ 2)
@@ -783,10 +827,11 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
                         Int32(rule_y[] + math_metrics(c, style).rule + gap())
             end)
             push!(elements, _place(_box_output(box), x, y))
+            push!(children, MathChild((FieldReferenceStep(field),), box, x, y))
         end
         push!(elements, _rule_element(() -> 0, () -> rule_y[], () -> width[],
                                       () -> math_metrics(c, style).rule, c.ink))
-        _build(elements, width, ascent, descent, Any[numerator, denominator])
+        _build(elements, width, ascent, descent, children)
     end)
     _math_iomap(p, doc, build)
 end
@@ -795,7 +840,7 @@ end
 # Scripts
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathScriptToGraphics <: Projection
+struct MathScriptToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -868,6 +913,7 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
         base_x = Cell(Int32(0))
         base_y = ComputedCell(() -> Int32(ascent[] - _box_ascent(base, metrics())))
         elements = Any[_place(_box_output(base), base_x, base_y)]
+        children = MathChild[MathChild((FieldReferenceStep("base"),), base, base_x, base_y)]
         script_x = ComputedCell(() -> Int32(_box_width(base, metrics())))
         if superscript !== nothing
             y = ComputedCell(function ()
@@ -875,6 +921,8 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
                 Int32(ascent[] - up[] - clearance[] - _box_ascent(superscript, im))
             end)
             push!(elements, _place(_box_output(superscript), script_x, y))
+            push!(children, MathChild((FieldReferenceStep("superscript"),), superscript,
+                                      script_x, y))
         end
         if subscript !== nothing
             y = ComputedCell(function ()
@@ -882,10 +930,9 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
                 Int32(ascent[] + down[] + clearance[] - _box_ascent(subscript, im))
             end)
             push!(elements, _place(_box_output(subscript), script_x, y))
+            push!(children, MathChild((FieldReferenceStep("subscript"),), subscript,
+                                      script_x, y))
         end
-        children = Any[base]
-        subscript === nothing || push!(children, subscript)
-        superscript === nothing || push!(children, superscript)
         _build(elements, width, ascent, descent, children)
     end)
     _math_iomap(p, doc, build)
@@ -895,7 +942,7 @@ end
 # Radical
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathRadicalToGraphics <: Projection
+struct MathRadicalToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -973,7 +1020,8 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
         radicand_x = ComputedCell(() -> Int32(index_width[] + sign_width[]))
         radicand_y = ComputedCell(() -> Int32(ascent[] - _box_ascent(radicand, metrics())))
         push!(elements, _place(_box_output(radicand), radicand_x, radicand_y))
-        children = Any[radicand]
+        children = MathChild[MathChild((FieldReferenceStep("radicand"),), radicand,
+                                       radicand_x, radicand_y)]
         if index !== nothing
             index_y = ComputedCell(function ()
                 im = index_metrics()
@@ -982,7 +1030,8 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
                              _box_ascent(index, im) - _box_descent(index, im)))
             end)
             push!(elements, _place(_box_output(index), Cell(Int32(0)), index_y))
-            push!(children, index)
+            push!(children, MathChild((FieldReferenceStep("index"),), index,
+                                      Cell(Int32(0)), index_y))
         end
         _build(elements, width, ascent, descent, children)
     end)
@@ -993,7 +1042,7 @@ end
 # Large operators
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathBigOperatorToGraphics <: Projection
+struct MathBigOperatorToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1091,6 +1140,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
             width = ComputedCell(() -> head_width[] + metrics().thin +
                                        _box_width(body, metrics()))
             elements = Any[]
+            children = MathChild[]
             push!(elements, _text_element(() -> glyph, sign_font, c.ink,
                                           () -> (head_width[] - sign_width[]) ÷ 2,
                                           () -> ascent[] - sign_reach_up[] + sign_y[]))
@@ -1102,15 +1152,18 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                           _box_ascent(upper, im) - _box_descent(upper, im))
                 end)
                 push!(elements, _place(_box_output(upper), x, y))
+                push!(children, MathChild((FieldReferenceStep("upper"),), upper, x, y))
             end
             if lower !== nothing
                 x = ComputedCell(() -> Int32((head_width[] - _box_width(lower, inner_metrics())) ÷ 2))
                 y = ComputedCell(() -> Int32(ascent[] + sign_reach_down[] + limit_gap()))
                 push!(elements, _place(_box_output(lower), x, y))
+                push!(children, MathChild((FieldReferenceStep("lower"),), lower, x, y))
             end
             body_x = ComputedCell(() -> Int32(head_width[] + metrics().thin))
             body_y = ComputedCell(() -> Int32(ascent[] - _box_ascent(body, metrics())))
             push!(elements, _place(_box_output(body), body_x, body_y))
+            push!(children, MathChild((FieldReferenceStep("body"),), body, body_x, body_y))
         else
             # Side limits: a subscript and a superscript on the sign.
             ascent = ComputedCell(function ()
@@ -1130,6 +1183,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
             width = ComputedCell(() -> sign_width[] + limit_width[] + metrics().thin +
                                        _box_width(body, metrics()))
             elements = Any[]
+            children = MathChild[]
             push!(elements, _text_element(() -> glyph, sign_font, c.ink,
                                           () -> 0, () -> ascent[] - sign_reach_up[] + sign_y[]))
             if upper !== nothing
@@ -1138,20 +1192,22 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                     Int32(max(0, ascent[] - sign_reach_up[] + metrics().rule -
                                  _box_ascent(upper, im) - _box_descent(upper, im)))
                 end)
-                push!(elements, _place(_box_output(upper), ComputedCell(() -> Int32(sign_width[])), y))
+                limit_x = ComputedCell(() -> Int32(sign_width[]))
+                push!(elements, _place(_box_output(upper), limit_x, y))
+                push!(children, MathChild((FieldReferenceStep("upper"),), upper, limit_x, y))
             end
             if lower !== nothing
                 y = ComputedCell(() -> Int32(ascent[] + sign_reach_down[] - metrics().rule))
-                push!(elements, _place(_box_output(lower), ComputedCell(() -> Int32(sign_width[])), y))
+                limit_x = ComputedCell(() -> Int32(sign_width[]))
+                push!(elements, _place(_box_output(lower), limit_x, y))
+                push!(children, MathChild((FieldReferenceStep("lower"),), lower, limit_x, y))
             end
             body_x = ComputedCell(() -> Int32(sign_width[] + limit_width[] + metrics().thin))
             body_y = ComputedCell(() -> Int32(ascent[] - _box_ascent(body, metrics())))
             push!(elements, _place(_box_output(body), body_x, body_y))
+            push!(children, MathChild((FieldReferenceStep("body"),), body, body_x, body_y))
         end
 
-        children = Any[body]
-        lower === nothing || push!(children, lower)
-        upper === nothing || push!(children, upper)
         _build(elements, width, ascent, descent, children)
     end)
     _math_iomap(p, doc, build)
@@ -1161,7 +1217,7 @@ end
 # Differential and derivative
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathDifferentialToGraphics <: Projection
+struct MathDifferentialToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1177,12 +1233,13 @@ function print_document(p::MathDifferentialToGraphics, recursion, doc::MathDiffe
                                      make_child_context(ctx, doc, @reference_step variable))
         sign = _glyph_box(c, () -> _differential_glyph(doc.kind),
                           () -> math_metrics(c, style).upright)
-        _row(Any[sign, variable], Symbol[:thin, :none], c, style, Any[variable])
+        _row(Any[sign, variable], Symbol[:thin, :none], c, style,
+             Any[nothing, (FieldReferenceStep("variable"),)])
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathDerivativeToGraphics <: Projection
+struct MathDerivativeToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1254,16 +1311,18 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
                                                 _box_width(variable, inner_metrics()),
                                           () -> denominator_y[]))
         end
-        push!(elements, _place(_box_output(body),
-                               ComputedCell(() -> Int32(numerator_x[] + sign_width[] + order_width[])),
-                               ComputedCell(() -> Int32(numerator_y[] + numerator_height[] -
-                                                        row_height(body)))))
-        push!(elements, _place(_box_output(variable),
-                               ComputedCell(() -> Int32(denominator_x[] + sign_width[])),
-                               ComputedCell(() -> Int32(denominator_y[]))))
+        body_x = ComputedCell(() -> Int32(numerator_x[] + sign_width[] + order_width[]))
+        body_y = ComputedCell(() -> Int32(numerator_y[] + numerator_height[] - row_height(body)))
+        variable_x = ComputedCell(() -> Int32(denominator_x[] + sign_width[]))
+        variable_y = ComputedCell(() -> Int32(denominator_y[]))
+        push!(elements, _place(_box_output(body), body_x, body_y))
+        push!(elements, _place(_box_output(variable), variable_x, variable_y))
         push!(elements, _rule_element(() -> 0, () -> rule_y[], () -> width[],
                                       () -> metrics().rule, c.ink))
-        _build(elements, width, ascent, descent, Any[body, variable])
+        _build(elements, width, ascent, descent,
+               MathChild[MathChild((FieldReferenceStep("body"),), body, body_x, body_y),
+                         MathChild((FieldReferenceStep("variable"),), variable,
+                                   variable_x, variable_y)])
     end)
     _math_iomap(p, doc, build)
 end
@@ -1272,7 +1331,7 @@ end
 # Function application
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathFunctionToGraphics <: Projection
+struct MathFunctionToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1294,7 +1353,7 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
 
         boxes = Any[name]
         spaces = Symbol[:none]
-        children = Any[]
+        steps = Any[nothing]
         if base !== nothing
             # The base rides under the name, so it is a script box of its own.
             inner = _script_style(style)
@@ -1313,7 +1372,7 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
                 ComputedCell(() -> down() + _box_descent(base, math_metrics(c, inner))))
             push!(boxes, base_box)
             push!(spaces, :none)
-            push!(children, base)
+            push!(steps, (FieldReferenceStep("base"),))
         end
         if doc.parenthesized
             half = function ()
@@ -1323,16 +1382,19 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             end
             push!(boxes, _delimiter_box(c, style, :parenthesis, :open, half))
             push!(spaces, :none)
+            push!(steps, nothing)
             push!(boxes, argument)
             push!(spaces, :none)
+            push!(steps, (FieldReferenceStep("argument"),))
             push!(boxes, _delimiter_box(c, style, :parenthesis, :close, half))
             push!(spaces, :none)
+            push!(steps, nothing)
         else
             push!(boxes, argument)
             push!(spaces, :thin)
+            push!(steps, (FieldReferenceStep("argument"),))
         end
-        push!(children, argument)
-        _row(boxes, spaces, c, style, children)
+        _row(boxes, spaces, c, style, steps)
     end)
     _math_iomap(p, doc, build)
 end
@@ -1341,7 +1403,7 @@ end
 # Accent
 # ════════════════════════════════════════════════════════════════════════════
 
-struct MathAccentToGraphics <: Projection
+struct MathAccentToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1373,8 +1435,10 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
         ascent = ComputedCell(() -> _box_ascent(base, metrics()) + gap() + accent_height[])
         descent = ComputedCell(() -> _box_descent(base, metrics()))
 
-        elements = Any[_place(_box_output(base), Cell(Int32(0)),
-                              ComputedCell(() -> Int32(gap() + accent_height[])))]
+        base_y = ComputedCell(() -> Int32(gap() + accent_height[]))
+        elements = Any[_place(_box_output(base), Cell(Int32(0)), base_y)]
+        children = MathChild[MathChild((FieldReferenceStep("base"),), base,
+                                       Cell(Int32(0)), base_y)]
         if doc.accent === :bar || doc.accent === :overline
             # A bar is a rule, not a glyph: it must span the whole base.
             push!(elements, _rule_element(() -> 0, () -> 0, () -> width[],
@@ -1395,7 +1459,7 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
                                           () -> -font_ascent(font()) +
                                                 font_ascent(metrics().upright) ÷ 4))
         end
-        _build(elements, width, ascent, descent, Any[base])
+        _build(elements, width, ascent, descent, children)
     end)
     _math_iomap(p, doc, build)
 end
@@ -1411,7 +1475,7 @@ Place `boxes` in a grid: a column is as wide as its widest cell, a row sits on
 one baseline, and every cell centers in its column. The grid as a whole centers
 on the axis, which is where a matrix belongs beside a `=`.
 """
-function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol)
+function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol, field::String)
     n = length(boxes)
     columns = max(1, columns)
     rows = max(1, ceil(Int, n / columns))
@@ -1441,9 +1505,11 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol)
     descent = ComputedCell(() -> height[] - ascent[])
 
     elements = Any[]
+    children = MathChild[]
     for r in 1:rows, k in 1:columns
         box = cell(r, k)
         box === nothing && continue
+        index = (r - 1) * columns + k
         x = ComputedCell(function ()
             m = math_metrics(c, style)
             widths = column_width[]
@@ -1464,14 +1530,15 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol)
             Int32(at + ascents[r] - _box_ascent(box, m))
         end)
         push!(elements, _place(_box_output(box), x, y))
+        push!(children, MathChild((FieldReferenceStep(field),
+                                   RangeReferenceStep(index - 1, index)), box, x, y))
     end
-    _build(elements, width, ascent, descent, boxes)
+    _build(elements, width, ascent, descent, children)
 end
 
 # Wrap a built grid in a delimiter pair that grows with it.
-function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol, children)
-    kind === :none && return _build(inner.elements, inner.width, inner.ascent,
-                                    inner.descent, children)
+function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol)
+    kind === :none && return inner
     half = () -> begin
         m = math_metrics(c, style)
         max(inner.ascent[] - m.axis, inner.descent[] + m.axis) + m.rule
@@ -1485,11 +1552,19 @@ function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol, children)
                        ComputedCellVector(() -> inner.elements),
                        layout_none, true, Cell(nothing)),
         inner.width, inner.ascent, inner.descent)
-    row = _row(Any[open, body, close], Symbol[:none, :none, :none], c, style, children)
-    row
+    # The row places the whole grid as one box; its children are inside that
+    # box, so each one's offset is the body's plus its own.
+    row = _row(Any[open, body, close], Symbol[:none, :none, :none], c, style,
+               Any[nothing, (), nothing])
+    placed = row.children[1]
+    shifted = MathChild[MathChild(child.steps, child.iomap,
+                                  ComputedCell(() -> Int32(Int(placed.x[]) + Int(child.x[]))),
+                                  ComputedCell(() -> Int32(Int(placed.y[]) + Int(child.y[]))))
+                        for child in inner.children]
+    _build(row.elements, row.width, row.ascent, row.descent, shifted)
 end
 
-struct MathMatrixToGraphics <: Projection
+struct MathMatrixToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1504,13 +1579,13 @@ function print_document(p::MathMatrixToGraphics, recursion, doc::MathMatrix, ctx
             cctx = make_child_context(ctx, doc, (@reference_step elements), (@reference_step [i]))
             push!(children, _print_math_child(recursion, doc.elements[i], cctx))
         end
-        inner = _grid(children, doc.columns, c, style)
-        _delimited(inner, doc.delimiter, c, style, children)
+        inner = _grid(children, doc.columns, c, style, "elements")
+        _delimited(inner, doc.delimiter, c, style)
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathCaseToGraphics <: Projection
+struct MathCaseToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1525,18 +1600,19 @@ function print_document(p::MathCaseToGraphics, recursion, doc::MathCase, ctx)
         metrics = () -> math_metrics(c, style)
         if doc.condition === nothing
             word = _glyph_box(c, () -> "otherwise", () -> metrics().upright)
-            return _row(Any[value, word], Symbol[:none, :thick], c, style, Any[value])
+            return _row(Any[value, word], Symbol[:none, :thick], c, style,
+                        Any[(FieldReferenceStep("value"),), nothing])
         end
         condition = _print_math_child(recursion, doc.condition,
                                       make_child_context(ctx, doc, @reference_step condition))
         word = _glyph_box(c, () -> "if", () -> metrics().upright)
         _row(Any[value, word, condition], Symbol[:none, :thick, :thick], c, style,
-             Any[value, condition])
+             Any[(FieldReferenceStep("value"),), nothing, (FieldReferenceStep("condition"),)])
     end)
     _math_iomap(p, doc, build)
 end
 
-struct MathCasesToGraphics <: Projection
+struct MathCasesToGraphics <: MathProjection
     config::MathConfig
     style::Symbol
 end
@@ -1552,14 +1628,14 @@ function print_document(p::MathCasesToGraphics, recursion, doc::MathCases, ctx)
             push!(children, _print_math_child(recursion, doc.cases[i], cctx))
         end
         # One case per row, left aligned — a case list is not a matrix.
-        inner = _grid_left(children, c, style)
-        _delimited(inner, :brace, c, style, children)
+        inner = _grid_left(children, c, style, "cases")
+        _delimited(inner, :brace, c, style)
     end)
     _math_iomap(p, doc, build)
 end
 
 # A single left-aligned column: the shape a case list wants.
-function _grid_left(boxes::Vector, c::MathConfig, style::Symbol)
+function _grid_left(boxes::Vector, c::MathConfig, style::Symbol, field::String)
     row_gap = () -> math_metrics(c, style).size ÷ 4
     width = ComputedCell(function ()
         m = math_metrics(c, style)
@@ -1581,6 +1657,7 @@ function _grid_left(boxes::Vector, c::MathConfig, style::Symbol)
     ascent = ComputedCell(() -> (height[] + 1) ÷ 2 + math_metrics(c, style).axis)
     descent = ComputedCell(() -> height[] - ascent[])
     elements = Any[]
+    children = MathChild[]
     for i in eachindex(boxes)
         y = ComputedCell(function ()
             m = math_metrics(c, style)
@@ -1591,8 +1668,136 @@ function _grid_left(boxes::Vector, c::MathConfig, style::Symbol)
             Int32(at)
         end)
         push!(elements, _place(_box_output(boxes[i]), Cell(Int32(0)), y))
+        push!(children, MathChild((FieldReferenceStep(field), RangeReferenceStep(i - 1, i)),
+                                  boxes[i], Cell(Int32(0)), y))
     end
-    _build(elements, width, ascent, descent, boxes)
+    _build(elements, width, ascent, descent, children)
+end
+
+# ════════════════════════════════════════════════════════════════════════════
+# Selection
+# ════════════════════════════════════════════════════════════════════════════
+#
+# A selection in a formula names a whole sub-expression, not a character: a
+# fraction, a limit, a variable. That is the tree-selection model — an
+# `EmptyReference` on the node itself — and it is the one a two-dimensional
+# formula can show, because there is no line of text to put a caret in.
+
+# The wash a selected box paints over itself. The color cell reads the
+# document's own selection, so selecting is a repaint and never a re-layout.
+const _SELECTION_WASH = StyleColor(0.15, 0.39, 0.68, 0.22)
+const _NO_WASH = StyleColor(0.0, 0.0, 0.0, 0.0)
+
+_is_selected(doc) = getfield(doc, :selection)[] isa EmptyReference
+
+function _selection_element(p, doc, build::Cell)
+    GraphicsRect(Cell(Int32(0)), Cell(Int32(0)),
+                 _int32(() -> build[].width[]),
+                 _int32(() -> build[].ascent[] + build[].descent[]),
+                 ComputedCell(() -> _is_selected(doc) ? _SELECTION_WASH : _NO_WASH),
+                 Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
+                 Cell(Int32(0)), Cell(_NO_WASH), Cell(nothing))
+end
+
+# The children of one box, in document order.
+_math_children(iomap::MathIoMap) = iomap.child_iomaps::Vector{MathChild}
+
+# Does `reference` start with this child's steps? Answers the tail if it does.
+function _peel(child::MathChild, reference)
+    rest = reference
+    for step in child.steps
+        rest isa ConcreteReference || return nothing
+        head = rest.head
+        if step isa FieldReferenceStep
+            (head isa FieldReferenceStep && head.name == step.name) || return nothing
+        elseif step isa RangeReferenceStep
+            (head isa RangeReferenceStep && head.start == step.start) || return nothing
+        else
+            return nothing
+        end
+        rest = rest.tail
+    end
+    rest
+end
+
+"""
+A reference into a child maps to the point that child maps it to, moved by
+where this box placed the child. A reference to the box itself is its own
+origin — which is where a whole-element selection sits.
+"""
+function map_reference_forward(p::MathProjection, iomap::MathIoMap, reference)
+    reference === nothing && return nothing
+    reference isa EmptyReference && return PointReferenceStep(0, 0)
+    for child in _math_children(iomap)
+        rest = _peel(child, reference)
+        rest === nothing && continue
+        inner = map_reference_forward(child.iomap.projection, child.iomap, rest)
+        inner isa PointReferenceStep || continue
+        return PointReferenceStep(Int(child.x[]) + inner.x, Int(child.y[]) + inner.y)
+    end
+    nothing
+end
+
+"""
+A point maps to the child whose placed box holds it, and to this box itself
+when no child does — a click on a fraction's rule selects the fraction.
+"""
+function map_reference_backward(p::MathProjection, iomap::MathIoMap, reference)
+    reference isa PointReferenceStep || return nothing
+    child = _child_at(iomap, reference.x, reference.y)
+    child === nothing && return EmptyReference()
+    inner = map_reference_backward(child.iomap.projection, child.iomap,
+                                   PointReferenceStep(reference.x - Int(child.x[]),
+                                                      reference.y - Int(child.y[])))
+    inner === nothing && return EmptyReference()
+    _prepend(child.steps, inner)
+end
+
+# Build `steps + tail` back into one reference.
+function _prepend(steps::Tuple, tail)
+    reference = tail
+    for i in length(steps):-1:1
+        reference = ConcreteReference(steps[i], reference)
+    end
+    reference
+end
+
+# The child whose placed box holds `(x, y)`, or nothing.
+function _child_at(iomap::MathIoMap, x::Integer, y::Integer)
+    for child in _math_children(iomap)
+        box = child.iomap
+        left, top = Int(child.x[]), Int(child.y[])
+        width = _box_width(box, nothing)
+        height = _box_ascent(box, nothing) + _box_descent(box, nothing)
+        (left <= x < left + width && top <= y < top + height) && return child
+    end
+    nothing
+end
+
+# `_box_width` and friends take metrics only to place a foreign box on the
+# axis; a hit test has no axis to place anything on.
+_box_ascent(b::Union{MathIoMap, MathGlyphBox}, ::Nothing) = Int(b.ascent[])
+_box_descent(b::Union{MathIoMap, MathGlyphBox}, ::Nothing) = Int(b.descent[])
+_box_width(b::Union{MathIoMap, MathGlyphBox}, ::Nothing) = Int(b.width[])
+_box_width(b, ::Nothing) = _foreign_size(b)[1]
+_box_ascent(b, ::Nothing) = _foreign_size(b)[2]
+_box_descent(b, ::Nothing) = 0
+
+"""
+A press selects the smallest box under it. The routing is the same descent the
+backward map does, so a click and a selection always agree.
+"""
+function read_intent(p::MathProjection, iomap::MathIoMap, event)
+    @event_case event begin
+        MousePress => _select_at(iomap, event.x, event.y)
+        _ => nothing
+    end
+end
+
+function _select_at(iomap::MathIoMap, x::Integer, y::Integer)
+    path = map_reference_backward(iomap.projection, iomap, PointReferenceStep(Int(x), Int(y)))
+    path === nothing && return nothing
+    ReplaceSelectionOperation(path)
 end
 
 # ════════════════════════════════════════════════════════════════════════════

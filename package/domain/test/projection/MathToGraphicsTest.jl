@@ -13,9 +13,12 @@ _config() = MathConfig(font = font_dejavu_sans_regular_20,
                        measure = truetype_measure_text)
 _metrics(style = :display) = math_metrics(_config(), style)
 
-# A wrapper canvas carries the position of one placed child.
-_at(canvas, i) = (Int(canvas.elements[i].x[]), Int(canvas.elements[i].y[]))
-_inner(canvas, i) = canvas.elements[i].elements[1]
+# Element 1 of every box is the selection wash, so the content starts at 2.
+# `_at` and `_inner` count content, not elements.
+_content(canvas, i) = canvas.elements[i + 1]
+_at(canvas, i) = (Int(_content(canvas, i).x[]), Int(_content(canvas, i).y[]))
+_inner(canvas, i) = _content(canvas, i).elements[1]
+_content_count(canvas) = length(canvas.elements) - 1
 
 # Descend the wrappers to the first run of text a box draws.
 function _first_text(doc)
@@ -36,8 +39,8 @@ end
     @test Int(iomap.descent[]) == font_descent(m.slanted)
     @test Int(iomap.output.h[]) == Int(iomap.ascent[]) + Int(iomap.descent[])
     # A variable is slanted, a number upright.
-    @test iomap.output.elements[1].font == m.slanted
-    @test _print(PrimitiveNumber(2)).output.elements[1].font == m.upright
+    @test _first_text(iomap.output).font == m.slanted
+    @test _first_text(_print(PrimitiveNumber(2)).output).font == m.upright
 end
 
 @testset "a row spaces its parts and shares one baseline" begin
@@ -68,7 +71,7 @@ end
     canvas = fraction.output
     # The rule is the last element: a rect of the metric thickness whose top
     # sits one axis height above the baseline.
-    rule = canvas.elements[length(canvas.elements)]
+    rule = canvas.elements[length(canvas.elements)]  # the rule is drawn last
     @test Int(rule.h[]) == m.rule
     @test Int(rule.y[]) == Int(fraction.ascent[]) - m.axis - m.rule
     @test Int(rule.w[]) == Int(fraction.width[])
@@ -115,8 +118,8 @@ end
     scriptscript = math_metrics(_config(), :scriptscript)
     # The exponent's own exponent is drawn in the smallest face.
     outer = _inner(nested.output, 2)
-    @test _first_text(outer.elements[1]).font == script.slanted
-    @test _first_text(outer.elements[2]).font == scriptscript.upright
+    @test _first_text(_content(outer, 1)).font == script.slanted
+    @test _first_text(_content(outer, 2)).font == scriptscript.upright
 end
 
 @testset "a large operator centers on the axis and takes its limits" begin
@@ -127,9 +130,9 @@ end
     # Display style puts the limits above and below: the upper limit's box top
     # is the top of the whole box, the lower limit's bottom is its bottom.
     @test _at(canvas, 2)[2] == 0
-    @test length(canvas.elements) == 4
+    @test _content_count(canvas) == 4
     # The sign, the upper limit and the lower limit share a center.
-    sign = canvas.elements[1]
+    sign = _content(canvas, 1)
     head = max(Int(sum.width[]), 0)
     @test Int(sign.x[]) >= 0
     # A side-limit operator keeps them beside the sign instead.
@@ -149,7 +152,7 @@ end
     # It stays centered on the axis: what reaches above equals what reaches
     # below, about the axis.
     m = _metrics()
-    open_box = around_fraction.output.elements[1]
+    open_box = _content(around_fraction.output, 1)
     @test Int(open_box.y[]) >= 0
 end
 
@@ -158,7 +161,7 @@ end
                                 PrimitiveNumber(3), PrimitiveNumber(4)], 2))
     # Two rows, two columns, wrapped by two delimiters: the row holds
     # open, grid, close.
-    @test length(matrix.output.elements) == 3
+    @test _content_count(matrix.output) == 3
     m = _metrics()
     # The grid centers on the axis.
     @test Int(matrix.ascent[]) - Int(matrix.descent[]) == 2 * m.axis ||
@@ -170,6 +173,54 @@ end
     @test Int(insertion.width[]) > 0
     @test Int(insertion.ascent[]) > 0
     @test Int(insertion.output.h[]) > 0
+end
+
+@testset "a press selects the smallest box under it" begin
+    # `1/x`: a press inside the numerator selects the numerator, one inside the
+    # denominator the denominator, and one on the rule the fraction itself.
+    fraction = _print(MathFraction(PrimitiveNumber(1), MathVariable("x")))
+    canvas = fraction.output
+    _press(x, y) = read_intent(fraction.projection, fraction,
+                               MousePress(:left, Int(x), Int(y)))
+
+    numerator_x, numerator_y = _at(canvas, 1)
+    operation = _press(numerator_x + 1, numerator_y + 1)
+    @test operation isa ReplaceSelectionOperation
+    @test operation.path.head isa FieldReferenceStep
+    @test operation.path.head.name == "numerator"
+    @test operation.path.tail isa EmptyReference
+
+    denominator_x, denominator_y = _at(canvas, 2)
+    operation = _press(denominator_x + 1, denominator_y + 1)
+    @test operation.path.head.name == "denominator"
+
+    # The rule belongs to no child, so a press on it lands on the fraction.
+    rule = canvas.elements[length(canvas.elements)]
+    @test _press(1, Int(rule.y[])).path isa EmptyReference
+end
+
+@testset "a selection maps out to a point and back" begin
+    fraction = MathFraction(PrimitiveNumber(1), MathVariable("x"))
+    iomap = _print(fraction)
+    # Select the denominator: the forward map answers where it was drawn.
+    path = ConcreteReference(FieldReferenceStep("denominator"), EmptyReference())
+    point = map_reference_forward(iomap.projection, iomap, path)
+    @test point isa PointReferenceStep
+    @test (point.x, point.y) == _at(iomap.output, 2)
+    # And the point maps back to the same reference.
+    back = map_reference_backward(iomap.projection, iomap,
+                                  PointReferenceStep(point.x + 1, point.y + 1))
+    @test back.head.name == "denominator"
+end
+
+@testset "a selected box paints a wash" begin
+    variable = MathVariable("x")
+    iomap = _print(variable)
+    wash = iomap.output.elements[1]
+    # Nothing is selected, so the wash is fully transparent.
+    @test wash.color.alpha == 0.0
+    getfield(variable, :selection)[] = EmptyReference()
+    @test wash.color.alpha > 0.0
 end
 
 @testset "a formula grows when a leaf does" begin

@@ -374,7 +374,7 @@ nothing to look at. The geometry test (38 assertions) came with them.
    fraction, a matrix or a case list are tiled from the Unicode pieces and show
    no seam.
 
-## Part E — map the selection
+## Part E — map the selection — **done**
 
 The printer alone is half a projection. Each rule needs
 `map_reference_forward` and `map_reference_backward`.
@@ -392,7 +392,28 @@ The printer alone is half a projection. Each rule needs
    descent. A whole-element selection (an `EmptyReference`) paints a
    translucent `GraphicsRect` behind the box.
 
-**Commit E.** The maps and the caret.
+**Commit E.** The maps and the wash.
+
+**Found during the work.**
+
+1. **One supertype, three methods.** Every rule answers the same box protocol,
+   so `MathProjection` is the supertype of all of them and the forward map, the
+   backward map and the reader are written once against the protocol. There is
+   no per-rule mapping code at all.
+2. **A child records where it was placed, not which element it is.** A matrix
+   cell sits two canvases down, inside the grid inside the delimiter row, so an
+   element index cannot name it. `MathChild` carries the reference steps that
+   reach the child and the two cells that say where the parent put it; the
+   delimiter wrapper shifts its inner children by the grid's own offset.
+3. **A selection is a whole sub-expression.** A two-dimensional formula has no
+   line of text to put a caret in, so an `EmptyReference` on the node is the
+   selection, and a selected box paints a translucent wash over itself. The wash
+   is element 1 of every box and paints nothing while nothing is selected, so
+   selecting is a repaint and never a re-layout.
+4. **A press finds the smallest box under it.** The reader descends the same
+   child table the backward map does, so a click and a selection always agree. A
+   press on a fraction's rule — which belongs to no child — selects the
+   fraction.
 
 ## Part F — navigate and edit
 
