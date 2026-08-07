@@ -223,6 +223,60 @@ end
     @test wash.color.alpha > 0.0
 end
 
+@testset "a key walks the tree" begin
+    # `a + b`: select the left operand, then walk.
+    document = MathBinaryOperation(:+, MathVariable("a"), MathVariable("b"))
+    iomap = _print(document)
+    getfield(document, :selection)[] =
+        ConcreteReference(FieldReferenceStep("left"), EmptyReference())
+    _key(k) = read_intent(iomap.projection, iomap, KeyDown(k, ModifierKeys()))
+
+    # Right moves to the sibling, left comes back, and left again declines.
+    operation = _key(:right)
+    @test operation isa ReplaceSelectionOperation
+    @test operation.path.head.name == "right"
+    getfield(document, :selection)[] =
+        ConcreteReference(FieldReferenceStep("right"), EmptyReference())
+    @test _key(:left).path.head.name == "left"
+
+    # Up leaves the child and selects the operation itself.
+    @test _key(:up).path isa EmptyReference
+
+    # On the operation itself, down goes back into the first child, and left
+    # declines so that a parent may act.
+    getfield(document, :selection)[] = EmptyReference()
+    @test _key(:down).path.head.name == "left"
+    @test _key(:left) === nothing
+end
+
+@testset "a key builds around what is selected" begin
+    document = MathVariable("x")
+    iomap = _print(document)
+    getfield(document, :selection)[] = EmptyReference()
+    operation = read_intent(iomap.projection, iomap, KeyPress('/'))
+    # A compound: write the new node, then move the selection into its hole.
+    @test operation isa CompoundOperation
+    fraction = operation.operations[1].value
+    @test fraction isa MathFraction
+    @test fraction.numerator === document
+    @test fraction.denominator isa MathInsertion
+    @test operation.operations[2].path.head.name == "denominator"
+
+    # The same shape for a superscript and for a parenthesis.
+    @test read_intent(iomap.projection, iomap, KeyPress('^')).operations[1].value isa MathScript
+    @test read_intent(iomap.projection, iomap, KeyPress('(')).operations[1].value isa MathParenthesized
+    # A key that builds nothing is declined, not swallowed.
+    @test read_intent(iomap.projection, iomap, KeyPress('%')) === nothing
+end
+
+@testset "a letter fills an empty slot" begin
+    slot = MathInsertion()
+    iomap = _print(slot)
+    getfield(slot, :selection)[] = EmptyReference()
+    @test read_intent(iomap.projection, iomap, KeyPress('y')).operations[1].value isa MathVariable
+    @test read_intent(iomap.projection, iomap, KeyPress('7')).operations[1].value isa PrimitiveNumber
+end
+
 @testset "a formula grows when a leaf does" begin
     # The metrics are cells: an edit re-derives the boxes above it and nothing
     # else. Widen a variable and the whole row must widen with it.

@@ -52,9 +52,9 @@ import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
                           RangeReferenceStep, Reference
 import ..PointReferenceStepModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, replace_document
 import ..OperationRerootingModule: reroot_operation
-import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown
+import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..ReferenceBuilderModule: var"@reference_step"
 
@@ -1786,18 +1786,109 @@ _box_descent(b, ::Nothing) = 0
 """
 A press selects the smallest box under it. The routing is the same descent the
 backward map does, so a click and a selection always agree.
+
+A key goes the other way: it is offered to the selected child first, and this
+node acts only on what the child declined. That is what makes one small rule per
+key add up to whole-tree navigation — a child that cannot go further left hands
+the key back, and its parent moves to the previous sibling.
 """
 function read_intent(p::MathProjection, iomap::MathIoMap, event)
-    @event_case event begin
-        MousePress => _select_at(iomap, event.x, event.y)
-        _ => nothing
-    end
+    event isa MousePress && return _select_at(iomap, Int(event.x), Int(event.y))
+    (event isa KeyDown || event isa KeyPress) || return nothing
+    _read_key(iomap, event)
 end
 
 function _select_at(iomap::MathIoMap, x::Integer, y::Integer)
     path = map_reference_backward(iomap.projection, iomap, PointReferenceStep(Int(x), Int(y)))
     path === nothing && return nothing
     ReplaceSelectionOperation(path)
+end
+
+# The child this node's selection points into, and its position in the child
+# list — or `(nothing, 0)` when the selection is this node itself or absent.
+function _selected_child(iomap::MathIoMap)
+    selection = getfield(iomap.input, :selection)[]
+    selection isa ConcreteReference || return (nothing, 0)
+    for (i, child) in enumerate(_math_children(iomap))
+        _peel(child, selection) === nothing || return (child, i)
+    end
+    (nothing, 0)
+end
+
+_select_child(child::MathChild) = ReplaceSelectionOperation(_prepend(child.steps, EmptyReference()))
+
+function _read_key(iomap::MathIoMap, event)
+    child, index = _selected_child(iomap)
+    if child !== nothing
+        # Offer it to the child first, and re-root what the child answers so the
+        # path stays rooted here.
+        answer = read_intent(child.iomap.projection, child.iomap, event)
+        answer === nothing || return reroot_operation(answer, child.steps)
+        return _move_from(iomap, index, event)
+    end
+    _is_selected(iomap.input) || return nothing
+    _act_on_selection(iomap, event)
+end
+
+# The child declined: move to a sibling, or hand the key on to the parent.
+function _move_from(iomap::MathIoMap, index::Int, event)
+    children = _math_children(iomap)
+    event isa KeyDown || return nothing
+    if event.key === :left
+        index > 1 && return _select_child(children[index - 1])
+    elseif event.key === :right
+        index < length(children) && return _select_child(children[index + 1])
+    elseif event.key === :up || event.key === :escape
+        # Out of the child and onto this node.
+        return ReplaceSelectionOperation(EmptyReference())
+    end
+    nothing
+end
+
+# This node is the selection: go in, or build something around it.
+function _act_on_selection(iomap::MathIoMap, event)
+    doc = iomap.input
+    children = _math_children(iomap)
+    if event isa KeyDown
+        (event.key === :down || event.key === :return) && !isempty(children) &&
+            return _select_child(children[1])
+        event.key === :backspace && !(doc isa MathInsertion) &&
+            return replace_document(EmptyReference(), MathInsertion())
+        return nothing
+    end
+    _build_around(doc, event.text)
+end
+
+# The build gestures. Each one wraps what is selected and drops the selection
+# into the hole it opened, so a formula is typed left to right without a mouse.
+function _build_around(doc, text::AbstractString)
+    isempty(text) && return nothing
+    if doc isa MathInsertion
+        # An empty slot takes the character as its content: a letter is a
+        # variable, a digit a number.
+        character = first(text)
+        isletter(character) && return replace_document(EmptyReference(), MathVariable(text))
+        isdigit(character) &&
+            return replace_document(EmptyReference(), PrimitiveNumber(parse(Int, text)))
+    end
+    built = text == "/" ? _with_hole(MathFraction(doc, MathInsertion()), "denominator") :
+            text == "^" ? _with_hole(MathScript(doc; superscript = MathInsertion()), "superscript") :
+            text == "_" ? _with_hole(MathScript(doc; subscript = MathInsertion()), "subscript") :
+            text == "(" ? _with_hole(MathParenthesized(doc), "content") :
+            nothing
+    built === nothing && return nothing
+    # The reader does not touch the document: the trailing selection write of
+    # `replace_document` moves the selection into the new hole, and setting a
+    # selection clears every other one in the tree.
+    replace_document(EmptyReference(), built)
+end
+
+# Point a freshly built node's own selection at the hole it opened, which is
+# where `replace_document` then leaves the editor's selection.
+function _with_hole(document, field::AbstractString)
+    getfield(document, :selection)[] =
+        ConcreteReference(FieldReferenceStep(field), EmptyReference())
+    document
 end
 
 # ════════════════════════════════════════════════════════════════════════════

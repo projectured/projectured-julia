@@ -415,7 +415,7 @@ The printer alone is half a projection. Each rule needs
    press on a fraction's rule — which belongs to no child — selects the
    fraction.
 
-## Part F — navigate and edit
+## Part F — navigate and edit — **done**
 
 1. **Move.** `Left` and `Right` step through the linear order of the leaves,
    which is the order the linear projection prints. `Up` and `Down` step between
@@ -428,11 +428,33 @@ The printer alone is half a projection. Each rule needs
 3. **Delete.** `Backspace` on an empty slot removes the construct and keeps the
    remaining child.
 
-Reuse the gesture machinery of the other domains; do not add a new binding
-layer. Verify each gesture in the live editor, not only through a headless
-probe.
+**Commit F.** The reader, in one commit.
 
-**Commit F.** The reader, one gesture group per commit.
+**What landed, and what changed from the sketch above.**
+
+1. **A key is offered to the child first.** Every node hands the key to the
+   child its selection points into and acts only on what the child declined.
+   One small rule per key then adds up to whole-tree navigation: `Left` and
+   `Right` move between siblings, `Down` and `Enter` go into the first child,
+   `Up` and `Escape` come back out. There is no flat leaf order and no
+   numerator-to-denominator special case — the tree already says which parts are
+   siblings.
+2. **The build gestures are `/`, `^`, `_` and `(`.** Each one wraps what is
+   selected and points the new node's own selection at the hole it opened, so
+   `replace_document` leaves the editor inside that hole.
+3. **A letter or a digit fills an empty slot**: a letter becomes a
+   `MathVariable`, a digit a `PrimitiveNumber`.
+4. **`Backspace` clears a selected part back to an empty slot.**
+5. **The reader never touches the document.** An earlier version cleared the
+   wrapped node's selection by hand; that is the job of the trailing selection
+   write, which clears every other selection in the tree.
+6. **`\lambda` name entry is not in.** It needs a text buffer that lives across
+   keystrokes, which is a domain insertion type of its own
+   (`JuliaInsertion` is the precedent), not a reader rule. A symbol is built in
+   code today. This is the one part of Part F left undone.
+
+The gestures are not yet verified in the live editor — the tests drive the
+reader directly.
 
 ## Part G — examples, tests and documentation
 
