@@ -75,6 +75,8 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
                        SyntaxDelimitation
+import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
+                            filename
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
@@ -1229,6 +1231,17 @@ end
 # The source dispatch table. The rendered style is built from it by replacing
 # the rules whose presentation differs, so a rule that reads the same either way
 # is written once.
+"""
+The directive name that tags a block as a cross-file marker:
+
+    .. pred-ref:: <<file("path")>>
+
+It lives here rather than in `RstFileModule` because both the reader of a marker
+(the loader) and its writer (this projection) need the one name, and the loader
+is the later module of the two.
+"""
+const PRED_REF_DIRECTIVE = "pred-ref"
+
 _source_rules() = Pair{Any,Any}[
     RstInsertion               => RstInsertionToSyntaxLeaf(),
     RstText                    => RstTextToSyntaxLeaf(),
@@ -1273,6 +1286,11 @@ _source_rules() = Pair{Any,Any}[
     RstDirective               => RstDirectiveToSyntaxNode(),
     RstSection                 => RstSectionToSyntaxNode(),
     RstRoot                    => RstRootToSyntaxNode(),
+    # A cross-file reference — either as a load-produced stub or as an embedded
+    # FileDocument child — goes back as the directive it was written as, so
+    # `document_to_text` writes the marker without a pre-save walk over the tree.
+    ReferenceStub              => ReferenceStubToRstSyntaxLeaf(),
+    FileDocument               => EmbeddedFileDocumentToRstSyntaxLeaf(),
     Vector{Cell}               => CopyingProjection(),
 ]
 
@@ -1320,5 +1338,36 @@ function RstToSyntax(; style::Symbol = :source)
     )
     TypeDispatchingProjection((k => get(overrides, k, v) for (k, v) in rules)...)
 end
+
+# ── ReferenceStubToRstSyntaxLeaf ────────────────────────────────────────────
+# ReferenceStub → the `pred-ref` directive whose argument is the marker text.
+# One leaf holding the whole directive, so `document_to_text` writes it verbatim.
+# Both styles use it: a domain projection is the save path, and the save path is
+# by marker. The natural notation renders an embed as the document it embeds,
+# and that happens in the shared fabric (`EmbedToSyntax`), not here.
+
+@projection struct ReferenceStubToRstSyntaxLeaf
+    style::ImmutableCell{DStyleText} =
+        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template ReferenceStubToRstSyntaxLeaf ReferenceStub (p, s) ->
+    SyntaxLeaf(TextString(_stub_marker_directive(s), p.style))
+
+_stub_marker_directive(stub::ReferenceStub) =
+    ".. " * PRED_REF_DIRECTIVE * ":: " * marker_text(stub)
+
+# ── EmbeddedFileDocumentToRstSyntaxLeaf ─────────────────────────────────────
+
+@projection struct EmbeddedFileDocumentToRstSyntaxLeaf
+    style::ImmutableCell{DStyleText} =
+        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+@projection_template EmbeddedFileDocumentToRstSyntaxLeaf FileDocument (p, f) ->
+    SyntaxLeaf(TextString(_embedded_marker_directive(f), p.style))
+
+_embedded_marker_directive(f::FileDocument) =
+    ".. " * PRED_REF_DIRECTIVE * ":: " * file_marker_text(filename(f))
 
 end # module

@@ -10,12 +10,21 @@ This module also registers `natural_syntax_projection` / `natural_extension`
 / `parse_natural` for `RstDocument`, and `.rst` as a file document type, so
 `import_document` and `export_document` reach the slice by extension.
 
-**No marker vocabulary yet.** The markdown slice carries a cross-file
-reference convention (a fenced `pred-ref` block). The INET documentation the
-slice was built for uses `.. literalinclude::` and `:doc:` instead, and
-neither resolves here — see the module docstring of `RstToSyntaxModule`. When
-a marker is wanted, the natural place is an `RstComment` whose body opens
-with `pred-ref`, which is the RST analogue of the fenced block.
+**Marker syntax in RST.** A cross-file reference reads as a directive
+whose argument is the marker:
+
+    .. pred-ref:: <<file("child.json")>>
+
+The directive needs no parser rule: a name the parser does not know
+already becomes an `RstDirective` carrying its name and its argument,
+and emit writes it back as it was. Load walks the block tree for an
+`RstDirective` named `pred-ref` whose argument parses as a marker, and
+rewrites each into a `ReferenceStub`. Emit is symmetric through the
+projection (see `RstToSyntax.jl`).
+
+A marker written **in a line of prose** is not read yet: a block is
+what a marker stands for here, and the markdown slice's text-run
+splitting has no RST counterpart.
 """
 module RstFileModule
 
@@ -24,16 +33,19 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRole,
-                    RstStrong, RstEmphasis
+                    RstStrong, RstEmphasis, RstDirective, RstListItem, RstBulletList,
+                    RstEnumeratedList, RstDefinitionList, RstDefinitionItem,
+                    RstFieldList, RstField, RstBlockQuote, RstFootnote, RstAdmonition,
+                    RstGridTable, RstTableRow, RstTableCell
 import ..RstParserModule: rstparse
-import ..RstToSyntaxModule: RstToSyntax
+import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
 import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
                               natural_extension, parse_natural
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             LoaderContext, register_file_document_type!,
-                            document_section
+                            document_section, parse_marker_text, ReferenceStub
 
-export RstFile, rst_section, rst_title_text
+export RstFile, rst_section, rst_title_text, PRED_REF_DIRECTIVE
 
 """
     RstFile(filename, content)
@@ -49,9 +61,56 @@ emit_text(f::RstFile) = document_to_text(content(f))
 
 function populate_file!(f::RstFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
-    getfield(f, :content)[] = rstparse(text)
+    getfield(f, :content)[] = _substitute_markers(rstparse(text), ctx)
     f
 end
+
+# ── Markers ───────────────────────────────────────────────────────────────────
+
+# A cell may still be a cell mid-walk: a CellVector holds cells.
+_unwrap(x) = x isa AbstractCell ? x[] : x
+
+# Traversal: every container rewrites its own child slots in place, and a node
+# that owns no blocks passes through. A marker directive becomes a stub; a
+# `pred-ref` whose argument is not a marker stays the directive it was, so a
+# typing mistake shows on the page instead of vanishing.
+_substitute_markers(node, ctx::LoaderContext) = node
+
+function _substitute_markers(node::RstDirective, ctx::LoaderContext)
+    if _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE
+        source = parse_marker_text(strip(_unwrap(getfield(node, :argument))))
+        source === nothing || return ReferenceStub(source, ctx)
+    end
+    _visit_vector!(node, :elements, ctx)
+end
+
+function _visit_vector!(node, field::Symbol, ctx::LoaderContext)
+    elements = getfield(node, field)[]
+    for i in eachindex(elements)
+        elements[i] = _substitute_markers(elements[i], ctx)
+    end
+    node
+end
+
+# Every container that can hold a block, and therefore a marker. An inline
+# container is absent on purpose: an inline marker is not read (see the module
+# docstring), so walking a paragraph's runs would find nothing to rewrite.
+_substitute_markers(n::RstRoot,           ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstSection,        ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstListItem,       ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstField,          ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstBlockQuote,     ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstFootnote,       ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstAdmonition,     ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstTableCell,      ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
+_substitute_markers(n::RstBulletList,     ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
+_substitute_markers(n::RstEnumeratedList, ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
+_substitute_markers(n::RstDefinitionList, ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
+_substitute_markers(n::RstFieldList,      ctx::LoaderContext) = _visit_vector!(n, :fields,   ctx)
+_substitute_markers(n::RstGridTable,      ctx::LoaderContext) = _visit_vector!(n, :rows,     ctx)
+_substitute_markers(n::RstTableRow,       ctx::LoaderContext) = _visit_vector!(n, :cells,    ctx)
+# A definition's body holds blocks; its term holds inline runs.
+_substitute_markers(n::RstDefinitionItem, ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
 
 # ── natural-format registration ───────────────────────────────────────────────
 
