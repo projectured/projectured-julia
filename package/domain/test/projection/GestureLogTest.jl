@@ -10,7 +10,7 @@ function test_gesture_log()
 @testset "GestureLog" begin
     none = ModifierKeys()
     left = KeyDown(:left, none)
-    comma = KeyDown(:comma, none)
+    typed = KeyPress('7')
 
     _force(value) = value isa Cell ? value[] : value
 
@@ -63,15 +63,18 @@ function test_gesture_log()
         log = GestureLog()
         array = mkarray()
         inner = inner_syntax()
-        recorder = GestureLogRecordingProjection(inner = inner, log = log,
-                                                 filter = (gesture, operation) -> true)
+        recorder = GestureLogRecordingProjection(inner = inner, log = log)
         iomap = print_document(recorder, array)
 
-        operation = read_intent(recorder, iomap, comma)          # the array insert
-        direct = read_intent(inner, iomap.inner_iomap, comma)
+        # A printable key on a whole-element selection replaces the element, which
+        # is a compound operation and not a selection.
+        operation = read_intent(recorder, iomap, typed)
+        direct = read_intent(inner, iomap.inner_iomap, typed)
+        @test operation isa CompoundOperation
         @test typeof(operation) === typeof(direct)               # nothing is consumed
         @test length(log.entries) == 1
-        @test log.entries[1].gesture == "," || log.entries[1].gesture == "Comma"
+        @test log.entries[1].gesture == "7"
+        @test log.entries[1].kind === :CompoundOperation
     end
 
     @testset "the recorder records nothing when the inner reader declines" begin
@@ -89,15 +92,13 @@ function test_gesture_log()
     @testset "the recorder obeys its filter" begin
         log = GestureLog()
         array = mkarray()
-        recorder = GestureLogRecordingProjection(inner = inner_syntax(), log = log)
+        recorder = GestureLogRecordingProjection(inner = inner_syntax(), log = log,
+                                                 filter = (gesture, operation) -> false)
         iomap = print_document(recorder, array)
 
-        # The insert passes the default filter; a selection does not.
-        read_intent(recorder, iomap, comma)
-        kept = length(log.entries)
-        @test kept == 1
-        read_intent(recorder, iomap, KeyDown(:home, none))        # selects the root
-        @test length(log.entries) == kept
+        operation = read_intent(recorder, iomap, typed)
+        @test operation isa CompoundOperation                     # the reader still fires
+        @test length(log.entries) == 0                            # the filter dropped it
     end
 
     @testset "the overlay draws the panel over the content" begin
@@ -133,15 +134,18 @@ function test_gesture_log()
         iomap = print_document(overlay, nothing, array, ctx)
 
         panel = _force(iomap.output).elements[2]
-        empty_height = panel.h
+        empty_width = panel.w
         record_gesture!(log, left, ToggleCollapseOperation())
         one_height = panel.h
+        one_width = panel.w
         record_gesture!(log, left, ToggleCollapseOperation())
         two_height = panel.h
 
         @test one_height > 0
         @test two_height > one_height                             # a second line made it taller
-        @test one_height != empty_height
+        # The empty panel says "no gesture yet", which is one line as well, so
+        # the width is what shows that the first entry arrived.
+        @test one_width != empty_width
         # The panel object is stable; only its cells re-derive.
         @test _force(iomap.output).elements[2] === panel
     end
@@ -153,10 +157,31 @@ function test_gesture_log()
         overlay = GestureLogOverlayProjection(inner = inner, log = log)
         iomap = print_document(overlay, array)
 
-        operation = read_intent(overlay, iomap, comma)
-        direct = read_intent(inner, iomap.inner_iomap, comma)
+        operation = read_intent(overlay, iomap, typed)
+        direct = read_intent(inner, iomap.inner_iomap, typed)
         @test typeof(operation) === typeof(direct)
         @test length(log.entries) == 0                            # the overlay records nothing
+    end
+
+    @testset "a click reaches the content under the panel" begin
+        # The panel is drawn over the content, so a click on it must give the
+        # same operation the pipeline gives without the panel. The anchor puts
+        # the panel over the top left corner, where the content is.
+        log = GestureLog()
+        record_gesture!(log, left, ToggleCollapseOperation())
+        plain = inner_graphics()
+        overlay = GestureLogOverlayProjection(inner = inner_graphics(), log = log,
+                                              anchor = :top_left)
+        ctx() = with_available_size(PrinterContext(); width = Cell(900), height = Cell(400))
+        plain_iomap = print_document(plain, nothing, mkarray(), ctx())
+        overlay_iomap = print_document(overlay, nothing, mkarray(), ctx())
+
+        for (x, y) in ((4, 4), (12, 8), (30, 6))
+            gesture = MousePress(:left, x, y)
+            expected = read_intent(plain, nothing, Intent(gesture, nothing), plain_iomap)
+            actual = read_intent(overlay, nothing, Intent(gesture, nothing), overlay_iomap)
+            @test string(actual.operation) == string(expected.operation)
+        end
     end
 
     @testset "the printer renders one line per entry, newest first" begin

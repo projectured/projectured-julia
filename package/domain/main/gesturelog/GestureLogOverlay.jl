@@ -48,6 +48,9 @@ stays readable, and the light text of the log stays readable over any content.
 """
 const GESTURE_LOG_BACKGROUND = StyleColor(0.0, 0.0, 0.0, 0.72)
 
+# Extra width of the panel, in pixels. See `panel_width` below.
+const _WIDTH_SLACK = 8
+
 """
     make_gesture_log_content_projection(; measure = truetype_measure_text)
 
@@ -114,7 +117,10 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
 
     body_width() = _width(log_output[])
     body_height() = _height(log_output[])
-    panel_width() = body_width() + 2 * p.padding
+    # The slack covers the small difference between the measure function that
+    # the printer used and the text metrics of the backend that draws. Without
+    # it the last characters of the longest line sit on the panel border.
+    panel_width() = body_width() + 2 * p.padding + _WIDTH_SLACK
     panel_height() = body_height() + 2 * p.padding
 
     # The body sits inside the panel, one padding from the corner of the panel.
