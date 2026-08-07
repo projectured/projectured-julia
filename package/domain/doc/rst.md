@@ -1,0 +1,196 @@
+# The RST domain
+
+The `rst` slice holds reStructuredText: a document model, a parser, a
+two-style projection, and a `FileDocument` wrapper. It was built against the
+documentation of [INET](https://github.com/inet-framework/inet) — 349 files
+and about 51 000 lines — and every one of those files parses and round-trips.
+
+Files:
+
+```
+rst/  Rst.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
+```
+
+The slice depends on no other domain slice.
+
+## The document
+
+`RstModule` holds about forty `@document` structs in three groups.
+
+**Inlines** — `RstText`, `RstLiteral`, `RstEmphasis`, `RstStrong`, `RstRole`,
+`RstReference`, `RstSubstitutionReference`, `RstFootnoteReference`.
+
+**Blocks** — `RstSection`, `RstParagraph`, `RstLiteralBlock`, `RstLineBlock`,
+`RstBulletList`, `RstEnumeratedList`, `RstListItem`, `RstDefinitionList`,
+`RstDefinitionItem`, `RstFieldList`, `RstField`, `RstBlockQuote`,
+`RstTransition`, `RstComment`, `RstTarget`, `RstSubstitutionDefinition`,
+`RstFootnote`, `RstGridTable`, `RstTableRow`, `RstTableCell`, `RstRoot`.
+
+**Directives** — twelve typed structs plus one generic fallback.
+
+### Sections nest, the source does not
+
+RST writes a section as a title line under an adornment line, and the
+adornment character alone decides the depth. RST gives no fixed meaning to any
+character: the order in which a file first uses one decides what it means
+there.
+
+The document is a tree instead. A section owns every block below it, so it can
+be collapsed and moved as a unit. `RstSection.adornment` keeps the character
+the file used, so emit reproduces that file's own convention rather than
+imposing one.
+
+### Directives are typed where it pays
+
+The twelve directives that carry meaning for the natural notation get their
+own struct with named fields: `RstLiteralInclude`, `RstFigure`,
+`RstCodeBlock`, `RstImage`, `RstVideo`, `RstAudio`, `RstAdmonition`,
+`RstToctree`, `RstMathBlock`, `RstRawBlock`, `RstRoleDefinition`. Everything
+else is an `RstDirective` with a name, an argument and an option list.
+
+The reason is the rendered view: a figure has to find its picture, a code
+block its language, an admonition its kind. Searching an option vector by
+string on every read would be the alternative.
+
+A typed directive still carries `extra`, the options it does not name, so emit
+loses nothing. In the INET corpus the typed structs cover 2099 of the 2114
+directive uses; the generic struct catches the other 15.
+
+### Roles hold a plain string
+
+`:ned:`Foo`` has no nested markup, so `RstRole.content` is a `String`. The name
+is a string too: the role set is open, because a document declares its own
+with `.. role::`. The projection maps the name to a colour through a table and
+falls back to a neutral colour for a name it does not know.
+
+## The parser
+
+`rstparse(text)` and `rstparse_file(path)`. Pragmatic, not docutils, but it
+covers the corpus.
+
+The block reader takes a line vector that its caller already dedented to
+column zero, and tries ten constructs in order. A construct that owns an
+indented body — a directive, a list item, a definition — dedents that body and
+hands it back to the same reader, so nesting needs no special case.
+
+Sections come out flat, as title markers. One pass afterwards assigns the
+depths by order of first use and builds the tree.
+
+### Two rules that are easy to get wrong
+
+**A paragraph joins its lines with a space, not a newline.** RST reflows a
+paragraph freely, so where the author broke the line carries no meaning. A
+stored newline would emit a line starting at column zero, which ends the list
+item or the directive body the paragraph sits in.
+
+**Inline markup obeys the start-string and end-string rules.** A start-string
+must be followed by a non-blank, an end-string preceded by one. Without those
+two rules `*.host.numApps = 1` — which the corpus writes in running prose —
+opens an emphasis span. A reference gets its own end finder, because its
+closing backquote is followed by the `_` that belongs to its marker.
+
+## The projection
+
+`RstToSyntax(; style)` builds a `TypeDispatchingProjection`. `style` is
+`:source` or `:rendered`, the same two words `MarkdownToSyntax` uses.
+
+The rendered table is built from the source table by replacing the rules whose
+presentation differs, so a rule that reads the same either way is written once.
+
+### `:source` — the original syntax
+
+Colourised raw RST with every marker on the page and every one-line field
+editable.
+
+### `:rendered` — the natural notation
+
+No markers. Large bold titles, real bold and italic, a role as a chip coloured
+by what it names, a figure as the picture itself, `•` bullets, a `────` rule.
+
+Bold, italic and a section title change the font of every descendant text run,
+which travels as an ambient `:rst_style` in the printer context: a container
+augments it and delegates, the leaf reads it. That is the School A pattern
+`MarkdownToSyntax` uses for the same job.
+
+### Indentation is written, not computed
+
+Every compound here carries `indentation=0` and puts the indent into its own
+`open` and `sep` text, and the current column travels as an ambient
+`:rst_indent`. A container that owns an indented body pushes a deeper indent;
+every rule that writes a newline reads the ambient and puts it after the
+newline.
+
+The compound's own `indentation` field cannot do this job. It writes a newline
+before the *first* child as well as between children, and it always costs one
+indent level — so a list's items would leave their marker column, and a
+definition's body could not sit on the line after its term.
+
+`@projection_template` builds a printer from `(prj, doc)` alone and never sees
+the context, so two macros in the file — `@rst_flat` and `@rst_indented` —
+wrap `rule_print`, the entry point the template macro itself uses, and hand
+the builder the ambient as well. A rule keeps its template body; only its
+signature grows.
+
+### Seven opaque bodies
+
+The body of a code block, a literal include, a literal block, a math block, a
+raw block, a comment and a grid table is multi-line text that has to be
+indented under its marker. A `bound` leaf maps a text splice back by offset,
+and pre-indenting the render would shift every offset past the first line. So
+these seven render through a plain computed `TextString`: correct on the page
+and correct on save, but not splice-editable in the source view. Every other
+field is `bound`.
+
+## The file document
+
+`RstFile <: FileDocument` wraps an `RstDocument`. The module registers
+`natural_syntax_projection` / `natural_extension` / `parse_natural`, and
+`.rst` as a file document type, so `import_document`, `export_document` and
+`document_to_text` all reach the slice by extension.
+
+`rst_section(document, title)` finds a section by the plain text of its title.
+Unlike the markdown counterpart it returns the node itself, because an RST
+section already owns its blocks.
+
+## Testing
+
+- `test_rst_parser()` — unit tests, one construct at a time.
+- `test_rst_round_trip()` — the five fixtures in
+  `package/domain/test/fixture/rst/`, copied from the INET documentation.
+- `test_rst_corpus(dir)` — an opt-in sweep of a whole documentation tree, not
+  wired into `test_domain()` because the tree is not a dependency of this
+  repository. Point it at a checkout:
+
+  ```julia
+  test_rst_corpus("/path/to/inet")
+  ```
+
+- `test_example(rst_example)` and `test_printer(rst_rendered_example)` for the
+  two projections.
+
+### The round-trip criterion is AST idempotence
+
+`rstparse(document_to_text(rstparse(text)))` must equal `rstparse(text)`.
+
+Byte equality is not required and is not reached: a paragraph is rejoined onto
+one line, an adornment is redrawn at the title's width, and a directive body
+is re-indented to three spaces. What must hold is that reading an emitted file
+gives back the document it came from. All 349 INET files satisfy it.
+
+## Known limits
+
+- **`literalinclude` does not resolve.** The projection shows the reference and
+  its slice bounds; it does not read the file or apply `start-at` / `end-at`.
+  Doing so needs a loader context, which is the `FileProject` seam.
+- **`include` does not resolve**, for the same reason.
+- **Sphinx role semantics.** A `:ned:` role does not resolve to a NED type and
+  a `:doc:` role does not resolve to a page. A role is a styled string.
+- **An enumerated list prints its start number on every item.** An item does
+  not know its index. RST renumbers on render and a re-parse recovers the same
+  list, so nothing is lost on save; a list that starts at a number other than
+  one loses that start.
+- **The rendered grid table keeps the drawn grid** rather than laying the
+  cells out as a real table.
+- **No marker vocabulary.** The markdown slice has a cross-file reference
+  convention; this one has no need of it yet. An `RstComment` whose body opens
+  with `pred-ref` is the natural place for one.

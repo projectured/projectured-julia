@@ -161,7 +161,7 @@ code they document; the cross-cutting concept/architecture/tooling guides stay i
 specific domain, also consult:
 
 - [package/kernel/doc/reference.md](package/kernel/doc/reference.md) and [package/kernel/doc/selection.md](package/kernel/doc/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
-- Per-domain guides: [json](package/domain/doc/json.md), [xml](package/domain/doc/xml.md), [workbench](package/domain/doc/workbench.md), [versioning](package/domain/doc/versioning.md) (domain); [text](package/visual/doc/text.md), [syntax](package/visual/doc/syntax.md), [graphics](package/visual/doc/graphics.md), [widget](package/visual/doc/widget.md) (visual); [collection](package/base/doc/collection.md) and [bounded-sync](package/base/doc/bounded-sync.md) (base).
+- Per-domain guides: [json](package/domain/doc/json.md), [xml](package/domain/doc/xml.md), [rst](package/domain/doc/rst.md), [workbench](package/domain/doc/workbench.md), [versioning](package/domain/doc/versioning.md) (domain); [text](package/visual/doc/text.md), [syntax](package/visual/doc/syntax.md), [graphics](package/visual/doc/graphics.md), [widget](package/visual/doc/widget.md) (visual); [collection](package/base/doc/collection.md) and [bounded-sync](package/base/doc/bounded-sync.md) (base).
 
 When iterating in the REPL or running the test suite:
 

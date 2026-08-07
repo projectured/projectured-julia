@@ -5,7 +5,12 @@ reStructuredText files of `inet-cpp`, hold them in `@document` structs, and
 project them two ways: the original RST syntax, and a natural notation that
 hides the markup.
 
-Status: **pending**. No code exists yet.
+Status: **done**. Implemented on the branch `rst-domain`.
+
+**Result.** All 349 INET RST files parse, and all 349 round-trip at the AST
+level. `test_domain()` runs 198966 assertions with 0 failed and 0 errored
+(5 broken, all pre-existing). The slice guide is
+[package/domain/doc/rst.md](../../package/domain/doc/rst.md).
 
 ## 1. Goal
 
@@ -432,6 +437,48 @@ Do the work in a dedicated git worktree. Commit after each step.
 10. **Documentation.** Write `package/domain/doc/rst.md`. Update
     `package/domain/doc/architecture.md`. Move this plan to `plan/done/`.
 
+## 9a. What the implementation changed
+
+Six decisions were made during the work that the plan did not anticipate.
+They are recorded here because each one cost a debugging round.
+
+1. **A paragraph joins its source lines with a space, not a newline.** The
+   plan did not say. A stored newline emits a line at column zero, which ends
+   the list item or the directive body the paragraph sits in. One long line
+   always re-parses to itself.
+
+2. **Indentation travels as an ambient `:rst_indent` in the printer context.**
+   The plan assumed the compound's own `indentation` field would serve. It
+   cannot: it writes a newline before the *first* child as well as between
+   children, and it always costs one indent level, so a list's items would
+   leave their marker column. Two macros — `@rst_flat` and `@rst_indented` —
+   wrap `rule_print` so a template rule can read the ambient. Without this,
+   309 of 349 files round-tripped; with it, 347.
+
+3. **`@rst_flat` / `@rst_indented` had to import the `ProjectionApiModule`
+   *binding*,** not only its names, because the macros expand to
+   `ProjectionApiModule.print_document(...)`.
+
+4. **`RstBlockQuote` needed a hand-written arity-2 constructor.** Every field
+   defaults, so `@document` emits only the "fill everything" form — the
+   positional-defaults rule needs a required leading field.
+
+5. **A literal block writes its own `::` marker.** The parser takes the marker
+   off the paragraph that introduced it, so emitting the body alone leaves an
+   indented run with nothing to introduce it, and that re-reads as a block
+   quote. A standalone `::` is the expanded form RST allows.
+
+6. **Step order.** Step 7 (`RstFile`) was done before step 6 (the round-trip
+   test), because `document_to_text` needs the `natural_syntax_projection`
+   registration that `RstFile` supplies.
+
+The last four round-trip failures each needed their own fix: an option value's
+continuation must stop at a blank line *and* at the next option marker (one
+corpus file indents an option line with a tab); `_parse_directive` must accept
+its own `.. ` marker, which is what a substitution definition prints; a grid
+column asks for one pad space, not two, so a cell the source wrapped over two
+lines does not widen it; and a toctree must emit the options it did not name.
+
 ## 10. Deferred
 
 These are out of scope. Record them here so the next person does not look for
@@ -449,7 +496,20 @@ them.
   none of them.
 - **Auto-numbered footnotes.** The corpus has 3 footnotes. The label stays a
   string.
-- **Byte-exact emit.** See the round-trip criterion in section 7.
+- **Byte-exact emit.** See the round-trip criterion in section 7. Measured: 0
+  of 349 files. A paragraph is rejoined onto one line, an adornment is redrawn
+  at the title's width, and a directive body is re-indented to three spaces.
+- **An enumerated list prints its start number on every item.** An item does
+  not know its index. A re-parse recovers the same list, so nothing is lost on
+  save; a list starting at a number other than one loses that start.
+- **Seven opaque bodies are not splice-editable in the source view** — a code
+  block, a literal include, a literal block, a math block, a raw block, a
+  comment and a grid table. Their text must be indented under their marker,
+  and a `bound` leaf maps a splice back by offset, so pre-indenting the render
+  would shift every offset past the first line. They render through a computed
+  `TextString`: correct on the page and correct on save.
+- **The rendered grid table keeps the drawn grid** rather than laying the
+  cells out as a real table.
 - **`RstToLayout.jl`.** The markdown slice has a fifth file,
   `MarkdownToLayout.jl`, which rewraps a `MarkdownRoot` into a
   `VerticalLayout` so a page is a stack of blocks. It exists only for embeds:

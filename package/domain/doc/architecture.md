@@ -12,6 +12,7 @@ this document is **only about domain**.
 Companion guides for individual domain slices live alongside this file:
 
 - [json.md](json.md) — the JSON domain
+- [rst.md](rst.md) — the reStructuredText domain
 - [xml.md](xml.md) — the XML domain
 - [chart.md](chart.md) — the chart domain
 - [sequencechart.md](sequencechart.md) — the sequence chart domain
@@ -22,7 +23,7 @@ Companion guides for individual domain slices live alongside this file:
 ## What the domain package is
 
 `ProjecturedDomain` holds every **concrete source domain** ProjecturEd
-ships (JSON, XML, YAML, Julia, SQL, Math, Markdown, Book, Graph, …), plus
+ships (JSON, XML, YAML, Julia, SQL, Math, Markdown, RST, Book, Graph, …), plus
 the two application slices (`workbench`, `conversation`) that compose the
 sources. It sits above the kernel (engine), the base (concrete engine
 documents + doc-shaped projections + serialization), and the visual
@@ -50,6 +51,7 @@ yaml/       Yaml.jl · YamlParser.jl · YamlToSyntax.jl
 julia/      Julia.jl · JuliaParser.jl · JuliaToSyntax.jl
 math/       Math.jl · MathToSyntax.jl
 markdown/   Markdown.jl · MarkdownParser.jl · MarkdownToSyntax.jl
+rst/        Rst.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
 book/       Book.jl · BookToSyntax.jl
 sql/        Sql.jl · SqlParser.jl · SqlToSyntax.jl
 dbcatalog/  DbCatalog.jl · DbCatalogToSql.jl · DbCatalogToSyntax.jl
