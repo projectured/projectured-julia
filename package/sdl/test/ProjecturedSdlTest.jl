@@ -26,6 +26,7 @@ function __init__()
 end
 
 include("backend/DirtyRectTest.jl")
+include("backend/KeysymTest.jl")
 include("backend/DeviceConfigTest.jl")
 include("projection/GraphicsToFileTest.jl")
 
@@ -33,11 +34,12 @@ include("projection/GraphicsToFileTest.jl")
 function test_sdl()
     @testset "ProjecturedSdl" begin
         test_dirty_rect()
+        test_sdl_keysym()
         test_device_config()
         test_write_image()
     end
 end
 
-export test_sdl, test_dirty_rect, test_device_config, test_write_image
+export test_sdl, test_dirty_rect, test_sdl_keysym, test_device_config, test_write_image
 
 end # module ProjecturedSdlTest

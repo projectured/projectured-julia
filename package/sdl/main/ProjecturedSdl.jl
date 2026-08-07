@@ -366,6 +366,9 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(120)        && return :x        # Ctrl+X — cut
     keysym == Int32(118)        && return :v        # Ctrl+V — paste
     keysym == Int32(110)        && return :n        # Ctrl+N — note
+    keysym == Int32(112)        && return :p        # Ctrl+Shift+P — the command palette
+    keysym == Int32(115)        && return :s        # Ctrl+S — save, Ctrl+Shift+S — snapshot
+    keysym == Int32(111)        && return :o        # Ctrl+O — reload from disk
     keysym == Int32(47)         && return :slash    # '/' — toggle slice display
     keysym == Int32(1073741908) && return :slash    # keypad '/'
     keysym == Int32(1073741909) && return :asterisk # keypad '*' — toggle collection display
