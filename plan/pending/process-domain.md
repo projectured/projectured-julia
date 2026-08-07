@@ -528,10 +528,15 @@ without that reader text navigation runs away.
   construction, document order, index round-trip, opaque embedded Julia,
   placeholders as nodes, and the insertion kit — 66 passing.
   `process_example` moves to P2, where there is a projection to render it.
-- [ ] **P2 — Notation.** `ProcessToSyntax.jl` template rules merged with the
-  julia dispatch table; `_syntax_to_flat` readers on every compound rule;
-  printer / reader / position-navigation (`check_reaches_all`) / typein /
-  repl green for `process_example`.
+- [x] **P2 — Notation.** *Done.* `ProcessToSyntax.jl` template rules merged
+  with the julia dispatch table; `_syntax_to_flat` readers on every compound
+  rule; `process_example` / `process_drain_example` registered with their
+  document and projection factories. Green: printer 3139, reader 225, position
+  navigation 365, repl 225 (each example), notation assertions 107.
+  `test_typein(process_example)` inherits the julia domain's name-leaf caret
+  gap (`test_typein(julia_example)` is 0 of 84 on a clean tree), so the
+  notation's own typein is guarded by a julia-free document instead — 75 of
+  75, and that assertion lives in `ProcessToSyntaxTest`.
 - [ ] **P3 — Diagram.** `ProcessDiagram.jl`, `ProcessToProcessDiagram.jl`,
   `ProcessDiagramToGraph.jl` per D8; selection mapping (vertex click → ∅
   selection of the node, round-trip); pixel-pressing render test.

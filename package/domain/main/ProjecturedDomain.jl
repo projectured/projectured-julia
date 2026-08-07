@@ -241,6 +241,9 @@ include("formula/FormulaToSyntax.jl")
 # After julia/JuliaToSyntax.jl: the notation merges the Julia dispatch table so
 # embedded guards/actions/entry/helpers render through the same recursion.
 include("fsm/FsmToSyntax.jl")
+# Same merge as the fsm notation: the process notation renders embedded
+# actions/conditions through the Julia dispatch table.
+include("process/ProcessToSyntax.jl")
 include("fsm/FsmToFsmDiagram.jl")
 # After the graph slice projections: the diagram prints into GraphGraph and
 # relies on the stock layout/graphics stages to draw it.

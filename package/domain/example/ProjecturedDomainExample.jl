@@ -75,6 +75,7 @@ include("document/Graph.jl")
 include("document/Chart.jl")
 include("document/SequenceChart.jl")
 include("document/Fsm.jl")
+include("document/Process.jl")
 include("document/Math.jl")
 include("document/Julia.jl")
 include("document/Formula.jl")
@@ -94,6 +95,7 @@ include("projection/Graph.jl")
 include("projection/Chart.jl")
 include("projection/SequenceChart.jl")
 include("projection/Fsm.jl")
+include("projection/Process.jl")
 include("projection/Xml.jl")
 include("projection/Mixed.jl")
 include("projection/Natural.jl")
@@ -134,6 +136,7 @@ export sequencechart_example, sequencechart_vertical_example,
        sequencechart_linear_example, sequencechart_large_example,
        sequencechart_inspector_example, sequencechart_pair_example
 export fsm_example, fsm_toggle_example, fsm_diagram_example
+export process_example, process_drain_example
 export make_fsm_document_example, make_fsm_projection_example,
        make_fsm_tcp_document_example, make_fsm_toggle_document_example,
        make_fsm_variable_document_example, make_fsm_timer_document_example,
@@ -141,6 +144,12 @@ export make_fsm_document_example, make_fsm_projection_example,
        make_fsm_transition_document_example, make_fsm_insertion_document_example,
        make_fsm_diagram_document_example, make_fsm_diagram_projection_example
 export make_fsm_machine_document_example, make_fsm_component_document_example
+export make_process_document_example, make_process_projection_example,
+       make_process_transmit_document_example, make_process_drain_document_example,
+       make_process_model_document_example, make_process_sequence_document_example,
+       make_process_step_document_example, make_process_decision_document_example,
+       make_process_while_document_example, make_process_foreach_document_example,
+       make_process_return_document_example, make_process_insertion_document_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example

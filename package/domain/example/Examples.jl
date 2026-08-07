@@ -44,6 +44,8 @@ const sequencechart_pair_example = Example("sequencechart_pair", make_sequencech
 const fsm_example            = Example("fsm",            make_fsm_document_example,            make_fsm_projection_example)
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
+const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
+const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
 # The visual tier's `pane_example` with real domain documents in its tabs: the
 # focused tab holds the json example document, and the renderer is the natural
@@ -131,6 +133,8 @@ const domain_examples = Example[
     sequencechart_inspector_example,
     sequencechart_pair_example,
     fsm_example,
+    process_example,
+    process_drain_example,
     fsm_toggle_example,
     fsm_diagram_example,
     workbench_example,
