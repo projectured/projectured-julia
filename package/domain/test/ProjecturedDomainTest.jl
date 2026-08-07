@@ -137,6 +137,7 @@ include("serializer/JuliaAndMarkdownFileTest.jl")
 include("serializer/XmlFileTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/MarkdownEmbedTest.jl")
+include("serializer/RstEmbedTest.jl")
 include("editor/ConstructTest.jl")
 
 """
@@ -237,6 +238,7 @@ function test_domain()
         test_julia_parser()
         test_marker_vocabulary()
         test_markdown_embed()
+        test_rst_embed()
         test_mcp_tools()
         test_conversation_serialization()
         test_parse_markdown_blocks()
@@ -299,6 +301,6 @@ export test_gesture_map, test_gesture_help, test_gesture_log,
        test_assistant_composer_panel, test_assistant_mvp, test_workbench_file_keys,
        test_gallery_wrappers, test_table_navigation
 export test_json_file, test_file_project_s4, test_file_project_s5, test_julia_and_markdown_file, test_xml_file
-export test_marker_vocabulary, test_markdown_embed, test_julia_parser
+export test_marker_vocabulary, test_markdown_embed, test_rst_embed, test_julia_parser
 
 end # module ProjecturedDomainTest
