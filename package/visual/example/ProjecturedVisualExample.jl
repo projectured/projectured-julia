@@ -59,6 +59,7 @@ include("document/Layout.jl")
 include("document/Collection.jl")
 include("document/Primitive.jl")
 include("document/Lazy.jl")
+include("document/Pane.jl")
 include("document/RotatingVector.jl")
 
 include("projection/Syntax.jl")
@@ -75,6 +76,7 @@ include("projection/Layout.jl")
 include("projection/Collection.jl")
 include("projection/Primitive.jl")
 include("projection/Lazy.jl")
+include("projection/Pane.jl")
 include("projection/Reversing.jl")
 include("projection/Filtering.jl")
 include("projection/Searching.jl")
@@ -129,6 +131,7 @@ export make_widget_list_document_example, make_widget_menu_document_example
 export make_widget_menu_item_document_example, make_widget_option_document_example
 export make_widget_popup_document_example, make_widget_popup_projection_example
 export make_widget_progress_document_example, make_widget_projection_example
+export make_pane_document_example, make_empty_pane_document_example, make_pane_projection_example
 export make_widget_radio_group_document_example, make_widget_scroll_bar_document_example
 export make_widget_scroll_pane_document_example, make_widget_select_document_example
 export make_widget_separator_atom_document_example, make_widget_separator_document_example
@@ -159,6 +162,7 @@ export widget_radio_group_example, widget_scroll_bar_example, widget_scroll_pane
 export widget_select_example, widget_separator_example, widget_shell_example
 export widget_skeleton_example, widget_slider_example, widget_split_pane_example
 export widget_switch_example, widget_tabbed_pane_example, widget_table_example
+export pane_example, empty_pane_example
 export widget_text_example, widget_textarea_example, widget_title_pane_example
 export widget_toggle_example, widget_toggle_group_example, widget_toolbar_example
 export widget_tooltip_example, widget_transform_pane_example, widget_tree_example

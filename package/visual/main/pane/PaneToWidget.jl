@@ -33,10 +33,9 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_split_axis, pane_weights, pane_normalized_weights,
-                     pane_tab_title_string
+                     pane_tab_title_string, default_new_pane_tab
 import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
                             pane_close_tab_operation, pane_resize_operation
-import ..PrimitiveModule: PrimitiveString
 import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
                        ResizeSplitPaneOperation
@@ -53,7 +52,7 @@ import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..ReferenceCaseModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
-export PaneTreeToWidget, PaneTreeToWidgetIoMap, default_new_pane_tab,
+export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
        PaneToWidget
@@ -69,14 +68,6 @@ to build a tab; pass one to decide what an empty tab holds in your application.
 struct PaneTreeToWidget <: Projection
     new_tab::Any
 end
-
-"""
-    default_new_pane_tab() -> PaneTab
-
-The tab the new-tab button opens when no factory was given: one named
-"untitled", holding an empty string.
-"""
-default_new_pane_tab() = PaneTab("untitled", PrimitiveString(""))
 
 PaneTreeToWidget() = PaneTreeToWidget(default_new_pane_tab)
 struct PaneSplitToWidgetSplitPane <: Projection end

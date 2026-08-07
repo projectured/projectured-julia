@@ -36,7 +36,8 @@ import ..ReferenceModule: Reference
 import ..PrimitiveModule: PrimitiveString
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-       pane_tab_title_string, pane_orientation_opposite, pane_split_axis,
+       pane_tab_title_string, default_new_pane_tab,
+       pane_orientation_opposite, pane_split_axis,
        pane_weight, pane_weights, pane_normalized_weights,
        pane_groups, pane_parent
 
@@ -71,6 +72,15 @@ end
 PaneTab(title::AbstractString, content) = PaneTab(PrimitiveString(String(title)), content)
 PaneTab(title::AbstractString, content, icon) =
     PaneTab(PrimitiveString(String(title)), content, icon)
+
+"""
+    default_new_pane_tab() -> PaneTab
+
+The tab an empty new-tab gesture opens: one named "untitled", holding an empty
+string. A projection takes a factory of its own when an application wants
+something else in a fresh tab.
+"""
+default_new_pane_tab() = PaneTab("untitled", PrimitiveString(""))
 
 """
     pane_tab_title_string(tab) -> String
