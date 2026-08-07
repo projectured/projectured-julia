@@ -40,8 +40,10 @@ You want to add a domain, a projection, a backend, or extend an existing one.
 2. [Architecture](architecture.md) — the package chain, layer/slice structure,
    full module inventory, pipeline status. See [Terminology](terminology.md)
    for the division vocabulary (package / layer / slice / module).
-3. [Reactive cells](../package/kernel/doc/cell.md) — `Cell`, dependency
-   tracking, lazy invalidation. Everything assumes you understand this.
+3. [Reactive cells](../package/kernel/doc/cell.md) — the three cell kinds
+   (`ReactiveCell` / `MutableCell` / `ImmutableCell`), dependency tracking, and
+   the eager-invalidate / lazy-recompute rule. Everything assumes you understand
+   this.
 4. [Macros](../package/kernel/doc/macros.md) — `@document`, `@projection`,
    `@iomap` and why field access looks like plain Julia even though every field
    is a `Cell`.
@@ -126,7 +128,7 @@ Each package also documents its own internal structure in its `doc/architecture.
 | [Generic projections](../package/kernel/doc/generic-projections.md) | Identity, Copying, Sorting, Reversing, Filtering, Focusing, … |
 | [Operations](../package/kernel/doc/operation.md) | Operations: what they are and how the reader produces them |
 | [Macros](../package/kernel/doc/macros.md) | @document, @projection, @iomap |
-| [Reactive cells](../package/kernel/doc/cell.md) | Cell, dependency tracking, lazy invalidation |
+| [Reactive cells](../package/kernel/doc/cell.md) | The three cell kinds, dependency tracking, eager invalidation and lazy recompute |
 
 ### Editor and runtime (kernel)
 

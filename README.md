@@ -99,6 +99,95 @@ corrupt, only operations on a model.
 
 ---
 
+## Every field is a cell
+
+The vision above promises lazy, incremental updates. This section says how the
+editor keeps that promise, because the mechanism shapes every document type you
+write.
+
+`@document` stores each field in a **cell** and generates the accessors, so the
+reactivity stays invisible in ordinary code:
+
+```julia
+@document struct JsonString <: JsonDocument
+    value::String
+end
+
+s = JsonString("Alice")
+s.value               # reads through the cell
+s.value = "Bob"       # writes through the cell — and invalidates whoever read it
+getfield(s, :value)   # the escape hatch: the raw cell itself
+```
+
+### Three kinds of cell
+
+A field declares **which kind** of cell holds it. The kind decides what the field
+costs and what it can do.
+
+| Kind | Behaviour | Declare it for |
+|---|---|---|
+| `ReactiveCell` *(default)* | records every cell that reads it; a write invalidates all of them | editable content — the document data itself |
+| `MutableCell` | a plain box: a write costs nothing and tells nobody | high-frequency state that no view derives from |
+| `ImmutableCell` | read-only: a write is a `MethodError` | style and configuration values that never change |
+
+Name the cell type on one field, or lead the struct with a kind to set the
+default for every field:
+
+```julia
+@projection struct JsonStringToSyntaxLeaf
+    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+end
+
+@document ImmutableCell struct StyleText   # a value document: no field is reactive
+    font::DStyleFont
+    color::DStyleColor
+end
+```
+
+Each type also gets kind aliases: `RFoo`, `MFoo`, and `IFoo` put every field in
+one kind, and `DFoo` names the default combination the bare constructor builds.
+`copy_document(doc)` copies a tree and keeps each cell's kind;
+`copy_document(K, doc)` rebuilds the whole tree in kind `K`. That conversion is
+what makes the double-buffer pattern possible: edit a `MutableCell` document at
+full speed with no reactive overhead, then `sync_document!` it into a
+`ReactiveCell` shadow, which writes only the cells whose value really changed.
+
+### Where the laziness comes from
+
+A cell holds a value or a thunk. While a thunk runs, every cell it reads becomes
+an upstream dependency — you declare nothing, because the read *is* the
+declaration. One rule then does the rest:
+
+> **A write invalidates eagerly. A read recomputes lazily.**
+
+```julia
+a = Cell(1)
+b = ComputedCell(() -> a[] + 1)   # a thunk — nothing runs yet
+b[]                               # 2  — the thunk runs, and its read of a records the edge
+a[] = 10                          # marks b invalid; b's thunk does NOT run
+b[]                               # 11 — the thunk runs now, because you asked for it
+```
+
+Scale that from two cells to a whole projection pipeline and you get the two
+properties the editor lives on:
+
+- **Consistency.** Every view is exactly what the current model projects to.
+  There is no cache to invalidate by hand and no derived state that can drift.
+- **Cost follows attention.** One edited character invalidates a path of cells
+  and recomputes only the ones the screen pulls on. A subtree that is off-screen,
+  collapsed, or past the end of a lazy `ListNode` costs nothing at all — which is
+  why a very large, or even an unbounded, document is an ordinary case here.
+
+Deep pipelines are therefore affordable, and that is what lets projections stay
+small, pure, and composable — the subject of the next section.
+
+See the [reactive cells](package/kernel/doc/cell.md) guide for the engine and its
+invariants, and the [macros](package/kernel/doc/macros.md) guide for the codegen
+behind `@document`, `@projection`, and `@iomap`.
+
+---
+
 ## Composable data, composable projections
 
 Composition runs through both layers — and they meet in the middle.
