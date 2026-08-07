@@ -67,6 +67,7 @@ end
 
 # ── domain documents ─────────────────────────────────────────────────────────
 include("document/FsmTest.jl")
+include("document/ProcessTest.jl")
 include("document/JsonTest.jl")
 include("document/JsonParserTest.jl")
 include("document/RstParserTest.jl")
@@ -159,6 +160,7 @@ function test_domain()
         test_domain_examples()
         # documents
         test_fsm()
+        test_process()
         test_json()
         test_json_parser()
         test_rst_parser()
@@ -257,6 +259,7 @@ end
 
 export test_domain, test_domain_layering, test_domain_examples
 export test_fsm, test_fsm_to_syntax, test_fsm_diagram, test_fsm_to_julia_code
+export test_process
 export test_rst_parser, test_rst_round_trip, test_rst_corpus, rst_ast_equal
 export test_json, test_json_parser, test_xml_parser,
        test_sql_parser, test_sql_document, test_sql_document_nested_select,

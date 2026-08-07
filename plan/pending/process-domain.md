@@ -157,6 +157,22 @@ empty one. `@domain Process` provides `ProcessDocument`, `ProcessNothing`,
 `ProcessInsertion`; placeholders must be typed, navigable and selectable
 (the json-domain lesson).
 
+**Implemented in P1, with one relaxation.** A body field defaults to
+`nothing` rather than to an empty sequence, and `body_steps(body)` normalizes:
+`nothing` is an empty body, a `ProcessSequence` is its steps, anything else is
+a one-node body. A constructor cannot fill the default instead — a
+hand-written ctor whose only positional parameter is `::Any` has the *same*
+signature as the macro's generated positional form, and redefining it is a
+fatal precompile overwrite. `else_branch === nothing` keeps its distinct
+meaning (*no else branch*, as opposed to an empty one), the one place the
+distinction is load-bearing.
+
+Field requiredness follows from Rule Y (positional ctors need `req ≥ 1`):
+`ProcessModel.name` and `ProcessStep.description` are required, every other
+node is fully defaulted so `T()` works and the macro emits the keyword form.
+Only those two need an `@insertion` factory — the rest are already zero-arg
+constructible, which is what `insertable`'s probe asks for.
+
 ### D7 — Two-stage presentation, identity-stable; v1 graph is view + selection
 
 `ProcessToProcessDiagram` builds the `ProcessDiagram` once per projection
@@ -224,6 +240,13 @@ flattens the tree in document order into a `Vector`, and `node_index(model,
 node)` is a node's 1-based position in it (0 when absent). Realization
 numbers nodes by the **same walk**, so a bare `Int` is all the realized code
 ever reports, and both views resolve that `Int` back to a node by identity.
+
+**Landed in `Process.jl` (P1), not P4** — the walk is document-level
+vocabulary, next to the types it walks, exactly as `machine_transitions` sits
+in `Fsm.jl`. It indexes **every** node, sequences and placeholders included,
+so the mapping is total and no consumer needs a second numbering; the nodes
+that never appear in a trace simply never come up. `process_children(node)`
+is the walk's one extension point and is what keeps embedded Julia opaque.
 
 This is what lets the runtime stay ignorant of ProjecturEd (D11) and the
 notation and the diagram share one live position without either knowing about
@@ -497,9 +520,14 @@ without that reader text navigation runs away.
 
 ## Phases
 
-- [ ] **P1 — Document model.** `process/Process.jl` (types, ctors,
-  insertions, gestures), `@domain` wiring, includes + exports,
-  `process_example` registered; construction and structural-copy test.
+- [x] **P1 — Document model.** *Done.* `process/Process.jl` (types, ctors,
+  insertions, gestures), `@domain` wiring, the include in
+  `ProjecturedDomain.jl`, and the tree walk (`process_children`,
+  `process_nodes`, `node_index`, `node_at`, `body_steps`, `unrefined_nodes`,
+  `is_executable`). `test_process()` in `document/ProcessTest.jl` covers
+  construction, document order, index round-trip, opaque embedded Julia,
+  placeholders as nodes, and the insertion kit — 66 passing.
+  `process_example` moves to P2, where there is a projection to render it.
 - [ ] **P2 — Notation.** `ProcessToSyntax.jl` template rules merged with the
   julia dispatch table; `_syntax_to_flat` readers on every compound rule;
   printer / reader / position-navigation (`check_reaches_all`) / typein /
