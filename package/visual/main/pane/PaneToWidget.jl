@@ -36,10 +36,11 @@ import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_tab_title_string, default_new_pane_tab
 import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
                             pane_close_tab_operation, pane_resize_operation,
-                            pane_move_tab_operation, pane_drop_split_operation
+                            pane_move_tab_operation, pane_drop_split_operation,
+                            pane_focus, pane_shown_tab_index
 import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation
 import ..IntentModule: Intent
-import ..EventModule: MouseMove, MouseUp
+import ..EventModule: MouseMove, MouseUp, MousePress
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
@@ -339,7 +340,23 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
         answer === nothing || return Intent(change.gesture, answer)
     end
     payload = change.operation === nothing ? change.gesture : change.operation
-    Intent(change.gesture, read_intent(p, iomap, payload))
+    answer = read_intent(p, iomap, payload)
+    # A press that nothing claimed still says which pane the user pointed at. A
+    # pane is mostly empty space — its content is a document that ends where its
+    # text ends — so without this a click beside the text would focus nothing.
+    answer === nothing && change.gesture isa MousePress &&
+        (answer = _focus_from_press(iomap, change.gesture))
+    Intent(change.gesture, answer)
+end
+
+function _focus_from_press(iomap::PaneTreeToWidgetIoMap, press)
+    landing = _drop_target(iomap, press.x, press.y)
+    landing === nothing && return nothing
+    group = landing[1]
+    tree = iomap.input
+    focus = pane_focus(tree)
+    (focus !== nothing && focus[1] === group) && return nothing
+    pane_focus_operation(tree, group, pane_shown_tab_index(group))
 end
 
 # ── The drag ───────────────────────────────────────────────────────────────

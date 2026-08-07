@@ -22,28 +22,14 @@ import ..GestureBindingModule: var"@gestures"
 import ..PaneModule: PaneTree, PaneGroup, PaneTab, default_new_pane_tab, pane_groups
 import ..PaneSurgeryModule: pane_focus, pane_focused_group, pane_focus_operation,
                             pane_open_tab_operation, pane_close_tab_operation,
-                            pane_split_operation
+                            pane_split_operation, pane_focus_title,
+                            pane_title_caret_operation, pane_retarget_title_operation,
+                            pane_shown_tab_index
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown, ModifierKeys
+
+const _NO_MODIFIERS = ModifierKeys()
 import ..PaneGeometryModule: pane_neighbour_group, pane_next_group
-
-# The tab a group shows: the one its own selection names, or its first. A group
-# that has no tab answers 0, which names the group itself.
-function _shown_index(group::PaneGroup)
-    isempty(group.tabs) && return 0
-    selection = getfield(group, :selection)[]
-    index = _tabs_index(selection)
-    (1 <= index <= length(group.tabs)) ? index : 1
-end
-
-function _tabs_index(selection)
-    selection === nothing && return 0
-    hasproperty(selection, :head) || return 0
-    head = selection.head
-    (hasproperty(head, :name) && head.name == "tabs") || return 0
-    tail = selection.tail
-    hasproperty(tail, :head) || return 0
-    step = tail.head
-    hasproperty(step, :start) ? Int(step.start) + 1 : 0
-end
 
 # ── The rules' bodies ──────────────────────────────────────────────────────
 
@@ -72,14 +58,14 @@ function _move_focus(tree::PaneTree, direction::Symbol)
     group === nothing && return nothing
     target = pane_neighbour_group(tree, group, direction)
     target === nothing && return nothing
-    pane_focus_operation(tree, target, _shown_index(target))
+    pane_focus_operation(tree, target, pane_shown_tab_index(target))
 end
 
 function _traverse(tree::PaneTree, backward::Bool)
     group = pane_focused_group(tree)
     target = pane_next_group(tree, group; backward)
     (target === nothing || target === group) && return nothing
-    pane_focus_operation(tree, target, _shown_index(target))
+    pane_focus_operation(tree, target, pane_shown_tab_index(target))
 end
 
 # The next or previous tab of the focused group, wrapping around.
@@ -91,6 +77,42 @@ function _sibling_tab(tree::PaneTree, step::Int)
     n == 0 && return nothing
     index == 0 && (index = 1)
     pane_focus_operation(tree, group, mod1(index + step, n))
+end
+
+# ── The tab title ──────────────────────────────────────────────────────────
+#
+# A rename is not a mode. The title is a text document, so putting the caret in it
+# *is* the editing state, and the editing itself is the title document's own
+# business: each keystroke is handed to `read_gesture(title, …)`, whose
+# `@gestures PrimitiveString` table inserts and deletes, and the answer is
+# re-rooted onto the tree. This slice writes no editing code.
+
+# Put the caret at the end of the focused tab's name.
+function _rename(tree::PaneTree)
+    focus = pane_focus(tree)
+    focus === nothing && return nothing
+    group, index = focus
+    index == 0 && return nothing
+    pane_title_caret_operation(tree, group, index)
+end
+
+# Leave the title: the selection goes back to the tab it names.
+function _leave_title(tree::PaneTree)
+    found = pane_focus_title(tree)
+    found === nothing && return nothing
+    pane_focus_operation(tree, found[1], found[2])
+end
+
+# Hand one keystroke to the title document and re-root what it answers. The event
+# is rebuilt from the pattern's own bound fields, because a rule body sees those
+# and not the event object.
+function _title_edit(tree::PaneTree, event)
+    found = pane_focus_title(tree)
+    found === nothing && return nothing
+    group, index = found
+    answer = read_gesture(group.tabs[index].title, event)
+    answer === nothing && return nothing
+    pane_retarget_title_operation(tree, group, index, answer)
 end
 
 # ── The table ──────────────────────────────────────────────────────────────
@@ -109,6 +131,16 @@ end
     override(KeyDown(:tab; ctrl, shift)) => "Focus the previous group" => _traverse(doc, true)
     KeyDown(:page_down; ctrl) => "Focus the next tab" => _sibling_tab(doc, 1)
     KeyDown(:page_up; ctrl) => "Focus the previous tab" => _sibling_tab(doc, -1)
+    KeyDown(:f2;) => "Put the caret in the tab name" => _rename(doc)
+    # The four rules of a rename. Each answers `nothing` unless the caret is in a
+    # name, so a key that means something else keeps meaning it — the rule body
+    # is the guard, because a `when(…)` guard sees only the event's own fields.
+    KeyDown(:escape;) => "Leave the tab name" => _leave_title(doc)
+    KeyPress(c, t) => "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS))
+    KeyDown(:backspace;) =>
+        "Delete backward in the tab name" => _title_edit(doc, KeyDown(:backspace, _NO_MODIFIERS))
+    KeyDown(:delete;) =>
+        "Delete forward in the tab name" => _title_edit(doc, KeyDown(:delete, _NO_MODIFIERS))
 end
 
 end # module PaneGesturesModule

@@ -33,14 +33,18 @@ import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
 import ..DraggingProjectionModule: MoveRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
-                          get_reference_node_type
+                          get_reference_node_type, concat_references, Position
+import ..ReferenceBuilderModule: var"@reference"
+import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
 import ..SelectionModule: get_selection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_weights, pane_normalized_weights, pane_groups, pane_parent
 
 export pane_path, pane_collection_path,
-       pane_focus, pane_focused_group, pane_focused_tab_index,
+       pane_focus, pane_focused_group, pane_focused_tab_index, pane_focus_title,
+       pane_shown_tab_index,
        pane_tab_reference, pane_focus_operation,
+       pane_title_path, pane_title_caret_operation, pane_retarget_title_operation,
        pane_open_tab_operation, pane_close_tab_operation, pane_split_operation,
        pane_move_tab_operation, pane_drop_split_operation, pane_resize_operation
 
@@ -174,7 +178,27 @@ function pane_focus(tree::PaneTree)
     selection === nothing && return nothing
     rest = _after_field(selection, "root")
     rest === nothing && return nothing
-    _focus_walk(tree.root, rest)
+    found = _focus_walk(tree.root, rest)
+    found === nothing ? nothing : (found[1], found[2])
+end
+
+"""
+    pane_focus_title(tree) -> (group, index) | Nothing
+
+The group and tab whose **title** the selection is inside, or `nothing` when it
+is anywhere else. This is what tells a rename from ordinary editing.
+"""
+function pane_focus_title(tree::PaneTree)
+    selection = get_selection(tree)
+    selection === nothing && return nothing
+    rest = _after_field(selection, "root")
+    rest === nothing && return nothing
+    found = _focus_walk(tree.root, rest)
+    found === nothing && return nothing
+    group, index, suffix = found
+    index == 0 && return nothing
+    _after_field(suffix, "title") === nothing && return nothing
+    (group, index)
 end
 
 """
@@ -197,6 +221,73 @@ function pane_focused_tab_index(tree::PaneTree)
     focus === nothing ? 0 : focus[2]
 end
 
+# ── The tab title ──────────────────────────────────────────────────────────
+
+"""
+    pane_shown_tab_index(group) -> Int
+
+The tab a group shows: the one its own selection names, or its first. A group
+with no tab answers 0, which names the group itself.
+"""
+function pane_shown_tab_index(group::PaneGroup)
+    isempty(group.tabs) && return 0
+    index, _ = _head_index(_after_field(getfield(group, :selection)[], "tabs"))
+    (index !== nothing && 1 <= index <= length(group.tabs)) ? index : 1
+end
+
+"""
+    pane_title_path(tree, group, index) -> Reference | Nothing
+
+The typed path to a tab's title document.
+"""
+function pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
+    (1 <= index <= length(group.tabs)) || return nothing
+    tab = group.tabs[index]
+    pairs = _pairs_to(tree, group)
+    pairs === nothing && return nothing
+    push!(pairs, (group, FieldReferenceStep("tabs")))
+    push!(pairs, (group.tabs, ElementReferenceStep(Int(index))))
+    push!(pairs, (tab, FieldReferenceStep("title")))
+    _reference_from(pairs, tab.title)
+end
+
+"""
+    pane_title_caret_operation(tree, group, index[, position]) -> Operation | Nothing
+
+Put the caret in a tab's title — which is the whole of what "rename" means here.
+There is no rename mode and no rename operation: the title is a text document, so
+the caret being in it *is* the editing state. `position` defaults to the end of
+the name.
+"""
+function pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer,
+                                    position = nothing)
+    path = pane_title_path(tree, group, index)
+    path === nothing && return nothing
+    title = group.tabs[index].title
+    at = position === nothing ? length(something(_title_text(title), "")) : Int(position)
+    ReplaceSelectionOperation(concat_references(path,
+        @reference ::PrimitiveString.value::String{at}::Position))
+end
+
+_title_text(title::PrimitiveString) = title.value
+_title_text(::Any) = nothing
+
+"""
+    pane_retarget_title_operation(tree, group, index, operation) -> Operation | Nothing
+
+Re-root a title edit — an operation the title document built against its own
+vocabulary — onto the tree. This is what lets the tab name be edited by the very
+gestures that edit any other string, with no editing code of its own.
+"""
+function pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer,
+                                       operation)
+    operation isa ReplaceStringRangeOperation || return nothing
+    path = pane_title_path(tree, group, index)
+    path === nothing && return nothing
+    ReplaceStringRangeOperation(concat_references(path, operation.reference),
+                                operation.replacement)
+end
+
 function _focus_walk(node, path)
     if node isa PaneSplit
         rest = _after_field(path, "elements")
@@ -207,10 +298,10 @@ function _focus_walk(node, path)
         return _focus_walk(node.elements[index], rest2)
     elseif node isa PaneGroup
         rest = _after_field(path, "tabs")
-        rest === nothing && return (node, 0)
-        index, _ = _head_index(rest)
-        index === nothing && return (node, 0)
-        return (node, (1 <= index <= length(node.tabs)) ? index : 0)
+        rest === nothing && return (node, 0, path)
+        index, suffix = _head_index(rest)
+        index === nothing && return (node, 0, rest)
+        return (node, (1 <= index <= length(node.tabs)) ? index : 0, suffix)
     end
     nothing
 end
@@ -219,6 +310,7 @@ _after_field(path::ConcreteReference, name::String) =
     (path.head isa FieldReferenceStep && path.head.name == name) ? path.tail : nothing
 _after_field(::Any, ::String) = nothing
 
+_head_index(::Nothing) = (nothing, nothing)
 function _head_index(path)
     path isa ConcreteReference || return (nothing, path)
     step = path.head
