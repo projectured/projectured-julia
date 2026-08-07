@@ -108,12 +108,16 @@ function test_gesture_help()
         @test !state.open
     end
 
-    # Through the *real* default editor pipeline (`_multi_window_projection`),
-    # rendering the help window all the way to graphics — guards the live wiring
-    # (the type seam + content decoration) against drift.
+    # Through the *real* editor pipeline (`_multi_window_projection`), rendering
+    # the help window all the way to graphics — guards the live wiring (the type
+    # seam + content decoration) against drift. The decorator is a `run_example`
+    # flag (`gesture_help=true`), which wraps the example's own projection before
+    # composing, so this test wraps it the same way.
     @testset "F1 opens a help window through the real editor pipeline" begin
         arr = mkarr()
-        composed = ProjecturedDomainExample._multi_window_projection([make_json_projection_example()])
+        decorated = GestureHelpProjection(inner = make_json_projection_example(),
+                                          state = GestureHelpState())
+        composed = ProjecturedDomainExample._multi_window_projection([decorated])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
@@ -128,6 +132,18 @@ function test_gesture_help()
         # JSON document's 9 own gestures — proving the chain-wide collection.
         @test length(rows) > 9
         @test any(r -> occursin("Insert a new element", r.description), rows)
+    end
+
+    # The decorator is opt-in. Without it, F1 reaches the content pipeline and no
+    # help window opens.
+    @testset "an undecorated pipeline opens no help window" begin
+        arr = mkarr()
+        composed = ProjecturedDomainExample._multi_window_projection([make_json_projection_example()])
+        screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
+        iomap = print_document(composed, screen)
+
+        read_intent(composed, iomap, WindowInput(:json, f1))
+        @test length(screen.windows) == 1
     end
 
     # A decorator projection's `collect_gesture_bindings` gathers its own gestures *and*

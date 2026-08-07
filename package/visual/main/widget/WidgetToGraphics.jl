@@ -1938,7 +1938,10 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
             push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
             content_y += b.line_h + p.band_gap
         end
-        if w.content isa WidgetDocument
+        # Any content, not only a widget: the recursion decides how it renders, so
+        # a shell frames a domain document the same way a tab of a
+        # WidgetTabbedPane holds one. An absent content is the only empty case.
+        if w.content !== nothing
             cim = content_cell[]
             push!(child_iomaps, (cox, content_y, cim))
             push!(elems, _make_canvas(cox, content_y, Any[cim.output]))

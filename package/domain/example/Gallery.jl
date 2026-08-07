@@ -17,7 +17,8 @@ end
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, workbench=false, reset=false,
                 tooltip=false, inspector=false, introspection=false, selection=nothing,
-                profile=false)
+                shell=false, hover=false, dragging=false, gesture_help=false,
+                command_palette=false, profile=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -78,6 +79,38 @@ off (pasting OS text into an arbitrary node domain is not type-safe); the
 dedicated `clipboard_example` wires JSON converters for it. Incompatible with
 `tooltip` and `inspector`.
 
+Five more wrappers are layers rather than alternatives, so they compose with
+each other and with one of the wrappers above. They apply in this order, and a
+projection wrapper that comes later sits further out: `dragging`, `shell`,
+`caching`, `hover`, `gesture_help`, `command_palette`.
+
+When `dragging=true`, each example's document is wrapped in a `DraggingState`
+and its projection in a `DraggingProjection`. A press that travels more than a
+few pixels becomes a drag, and the drop reorders the collection under the grab
+point. The wrapper is transparent to the printer, so the content renders
+unchanged. The dedicated `dragging_example` wires the same pair by hand.
+
+When `shell=true`, each example's document is wrapped in a `WidgetShell`, so the
+content sits inside a top-level window frame with a menu bar, a toolbar, and a
+status bar that names the example. The chrome's commands are inert: a submenu
+needs a popup resolver, which this pipeline does not compose.
+
+When `hover=true`, each example's projection is wrapped in a
+`WidgetHoverTrackingProjection`. Container hit-routing delivers a `MouseMove`
+only to the child under the pointer, so the tracker is what synthesises the
+`MouseEnter` / `MouseLeave` crossings a widget needs to clear its `hovered`
+flag. Pass it for an example whose own projection does not already track hover.
+
+When `gesture_help=true`, each example's projection is wrapped in a
+`GestureHelpProjection`, so `F1` in the focused window opens a help window
+(id `:gesture_help`) listing the gestures collected from that content's own
+pipeline. One shared state backs every window, so `F1` toggles one window.
+
+When `command_palette=true`, each example's projection is wrapped in the command
+type-in overlay: one hot key opens a field that runs a named operation. The
+decorator is still being implemented, so this flag raises an error today — see
+`plan/pending/command-palette.md`.
+
 When `profile=true`, the read-eval-print loop runs under `Profile.@profile`.
 The profile buffer is cleared first; once the editor window is closed (the
 loop exits) a sampled backtrace report is printed via `Profile.print`.
@@ -113,7 +146,8 @@ run_example(document, projection; name::AbstractString="document", kwargs...) =
 The `Example`-free core: open one window per `(documents[i], projections[i])`
 pair, side by side, applying the same optional cross-domain wrappers (workbench,
 tooltip, inspector, introspection, clipboard, text filtering/highlighting,
-caching). `names[i]` is window i's id/title and must be unique. Every keyword is
+caching, dragging, shell, hover, gesture help, command palette). `names[i]` is
+window i's id/title and must be unique. Every keyword is
 identical to the `Example` overloads *except* `reset` — there are no factories to
 re-run here, so pass freshly built documents/projections when you need a clean
 state. This is the overload the `Example`-based `run_example` methods delegate to.
@@ -128,6 +162,8 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
                      tooltip=false, inspector=false, introspection=false,
                      clipboard=false, clipboard_collection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
+                     shell=false, hover=false, dragging=false,
+                     gesture_help=false, command_palette=false,
                      profile=false, backend=nothing, on_frame=nothing)
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
@@ -159,6 +195,9 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     # Apply the flags to each (document, projection) pair.
     docs  = Any[]
     projs = Any[]
+    # One open/closed flag for the gesture-help window, shared by every window's
+    # decorator, so F1 toggles the same window wherever the focus is.
+    help_state = GestureHelpState()
     for i in eachindex(documents)
         document   = documents[i]
         projection = projections[i]
@@ -197,8 +236,30 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         elseif text_filtering
             projection = make_text_configuring_projection(TextFiltering("dolor"))
         end
+        # The layered wrappers. Each one composes with the exclusive wrapper above
+        # and with the others, in this order, so a projection wrapper that comes
+        # later sits further out. Keep the order in step with `content_unwrap`
+        # below, which names the fields these document wrappers introduce.
+        if dragging
+            document   = make_dragging_document(document)
+            projection = make_dragging_projection(projection)
+        end
+        if shell
+            document   = make_shell_document(document; title=names[i], width=width, height=height)
+            projection = make_shell_projection(projection)
+        end
         if caching
             projection = make_graphics_caching(projection)
+        end
+        if hover
+            projection = WidgetHoverTrackingProjection(inner = projection)
+        end
+        if gesture_help
+            # One shared state for every window, so F1 toggles one help window.
+            projection = GestureHelpProjection(inner = projection, state = help_state)
+        end
+        if command_palette
+            projection = make_command_palette_projection(projection)
         end
         push!(docs, document)
         push!(projs, projection)
@@ -214,8 +275,14 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         docs = tt_docs
     end
 
-    # How deep the original (selection-bearing) document sits under `win.content`.
-    content_unwrap = tooltip ? :tooltip : clipboard ? :clipboard : :plain
+    # The fields that lead from `win.content` down to the original
+    # (selection-bearing) document, outermost first. The order mirrors the order
+    # the wrappers were applied in, reversed.
+    content_unwrap = Symbol[]
+    tooltip   && push!(content_unwrap, :child)
+    shell     && push!(content_unwrap, :content)
+    dragging  && push!(content_unwrap, :content)
+    clipboard && push!(content_unwrap, :content)
     # `compose(projs, backend)` — the inspector pipeline needs the backend for its
     # pointer closure, hence the second argument.
     compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> get_pointer_position(b)) :
@@ -229,9 +296,11 @@ end
 
 # Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
 # first window-content's selection to a screen-rooted path. Each `names[i]` becomes
-# window i's id/title (ids must be unique within the screen). `content_unwrap` says
-# how deep the original (selection-bearing) document sits under `win.content`:
-# `:plain` (the content itself), `:tooltip` (`.child`), or `:clipboard` (`.content`).
+# window i's id/title (ids must be unique within the screen). `content_unwrap` names
+# the fields that lead from `win.content` down to the original (selection-bearing)
+# document, outermost first: `Symbol[]` (the content itself), `[:child]` (a tooltip
+# source), `[:content]` (a clipboard, a dragging state, or a shell), and a longer
+# chain when those wrappers stack.
 #
 # The selection lift matters because the screen and intermediate WindowDocument keep
 # `selection = nothing` while the inner document may carry a deep selection; without
@@ -242,7 +311,8 @@ end
 #
 # Factored out of `run_example` so other entry points (e.g. `run_file_editor`) share
 # the exact same scene assembly. Pure (no backend, no window) so it is testable.
-function _build_window_scene(docs, names; width, height, content_unwrap::Symbol=:plain)
+function _build_window_scene(docs, names; width, height,
+                             content_unwrap::Vector{Symbol}=Symbol[])
     seen_ids = Set{Symbol}()
     windows = WindowDocument[]
     for (i, nm) in enumerate(names)
@@ -262,18 +332,38 @@ function _build_window_scene(docs, names; width, height, content_unwrap::Symbol=
     screen = ScreenDocument(windows)
 
     for (i, win) in enumerate(windows)
-        root_doc = content_unwrap === :tooltip   ? win.content.child :
-                   content_unwrap === :clipboard ? win.content.content :
-                                                   win.content
+        root_doc = _unwrap_content(win.content, content_unwrap)
         inner_sel = getfield(root_doc, :selection)[]
         inner_sel === nothing && continue
-        full_path = content_unwrap === :tooltip   ? (@reference(screen, windows[i].content.child.^(inner_sel))) :
-                    content_unwrap === :clipboard ? (@reference(screen, windows[i].content.content.^(inner_sel))) :
-                                                    (@reference(screen, windows[i].content.^(inner_sel)))
+        content_sel = _prefix_content_fields(win.content, content_unwrap, inner_sel)
+        full_path = @reference(screen, windows[i].content.^(content_sel))
         set_selection!(screen, full_path)
         break
     end
     screen
+end
+
+# Follow `fields` (outermost first) down from `document` to the document that
+# carries the seeded selection.
+function _unwrap_content(document, fields)
+    for f in fields
+        document = getproperty(document, f)
+    end
+    document
+end
+
+# Prefix `fields` onto `selection`, so a path rooted at the innermost document
+# becomes one rooted at `document`. Each level is built against the document it
+# addresses, which is what folds that node's type into the step. The wrappers are
+# a closed set, so the two field names they introduce are spelled out — a
+# `@reference` path names its steps literally.
+function _prefix_content_fields(document, fields, selection)
+    isempty(fields) && return selection
+    child = getproperty(document, fields[1])
+    inner = _prefix_content_fields(child, fields[2:end], selection)
+    fields[1] === :child   && return @reference(document, child.^(inner))
+    fields[1] === :content && return @reference(document, content.^(inner))
+    error("_prefix_content_fields: no wrapper introduces the field :$(fields[1])")
 end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
@@ -312,20 +402,15 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
     for i in 1:n
         targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
     end
-    # One shared open/closed flag for the gesture-help window, threaded into every
-    # (per-dispatch, transient) decorator so F1 toggles the same window.
-    help_state = GestureHelpState()
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
-        # Exact match — apply that window's example projection here, wrapped in a
-        # GestureHelpProjection so F1 in the focused window opens a help window
-        # listing the gestures collected from this content's own pipeline. The
+        # Exact match — apply that window's example projection here. The
         # NestingProjection (recursion=IdentityProjection) lets the inner
-        # projection's own recursion take over below this point.
+        # projection's own recursion take over below this point. A gesture-help
+        # decorator, when the caller asked for one, is already part of that
+        # projection — `run_example` wraps it before composing.
         for i in 1:n
             is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
-            return GestureHelpProjection(
-                inner = NestingProjection(projections[i]; recursion=IdentityProjection()),
-                state = help_state)
+            return NestingProjection(projections[i]; recursion=IdentityProjection())
         end
         # The ScreenDocument root is the window-management seam: route it
         # through WindowManagingProjection (window open/close/resize ops are
@@ -344,13 +429,18 @@ function _multi_window_projection(projections::Vector; measure=truetype_measure_
     return RecursiveProjection(
         TypeDispatchingProjection(
             WindowDocument => ScreenToScreen(),
-            GestureMap     => ChainingProjection(GestureMapToSyntax(),
-                                                   RecursiveProjection(SyntaxToText()),
-                                                   WordWrapping(measure=measure),
-                                                   TextToGraphics(measure=measure)),
+            _gesture_map_entry(measure),
             Any            => ref_dispatch,
         ))
 end
+
+# The type entry that renders the gesture-help window's content. Every composer
+# carries it, so `gesture_help=true` works whichever one the flags pick.
+_gesture_map_entry(measure) =
+    GestureMap => ChainingProjection(GestureMapToSyntax(),
+                                     RecursiveProjection(SyntaxToText()),
+                                     WordWrapping(measure=measure),
+                                     TextToGraphics(measure=measure))
 
 # ── Tooltip variant ──────────────────────────────────────────────────────
 #
@@ -416,6 +506,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=truety
             WindowDocument => ScreenToScreen(),
             CellVector     => CopyingProjection(),
             TooltipSource  => decorator,
+            _gesture_map_entry(measure),
             TextBlock       => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
         ),
@@ -455,6 +546,7 @@ function _multi_window_projection_inspector(projections::Vector; measure=truetyp
             ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
                                                        WordWrapping(measure=measure),
                                                        TextToGraphics(measure=measure)),
+            _gesture_map_entry(measure),
             TextBlock           => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any                => ref_dispatch,
         ),

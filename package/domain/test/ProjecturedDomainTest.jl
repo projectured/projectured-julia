@@ -106,6 +106,7 @@ include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/ConversationParsingTest.jl")
 include("editor/ConversationSerializationTest.jl")
+include("editor/GalleryWrapperTest.jl")
 include("editor/JuliaTypeinTest.jl")
 include("editor/McpTest.jl")
 include("editor/WorkbenchFileTest.jl")
@@ -225,6 +226,7 @@ function test_domain()
         test_assistant_composer_panel()
         test_assistant_mvp()
         test_workbench_file_keys()
+        test_gallery_wrappers()
         test_table_navigation()
     end
 end
@@ -270,7 +272,7 @@ export test_gesture_map, test_gesture_help, test_db_catalog_sql,
        test_mcp_resources, test_conversation_serialization, test_parse_markdown_blocks,
        test_document_insertion, test_julia_typein, test_conversation_editor,
        test_assistant_composer_panel, test_assistant_mvp, test_workbench_file_keys,
-       test_table_navigation
+       test_gallery_wrappers, test_table_navigation
 export test_json_file, test_file_project_s4, test_file_project_s5, test_julia_and_markdown_file, test_xml_file
 export test_marker_vocabulary, test_markdown_embed, test_julia_parser
 

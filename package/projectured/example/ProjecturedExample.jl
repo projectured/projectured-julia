@@ -124,6 +124,8 @@ export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
 export make_workbench_document, make_workbench_projection
 export make_introspection_document, make_introspection_projection, EditorIntrospection
+export make_dragging_document, make_dragging_projection
+export make_shell_document, make_shell_projection, make_command_palette_projection
 export make_text_configuring_projection
 export Example, examples, run_example, run_console_example, print_example, write_example_image, write_example_pdf, record_example_video, make_typein_gestures
 export make_json_console_projection_example

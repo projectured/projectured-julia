@@ -10,6 +10,41 @@ function make_scrolling_projection(projection; measure=truetype_measure_text,
     )
 end
 
+# Apply DraggingProjection at the DraggingState wrapper and hand the inner
+# `content` to the example's own projection — the `make_scrolling_projection`
+# shape. The dragging printer is transparent, so the content renders as usual;
+# its reader turns press → drag → drop into a MoveRangeOperation. Pairs with
+# `make_dragging_document`; the domain-specific twin is
+# `make_dragging_projection_example`.
+make_dragging_projection(projection) =
+    NestingProjection(DraggingProjection(); recursion = projection)
+
+# Render a WidgetShell and the content it frames: the shell's own bands are
+# widgets, and the content slot defers to the example's projection. This is the
+# introspection dispatch, with a shell in place of the tabbed pane. Pairs with
+# `make_shell_document`.
+function make_shell_projection(projection; measure=truetype_measure_text,
+                               font=font_ubuntu_regular_20)
+    w2g = WidgetToGraphics(font; measure=measure)
+    RecursiveProjection(TypeDispatchingProjection(vcat(
+        w2g.dispatch,
+        Pair{Type,Any}[
+            Any => NestingProjection(projection; recursion=IdentityProjection()),
+        ],
+    )))
+end
+
+# The call site that Phase 5 of the command-palette plan fills in: wrap a
+# pipeline in the command type-in overlay, so one hot key opens a field that runs
+# a named operation. `CommandPaletteProjection` is still being implemented, so
+# the gallery's `command_palette=true` reaches this and stops here. Replace the
+# body with the decorator once it lands — see plan/pending/command-palette.md.
+function make_command_palette_projection(projection)
+    error("make_command_palette_projection: the command type-in overlay is not " *
+          "implemented yet; CommandPaletteProjection is in progress " *
+          "(see plan/pending/command-palette.md)")
+end
+
 function make_introspection_projection(projection; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
