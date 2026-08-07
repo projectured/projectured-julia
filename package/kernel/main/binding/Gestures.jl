@@ -8,6 +8,7 @@
 #     @gestures DocumentType begin
 #         when(<precondition over doc, sel>)          # optional, block-level
 #         PATTERN => "human description" => rhs        # description optional
+#         nothing => "human description" => rhs        # no gesture: run it by name
 #         when(PATTERN, guard) => "desc" => rhs        # per-rule event guard
 #         override(PATTERN) => "desc" => rhs           # claims a key the output layers took
 #         ...
@@ -24,6 +25,26 @@
 # own context — XML's `<` inside a tag name. Without it a key the text layer absorbed
 # never reaches the document at all, which is what lets an ordinary structural gesture
 # skip the "am I inside a string?" guard entirely.
+
+# Is this pattern slot the absence of a gesture? The parser hands `nothing` over as
+# the symbol it was written as; a spliced value arrives as `nothing` itself.
+_is_no_pattern(ex) = ex === :nothing || ex === nothing
+
+# Build the `GestureBinding(...)` expression for a command rule — a rule whose
+# pattern slot is `nothing`. `rhs` is everything right of the `=>`, and it must be
+# `"description" => body`: the description is mandatory here, because it is the name
+# the user types and there is no pattern to derive a rendering from. The operation
+# closure still takes an event so every binding fires through one loop, but the
+# event is unused — a command rule binds no pattern variable.
+function _command_binding_expr(rhs, domain::String)
+    (rhs isa Expr && rhs.head == :call && rhs.args[1] == :(=>) && rhs.args[2] isa String) ||
+        error("@gestures: a `nothing` rule needs a description — write `nothing => \"what it does\" => rhs`, got `$rhs`")
+    description = rhs.args[2]
+    body = rhs.args[3]
+    operation = :(($(esc(:doc)), $(gensym(:event))) -> $(esc(body)))
+    :(GestureBinding(nothing, $operation, _applicable,
+                     $description, $domain, false, $description))
+end
 
 # Parse a `@gestures` / `@gesture_set` body into `(applicable_expr, items)`: the
 # block precondition closure expression and the ordered list of table entries — each
@@ -58,8 +79,17 @@ function _parse_gesture_block(entries, domain::String)
         if lhs isa Expr && lhs.head == :call && lhs.args[1] == :override
             length(lhs.args) == 2 ||
                 error("@gestures: `override` wraps exactly one pattern, got `$lhs`")
+            _is_no_pattern(lhs.args[2]) &&
+                error("@gestures: `override(nothing)` is not a rule — override claims a key, and a `nothing` rule has none")
             override = true
             e = Expr(:call, :(=>), lhs.args[2], e.args[3])
+        end
+        # A command rule: `nothing => "description" => rhs`. The pattern slot holds
+        # what the field holds, so the absence of a gesture needs no second surface.
+        # The event parser never sees it — it reads a bare symbol as an event type.
+        if _is_no_pattern(lhs)
+            push!(items, _command_binding_expr(e.args[3], domain))
+            continue
         end
         rule = parse_event_pattern_rule(e)
         rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
@@ -82,12 +112,25 @@ function _parse_gesture_block(entries, domain::String)
         pattern = build_event_pattern_expr(rule, guard)
 
         # Operation closure: (doc, event) -> rhs, with bound fields in scope.
-        operation = :(($document, $event) -> $(build_event_field_bindings(rule, event, esc(body))))
+        # `build_event_field_bindings` returns the body untouched when the rule binds
+        # no pattern variable, and wraps it in a `let` when it does. Identity of the
+        # result is therefore the answer to "does this rhs read the event?", asked
+        # through the parser's own exported form rather than its field types.
+        escaped_body = esc(body)
+        bound_body = build_event_field_bindings(rule, event, escaped_body)
+        reads_event = bound_body !== escaped_body
+        operation = :(($document, $event) -> $bound_body)
 
         description_expr = description === nothing ? :(describe_event_pattern($pattern)) : description
 
+        # The name a user types to run the rule from a command list. A rule with no
+        # authored description has no name to type: its description is the gesture
+        # rendering ("Ctrl+K"). A rule that reads the event has no name either,
+        # because a name carries no event.
+        name_expr = (description === nothing || reads_event) ? :nothing : description
+
         push!(items, :(GestureBinding($pattern, $operation, _applicable,
-                                      $description_expr, $domain, $override)))
+                                      $description_expr, $domain, $override, $name_expr)))
     end
 
     applicable = precondition === nothing ?
@@ -105,6 +148,12 @@ of:
   - `PATTERN => "description" => rhs` — a rule (description optional); `PATTERN` uses
     the event pattern syntax, `rhs` builds the operation with `doc`, `event` and any
     bound pattern variables in scope.
+  - `nothing => "description" => rhs` — a rule with **no gesture**. No key and no
+    click reaches it. A user runs it by its description, which is also its name, so
+    the description is mandatory here. `override(nothing)` is an error, and the rhs
+    reads `doc` and `sel` only. This is how an operation reaches a user without
+    spending a key on it, from the one table that already says what a document can
+    do.
   - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
   - `override(PATTERN) => …` — a rule that claims its key even when an output layer
     already turned it into an operation (see [`GestureBinding`](@ref)). Without it, a

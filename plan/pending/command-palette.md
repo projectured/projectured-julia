@@ -39,9 +39,12 @@ Three small edits, all in the unsealed binding layer:
 
 1. `GestureBinding.pattern::Union{EventPattern,Nothing}`. `nothing` means the
    binding has no gesture and only a name reaches it.
-2. `fire_gesture_bindings` skips a binding whose pattern is `nothing`, so such a
+2. `GestureBinding.name::Union{String,Nothing}` — the name a user types.
+3. `fire_gesture_bindings` skips a binding whose pattern is `nothing`, so such a
    binding never fires from a key or a click.
-3. `@gestures` accepts `nothing` in the pattern position of the rule form it
+4. `fire_named_gesture_binding(bindings, target, selection, name)` — the
+   counterpart that selects a binding by name and passes `nothing` for the event.
+5. `@gestures` accepts `nothing` in the pattern position of the rule form it
    already has. There is no new rule form and no new keyword:
 
 ```julia
@@ -70,6 +73,17 @@ Two edits in `_parse_gesture_block` carry this. Match `nothing` in the pattern
 position before the call to `parse_event_pattern_rule`, which expects a call
 expression. Then emit the binding with a `nothing` pattern and the authored
 description.
+
+**The name lives on the binding, not on the row.** `@gestures` decides it once,
+because only the macro knows whether the author wrote a description and whether
+the rule reads the event. Everything downstream reads one field.
+
+**How the macro knows the rule reads the event.** `build_event_field_bindings`
+returns the body untouched when the rule binds no pattern variable, and wraps it
+in a `let` when it does. The macro compares the result with the body it passed
+in. The obvious test — `f isa BoundField` over `rule.fields` — is a layering
+error, and `test_kernel_layering()` rejects it: `BoundField` is not exported from
+the sealed `EventPattern.jl`, so no other module may name it.
 
 The alternative is a second table of named operations beside the gesture table.
 The architecture rejects that: what fires and what a listing shows must come
@@ -255,17 +269,28 @@ Every file above is unsealed. No sealed file changes.
 
 Do the work in a dedicated git worktree. Commit after each phase.
 
-### Phase 1 — a binding with no gesture
+### Phase 1 — a binding with no gesture — **done**
 
-1. Widen `GestureBinding.pattern` to `Union{EventPattern,Nothing}`.
-2. Skip a `nothing` pattern in `fire_gesture_bindings`.
-3. Accept `nothing` in the pattern position of a `@gestures` rule.
-4. Raise an error when a `nothing` rule carries no description.
-5. Raise an error for `override(nothing)`.
-6. Record the name and the run flag from the rule the macro parsed.
-7. Run `test_kernel()`.
+1. ~~Widen `GestureBinding.pattern` to `Union{EventPattern,Nothing}`.~~
+2. ~~Skip a `nothing` pattern in `fire_gesture_bindings`.~~
+3. ~~Accept `nothing` in the pattern position of a `@gestures` rule.~~
+4. ~~Raise an error when a `nothing` rule carries no description.~~
+5. ~~Raise an error for `override(nothing)`.~~
+6. ~~Add the `name` field and `fire_named_gesture_binding`.~~
+7. ~~Run `test_kernel()`.~~
 
-Expect no behaviour change for any existing binding.
+`test_kernel()` reports 1393 passed, 3 failed, 2 errored. The five are the known
+`DocumentMacro` "Rule C" cases, which fail on clean `main` in a kernel-only
+environment. `test_gesture_binding()` reports 66 passed, up from 46.
+
+Two facts found during the work:
+
+- **The layering guard rejects the obvious implementation.** See "How the macro
+  knows the rule reads the event" above.
+- **`ConversationEditor.composer_read` re-implemented the firing loop.** It
+  matched every binding's pattern by hand, so a `nothing` pattern would have
+  reached `matches_event_pattern`. It now calls `fire_gesture_bindings`, which is
+  what the module documentation says every holder of bindings must do.
 
 ### Phase 2 — the rows
 

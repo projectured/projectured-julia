@@ -11,7 +11,9 @@ The pieces:
 - **`GestureBinding`** — an `EventPattern` (what input fires it, and how it is
   described) + `operation(document, event) -> Operation | Nothing` (build the edit)
   + `applicable(document, selection) -> Bool` (an *event-independent* state
-  precondition) + a human `description` + a `domain` tag.
+  precondition) + a human `description` + a `domain` tag + an optional `name`.
+  The pattern is **optional**: a binding with no pattern has no gesture at all,
+  and only its name reaches it — see [`fire_named_gesture_binding`](@ref).
 - **Registry** keyed by document type, with supertype inheritance:
   `get_document_gesture_bindings(T)` collects `T`'s own bindings plus every
   supertype's, so a declaration on an abstract document type covers its subtypes for
@@ -33,15 +35,20 @@ using ..DocumentModule
 export GestureBinding,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings, get_applicable_gesture_bindings,
-       fire_gesture_bindings, read_gesture, read_bound_gesture,
+       fire_gesture_bindings, fire_named_gesture_binding,
+       read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"
 
 """
-    GestureBinding(pattern, operation, applicable, description, domain, override = false)
+    GestureBinding(pattern, operation, applicable, description, domain,
+                   override = false, name = nothing)
 
 One reified gesture → operation rule.
 
-- `pattern::EventPattern` — what input fires it (and how it is described).
+- `pattern::Union{EventPattern,Nothing}` — what input fires it (and how it is
+  described). `nothing` means the binding has **no gesture**: no key and no click
+  reaches it, and only its `name` does. That is what a command is — an operation
+  the user runs by name, from the same table every gesture lives in.
 - `operation::Function` — `(document, event) -> Operation | Nothing`, builds the edit
   in the document's own reference vocabulary. May return `nothing` for a finer,
   event-dependent guard that the precondition cannot express.
@@ -56,18 +63,27 @@ One reified gesture → operation rule.
   string without a guard. A binding whose key can never be text in its own context
   sets this (XML's `<` inside a tag name inserts a child element). See
   [`fire_gesture_bindings`](@ref).
+- `name::Union{String,Nothing}` — the name a user types to run the binding by
+  name, or `nothing` when the binding has none. `@gestures` fills it in only when
+  the author wrote a description **and** the rule binds no pattern variable, so
+  the operation closure does not read the event. A binding with no name is
+  reachable by its gesture alone.
 """
 struct GestureBinding
-    pattern::EventPattern
+    pattern::Union{EventPattern,Nothing}
     operation::Function
     applicable::Function
     description::String
     domain::String
     override::Bool
+    name::Union{String,Nothing}
 end
 
 GestureBinding(pattern, operation, applicable, description, domain) =
-    GestureBinding(pattern, operation, applicable, description, domain, false)
+    GestureBinding(pattern, operation, applicable, description, domain, false, nothing)
+
+GestureBinding(pattern, operation, applicable, description, domain, override::Bool) =
+    GestureBinding(pattern, operation, applicable, description, domain, override, nothing)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Registry (own bindings per type) + supertype inheritance
@@ -138,6 +154,9 @@ The firing loop: the first binding whose pattern matches the event, whose
 returns non-`nothing`, wins. A binding whose operation returns `nothing` is a finer
 event-dependent decline and is skipped, so a later binding may still fire.
 
+A binding with no pattern is skipped: it has no gesture, so no event fires it. Run
+it with [`fire_named_gesture_binding`](@ref).
+
 `claimed` is the operation an *output* layer has already produced for this event, or
 `nothing` when the event is unclaimed. A claimed event only fires bindings marked
 `override`: the reader runs last-to-first, so anything the output layers understood
@@ -151,11 +170,38 @@ than walking them itself, so *what fires* cannot drift from what a listing shows
 """
 function fire_gesture_bindings(bindings, target, selection, event, claimed = nothing)
     for binding in bindings
+        binding.pattern === nothing && continue
         claimed === nothing || binding.override || continue
         if matches_event_pattern(binding.pattern, event) && binding.applicable(target, selection)
             operation = binding.operation(target, event)
             operation === nothing || return operation
         end
+    end
+    return nothing
+end
+
+"""
+    fire_named_gesture_binding(bindings, target, selection, name) -> Operation | Nothing
+
+Run the first binding of `bindings` called `name`, whose `applicable`
+precondition holds for `target` + `selection`, and whose `operation` returns
+non-`nothing`. The counterpart of [`fire_gesture_bindings`](@ref): where that one
+selects a binding by the event that fires it, this one selects it by the name a
+user types.
+
+The operation closure gets `nothing` for the event. A named binding never reads
+the event, because `@gestures` withholds the name from a rule that binds a
+pattern variable.
+
+`claimed` has no counterpart here. A name comes from a user who picked a command
+from a list, so no output layer can have taken it first.
+"""
+function fire_named_gesture_binding(bindings, target, selection, name::AbstractString)
+    for binding in bindings
+        binding.name == name || continue
+        binding.applicable(target, selection) || continue
+        operation = binding.operation(target, nothing)
+        operation === nothing || return operation
     end
     return nothing
 end

@@ -56,8 +56,8 @@ import ..DocumentInsertionToSyntaxModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
 import ..EventModule: KeyDown, KeyPress
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern, KeyPressPattern, matches_event_pattern
+import ..GestureBindingModule: GestureBinding, fire_gesture_bindings
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
@@ -584,16 +584,10 @@ end
 
 # Fire the first binding whose pattern matches (and precondition holds). Shared by the
 # composer projection and the live assistant panel (both route input keys to the draft);
-# a non-`ConversationDraft` first argument has no composer gestures.
-function composer_read(draft::ConversationDraft, evt)
-    for b in _composer_bindings(draft)
-        if matches_event_pattern(b.pattern, evt) && b.applicable(draft, nothing)
-            op = b.operation(draft, evt)
-            op === nothing || return op
-        end
-    end
-    nothing
-end
+# a non-`ConversationDraft` first argument has no composer gestures. The draft carries
+# no selection of its own, so the precondition gets `nothing` for one.
+composer_read(draft::ConversationDraft, evt) =
+    fire_gesture_bindings(_composer_bindings(draft), draft, nothing, evt)
 
 composer_read(::Any, ::Any) = nothing
 

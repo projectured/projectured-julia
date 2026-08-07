@@ -53,6 +53,21 @@ end
     KeyPress('b')                  => "beta only"     => MarkOperation(:beta)
 end
 
+# A table that mixes every naming case: a named gesture rule, an unnamed one, a rule
+# that reads the event, and two rules with no gesture at all.
+@document struct CommandProbe
+    value::Int = 0
+end
+
+@gestures CommandProbe begin
+    when(sel !== nothing)
+    KeyPress('x')                  => "cut it"        => MarkOperation(:cut)
+    KeyPress('y')                                     => MarkOperation(:unnamed)
+    when(KeyPress(c), isdigit(c))  => "set digit"     => MarkOperation(Symbol(c))
+    nothing                        => "sort the keys" => MarkOperation(:sort)
+    nothing                        => "reverse"       => MarkOperation(:reverse)
+end
+
 # A tiny operation stand-in so the binding RHS produces something identifiable.
 struct MarkOperation
     tag::Symbol
@@ -161,6 +176,80 @@ function test_gesture_binding()
         @test read_gesture(a, KeyPress('a')) == MarkOperation(:alpha)
         @test read_gesture(b, KeyPress('b')) == MarkOperation(:beta)
         @test read_gesture(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha
+    end
+
+    @testset "a `nothing` rule is a binding with no gesture" begin
+        own = get_document_gesture_bindings_own(CommandProbe)
+        @test length(own) == 5
+        @test [b.pattern === nothing for b in own] == [false, false, false, true, true]
+        # The description of a rule with no gesture is its name, so it reads as itself
+        # in a listing.
+        @test own[4].description == "sort the keys"
+    end
+
+    @testset "a name is given only to a rule that can be run by one" begin
+        own = get_document_gesture_bindings_own(CommandProbe)
+        @test [b.name for b in own] ==
+              ["cut it", nothing, nothing, "sort the keys", "reverse"]
+        # own[2] wrote no description, so its description is the gesture rendering.
+        @test own[2].description == "y"
+        # own[3] reads the event through its bound `c`, so a name could not run it.
+        @test own[3].description == "set digit"
+    end
+
+    @testset "no event fires a rule with no gesture" begin
+        probe = CommandProbe()
+        probe.selection = EmptyReference()
+        @test read_bound_gesture(probe, KeyPress('x')) == MarkOperation(:cut)
+        # An unmatched event walks the WHOLE table, past both `nothing` patterns. The
+        # walk must skip them rather than ask them to match.
+        @test read_bound_gesture(probe, KeyPress('z')) === nothing
+        @test read_bound_gesture(probe, KeyDown(:return, ModifierKeys())) === nothing
+    end
+
+    @testset "fire_named_gesture_binding runs a binding by its name" begin
+        probe = CommandProbe()
+        probe.selection = EmptyReference()
+        own = get_document_gesture_bindings(CommandProbe)
+        sel = probe.selection
+        @test fire_named_gesture_binding(own, probe, sel, "sort the keys") == MarkOperation(:sort)
+        @test fire_named_gesture_binding(own, probe, sel, "reverse") == MarkOperation(:reverse)
+        # A gesture rule that carries a name runs by that name too.
+        @test fire_named_gesture_binding(own, probe, sel, "cut it") == MarkOperation(:cut)
+        # An unknown name, and a description that is not a name, run nothing.
+        @test fire_named_gesture_binding(own, probe, sel, "no such command") === nothing
+        @test fire_named_gesture_binding(own, probe, sel, "set digit") === nothing
+        @test fire_named_gesture_binding(own, probe, sel, "y") === nothing
+    end
+
+    @testset "the precondition gates a named run as it gates a gesture" begin
+        probe = CommandProbe()                # selection === nothing → precondition false
+        own = get_document_gesture_bindings(CommandProbe)
+        @test fire_named_gesture_binding(own, probe, probe.selection, "sort the keys") === nothing
+    end
+
+    @testset "@gestures rejects a nameless or overriding `nothing` rule" begin
+        nameless = try
+            @eval @gestures CommandProbe begin
+                nothing => MarkOperation(:nameless)
+            end
+            nothing
+        catch e
+            e
+        end
+        @test nameless !== nothing
+        @test occursin("needs a description", sprint(showerror, nameless))
+
+        overriding = try
+            @eval @gestures CommandProbe begin
+                override(nothing) => "claims nothing" => MarkOperation(:bad)
+            end
+            nothing
+        catch e
+            e
+        end
+        @test overriding !== nothing
+        @test occursin("override", sprint(showerror, overriding))
     end
 
 end
