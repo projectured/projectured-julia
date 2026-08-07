@@ -147,23 +147,17 @@ A click in a pane's empty space focuses it. Without that, most of a pane would b
 dead: its content is a document that ends where its text ends, so a press beside
 the text hits no element at all.
 
-## A split re-prints; everything else is reactive
+## Every edit is reactive
 
-`WidgetSplitPane` fixes its slot count when it is printed — its per-slot cells,
-child IoMaps and canvas children are all built for the count it saw. So a split
-that adds or removes a pane can **not** reach the screen through the IoMaps that
-are already standing: the layout would keep the shape it was printed with, and
-the document would silently run ahead of the display.
+A split, a collapse, a tab opened or closed all reach the screen through the
+IoMaps that are already standing — no re-print, and no drop of `editor.iomap`.
+Both containers follow their own child lists: `WidgetTabbedPane` always did, and
+`WidgetSplitPane` re-derives its layout when its slot list changes (see
+[widget.md](widget.md#a-split-pane-follows-its-slots)).
 
-`PaneTreeToWidget` therefore keys its root IoMap on the tree's **split shape** —
-the nested element counts — and re-prints the pane widgets when that changes.
-Tab counts are deliberately not part of the key: a tabbed pane does follow its
-tabs reactively, so opening, closing and renaming stay incremental, and only a
-split or a collapse pays for a re-print.
-
-`test_pane_construct` asserts this the only way that works: after every
-structural edit it compares the standing render against a fresh print of the same
-tree. A test that asserts on the tree alone passes while the screen is stale.
+`test_pane_construct` asserts it the only way that works: after every structural
+edit it compares the standing render against a fresh print of the same tree. A
+test that asserts on the tree alone passes while the screen is stale.
 
 ## Renaming is not a mode
 

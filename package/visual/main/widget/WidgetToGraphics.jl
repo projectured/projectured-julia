@@ -2117,8 +2117,35 @@ function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
     layout_preferred(elem, axis, intrinsic)
 end
 
+# The slot list a split lays out: `Document` children, each optionally wrapped in a
+# `LayoutConstraint` (transparent for projection, consulted for sizing policy).
+function _split_valid_elements(w::WidgetSplitPane)
+    result = Any[]
+    for i in 1:length(w.elements)
+        elem = w.elements[i]
+        (elem isa LayoutConstraint || elem isa Document) && push!(result, elem)
+    end
+    result
+end
+
+# Every per-slot cell, child IoMap and canvas child below is built for the slot
+# count it saw, so a slot **added or removed** can not be threaded through the ones
+# already standing. `_split_build` is therefore run inside a cell that reads the
+# slot list: adding a pane re-derives the layout, and everything that reads the
+# output — the canvas, the child IoMaps the reader routes through — follows.
+#
+# A slot change re-prints the children. Reusing their IoMaps across it would mean
+# building each child's context *before* the allocation that context depends on,
+# which is the cycle the forward-declared `alloc_cell` below already threads once;
+# a second pass through it would have to run inside the very cell it feeds.
 function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    build = ComputedCell(() -> _split_build(p, recursion, w, ctx))
+    ChildrenIoMap(p, w, ComputedCell(() -> build[].canvas),
+                  ComputedCell(() -> build[].child_iomaps))
+end
+
+function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSplitPane, ctx)
     cox, coy = _content_offset(w)
     orientation = w.orientation::Symbol
     main_axis = orientation === :horizontal ? :x : :y
@@ -2126,16 +2153,11 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     splitter_thickness = max(1, _sc(p.splitter.width))
     splitter_color = p.splitter.color
 
-    # Keep only Document children; a LayoutConstraint wrapper or a bare
-    # document of any domain both work — the wrapper is transparent for
-    # projection (we recurse into `elem.child`) and consulted for sizing policy.
-    valid_elems = Any[]
-    for i in 1:length(w.elements)
-        elem = w.elements[i]
-        (elem isa LayoutConstraint || elem isa Document) && push!(valid_elems, elem)
-    end
+    # Reading the slot list here is what makes the enclosing cell re-derive when a
+    # slot is added or removed.
+    valid_elems = _split_valid_elements(w)
     n = length(valid_elems)
-    n == 0 && return ChildrenIoMap(p, w, _make_canvas(0, 0, Any[]), Cell(Any[]))
+    n == 0 && return (canvas = _make_canvas(0, 0, Any[]), child_iomaps = Any[])
 
     avail_w = ctx.available_width
     avail_h = ctx.available_height
@@ -2322,7 +2344,7 @@ function print_document(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::Widget
     for i in 1:n
         push!(child_iomaps, (child_x[i], child_y[i], inner_iomaps[i]))
     end
-    ChildrenIoMap(p, w, outer_canvas, Cell(child_iomaps))
+    (canvas = outer_canvas, child_iomaps = child_iomaps)
 end
 
 function map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference)

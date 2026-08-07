@@ -290,6 +290,24 @@ drawn tab and the hit-tested tab drift apart.
 
 The [pane domain](pane.md) is the reference consumer of all three.
 
+## A split pane follows its slots
+
+Every per-slot cell, child IoMap and canvas child a `WidgetSplitPane` builds is
+built for the slot count it saw, so a slot **added or removed** can not be
+threaded through the ones already standing. The printer therefore runs its
+slot-dependent body inside a cell that reads the slot list: adding a pane
+re-derives the layout, and everything downstream — the canvas, the child IoMaps
+the reader routes through — follows. The IoMap object itself survives, so a
+consumer that holds one (the editor does) keeps it.
+
+The cost is that a slot change **re-prints the children**. Reusing their IoMaps
+across it would mean building each child's context before the allocation that
+context depends on, which is the cycle the printer's forward-declared
+`alloc_cell` already threads once; a second pass would have to run inside the
+very cell it feeds.
+
+`WidgetTabbedPane` needs none of this — it reconciles its tab list already.
+
 ## Button behavior
 
 `WidgetButton` is interactive. Its reader maps mouse events to operations, and

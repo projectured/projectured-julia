@@ -471,13 +471,13 @@ here when it is done, and record what the implementation changed about the desig
     canvas rather than the tree, a third one:
 
     **A split could not reach the screen through the standing IoMaps.**
-    `WidgetSplitPane` fixes its slot count when it is printed, so a split that
-    adds a pane left the display showing the old shape while the document ran
-    ahead. `PaneTreeToWidget` now keys its root IoMap on the tree's split shape
-    and re-prints the pane widgets when that changes; tab counts stay out of the
-    key, because a tabbed pane does follow its tabs reactively. The proper fix is
-    a `WidgetSplitPane` printer that is reactive on its slot count, which is a
-    rewrite of a printer the workbench depends on.
+    `WidgetSplitPane` fixed its slot count when it was printed, so a split that
+    added a pane left the display showing the old shape while the document ran
+    ahead. Fixed where it belongs: the split pane's printer now runs its
+    slot-dependent body inside a cell that reads the slot list, so it re-derives
+    when a slot arrives or leaves, and every consumer gets it — the pane layout
+    needs no re-print of its own. `test_widget_split_pane` covers the widget,
+    `test_pane_construct` the layout.
 
     The lesson is the one the test now enforces: **assert on the render, not on
     the document.** Every structural step compares the standing canvas against a
@@ -521,8 +521,6 @@ design leaves room.
   catch-all was ambiguous with the text-edit readers — typing in a tab threw a
   `MethodError` — and the backward map built a path `@reference` refused because a
   foreign domain left a node untyped.
-- **A `WidgetSplitPane` printer that is reactive on its slot count.** Until then
-  a split re-prints the pane widgets (step 10).
 - **Reorder tabs inside a group by dragging.** The strip's drop zone means "into
   this group, at the end"; the insert index a drop between two tabs implies needs
   the strip's own geometry, which lives in the widget layer.

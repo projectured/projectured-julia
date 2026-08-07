@@ -181,27 +181,10 @@ end
 # The tree is transparent: it prints as its root, and adds one field step to the
 # paths that pass through it.
 function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
-    child_context = make_child_context(ctx, tree, (@reference_step root))
-    # `WidgetSplitPane` fixes its slot count when it is printed: its per-slot
-    # cells, child IoMaps and canvas children are all built for the count it saw.
-    # So a split that adds or removes a pane can *not* reach the screen through
-    # the IoMaps that are already standing — the layout would keep the shape it
-    # was printed with. Re-print the pane widgets when that shape changes.
-    #
-    # The key is the split shape alone, never the tab counts: a tabbed pane does
-    # follow its tabs reactively, so opening and closing tabs stays incremental,
-    # and only a split or a collapse pays for a re-print.
-    shape = ComputedCell(() -> _split_shape(tree.root))
-    cached_key = Ref{Any}(nothing)
-    cached = Ref{Any}(nothing)
-    root_iomap = ComputedCell(() -> begin
-        key = (objectid(tree.root), shape[])
-        if cached[] === nothing || cached_key[] != key
-            cached[] = _recurse(recursion, tree.root, child_context)
-            cached_key[] = key
-        end
-        cached[]
-    end)
+    root_iomap = reconcile_child_iomap(
+        () -> tree.root,
+        root -> _recurse(recursion, root,
+                         make_child_context(ctx, tree, (@reference_step root))))
     available = (ctx.available_width === nothing || ctx.available_height === nothing) ?
                 nothing : (ctx.available_width, ctx.available_height)
     PaneTreeToWidgetIoMap(p, tree, ComputedCell(() -> root_iomap[].output), root_iomap,
@@ -219,13 +202,6 @@ function map_reference_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap
     inner === nothing && return nothing
     @reference ::PaneTree.root.^(inner)
 end
-
-# How many elements every split of a subtree holds, nested. Reading it registers
-# a dependency on each split's element list, and on none of the tab lists.
-_split_shape(split::PaneSplit) =
-    (length(split.elements),
-     Tuple(_split_shape(split.elements[i]) for i in 1:length(split.elements))...)
-_split_shape(::Any) = 0
 
 # ── PaneSplit ──────────────────────────────────────────────────────────────
 
