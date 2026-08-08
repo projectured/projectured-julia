@@ -14,6 +14,7 @@ mutable struct Editor
     document::Document
     projection::Projection
     devices::Vector{Device}
+    inbox::Channel{Operation}           # operations posted from other tasks
     iomap::Union{IoMap, Nothing}        # latest output of print_document
     operation::Union{Operation, Nothing}# latest output of read_intent
 end
@@ -24,6 +25,8 @@ end
 - `projection` — the projection pipeline; typically a `ChainingProjection`
   that ends in a `GraphicsCanvas`-producing step
 - `devices` — `Vector{Device}` with the screen, keyboard, and mouse
+- `inbox` — what was posted from outside the editor's own task; see
+  [The inbox](#the-inbox)
 - `iomap` — the most recent IoMap from `print_document`; needed by
   `read_intent` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
@@ -36,6 +39,7 @@ end
 ```julia
 while true
     with_performance_counters() do  # bind a fresh per-frame counter store
+        drain_operations!(editor)  # apply what other tasks posted
         read!(editor)      # poll devices → read_intent → editor.operation
         evaluate!(editor)  # evaluate_operation(editor, editor.operation)
         print!(editor)     # print_document → editor.iomap; render to devices
@@ -44,6 +48,29 @@ while true
     sleep(0.01)
 end
 ```
+
+### The inbox
+
+A frame reads the document, evaluates against it and paints it, so anything
+that writes it from another task races the frame — and a reactive thunk cannot
+write at all. `post_operation!(editor, operation)` is the one door in:
+
+```julia
+post_operation!(editor, RefreshOperation(subject))   # from any task
+```
+
+The operation is applied by the editor's own task, at the top of the next
+frame, before `read!` — so the frame paints what it just applied. This is what
+anything with a loop of its own uses to reach the editor: a driver advancing a
+simulation, a file watcher, an agent, a timer.
+
+The channel is bounded (`INBOX_CAPACITY`), so a producer faster than the editor
+waits rather than queueing work that will be stale before it is applied.
+
+Posted operations go through `evaluate_operation` and not `evaluate!`, so they
+do not become `editor.operation` — that field means "what the reader made of
+this frame's input", which is what `perf!` uses to tell a frame the user acted
+in from an idle one, and what `evaluate!` writes to the operation log.
 
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
 cleanly. The MCP server is started before the loop and stopped in the

@@ -24,7 +24,8 @@ using ..GestureRecognizerModule
 using ..ToolModule
 using ..AgentServerModule
 
-export Editor, run_editor!, read!, evaluate!, print!, run_frame!
+export Editor, run_editor!, read!, evaluate!, print!, run_frame!,
+       post_operation!, drain_operations!
 
 """
     Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
@@ -44,6 +45,9 @@ Holds the state for a read-eval-print loop:
                    built-ins on first use. Per editor, so two editors in one
                    process neither share a tool list nor evaluate code into each
                    other's namespace.
+  - `inbox`      — operations posted from outside this editor's task; drained and
+                   applied once per frame by `run_editor!`. See
+                   [`post_operation!`](@ref).
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)
@@ -55,14 +59,20 @@ mutable struct Editor
     devices::Vector{Device}
     clock::Clock
     tools::ToolSet
+    inbox::Channel{Operation}
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
 end
 
+# The inbox is bounded: a producer that outruns the editor should wait for it,
+# not build a queue of syncs that are stale by the time they are applied.
+const INBOX_CAPACITY = 64
+
 Editor(backend, document, projection, devices;
        clock::Clock = Clock(), tools::ToolSet = ToolSet()) =
     Editor(backend, document, projection, devices, clock, tools,
+           Channel{Operation}(INBOX_CAPACITY),
            nothing, nothing, GestureRecognizer())
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
@@ -70,6 +80,51 @@ Editor(backend, document, projection, devices;
 # is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.
 OperationModule.invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
+
+# ── The inbox ─────────────────────────────────────────────────────────
+#
+# The one door into a running editor from outside its own task. A frame reads the
+# document, evaluates against it and paints it, so anything that writes it from
+# another task races the frame — and a reactive thunk cannot write at all
+# (AR-NO-WRITE-IN-THUNK). An operation posted here is applied by the editor's own
+# task at a defined point in the frame, which is the same guarantee an operation
+# from the reader already has.
+
+"""
+    post_operation!(editor, operation) -> operation
+
+Hand `editor` an operation to apply on its next frame. Thread-safe, and the only
+supported way for anything outside the editor's task — a driver advancing a
+simulation, a file watcher, an agent, a timer — to change what it shows.
+
+Blocks once `INBOX_CAPACITY` operations are waiting, so a producer faster than
+the editor is slowed down rather than allowed to queue work that will be stale
+before it is applied.
+"""
+post_operation!(editor::Editor, operation::Operation) =
+    (put!(editor.inbox, operation); operation)
+
+"""
+    drain_operations!(editor) -> Int
+
+Apply every operation waiting in the inbox and answer how many there were.
+Called once per frame by `run_editor!`, before `read!`, so the frame paints what
+it just applied.
+
+Applied through `evaluate_operation` rather than [`evaluate!`](@ref): posted
+operations do not become `editor.operation`, because that field means "what the
+reader made of this frame's input" and is what `perf!` uses to tell a frame in
+which the user did something from an idle one. It also keeps a sync arriving ten
+times a second out of the operation log.
+"""
+function drain_operations!(editor::Editor)
+    count = 0
+    while isready(editor.inbox)
+        evaluate_operation(editor, take!(editor.inbox))
+        count += 1
+    end
+    count
+end
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
@@ -251,12 +306,13 @@ end
 """
     run_editor!(editor::Editor; mcp::Bool=false)
 
-Execute the read-eval-print loop. Each frame: `read!` pulls (at most)
-one operation from the backend, `evaluate!` applies it, `print!`
-repaints. `read!` internally swallows envelopes that don't translate
-to an operation, so no outer drain is needed. The trailing `sleep`
-yields to Julia's scheduler so cooperative `@async` tasks (e.g. the
-MCP server) get to run between polls.
+Execute the read-eval-print loop. Each frame: `drain_operations!` applies
+whatever was posted from outside, `read!` pulls (at most) one operation
+from the backend, `evaluate!` applies it, `print!` repaints. `read!`
+internally swallows envelopes that don't translate to an operation, so no
+outer drain is needed. The trailing `sleep` yields to Julia's scheduler so
+cooperative `@async` tasks (e.g. the MCP server, a simulation driver) get to
+run between polls.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
@@ -282,11 +338,12 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
-                # Per-frame work that must WRITE — refreshing a derived shadow,
-                # advancing a simulation view. A reactive thunk cannot do this
-                # (AR-NO-WRITE-IN-THUNK) and the clock only invalidates readers,
-                # so a writer needs this seam. Runs before `read!` so the frame
-                # reads what it just refreshed.
+                # What was posted from outside this task, applied here so the
+                # frame paints what it just applied.
+                drain_operations!(editor)
+                # A per-frame writer, superseded by the inbox above: work that
+                # belongs to something other than the editor posts an operation
+                # instead. Kept while its callers move over.
                 on_frame === nothing || on_frame(editor)
                 run_frame!(editor)
                 perf!(editor)
