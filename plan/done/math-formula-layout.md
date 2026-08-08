@@ -547,6 +547,19 @@ main. A wide change on a shared seam hides new errors from a targeted test.
 against a clean-main baseline of 208880 / 0 / 0 / 5 — 209 more assertions and no
 new failure. `test_visual()` stays at 52469 pass / 1 broken.
 
+## What is left undone
+
+- **A symbol has no keyboard gesture.** `\lambda` needs a text buffer that lives
+  across keystrokes — an insertion type of its own, the way `JuliaInsertion` is
+  — rather than a reader rule. A symbol is built in code today.
+- **The gestures are not verified in the live editor.** The tests drive the
+  reader directly. A headless probe misses a reference-less start and an unwired
+  card, so this is worth doing before the gestures are relied on.
+- **A radical taller than 2.2 times the base size** outgrows its sign: the bar
+  runs on above a sign that no longer follows it. Only a real math font fixes it.
+- **`MathCases` draws a brace on both sides.** A piecewise definition
+  conventionally has only the left one.
+
 ## Out of scope
 
 - **A math font with a `MATH` table.** STIX Two Math or Latin Modern Math gives
