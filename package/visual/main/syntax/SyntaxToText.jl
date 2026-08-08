@@ -157,6 +157,29 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelecti
     return ReplaceSelectionOperation(input_path)
 end
 
+# Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
+# node. Alt+click promotes the click to a whole-element (tree) selection on the
+# leaf — the same rule `_resolve_click` applies to a leaf child of a compound.
+#
+# A leaf needs its own copy of the rule, because a leaf is not always printed
+# under a compound. A tab holding one placeholder, a scalar example, any
+# single-leaf projection: there the compound resolver never runs, and without
+# this method nothing resolved the leaf's clicks at all. Alt+click was silently
+# ignored and the click stayed a character cursor.
+#
+# Everything else falls through exactly as the generic 4-arg bridge does, so
+# keyboard navigation that lands on the same glyph still places the cursor.
+function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::SimpleIoMap)
+    op = change.operation
+    gesture = change.gesture
+    if op isa ReplaceSelectionOperation && gesture isa MousePress && gesture.modifiers.alt
+        return Intent(gesture,
+                      ReplaceSelectionOperation(EmptyReference(get_reference_node_type(iomap.input))))
+    end
+    payload = op === nothing ? gesture : op
+    Intent(gesture, read_intent(p, iomap, payload))
+end
+
 # Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
 # `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op on the edited span's
 # field. An edit on ANY present span — `.open` / `.value` / `.close` — maps to that
