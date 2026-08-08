@@ -24,16 +24,22 @@ function test_command_palette()
         @test command_palette_matches(p) == [1, 2, 3, 4]
     end
 
-    @testset "the query matches as a subsequence, without case" begin
-        # A subsequence match is deliberately loose — "sort" is also a subsequence of
-        # "jsondocument replace with null" — so the rank carries the weight: the row
-        # the user meant comes first.
-        @test first(command_palette_matches(_palette("sort"))) == 2
-        @test first(command_palette_matches(_palette("SORT"))) == 2
-        @test first(command_palette_matches(_palette("srt"))) == 2     # gaps allowed
+    @testset "every word of the query must appear, contiguously" begin
+        @test command_palette_matches(_palette("sort")) == [2]
+        @test command_palette_matches(_palette("SORT")) == [2]
+        # Words may arrive in any order, and need not be adjacent in the text — so a
+        # user types the two words they remember, not the sentence between them.
+        @test command_palette_matches(_palette("entries sort")) == [2]
         @test command_palette_matches(_palette("copy")) == [1]
-        @test command_palette_matches(_palette("json")) == [1, 2, 4]   # the domain matches too
+        # Letters with gaps do NOT match. A subsequence rule made "sort" find
+        # "Select the root node" and most of the JSON replace commands, which is a
+        # ranking, not a filter.
+        @test command_palette_matches(_palette("srt")) == []
         @test command_palette_matches(_palette("zzz")) == []
+        # The domain is searchable too, so a group can be narrowed to by name. The
+        # order inside is by where the match falls, which is a detail; that all three
+        # JSON rows survive and the text row does not is the point.
+        @test Set(command_palette_matches(_palette("json"))) == Set([1, 2, 4])
     end
 
     @testset "the selection names a row, and survives a narrower query" begin
@@ -71,6 +77,38 @@ function test_command_palette()
         @test command_palette_step(p, 1) == command_palette_selection(4)    # clamped
         p.query = "zzz"
         @test command_palette_step(p, 1) === nothing
+    end
+
+    @testset "matches are grouped by domain, best group first" begin
+        p = _palette()
+        # Rows of one domain sit together: the domain of each row, in match order,
+        # never returns to a domain it has left.
+        domains = [p.rows[i].domain for i in command_palette_matches(p)]
+        @test length(unique(domains)) == length([d for (k, d) in enumerate(domains)
+                                                 if k == 1 || d != domains[k-1]])
+        # A group sits where its own best row would have sat, so the row that would
+        # have led a flat list still leads. The match runs over "<domain>
+        # <description>", so pick domains that contribute no letters: "alpha" starts
+        # later in Zz's text than in Ww's, and Ww's group leads even though Zz's row
+        # is collected first.
+        two = CommandPalette("alpha", [
+            GestureRow("", "qq alpha", "Zz", _op()),
+            GestureRow("", "alpha",    "Ww", _op())], nothing)
+        @test [two.rows[i].domain for i in command_palette_matches(two)] == ["Ww", "Zz"]
+    end
+
+    @testset "the rendering heads each group with its domain" begin
+        p = _palette()
+        p.selection = command_palette_selection(2)
+        text = render(print_document(CommandPaletteToSyntax(), p).output)
+        # One heading per domain, above its rows.
+        @test occursin("  JsonObject\n", text)
+        @test occursin("  TextDocument\n", text)
+        @test occursin("  JsonDocument\n", text)
+        # A heading appears once, not per row.
+        @test count(l -> l == "  JsonObject", split(text, "\n")) == 1
+        # The rows themselves no longer repeat the domain.
+        @test !occursin("JsonObject Copy", text)
     end
 
     @testset "the palette renders the query, the marker, and the gesture" begin

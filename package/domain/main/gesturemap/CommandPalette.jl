@@ -84,52 +84,78 @@ function command_palette_row(palette::CommandPalette)
     1 <= i <= length(rows) ? rows[i] : nothing
 end
 
-# Where `query` first matches `text` as a subsequence, or `nothing` when it does not
-# match at all. An empty query matches everything at position 0. The position is the
-# rank: a command whose match starts earlier reads as the better answer.
-function _subsequence_position(query::AbstractString, text::AbstractString)
-    isempty(query) && return 0
-    q = lowercase(query)
+# Where `query` matches `text`, or `nothing` when it does not. An empty query
+# matches everything at position 0. The position is the rank: a command matched
+# earlier in its text reads as the better answer.
+#
+# Every whitespace-separated word of the query must appear in `text` as a
+# **contiguous** run of characters, in any order. So "sort" finds only what says
+# sort, and "insert entry" still finds "Insert a new entry" without the user having
+# to type the words between.
+#
+# A looser rule was tried first — the query as a subsequence, letter by letter — and
+# it floods the list: over "<description> <domain>", the four letters of "sort" are
+# a subsequence of "Select the root node" and of most of the JSON replace commands
+# too. Ranking put the intended row on top, but everything else stayed on screen,
+# which is not a filter.
+function _query_position(query::AbstractString, text::AbstractString)
+    words = split(lowercase(query))
+    isempty(words) && return 0
     t = lowercase(text)
-    at = firstindex(q)
-    first_match = 0
-    for (n, c) in enumerate(t)
-        at > lastindex(q) && break
-        if c == q[at]
-            first_match == 0 && (first_match = n)
-            at = nextind(q, at)
-        end
+    earliest = 0
+    for word in words
+        at = findfirst(word, t)
+        at === nothing && return nothing
+        (earliest == 0 || first(at) < earliest) && (earliest = first(at))
     end
-    at > lastindex(q) ? first_match : nothing
+    earliest
 end
 
 """
     command_palette_matches(palette) -> Vector{Int}
 
-The indices of the rows that match `query`, best first. A row matches when the
-query is a subsequence of `"<domain> <description>"`, compared without case.
+The indices of the rows that match `query`, best first. A row matches when every word of the
+query appears in `"<description> <domain>"` as a contiguous run, without case.
 
-The order is: the rows that can run, then the rows whose match starts earlier,
-then the collection order. A row that cannot run carries no operation, which is
-the same thing as "not applicable right now" — there is only one answer, and it is
-whether an operation was built.
+A row ranks by: whether it can run, then how early its match starts, then the
+collection order. A row that cannot run carries no operation, which is the same
+thing as "not applicable right now" — there is only one answer, and it is whether
+an operation was built.
 
-A subsequence match is loose on purpose — "sort" matches "Replace with null" in
-the `JsonDocument` domain, letter by letter. The rank carries the weight: the row
-the user meant comes first, and the rest stay reachable for a query too short to
-be precise.
+The result is then **grouped by domain**, so the list reads as what each thing
+offers rather than as one flat run of sentences. A group sits where its own
+best-ranking row would have sat, so the row that would have led a flat list still
+leads: the best answer stays first, and its neighbours are its own kind.
+
+Matching by word rather than by letter is what makes the list a filter: a query of
+"sort" leaves the rows that say sort, not every row whose letters happen to spell it.
 """
 function command_palette_matches(palette::CommandPalette)
     rows = palette.rows
     query = palette.query
-    found = NTuple{3,Int}[]
+    ranked = NTuple{3,Int}[]
     for (i, row) in enumerate(rows)
-        at = _subsequence_position(query, string(row.domain, " ", row.description))
+        # The description leads, so a match in what the command *does* ranks ahead
+        # of one in the group it belongs to — while typing a domain name still
+        # narrows to that group.
+        at = _query_position(query, string(row.description, " ", row.domain))
         at === nothing && continue
-        push!(found, (row.operation === nothing ? 1 : 0, at, i))
+        push!(ranked, (row.operation === nothing ? 1 : 0, at, i))
     end
-    sort!(found)
-    Int[f[3] for f in found]
+    sort!(ranked)
+    # Group by domain, keeping each group where its best row put it.
+    order = String[]                       # domains, best first
+    grouped = Dict{String,Vector{Int}}()
+    for r in ranked
+        domain = rows[r[3]].domain
+        haskey(grouped, domain) || (push!(order, domain); grouped[domain] = Int[])
+        push!(grouped[domain], r[3])
+    end
+    result = Int[]
+    for domain in order
+        append!(result, grouped[domain])
+    end
+    result
 end
 
 """
