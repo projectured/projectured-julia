@@ -596,10 +596,9 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     elseif typ == "keydown"
         m = _mods(obj)
         key = String(obj[:key])
-        if key == "Escape"
-            put!(backend.inbound, WindowInput(:none, WindowQuit()))
-            return
-        end
+        # Escape is an ordinary key here, as it is in the SDL backend: a backend
+        # reports what happened and decides no meaning. The editor loop quits on an
+        # Escape that no reader handled.
         sym = web_key_to_symbol(key, String(get(obj, :code, "")), m)
         put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, Bool(get(obj, :repeat, false)))))
 

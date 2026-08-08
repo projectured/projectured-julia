@@ -123,8 +123,32 @@ function read!(editor::Editor)
                 editor.operation = z
                 return true
             end
+            # Escape closes the editor, but only when nothing else wanted it. A
+            # reader that binds Escape — a dialog, an insertion, the command palette
+            # — produced an operation above and won, so its Escape never reaches
+            # here. This is why a backend must deliver Escape as a key rather than
+            # as a quit: a quit cannot be declined.
+            if _is_quit_gesture(window_input)
+                editor.operation = QuitEditorOperation()
+                return true
+            end
         end
     end
+end
+
+"""
+    _is_quit_gesture(window_input) -> Bool
+
+Is this the bare Escape that closes the editor? Modified Escape is left alone, so
+a chord stays available to a projection.
+"""
+function _is_quit_gesture(window_input)
+    window_input isa WindowInput || return false
+    event = window_input.event
+    event isa KeyDown || return false
+    event.key === :escape || return false
+    m = event.modifiers
+    !(m.ctrl || m.shift || m.alt || m.meta)
 end
 
 """

@@ -2456,7 +2456,7 @@ backend-agnostic inner event:
 - `SDL_QUIT`                           → `WindowInput(:none, WindowQuit())`
 - `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose())`
 - `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h))`
-- `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape → `WindowQuit()`)
+- `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape included)
 - `SDL_KEYUP`                          → `WindowInput(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `WindowInput(<id>, KeyPress)`
 - `SDL_MOUSEBUTTONDOWN`                → `WindowInput(<id>, MouseDown)`
@@ -2508,9 +2508,11 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
         elseif t == SDL_KEYDOWN
             keysym = evt.key.keysym.sym
             wid = _lookup_window_id(backend, evt.key.windowID)
-            if keysym == Int32(27)  # SDLK_ESCAPE
-                return WindowInput(:none, WindowQuit())
-            end
+            # Escape is an ordinary key here. A backend reports what happened and
+            # decides no meaning, so it must not turn one key into a quit before any
+            # reader has seen it — that is what made Esc unreachable for the dialog,
+            # the insertion, the command palette and every other reader that binds
+            # it. The editor loop quits on an Escape that nothing handled.
             is_repeat = evt.key.repeat != 0
             return WindowInput(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
 

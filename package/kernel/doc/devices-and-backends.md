@@ -42,12 +42,19 @@ KeyDown(:return, ModifierKeys(ctrl=true)) # Ctrl-Enter
 MousePress(:left, 132, 47)             # left button at pixel (132, 47)
 MouseMove(120, 90)                     # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
-WindowQuit()                            # window close or Escape
+WindowQuit()                            # the window was closed
 ```
 
 This vocabulary is what insulates a `TextToGraphics.read_intent` (which
 maps the `:left`/`:right` `KeyDown` keys to a `ReplaceSelectionOperation`) from
 any specific backend.
+
+Escape is an ordinary `KeyDown(:escape, …)`, not a quit. A backend reports what
+happened and decides no meaning, so it must not turn one key into a quit before
+any reader has seen it — a dialog, an insertion and the command palette all bind
+Escape, and a quit cannot be declined. The editor loop quits on an unmodified
+Escape that the pipeline did not handle, in the same place it recognises the
+readability zoom (`read!` in [editor/Editor.jl](../../../package/kernel/main/editor/Editor.jl)).
 
 ## Backends
 

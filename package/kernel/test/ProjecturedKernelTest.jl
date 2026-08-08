@@ -79,6 +79,7 @@ include("editor/ReaderTest.jl")
 include("editor/ReplTest.jl")
 include("editor/NavigationTest.jl")
 include("editor/ConstructTest.jl")
+include("editor/EscapeQuitTest.jl")
 
 """
     test_kernel_layering()
@@ -151,6 +152,7 @@ function test_kernel()
         test_gesture_recognizer()
         test_gesture_binding()
         test_headless_backend()
+        test_escape_quit()
         test_agent_seam()
         test_construct_oracle()
     end
