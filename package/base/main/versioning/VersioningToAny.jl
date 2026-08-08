@@ -39,7 +39,8 @@ module VersioningToAnyProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
+import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
+                       merge_collected_intents
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
                           insert_elements, delete_elements, CompoundOperation
@@ -59,7 +60,7 @@ import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapModule: IoMap, var"@iomap"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 
 export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
        SetVersionCriterionOperation
@@ -200,7 +201,7 @@ function _delete_version(iomap::VersioningToAnyProjectionIoMap)
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
-# fires (via `read_projection_gesture`) is the one `collect_gesture_bindings` shows. The
+# fires (via `read_projection_gesture`) is the one a listing shows. The
 # operations capture `iomap` (they snapshot/delete the selected version) and
 # return `nothing` to decline (no selected version), falling through to the
 # value-child delegation. ModifierKeys are matched exactly.
@@ -208,10 +209,10 @@ function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),
             (doc, event) -> _create_version(iomap),
-            (doc, sel) -> true, "Create version", "versioning"),
+            (doc, sel) -> true, "Create version", "versioning", false, "Create version"),
         GestureBinding(KeyDownPattern(:delete, [:ctrl], nothing),
             (doc, event) -> _delete_version(iomap),
-            (doc, sel) -> true, "Delete version", "versioning"),
+            (doc, sel) -> true, "Delete version", "versioning", false, "Delete version"),
     ]
 end
 
@@ -220,31 +221,38 @@ end
 function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
                          iomap::VersioningToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
-    own !== nothing && return Intent(change.gesture, own)
     vim = iomap.value_iomap
+    # The steps exist only when a version is selected — `iomap.index` is `nothing`
+    # otherwise, so build them behind the same guard the delegation uses.
+    value_steps() = (FieldReferenceStep("versions"), ElementReferenceStep(iomap.index),
+                     FieldReferenceStep("value"))
+    # Routing one gesture stops at the first answer; a collection takes both, with
+    # the value's prefixed exactly as its operations are.
+    if change.gesture isa CollectIntents
+        child = vim === nothing ? nothing :
+                _prefix_op(read_intent(vim.projection, recursion, change, vim).operation,
+                           value_steps())
+        return Intent(change.gesture,
+                      merge_collected_intents(_collected_intents(own),
+                                              _collected_intents(child)))
+    end
+    own !== nothing && return Intent(change.gesture, own)
     vim === nothing && return Intent(change.gesture, nothing)
     inner = read_intent(vim.projection, recursion, change, vim)
-    Intent(change.gesture, _prefix_op(inner.operation,
-        (FieldReferenceStep("versions"), ElementReferenceStep(iomap.index), FieldReferenceStep("value"))))
+    Intent(change.gesture, _prefix_op(inner.operation, value_steps()))
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).
 read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# Own gestures (create/delete version) plus the selected value's, so the help
-# window shows both -- the collector mirrors the reader's own-then-delegate shape.
-function collect_gesture_bindings(p::VersioningToAnyProjection, recursion, iomap::VersioningToAnyProjectionIoMap)
-    result = GestureBinding[]
-    append!(result, get_projection_gesture_bindings(p, iomap))
-    vim = iomap.value_iomap
-    vim === nothing || append!(result, collect_gesture_bindings(vim.projection, recursion, vim))
-    result
-end
-
 # ── Operation re-rooting ───────────────────────────────────────────────────────
 # Prepend `steps` to the reference path carried by a delegated value operation,
 # so it is rooted at the VersionedObject rather than at the selected value.
+
+# Only a real collection merges; anything else a reader returned is not one.
+_collected_intents(op::CollectedIntentsOperation) = op
+_collected_intents(::Any) = nothing
 
 function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
@@ -259,6 +267,11 @@ function _prefix_op(op, steps::Tuple)
             ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
+    elseif op isa CollectedIntentsOperation
+        # Every seam that prefixes a compound must prefix a collection the same way.
+        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
+                                          i.description, i.domain)
+                                   for i in op.intents])
     else
         op
     end

@@ -41,7 +41,6 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
-import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -170,13 +169,5 @@ map_reference_forward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackin
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-
-# Gesture collection is transparent too: the tracker adds no gestures of its own,
-# so F1 help must see the wrapped pipeline's gestures. Without this the default
-# leaf `collect_gesture_bindings` would stop at the tracker (it only knows the root
-# document), and wrapping a whole pipeline in the tracker would hide every gesture
-# below it (cf. the ChainingProjection / RecursiveProjection combinator methods).
-collect_gesture_bindings(::WidgetHoverTrackingProjection, recursion, iomap::WidgetHoverTrackingProjectionIoMap) =
-    collect_gesture_bindings(iomap.child_iomap.projection, recursion, iomap.child_iomap)
 
 end # module

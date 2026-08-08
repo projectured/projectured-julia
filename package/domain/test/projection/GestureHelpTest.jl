@@ -1,8 +1,7 @@
 # Tests for GestureHelpProjection — the content-level decorator that opens the
 # gesture-help window on F1. Proves the mechanism without the full screen
-# pipeline: the help gesture collects every binding reachable from the
-# decorator's own inner iomap (collect_gesture_bindings, the projection-form collector)
-# and emits an OpenWindowOperation carrying that GestureMap; a second F1 closes
+# pipeline: the help gesture asks the reader what is available over the decorator's
+# own inner iomap and emits an OpenWindowOperation carrying that GestureMap; a second F1 closes
 # it (toggle); every other gesture passes straight through to the wrapped editor.
 
 function test_gesture_help()

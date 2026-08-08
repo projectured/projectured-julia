@@ -13,7 +13,6 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
                        merge_collected_intents
 import ..GestureBindingModule: GestureBinding
-import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, AbstractCell, unwrap_cell
@@ -161,17 +160,6 @@ end
 # bare event/operation get it wrapped into a Intent and the operation back.
 read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
     read_intent(seq, nothing, Intent(payload), iomap).operation
-
-# The old second traversal, kept until the reader path replaces its last caller:
-# gather every stage's gestures so the help window shows the union across the
-# pipeline. `_collect_intents` below is what supersedes it.
-function collect_gesture_bindings(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
-    result = GestureBinding[]
-    for (p, step) in zip(seq.projections, iomap.step_iomaps)
-        append!(result, collect_gesture_bindings(p, recursion, step[]))
-    end
-    return result
-end
 
 # Where threading one gesture stops at the first stage that answers, a collection
 # takes every stage's answer. This is the one place the two differ, and it is

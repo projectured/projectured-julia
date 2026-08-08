@@ -78,7 +78,7 @@ function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSe
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the firing path (via
-# `read_projection_gesture`) is the one `collect_gesture_bindings` shows. Focus-out is
+# `read_projection_gesture`) is the one a listing shows. Focus-out is
 # gated by `applicable` (so its op may assume a non-empty part); focus-in
 # self-declines in its operation (no selection, or no deeper part of the right
 # type). ModifierKeys are matched exactly.

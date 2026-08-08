@@ -23,7 +23,7 @@ include("PrinterContext.jl")
 # package adds the concrete element-collection methods.
 include("ChildrenContainer.jl")
 # Open generics for the gesture-binding tables. The concrete generic and
-# higher-order projections that consume `collect_gesture_bindings` are
+# higher-order projections that consume `read_projection_gesture` are
 # domain-independent framework that sinks to a higher package; the kernel keeps
 # only the binding machinery.
 include("GestureBindings.jl")

@@ -178,22 +178,31 @@ end # test_json_to_syntax_reader
 # The contextual collector: collect_gesture_bindings walks the projection chain to the
 # reified JSON tables, and get_applicable_gesture_bindings reflects the current selection —
 # the data-driven dual of what the reader could fire.
+# How a collected intent renders its key; empty when the rule has no gesture.
+_gesture_of(intent) = intent.gesture === nothing ? "" : describe_event_pattern(intent.gesture)
+
 function test_json_gesture_collection()
 @testset "JsonToSyntax gesture collection" begin
 
     j2s = RecursiveProjection(JsonToSyntax())
+    # Ask the reader what is available, the way the help window and the palette do.
+    # `all` is every row offered; `app` is the subset that could fire right now,
+    # which is exactly the subset carrying a built operation.
     collect_for(doc, sel) = begin
         set_selection!(doc, sel)
         iomap = print_document(j2s, doc)
-        bindings = collect_gesture_bindings(j2s, nothing, iomap)
-        (bindings, get_applicable_gesture_bindings(doc, bindings))
+        answer = read_intent(j2s, nothing, Intent(CollectIntents()), iomap)
+        intents = (answer isa Intent ? answer.operation : answer).intents
+        (intents, [i for i in intents if i.operation !== nothing])
     end
 
     @testset "root scalar exposes the type-to-replace set" begin
         all, app = collect_for(JsonNull(), EmptyReference())
         @test length(all) == 8                       # n f t " [ : { digit
-        @test length(app) == 8                        # whole value → all replaceable
-        @test "n" in [describe_event_pattern(b.pattern) for b in all]
+        # Seven, not eight: "Replace with a number" needs the digit the user typed,
+        # and no operation can be built without the keystroke that carries it.
+        @test length(app) == 7
+        @test "n" in [_gesture_of(b) for b in all]
         # No selection greys the whole set.
         _, none = collect_for(JsonNull(), nothing)
         @test isempty(none)
@@ -202,28 +211,32 @@ function test_json_gesture_collection()
     @testset "array adds comma-insert; element selection stays replaceable" begin
         whole_all, whole_app = collect_for(JsonArray([JsonNumber(1)]), EmptyReference())
         @test length(whole_all) == 9                  # 8 inherited + , insert
-        @test length(whole_app) == 9
-        @test "," in [describe_event_pattern(b.pattern) for b in whole_all]
+        @test length(whole_app) == 8                  # minus the digit rule
+        @test "," in [_gesture_of(b) for b in whole_all]
         # Selecting an element keeps the type-to-replace set applicable (it
         # targets the element) plus the always-on comma.
         arr2 = JsonArray([JsonNumber(1)])
         _, elem_app = collect_for(arr2, @reference(arr2, elements[1]))
-        @test length(elem_app) == 9
+        @test length(elem_app) == 8
     end
 
-    @testset "whole object entry greys type-to-replace, keeps comma + Tab" begin
+    @testset "whole object entry greys what cannot fire, keeps the comma" begin
         obj2 = JsonObject("a" => JsonNumber(1))
         all, app = collect_for(obj2, @reference(obj2, entries[1]))
         # 8 inherited + , insert + Tab + the two commands (value-to-key, sort by
         # key), which have no gesture and are reached by name from the command
         # palette.
         @test length(all) == 12
-        # A whole entry is a key/value wrapper, not a replaceable value — the
-        # type-to-replace set is greyed (its `applicable` precondition fails on a
-        # JsonObjectEntry target); only the always-on object gestures remain. The
-        # commands have no keystroke to render, so their columns are empty.
-        descs = sort([b.pattern === nothing ? "" : describe_event_pattern(b.pattern) for b in app])
-        @test descs == ["", "", ",", "Tab"]
+        # A whole entry is a key/value wrapper, not a replaceable value, so the
+        # type-to-replace set builds no operation. What remains is the always-on
+        # comma and the sort command (no keystroke, so an empty gesture column).
+        #
+        # Tab and "Move from value to key" are absent, and that is the point of
+        # asking the reader: both call `move_to_field`, which declines when the
+        # cursor is not in the field it moves from. The old `applicable`-only answer
+        # listed them as available when pressing them would have done nothing.
+        descs = sort([_gesture_of(b) for b in app])
+        @test descs == ["", ","]
     end
 
 end # @testset "JsonToSyntax gesture collection"

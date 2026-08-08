@@ -11,7 +11,7 @@ help window reuses the normal display path.
 Build one from a binding list and the document the bindings act on (applicability
 is evaluated against that document's current selection):
 
-    gesture_map(collect_gesture_bindings(pipeline, recursion, iomap), focused_doc)
+    gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
     gesture_map(get_document_gesture_bindings(JsonObject), some_object)   # global, by type
 """
 module GestureMapModule

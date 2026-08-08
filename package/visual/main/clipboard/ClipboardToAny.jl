@@ -62,7 +62,7 @@ import ..PrinterContextModule: PrinterContext, make_child_context
 import ..IoMapModule: IoMap, reconcile_child_iomaps, var"@iomap"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture, collect_gesture_bindings
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
@@ -501,7 +501,7 @@ end
 # ── Readers ─────────────────────────────────────────────────────────────────
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
-# fires (via `read_projection_gesture`) is the one `collect_gesture_bindings` shows. The
+# fires (via `read_projection_gesture`) is the one a listing shows. The
 # operations capture the projection `p` (for the display toggle) and take the
 # clipboard document as their `doc` argument; they return `nothing` to decline
 # (e.g. no usable selection), falling through to the content-child delegation.
@@ -549,17 +549,6 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
     Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
 end
 
-# Gather this projection's own gestures plus the content child's, mirroring the
-# reader's own-then-delegate structure, so `collect_gesture_bindings` (the help window)
-# shows both the clipboard commands and whatever the wrapped content offers.
-function collect_gesture_bindings(p::ClipboardSliceToAnyProjection, recursion, iomap::ClipboardSliceToAnyProjectionIoMap)
-    result = GestureBinding[]
-    append!(result, get_projection_gesture_bindings(p, iomap))
-    cim = iomap.content_iomap
-    cim === nothing || append!(result, collect_gesture_bindings(cim.projection, recursion, cim))
-    result
-end
-
 function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
@@ -591,14 +580,6 @@ function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::I
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
     Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
-end
-
-function collect_gesture_bindings(p::ClipboardCollectionToAnyProjection, recursion, iomap::ClipboardCollectionToAnyProjectionIoMap)
-    result = GestureBinding[]
-    append!(result, get_projection_gesture_bindings(p, iomap))
-    cim = iomap.content_iomap
-    cim === nothing || append!(result, collect_gesture_bindings(cim.projection, recursion, cim))
-    result
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

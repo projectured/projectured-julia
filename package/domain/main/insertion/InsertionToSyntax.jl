@@ -257,7 +257,7 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSt
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
-# `read_projection_gesture` -- so the same set that fires is what `collect_gesture_bindings`
+# `read_projection_gesture` -- so the same set that fires is what a listing
 # shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
 # Commit / Cancel are projection-specific (they call `p.commit` / abort to a
 # `DocumentNothing`), which is why this stays a projection table rather than a

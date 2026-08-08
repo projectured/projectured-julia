@@ -59,7 +59,7 @@ const BackendModule = ProjecturedKernel.BackendModule
 const ChildrenContainerModule = ProjecturedKernel.ChildrenContainerModule
 const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
 # GestureBindings stays in the kernel projection layer; the moved generic /
-# higher-order projections import `collect_gesture_bindings` from it.
+# higher-order projections import the projection gesture seam from it.
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 # NOTE: the concrete generic + higher-order projections (Identity, Reversing,

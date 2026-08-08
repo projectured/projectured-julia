@@ -37,7 +37,7 @@ export GestureBinding,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings, get_applicable_gesture_bindings,
        fire_gesture_bindings, fire_named_gesture_binding,
-       collect_gesture_bindings_intents,
+       collect_binding_intents,
        read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"
 
@@ -175,7 +175,7 @@ function fire_gesture_bindings(bindings, target, selection, event, claimed = not
     # of them instead of the first match. Same table, same preconditions, same
     # operation closures — so what is listed cannot drift from what fires.
     event isa CollectIntents &&
-        return collect_gesture_bindings_intents(bindings, target, selection)
+        return collect_binding_intents(bindings, target, selection)
     for binding in bindings
         binding.pattern === nothing && continue
         claimed === nothing || binding.override || continue
@@ -214,7 +214,7 @@ function fire_named_gesture_binding(bindings, target, selection, name::AbstractS
 end
 
 """
-    collect_gesture_bindings_intents(bindings, target, selection) -> CollectedIntentsOperation
+    collect_binding_intents(bindings, target, selection) -> CollectedIntentsOperation
 
 One `Intent` per binding in `bindings`, each carrying the operation that binding
 would produce right now, expressed against `target`.
@@ -231,7 +231,7 @@ that carries its argument. `@gestures` marks exactly those by withholding the
 `name`. Such a binding still earns its row — a listing should say the key exists —
 it simply cannot be run from a list.
 """
-function collect_gesture_bindings_intents(bindings, target, selection)
+function collect_binding_intents(bindings, target, selection)
     intents = Intent[]
     for binding in bindings
         runnable = binding.name !== nothing
