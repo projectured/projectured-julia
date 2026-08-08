@@ -276,7 +276,7 @@ Update the layer inventory in `CLAUDE.md` in the same commit.
 Work in a dedicated worktree. Commit after each phase. Keep
 `collect_gesture_bindings` alive until Phase 6, so every phase runs green.
 
-### Phase 1 — the vocabulary
+### Phase 1 — the vocabulary — **done**
 
 1. Move `Intent.jl` down (see the decision above), then widen `Intent` with
    `description` and `domain`, both defaulted.
@@ -285,13 +285,13 @@ Work in a dedicated worktree. Commit after each phase. Keep
 4. Test the reroot in isolation, mirroring the `CompoundOperation` test in
    `RerootingTest`.
 
-### Phase 2 — the funnels
+### Phase 2 — the funnels — **done**
 
 1. Add the collect branch to `fire_gesture_bindings`, `read_bound_gesture` and
    `read_projection_gesture`.
 2. Test on a `@gestures` probe document: the collected set equals the fired set.
 
-### Phase 3 — the combinators
+### Phase 3 — the combinators — **done**
 
 1. Chaining: walk every stage and merge as it unwinds.
 2. Nesting, Recursive, TypeDispatching: route the payload as the reader routes a
@@ -300,14 +300,14 @@ Work in a dedicated worktree. Commit after each phase. Keep
 4. Test against today's `collect_gesture_bindings` output — the two must agree on
    *which* bindings are found, while the new path adds the operations.
 
-### Phase 4 — the two views
+### Phase 4 — the two views — **done**
 
 1. The help window builds rows from the carrier.
 2. The palette builds rows from the carrier, and Enter returns the operation.
 3. Test the clipboard-wrapped pipeline: rows are runnable and running one edits
    the JSON document inside the wrapper. This is the case that fails today.
 
-### Phase 5 — label the originating readers
+### Phase 5 — label the originating readers — **nothing to do yet**
 
 1. Open the help window over each example and read the fallback group.
 2. Give each originating reader in it a `domain` and a `description`.
@@ -316,13 +316,13 @@ Work in a dedicated worktree. Commit after each phase. Keep
 
 This phase has no end state that blocks the others. It can land after Phase 6.
 
-### Phase 6 — remove the old traversal
+### Phase 6 — remove the old traversal — **done**
 
 1. Delete `collect_gesture_bindings` and its six overrides.
 2. Move the tests that call it onto the reader path.
 3. Run `test_kernel()`, `test_base()`, `test_visual()`, `test_domain()`.
 
-### Phase 7 — documentation
+### Phase 7 — documentation — **done**
 
 1. The binding-layer section of
    [devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md).
@@ -340,3 +340,44 @@ This phase has no end state that blocks the others. It can land after Phase 6.
   against the old collector is what catches it.
 - **Chaining's first-match shape is load-bearing** for ordinary gestures. The
   collect branch must not disturb it.
+
+## What happened
+
+Every phase landed. `test_kernel()` 1450 passed (the 5 failures are the known
+`DocumentMacro` "Rule C" cases), `test_base()` 387, `test_visual()` 52526,
+`test_domain()` 209525 — 0 failed.
+
+The reported bug is fixed. `run_example(; clipboard=true)` went from **31 rows and
+0 runnable** to **21 rows and 12 runnable**, and Enter on a nested JSON command
+applies inside the wrapper: the operation comes back rooted at
+`.content::JsonObject.entries`, and evaluating it takes the object from 8 entries
+to 9.
+
+### Found while building
+
+- **Five overrides, not four.** `Focusing` and `VersioningToAny` also had
+  `collect_gesture_bindings` methods the plan did not list. Versioning had the same
+  own-then-delegate first-match reader as the clipboard, and its own hand-rolled
+  `_prefix_op` — a third copy of `reroot_operation` that had to learn the carrier.
+  Grep for a private prefixer before assuming `reroot_operation` is the only seam.
+- **`IdentityProjection` shadowed the generic delegation.** Its reader returns
+  every payload unchanged, which is right for an operation and wrong for a
+  question, so a document behind an identity went unlisted. It now answers for its
+  input.
+- **Greying got sharper, and four tests had to change.** "Applicable" used to mean
+  "the `applicable` precondition holds"; it now means "an operation was actually
+  built". JSON's Tab and its two `move_to_field` commands were listed as available
+  on a whole-value selection, when pressing them would have done nothing. The old
+  answer was wrong and nobody could see it.
+- **Phase 5 has nothing to do.** Collecting over the JSON example yields three
+  domains — `JsonArray`, `JsonDocument`, `SyntaxCompound` — and **no unlabelled
+  group**. Every reader that originates an operation in that pipeline already goes
+  through a reified table. The sweep starts the day one does not.
+
+### Left undone
+
+- `Intent`'s `description`/`domain` are filled only by the reified tables. A
+  hand-written reader that originates an operation still returns them empty. That
+  is Phase 5, and it stays open until a fallback group actually appears.
+- The umbrella suite (`test_all()`) did not run: a fresh worktree cannot
+  precompile `ProjecturedOdbcExample` without a PostgreSQL ODBC driver.

@@ -92,6 +92,15 @@ rerooting maps over the members, so a write and its cursor move stay in sync. Th
 is how a document replace or a sequence insert-and-select is expressed, and what the
 clipboard cut/copy/paste produce.
 
+`CollectedIntentsOperation([intent₁, intent₂, …])` is the other container, and it
+follows the same rule for the same reason. It is the answer to a `CollectIntents`
+payload — everything available where the question was asked — and rerooting maps
+over the operations the intents carry. Applying it does nothing; being an
+`Operation` is what lets a listing travel home the ordinary way, arriving already
+rooted where its rows can be run. **Any seam that maps a `CompoundOperation`
+elementwise must map this one too**, or a listing's operations come back rooted at
+the wrong depth.
+
 `ReplaceReferencedValueOperation` and these builders **replace a whole family** of former
 single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
 `ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,

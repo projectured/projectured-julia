@@ -502,6 +502,25 @@ shows. `read_bound_gesture`'s optional third argument covers a target whose
 selection comes from elsewhere (e.g. a node addressed by path inside its
 enclosing document), so one entry point serves both.
 
+#### Asking what is available
+
+`fire_gesture_bindings` answers one more thing than an event: the `CollectIntents`
+payload. Given it, the same table produces an `Intent` per rule — each carrying the
+operation that rule would build right now — wrapped in a
+`CollectedIntentsOperation`. An `Intent` with no operation is a rule that cannot
+fire: its precondition failed, or it needs the keystroke that carries its argument.
+
+That is the whole of "is this available?". There is no separate predicate to
+consult and no second traversal to keep in step: the answer is the built operation
+itself.
+
+Because it rides the funnels, every `@gestures`-declared document and every
+projection that delegates to `read_projection_gesture` answers it with no code of
+its own. And because `CollectedIntentsOperation` is an ordinary `Operation`, every
+container reroots the operations inside it on the way up — so a collection that
+arrives at the top of a chain is expressed in the top document's vocabulary, and a
+caller runs a row by applying it.
+
 #### A rule with no gesture
 
 The pattern is optional. A binding whose `pattern` is `nothing` has no gesture at
