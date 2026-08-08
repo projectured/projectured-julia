@@ -319,7 +319,7 @@ clients can drive the editor; off by default.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
-              on_start=nothing, on_frame=nothing)
+              on_start=nothing)
     server = if mcp
         mcp_instructions === nothing ?
             make_agent_server(:mcp, editor) :
@@ -345,10 +345,6 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                 # What was posted from outside this task, applied here so the
                 # frame paints what it just applied.
                 drain_operations!(editor)
-                # A per-frame writer, superseded by the inbox above: work that
-                # belongs to something other than the editor posts an operation
-                # instead. Kept while its callers move over.
-                on_frame === nothing || on_frame(editor)
                 run_frame!(editor)
                 perf!(editor)
             end
@@ -389,12 +385,12 @@ post them to, since this overload is what constructs it.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
-              on_start=nothing, on_frame=nothing)
+              on_start=nothing)
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)
         editor = Editor(backend, document, projection, devices)
-        run_editor!(editor; mcp=mcp, on_start=on_start, on_frame=on_frame)
+        run_editor!(editor; mcp=mcp, on_start=on_start)
     finally
         quit_backend!(backend)
     end

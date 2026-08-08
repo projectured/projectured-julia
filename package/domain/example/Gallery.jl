@@ -165,11 +165,9 @@ identical to the `Example` overloads *except* `reset` — there are no factories
 re-run here, so pass freshly built documents/projections when you need a clean
 state. This is the overload the `Example`-based `run_example` methods delegate to.
 
-`on_start(editor)` runs once, before the first frame — how something that will
-post operations to this editor gets hold of it. `on_frame` runs once per frame,
-for a document that is DERIVED rather than edited: a bounded reflection only a
-sync brings up to date, so expanding a row shows nothing without one. Both are
-passed straight through to `run_editor!`.
+`on_start(editor)` runs once, before the first frame. It is how something that
+will post operations to this editor gets hold of it — a driver keeping a derived
+document in sync, a watcher, a client. Passed straight through to `run_editor!`.
 """
 function run_example(documents::Vector, projections::Vector, names::Vector;
                      width=nothing, height=nothing,
@@ -180,7 +178,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
                      shell=false, hover=false, dragging=false,
                      gesture_help=false, command_palette=false,
                      gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
-                     profile=false, backend=nothing, on_start=nothing, on_frame=nothing)
+                     profile=false, backend=nothing, on_start=nothing)
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
         error("run_example: documents, projections and names must have equal length")
@@ -326,7 +324,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     _run_window_scene(docs, projs, names;
                       width=width, height=height, backend=backend,
                       compose=compose, profile=profile, content_unwrap=content_unwrap,
-                      on_start=on_start, on_frame=on_frame)
+                      on_start=on_start)
 end
 
 # Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
@@ -406,18 +404,18 @@ end
 # of `run_example` and `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
                            compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, on_start=nothing, on_frame=nothing)
+                           mcp::Bool=false, on_start=nothing)
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
     composed = compose(projs, backend)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start, on_frame=on_frame)
+            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start, on_frame=on_frame)
+        run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start)
     end
 end
 
