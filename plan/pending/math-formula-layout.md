@@ -507,7 +507,7 @@ reader directly.
    wrapper uses.
 3. The test count is 72 assertions.
 
-## Part H — make two dimensions the default
+## Part H — make two dimensions the default — **done**
 
 Change `MathDocument => MathToSyntax()` in
 [NaturalProjection.jl](../../package/domain/main/insertion/NaturalProjection.jl)
@@ -522,6 +522,30 @@ After this change, diff a full `test_domain()` run against the same run on clean
 main. A wide change on a shared seam hides new errors from a targeted test.
 
 **Commit H.** The default flip and the baseline diff.
+
+**Found during the work.**
+
+1. **The rules are spliced one type at a time**, not as one dispatching
+   projection, so every child of a formula re-enters the natural renderer. The
+   `PrimitiveNumber` and `PrimitiveString` entries are dropped from the splice —
+   they are right for a table that holds nothing else and wrong for a renderer
+   that already knows what a number is. `math_to_graphics_dispatch` does that.
+2. **A foreign box that draws text reports that text's baseline.** Without it a
+   number rendered by the natural renderer would center on the axis and sit two
+   pixels below the variables beside it. The rule is general: descend to the
+   first `GraphicsText` and read its font's ascent.
+3. **A selection carries type checkpoints.** A whole-element selection on a node
+   is an empty path *plus* that node's type, so every comparison in the reader
+   strips them first and every path it answers is annotated. The tests passed
+   before this fix because they set raw references by hand; the table did not.
+4. **`Ctrl+Home` / `Ctrl+End` select the first / last part of a formula.** That
+   is how a container asks a cell's content to take a selection — a table's
+   `Enter` routes exactly this key into the cell — and it is the seed gesture
+   the navigation walker uses.
+
+**Result.** `test_domain()` gives 209089 pass / 0 fail / 0 error / 5 broken,
+against a clean-main baseline of 208880 / 0 / 0 / 5 — 209 more assertions and no
+new failure. `test_visual()` stays at 52469 pass / 1 broken.
 
 ## Out of scope
 

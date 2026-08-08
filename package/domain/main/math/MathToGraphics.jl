@@ -50,7 +50,8 @@ import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
-                          RangeReferenceStep, Reference
+                          RangeReferenceStep, Reference, strip_reference_types,
+                          annotate_reference_types
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation, replace_document
 import ..OperationRerootingModule: reroot_operation
@@ -59,6 +60,7 @@ import ..EventPatternModule: var"@event_case"
 import ..ReferenceBuilderModule: var"@reference_step"
 
 export MathIoMap, MathConfig, MathMetrics, math_metrics, MathToGraphics,
+       math_to_graphics_dispatch,
        MathVariableToGraphics, MathSymbolToGraphics, MathTextToGraphics,
        MathSpaceToGraphics, MathInsertionToGraphics, MathNumberToGraphics,
        MathRowToGraphics, MathBinaryOperationToGraphics,
@@ -137,8 +139,30 @@ _box_ascent(b::Union{MathIoMap, MathGlyphBox}, m) = Int(b.ascent[])
 _box_descent(b::Union{MathIoMap, MathGlyphBox}, m) = Int(b.descent[])
 
 _box_width(b, m) = _foreign_size(b)[1]
-_box_ascent(b, m) = (h = _foreign_size(b)[2]; (h + 1) ÷ 2 + m.axis)
 _box_descent(b, m) = (h = _foreign_size(b)[2]; max(0, h - _box_ascent(b, m)))
+
+# A foreign box — a document of another domain, rendered through the outer
+# recursion — reports no baseline of its own. When it draws text, the first run
+# gives one: text is drawn from the top of its glyph box, so the baseline sits
+# one font ascent below. That is what keeps a number rendered by the natural
+# renderer on the same line as the variables beside it. A box that draws no text
+# has no baseline to find and centers on the axis instead.
+function _box_ascent(b, m)
+    text = _first_text_baseline(_box_output(b))
+    text === nothing || return text
+    h = _foreign_size(b)[2]
+    (h + 1) ÷ 2 + m.axis
+end
+
+function _first_text_baseline(doc)
+    doc isa GraphicsText && return Int(doc.y[]) + font_ascent(doc.font)
+    doc isa GraphicsCanvas || return nothing
+    for i in 1:length(doc.elements)
+        inner = _first_text_baseline(doc.elements[i])
+        inner === nothing || return Int(doc.y[]) + inner
+    end
+    nothing
+end
 
 function _foreign_size(b)
     output = b.output
@@ -1704,7 +1728,12 @@ end
 const _SELECTION_WASH = StyleColor(0.15, 0.39, 0.68, 0.22)
 const _NO_WASH = StyleColor(0.0, 0.0, 0.0, 0.0)
 
-_is_selected(doc) = getfield(doc, :selection)[] isa EmptyReference
+# A selection carries type checkpoints — a whole-element selection on a node is
+# an empty path *plus* that node's type — so every comparison here strips them
+# first. Comparing the raw path would answer no to a selection the editor made.
+_bare(reference) = reference === nothing ? nothing : strip_reference_types(reference)
+
+_is_selected(doc) = _bare(getfield(doc, :selection)[]) isa EmptyReference
 
 function _selection_element(p, doc, build::Cell)
     GraphicsRect(Cell(Int32(0)), Cell(Int32(0)),
@@ -1742,6 +1771,7 @@ where this box placed the child. A reference to the box itself is its own
 origin — which is where a whole-element selection sits.
 """
 function map_reference_forward(p::MathProjection, iomap::MathIoMap, reference)
+    reference = _bare(reference)
     reference === nothing && return nothing
     reference isa EmptyReference && return PointReferenceStep(0, 0)
     for child in _math_children(iomap)
@@ -1766,7 +1796,7 @@ function map_reference_backward(p::MathProjection, iomap::MathIoMap, reference)
                                    PointReferenceStep(reference.x - Int(child.x[]),
                                                       reference.y - Int(child.y[])))
     inner === nothing && return EmptyReference()
-    _prepend(child.steps, inner)
+    annotate_reference_types(iomap.input, _prepend(child.steps, inner))
 end
 
 # Build `steps + tail` back into one reference.
@@ -1820,10 +1850,21 @@ function _select_at(iomap::MathIoMap, x::Integer, y::Integer)
     ReplaceSelectionOperation(path)
 end
 
+# The path to the first (or last) part of a formula — what "the start of this
+# content" means where there is no line of text to put a caret at the start of.
+# A leaf answers with itself.
+function _edge_path(iomap::MathIoMap, first::Bool)
+    children = _math_children(iomap)
+    isempty(children) && return EmptyReference()
+    child = first ? children[1] : children[end]
+    inner = child.iomap isa MathIoMap ? _edge_path(child.iomap, first) : EmptyReference()
+    _prepend(child.steps, inner)
+end
+
 # The child this node's selection points into, and its position in the child
 # list — or `(nothing, 0)` when the selection is this node itself or absent.
 function _selected_child(iomap::MathIoMap)
-    selection = getfield(iomap.input, :selection)[]
+    selection = _bare(getfield(iomap.input, :selection)[])
     selection isa ConcreteReference || return (nothing, 0)
     for (i, child) in enumerate(_math_children(iomap))
         _peel(child, selection) === nothing || return (child, i)
@@ -1831,9 +1872,20 @@ function _selected_child(iomap::MathIoMap)
     (nothing, 0)
 end
 
-_select_child(child::MathChild) = ReplaceSelectionOperation(_prepend(child.steps, EmptyReference()))
+_select_child(iomap::MathIoMap, child::MathChild) =
+    ReplaceSelectionOperation(annotate_reference_types(iomap.input,
+                                                       _prepend(child.steps, EmptyReference())))
 
 function _read_key(iomap::MathIoMap, event)
+    # Ctrl+Home / Ctrl+End mean "the start of this content", and the start of a
+    # formula is the formula. The check comes before the descent so the outermost
+    # box answers, which is what a container asking a cell to take a selection
+    # wants — a table's Enter routes exactly this key into the cell.
+    if event isa KeyDown && event.modifiers.ctrl &&
+       (event.key === :home || event.key === :end)
+        return ReplaceSelectionOperation(
+            annotate_reference_types(iomap.input, _edge_path(iomap, event.key === :home)))
+    end
     child, index = _selected_child(iomap)
     if child !== nothing
         # Offer it to the child first, and re-root what the child answers so the
@@ -1842,7 +1894,13 @@ function _read_key(iomap::MathIoMap, event)
         answer === nothing || return reroot_operation(answer, child.steps)
         return _move_from(iomap, index, event)
     end
-    _is_selected(iomap.input) || return nothing
+    if !_is_selected(iomap.input)
+        # Nothing here is selected: a parent is offering the box a selection —
+        # a table cell asks its content to take one on Enter. Take the whole
+        # formula, which is the only kind of selection this projection has.
+        (event isa KeyDown && (event.key === :return || event.key === :down)) || return nothing
+        return ReplaceSelectionOperation(EmptyReference())
+    end
     _act_on_selection(iomap, event)
 end
 
@@ -1851,9 +1909,9 @@ function _move_from(iomap::MathIoMap, index::Int, event)
     children = _math_children(iomap)
     event isa KeyDown || return nothing
     if event.key === :left
-        index > 1 && return _select_child(children[index - 1])
+        index > 1 && return _select_child(iomap, children[index - 1])
     elseif event.key === :right
-        index < length(children) && return _select_child(children[index + 1])
+        index < length(children) && return _select_child(iomap, children[index + 1])
     elseif event.key === :up || event.key === :escape
         # Out of the child and onto this node.
         return ReplaceSelectionOperation(EmptyReference())
@@ -1867,7 +1925,7 @@ function _act_on_selection(iomap::MathIoMap, event)
     children = _math_children(iomap)
     if event isa KeyDown
         (event.key === :down || event.key === :return) && !isempty(children) &&
-            return _select_child(children[1])
+            return _select_child(iomap, children[1])
         event.key === :backspace && !(doc isa MathInsertion) &&
             return replace_document(EmptyReference(), MathInsertion())
         return nothing
@@ -1955,5 +2013,21 @@ function MathToGraphics(; measure::Function = truetype_measure_text,
         PrimitiveString     => MathNumberToGraphics(c, style),
     )
 end
+
+"""
+    math_to_graphics_dispatch(; kwargs...) -> Vector{Pair{Type,Any}}
+
+The math rules alone, for splicing into a bigger table. `MathToGraphics` also
+claims `PrimitiveNumber` and `PrimitiveString`, which is right for a table that
+holds nothing else and wrong for a renderer that already knows what a number is;
+this drops those two entries and keeps the rest.
+
+A number inside a formula then renders through the surrounding renderer and
+lands on the formula's baseline anyway: a foreign box that draws text reports
+that text's baseline.
+"""
+math_to_graphics_dispatch(; kwargs...) =
+    Pair{Type,Any}[entry for entry in MathToGraphics(; kwargs...).dispatch
+                   if first(entry) !== PrimitiveNumber && first(entry) !== PrimitiveString]
 
 end # module

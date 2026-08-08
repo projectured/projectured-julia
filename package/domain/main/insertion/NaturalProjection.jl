@@ -85,6 +85,7 @@ import ..SqlToSyntaxModule: SqlToSyntax
 import ..JsonModule: JsonDocument
 import ..XmlModule: XmlDocument
 import ..MathModule: MathDocument
+import ..MathToGraphicsModule: math_to_graphics_dispatch
 import ..JuliaModule: JuliaDocument
 import ..BookModule: BookDocument
 import ..PrimitiveModule: PrimitiveDocument
@@ -229,6 +230,13 @@ function NaturalToGraphics(; measure::Function,
             GraphGraph    => ChainingProjection(GraphGraphToGraphLayout(),
                                                 GraphLayoutToGraphicsCanvas()),
         ],
+        # A formula is set, not spelled: it goes to its own typesetter, which
+        # places real two-dimensional boxes. The rules are spliced one type at a
+        # time (not as one dispatching projection) so every child of a formula
+        # re-enters *this* renderer — which is what lets a formula hold an
+        # embedded document, and a number inside one render through the shared
+        # primitive path and still land on the formula's baseline.
+        math_to_graphics_dispatch(measure = measure),
         Pair{Type,Any}[
             # The Text placeholder / name buffer are `TextDocument`s, but they are not
             # prose: they route through the syntax fabric, whose table renders them
