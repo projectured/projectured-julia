@@ -10,7 +10,8 @@ module ChainingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
        pure_print_document
-import ..IntentModule: Intent
+import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
+                       merge_collected_intents
 import ..GestureBindingModule: GestureBinding
 import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..IoMapModule: SimpleIoMap
@@ -139,6 +140,8 @@ the output layers would have done in order to decline — if they did anything, 
 already did it.
 """
 function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
+    change.gesture isa CollectIntents &&
+        return Intent(change.gesture, _collect_intents(seq, recursion, iomap))
     n = length(seq.projections)
     start_i = n
     out = read_intent(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
@@ -159,9 +162,9 @@ end
 read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
     read_intent(seq, nothing, Intent(payload), iomap).operation
 
-# Where the reader threads one change through the chain, the collector gathers
-# every stage's gestures (each stage's own input document, plus projection-owned
-# gestures), so the help shows the union available across the whole pipeline.
+# The old second traversal, kept until the reader path replaces its last caller:
+# gather every stage's gestures so the help window shows the union across the
+# pipeline. `_collect_intents` below is what supersedes it.
 function collect_gesture_bindings(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
     result = GestureBinding[]
     for (p, step) in zip(seq.projections, iomap.step_iomaps)
@@ -169,6 +172,33 @@ function collect_gesture_bindings(seq::ChainingProjection, recursion, iomap::Cha
     end
     return result
 end
+
+# Where threading one gesture stops at the first stage that answers, a collection
+# takes every stage's answer. This is the one place the two differ, and it is
+# Lisp's `merge-commands`: a stage returns its own commands merged with the ones
+# its child produced, rather than whichever came first.
+#
+# Walk last stage to first. At each step, map what the later stages contributed
+# into this stage's input domain — the same backward threading an ordinary
+# operation gets — then put this stage's own contribution in front of it. What
+# arrives at stage 1 is expressed in the chain's input vocabulary, ready to run.
+function _collect_intents(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
+    accumulated = nothing
+    for i in length(seq.projections):-1:1
+        step = iomap.step_iomaps[i][]
+        own = read_intent(seq.projections[i], recursion, Intent(CollectIntents()), step).operation
+        mapped = accumulated === nothing ? nothing :
+                 read_intent(seq.projections[i], recursion,
+                             Intent(CollectIntents(), accumulated), step).operation
+        accumulated = merge_collected_intents(_collected(own), _collected(mapped))
+    end
+    accumulated
+end
+
+# A stage that has nothing to say may answer with anything at all; only a real
+# collection counts.
+_collected(op::CollectedIntentsOperation) = op
+_collected(::Any) = nothing
 
 # Compose forward-mapping through the chain: thread the reference through each
 # stage's own `map_reference_forward`, input domain → … → output domain. Stages

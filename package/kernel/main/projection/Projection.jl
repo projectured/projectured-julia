@@ -153,10 +153,12 @@ function read_intent(projection::Projection, iomap, operation)
     # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
     # A new path-bearing operation missing from either is silently passed through
     # with its reference left in the wrong domain. See package/kernel/doc/operation.md.
-    if operation isa Union{KeyPress, KeyDown, MousePress}
+    if operation isa Union{KeyPress, KeyDown, MousePress, CollectIntents}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
-        # `read_gesture` of its input document. This generalizes the per-projection
+        # `read_gesture` of its input document. `CollectIntents` rides the same
+        # route, so every leaf contributes its document's whole table to a
+        # collection without a line of its own. This generalizes the per-projection
         # delegation that render-stage projections already do by hand, so any
         # `@gestures`-declared domain is reachable through any projection with no
         # bespoke reader. (Higher-order projections route events through their own
@@ -183,6 +185,16 @@ function read_intent(projection::Projection, iomap, operation)
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing
         return CompoundOperation(mapped)
+    elseif operation isa CollectedIntentsOperation
+        # A collection maps like a compound: every carried operation into this
+        # projection's input domain. Unlike a compound it never fails as a whole —
+        # an intent whose operation does not map keeps its row with no operation,
+        # because a row that cannot be run is still worth showing.
+        return CollectedIntentsOperation([
+            Intent(i.gesture,
+                   i.operation === nothing ? nothing : read_intent(projection, iomap, i.operation),
+                   i.description, i.domain)
+            for i in operation.intents])
     elseif operation isa ToggleCollapseOperation
         # Collapse state lives at the syntax layer; every other projection
         # forwards the operation up the chain unchanged.

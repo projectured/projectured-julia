@@ -40,7 +40,8 @@ module ClipboardToAnyProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
+import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
+                       merge_collected_intents
 import ..OperationApiModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
                           insert_elements, delete_elements, CompoundOperation
@@ -510,28 +511,38 @@ function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
             (doc, event) -> ToggleClipboardSliceDisplayOperation(p),
-            (doc, sel) -> true, "Toggle stored slice", "clipboard"),
+            (doc, sel) -> true, "Toggle stored slice", "clipboard", false, "Toggle stored slice"),
         GestureBinding(KeyDownPattern(:c, [:ctrl], nothing),
             (doc, event) -> _clipboard_copy(p, doc),
-            (doc, sel) -> true, "Copy", "clipboard"),
+            (doc, sel) -> true, "Copy", "clipboard", false, "Copy"),
         GestureBinding(KeyDownPattern(:x, [:ctrl], nothing),
             (doc, event) -> _clipboard_cut(p, doc),
-            (doc, sel) -> true, "Cut", "clipboard"),
+            (doc, sel) -> true, "Cut", "clipboard", false, "Cut"),
         GestureBinding(KeyDownPattern(:n, [:ctrl], nothing),
             (doc, event) -> _clipboard_note(p, doc),
-            (doc, sel) -> true, "Note", "clipboard"),
+            (doc, sel) -> true, "Note", "clipboard", false, "Note"),
         GestureBinding(KeyDownPattern(:v, [:ctrl, :shift], nothing),
             (doc, event) -> _clipboard_paste_copy(p, doc),
-            (doc, sel) -> true, "Paste copy", "clipboard"),
+            (doc, sel) -> true, "Paste copy", "clipboard", false, "Paste copy"),
         GestureBinding(KeyDownPattern(:v, [:ctrl], nothing),
             (doc, event) -> _clipboard_paste(p, doc),
-            (doc, sel) -> true, "Paste", "clipboard"),
+            (doc, sel) -> true, "Paste", "clipboard", false, "Paste"),
     ]
 end
 
 function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardSliceToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
+    # Routing one gesture stops at the first answer; a collection takes both. The
+    # child's is prefixed with `content`, exactly as its operations are.
+    if change.gesture isa CollectIntents
+        cim = iomap.content_iomap
+        child = cim === nothing ? nothing :
+                read_intent(cim.projection, recursion, change, cim).operation
+        return Intent(change.gesture,
+                      merge_collected_intents(_collected_intents(own),
+                                              _collected_intents(_prefix_op(child, (FieldReferenceStep("content"),)))))
+    end
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
@@ -553,19 +564,29 @@ function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, 
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
             (doc, event) -> ToggleClipboardCollectionDisplayOperation(p),
-            (doc, sel) -> true, "Toggle collection", "clipboard"),
+            (doc, sel) -> true, "Toggle collection", "clipboard", false, "Toggle collection"),
         GestureBinding(KeyDownPattern(:equals, [:ctrl], nothing),
             (doc, event) -> _clipboard_collection_add(doc),
-            (doc, sel) -> true, "Add to collection", "clipboard"),
+            (doc, sel) -> true, "Add to collection", "clipboard", false, "Add to collection"),
         GestureBinding(KeyDownPattern(:minus, [:ctrl], nothing),
             (doc, event) -> _clipboard_collection_remove(doc),
-            (doc, sel) -> true, "Remove from collection", "clipboard"),
+            (doc, sel) -> true, "Remove from collection", "clipboard", false, "Remove from collection"),
     ]
 end
 
 function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardCollectionToAnyProjectionIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
+    # Routing one gesture stops at the first answer; a collection takes both. The
+    # child's is prefixed with `content`, exactly as its operations are.
+    if change.gesture isa CollectIntents
+        cim = iomap.content_iomap
+        child = cim === nothing ? nothing :
+                read_intent(cim.projection, recursion, change, cim).operation
+        return Intent(change.gesture,
+                      merge_collected_intents(_collected_intents(own),
+                                              _collected_intents(_prefix_op(child, (FieldReferenceStep("content"),)))))
+    end
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
@@ -590,6 +611,10 @@ read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToA
 # Prepend `steps` to the reference path carried by a delegated content operation,
 # so it is rooted at the clipboard document rather than at `content`.
 
+# Only a real collection merges; anything else a reader returned is not one.
+_collected_intents(op::CollectedIntentsOperation) = op
+_collected_intents(::Any) = nothing
+
 function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
     if op isa ReplaceSelectionOperation
@@ -603,6 +628,12 @@ function _prefix_op(op, steps::Tuple)
             ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
+    elseif op isa CollectedIntentsOperation
+        # Every seam that prefixes a compound must prefix a collection the same
+        # way, or the operations a listing carries arrive rooted one level too deep.
+        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
+                                          i.description, i.domain)
+                                   for i in op.intents])
     else
         op
     end
