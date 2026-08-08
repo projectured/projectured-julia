@@ -44,12 +44,12 @@ end
 # the chosen row, so there is no caret to move inside the text.
 _query_line(doc) = string("> ", doc.query, "▏")
 
-# "<marker><what it does>   [<gesture>]   (key only)". A row the palette cannot run
-# still earns its line: it tells the user which key does the job.
+# "<marker><what it does>   [<gesture>]   (not now)". A row the palette cannot run
+# still earns its line: it names what exists and shows the key that reaches it.
 function _command_line(row, marked::Bool)
     string(marked ? "▸ " : "  ", row.description,
            isempty(row.gesture) ? "" : string("   [", row.gesture, "]"),
-           row.runnable ? "" : "   (key only)")
+           row.operation === nothing ? "   (not now)" : "")
 end
 
 function print_document(p::CommandPaletteToSyntax, recursion, doc::CommandPalette, ctx::PrinterContext)
@@ -63,7 +63,7 @@ function print_document(p::CommandPaletteToSyntax, recursion, doc::CommandPalett
         for i in matches
             row = doc.rows[i]
             marked = i == selected
-            style = !row.runnable ? p.muted : marked ? p.selected : p.command
+            style = row.operation === nothing ? p.muted : marked ? p.selected : p.command
             push!(lines, SyntaxLeaf(TextString(_command_line(row, marked), style)))
         end
         lines

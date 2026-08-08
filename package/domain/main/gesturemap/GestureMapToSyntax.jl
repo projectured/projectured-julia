@@ -45,9 +45,13 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
             push!(children, SyntaxLeaf(TextString(row.domain, p.header)))
             last_domain = row.domain
         end
-        gesture_style = row.applicable ? p.gesture : p.muted
-        desc_style = row.applicable ? p.description : p.muted
-        suffix = row.applicable ? "" : "  (n/a)"
+        # A row with no operation cannot fire right now: its precondition failed,
+        # or it needs the keystroke that carries its argument. That is the only
+        # applicability answer there is, and it is the built operation itself.
+        runnable = row.operation !== nothing
+        gesture_style = runnable ? p.gesture : p.muted
+        desc_style = runnable ? p.description : p.muted
+        suffix = runnable ? "" : "  (n/a)"
         # gesture cell + connective + description cell, all in one leaf's value. A row
         # with no gesture reads "by name" in the gesture column: that is how a user
         # reaches it, from the command palette.

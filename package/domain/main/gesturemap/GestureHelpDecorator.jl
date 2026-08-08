@@ -8,10 +8,9 @@ gesture (F1), modelled on [`TooltipDecoratorProjection`](TooltipDecorator.jl).
 unchanged, so the content window looks exactly as it did without the decorator.
 
 **Reader** — the inner reader has priority (it is the real editor). When the
-inner declines and the event is the help gesture, the decorator collects every
-gesture reachable from *its own inner iomap* (the chain it just printed) via
-`collect_gesture_bindings` — the projection-form collector, not anything reaching into the
-editor — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
+inner declines and the event is the help gesture, the decorator asks the reader
+what is available — the same route a keystroke takes, so the answer is rooted where
+this decorator can use it — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
 `content` is that map. The op bubbles up to `WindowManagingProjection`, which opens
 a real sibling window beside the content (the same rail tooltips ride). A second
 help gesture emits `CloseWindowOperation`, so F1 toggles the window.
@@ -23,13 +22,12 @@ caller threads one state object through every decorator so the toggle is stable.
 module GestureHelpDecoratorProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
+import ..IntentModule: Intent, CollectIntents
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationApiModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..ProjectionGestureBindingsModule: collect_gesture_bindings
 import ..GestureMapModule: gesture_map
 
 export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap,
@@ -121,8 +119,11 @@ function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap:
             p.state.open = false
             return Intent(change.gesture, CloseWindowOperation(p.id))
         end
-        bindings = collect_gesture_bindings(p.inner, recursion, iomap.inner_iomap)
-        gm = gesture_map(bindings, iomap.input)
+        # Ask the reader what is available, exactly where a keystroke would go.
+        # What comes back is already rooted at this decorator's input, so the rows
+        # carry runnable operations rather than rules someone still has to resolve.
+        answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
+        gm = gesture_map(answer isa Intent ? answer.operation : answer)
         p.state.open = true
         return Intent(change.gesture, OpenWindowOperation(
             id = p.id, title = p.title,

@@ -8,7 +8,7 @@ narrows to what matches, and Enter runs the selected row.
 The palette is the running twin of the gesture-help window. Both read one
 collected set of [`GestureBinding`](@ref)s, and both display it as
 [`GestureRow`](@ref)s. The help window only shows the set; the palette runs the
-rows the caller marked `runnable` — see [`gesture_row`](../gesturemap/GestureMap.jl).
+rows that carry an operation — see [`GestureRow`](GestureMap.jl).
 
 The chosen row is the palette's own `selection`, as `rows[i-1:i]` — the same
 "element `i` of this collection field" reference a `WidgetList` row uses. The
@@ -109,8 +109,10 @@ end
 The indices of the rows that match `query`, best first. A row matches when the
 query is a subsequence of `"<domain> <description>"`, compared without case.
 
-The order is: the rows a user can run, then the rows that apply to the current
-selection, then the rows whose match starts earlier, then the collection order.
+The order is: the rows that can run, then the rows whose match starts earlier,
+then the collection order. A row that cannot run carries no operation, which is
+the same thing as "not applicable right now" — there is only one answer, and it is
+whether an operation was built.
 
 A subsequence match is loose on purpose — "sort" matches "Replace with null" in
 the `JsonDocument` domain, letter by letter. The rank carries the weight: the row
@@ -120,14 +122,14 @@ be precise.
 function command_palette_matches(palette::CommandPalette)
     rows = palette.rows
     query = palette.query
-    found = NTuple{4,Int}[]
+    found = NTuple{3,Int}[]
     for (i, row) in enumerate(rows)
         at = _subsequence_position(query, string(row.domain, " ", row.description))
         at === nothing && continue
-        push!(found, (row.runnable ? 0 : 1, row.applicable ? 0 : 1, at, i))
+        push!(found, (row.operation === nothing ? 1 : 0, at, i))
     end
     sort!(found)
-    Int[f[4] for f in found]
+    Int[f[3] for f in found]
 end
 
 """

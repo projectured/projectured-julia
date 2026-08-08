@@ -2,14 +2,16 @@
 # the running twin of the gesture-help window — both read one collected set of
 # bindings and display it as GestureRows.
 
-# Three rows that cover every case the palette distinguishes: a runnable command
-# with a gesture, a runnable command without one, and a row from a deeper
-# projection stage that only its key can run.
+# Four rows covering every case the palette distinguishes: a row that can run and
+# has a gesture, one that can run with no gesture, one from a deeper stage, and one
+# that cannot run right now. A row carries the operation it would apply; `nothing`
+# is the whole of "cannot run".
+_op() = DoNothingOperation()
 _palette_rows() = [
-    GestureRow("Ctrl+C", "Copy the selection", "JsonObject",   true,  "Copy the selection", true),
-    GestureRow("",       "Sort the entries",   "JsonObject",   true,  "Sort the entries",   true),
-    GestureRow("Left",   "Move left",          "TextDocument", true,  "Move left",          false),
-    GestureRow("n",      "Replace with null",  "JsonDocument", false, "Replace with null",  true),
+    GestureRow("Ctrl+C", "Copy the selection", "JsonObject",   _op()),
+    GestureRow("",       "Sort the entries",   "JsonObject",   _op()),
+    GestureRow("Left",   "Move left",          "TextDocument", _op()),
+    GestureRow("n",      "Replace with null",  "JsonDocument", nothing),
 ]
 
 _palette(query = "") = CommandPalette(query, _palette_rows(), nothing)
@@ -17,11 +19,9 @@ _palette(query = "") = CommandPalette(query, _palette_rows(), nothing)
 function test_command_palette()
 @testset "CommandPalette" begin
 
-    @testset "an empty query matches every row, best first" begin
+    @testset "an empty query matches every row, the runnable ones first" begin
         p = _palette()
-        # Runnable and applicable first, then runnable but not applicable, then the
-        # row only a key can run.
-        @test command_palette_matches(p) == [1, 2, 4, 3]
+        @test command_palette_matches(p) == [1, 2, 3, 4]
     end
 
     @testset "the query matches as a subsequence, without case" begin
@@ -63,12 +63,12 @@ function test_command_palette()
         p = _palette()
         # Nothing selected: forward lands on the first match, backward on the last.
         @test command_palette_step(p, 1) == command_palette_selection(1)
-        @test command_palette_step(p, -1) == command_palette_selection(3)
+        @test command_palette_step(p, -1) == command_palette_selection(4)
         p.selection = command_palette_selection(1)
         @test command_palette_step(p, 1) == command_palette_selection(2)
         @test command_palette_step(p, -1) == command_palette_selection(1)   # clamped
-        p.selection = command_palette_selection(3)                          # the last match
-        @test command_palette_step(p, 1) == command_palette_selection(3)    # clamped
+        p.selection = command_palette_selection(4)                          # the last match
+        @test command_palette_step(p, 1) == command_palette_selection(4)    # clamped
         p.query = "zzz"
         @test command_palette_step(p, 1) === nothing
     end
@@ -80,7 +80,7 @@ function test_command_palette()
         @test occursin("> ▏", text)                              # the type-in line
         @test occursin("▸ Sort the entries", text)               # the chosen row
         @test occursin("  Copy the selection   [Ctrl+C]", text)  # its key, for learning it
-        @test occursin("(key only)", text)                       # the row a name cannot run
+        @test occursin("(not now)", text)                        # the row that cannot run
         @test !occursin("Sort the entries   [", text)            # no gesture, no brackets
     end
 
@@ -131,7 +131,7 @@ function test_command_palette_decorator()
         @test !state.open[]
     end
 
-    @testset "the rows are the context, and only the document's own can run" begin
+    @testset "the rows are the context, and they carry their operations" begin
         state = CommandPaletteState()
         p = mkpalette(state)
         iomap = print_document(p, mkarr())
@@ -140,9 +140,15 @@ function test_command_palette_decorator()
         # The whole chain contributes rows, so there are more than the array's nine.
         @test length(rows) > 9
         @test any(r -> r.description == "Insert a new element", rows)
-        # Only the array's own bindings are runnable, and only those that have a name.
-        @test all(r -> r.domain in ("JsonArray", "JsonDocument"), filter(r -> r.runnable, rows))
-        @test any(r -> !r.runnable, rows)
+        # Rows come from every stage, not only the document the decorator wraps.
+        @test length(unique(r.domain for r in rows)) > 1
+        # A row that can run carries a built operation — that is the whole of being
+        # runnable, and it holds for a deeper stage's row as much as the document's.
+        insert = only(r for r in rows if r.description == "Insert a new element")
+        @test insert.operation isa Operation
+        # A row that needs its keystroke to carry an argument cannot be run.
+        number = only(r for r in rows if r.description == "Replace with a number")
+        @test number.operation === nothing
     end
 
     @testset "keys build the query and never reach the content" begin
@@ -171,11 +177,15 @@ function test_command_palette_decorator()
         for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
         read_intent(p, iomap, KeyDown(:backspace, none))
         @test state.palette.query == "inser"
-        first_row = command_palette_row(state.palette)
+        # Back to an empty query, so more than one row matches and a step can move.
+        for _ in 1:5; read_intent(p, iomap, KeyDown(:backspace, none)); end
+        @test state.palette.query == ""
+        # Compare the selection, not the row: two rows can hold equal values.
+        first_at = command_palette_selected(state.palette)
         read_intent(p, iomap, KeyDown(:down, none))
-        @test command_palette_row(state.palette) !== first_row
+        @test command_palette_selected(state.palette) != first_at
         read_intent(p, iomap, KeyDown(:up, none))
-        @test command_palette_row(state.palette) === first_row
+        @test command_palette_selected(state.palette) == first_at
     end
 
     @testset "Enter runs the command against the document and closes" begin
@@ -274,11 +284,13 @@ function test_command_palette_decorator()
         state = CommandPaletteState()
         p = mkpalette(state)
         iomap = print_document(p, mkarr())
-        # The tables are rebuilt per call, so compare what a row shows, not the
-        # closures inside.
-        mine  = [(b.domain, b.description) for b in collect_gesture_bindings(p, nothing, iomap)]
-        inner = [(b.domain, b.description) for b in
-                 collect_gesture_bindings(p.inner, nothing, iomap.inner_iomap)]
+        ask(proj, io) = begin
+            answer = read_intent(proj, nothing, Intent(CollectIntents()), io)
+            [(i.domain, i.description) for i in (answer isa Intent ? answer.operation : answer).intents]
+        end
+        # A closed palette claims nothing, so a collection passes straight through.
+        mine  = ask(p, iomap)
+        inner = ask(p.inner, iomap.inner_iomap)
         @test mine == inner
         @test !isempty(mine)
     end
@@ -304,6 +316,41 @@ function test_command_palette_decorator()
         # the window.
         evaluate_operation(_PaletteEditor(screen, iomap), operation)
         @test length(arr.elements) == 2
+    end
+
+    # The case that forced this design. A document wrapper (clipboard, workbench,
+    # shell, scrolling, dragging) puts the domain document one level down. Reaching
+    # into a flat binding list could not run anything through it; asking the reader
+    # can, because the reader roots what it returns.
+    @testset "a wrapped document's commands still run, from inside the wrapper" begin
+        json = make_json_document_example()
+        doc  = make_clipboard_document(json)
+        inner_json = doc.content
+        set_selection!(doc, EmptyReference())
+        set_selection!(inner_json, EmptyReference())
+        p = CommandPaletteProjection(inner = make_clipboard_projection(make_json_projection_example()),
+                                     measure = truetype_measure_text)
+        iomap = print_document(p, doc)
+        read_intent(p, iomap, summon)
+        rows = p.state.palette.rows
+        # Both the wrapper's own commands and the wrapped document's are offered.
+        @test any(r -> r.domain == "clipboard", rows)
+        @test any(r -> r.domain == "JsonObject", rows)
+        @test count(r -> r.operation !== nothing, rows) > 0
+
+        for c in "insert a new entry"
+            read_intent(p, iomap, KeyPress(c))
+        end
+        row = command_palette_row(p.state.palette)
+        @test row.description == "Insert a new entry"
+        @test row.domain == "JsonObject"
+        before = length(inner_json.entries)
+        operation = read_intent(p, iomap, enter)
+        @test operation isa Operation
+        # The operation is rooted at the ClipboardSlice, so applying it there reaches
+        # the JSON document inside.
+        evaluate_operation(_PaletteEditor(doc, iomap), operation)
+        @test length(inner_json.entries) == before + 1
     end
 
     @testset "a domain rule with no gesture is reached only by name" begin

@@ -33,7 +33,7 @@ module CommandPaletteDecoratorProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
                               map_reference_backward, Projection
-import ..IntentModule: Intent
+import ..IntentModule: Intent, CollectIntents
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: ComputedCellVector
@@ -43,10 +43,7 @@ import ..OperationModule: DoNothingOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
 import ..EventModule: KeyDown, KeyPress
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings,
-                               get_document_gesture_bindings, fire_named_gesture_binding
-import ..ProjectionGestureBindingsModule: collect_gesture_bindings
-import ..GestureMapModule: GestureRow, gesture_row
+import ..GestureMapModule: GestureRow, gesture_rows
 import ..CommandPaletteModule: CommandPalette, command_palette_row,
                                command_palette_step, command_palette_settled_selection
 import ..CommandPaletteToSyntaxModule: CommandPaletteToSyntax
@@ -204,28 +201,16 @@ end
 read_intent(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# The bindings this decorator may RUN: the ones belonging to its own input document.
-_run_bindings(input) = input isa Document ?
-    vcat(get_instance_gesture_bindings(input), get_document_gesture_bindings(typeof(input))) :
-    GestureBinding[]
-
-# Fill the palette from the context the user is in, and open it. The run set comes
-# first; every other binding the chain offers follows as a row that shows its key.
+# Fill the palette from the context the user is in, and open it.
+#
+# The rows come from the reader, asked where a keystroke would go. Every operation
+# in them was built by the binding that owns it and rooted by every stage on the
+# way back, so it applies at this decorator's input whatever wraps the content and
+# however deep the binding lives.
 function _open!(p::CommandPaletteProjection, recursion, iomap::CommandPaletteProjectionIoMap)
-    input = iomap.input
-    selection = input isa Document ? getfield(input, :selection)[] : nothing
-    run = _run_bindings(input)
-    rows = GestureRow[gesture_row(b, input, selection; runnable=true) for b in run]
-    # A binding is identified for this purpose by what it says it is: the same
-    # (domain, description) pair the collector would show twice.
-    shown = Set{Tuple{String,String}}((b.domain, b.description) for b in run)
-    for b in collect_gesture_bindings(p.inner, recursion, iomap.inner_iomap)
-        (b.domain, b.description) in shown && continue
-        push!(shown, (b.domain, b.description))
-        push!(rows, gesture_row(b, input, selection))
-    end
+    answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
     palette = p.state.palette
-    palette.rows = rows
+    palette.rows = gesture_rows(answer isa Intent ? answer.operation : answer)
     palette.query = ""
     palette.selection = command_palette_settled_selection(palette)
     p.state.open[] = true
@@ -243,7 +228,7 @@ function _read_open(p::CommandPaletteProjection, iomap::CommandPaletteProjection
     is_command_palette_gesture(event) && (_close!(p); return DoNothingOperation())
     if event isa KeyDown
         event.key === :escape && (_close!(p); return DoNothingOperation())
-        event.key === :return && return _run(p, iomap)
+        event.key === :return && return _run(p)
         event.key === :up && return _step!(palette, -1)
         event.key === :down && return _step!(palette, 1)
         event.key === :backspace && return _type!(palette, chop(palette.query))
@@ -267,16 +252,18 @@ function _step!(palette::CommandPalette, delta::Integer)
     DoNothingOperation()
 end
 
-# Run the chosen command against the input document and close the palette. A row
-# the palette cannot run leaves it open, so the user can pick another.
-function _run(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap)
+# Run the chosen row and close the palette. A row with no operation cannot run —
+# its precondition failed, or it needs a keystroke to carry its argument — so the
+# palette stays open and the user can pick another.
+#
+# There is nothing to look up here. Returning the operation is the whole of running
+# it, because the reader already rooted it where this decorator's own result is
+# expected.
+function _run(p::CommandPaletteProjection)
     row = command_palette_row(p.state.palette)
-    (row === nothing || !row.runnable || !row.applicable) && return DoNothingOperation()
-    input = iomap.input
-    selection = input isa Document ? getfield(input, :selection)[] : nothing
-    operation = fire_named_gesture_binding(_run_bindings(input), input, selection, row.name)
+    (row === nothing || row.operation === nothing) && return DoNothingOperation()
     _close!(p)
-    operation === nothing ? DoNothingOperation() : operation
+    row.operation
 end
 
 # ── Reference mapping ──────────────────────────────────────────────────────
@@ -310,11 +297,9 @@ function _strip_wrapper(reference)
 end
 
 # ── Collection ─────────────────────────────────────────────────────────────
-# The decorator owns no gestures of its own that a listing should show: the palette
-# gesture opens a view, and the help window is that view's twin. Delegate, so the
-# help window shows exactly what it showed without the palette in the chain.
-
-collect_gesture_bindings(p::CommandPaletteProjection, recursion, iomap::CommandPaletteProjectionIoMap) =
-    collect_gesture_bindings(p.inner, recursion, iomap.inner_iomap)
+# Nothing to do. While the palette is closed the reader delegates every payload it
+# does not claim to the content, and a `CollectIntents` payload is one of those —
+# so the help window sees exactly what it would see without the palette in the
+# chain. While the palette is open it swallows everything, itself included.
 
 end # module

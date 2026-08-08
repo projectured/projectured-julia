@@ -21,29 +21,30 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding
+import ..IntentModule: Intent, CollectedIntentsOperation
 import ..EventPatternModule: describe_event_pattern
 
-export GestureRow, gesture_row, gesture_map
+export GestureRow, gesture_row, gesture_map, gesture_rows
 
 """
-    GestureRow(gesture, description, domain, applicable, name, runnable)
+    GestureRow(gesture, description, domain, operation)
 
-One display row: `gesture` is the keystroke/click rendering (`describe_event_pattern(pattern)`,
-and the empty string for a binding that has no gesture), `description` is what it
-does, `domain` groups rows under a heading, and `applicable` is whether the binding
-can fire for the current selection (greyed when false).
+One display row: `gesture` is the keystroke/click rendering
+(`describe_event_pattern` of the pattern, and the empty string for a binding that
+has no gesture), `description` is what it does, and `domain` groups rows under a
+heading.
 
-`name` is what a user types to run the binding, or `nothing` when it has none.
-`runnable` says the caller may run it against the document these rows were built
-for — see [`gesture_row`](@ref).
+`operation` is the change this row would make, **already built and already rooted
+where the caller can apply it** — because the row came back through the reader,
+which is what roots it. `nothing` means the row cannot run right now: its
+precondition failed, or it needs a keystroke to carry its argument. That is the
+greyed row, and it is the only "can this fire?" answer there is.
 """
 struct GestureRow
     gesture::String
     description::String
     domain::String
-    applicable::Bool
-    name::Union{String,Nothing}
-    runnable::Bool
+    operation::Any
 end
 
 """
@@ -57,44 +58,51 @@ its own.
     rows::Any = GestureRow[]
 end
 
-# Evaluate a binding's precondition defensively: a collector spanning several
-# domains may carry bindings whose `applicable` does not accept this document, in
-# which case the row is simply shown as not-applicable rather than erroring.
-_row_applicable(b::GestureBinding, doc, sel) = try b.applicable(doc, sel) catch; false end
-
-# A binding with no gesture has no keystroke to render, so its gesture column is empty.
-_row_gesture(b::GestureBinding) =
-    b.pattern === nothing ? "" : describe_event_pattern(b.pattern)
+# An intent with no pattern has no keystroke to render, so its gesture column is
+# empty. The intent's `gesture` field carries the binding's pattern, which is what
+# a listing renders — the input that *would* fire it.
+_row_gesture(pattern) = pattern === nothing ? "" : describe_event_pattern(pattern)
 
 """
-    gesture_row(binding, doc, sel; runnable = false) -> GestureRow
+    gesture_row(intent) -> GestureRow
 
-One row for `binding`, with its precondition evaluated for `doc` + `sel`.
-
-Pass `runnable = true` only when `binding` belongs to `doc` itself. Such a binding
-builds its operation in `doc`'s own reference vocabulary, so a caller may run it
-with [`fire_named_gesture_binding`](@ref) and use the result directly. A binding
-gathered from a deeper projection stage builds its operation against *that*
-stage's document, and only the reader chain maps it back — running it here would
-produce a path rooted in the wrong document. A binding with no `name` is never
-runnable, whatever the caller passes.
+One row for one collected `Intent`. Nothing is evaluated here: the operation was
+built by the binding that owns it, against the document that owns it, and rooted
+by every stage on the way back.
 """
-gesture_row(b::GestureBinding, doc, sel; runnable::Bool = false) =
-    GestureRow(_row_gesture(b), b.description, b.domain,
-               _row_applicable(b, doc, sel), b.name,
-               runnable && b.name !== nothing)
+gesture_row(intent::Intent) =
+    GestureRow(_row_gesture(intent.gesture), intent.description, intent.domain,
+               intent.operation)
 
 """
-    gesture_map(bindings, doc) -> GestureMap
+    gesture_rows(collected) -> Vector{GestureRow}
 
-Turn `bindings` into a `GestureMap`, marking each row applicable when its
-precondition holds for `doc`'s current selection. The help window only shows
-rows, so it marks none of them runnable.
+The rows for a [`CollectedIntentsOperation`](@ref), in collection order — which is
+chain order, so the innermost document's rules come first. A chain that visits one
+document from more than one stage offers it more than once; the same
+(domain, description) is kept only the first time.
+
+`nothing` (a reader that had nothing to say) yields no rows.
 """
-function gesture_map(bindings, doc)
-    sel = getfield(doc, :selection)[]
-    rows = GestureRow[gesture_row(b, doc, sel) for b in bindings]
-    GestureMap(rows, nothing)
+function gesture_rows(collected::CollectedIntentsOperation)
+    rows = GestureRow[]
+    seen = Set{Tuple{String,String}}()
+    for intent in collected.intents
+        key = (intent.domain, intent.description)
+        key in seen && continue
+        push!(seen, key)
+        push!(rows, gesture_row(intent))
+    end
+    rows
 end
+gesture_rows(::Nothing) = GestureRow[]
+gesture_rows(::Any) = GestureRow[]
+
+"""
+    gesture_map(collected) -> GestureMap
+
+The help window's document for a collection.
+"""
+gesture_map(collected) = GestureMap(gesture_rows(collected), nothing)
 
 end # module

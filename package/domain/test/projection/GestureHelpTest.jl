@@ -20,8 +20,9 @@ function test_gesture_help()
         help = GestureHelpProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
-        # What the window must show == what collect yields over the same iomap.
-        expected = gesture_map(collect_gesture_bindings(inner, nothing, iomap.inner_iomap), arr)
+        # What the window must show == what the reader answers over the same iomap.
+        answer = read_intent(inner, nothing, Intent(CollectIntents()), iomap.inner_iomap)
+        expected = gesture_map(answer isa Intent ? answer.operation : answer)
         @test length(expected.rows) == 9          # the array's full reified set
 
         op = read_intent(help, iomap, f1)
@@ -146,15 +147,15 @@ function test_gesture_help()
         @test length(screen.windows) == 1
     end
 
-    # A decorator projection's `collect_gesture_bindings` gathers its own gestures *and*
-    # descends into the wrapped content, so the help window shows both. Without the
-    # combinator method, only the clipboard's own commands would surface.
-    @testset "collect_gesture_bindings descends into a clipboard's content" begin
+    # A decorator's reader answers a collection with its own gestures *and* the
+    # wrapped content's, merged — where routing one gesture would stop at the first.
+    @testset "a collection descends into a clipboard's content" begin
         content = PrimitiveString("hello")
         slice = ClipboardSlice(content)
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-        descs = [b.description for b in collect_gesture_bindings(p, nothing, iomap)]
+        answer = read_intent(p, nothing, Intent(CollectIntents()), iomap).operation
+        descs = [i.description for i in answer.intents]
         @test "Copy" in descs                # the clipboard's own gesture
         @test "Insert character" in descs    # descended into the PrimitiveString content
     end
