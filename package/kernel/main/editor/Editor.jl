@@ -319,7 +319,7 @@ clients can drive the editor; off by default.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
-              on_frame=nothing)
+              on_start=nothing, on_frame=nothing)
     server = if mcp
         mcp_instructions === nothing ?
             make_agent_server(:mcp, editor) :
@@ -328,6 +328,10 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         nothing
     end
     server === nothing || start_agent_server!(server)
+    # The editor exists now, and this is the first moment anything outside can
+    # have it. What needs to reach a running editor — a driver that will post
+    # its work, a watcher, a client — is handed it here, once, before any frame.
+    on_start === nothing || on_start(editor)
     # Advance this editor's private animation clock once per frame; subscribers
     # via `get_reactive_clock_time(editor.clock)` re-evaluate on the next pull.
     # Logical time is wall-clock seconds since the loop started.
@@ -378,15 +382,19 @@ Pass `mcp=true` to start an MCP server alongside the loop.
 `Mouse`); backends that drive a different channel — e.g. the `ConsoleBackend`,
 which has no native window or pointer — pass their own set (e.g.
 `Device[Keyboard()]`).
+
+`on_start(editor)` runs once, after the editor is built and before the first
+frame. It is how something that will post operations gets hold of the editor to
+post them to, since this overload is what constructs it.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
-              on_frame=nothing)
+              on_start=nothing, on_frame=nothing)
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)
         editor = Editor(backend, document, projection, devices)
-        run_editor!(editor; mcp=mcp, on_frame=on_frame)
+        run_editor!(editor; mcp=mcp, on_start=on_start, on_frame=on_frame)
     finally
         quit_backend!(backend)
     end
