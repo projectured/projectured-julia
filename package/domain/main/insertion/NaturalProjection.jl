@@ -93,6 +93,7 @@ import ..FileSystemModule: FileSystemDocument
 import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..DocumentCoreModule: DocumentNothing
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
 import ..RstToSyntaxModule: RstToSyntax
 import ..RstModule: RstDocument, RstRoot, RstSection
@@ -169,6 +170,11 @@ function natural_to_syntax_dispatch()
             # would not know what to do with a placeholder or a name buffer.
             TextNothing        => InsertionNothingToSyntaxLeaf(),
             TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument),
+            # The domain-free placeholder. `DocumentNothing` is what a hole with
+            # no domain yet holds — the content of a fresh pane tab, among other
+            # things. Without this entry it reaches the reflection tail and draws
+            # its own type name instead of "empty document".
+            DocumentNothing    => InsertionNothingToSyntaxLeaf(),
         ],
         CollectionToSyntax().dispatch,   # CellVector, ListNode
         ObjectToSyntax().dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
