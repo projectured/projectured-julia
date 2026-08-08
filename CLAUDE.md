@@ -95,6 +95,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `operation/Interface.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
+  - ⬜ `operation/Intent.jl`
 - **Layer 11 — binding** (`binding/`)
   - ⬜ `binding/BindingLayer.jl`
   - ⬜ `binding/GestureBinding.jl`
@@ -109,7 +110,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/ProjectionLayer.jl`
   - ⬜ `projection/ProjectionReferenceStep.jl`
   - ⬜ `projection/ProjectionApi.jl`
-  - ⬜ `projection/Intent.jl`
   - ⬜ `projection/PrinterContext.jl`
   - ⬜ `projection/ChildrenContainer.jl`
   - ⬜ `projection/GestureBindings.jl`

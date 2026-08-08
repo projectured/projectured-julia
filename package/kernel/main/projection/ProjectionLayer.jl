@@ -7,15 +7,15 @@
 # The ordered include list of the projection layer; a fragment of ProjecturedKernel.
 # The interface stubs lead the layer: ProjectionApi declares the abstract types
 # and open generics (the four projection functions) that everything below
-# implements; Intent is the reader-side protocol data type. Nothing below this
-# layer imports any of them — a higher package extends the generics through the
-# fully loaded kernel, so they need no earlier position in the include list.
+# implements. Nothing below this layer imports any of them — a higher package
+# extends the generics through the fully loaded kernel, so they need no earlier
+# position in the include list. (`Intent` itself is operation-layer data: the
+# binding layer builds one, which is below this layer.)
 # ProjectionReferenceStep — a reference step whose payload is a projection.
 # Small, self-contained; needs only DocumentModule and ReferenceModule, so
 # loads first in the layer.
 include("ProjectionReferenceStep.jl")
 include("ProjectionApi.jl")
-include("Intent.jl")
 # PrinterContext (Cell + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections.
 include("PrinterContext.jl")
