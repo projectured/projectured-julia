@@ -31,11 +31,13 @@ module GestureBindingModule
 using ..EventModule
 using ..EventPatternModule
 using ..DocumentModule
+using ..IntentModule
 
 export GestureBinding,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings, get_applicable_gesture_bindings,
        fire_gesture_bindings, fire_named_gesture_binding,
+       collect_gesture_bindings_intents,
        read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"
 
@@ -169,6 +171,11 @@ bindings — a document, an instance, a projection — fires them through here r
 than walking them itself, so *what fires* cannot drift from what a listing shows.
 """
 function fire_gesture_bindings(bindings, target, selection, event, claimed = nothing)
+    # Asked what is available rather than for one thing to happen: answer with all
+    # of them instead of the first match. Same table, same preconditions, same
+    # operation closures — so what is listed cannot drift from what fires.
+    event isa CollectIntents &&
+        return collect_gesture_bindings_intents(bindings, target, selection)
     for binding in bindings
         binding.pattern === nothing && continue
         claimed === nothing || binding.override || continue
@@ -204,6 +211,35 @@ function fire_named_gesture_binding(bindings, target, selection, name::AbstractS
         operation === nothing || return operation
     end
     return nothing
+end
+
+"""
+    collect_gesture_bindings_intents(bindings, target, selection) -> CollectedIntentsOperation
+
+One `Intent` per binding in `bindings`, each carrying the operation that binding
+would produce right now, expressed against `target`.
+
+The counterpart of [`fire_gesture_bindings`](@ref) for the `CollectIntents`
+payload: where firing stops at the first match, this builds them all. A binding
+whose precondition fails, or whose operation declines, still yields an `Intent` —
+with `operation === nothing`, which is the greyed row a listing shows. That is the
+one deliberate difference from the Lisp, which drops what cannot fire.
+
+The operation closure gets `nothing` for the event, so a binding that *reads* the
+event yields an `Intent` with no operation: it has no meaning without the keystroke
+that carries its argument. `@gestures` marks exactly those by withholding the
+`name`. Such a binding still earns its row — a listing should say the key exists —
+it simply cannot be run from a list.
+"""
+function collect_gesture_bindings_intents(bindings, target, selection)
+    intents = Intent[]
+    for binding in bindings
+        runnable = binding.name !== nothing
+        operation = (runnable && binding.applicable(target, selection)) ?
+                    binding.operation(target, nothing) : nothing
+        push!(intents, Intent(binding.pattern, operation, binding.description, binding.domain))
+    end
+    CollectedIntentsOperation(intents)
 end
 
 """

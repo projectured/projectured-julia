@@ -39,7 +39,10 @@ binding whose pattern `matches` the event and whose `applicable`
 precondition holds; a binding whose `operation` returns `nothing` is
 skipped so a later one may still fire. The projection-layer analogue of
 `read_bound_gesture`: a projection whose reader delegates here (e.g.
-Clipboard) *fires* the very table `collect_gesture_bindings` *shows*.
+Clipboard) *fires* the very table a listing *shows*.
+
+It answers a `CollectIntents` payload too, because `fire_gesture_bindings` does.
+A projection that routes its gestures through here needs no separate collector.
 """
 function read_projection_gesture(projection, iomap, event)
     bindings = get_projection_gesture_bindings(projection, iomap)

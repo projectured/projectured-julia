@@ -228,6 +228,51 @@ function test_gesture_binding()
         @test fire_named_gesture_binding(own, probe, probe.selection, "sort the keys") === nothing
     end
 
+    # Collection is the same table, asked a different question. Every row a listing
+    # shows comes from here, so it cannot drift from what fires.
+    @testset "CollectIntents answers with the whole table, not the first match" begin
+        probe = CommandProbe()
+        probe.selection = EmptyReference()
+        own = get_document_gesture_bindings(CommandProbe)
+        collected = fire_gesture_bindings(own, probe, probe.selection, CollectIntents())
+        @test collected isa CollectedIntentsOperation
+        # One intent per binding — including the ones that cannot run.
+        @test length(collected.intents) == length(own)
+        @test [i.description for i in collected.intents] ==
+              ["cut it", "y", "set digit", "sort the keys", "reverse"]
+        @test all(i -> i.domain == "CommandProbe", collected.intents)
+
+        ops = [i.operation for i in collected.intents]
+        # A rule that can run carries its built operation.
+        @test ops[1] == MarkOperation(:cut)
+        @test ops[4] == MarkOperation(:sort)
+        @test ops[5] == MarkOperation(:reverse)
+        # A rule with no description has no name, so it cannot be run from a list —
+        # it still gets a row saying its key exists.
+        @test ops[2] === nothing
+        # A rule that reads the event has no meaning without the keystroke.
+        @test ops[3] === nothing
+        # The gesture is the pattern, so a listing can render the key.
+        @test collected.intents[4].gesture === nothing        # the command has none
+        @test collected.intents[1].gesture !== nothing
+    end
+
+    @testset "a failed precondition greys a row instead of dropping it" begin
+        probe = CommandProbe()                # selection === nothing → precondition false
+        own = get_document_gesture_bindings(CommandProbe)
+        collected = fire_gesture_bindings(own, probe, probe.selection, CollectIntents())
+        @test length(collected.intents) == length(own)
+        @test all(i -> i.operation === nothing, collected.intents)
+    end
+
+    @testset "read_bound_gesture routes the payload to the same answer" begin
+        probe = CommandProbe()
+        probe.selection = EmptyReference()
+        collected = read_bound_gesture(probe, CollectIntents())
+        @test collected isa CollectedIntentsOperation
+        @test length(collected.intents) == length(get_document_gesture_bindings(CommandProbe))
+    end
+
     @testset "@gestures rejects a nameless or overriding `nothing` rule" begin
         nameless = try
             @eval @gestures CommandProbe begin
