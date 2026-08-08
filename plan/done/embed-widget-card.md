@@ -407,6 +407,21 @@ loader half and the save half are the same small change.
 - `test_example(rst_example)` + `test_printer(rst_rendered_example)` — 8011 pass
   and 243 fail, which is **exactly** the count at the base commit. The 243 are a
   type-in baseline, measured on both sides rather than assumed.
+- `test_all()`, run on this branch **and** at the base commit, in two worktrees:
+
+  | | Pass | Fail | Error | Broken |
+  | --- | --- | --- | --- | --- |
+  | base `8d7ccd19` | 807345 | 479 | 4 | 2205 |
+  | this branch | 808128 | 479 | 4 | 2205 |
+
+  No new failure, no new error, no change in the broken count. The 783 extra
+  passes are the 74 new assertions plus the structural walks, which assert per
+  node and now walk a card's header and an RST page's layout stack: visual +5,
+  domain +428, the printer sweep +350.
+
+  Of the four errors, two are the known Rule C failures in `DocumentMacroTest`
+  and two are Unexpected Passes on the `graph` navigation example. That example
+  gives 9 pass / 2 error on both commits when run alone.
 - Both pages rendered through the real SDL renderer with `write_image`, and read
   back as pictures.
 
