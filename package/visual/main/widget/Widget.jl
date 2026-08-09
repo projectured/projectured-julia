@@ -13,6 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
+import ..SelectionModule: replace_selection!
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
@@ -1971,8 +1972,23 @@ end
 
 Apply a widget operation.
 """
+# A tab switch is a selection change, so it goes through the selection writer.
+#
+# Two reasons, both discovered by measuring. The writer canonicalizes the path
+# against the widget and syncs the shared selection chain in place, so a switch
+# now leaves the same stored shape a click inside a tab leaves —
+# `.selector_element_pairs::CellVector[i]::WidgetTabPage` — instead of the bare
+# `[i]` a direct field write left. And a direct write never reaches
+# `_sync_selection!`, so nothing that hangs off a selection change could ever fire
+# on a tab switch.
+#
+# The widget stays the root, exactly as before: this writes the widget's own
+# selection, not the editor document's.
 function evaluate_operation(editor, op::SelectTabOperation)
-    op.widget.selection = ConcreteReference(ElementReferenceStep(op.tab_index), EmptyReference())
+    widget = op.widget
+    (1 <= op.tab_index <= length(widget.selector_element_pairs)) || return nothing
+    replace_selection!(widget, Reference(FieldReferenceStep("selector_element_pairs"),
+                                         ElementReferenceStep(op.tab_index)))
 end
 
 # The three strip reports are inert when nothing claimed them. A press on a close
