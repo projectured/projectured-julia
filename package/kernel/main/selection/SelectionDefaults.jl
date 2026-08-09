@@ -16,7 +16,7 @@ keeps_dormant_selection(::Any) = false
 # they are abandoning is exactly what a dormant node still holds.
 _stored_path(value) = value
 _stored_path(value::SelectionDocument) = value.primary
-_stored_selection(document) =
+stored_selection(document) =
     hasproperty(document, :selection) ? _stored_path(getfield(document, :selection)[]) : nothing
 
 function clear_selection!(document)

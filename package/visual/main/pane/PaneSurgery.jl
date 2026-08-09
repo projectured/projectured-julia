@@ -36,7 +36,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           get_reference_node_type, concat_references, Position
 import ..ReferenceBuilderModule: var"@reference"
 import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
-import ..SelectionModule: get_selection
+import ..SelectionModule: get_selection, stored_selection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
                      pane_weights, pane_normalized_weights, pane_groups, pane_parent
 
@@ -237,7 +237,9 @@ with no tab answers 0, which names the group itself.
 """
 function pane_shown_tab_index(group::PaneGroup)
     isempty(group.tabs) && return 0
-    index, _ = _head_index(_after_field(getfield(group, :selection)[], "tabs"))
+    # `stored_selection`, not `get_selection`: a group that lost the focus holds a
+    # dormant selection, and the tab it shows is exactly what that selection names.
+    index, _ = _head_index(_after_field(stored_selection(group), "tabs"))
     (index !== nothing && 1 <= index <= length(group.tabs)) ? index : 1
 end
 

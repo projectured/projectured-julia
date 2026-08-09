@@ -35,6 +35,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..PrimitiveModule: PrimitiveString
 import ..DocumentCoreModule: DocumentNothing
+import ..SelectionModule: keeps_dormant_selection
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        pane_tab_title_string, default_new_pane_tab,
@@ -256,5 +257,18 @@ function pane_normalized_weights(weights::AbstractVector)
     (isfinite(total) && total > 0) || return fill(1.0 / n, n)
     Float64[Float64(w) / total for w in weights]
 end
+
+# ── Dormant selections ─────────────────────────────────────────────────────
+#
+# Focus is the selection, and a group shows the tab its own selection names. So a
+# group that loses the focus must keep that selection, or it forgets which tab it
+# was showing; a tab must keep its own, or it forgets the caret inside it; and a
+# split must keep its, or a nested split forgets which side had the focus.
+#
+# What they keep is dormant: still stored, still drawable, never acted on, and
+# live again the moment the focus comes back.
+keeps_dormant_selection(::PaneGroup) = true
+keeps_dormant_selection(::PaneTab) = true
+keeps_dormant_selection(::PaneSplit) = true
 
 end # module PaneModule

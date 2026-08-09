@@ -100,3 +100,18 @@ that need this put the keeper on opposite sides: a pane group sits below the
 divergence, while a tabbed pane **is** the divergence.
 """
 function keeps_dormant_selection end
+
+"""
+    stored_selection(document) -> reference or nothing
+
+The path `document` holds, live **or** dormant.
+
+[`get_selection`](@ref) answers only the live one, because a dormant selection
+reads as `nothing` — the default that keeps every reader written against a bare
+reference correct. A reader that has to see a dormant path asks for it here, and
+says so by asking.
+
+A tab group is the case this exists for: the tab it shows is the tab its own
+selection names, and it must still show that tab while the focus is elsewhere.
+"""
+function stored_selection end
