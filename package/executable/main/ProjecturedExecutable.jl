@@ -122,6 +122,12 @@ frame to warm the printer and rasteriser, then drives the interactive path. Used
 function precompile_warmup()
     print_help()
     print_version()
+    # The catalog sweep, when the build asked for one. It compiles one document
+    # per node type across every domain, so a binary that bakes a single domain
+    # leaves it at `:none` and warms only what it bakes. A config generated
+    # before this knob existed has no `APP_WORKLOAD`, hence the guard.
+    _workload = @isdefined(APP_WORKLOAD) ? APP_WORKLOAD : :none
+    _workload === :none || ProjecturedExample.precompile_workload(_workload)
     for domain in APP_DOMAINS
         doc, proj, _name = build_file_editor(domain; workbench = APP_WORKBENCH)
         if haskey(APP_BACKENDS, :sdl)

@@ -96,6 +96,7 @@ struct BuildSpec
     width::Union{Int,Nothing}
     height::Union{Int,Nothing}
     mcp::Bool
+    workload::Symbol
 end
 
 function BuildSpec(; app_name::AbstractString="projectured",
@@ -108,12 +109,13 @@ function BuildSpec(; app_name::AbstractString="projectured",
                      expose_backend_flag::Bool=false,
                      width::Union{Integer,Nothing}=nothing,
                      height::Union{Integer,Nothing}=nothing,
-                     mcp::Bool=false)
+                     mcp::Bool=false,
+                     workload::Symbol=:none)
     spec = BuildSpec(String(app_name), domain, Symbol.(collect(domains)), workbench,
                      file_backed, DataType[b for b in backends], default_backend,
                      expose_backend_flag,
                      width === nothing ? nothing : Int(width),
-                     height === nothing ? nothing : Int(height), mcp)
+                     height === nothing ? nothing : Int(height), mcp, workload)
     validate(spec)
     spec
 end
@@ -172,6 +174,7 @@ function render_app_config(spec::BuildSpec)
         "const APP_WIDTH           = $(_opt(spec.width))",
         "const APP_HEIGHT          = $(_opt(spec.height))",
         "const APP_MCP             = $(spec.mcp)",
+        "const APP_WORKLOAD        = $(repr(spec.workload))",
     ])
     join(lines, "\n") * "\n"
 end

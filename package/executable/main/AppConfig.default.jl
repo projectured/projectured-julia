@@ -21,3 +21,9 @@ const APP_EXPOSE_BACKEND  = false
 const APP_WIDTH           = nothing
 const APP_HEIGHT          = nothing
 const APP_MCP             = false
+# How much the binary compiles at build time: `:none`, `:minimal`, `:demo` or
+# `:full`. `:none` warms only the baked domains, which is what a single-domain
+# binary wants; a larger level sweeps every atom in the catalog and makes the
+# binary bigger for domains it does not bake. `build_executable(…; workload =
+# :full)` is the switch.
+const APP_WORKLOAD        = :none
