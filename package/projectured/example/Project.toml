@@ -5,7 +5,6 @@ entryfile = "ProjecturedExample.jl"
 version = "0.1.0"
 
 [deps]
-PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 ProjecturedJsonExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"

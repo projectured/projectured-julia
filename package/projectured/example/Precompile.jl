@@ -22,7 +22,7 @@
 # See plan/pending/precompile-workloads.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using PrecompileTools: @setup_workload, @compile_workload
+# PrecompileTools is not used here — the macro call sites live in the leaves.
 
 """
     precompile_atoms(atoms; projection = NaturalToGraphics(…)) -> Int
@@ -168,11 +168,10 @@ function precompile_workload(level::Symbol = :minimal; atoms = atomic_documents(
     nothing
 end
 
-@setup_workload begin
-    # Built outside the workload: constructing the documents is not what needs
-    # compiling, and doing it here keeps the measured region to the pipeline.
-    _atoms = atomic_documents()
-    @compile_workload begin
-        precompile_workload(:demo; atoms = _atoms)
-    end
-end
+# There is deliberately no `@compile_workload` here. A package image is built
+# with exactly that package's dependencies present, so code compiled into this
+# one is invalidated as soon as a session loads anything above it — measured at
+# 3.9 s of `recompile_time` on a first paint, and at 1.15 s on a bare render of
+# one JSON document. The workload therefore runs in a leaf: `ProjecturedRepl`
+# for a session, `ProjecturedExecutable` for a binary. Both call
+# `precompile_workload`, which is why it is a function rather than a macro body.
