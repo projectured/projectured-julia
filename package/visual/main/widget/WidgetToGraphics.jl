@@ -2916,7 +2916,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
         w = iomap.input
         if !(w isa WidgetTabbedPane)
             res = _route_active_tab(iomap, child_iomaps, evt)
-            return _tab_prefix(res)
+            return _tab_prefix(res, iomap.input)
         end
         xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
         if xx !== nothing
@@ -2929,7 +2929,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
             index > 0 && return on_close ? CloseTabRequestOperation(w, index) :
                                            SelectTabOperation(w, index)
         end
-        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
     if evt isa MouseScroll
         w = iomap.input
@@ -2950,7 +2950,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
                 end
             end
         end
-        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
     # Coordinate-bearing events (drags + hover crossings) target the *visible* tab
     # regardless of selection: a splitter drag inside the active tab must keep
@@ -2975,13 +2975,13 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     end
     if evt isa MouseDown || evt isa MouseUp || evt isa MouseMove ||
        evt isa MouseEnter || evt isa MouseLeave
-        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt))
+        return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
     # Coordless events (KeyDown, KeyPress, …): forward to the tab the selection
     # points at, or to nothing when the selection is not in this pane — selection
     # is authoritative, with no active-tab fallback for keyboard events (the
     # printer still falls back to tab 1 to *render* a tab). See widget.md.
-    _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt))
+    _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt), iomap.input)
 end
 
 # Coordless routing: forward to the tab the selection points at, or nothing when
@@ -3082,11 +3082,42 @@ function _active_tab_index(w::WidgetTabbedPane, n::Int)
     i == 0 ? 1 : i
 end
 
-function _tab_prefix(res)
+# The path an operation takes as it bubbles out of a tab's content.
+#
+# `selector_element_pairs[i]` names the `WidgetTabPage`, and what was printed is
+# that page's `element`, so the true path continues through `.element`. It is not
+# always written, and the reason is history rather than design.
+#
+# Two upstream decoders — `PaneToWidget` and `WorkbenchToWidget` — were written
+# when a pair was a raw tuple, and they still expect the path to run straight from
+# `[i]` into the content widget. Both put a **widget** in the tab, and both map the
+# reference back into their own domain before anything validates it against a
+# document, so the missing step never shows up there.
+#
+# A tab that holds a foreign-domain document has no such decoder. The widget path
+# **is** the document path, it reaches `_matched_selection`, and the missing step
+# makes it fail: `[i]` stamps `::WidgetTabPage` on a node whose next step belongs
+# to the document inside the page.
+#
+# So the step is added exactly for that case. This is deliberately narrow: writing
+# it unconditionally is the correct path, and it would need both decoders changed
+# in the same commit.
+function _tab_prefix(res, widget)
     res === nothing && return nothing
     op, idx = res
-    reroot_operation(op,
-        (FieldReferenceStep("selector_element_pairs"), RangeReferenceStep(idx-1, idx)))
+    steps = (FieldReferenceStep("selector_element_pairs"), RangeReferenceStep(idx - 1, idx))
+    reroot_operation(op, _descends_into_page(widget, idx) ?
+                         (steps..., FieldReferenceStep("element")) : steps)
+end
+
+# True when tab `idx` holds a document that is not a widget — the case with no
+# upstream decoder to compensate for the missing `.element` step.
+function _descends_into_page(widget, idx::Int)
+    widget isa WidgetTabbedPane || return false
+    pairs = widget.selector_element_pairs
+    (1 <= idx <= length(pairs)) || return false
+    page = pairs[idx]
+    page isa WidgetTabPage && !(page.element isa WidgetDocument)
 end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
