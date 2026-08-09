@@ -246,15 +246,37 @@ setting.
 
 ### Levels
 
-| level | what it compiles | for |
-| --- | --- | --- |
-| `:none` | nothing | editing low-level code all day |
-| `:minimal` | one document per domain, printed and forced, headless | the REPL default |
-| `:demo` | one catalog page opened end to end, plus the widgets a talk uses | showing the thing |
-| `:full` | exactly what `StemBuild` compiles | a demo where speed is the point |
+Measured on a scratch Startup package that pulls the whole `jo` session, with a
+workload that opens one catalog page headlessly. "the click" is `open_page!`
+plus the first paint.
 
-`:full` is not a separate list. It is the same function call `StemBuild` makes,
-so "the same as the build" is literally the same code.
+| level | mechanism | build | the click |
+| --- | --- | ---: | ---: |
+| `:none` | nothing | 8.8 s | 5.98 s |
+| `:minimal` | a workload over the atoms | — | — |
+| `:demo` | `@compile_workload` over one catalog page | 17–22 s | **0.55 s** |
+| `:full` | that, plus `@recompile_invalidations` | 107–116 s | **0.24 s** |
+
+The split is real and it is the one this parameter exists for. A workload costs
+about ten seconds of build and takes the click from 6 s to half a second.
+`@recompile_invalidations` costs a further **ninety seconds** of build and takes
+it to a fifth of a second. That is a demo-day setting, not a default.
+
+What each one fixes is different, which is why `:full` is not redundant:
+
+| | `open_page!` | first paint | of which recompile |
+| --- | ---: | ---: | ---: |
+| `:none` | 1.286 s | 4.695 s | 3.877 s |
+| workload only | **0.038 s** | 0.510 s | 0.254 s |
+| `@recompile_invalidations` only | 1.133 s | **0.674 s** | **0.000 s** |
+| both | **0.038 s** | **0.201 s** | **0.000 s** |
+
+`@recompile_invalidations` erases the invalidation damage and nothing else — the
+paint's 3.9 s of recompilation goes to zero, while `open_page!` stays at 1.1 s
+because that is code which was never compiled, not code that was voided. The
+workload is the opposite: it compiles exactly the paths it runs, so `open_page!`
+falls by a factor of 34, and it leaves a little recompilation behind. Together
+they cover both halves.
 
 ### How the level is chosen
 
@@ -684,4 +706,38 @@ and the existing guides point at it.
 
 ## Result
 
-To be filled in at step 10.
+### The two mechanisms, measured
+
+The table under "Levels" is the answer: the click falls from **5.98 s to 0.24 s**,
+and the two mechanisms fix different halves. Build cost is what separates a
+default from a demo setting: ~10 s for the workload, ~96 s more for
+`@recompile_invalidations`.
+
+### A workload inside an extension works
+
+A probe package declared `Preferences` weak with an extension holding a
+`@compile_workload` over `weigh(Box{T})`. In a fresh session with both loaded:
+
+| call | compile time |
+| --- | ---: |
+| `weigh(Box{Int64})` — named by the extension's workload | **0.0000 s** |
+| `weigh(Box{Bool})` — not named | 0.0224 s |
+
+So the extension image carries the compiled code, and a heavy stem's workload can
+live in an extension of the Startup package: present when the stem is, absent
+when it is not. That is what makes `:demo` in `env/core` cheap.
+
+### A catalog workload runs during precompilation
+
+`demo_catalog()`, `open_page!` and a forced canvas all ran inside
+`@compile_workload` with no failure. A dependency's `__init__` **does** run while
+a dependent package is precompiled, so the marker and doctype registries are
+populated; only the package's own `__init__` is skipped, and a Startup package
+has none. The concern recorded in
+[precompile-workloads.md](precompile-workloads.md) does not apply at this level.
+
+### What this probe did not test
+
+It named the whole session in the Startup package's `[deps]` rather than letting
+an environment compose it. The mechanism is the same either way — the leaf is
+last — but the environment shape is still unmeasured.
