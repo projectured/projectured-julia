@@ -14,11 +14,15 @@ that renders like this:
 
 Each step links to the relevant guide for deeper context.
 
+A domain is a package. Before Step 1, create `package/bookmark/main/` with a
+`Project.toml` and a root module, as [domains.md](domains.md) describes — the
+steps below fill it in.
+
 ---
 
 ## Step 1: Define the document types
 
-Create `package/domain/main/document/Bookmark.jl`:
+Create `package/bookmark/main/Bookmark.jl`:
 
 ```julia
 """
@@ -115,7 +119,7 @@ end # module
 
 ## Step 2: Register the domain in `Projectured.jl`
 
-In `package/domain/main/ProjecturedDomain.jl`, add after the other document includes:
+In `package/bookmark/main/ProjecturedBookmark.jl`, add after the other includes:
 
 ```julia
 include("document/Bookmark.jl")
@@ -138,7 +142,7 @@ export BookmarkDocument, BookmarkInsertion, BookmarkEntry, BookmarkList
 
 ## Step 3: Write the projection (printer)
 
-Create `package/domain/main/projection/primitive/BookmarkToSyntax.jl`:
+Create `package/bookmark/main/BookmarkToSyntax.jl`:
 
 ```julia
 """

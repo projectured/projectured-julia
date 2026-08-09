@@ -45,7 +45,7 @@ using ProjecturedTest
 test_all()          # full suite
 
 # Or the narrowest scope that covers your change (preferred):
-test_kernel()       # one main package's suite (also: test_base(), test_visual(), test_domain())
+test_kernel()       # one package's suite (also: test_base(), test_visual(), test_json(), …)
 test_json()         # one domain
 test_printer(json_example)  # one example
 ```
@@ -100,7 +100,7 @@ Every new projection needs:
 3. An example (so `run_example("my_domain")` works).
 
 Use `@testset "Name" begin ... end` wrapped in a `function test_my_feature()`
-function, following the existing pattern in `package/domain/test/projection/`.
+function, following the existing pattern in `package/projectured/test/projection/`.
 
 ### No unrelated formatting changes
 
@@ -114,8 +114,9 @@ makes review harder.
 3. Run the narrowest test that covers the change (see
    [documentation/testing.md](documentation/testing.md)) and confirm it passes.
 4. If you added a domain or projection, add a corresponding test file and
-   register it in the test package of the lowest main-package tier that can
-   express it (usually `package/domain/test/ProjecturedDomainTest.jl`).
+   register it in the test package of the lowest tier that can express it —
+   `package/<domain>/test` when the fixture is that domain's document,
+   `package/projectured/test` when it names several domains.
 5. Update the relevant guide if the change affects documented behaviour —
    cross-cutting guides live in `documentation/`, per-package/per-domain
    reference guides in that package's `doc/` directory.
@@ -127,23 +128,29 @@ makes review harder.
 A full walkthrough is in [documentation/tutorial-new-domain.md](documentation/tutorial-new-domain.md).
 The short version:
 
-- [ ] `package/domain/main/document/MyDomain.jl` — define document types with
+A domain is a package. [documentation/domains.md](documentation/domains.md) has
+the full rules; the short version:
+
+- [ ] `package/mydomain/main/Project.toml` — a fresh UUID, deps on
+      `ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`, plus any
+      domain you embed.
+- [ ] `package/mydomain/main/ProjecturedMyDomain.jl` — the root module: the
+      submodule-binding loop, then the includes.
+- [ ] `package/mydomain/main/MyDomain.jl` — define document types with
       `@document` (it injects the `selection::Reference` field automatically)
       and any domain-specific operations.
-- [ ] Include in `package/domain/main/ProjecturedDomain.jl` and add `using` +
-      `export` lines.
-- [ ] `package/domain/main/projection/primitive/MyDomainToSyntax.jl` —
-      `projection_print` methods for each document type.
-- [ ] `projection_read` methods for each printer.
-- [ ] `package/domain/example/document/MyDomain.jl` —
-      `make_my_domain_document_example()`.
-- [ ] `package/domain/example/projection/MyDomain.jl` —
-      `make_my_domain_projection_example()`.
-- [ ] Register in `package/domain/example/Examples.jl` and
-      `package/domain/example/ProjecturedDomainExample.jl`.
-- [ ] `package/domain/test/projection/MyDomainTest.jl` — printer + reader tests.
-- [ ] Register in `package/domain/test/ProjecturedDomainTest.jl`.
-- [ ] Add `package/domain/doc/my-domain.md` (per-domain guide, next to the code).
+- [ ] `package/mydomain/main/MyDomainToSyntax.jl` — `print_document` and
+      `read_intent` methods for each document type.
+- [ ] Register the domain with the render-anything projection from that same
+      file: `register_natural_syntax!(:mydomain, () -> …)` in an `__init__`.
+- [ ] `package/mydomain/example/` — `make_my_domain_document_example()` and
+      `make_my_domain_projection_example()`, in their own example package.
+- [ ] Register the `Example` in `package/projectured/example/DomainExamples.jl`.
+- [ ] `package/mydomain/test/` — printer and reader tests behind a
+      `test_mydomain()` aggregator.
+- [ ] Add all three to `Projectured`, `ProjecturedExample` and `ProjecturedTest`,
+      and to the root `Project.toml`. Then run `Pkg.resolve()`.
+- [ ] Add `package/mydomain/doc/mydomain.md` (per-domain guide, next to the code).
 
 ## Contact
 

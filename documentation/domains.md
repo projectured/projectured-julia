@@ -1,150 +1,150 @@
-# ProjecturedDomain — architecture
+# The domain packages
 
-Contributor-facing guide to the internal structure of the
-`ProjecturedDomain` package: the feature-slice organization, the slice DAG,
-and what belongs where. For the whole-system picture (packages, layers, the
-projection pipeline) see the repository-level
-[documentation/architecture.md](../../../documentation/architecture.md);
-this document is **only about domain**.
+Contributor guide to the twenty packages that hold ProjecturEd's concrete
+source domains: what a domain package contains, how they depend on each other,
+and how to add one. For the whole-system picture see
+[architecture.md](architecture.md).
 
-## Per-slice guides
+## Per-domain guides
 
-Companion guides for individual domain slices live alongside this file:
+A domain with a reference guide keeps it in its own package:
 
-- [json.md](json.md) — the JSON domain
-- [rst.md](rst.md) — the reStructuredText domain
-- [xml.md](xml.md) — the XML domain
-- [chart.md](chart.md) — the chart domain
-- [sequencechart.md](sequencechart.md) — the sequence chart domain
-- [fsm.md](fsm.md) — the state machine domain
-- [workbench.md](workbench.md) — the workbench application slice
-- [versioning.md](versioning.md) — the versioning overlay
+- [json.md](../package/json/doc/json.md) — the JSON domain
+- [xml.md](../package/xml/doc/xml.md) — the XML domain
+- [rst.md](../package/rst/doc/rst.md) — the reStructuredText domain
+- [math.md](../package/math/doc/math.md) — the mathematical notation domain
+- [chart.md](../package/chart/doc/chart.md) — the chart domain
+- [sequencechart.md](../package/sequencechart/doc/sequencechart.md) — the sequence chart domain
+- [fsm.md](../package/fsm/doc/fsm.md) — the state machine domain
+- [process.md](../package/process/doc/process.md) — the process domain
+- [workbench.md](../package/workbench/doc/workbench.md) — the workbench application
 
-## What the domain package is
+## What a domain package is
 
-`ProjecturedDomain` holds every **concrete source domain** ProjecturEd
-ships (JSON, XML, YAML, Julia, SQL, Math, Markdown, RST, Book, Graph, …), plus
-the two application slices (`workbench`, `conversation`) that compose the
-sources. It sits above the kernel (engine), the base (concrete engine
-documents + doc-shaped projections + serialization), and the visual
-(rendering substrate) packages in the dependency chain
-`kernel ← base ← visual ← domain`.
+One package holds one domain. A domain is a kind of content a person edits —
+JSON, SQL, a state machine, a chart — and the package holds everything that is
+true of that content and nothing else:
 
-Deps: `ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`, plus
-`Base64` and `Markdown` from the stdlib. The opt-in backend packages
-(`sdl`, `web`, `odbc`, `video`) depend on this package, not the other way
-around.
+- the **documents**, the types the content is made of;
+- the **parser**, if the domain has a text form;
+- the **projections** that render and edit it: `*ToSyntax` for a notation,
+  `*ToWidget` or `*ToGraphics` for something drawn directly;
+- the **file wrapper**, if the domain reads and writes a file extension.
 
-## Feature slices
+Each package is a triad — `package/<name>/{main, test, example}` — plus a
+`doc/` where a guide exists. Every package depends on the three engine
+packages (`ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`) and on
+whichever domains it embeds.
 
-The package is organised as **feature slices** — each folder groups a
-document with its parser, its `XToSyntax` bridge, and any related
-decorators — instead of the old flat by-kind layout
-(`document/`, `parser/`, `projection/`). A slice's files change together
-and belong together. Cross-slice edges are allowed provided they form an
-**acyclic slice DAG** (statically verified by the guard).
+## The dependency table
 
+Fourteen domains need nothing but the engine. Five build on one layer of
+domains. The workbench sits on top.
+
+| Package | Directory | Depends on |
+| --- | --- | --- |
+| `ProjecturedJson` | `package/json/` | — |
+| `ProjecturedYaml` | `package/yaml/` | — |
+| `ProjecturedXml` | `package/xml/` | — |
+| `ProjecturedMarkdown` | `package/markdown/` | — |
+| `ProjecturedRst` | `package/rst/` | — |
+| `ProjecturedBook` | `package/book/` | — |
+| `ProjecturedMath` | `package/math/` | — |
+| `ProjecturedJulia` | `package/julia/` | — |
+| `ProjecturedSql` | `package/sql/` | — |
+| `ProjecturedDatabase` | `package/database/` | — |
+| `ProjecturedFileSystem` | `package/filesystem/` | — |
+| `ProjecturedGraph` | `package/graph/` | — |
+| `ProjecturedChart` | `package/chart/` | — |
+| `ProjecturedSequenceChart` | `package/sequencechart/` | — |
+| `ProjecturedDbCatalog` | `package/dbcatalog/` | Sql |
+| `ProjecturedFormula` | `package/formula/` | Julia |
+| `ProjecturedFsm` | `package/fsm/` | Julia, Graph |
+| `ProjecturedProcess` | `package/process/` | Julia, Graph |
+| `ProjecturedConversation` | `package/conversation/` | Json, Julia, Xml |
+| `ProjecturedWorkbench` | `package/workbench/` | Conversation, FileSystem, Json, Julia, Markdown, Xml, Yaml |
+
+Every edge in the right column is a domain embedding another domain's content:
+a state machine guard is a Julia expression, a catalog query produces a SQL
+statement, the workbench opens documents of every kind.
+
+## What is NOT a domain package
+
+Three kinds of thing look like a domain and are not. They live in
+`ProjecturedVisual`, below every domain:
+
+- **A framework several domains share.** The insert-by-typing leaf, the
+  `*Nothing` placeholder, the plot arithmetic and the colour/marker cycles.
+  Two domains needing the same thing is what makes it a framework.
+- **A domain-neutral editor feature.** The gesture help map, the command
+  palette, the gesture log. They render a *projection*, not a content kind.
+- **The render-anything projection.** `NaturalToGraphics` draws any document,
+  so it cannot name any domain. Both its tables come from
+  `NaturalRegistryModule`, and each domain registers its own row.
+
+## The root module
+
+A domain package's root module binds the submodules of the packages below it
+with one mechanical loop rather than a written alias table, so a source file
+names a module exactly as the module names itself:
+
+```julia
+module ProjecturedFsm
+
+using ProjecturedKernel, ProjecturedBase, ProjecturedVisual
+using ProjecturedJulia, ProjecturedGraph
+
+for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+             ProjecturedJulia, ProjecturedGraph)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
+include("Fsm.jl")
+…
+end
 ```
-json/       Json.jl · JsonParser.jl · JsonToSyntax.jl
-xml/        Xml.jl · XmlParser.jl · XmlToSyntax.jl
-yaml/       Yaml.jl · YamlParser.jl · YamlToSyntax.jl
-julia/      Julia.jl · JuliaParser.jl · JuliaToSyntax.jl
-math/       Math.jl · MathToSyntax.jl
-markdown/   Markdown.jl · MarkdownParser.jl · MarkdownToSyntax.jl
-rst/        Rst.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
-book/       Book.jl · BookToSyntax.jl
-sql/        Sql.jl · SqlParser.jl · SqlToSyntax.jl
-dbcatalog/  DbCatalog.jl · DbCatalogToSql.jl · DbCatalogToSyntax.jl
-                                  (→ sql slice, sideways OK)
-database/   Database.jl · DatabaseAdapters.jl
-                                  (the adapter seam odbc plugs into)
-tabular/    Tabular.jl · CellTableToTable.jl (→ json slice)
-graph/      Graph.jl · GraphLayout.jl · GraphLayoutEngine.jl ·
-            GraphToGraphLayout.jl · GraphLayoutToGraphics.jl
-chart/      ChartGeometry.jl · Chart.jl · ChartPlot.jl ·
-            ChartToChartPlot.jl · ChartPlotToGraphics.jl
-sequencechart/
-            SequenceChartGeometry.jl · SequenceChartRowReferenceStep.jl ·
-            SequenceChart.jl · SequenceChartPlot.jl ·
-            SequenceChartToSequenceChartPlot.jl ·
-            SequenceChartPlotToGraphics.jl        (→ chart slice)
-fsm/        Fsm.jl · FsmToSyntax.jl · FsmDiagram.jl · FsmToFsmDiagram.jl ·
-            FsmDiagramToGraph.jl · FsmToJuliaCode.jl
-                                  (→ julia slice for embedded code and
-                                   codegen, → graph slice for the diagram)
-filesystem/ FileSystem.jl · FileSystemToSyntax.jl · FileSystemToWidget.jl
-formula/    Formula.jl · FormulaToSyntax.jl (→ julia slice)
-gesturemap/ GestureMap.jl · GestureMapToSyntax.jl · GestureHelpDecorator.jl ·
-            CommandPalette.jl · CommandPaletteToSyntax.jl ·
-            CommandPaletteDecorator.jl
-            (two views of one collected binding set: the help window shows it,
-             the command palette runs it by name)
-gesturelog/ GestureLog.jl · GestureLogToSyntax.jl · GestureLogRecorder.jl ·
-            GestureLogOverlay.jl
-versioning/ Versioning.jl · VersioningToAny.jl
 
-workbench/  apps layer (above the source slices)
-            Workbench.jl · Workspace.jl · WorkspaceToFileSystem.jl ·
-            WorkbenchToWidget.jl · WorkbenchFile.jl · WorkbenchAssistant.jl
-conversation/
-            Conversation.jl · Evaluator.jl · ConversationToSyntax.jl ·
-            ConversationToWidget.jl · ConversationEditor.jl
-```
+The `parentmodule` guard stops a package's re-exported aliases of a lower
+package being bound twice. Because the aliases are written by a loop rather
+than as `const` lines, the static layering guard cannot read them off the file:
+the test package measures the set from the loaded package and passes it as
+`extra_aliases`.
 
-Plus **three transitional folders**, held here until their framework seams
-land elsewhere:
+## Adding a domain
 
-- `projection/` — `ProjectionTemplate.jl` and `compound/{Generic,HigherOrder}.jl`.
-  Land at kernel and base respectively once a children-container seam is
-  added so kernel-side ProjectionTemplate no longer
-  references `CellVector` by name.
-- `serializer/` — `NaturalFormat.jl`, `DocumentFile.jl`. Land at
-  `base/serialization/` once the framework/registration split turns the
-  hardcoded per-format tables into per-slice registrations.
-- `projection/primitive/` — `DocumentInsertionToSyntax.jl`,
-  `NaturalProjection.jl`, `ScreenToScreen.jl`. Land at `visual/syntax/`
-  and `base/document/` respectively once the insertion seam moves the
-  insertion document down and the generic renderings up.
+1. Create `package/<name>/main/` with a `Project.toml` (fresh UUID, deps on the
+   three engine packages plus any domain it embeds) and a root module as above.
+2. Write the documents, the parser and the projections.
+3. Register the domain with the render-anything projection, in the `*ToSyntax.jl`
+   file you already have:
 
-## Slice DAG (cross-slice edges within the source layer)
+   ```julia
+   import ..NaturalRegistryModule: register_natural_syntax!
+   function __init__()
+       register_natural_syntax!(:mydomain,
+           () -> Pair{Type,Any}[MyDocument => MyToSyntax()])
+   end
+   ```
 
-The cross-slice edges form a DAG:
+   A domain that draws itself rather than going through the syntax tail uses
+   `register_natural_graphics!` instead; its factory takes `measure`.
+4. If the domain has a text form, register `natural_syntax_projection`,
+   `natural_extension` and `parse_natural` on `NaturalFormatModule` the same way.
+5. Add the package to `Projectured`'s `import` list and `_SOURCES` tuple. That
+   tuple is the one place the full set is written down.
+6. Add `package/<name>/example/` and `package/<name>/test/`, and add the test
+   package to `ProjecturedTest`.
+7. Add all three to the root `Project.toml` `[deps]` and `[sources]`, then run
+   `Pkg.resolve()`.
 
-- `formula → julia` — Formula uses JuliaModule types for its expressions
-- `dbcatalog → sql` — DbCatalog renders through SqlToSyntax
-- `tabular → json` — CellTableToTable renders json values in cells
-  (kept; removing would require a shared primitive-cell
-  type, larger surgery than the edge)
-- `sequencechart → chart` — the sequence chart reuses the chart's axis
-  scaling and tick selection (`ChartGeometryModule`), its colour cycle
-  (`ChartModule`) and its marker shapes (`ChartPlotToGraphicsModule`),
-  so the two read as one family rather than duplicating the arithmetic
-- `fsm → julia` — guards/actions/entry code are JuliaDocument subtrees, and
-  the code generator builds a JuliaDocument module
-- `fsm → graph` — the state diagram prints into the graph slice
+## Where a cross-domain thing goes
 
-Everything else is within-slice or points at a lower package
-(kernel/base/visual). The guard checks acyclicity statically.
-
-## Membership tests
-
-- **A file belongs in a source slice** if it names or renders a specific
-  domain (Json, Xml, Sql, …) and changes together with the other files
-  for that domain. If it names two domains, it belongs with the more
-  specific one (the edge-ownership rule: `JsonToSyntax → json/`; a
-  generic bridge like `ObjectToSyntax` belongs in visual, not domain).
-- **A file belongs in the apps layer** (`workbench/`, `conversation/`) if
-  it *composes* multiple source slices — Workbench pulls in
-  Text/Conversation/Workspace and drives the IDE shell; Conversation is
-  its own domain but couples heavily to Julia/parsers/Mcp so it lives at
-  the app level.
-- **A file does NOT belong in domain** if it targets no specific source
-  domain — Sorting, Filtering, ObjectToWidget, etc. are generic and
-  belong in base or visual.
-
-## Testing
-
-Per-slice tests will migrate to `test/<slice>/`. Until then, the
-integration tests continue to run through `ProjecturedTest`. The
-`ProjecturedTest` package houses cross-package pipeline round-trips
-(printer/reader/text-navigation walks) that need the umbrella load.
+An example or a test whose fixture names several domains does not belong to any
+of them. It goes to the umbrella — `ProjecturedExample` or `ProjecturedTest`.
+That is why the registry of examples, the gallery, the file editor, and suites
+like `ConstructTest` (JSON, YAML and XML) live there rather than in a domain.

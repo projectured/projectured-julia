@@ -168,7 +168,7 @@ Each layer lives in its own folder under [main/](../main/):
 
 ## How the kernel is consumed
 
-`ProjecturedDomain` binds the kernel's submodules as `const XxxModule =
+A domain package binds the kernel's submodules as `const XxxModule =
 ProjecturedKernel.XxxModule` aliases so its files can use relative `..XxxModule`
 imports; the `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently **module

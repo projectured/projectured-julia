@@ -133,6 +133,7 @@ function __init__()
 end
 
 include("ExportCollisionTest.jl")
+include("PackageGraphTest.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
@@ -238,6 +239,7 @@ function test_all()
     @testset "Projectured" begin
     # The per-layer suites (kernel unit tests, base/visual/domain documents and
     # projections, the four layering guards).
+    test_package_graph()
     test_kernel()
     test_base()
     test_visual()
@@ -325,7 +327,7 @@ function test_table()
     end
 end
 
-export test_all
+export test_all, test_domain_examples, test_package_graph
 export test_kernel, test_base, test_visual, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer

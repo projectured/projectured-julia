@@ -7,7 +7,8 @@ architecture, onboarding, and the repo-wide tooling — live here in
 `documentation/`. **Per-package reference guides** live next to the code they
 document, in each package's `doc/` directory
 ([kernel](../package/kernel/doc/), [base](../package/base/doc/),
-[visual](../package/visual/doc/), [domain](../package/domain/doc/)). The AI
+[visual](../package/visual/doc/), and one per domain such as
+[json](../package/json/doc/)). The AI
 agent sees both sets through `list_guides` / `read_guide`.
 
 ---
@@ -67,7 +68,7 @@ Then read the guide for the domain or area you are touching:
 - Selection mechanism: [selection guide](../package/kernel/doc/selection.md)
 - Finding / selecting nodes by content: [finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)
 - Backends and devices: [devices and backends guide](../package/kernel/doc/devices-and-backends.md)
-- Per-domain: [visual/doc/](../package/visual/doc/), [domain/doc/](../package/domain/doc/), [base/doc/](../package/base/doc/)
+- Per-package: [visual/doc/](../package/visual/doc/), [base/doc/](../package/base/doc/), and each domain's own `doc/` — see [domains.md](domains.md)
 
 ---
 
@@ -117,7 +118,7 @@ Each package also documents its own internal structure in its `doc/architecture.
 [kernel](../package/kernel/doc/architecture.md) ·
 [base](../package/base/doc/architecture.md) ·
 [visual](../package/visual/doc/architecture.md) ·
-[domain](../package/domain/doc/architecture.md).
+[domain](../documentation/domains.md).
 
 ### The projection system (kernel)
 
@@ -144,10 +145,10 @@ Each package also documents its own internal structure in its `doc/architecture.
 
 | Guide | Domain | Package |
 |---|---|---|
-| [JSON domain](../package/domain/doc/json.md) | JSON | domain |
-| [XML domain](../package/domain/doc/xml.md) | XML | domain |
-| [Workbench domain](../package/domain/doc/workbench.md) | Workbench (IDE shell) | domain |
-| [Versioning domain](../package/domain/doc/versioning.md) | Versioning overlay | domain |
+| [JSON domain](../package/json/doc/json.md) | JSON | domain |
+| [XML domain](../package/xml/doc/xml.md) | XML | domain |
+| [Workbench domain](../package/workbench/doc/workbench.md) | Workbench (IDE shell) | domain |
+| [Versioning domain](../package/base/doc/versioning.md) | Versioning overlay | domain |
 | [Text domain](../package/visual/doc/text.md) | Text | visual |
 | [Syntax domain](../package/visual/doc/syntax.md) | Syntax (intermediate) | visual |
 | [Graphics domain](../package/visual/doc/graphics.md) | Graphics + write_image + write_pdf | visual |

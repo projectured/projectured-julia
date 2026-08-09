@@ -81,27 +81,31 @@ ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
         │                      serialization (BinarySerialization).
         │                      Deps: kernel + Serialization stdlib.
 ProjecturedVisual (visual/)    the rendering substrate
-        ▲                      9 slices across 11 folders (acyclic DAG; include
-        │                      order: style, screen, graphics, layout, text,
-        │                      widget, syntax, interaction decorators
-        │                      (clipboard + tooltip + inspector — one slice,
-        │                      three folders), backend (Console, Pdf)).
+        ▲                      13 slices (acyclic DAG; include order: style, plot,
+        │                      screen, graphics, layout, text, widget, component,
+        │                      pane, syntax (+ the shared insertion leaf),
+        │                      gesturehelp, gesturelog, fileformat,
+        │                      naturalprojection, interaction decorators
+        │                      (clipboard + tooltip + inspector), backend
+        │                      (Console, Pdf)).
         │                      Deps: kernel + base.
-ProjecturedDomain (domain/)    concrete source domains, feature-sliced
-        ▲                      20 slice folders (json/yaml/xml/julia/math/
-        │                      markdown/book/sql/dbcatalog/database/graph/
-        │                      filesystem/formula/gesturemap/versioning/
-        │                      insertion/component/naturalformat + the
-        │                      workbench/conversation apps). Flat — no layers.
-        │                      Deps: kernel + base + visual + Base64 + Markdown.
-Projectured (projectured/)     umbrella: `using Projectured` re-exports all four
-                               as a single flat public API.
+The twenty domain packages       one package per concrete source domain
+        ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
+        │                      sql/ database/ filesystem/ graph/ chart/
+        │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
+        │                      conversation/ workbench/. Each holds one slice —
+        │                      its documents, its parser, its projections.
+        │                      Deps: kernel + base + visual, and the domains it
+        │                      embeds. See [domains.md](domains.md).
+Projectured (projectured/)     umbrella: `using Projectured` re-exports every
+                               package above as a single flat public API.
 
 Opt-in packages (depend on the above; loaded only when you `using` them):
-  Sdl  (sdl/)   → Domain  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, write_image, record_video
-  Web  (web/)   → Domain  HTTP/JSON3                          WebBackend; assets in web/assets/
-  Video(video/) → Domain  FFMPEG                              record_video method on the kernel seam
-  Odbc (odbc/)  → Domain  ODBC/DBInterface/Tables             OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
+  Sdl  (sdl/)   → Visual  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, write_image, record_video
+  Web  (web/)   → Visual  HTTP/JSON3                          WebBackend; assets in web/assets/
+  Video(video/) → Visual  FFMPEG                              record_video method on the kernel seam
+  Odbc (odbc/)  → Sql, DbCatalog, Database  ODBC/DBInterface/Tables  OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
+  Adaptagrams   → Graph   native C++ shim                     the graph layout engine
   Mcp  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
   Llm  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
 ```
@@ -144,8 +148,8 @@ on load. Display backends use a lighter mechanism — no seam: name the type
 directly (`SdlBackend()`) where the package is a dependency, or let
 `ProjecturedBase.default_backend` pick a loaded `Backend` subtype by type-name
 reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
-`ProjecturedDomain` (they need nothing external) — only **live ODBC
-querying** lives in `Odbc`. Likewise each editor's *tool surface* is
+`ProjecturedSql` and `ProjecturedDbCatalog` (they need nothing external) — only
+**live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
 kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
 the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
@@ -311,12 +315,16 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄── ProjecturedDomain ◄── Projectured
-       ▲                                                                ▲            (umbrella)
-       │                                                                │
-   Mcp, Llm                                              Sdl, Web, Video, Odbc
-   (opt-in)                                                        (opt-in)
+ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄── the 20 domains ◄── Projectured
+       ▲                                          ▲                     ▲          (umbrella)
+       │                                          │                     │
+   Mcp, Llm                              Sdl, Web, Video, Tulip    Odbc, Adaptagrams
+   (opt-in)                                    (opt-in)                (opt-in)
 ```
+
+The twenty domain packages form their own DAG. Fourteen depend on nothing but
+the three engine packages; five build on one layer of domains; the workbench
+application sits on top. [domains.md](domains.md) has the table.
 
 **Inside ProjecturedKernel — 17 layers**, in include order; each imports only layers
 above it in this list:
@@ -368,28 +376,38 @@ that picks a loaded `Backend` subtype by reflection):
  3 serialization  BinarySerialization
 ```
 
-**Inside ProjecturedVisual — 9 slices** across 11 folders, an acyclic DAG in include
-order:
+**Inside ProjecturedVisual — 13 slices**, an acyclic DAG in include order:
 
 ```
  1 style     Color, Font, TrueType, Geometry, Image, strokes and text styles
- 2 screen    ScreenDocument, WindowManaging
- 3 graphics  Graphics, GraphicsCaching, PointReferenceStep
- 4 layout    Layout, the constraint solver, CollectionToLayout
- 5 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
+ 2 plot      the plot arithmetic (axis scaling, ticks, decimation, folding) and
+             the colour/marker vocabulary a chart and a sequence chart share
+ 3 screen    ScreenDocument, WindowManaging
+ 4 graphics  Graphics, GraphicsCaching, PointReferenceStep
+ 5 layout    Layout, the constraint solver, CollectionToLayout
+ 6 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
              highlighting, TextRange/Column/SpanReference, ReferenceToText
- 6 widget    Widget, WidgetToGraphics, ObjectToWidget, ProjectionConfiguring
- 7 syntax    Syntax, SyntaxToText, ObjectToSyntax, CollectionToSyntax,
-             PrimitiveToSyntax
- 8 interaction decorators   clipboard + tooltip + inspector (one slice, three folders)
- 9 backend   the dependency-free concrete backends: Console, Pdf
+ 7 widget    Widget, WidgetToGraphics, ObjectToWidget, ProjectionConfiguring
+ 8 component a named, reusable widget composition
+ 9 pane      the tab/split layout and its widget projection
+10 syntax    Syntax, SyntaxToText, ObjectToSyntax, CollectionToSyntax,
+             PrimitiveToSyntax, InsertionToSyntax (the shared insert-by-typing
+             leaf and the *Nothing placeholder every domain prints through)
+11 gesturehelp / gesturelog   what can I press here, the command palette, and
+             the gesture log overlay — domain-neutral editor features
+12 fileformat  NaturalFormat, DocumentFile, EmbedToSyntax
+13 naturalprojection  NaturalRegistry (the two tables) and NaturalToGraphics
+                      (render anything). Neither names a domain: each domain
+                      registers its own row.
+   interaction decorators   clipboard + tooltip + inspector (one slice, three folders)
+   backend   the dependency-free concrete backends: Console, Pdf
 ```
 
-**Inside ProjecturedDomain — 20 slice folders**, flat (no layers): json, yaml, xml,
-julia, math, markdown, book, sql, dbcatalog, database, graph, filesystem, formula,
-gesturemap, versioning, insertion, component, naturalformat, plus the workbench and
-conversation apps. Each slice holds its documents, its parser, and its projections;
-slice→slice edges stay acyclic.
+**The twenty domain packages** — one package per concrete source domain, each
+holding one slice: its documents, its parser and its projections. Fourteen need
+only the engine packages; five build on one layer of domains; the workbench
+application sits on top. [domains.md](domains.md) has the table and the rules
+for adding one.
 
 ---
 

@@ -663,5 +663,5 @@ traversal, not by a routing guess.
   through widgets only as a presentation layer; keep the source-of-truth
   document in its own semantic domain.
 
-The Workbench domain (see [the workbench guide](../../../package/domain/doc/workbench.md)) is the largest
+The Workbench domain (see [the workbench guide](../../../package/workbench/doc/workbench.md)) is the largest
 example of a widget consumer in ProjecturEd.

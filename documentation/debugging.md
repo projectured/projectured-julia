@@ -27,7 +27,7 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The gallery lives at
-[domain/example/Gallery.jl](../package/domain/example/Gallery.jl) (the
+[domain/example/Gallery.jl](../package/projectured/example/Gallery.jl) (the
 `Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
 [projectured/example/Examples.jl](../package/projectured/example/Examples.jl), and
@@ -90,7 +90,7 @@ Two things stay outside the panel:
 
 The panel is not interactive. A click goes through it to the content below.
 
-The slice is [domain/main/gesturelog/](../package/domain/main/gesturelog/):
+The slice is [domain/main/gesturelog/](../package/visual/main/gesturelog/):
 `GestureLog.jl` (the buffer and the rendering of a gesture and an operation),
 `GestureLogToSyntax.jl` (one line per entry), `GestureLogRecorder.jl` (the
 decorator that records) and `GestureLogOverlay.jl` (the decorator that draws).

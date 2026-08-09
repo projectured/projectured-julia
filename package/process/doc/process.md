@@ -5,7 +5,7 @@ nest, run to completion, and project both to a notation and to a flowchart. The
 slice exists so a procedure can be drawn the way a specification draws it — and
 still be real, runnable code, debuggable in the editor while it runs.
 
-Slice: `package/domain/main/process/`. Design plan: `plan/done/process-domain.md`.
+Slice: `package/process/main/`. Design plan: `plan/done/process-domain.md`.
 
 ## Process or state machine?
 

@@ -15,7 +15,7 @@ becomes the output and re-roots edits back into that child.
 ## Documents — `VersioningModule`
 
 Two levels, defined in
-[`package/domain/main/versioning/Versioning.jl`](../../../package/domain/main/versioning/Versioning.jl):
+[`package/base/main/versioning/Versioning.jl`](../../../package/base/main/versioning/Versioning.jl):
 
 - **`VersionedObject`** — the container that *has versions*: a `versions`
   `CellVector` of `ObjectVersion`s (newest-first by convention) plus the active
@@ -56,7 +56,7 @@ matches. New modes are new subtypes with zero changes to the projection.
 
 ## Elimination projection — `VersioningToAnyProjection`
 
-[`package/domain/main/versioning/VersioningToAny.jl`](../../../package/domain/main/versioning/VersioningToAny.jl)
+[`package/base/main/versioning/VersioningToAny.jl`](../../../package/base/main/versioning/VersioningToAny.jl)
 is the direct analogue of `ClipboardSliceToAnyProjection`:
 
 - **Printer** — `(idx, version) = select_version(input)`, recurse into

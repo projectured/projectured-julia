@@ -4,8 +4,8 @@ The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../plan/done/test-package-split.md)):
 
 ```
-main:     ProjecturedKernel ← ProjecturedBase ← ProjecturedVisual ← ProjecturedDomain ← Projectured ← {Example, Sdl, …}
-tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTest ← ProjecturedDomainTest ← ProjecturedTest
+main:     ProjecturedKernel ← ProjecturedBase ← ProjecturedVisual ← the 20 domains ← Projectured ← {Example, Sdl, …}
+tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTest ← the 20 domain test packages ← ProjecturedTest
 ```
 
 - [package/kernel/test](../package/kernel/test/ProjecturedKernelTest.jl) —
@@ -18,12 +18,12 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
 - [package/visual/test](../package/visual/test/ProjecturedVisualTest.jl) —
   syntax/text/graphics/layout documents, text/graphics/widget projections, the
   type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
-- [package/domain/test](../package/domain/test/ProjecturedDomainTest.jl) —
-  json/xml/sql documents and parsers, the `*ToSyntax` projections, graph, the
-  domain-fixture-driven Console/Pdf/table/TypeReferenceStep suites, and the
-  domain-coupled projection/editor tests (GestureMap/GestureHelp, DbCatalog→Sql,
-  HoverProbe/ReferenceInspector, Dragging, Serialization, Mcp, Conversation,
-  JuliaTypein, Workbench, …). Aggregator: `test_domain()`.
+- `package/<domain>/test` — one test package per domain, holding the suites
+  whose fixtures are that domain's documents: its parser, its `*ToSyntax`
+  projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
+  `test_workbench()`, … Each also runs its package's layering guard
+  (`test_json_layering()`, …). Three of them — yaml, book and database — hold
+  only the guard so far; their first suite lands there.
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
   umbrella): [package/sdl/test](../package/sdl/test) (`test_sdl()` — DirtyRect,
@@ -34,11 +34,15 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
   example packages they resolve through the root env and precompile only where
   the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
 - [package/projectured/test](../package/projectured/test/ProjecturedTest.jl) — the umbrella:
-  only the genuinely **cross-package** suites that sweep the interleaved `examples`
-  / `catalog` aggregate (`ExampleSweeps`, `ExampleTest`, `CatalogTest`,
-  `RecursionContract`, `MouseClick`, `PrinterLocality`). It `using`s every
-  main-package test package and opt-in test package so `test_all()` still
-  orchestrates the whole suite.
+  the genuinely **cross-package** suites. Two kinds live here: the sweeps over
+  the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,
+  `ExampleTest`, `CatalogTest`, `RecursionContract`, `MouseClick`,
+  `PrinterLocality`, `test_domain_examples()`), and every suite whose **fixture
+  names several domains** — `ConstructTest` (JSON, YAML and XML), the table,
+  dragging, insertion, gesture, serializer and MCP suites, and the Console and
+  Pdf backend tests. It `using`s every test package so `test_all()` still
+  orchestrates the whole suite, and re-exports their entry points so
+  `using ProjecturedTest` alone gives you `test_json()` as well as `test_all()`.
 
 The examples follow the same split (`package/kernel/example` — the `Example`
 harness core; `package/visual/example` / `package/domain/example` — the
@@ -47,15 +51,16 @@ subsets; the
 opt-in example packages — `package/odbc/example`, `package/tulip/example`,
 `package/adaptagrams/example`, and `package/sdl/example` (the `LiveExample`
 window/record timelines) — hold the examples that need a native dependency; the
-`ProjecturedExample` umbrella keeps the interleaved `examples` registry and
-Catalog discovery). Each test package depends on its example package: the
-`Example`-typed driver overloads live beside the drivers, and `test_visual()` /
-`test_domain()` run a printer sweep over their own package's examples
-(`test_visual_examples()` / `test_domain_examples()`).
+`ProjecturedExample` umbrella keeps the `Example` registry, the gallery, the
+file editor and the cross-domain compositions — a registry that names every
+domain belongs to none of them). Each test package depends on its example
+package: the `Example`-typed driver overloads live beside the drivers.
+`test_visual()` sweeps its own package's examples; the concrete-domain sweep is
+`test_domain_examples()` at the umbrella.
 
-Each test package only depends on the main package it tests (plus the test
-packages below it), so `test_kernel()`…`test_domain()` run without SDL, ODBC,
-or any other opt-in dependency installed.
+Each test package only depends on the main package it tests (plus the packages
+below it), so every per-package suite runs without SDL, ODBC, or any other
+opt-in dependency installed.
 
 Every top-level function is *callable directly from the REPL*. There is no
 hidden runner: anything `test_all` does is something you can do one piece
@@ -77,7 +82,7 @@ julia> test_all()
 ```
 
 Runs everything: the four per-package suites (`test_kernel()`, `test_base()`,
-`test_visual()`, `test_domain()` — each includes its package's static
+`test_visual()`, and one `test_<domain>()` per domain — each includes its package's static
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
@@ -93,7 +98,8 @@ sequence; pick the one you actually need and skip the rest.
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
 | `test_base()` | `test_collection()`, `test_copying_projection()`, the base layering guard. |
 | `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard, and the package's example printer sweep (`test_visual_examples()`). |
-| `test_domain()` | `test_json_document()`, `test_json_to_syntax()`, the xml/sql/formula/filesystem projections, parsers, graph, Console/Pdf backends, the domain layering guard, and the package's example printer sweep (`test_domain_examples()`). |
+| `test_json()` … `test_workbench()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database_domain()` is the odd one out — `test_database` belongs to the ODBC live-connection suite. |
+| `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all twenty. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_documents()` | The umbrella-only document suites (`test_constraint_solver()` — Tulip, `test_serialization()` — example fixtures). |
@@ -268,9 +274,9 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **A failure means:** an edit at some caret produces the wrong string or wrong caret, a character lands in neighbouring chrome (the boundary carets `0`/`n` are what catch this), or the caret fails to render.
 
 **Structural insert-by-typing** — turning a *nothing* placeholder into a real document.
-- **Today:** `test_document_insertion()` is a *domain-specific* suite (in [DocumentInsertionTest.jl](../package/domain/test/projection/DocumentInsertionTest.jl)), **not** example-driven. It asserts the insert-by-typing machinery directly: the factory/completion functions (`default_factory`, `default_completion`), the reflection-derived insertion names and resolution (`DomainModule.insertion_names` / `resolve_insertion`), the completion states (`:empty` / `:invalid` / `:unambiguous` / `:ambiguous`), and that typing a domain name into a `DocumentInsertion` commits the corresponding `document/insertion`.
+- **Today:** `test_document_insertion()` is a *domain-specific* suite (in [DocumentInsertionTest.jl](../package/projectured/test/projection/DocumentInsertionTest.jl)), **not** example-driven. It asserts the insert-by-typing machinery directly: the factory/completion functions (`default_factory`, `default_completion`), the reflection-derived insertion names and resolution (`DomainModule.insertion_names` / `resolve_insertion`), the completion states (`:empty` / `:invalid` / `:unambiguous` / `:ambiguous`), and that typing a domain name into a `DocumentInsertion` commits the corresponding `document/insertion`.
 **Live example construction** — rebuilding a whole document from nothing by typing.
-- **`test_construct` / `test_json_construct`** (engine in [ConstructTest.jl](../package/domain/test/editor/ConstructTest.jl); the oracle `compare_content` lives in the kernel test) are the *reachability* counterpart to `test_typein`: seed the domain's empty `*Nothing` placeholder, drive the editor's own gestures to rebuild a target document from scratch, then assert the result equals the target **by content**.
+- **`test_construct` / `test_json_construct`** (engine in [ConstructTest.jl](../package/projectured/test/editor/ConstructTest.jl); the oracle `compare_content` lives in the kernel test) are the *reachability* counterpart to `test_typein`: seed the domain's empty `*Nothing` placeholder, drive the editor's own gestures to rebuild a target document from scratch, then assert the result equals the target **by content**.
 - **Drive:** recurse over the *target's* structure — a leaf is authored by typing its surface (opening delimiter + value; the closing delimiter is projection chrome, so it is not typed), a container by its kind-selecting keystroke (`[`/`{`/digit/`"`/…) followed by navigating to each child slot (programmatic ∅ selection) and recursing. Every keystroke goes through the real `read_intent → evaluate_operation` loop.
 - **Asserts:** `compare_content(reached, target)` — a strict recursive content-equality (types compared by name, cells unwrapped, `:selection`/`:ref` skipped) that returns the **first mismatch path** (`.field` / `[i]`), or empty when equal. Strict on scalar type, so `42 ≠ 42.0`.
 - **A failure means:** an editor authoring gap (a kind with no gesture recipe), a reader/operation bug (wrong shape or non-inverting leaf), or a located content regression. Covers JSON scalars and arrays today; the cross-domain `test_construct(example::Example)` sweep is still pending (see [plan/pending/live-example-construction.md](../plan/pending/live-example-construction.md)).
@@ -320,7 +326,7 @@ struct.
 
 If you write a domain that stores state outside of struct fields (e.g. in a
 side table), `_walk!` will not see it; either expose it as a field or add a
-dedicated test under [domain/test/document/](../package/domain/test/document/).
+dedicated test under [domain/test/document/](../package/projectured/test/document/).
 
 ## Validating the recursion contract
 
@@ -381,7 +387,7 @@ The standard `Pkg` workflow also works and is what CI uses:
 
 ```julia
 julia> using Pkg
-julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedBaseTest / ProjecturedVisualTest / ProjecturedDomainTest
+julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedBaseTest / ProjecturedVisualTest / ProjecturedJsonTest / …
 ```
 
 Each test package ships a one-line `test/runtests.jl` that calls its

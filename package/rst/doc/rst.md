@@ -214,7 +214,7 @@ section, where the title takes the first slot.
 
 - `test_rst_parser()` — unit tests, one construct at a time.
 - `test_rst_round_trip()` — the five fixtures in
-  `package/domain/test/fixture/rst/`, copied from the INET documentation.
+  `package/projectured/test/fixture/rst/`, copied from the INET documentation.
 - `test_rst_corpus(dir)` — an opt-in sweep of a whole documentation tree, not
   wired into `test_domain()` because the tree is not a dependency of this
   repository. Point it at a checkout:

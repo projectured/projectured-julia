@@ -1032,7 +1032,7 @@ express them.** A new projection needs a printer test (output structure), a
 reader test (selection translation for one event), and an example so
 `run_example("my_domain")` works. Add the test file to the test package of the
 lowest main-package position that can express it (usually
-`package/domain/test`), following the existing `function test_x() … @testset …
+`package/<domain>/test`), following the existing `function test_x() … @testset …
 end` pattern.
 
 ### AR-NO-INTROSPECTION-METHOD

@@ -45,7 +45,7 @@ fragment directly. Either way the run is recorded in the conversation as a
 re-readable code execution.
 
 The conversation is a real ProjecturEd domain
-([Conversation.jl](package/domain/main/conversation/Conversation.jl)): messages, streaming
+([Conversation.jl](package/conversation/main/Conversation.jl)): messages, streaming
 response blocks, and code executions are all structured documents, projected and
 selectable like everything else. The editor edits its own AI session with the
 same machinery it uses to edit your data.
@@ -341,7 +341,7 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Per-domain guides
 
-[json](package/domain/doc/json.md) · [xml](package/domain/doc/xml.md) · [rst](package/domain/doc/rst.md) · [text](package/visual/doc/text.md) · [syntax](package/visual/doc/syntax.md) · [graphics](package/visual/doc/graphics.md) · [widget](package/visual/doc/widget.md) · [workbench](package/domain/doc/workbench.md) · [collection](package/base/doc/collection.md)
+[json](package/json/doc/json.md) · [xml](package/xml/doc/xml.md) · [rst](package/rst/doc/rst.md) · [text](package/visual/doc/text.md) · [syntax](package/visual/doc/syntax.md) · [graphics](package/visual/doc/graphics.md) · [widget](package/visual/doc/widget.md) · [workbench](package/workbench/doc/workbench.md) · [collection](package/base/doc/collection.md)
 
 ### Working in the REPL
 

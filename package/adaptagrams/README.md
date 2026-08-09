@@ -1,15 +1,15 @@
 # ProjecturedAdaptagrams
 
 The native graph-layout engine for ProjecturEd. Provides `AdaptagramsEngine`, a
-`GraphLayoutEngine` (see `ProjecturedDomain`) that places vertices with
+`GraphLayoutEngine` (see `ProjecturedGraph`) that places vertices with
 **libcola** and routes edges with **libavoid** from the
 [Adaptagrams](https://github.com/mjwybrow/adaptagrams) C++ libraries, bridged
 through a small `extern "C"` shim (`deps/adaptagrams_shim.cpp`) called via `ccall`.
 
-It is a **separate package** from `ProjecturedDomain` on purpose: it carries an
+It is a **separate package** from `ProjecturedGraph` on purpose: it carries an
 external native dependency that core ProjecturEd must not require. The interface
 (`GraphLayoutEngine`, `layout_graph`) and the pure-Julia default
-(`FallbackLayoutEngine`) live in `ProjecturedDomain`; this package only adds the
+(`FallbackLayoutEngine`) live in `ProjecturedGraph`; this package only adds the
 `AdaptagramsEngine` method behind the same seam.
 
 ## 1. Install Adaptagrams (native)

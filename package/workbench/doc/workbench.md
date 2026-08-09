@@ -3,9 +3,9 @@
 <img width="1285" alt="Workbench example" src="../../../asset/image/example/workbench.png">
 
 The workbench domain models an IDE-style workspace. It is implemented in
-[package/domain/main/workbench/Workbench.jl](../../../package/domain/main/workbench/Workbench.jl)
+[package/workbench/main/Workbench.jl](../../../package/workbench/main/Workbench.jl)
 and rendered to widgets by
-[package/domain/main/workbench/WorkbenchToWidget.jl](../../../package/domain/main/workbench/WorkbenchToWidget.jl).
+[package/workbench/main/WorkbenchToWidget.jl](../../../package/workbench/main/WorkbenchToWidget.jl).
 A workbench is a high-level Document whose projection chain is
 
 ```
