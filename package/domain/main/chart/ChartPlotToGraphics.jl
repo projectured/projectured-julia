@@ -39,7 +39,7 @@ import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
                       strip_state_name, strip_state_color
 import ..PlotStyleModule: series_color, series_symbol, marker_polygon
 import ..ChartPlotModule: ChartPlot, ChartView
-import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
+import ..PlotGeometryModule: AxisScale, to_pixel, to_data,
                               column_bounds, merge_bounds, pad_range,
                               nice_ticks, log_ticks, format_tick,
                               visible_range, decimate_minmax, step_points, pins_segments,

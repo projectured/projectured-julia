@@ -15,7 +15,7 @@ using ProjecturedDomain.RstFileModule
 using ProjecturedDomain.RstModule: RstRoot, RstSection, RstDirective
 using ProjecturedDomain.RstParserModule: rstparse
 using ProjecturedDomain.NaturalFormatModule: document_to_text
-using ProjecturedDomain.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedVisual.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedDomain.GraphicsModule: GraphicsCanvas
 using ProjecturedDomain.ProjectionApiModule: print_document, read_intent
 using ProjecturedDomain.EventModule: MousePress, KeyPress, ModifierKeys

@@ -32,7 +32,7 @@ using ..DomainModule
 
 import ..ColorModule: StyleColor
 import ..PlotStyleModule: default_color_cycle, default_symbol_cycle, series_color
-import ..ChartGeometryModule: bin_values
+import ..PlotGeometryModule: bin_values
 import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
 import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,

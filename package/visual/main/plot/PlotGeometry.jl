@@ -1,5 +1,5 @@
 """
-    ChartGeometryModule
+    PlotGeometryModule
 
 The chart slice's arithmetic: axis scaling, tick selection, data↔pixel mapping,
 and the decimation and folding that keep a chart's cost proportional to its
@@ -21,7 +21,7 @@ The scalability story lives here:
 - [`fold_bins`](@ref) merges bars or bins narrower than a pixel threshold.
 - [`label_step`](@ref) thins tick labels that would otherwise collide.
 """
-module ChartGeometryModule
+module PlotGeometryModule
 
 export AxisScale, to_pixel, to_data, axis_span,
        column_bounds, merge_bounds, pad_range,

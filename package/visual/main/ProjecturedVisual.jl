@@ -84,6 +84,7 @@ const DomainModule = ProjecturedBase.DomainModule
 const BoundedSyncModule = ProjecturedBase.BoundedSyncModule
 const DocumentReflectionModule = ProjecturedBase.DocumentReflectionModule
 const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
+const FileProjectModule = ProjecturedBase.FileProjectModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 # MoveRangeOperation — the identity-preserving relocation of CellVector elements
@@ -137,6 +138,15 @@ include("style/Geometry.jl")
 include("style/Image.jl")
 include("style/StyleStroke.jl")
 include("style/StyleText.jl")
+
+# ── Slice — plot (the vocabulary every plotted notation shares) ─────────
+# PlotGeometry is the arithmetic: axis scaling, tick selection, data-to-pixel
+# mapping, and the decimation and folding that keep a plot's cost proportional
+# to its pixels. It imports nothing at all. PlotStyle is the colour cycle, the
+# marker cycle and the marker outlines, so it follows style/Color.jl.
+# A chart and a sequence chart both need these, so neither owns them.
+include("plot/PlotGeometry.jl")
+include("plot/PlotStyle.jl")
 
 # ── Slice 2 — screen (the window model + its management) ────────────────
 # ScreenDocument holds a list of WindowDocument (windows + their events/ops).
@@ -223,6 +233,10 @@ include("widget/WidgetHoverTracking.jl")
 include("widget/ProjectionConfiguring.jl")
 include("widget/WidgetPopupResolver.jl")
 
+# ── Slice — component (a named, reusable widget composition) ─────────────
+# A component is a widget-composition concept, so it sits above widget/.
+include("component/Component.jl")
+
 # ── Slice 7 — pane (tab groups and splits: the screen layout) ────────────
 # Pane is the layout document (PaneTree/PaneSplit/PaneGroup/PaneTab); PaneSurgery
 # holds the tree edits, each of which builds a generic operation. The slice sits
@@ -243,6 +257,31 @@ include("syntax/SyntaxToText.jl")
 include("syntax/ObjectToSyntax.jl")
 include("syntax/CollectionToSyntax.jl")
 include("syntax/PrimitiveToSyntax.jl")
+# InsertionToSyntax is the shared insert-by-typing leaf: a typed-name buffer with
+# live green/red completion, and the `*Nothing` placeholder leaf beside it. Every
+# domain's insertion goes through it and it names no domain, so it belongs here
+# rather than in any one of them. It needs Syntax + Text + the style vocabulary,
+# and base's `@domain` reflection for the candidate names.
+include("syntax/InsertionToSyntax.jl")
+
+# ── Slice — gesturehelp (what can I press here, and the command palette) ─
+# Domain-neutral editor features: the gesture map document, the command palette,
+# their syntax printers, and the two decorators that put them on the screen.
+# They print to Syntax and open windows, so they follow syntax/ and screen/.
+include("gesturehelp/GestureMap.jl")
+include("gesturehelp/CommandPalette.jl")
+include("gesturehelp/GestureMapToSyntax.jl")
+include("gesturehelp/CommandPaletteToSyntax.jl")
+include("gesturehelp/CommandPaletteDecorator.jl")
+include("gesturehelp/GestureHelpDecorator.jl")
+
+# ── Slice — gesturelog (what was pressed, as a panel over anything) ──────
+# The log document, its syntax printer, the recorder that decorates an arbitrary
+# projection, and the overlay that draws the panel.
+include("gesturelog/GestureLog.jl")
+include("gesturelog/GestureLogToSyntax.jl")
+include("gesturelog/GestureLogRecorder.jl")
+include("gesturelog/GestureLogOverlay.jl")
 
 # ── Slice — fileformat (natural text I/O + the document-file entry point) ───
 # NaturalFormat renders a document to text via the domain's ToSyntax + the shared
@@ -251,13 +290,20 @@ include("syntax/PrimitiveToSyntax.jl")
 # (natural_syntax_projection / natural_extension / parse_natural / new_document_seed).
 include("fileformat/NaturalFormat.jl")
 include("fileformat/DocumentFile.jl")
+# EmbedToSyntax makes a cross-file embed part of the shared to-syntax fabric, so
+# a document spliced in by a marker renders as itself rather than as the marker's
+# text. It is neutral about the host format and belongs beside the marker and the
+# file document it prints.
+include("fileformat/EmbedToSyntax.jl")
 
-# ── Slice — naturalprojection (the render-anything dispatch tables) ─────────
-# The two tables the natural renderer is built from. They hold no entry of
-# their own: each domain registers its own row from a file it already has, so
-# the renderer never names a domain. Depends on nothing, so it can sit anywhere
-# a domain file can reach.
+# ── Slice — naturalprojection (render anything, from a registry) ────────────
+# NaturalRegistry holds the two tables the renderer is built from. They hold no
+# entry of their own: each domain registers its own row from a file it already
+# has, so the renderer never names a domain. NaturalProjection is the renderer
+# itself, so it follows every stage it splices — widget, layout, text, syntax,
+# and the embed rules above.
 include("naturalprojection/NaturalRegistry.jl")
+include("naturalprojection/NaturalProjection.jl")
 
 # ── Slice 8 — interaction decorators (clipboard / tooltip / inspector) ───
 # Domain-independent higher-order projections that decorate an arbitrary

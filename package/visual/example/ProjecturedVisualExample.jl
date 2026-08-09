@@ -45,6 +45,7 @@ for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
     end
 end
 
+include("document/GestureMap.jl")
 include("document/Syntax.jl")
 include("document/Text.jl")
 include("document/Object.jl")
@@ -131,6 +132,7 @@ export make_widget_list_document_example, make_widget_menu_document_example
 export make_widget_menu_item_document_example, make_widget_option_document_example
 export make_widget_popup_document_example, make_widget_popup_projection_example
 export make_widget_progress_document_example, make_widget_projection_example
+export make_gesture_map_document_example
 export make_pane_document_example, make_empty_pane_document_example, make_pane_projection_example
 export make_widget_radio_group_document_example, make_widget_scroll_bar_document_example
 export make_widget_scroll_pane_document_example, make_widget_select_document_example

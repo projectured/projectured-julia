@@ -31,7 +31,7 @@ knows whether the chart is drawn horizontally or vertically.
 """
 module SequenceChartGeometryModule
 
-import ..ChartGeometryModule: AxisScale, to_pixel, to_data, nice_ticks, format_tick
+import ..PlotGeometryModule: AxisScale, to_pixel, to_data, nice_ticks, format_tick
 
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
        timeline_coordinates, default_nonlinear_focus,

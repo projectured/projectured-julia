@@ -61,7 +61,7 @@ import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
                                       zero_time_spans, axis_cross_positions,
                                       arc_geometry, arc_height, split_arrow, arrow_route,
                                       decimate_events, arrow_coverage_dedup, band_intervals
-import ..ChartGeometryModule: AxisScale, to_pixel, to_data
+import ..PlotGeometryModule: AxisScale, to_pixel, to_data
 import ..PlotStyleModule: series_color, marker_polygon
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon,

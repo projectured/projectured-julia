@@ -15,7 +15,7 @@ using ProjecturedDomain.FileProjectModule
 using ProjecturedDomain.MarkdownFileModule
 using ProjecturedDomain.MarkdownModule: MarkdownDocument, MarkdownRoot
 using ProjecturedDomain.MarkdownToSyntaxModule: MarkdownToSyntax
-using ProjecturedDomain.NaturalProjectionModule: natural_to_syntax_dispatch
+using ProjecturedVisual.NaturalProjectionModule: natural_to_syntax_dispatch
 using ProjecturedDomain.TypeDispatchingProjectionModule: TypeDispatchingProjection
 using ProjecturedDomain.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedDomain.ChainingProjectionModule: ChainingProjection
@@ -30,7 +30,7 @@ using ProjecturedDomain.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedDomain.SelectionModule: set_selection!, get_selection
 using ProjecturedDomain.NaturalFormatModule: document_to_text
-using ProjecturedDomain.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedVisual.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedDomain.WidgetModule: WidgetButton
 using ProjecturedDomain.GeometryModule: Point2D
 using ProjecturedDomain.GraphicsModule: GraphicsCanvas

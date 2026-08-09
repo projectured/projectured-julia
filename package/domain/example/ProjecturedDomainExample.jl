@@ -65,7 +65,6 @@ include("document/Rst.jl")
 include("document/FileSystem.jl")
 include("document/Navigator.jl")
 include("document/Focusing.jl")
-include("document/GestureMap.jl")
 include("document/Pane.jl")
 include("document/Workbench.jl")
 include("document/Assistant.jl")
@@ -269,7 +268,6 @@ export make_workbench_descriptor_document_example, make_workbench_editor_documen
 export make_workbench_evaluator_document_example, make_workbench_navigator_document_example
 export make_workbench_operator_document_example, make_workbench_page_document_example
 export make_workbench_searcher_document_example, make_workbench_workbench_document_example
-export make_gesture_map_document_example
 export make_workbench_projection_example, make_xml_document_example
 export make_xml_projection_example, make_yaml_document_example, make_yaml_projection_example
 export markdown_example, markdown_rendered_example, math_example, math_display_example, math_table_example

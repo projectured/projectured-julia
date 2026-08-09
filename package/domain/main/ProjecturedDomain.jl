@@ -127,6 +127,13 @@ const SyntaxToTextModule = ProjecturedVisual.SyntaxToTextModule
 const ObjectToSyntaxModule = ProjecturedVisual.ObjectToSyntaxModule
 const CollectionToSyntaxModule = ProjecturedVisual.CollectionToSyntaxModule
 const PrimitiveToSyntaxModule = ProjecturedVisual.PrimitiveToSyntaxModule
+# The shared insert-by-typing leaf and the `*Nothing` placeholder leaf. Every
+# domain's insertion prints through it.
+const DocumentInsertionToSyntaxModule = ProjecturedVisual.DocumentInsertionToSyntaxModule
+
+# Plot — the vocabulary a chart and a sequence chart share.
+const PlotGeometryModule = ProjecturedVisual.PlotGeometryModule
+const PlotStyleModule = ProjecturedVisual.PlotStyleModule
 
 # Backend
 const ConsoleBackendModule = ProjecturedVisual.ConsoleBackendModule
@@ -148,9 +155,6 @@ const DocumentFileModule = ProjecturedVisual.DocumentFileModule
 # slice DAG.
 include("json/Json.jl")
 include("yaml/Yaml.jl")
-include("gesturemap/GestureMap.jl")
-include("gesturemap/CommandPalette.jl")
-include("gesturelog/GestureLog.jl")
 include("math/Math.jl")
 include("julia/Julia.jl")
 include("database/DatabaseInstance.jl")
@@ -159,15 +163,12 @@ include("dbcatalog/DbCatalog.jl")
 include("sql/Sql.jl")
 include("xml/Xml.jl")
 include("filesystem/FileSystem.jl")
-include("component/Component.jl")
 include("workbench/Workspace.jl")
 include("graph/Graph.jl")
 include("graph/GraphLayout.jl")
 include("graph/GraphLayoutEngine.jl")
 # The plot vocabulary both plotted notations share: the arithmetic and the
 # colour/marker cycles. Neither the chart nor the sequence chart owns it.
-include("chart/PlotStyle.jl")
-include("chart/ChartGeometry.jl")
 include("chart/ChartSampleReferenceStep.jl")
 include("chart/Chart.jl")
 include("chart/ChartPlot.jl")
@@ -195,12 +196,10 @@ include("markdown/MarkdownParser.jl")
 include("rst/RstParser.jl")
 include("sql/SqlParser.jl")
 include("workbench/Workbench.jl")
-include("gesturemap/GestureHelpDecorator.jl")
 # DocumentInsertionToSyntax before every domain ToSyntax: it defines the shared
 # insertion leaf (typed-name buffer with live completion) and the shared
 # *Nothing placeholder leaf. It names no domain at all — a domain builds its own
 # source insertion from this leaf, in a file it already has.
-include("insertion/InsertionToSyntax.jl")
 # The Julia source hole: the keyword scaffolds and the JuliaInsertion leaf. It
 # needs the generic insertion leaf above and the Julia parser, and JuliaToSyntax
 # needs it, so it sits between them.
@@ -209,14 +208,8 @@ include("json/JsonToSyntax.jl")
 include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
 include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument
 include("yaml/YamlToSyntax.jl")
-include("gesturemap/GestureMapToSyntax.jl")
-include("gesturemap/CommandPaletteToSyntax.jl")
-include("gesturemap/CommandPaletteDecorator.jl")
-include("gesturelog/GestureLogToSyntax.jl")
 # The recorder and the overlay come after the log chain: the overlay names
 # GestureLogToSyntax to render the panel.
-include("gesturelog/GestureLogRecorder.jl")
-include("gesturelog/GestureLogOverlay.jl")
 include("xml/XmlToSyntax.jl")
 include("markdown/MarkdownToSyntax.jl")
 include("rst/RstToSyntax.jl")
@@ -270,8 +263,6 @@ include("dbcatalog/DbCatalogToSyntax.jl")
 include("conversation/ConversationToSyntax.jl")
 include("conversation/ConversationToWidget.jl")
 include("workbench/WorkbenchToWidget.jl")
-include("insertion/EmbedToSyntax.jl")
-include("insertion/NaturalProjection.jl")
 include("database/DatabaseAdapters.jl")
 include("conversation/ConversationEditor.jl")
 include("workbench/WorkbenchAssistant.jl")
